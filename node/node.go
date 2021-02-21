@@ -1,7 +1,9 @@
 package node
 
 import (
+	"context"
 	"fmt"
+	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
 	tmnode "github.com/lazyledger/lazyledger-core/node"
@@ -44,7 +46,13 @@ func NewNode(
 
 
 func (n *Node) OnStart() error {
-	panic("implement me")
+	n.Logger.Info("optimint: app is running: ", "running", n.proxyApp.IsRunning())
+	response, err := n.proxyApp.Consensus().BeginBlockSync(context.Background(), abci.RequestBeginBlock{
+	})
+	if response != nil {
+		n.Logger.Info("response: ", "resp", response.String())
+	}
+	return err
 }
 
 //func (n *Node) Start() error {
