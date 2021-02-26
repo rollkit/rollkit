@@ -52,30 +52,6 @@ func (n *Node) OnStart() error {
 	return err
 }
 
-//func (n *Node) Start() error {
-//	panic("implement me")
-//}
-
-//func (n *Node) Stop() error {
-//	panic("implement me")
-//}
-
-//func (n *Node) Reset() error {
-//	panic("implement me")
-//}
-
-//func (n *Node) IsRunning() bool {
-//	panic("implement me")
-//}
-
-//func (n *Node) Quit() <-chan struct{} {
-//	panic("implement me")
-//}
-
-//func (n *Node) String() string {
-//	panic("implement me")
-//}
-
 func (n *Node) OnStop() {
 	panic("implement me")
 }
