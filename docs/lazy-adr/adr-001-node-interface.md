@@ -33,6 +33,14 @@ Easiest way to replace it, is to introduce interface that will be implemented by
   * Requires bigger, much more complicated changes in cosmos-sdk
   * Probably can't upstream such changes to cosmos-sdk
 
+## `tendermint` vs `lazyledger-core`
+Right now, either `tendermint` or `lazyledger-core` can be used for base types (including interfaces). 
+Similarly, vanilla `cosomos-sdk` (not a fork under lazyledger organization) can be used as a base for ORU client.
+`lazyledger-core` is a repository created because of needs related to lazyledger client, not optimistic rollups client.
+On the other hand, some of the functionality will be shared between both clients. This will have to be resolved later in time.
+Using 'vanilla' repositories (not forks) probably will make easier to upstream changes if required, and will make scaffolding
+easier.
+
 ## Development
 For development, there are `master-optimint` branches in both `lazyledger-core` and `cosmos-sdk`. Versions with `-optimint` suffix will be released from those branches for easier dependency management during development. Ideally, we should be able to push some changes upstream so we don't need to maintain forks.
 
