@@ -6,12 +6,9 @@ import (
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
-	tmnode "github.com/lazyledger/lazyledger-core/node"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
 )
-
-var _ tmnode.NodeInterface = &Node{}
 
 type Node struct {
 	service.BaseService
