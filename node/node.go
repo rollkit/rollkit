@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
@@ -16,10 +17,7 @@ type Node struct {
 	proxyApp proxy.AppConns
 }
 
-func NewNode(
-	clientCreator proxy.ClientCreator,
-	logger log.Logger,
-) (*Node, error) {
+func NewNode(clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -41,11 +39,9 @@ func NewNode(
 	return node, nil
 }
 
-
 func (n *Node) OnStart() error {
 	n.Logger.Info("optimint: app is running: ", "running", n.proxyApp.IsRunning())
-	response, err := n.proxyApp.Consensus().BeginBlockSync(context.Background(), abci.RequestBeginBlock{
-	})
+	response, err := n.proxyApp.Consensus().BeginBlockSync(context.Background(), abci.RequestBeginBlock{})
 	if response != nil {
 		n.Logger.Info("response: ", "resp", response.String())
 	}
@@ -53,21 +49,15 @@ func (n *Node) OnStart() error {
 }
 
 func (n *Node) OnStop() {
-	panic("implement me")
+	panic("not implemented!")
 }
-
 
 func (n *Node) OnReset() error {
-	panic("implement me")
+	panic("not implemented!")
 }
-
 
 func (n *Node) SetLogger(logger log.Logger) {
 	n.Logger = logger
-}
-
-func (n *Node) ConfigureRPC() error {
-	panic("implement me")
 }
 
 func (n *Node) GetLogger() log.Logger {
@@ -75,5 +65,10 @@ func (n *Node) GetLogger() log.Logger {
 }
 
 func (n *Node) EventBus() *types.EventBus {
-	panic("implement me")
+	return n.eventBus
+}
+
+func (n *Node) ProxyApp() proxy.AppConns {
+	return n.proxyApp
+
 }
