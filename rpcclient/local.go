@@ -3,6 +3,8 @@ package rpcclient
 import (
 	"context"
 	"fmt"
+	"time"
+
 	tmbytes "github.com/lazyledger/lazyledger-core/libs/bytes"
 	tmpubsub "github.com/lazyledger/lazyledger-core/libs/pubsub"
 	tmquery "github.com/lazyledger/lazyledger-core/libs/pubsub/query"
@@ -11,15 +13,15 @@ import (
 	ctypes "github.com/lazyledger/lazyledger-core/rpc/core/types"
 	rpctypes "github.com/lazyledger/lazyledger-core/rpc/jsonrpc/types"
 	"github.com/lazyledger/lazyledger-core/types"
+
 	"github.com/lazyledger/optimint/node"
-	"time"
 )
 
 var _ rpcclient.Client = &Local{}
 
 type Local struct {
 	*types.EventBus
-	ctx      *rpctypes.Context
+	ctx *rpctypes.Context
 }
 
 func NewLocal(node *node.Node) *Local {
