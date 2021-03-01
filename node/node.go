@@ -8,6 +8,8 @@ import (
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
+
+	"github.com/lazyledger/optimint/config"
 )
 
 type Node struct {
@@ -18,7 +20,7 @@ type Node struct {
 	privKey crypto.PrivKey
 }
 
-func NewNode(nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
+func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
