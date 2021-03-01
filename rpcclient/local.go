@@ -1,0 +1,272 @@
+package rpcclient
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	tmbytes "github.com/lazyledger/lazyledger-core/libs/bytes"
+	tmpubsub "github.com/lazyledger/lazyledger-core/libs/pubsub"
+	tmquery "github.com/lazyledger/lazyledger-core/libs/pubsub/query"
+	"github.com/lazyledger/lazyledger-core/proxy"
+	rpcclient "github.com/lazyledger/lazyledger-core/rpc/client"
+	ctypes "github.com/lazyledger/lazyledger-core/rpc/core/types"
+	rpctypes "github.com/lazyledger/lazyledger-core/rpc/jsonrpc/types"
+	"github.com/lazyledger/lazyledger-core/types"
+
+	"github.com/lazyledger/optimint/node"
+)
+
+var _ rpcclient.Client = &Local{}
+
+type Local struct {
+	*types.EventBus
+	ctx *rpctypes.Context
+
+	node *node.Node
+}
+
+func NewLocal(node *node.Node) *Local {
+	return &Local{
+		EventBus: node.EventBus(),
+		ctx:      &rpctypes.Context{},
+		node:     node,
+	}
+}
+
+func (l *Local) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
+	resInfo, err := l.query().InfoSync(ctx, proxy.RequestInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultABCIInfo{Response: *resInfo}, nil
+}
+
+func (l *Local) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
+	return l.ABCIQueryWithOptions(ctx, path, data, rpcclient.DefaultABCIQueryOptions)
+}
+
+func (l *Local) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+	resQuery, err := l.query().QuerySync(ctx, abci.RequestQuery{
+		Path:   path,
+		Data:   data,
+		Height: opts.Height,
+		Prove:  opts.Prove,
+	})
+	if err != nil {
+		return nil, err
+	}
+	l.Logger.Info("ABCIQuery", "path", path, "data", data, "result", resQuery)
+	return &ctypes.ResultABCIQuery{Response: *resQuery}, nil
+}
+
+func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	// needs mempool
+	panic("not implemented!")
+}
+
+func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	// needs mempool
+	panic("not implemented!")
+}
+
+func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	// needs mempool
+	panic("not implemented!")
+}
+
+func (l *Local) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
+	q, err := tmquery.New(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query: %w", err)
+	}
+
+	outCap := 1
+	if len(outCapacity) > 0 {
+		outCap = outCapacity[0]
+	}
+
+	var sub types.Subscription
+	if outCap > 0 {
+		sub, err = l.EventBus.Subscribe(ctx, subscriber, q, outCap)
+	} else {
+		sub, err = l.EventBus.SubscribeUnbuffered(ctx, subscriber, q)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe: %w", err)
+	}
+
+	outc := make(chan ctypes.ResultEvent, outCap)
+	go l.eventsRoutine(sub, subscriber, q, outc)
+
+	return outc, nil
+}
+
+func (l *Local) Unsubscribe(ctx context.Context, subscriber, query string) error {
+	q, err := tmquery.New(query)
+	if err != nil {
+		return fmt.Errorf("failed to parse query: %w", err)
+	}
+	return l.EventBus.Unsubscribe(ctx, subscriber, q)
+}
+
+func (l *Local) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
+	// needs genesis provider
+	panic("not implemented!")
+}
+
+func (l *Local) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+	// needs block store
+	panic("not implemented!")
+}
+
+func (l *Local) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
+	// needs P2P layer
+	panic("not implemented!")
+}
+
+func (l *Local) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
+	// need consensus state
+	panic("not implemented!")
+}
+
+func (l *Local) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
+	// need consensus state
+	panic("not implemented!")
+}
+
+func (l *Local) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
+	// needs state storage
+	panic("not implemented!")
+}
+
+func (l *Local) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
+	return &ctypes.ResultHealth{}, nil
+}
+
+func (l *Local) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
+	// needs block store
+	panic("not implemented!")
+}
+
+func (l *Local) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
+	// needs block store
+	panic("not implemented!")
+}
+
+func (l *Local) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
+	// needs block store
+	panic("not implemented!")
+}
+
+func (l *Local) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
+	// needs block store
+	panic("not implemented!")
+}
+
+func (l *Local) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {
+	panic("not implemented!")
+}
+
+func (l *Local) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
+	// needs block store, tx index (?)
+	panic("not implemented!")
+}
+
+func (l *Local) TxSearch(ctx context.Context, query string, prove bool, page, perPage *int, orderBy string) (*ctypes.ResultTxSearch, error) {
+	// needs block store
+	panic("not implemented!")
+}
+
+func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
+	// needs block store, P2P layer
+	panic("not implemented!")
+}
+
+func (l *Local) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
+	// needs evidence pool?
+	panic("not implemented!")
+}
+
+func (l *Local) UnconfirmedTxs(ctx context.Context, limit *int) (*ctypes.ResultUnconfirmedTxs, error) {
+	// needs mempool
+	panic("not implemented!")
+}
+
+func (l *Local) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
+	// needs mempool
+	panic("not implemented!")
+}
+
+func (l *Local) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
+	res, err := l.mempool().CheckTxSync(ctx, abci.RequestCheckTx{Tx: tx})
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultCheckTx{ResponseCheckTx: *res}, nil
+}
+
+func (l *Local) eventsRoutine(sub types.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
+	for {
+		select {
+		case msg := <-sub.Out():
+			result := ctypes.ResultEvent{Query: q.String(), Data: msg.Data(), Events: msg.Events()}
+			if cap(outc) == 0 {
+				outc <- result
+			} else {
+				select {
+				case outc <- result:
+				default:
+					l.Logger.Error("wanted to publish ResultEvent, but out channel is full", "result", result, "query", result.Query)
+				}
+			}
+		case <-sub.Cancelled():
+			if sub.Err() == tmpubsub.ErrUnsubscribed {
+				return
+			}
+
+			l.Logger.Error("subscription was cancelled, resubscribing...", "err", sub.Err(), "query", q.String())
+			sub = l.resubscribe(subscriber, q)
+			if sub == nil { // client was stopped
+				return
+			}
+		case <-l.Quit():
+			return
+		}
+	}
+}
+
+// Try to resubscribe with exponential backoff.
+func (l *Local) resubscribe(subscriber string, q tmpubsub.Query) types.Subscription {
+	attempts := 0
+	for {
+		if !l.IsRunning() {
+			return nil
+		}
+
+		sub, err := l.EventBus.Subscribe(context.Background(), subscriber, q)
+		if err == nil {
+			return sub
+		}
+
+		attempts++
+		time.Sleep((10 << uint(attempts)) * time.Millisecond) // 10ms -> 20ms -> 40ms
+	}
+}
+
+func (l *Local) consensus() proxy.AppConnConsensus {
+	return l.node.ProxyApp().Consensus()
+}
+
+func (l *Local) mempool() proxy.AppConnMempool {
+	return l.node.ProxyApp().Mempool()
+}
+
+func (l *Local) query() proxy.AppConnQuery {
+	return l.node.ProxyApp().Query()
+}
+
+func (l *Local) snapshot() proxy.AppConnSnapshot {
+	return l.node.ProxyApp().Snapshot()
+}
