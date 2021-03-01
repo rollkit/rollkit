@@ -15,6 +15,7 @@ func GetNodeConfig(cfg *tmcfg.Config) config.NodeConfig {
 
 	if cfg != nil {
 		if cfg.P2P != nil {
+			nodeConf.P2P.ListenAddress = cfg.P2P.ListenAddress
 			nodeConf.P2P.Seeds = cfg.P2P.Seeds
 		}
 	}
