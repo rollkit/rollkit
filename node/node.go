@@ -1,10 +1,8 @@
 package node
 
 import (
-	"context"
 	"fmt"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
 	"github.com/lazyledger/lazyledger-core/proxy"
@@ -40,12 +38,7 @@ func NewNode(clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error
 }
 
 func (n *Node) OnStart() error {
-	n.Logger.Info("optimint: app is running: ", "running", n.proxyApp.IsRunning())
-	response, err := n.proxyApp.Consensus().BeginBlockSync(context.Background(), abci.RequestBeginBlock{})
-	if response != nil {
-		n.Logger.Info("response: ", "resp", response.String())
-	}
-	return err
+	panic("not implemented!")
 }
 
 func (n *Node) OnStop() {
