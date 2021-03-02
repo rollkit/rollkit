@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/lazyledger/optimint/config"
+	"github.com/lazyledger/optimint/p2p"
 )
 
 type Node struct {
@@ -17,7 +18,8 @@ type Node struct {
 	eventBus *types.EventBus
 	proxyApp proxy.AppConns
 
-	privKey crypto.PrivKey
+	conf   config.NodeConfig
+	client *p2p.Client
 }
 
 func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
@@ -33,10 +35,16 @@ func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy
 		return nil, err
 	}
 
+	client, err := p2p.NewClient(conf.P2P, nodeKey, logger.With("module", "p2p"))
+	if err != nil {
+		return nil, err
+	}
+
 	node := &Node{
 		proxyApp: proxyApp,
 		eventBus: eventBus,
-		privKey:  nodeKey,
+		conf:     conf,
+		client:   client,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -44,7 +52,13 @@ func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy
 }
 
 func (n *Node) OnStart() error {
-	panic("not implemented!")
+	n.Logger.Info("starting P2P client")
+	err := n.client.Start()
+	if err != nil {
+		return fmt.Errorf("error while starting P2P client: %w", err)
+	}
+
+	return nil
 }
 
 func (n *Node) OnStop() {
