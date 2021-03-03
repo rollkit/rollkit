@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/libp2p/go-libp2p"
@@ -29,8 +28,7 @@ type Client struct {
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
 	if privKey == nil {
-		// TODO(tzdybal): extract sentinel error
-		return nil, errors.New("private key not provided")
+		return nil, ErrNoPrivKey
 	}
 	if conf.ListenAddress == "" {
 		// TODO(tzdybal): extract const
@@ -56,6 +54,7 @@ func (c *Client) Start() error {
 }
 
 func (c *Client) listen() error {
+	// TODO(tzdybal): consider requiring listen address in multiaddress format
 	maddr, err := GetMultiAddr(c.conf.ListenAddress)
 	if err != nil {
 		return err
@@ -74,11 +73,40 @@ func (c *Client) listen() error {
 	return nil
 }
 
+func (c *Client) bootstrap() error {
+	seeds := strings.Split(c.conf.Seeds, ",")
+	for _, s := range seeds {
+		maddr, err := GetMultiAddr(s)
+		if err != nil {
+			c.logger.Error("error while parsing seed node", "address", s, "error", err)
+			continue
+		}
+		c.logger.Debug("seed", "addr", maddr.String())
+	}
+
+	return nil
+}
+
 func GetMultiAddr(addr string) (multiaddr.Multiaddr, error) {
+	var err error
+	var p2pId multiaddr.Multiaddr
+	if at := strings.IndexRune(addr, '@'); at != -1 {
+		p2pId, err = multiaddr.NewMultiaddr("/p2p/" + addr[:at])
+		if err != nil {
+			return nil, err
+		}
+		addr = addr[at+1:]
+	}
 	parts := strings.Split(addr, ":")
 	if len(parts) != 2 {
-		// TODO(tzdybal): extract sentinel error
-		return nil, errors.New("invalid address format, expected <IPv4>:<PORT>")
+		return nil, ErrInvalidAddress
 	}
-	return multiaddr.NewMultiaddr("/ip4/" + parts[0] + "/tcp/" + parts[1])
+	maddr, err := multiaddr.NewMultiaddr("/ip4/" + parts[0] + "/tcp/" + parts[1])
+	if err != nil {
+		return nil, err
+	}
+	if p2pId != nil {
+		maddr = maddr.Encapsulate(p2pId)
+	}
+	return maddr, nil
 }
