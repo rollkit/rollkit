@@ -3,10 +3,12 @@ package p2p
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/log"
@@ -49,6 +51,10 @@ func (c *Client) Start() error {
 	}
 
 	// start bootstrapping connections
+	err = c.bootstrap()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -74,6 +80,10 @@ func (c *Client) listen() error {
 }
 
 func (c *Client) bootstrap() error {
+	if len(strings.TrimSpace(c.conf.Seeds)) == 0 {
+		c.logger.Info("no seed nodes - only listening for connections")
+		return nil
+	}
 	seeds := strings.Split(c.conf.Seeds, ",")
 	for _, s := range seeds {
 		maddr, err := GetMultiAddr(s)
@@ -82,6 +92,20 @@ func (c *Client) bootstrap() error {
 			continue
 		}
 		c.logger.Debug("seed", "addr", maddr.String())
+		// TODO(tzdybal): configuration param for connection timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
+		if err != nil {
+			c.logger.Error("error while creating address info", "error", err)
+			continue
+		}
+		err = c.host.Connect(ctx, *addrInfo)
+		if err != nil {
+			c.logger.Error("error while connecting to seed node", "error", err)
+			continue
+		}
+		c.logger.Debug("connected to seed node", "address", s)
 	}
 
 	return nil
