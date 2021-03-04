@@ -20,6 +20,7 @@ type Client struct {
 	conf    config.P2PConfig
 	privKey crypto.PrivKey
 
+	ctx  context.Context
 	host host.Host
 
 	logger log.Logger
@@ -28,7 +29,7 @@ type Client struct {
 // NewClient creates new Client object
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
+func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, ErrNoPrivKey
 	}
@@ -37,6 +38,7 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger)
 		conf.ListenAddress = "0.0.0.0:7676"
 	}
 	return &Client{
+		ctx:     ctx,
 		conf:    conf,
 		privKey: privKey,
 		logger:  logger,
@@ -66,8 +68,7 @@ func (c *Client) listen() error {
 		return err
 	}
 
-	//TODO(tzdybal): think about per-client context
-	host, err := libp2p.New(context.Background(), libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
+	host, err := libp2p.New(c.ctx, libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
 	if err != nil {
 		return err
 	}
@@ -93,7 +94,7 @@ func (c *Client) bootstrap() error {
 		}
 		c.logger.Debug("seed", "addr", maddr.String())
 		// TODO(tzdybal): configuration param for connection timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(c.ctx, 3*time.Second)
 		defer cancel()
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
