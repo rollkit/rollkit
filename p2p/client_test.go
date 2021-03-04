@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"crypto/rand"
 	"strings"
 	"testing"
@@ -33,7 +34,7 @@ func (t *TestLogger) Error(msg string, keyvals ...interface{}) {
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	client, err := NewClient(config.P2PConfig{}, privKey, &TestLogger{t})
+	client, err := NewClient(context.Background(), config.P2PConfig{}, privKey, &TestLogger{t})
 	assert := assert.New(t)
 	assert.NoError(err)
 	assert.NotNil(client)
@@ -60,19 +61,19 @@ func TestBootstrapping(t *testing.T) {
 	require.NotEmpty(cid2)
 
 	// client1 has no seeds
-	client1, err := NewClient(config.P2PConfig{ListenAddress: "127.0.0.1:7676"}, privKey1, logger)
+	client1, err := NewClient(context.Background(), config.P2PConfig{ListenAddress: "127.0.0.1:7676"}, privKey1, logger)
 	require.NoError(err)
 	require.NotNil(client1)
 
 	// client2 will use client1 as predefined seed
-	client2, err := NewClient(config.P2PConfig{
+	client2, err := NewClient(context.Background(), config.P2PConfig{
 		ListenAddress: "127.0.0.1:7677",
 		Seeds:         cid1.Pretty() + "@127.0.0.1:7676",
 	}, privKey2, logger)
 	require.NoError(err)
 
 	// client3 will use clien1 and client2 as seeds
-	client3, err := NewClient(config.P2PConfig{
+	client3, err := NewClient(context.Background(), config.P2PConfig{
 		ListenAddress: "127.0.0.1:7678",
 		Seeds:         cid1.Pretty() + "@127.0.0.1:7676" + "," + cid2.Pretty() + "@127.0.0.1:7677",
 	}, privKey3, logger)

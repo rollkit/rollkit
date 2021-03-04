@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lazyledger/lazyledger-core/libs/log"
@@ -22,7 +23,7 @@ type Node struct {
 	client *p2p.Client
 }
 
-func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
+func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -35,7 +36,7 @@ func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy
 		return nil, err
 	}
 
-	client, err := p2p.NewClient(conf.P2P, nodeKey, logger.With("module", "p2p"))
+	client, err := p2p.NewClient(ctx, conf.P2P, nodeKey, logger.With("module", "p2p"))
 	if err != nil {
 		return nil, err
 	}
