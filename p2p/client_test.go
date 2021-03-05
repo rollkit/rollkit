@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -44,6 +46,8 @@ func TestClientStartup(t *testing.T) {
 }
 
 func TestBootstrapping(t *testing.T) {
+	log.SetLogLevel("dht", "DEBUG")
+
 	assert := assert.New(t)
 	require := require.New(t)
 	logger := &TestLogger{t}
@@ -51,6 +55,7 @@ func TestBootstrapping(t *testing.T) {
 	privKey1, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	privKey2, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	privKey3, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	privKey4, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
 	cid1, err := peer.IDFromPrivateKey(privKey1)
 	require.NoError(err)
@@ -79,6 +84,13 @@ func TestBootstrapping(t *testing.T) {
 	}, privKey3, logger)
 	require.NoError(err)
 
+	// client4 will use clien1 as seed
+	client4, err := NewClient(context.Background(), config.P2PConfig{
+		ListenAddress: "127.0.0.1:7679",
+		Seeds:         cid1.Pretty() + "@127.0.0.1:7676",
+	}, privKey4, logger)
+	require.NoError(err)
+
 	err = client1.Start()
 	assert.NoError(err)
 
@@ -88,9 +100,20 @@ func TestBootstrapping(t *testing.T) {
 	err = client3.Start()
 	assert.NoError(err)
 
-	assert.Equal(2, len(client1.host.Network().Peers()))
+	err = client4.Start()
+	assert.NoError(err)
+
+	assert.Equal(3, len(client1.host.Network().Peers()))
 	assert.Equal(2, len(client2.host.Network().Peers()))
 	assert.Equal(2, len(client3.host.Network().Peers()))
+	assert.Equal(1, len(client4.host.Network().Peers()))
+
+	time.Sleep(10 * time.Minute)
+
+	assert.Equal(3, len(client1.host.Network().Peers()))
+	assert.Equal(3, len(client2.host.Network().Peers()))
+	assert.Equal(3, len(client3.host.Network().Peers()))
+	assert.Equal(3, len(client4.host.Network().Peers()))
 }
 
 func TestGetMultiaddr(t *testing.T) {

@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,6 +10,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	discovery "github.com/libp2p/go-libp2p-discovery"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	routing "github.com/libp2p/go-libp2p-routing"
+	//rhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/log"
@@ -22,6 +27,8 @@ type Client struct {
 
 	ctx  context.Context
 	host host.Host
+	dht  *dht.IpfsDHT
+	disc *discovery.RoutingDiscovery
 
 	logger log.Logger
 }
@@ -58,6 +65,27 @@ func (c *Client) Start() error {
 		return err
 	}
 
+	err = c.dht.Bootstrap(c.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to bootstrap DHT routing table: %w", err)
+	}
+
+	c.disc = discovery.NewRoutingDiscovery(c.dht)
+	// TODO(tzdybal) - find cosmos-sdk config for number of peers limit
+	// TODO(tzdybal) - extract ns as const or config
+	discovery.Advertise(c.ctx, c.disc, "ORU")
+
+	peerCh, err := c.disc.FindPeers(c.ctx, "ORU")
+	if err != nil {
+		return err
+	}
+	for peer := range peerCh {
+		if peer.ID == c.host.ID() {
+			continue
+		}
+		fmt.Println("tzdybal:", peer)
+	}
+
 	return nil
 }
 
@@ -68,15 +96,23 @@ func (c *Client) listen() error {
 		return err
 	}
 
-	host, err := libp2p.New(c.ctx, libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
+	host, err := libp2p.New(c.ctx,
+		libp2p.ListenAddrs(maddr),
+		libp2p.Identity(c.privKey),
+		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			c.dht, err = dht.New(c.ctx, h)
+			return c.dht, err
+		}),
+	)
 	if err != nil {
 		return err
 	}
+	c.host = host
+
 	for _, a := range host.Addrs() {
-		c.logger.Info("listening on", "address", a)
+		c.logger.Info("listening on", "address", a, "ID", c.host.ID())
 	}
 
-	c.host = host
 	return nil
 }
 
@@ -110,6 +146,27 @@ func (c *Client) bootstrap() error {
 	}
 
 	return nil
+}
+
+func (c *Client) getSeedAddrInfo() []peer.AddrInfo {
+	seeds := strings.Split(c.conf.Seeds, ",")
+	addrs := make([]peer.AddrInfo, len(seeds))
+	for _, s := range seeds {
+		maddr, err := GetMultiAddr(s)
+		if err != nil {
+			c.logger.Error("error while parsing seed node", "address", s, "error", err)
+			continue
+		}
+		c.logger.Debug("seed", "addr", maddr.String())
+		// TODO(tzdybal): configuration param for connection timeout
+		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
+		if err != nil {
+			c.logger.Error("error while creating address info", "error", err)
+			continue
+		}
+		addrs = append(addrs, *addrInfo)
+	}
+	return addrs
 }
 
 func GetMultiAddr(addr string) (multiaddr.Multiaddr, error) {
