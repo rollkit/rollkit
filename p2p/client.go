@@ -12,8 +12,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	routing "github.com/libp2p/go-libp2p-routing"
-	//rhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/log"
@@ -65,6 +63,11 @@ func (c *Client) Start() error {
 		return err
 	}
 
+	c.dht, err = dht.New(c.ctx, c.host, dht.Mode(dht.ModeServer))
+	if err != nil {
+		return err
+	}
+
 	err = c.dht.Bootstrap(c.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap DHT routing table: %w", err)
@@ -99,10 +102,6 @@ func (c *Client) listen() error {
 	host, err := libp2p.New(c.ctx,
 		libp2p.ListenAddrs(maddr),
 		libp2p.Identity(c.privKey),
-		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			c.dht, err = dht.New(c.ctx, h)
-			return c.dht, err
-		}),
 	)
 	if err != nil {
 		return err
