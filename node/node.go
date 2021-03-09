@@ -7,15 +7,22 @@ import (
 	"github.com/lazyledger/lazyledger-core/libs/service"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
+	"github.com/libp2p/go-libp2p-core/crypto"
+
+	"github.com/lazyledger/optimint/config"
+	"github.com/lazyledger/optimint/p2p"
 )
 
 type Node struct {
 	service.BaseService
 	eventBus *types.EventBus
 	proxyApp proxy.AppConns
+
+	conf   config.NodeConfig
+	client *p2p.Client
 }
 
-func NewNode(clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
+func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -28,9 +35,16 @@ func NewNode(clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error
 		return nil, err
 	}
 
+	client, err := p2p.NewClient(conf.P2P, nodeKey, logger.With("module", "p2p"))
+	if err != nil {
+		return nil, err
+	}
+
 	node := &Node{
 		proxyApp: proxyApp,
 		eventBus: eventBus,
+		conf:     conf,
+		client:   client,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -38,7 +52,13 @@ func NewNode(clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error
 }
 
 func (n *Node) OnStart() error {
-	panic("not implemented!")
+	n.Logger.Info("starting P2P client")
+	err := n.client.Start()
+	if err != nil {
+		return fmt.Errorf("error while starting P2P client: %w", err)
+	}
+
+	return nil
 }
 
 func (n *Node) OnStop() {
