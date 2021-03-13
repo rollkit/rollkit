@@ -105,7 +105,7 @@ func (c *Client) listen() error {
 }
 
 func (c *Client) setupDHT() error {
-	seedNodes := c.getSeedAddrInfo()
+	seedNodes := c.getSeedAddrInfo(c.conf.Seeds)
 	if len(seedNodes) == 0 {
 		c.logger.Info("no seed nodes - only listening for connections")
 	}
@@ -127,11 +127,11 @@ func (c *Client) setupDHT() error {
 	return nil
 }
 
-func (c *Client) getSeedAddrInfo() []peer.AddrInfo {
-	if len(c.conf.Seeds) == 0 {
+func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
+	if len(seedStr) == 0 {
 		return []peer.AddrInfo{}
 	}
-	seeds := strings.Split(c.conf.Seeds, ",")
+	seeds := strings.Split(seedStr, ",")
 	addrs := make([]peer.AddrInfo, 0, len(seeds))
 	for _, s := range seeds {
 		maddr, err := multiaddr.NewMultiaddr(s)
