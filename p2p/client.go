@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -18,7 +17,11 @@ import (
 	"github.com/lazyledger/optimint/log"
 )
 
-// Client is a P2P client, implemented with libp2p
+// Client is a P2P client, implemented with libp2p.
+//
+// Initially, client connects to predefined seed nodes (aka bootnodes, bootstrap nodes).
+// Those seed nodes serve Kademlia DHT protocol, and are agnostic to ORU chain. Using DHT
+// peer routing and discovery clients find other peers within ORU network.
 type Client struct {
 	conf    config.P2PConfig
 	privKey crypto.PrivKey
@@ -31,7 +34,7 @@ type Client struct {
 	logger log.Logger
 }
 
-// NewClient creates new Client object
+// NewClient creates new Client object.
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
@@ -51,31 +54,32 @@ func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKe
 }
 
 func (c *Client) Start() error {
-	c.logger.Debug("Starting P2P client")
+	c.logger.Debug("starting P2P client")
 	err := c.listen()
 	if err != nil {
 		return err
 	}
 
-	// start bootstrapping connections
-	err = c.bootstrap()
+	c.logger.Debug("setting up DHT")
+	err = c.setupDHT()
 	if err != nil {
 		return err
 	}
 
-	/*
-		c.dht, err = dht.New(c.ctx, c.host, dht.Mode(dht.ModeServer))
-		if err != nil {
-			return err
-		}
-
-		err = c.dht.Bootstrap(c.ctx)
-		if err != nil {
-			return fmt.Errorf("failed to bootstrap DHT routing table: %w", err)
-		}
-	*/
-
 	return nil
+}
+
+func (c *Client) Close() error {
+	dhtErr := c.dht.Close()
+	if dhtErr != nil {
+		c.logger.Error("failed to close DHT", "error", dhtErr)
+	}
+	err := c.host.Close()
+	if err != nil {
+		c.logger.Error("failed to close P2P host", "error", err)
+		return err
+	}
+	return dhtErr
 }
 
 func (c *Client) listen() error {
@@ -88,10 +92,6 @@ func (c *Client) listen() error {
 	c.host, err = libp2p.New(c.ctx,
 		libp2p.ListenAddrs(maddr),
 		libp2p.Identity(c.privKey),
-		/*libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			c.dht, err = dht.New(c.ctx, h, dht.Mode(dht.ModeServer))
-			return c.dht, err
-		}),*/
 	)
 	if err != nil {
 		return err
@@ -104,35 +104,26 @@ func (c *Client) listen() error {
 	return nil
 }
 
-func (c *Client) bootstrap() error {
-	if len(strings.TrimSpace(c.conf.Seeds)) == 0 {
+func (c *Client) setupDHT() error {
+	seedNodes := c.getSeedAddrInfo()
+	if len(seedNodes) == 0 {
 		c.logger.Info("no seed nodes - only listening for connections")
-		return nil
-	}
-	seeds := strings.Split(c.conf.Seeds, ",")
-	for _, s := range seeds {
-		maddr, err := multiaddr.NewMultiaddr(s)
-		if err != nil {
-			c.logger.Error("error while parsing seed node", "address", s, "error", err)
-			continue
-		}
-		c.logger.Debug("seed", "addr", maddr.String())
-		// TODO(tzdybal): configuration param for connection timeout
-		ctx, cancel := context.WithTimeout(c.ctx, 3*time.Second)
-		defer cancel()
-		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
-		if err != nil {
-			c.logger.Error("error while creating address info", "error", err)
-			continue
-		}
-		err = c.host.Connect(ctx, *addrInfo)
-		if err != nil {
-			c.logger.Error("error while connecting to seed node", "error", err)
-			continue
-		}
-		c.logger.Debug("connected to seed node", "address", s)
 	}
 
+	for _, sa := range seedNodes {
+		c.logger.Debug("seed node", "addr", sa)
+	}
+
+	var err error
+	c.dht, err = dht.New(c.ctx, c.host, dht.Mode(dht.ModeServer), dht.BootstrapPeers(seedNodes...))
+	if err != nil {
+		return fmt.Errorf("failed to create DHT: %w", err)
+	}
+
+	err = c.dht.Bootstrap(c.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to bootstrap DHT: %w", err)
+	}
 	return nil
 }
 
@@ -141,7 +132,7 @@ func (c *Client) getSeedAddrInfo() []peer.AddrInfo {
 		return []peer.AddrInfo{}
 	}
 	seeds := strings.Split(c.conf.Seeds, ",")
-	addrs := make([]peer.AddrInfo, len(seeds))
+	addrs := make([]peer.AddrInfo, 0, len(seeds))
 	for _, s := range seeds {
 		maddr, err := multiaddr.NewMultiaddr(s)
 		if err != nil {
@@ -149,7 +140,6 @@ func (c *Client) getSeedAddrInfo() []peer.AddrInfo {
 			continue
 		}
 		c.logger.Debug("seed", "addr", maddr.String())
-		// TODO(tzdybal): configuration param for connection timeout
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
 			c.logger.Error("error while creating address info", "error", err)

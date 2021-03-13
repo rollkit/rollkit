@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,9 @@ func TestClientStartup(t *testing.T) {
 	assert.NotNil(client)
 
 	err = client.Start()
+	defer client.Close()
 	assert.NoError(err)
+
 }
 
 func TestBootstrapping(t *testing.T) {
@@ -90,17 +93,27 @@ func TestBootstrapping(t *testing.T) {
 	require.NoError(err)
 
 	err = client1.Start()
+	defer client1.Close()
 	assert.NoError(err)
 	time.Sleep(1 * time.Second)
 
 	err = client2.Start()
+	defer client2.Close()
 	assert.NoError(err)
 
 	err = client3.Start()
+	defer client3.Close()
 	assert.NoError(err)
 
 	err = client4.Start()
+	defer client4.Close()
 	assert.NoError(err)
+
+	// wait for clients to finish refreshing routing tables
+	<-client1.dht.RefreshRoutingTable()
+	<-client2.dht.RefreshRoutingTable()
+	<-client3.dht.RefreshRoutingTable()
+	<-client4.dht.RefreshRoutingTable()
 
 	assert.Equal(3, len(client1.host.Network().Peers()))
 	assert.Equal(3, len(client2.host.Network().Peers()))
