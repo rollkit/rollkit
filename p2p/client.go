@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	cdiscovery "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	discovery "github.com/libp2p/go-libp2p-discovery"
@@ -24,6 +26,7 @@ import (
 // peer routing and discovery clients find other peers within ORU network.
 type Client struct {
 	conf    config.P2PConfig
+	chainID string
 	privKey crypto.PrivKey
 
 	ctx  context.Context
@@ -37,6 +40,8 @@ type Client struct {
 // NewClient creates new Client object.
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
+// TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
+// TODO(tzdybal): pass chainID
 func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, ErrNoPrivKey
@@ -52,6 +57,12 @@ func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKe
 	}, nil
 }
 
+// Start establish Client's P2P connectivity.
+//
+// Following steps are taken:
+// 1. Setup libp2p host, start listening for incoming connections.
+// 2. Setup DHT, establish connection to seed nodes and initialize peer discovery.
+// 3. Use active peer discovery to look for peers from same ORU network.
 func (c *Client) Start() error {
 	c.logger.Debug("starting P2P client")
 	err := c.listen()
@@ -65,9 +76,16 @@ func (c *Client) Start() error {
 		return err
 	}
 
+	c.logger.Debug("setting up active peer discovery")
+	err = c.peerDiscovery()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
+// Close gently stops Client.
 func (c *Client) Close() error {
 	dhtErr := c.dht.Close()
 	if dhtErr != nil {
@@ -126,6 +144,44 @@ func (c *Client) setupDHT() error {
 	return nil
 }
 
+func (c *Client) peerDiscovery() error {
+	err := c.advertise()
+	if err != nil {
+		return err
+	}
+
+	err = c.findPeers()
+	return err
+}
+
+func (c *Client) advertise() error {
+	// TODO(tzdybal): add configuration parameter for re-advertise frequency
+	_, err := c.disc.Advertise(c.ctx, c.getNamespace(), discovery.TTL(1*time.Hour))
+	return err
+}
+
+func (c *Client) findPeers() error {
+	// TODO(tzdybal): add configuration parameter for max peers
+	peerCh, err := c.disc.FindPeers(c.ctx, c.getNamespace(), cdiscovery.Limit(60))
+	if err != nil {
+		return err
+	}
+
+	for peer := range peerCh {
+		go c.tryConnect(peer)
+	}
+
+	return nil
+}
+
+// tryConnect attempts to connect to a peer and logs error if necessary
+func (c *Client) tryConnect(peer peer.AddrInfo) {
+	err := c.host.Connect(c.ctx, peer)
+	if err != nil {
+		c.logger.Error("failed to connect to peer", "peer", peer, "error", err)
+	}
+}
+
 func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
 	if len(seedStr) == 0 {
 		return []peer.AddrInfo{}
@@ -135,16 +191,23 @@ func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
 	for _, s := range seeds {
 		maddr, err := multiaddr.NewMultiaddr(s)
 		if err != nil {
-			c.logger.Error("error while parsing seed node", "address", s, "error", err)
+			c.logger.Error("failed to parse seed node", "address", s, "error", err)
 			continue
 		}
-		c.logger.Debug("seed", "addr", maddr.String())
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
-			c.logger.Error("error while creating address info", "error", err)
+			c.logger.Error("failed to create addr info for seed", "address", maddr, "error", err)
 			continue
 		}
 		addrs = append(addrs, *addrInfo)
 	}
 	return addrs
+}
+
+// getNamespace returns unique string identifying ORU network.
+//
+// It is used to advertise/find peers in libp2p DHT.
+// For now, chainID is used.
+func (c *Client) getNamespace() string {
+	return c.chainID
 }
