@@ -42,7 +42,6 @@ func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKe
 		return nil, ErrNoPrivKey
 	}
 	if conf.ListenAddress == "" {
-		// TODO(tzdybal): extract const
 		conf.ListenAddress = config.DefaultListenAddress
 	}
 	return &Client{
