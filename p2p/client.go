@@ -145,19 +145,35 @@ func (c *Client) setupDHT() error {
 }
 
 func (c *Client) peerDiscovery() error {
-	err := c.advertise()
+	err := c.setupPeerDiscovery()
+	if err != nil {
+		return err
+	}
+
+	err = c.advertise()
 	if err != nil {
 		return err
 	}
 
 	err = c.findPeers()
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) setupPeerDiscovery() error {
+	// wait for DHT
+	<-c.dht.RefreshRoutingTable()
+	c.disc = discovery.NewRoutingDiscovery(c.dht)
+	return nil
 }
 
 func (c *Client) advertise() error {
 	// TODO(tzdybal): add configuration parameter for re-advertise frequency
-	_, err := c.disc.Advertise(c.ctx, c.getNamespace(), discovery.TTL(1*time.Hour))
-	return err
+	discovery.Advertise(c.ctx, c.disc, c.getNamespace(), discovery.TTL(1*time.Hour))
+	return nil
 }
 
 func (c *Client) findPeers() error {

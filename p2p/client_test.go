@@ -23,14 +23,17 @@ type TestLogger struct {
 }
 
 func (t *TestLogger) Debug(msg string, keyvals ...interface{}) {
+	t.t.Helper()
 	t.t.Log(append([]interface{}{"DEBUG: " + msg}, keyvals...)...)
 }
 
 func (t *TestLogger) Info(msg string, keyvals ...interface{}) {
+	t.t.Helper()
 	t.t.Log(append([]interface{}{"INFO:  " + msg}, keyvals...)...)
 }
 
 func (t *TestLogger) Error(msg string, keyvals ...interface{}) {
+	t.t.Helper()
 	t.t.Log(append([]interface{}{"ERROR: " + msg}, keyvals...)...)
 }
 
@@ -64,8 +67,8 @@ func TestClientStartup(t *testing.T) {
 }
 
 func TestBootstrapping(t *testing.T) {
-	//log.SetLogLevel("dht", "DEBUG")
-	log.SetDebugLogging()
+	log.SetLogLevel("dht", "INFO")
+	//log.SetDebugLogging()
 
 	assert := assert.New(t)
 	require := require.New(t)
@@ -137,6 +140,10 @@ func TestBootstrapping(t *testing.T) {
 	assert.Equal(3, len(client2.host.Network().Peers()))
 	assert.Equal(3, len(client3.host.Network().Peers()))
 	assert.Equal(3, len(client4.host.Network().Peers()))
+}
+
+func TestDiscovery(t *testing.T) {
+
 }
 
 func TestSeedStringParsing(t *testing.T) {
