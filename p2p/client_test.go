@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -116,7 +115,6 @@ func TestBootstrapping(t *testing.T) {
 	err = client1.Start()
 	defer client1.Close()
 	assert.NoError(err)
-	time.Sleep(1 * time.Second)
 
 	err = client2.Start()
 	defer client2.Close()
@@ -143,7 +141,100 @@ func TestBootstrapping(t *testing.T) {
 }
 
 func TestDiscovery(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+	logger := &TestLogger{t}
 
+	// TODO: create helper function to create "connected" network
+	privKey1, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	privKey2, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	privKey3, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	privKey4, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	privKey5, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+
+	cid1, err := peer.IDFromPrivateKey(privKey1)
+	require.NoError(err)
+	require.NotEmpty(cid1)
+
+	cid2, err := peer.IDFromPrivateKey(privKey2)
+	require.NoError(err)
+	require.NotEmpty(cid2)
+
+	cid3, err := peer.IDFromPrivateKey(privKey3)
+	require.NoError(err)
+	require.NotEmpty(cid2)
+
+	// client1 has no seeds
+	client1, err := NewClient(context.Background(), config.P2PConfig{ListenAddress: "/ip4/0.0.0.0/tcp/7676"}, privKey1, logger)
+	require.NoError(err)
+	require.NotNil(client1)
+
+	// client2 will use client1 as predefined seed
+	client2, err := NewClient(context.Background(), config.P2PConfig{
+		ListenAddress: "/ip4/127.0.0.1/tcp/7677",
+		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.String(),
+	}, privKey2, logger)
+	require.NoError(err)
+
+	// client3 will use clien1 as predefined seed
+	client3, err := NewClient(context.Background(), config.P2PConfig{
+		ListenAddress: "/ip4/127.0.0.1/tcp/7678",
+		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.String(),
+	}, privKey3, logger)
+	require.NoError(err)
+
+	// client4 will use clien2 as seed
+	client4, err := NewClient(context.Background(), config.P2PConfig{
+		ListenAddress: "/ip4/127.0.0.1/tcp/7679",
+		Seeds:         "/ip4/127.0.0.1/tcp/7677/p2p/" + cid2.String(),
+	}, privKey4, logger)
+	require.NoError(err)
+
+	// client5 will use clien2 as seed
+	client5, err := NewClient(context.Background(), config.P2PConfig{
+		ListenAddress: "/ip4/127.0.0.1/tcp/7680",
+		Seeds:         "/ip4/127.0.0.1/tcp/7678/p2p/" + cid3.String(),
+	}, privKey5, logger)
+	require.NoError(err)
+
+	client2.chainID = "ORU2"
+	client3.chainID = "ORU2"
+	client4.chainID = "ORU1"
+	client5.chainID = "ORU1"
+
+	err = client1.Start()
+	defer client1.Close()
+	assert.NoError(err)
+
+	err = client2.Start()
+	defer client2.Close()
+	assert.NoError(err)
+
+	err = client3.Start()
+	defer client3.Close()
+	assert.NoError(err)
+
+	err = client4.Start()
+	defer client4.Close()
+	assert.NoError(err)
+
+	err = client4.Start()
+	defer client4.Close()
+	assert.NoError(err)
+
+	err = client5.Start()
+	defer client5.Close()
+	assert.NoError(err)
+
+	// wait for clients to finish refreshing routing tables
+	<-client1.dht.RefreshRoutingTable()
+	<-client2.dht.RefreshRoutingTable()
+	<-client3.dht.RefreshRoutingTable()
+	<-client4.dht.RefreshRoutingTable()
+	<-client5.dht.RefreshRoutingTable()
+
+	assert.Contains(client4.host.Network().Peers(), client5.host.ID())
+	assert.Contains(client5.host.Network().Peers(), client4.host.ID())
 }
 
 func TestSeedStringParsing(t *testing.T) {
