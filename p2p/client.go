@@ -19,6 +19,9 @@ import (
 	"github.com/lazyledger/optimint/log"
 )
 
+// reAdvertisePeriod defines a period after which P2P client re-attempt advertising namespace in DHT.
+const reAdvertisePeriod = 1 * time.Hour
+
 // Client is a P2P client, implemented with libp2p.
 //
 // Initially, client connects to predefined seed nodes (aka bootnodes, bootstrap nodes).
@@ -172,7 +175,7 @@ func (c *Client) setupPeerDiscovery() error {
 
 func (c *Client) advertise() error {
 	// TODO(tzdybal): add configuration parameter for re-advertise frequency
-	discovery.Advertise(c.ctx, c.disc, c.getNamespace(), discovery.TTL(1*time.Hour))
+	discovery.Advertise(c.ctx, c.disc, c.getNamespace(), discovery.TTL(reAdvertisePeriod))
 	return nil
 }
 
