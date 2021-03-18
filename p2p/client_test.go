@@ -2,12 +2,10 @@ package p2p
 
 import (
 	"crypto/rand"
-	"strings"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,14 +18,17 @@ type TestLogger struct {
 }
 
 func (t *TestLogger) Debug(msg string, keyvals ...interface{}) {
+	t.t.Helper()
 	t.t.Log(append([]interface{}{"DEBUG: " + msg}, keyvals...)...)
 }
 
 func (t *TestLogger) Info(msg string, keyvals ...interface{}) {
+	t.t.Helper()
 	t.t.Log(append([]interface{}{"INFO:  " + msg}, keyvals...)...)
 }
 
 func (t *TestLogger) Error(msg string, keyvals ...interface{}) {
+	t.t.Helper()
 	t.t.Log(append([]interface{}{"ERROR: " + msg}, keyvals...)...)
 }
 
@@ -40,6 +41,8 @@ func TestClientStartup(t *testing.T) {
 
 	err = client.Start()
 	assert.NoError(err)
+
+	client.host.Close()
 }
 
 func TestBootstrapping(t *testing.T) {
@@ -60,21 +63,21 @@ func TestBootstrapping(t *testing.T) {
 	require.NotEmpty(cid2)
 
 	// client1 has no seeds
-	client1, err := NewClient(config.P2PConfig{ListenAddress: "127.0.0.1:7676"}, privKey1, logger)
+	client1, err := NewClient(config.P2PConfig{ListenAddress: "/ip4/127.0.0.1/tcp/7676"}, privKey1, logger)
 	require.NoError(err)
 	require.NotNil(client1)
 
 	// client2 will use client1 as predefined seed
 	client2, err := NewClient(config.P2PConfig{
-		ListenAddress: "127.0.0.1:7677",
-		Seeds:         cid1.Pretty() + "@127.0.0.1:7676",
+		ListenAddress: "/ip4/127.0.0.1/tcp/7677",
+		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.Pretty(),
 	}, privKey2, logger)
 	require.NoError(err)
 
 	// client3 will use clien1 and client2 as seeds
 	client3, err := NewClient(config.P2PConfig{
-		ListenAddress: "127.0.0.1:7678",
-		Seeds:         cid1.Pretty() + "@127.0.0.1:7676" + "," + cid2.Pretty() + "@127.0.0.1:7677",
+		ListenAddress: "/ip4/127.0.0.1/tcp/7678",
+		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.Pretty() + ",/ip4/127.0.0.1/tcp/7677/p2p/" + cid2.Pretty(),
 	}, privKey3, logger)
 	require.NoError(err)
 
@@ -90,49 +93,4 @@ func TestBootstrapping(t *testing.T) {
 	assert.Equal(2, len(client1.host.Network().Peers()))
 	assert.Equal(2, len(client2.host.Network().Peers()))
 	assert.Equal(2, len(client3.host.Network().Peers()))
-}
-
-func TestGetMultiaddr(t *testing.T) {
-	t.Parallel()
-
-	valid := mustGetMultiaddr(t, "/ip4/127.0.0.1/tcp/1234")
-	withId := mustGetMultiaddr(t, "/ip4/127.0.0.1/tcp/1234/p2p/k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7")
-
-	cases := []struct {
-		name        string
-		input       string
-		expected    multiaddr.Multiaddr
-		expectedErr string
-	}{
-		{"empty", "", nil, ErrInvalidAddress.Error()},
-		{"no port", "127.0.0.1:", nil, "failed to parse multiaddr"},
-		{"ip only", "127.0.0.1", nil, ErrInvalidAddress.Error()},
-		{"with invalid id", "deadbeef@127.0.0.1:1234", nil, "failed to parse multiaddr"},
-		{"valid", "127.0.0.1:1234", valid, ""},
-		{"valid with id", "k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7@127.0.0.1:1234", withId, ""},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
-			actual, err := GetMultiAddr(c.input)
-			if c.expectedErr != "" {
-				assert.Error(err)
-				assert.Nil(actual)
-				assert.True(strings.HasPrefix(err.Error(), c.expectedErr), "invalid error message")
-			} else {
-				assert.NoError(err)
-				assert.Equal(c.expected, actual)
-			}
-		})
-	}
-}
-
-func mustGetMultiaddr(t *testing.T, addr string) multiaddr.Multiaddr {
-	t.Helper()
-	maddr, err := multiaddr.NewMultiaddr(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return maddr
 }
