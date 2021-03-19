@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/lazyledger/optimint/config"
@@ -142,6 +143,9 @@ func (c *Client) setupDHT(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap DHT: %w", err)
 	}
+
+	c.host = routedhost.Wrap(c.host, c.dht)
+
 	return nil
 }
 
