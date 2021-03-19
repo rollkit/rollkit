@@ -54,12 +54,12 @@ func (t *MockLogger) Error(msg string, keyvals ...interface{}) {
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	client, err := NewClient(context.Background(), config.P2PConfig{}, privKey, &TestLogger{t})
+	client, err := NewClient(config.P2PConfig{}, privKey, &TestLogger{t})
 	assert := assert.New(t)
 	assert.NoError(err)
 	assert.NotNil(client)
 
-	err = client.Start()
+	err = client.Start(context.Background())
 	defer client.Close()
 	assert.NoError(err)
 
@@ -87,44 +87,44 @@ func TestBootstrapping(t *testing.T) {
 	require.NotEmpty(cid2)
 
 	// client1 has no seeds
-	client1, err := NewClient(context.Background(), config.P2PConfig{ListenAddress: "/ip4/0.0.0.0/tcp/7676"}, privKey1, logger)
+	client1, err := NewClient(config.P2PConfig{ListenAddress: "/ip4/0.0.0.0/tcp/7676"}, privKey1, logger)
 	require.NoError(err)
 	require.NotNil(client1)
 
 	// client2 will use client1 as predefined seed
-	client2, err := NewClient(context.Background(), config.P2PConfig{
+	client2, err := NewClient(config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/7677",
 		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.String(),
 	}, privKey2, logger)
 	require.NoError(err)
 
 	// client3 will use clien1 and client2 as seeds
-	client3, err := NewClient(context.Background(), config.P2PConfig{
+	client3, err := NewClient(config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/7678",
 		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.String() + ",/ip4/127.0.0.1/tcp/7677/p2p/" + cid2.String(),
 	}, privKey3, logger)
 	require.NoError(err)
 
 	// client4 will use clien1 as seed
-	client4, err := NewClient(context.Background(), config.P2PConfig{
+	client4, err := NewClient(config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/7679",
 		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.String(),
 	}, privKey4, logger)
 	require.NoError(err)
 
-	err = client1.Start()
+	err = client1.Start(context.Background())
 	defer client1.Close()
 	assert.NoError(err)
 
-	err = client2.Start()
+	err = client2.Start(context.Background())
 	defer client2.Close()
 	assert.NoError(err)
 
-	err = client3.Start()
+	err = client3.Start(context.Background())
 	defer client3.Close()
 	assert.NoError(err)
 
-	err = client4.Start()
+	err = client4.Start(context.Background())
 	defer client4.Close()
 	assert.NoError(err)
 
@@ -165,33 +165,33 @@ func TestDiscovery(t *testing.T) {
 	require.NotEmpty(cid2)
 
 	// client1 has no seeds
-	client1, err := NewClient(context.Background(), config.P2PConfig{ListenAddress: "/ip4/0.0.0.0/tcp/7676"}, privKey1, logger)
+	client1, err := NewClient(config.P2PConfig{ListenAddress: "/ip4/0.0.0.0/tcp/7676"}, privKey1, logger)
 	require.NoError(err)
 	require.NotNil(client1)
 
 	// client2 will use client1 as predefined seed
-	client2, err := NewClient(context.Background(), config.P2PConfig{
+	client2, err := NewClient(config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/7677",
 		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.String(),
 	}, privKey2, logger)
 	require.NoError(err)
 
 	// client3 will use clien1 as predefined seed
-	client3, err := NewClient(context.Background(), config.P2PConfig{
+	client3, err := NewClient(config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/7678",
 		Seeds:         "/ip4/127.0.0.1/tcp/7676/p2p/" + cid1.String(),
 	}, privKey3, logger)
 	require.NoError(err)
 
 	// client4 will use clien2 as seed
-	client4, err := NewClient(context.Background(), config.P2PConfig{
+	client4, err := NewClient(config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/7679",
 		Seeds:         "/ip4/127.0.0.1/tcp/7677/p2p/" + cid2.String(),
 	}, privKey4, logger)
 	require.NoError(err)
 
 	// client5 will use clien2 as seed
-	client5, err := NewClient(context.Background(), config.P2PConfig{
+	client5, err := NewClient(config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/7680",
 		Seeds:         "/ip4/127.0.0.1/tcp/7678/p2p/" + cid3.String(),
 	}, privKey5, logger)
@@ -202,27 +202,27 @@ func TestDiscovery(t *testing.T) {
 	client4.chainID = "ORU1"
 	client5.chainID = "ORU1"
 
-	err = client1.Start()
+	err = client1.Start(context.Background())
 	defer client1.Close()
 	assert.NoError(err)
 
-	err = client2.Start()
+	err = client2.Start(context.Background())
 	defer client2.Close()
 	assert.NoError(err)
 
-	err = client3.Start()
+	err = client3.Start(context.Background())
 	defer client3.Close()
 	assert.NoError(err)
 
-	err = client4.Start()
+	err = client4.Start(context.Background())
 	defer client4.Close()
 	assert.NoError(err)
 
-	err = client4.Start()
+	err = client4.Start(context.Background())
 	defer client4.Close()
 	assert.NoError(err)
 
-	err = client5.Start()
+	err = client5.Start(context.Background())
 	defer client5.Close()
 	assert.NoError(err)
 
@@ -277,7 +277,7 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := &MockLogger{}
-			client, err := NewClient(context.Background(), config.P2PConfig{}, privKey, logger)
+			client, err := NewClient(config.P2PConfig{}, privKey, logger)
 			require.NoError(err)
 			require.NotNil(client)
 			actual := client.getSeedAddrInfo(c.input)

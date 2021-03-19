@@ -32,7 +32,6 @@ type Client struct {
 	chainID string
 	privKey crypto.PrivKey
 
-	ctx  context.Context
 	host host.Host
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
@@ -45,7 +44,7 @@ type Client struct {
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
 // TODO(tzdybal): pass chainID
-func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, ErrNoPrivKey
 	}
@@ -53,7 +52,6 @@ func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKe
 		conf.ListenAddress = config.DefaultListenAddress
 	}
 	return &Client{
-		ctx:     ctx,
 		conf:    conf,
 		privKey: privKey,
 		logger:  logger,
@@ -66,21 +64,21 @@ func NewClient(ctx context.Context, conf config.P2PConfig, privKey crypto.PrivKe
 // 1. Setup libp2p host, start listening for incoming connections.
 // 2. Setup DHT, establish connection to seed nodes and initialize peer discovery.
 // 3. Use active peer discovery to look for peers from same ORU network.
-func (c *Client) Start() error {
+func (c *Client) Start(ctx context.Context) error {
 	c.logger.Debug("starting P2P client")
-	err := c.listen()
+	err := c.listen(ctx)
 	if err != nil {
 		return err
 	}
 
 	c.logger.Debug("setting up DHT")
-	err = c.setupDHT()
+	err = c.setupDHT(ctx)
 	if err != nil {
 		return err
 	}
 
 	c.logger.Debug("setting up active peer discovery")
-	err = c.peerDiscovery()
+	err = c.peerDiscovery(ctx)
 	if err != nil {
 		return err
 	}
@@ -102,14 +100,14 @@ func (c *Client) Close() error {
 	return dhtErr
 }
 
-func (c *Client) listen() error {
+func (c *Client) listen(ctx context.Context) error {
 	var err error
 	maddr, err := multiaddr.NewMultiaddr(c.conf.ListenAddress)
 	if err != nil {
 		return err
 	}
 
-	c.host, err = libp2p.New(c.ctx,
+	c.host, err = libp2p.New(ctx,
 		libp2p.ListenAddrs(maddr),
 		libp2p.Identity(c.privKey),
 	)
@@ -124,7 +122,7 @@ func (c *Client) listen() error {
 	return nil
 }
 
-func (c *Client) setupDHT() error {
+func (c *Client) setupDHT(ctx context.Context) error {
 	seedNodes := c.getSeedAddrInfo(c.conf.Seeds)
 	if len(seedNodes) == 0 {
 		c.logger.Info("no seed nodes - only listening for connections")
@@ -135,30 +133,30 @@ func (c *Client) setupDHT() error {
 	}
 
 	var err error
-	c.dht, err = dht.New(c.ctx, c.host, dht.Mode(dht.ModeServer), dht.BootstrapPeers(seedNodes...))
+	c.dht, err = dht.New(ctx, c.host, dht.Mode(dht.ModeServer), dht.BootstrapPeers(seedNodes...))
 	if err != nil {
 		return fmt.Errorf("failed to create DHT: %w", err)
 	}
 
-	err = c.dht.Bootstrap(c.ctx)
+	err = c.dht.Bootstrap(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap DHT: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) peerDiscovery() error {
-	err := c.setupPeerDiscovery()
+func (c *Client) peerDiscovery(ctx context.Context) error {
+	err := c.setupPeerDiscovery(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = c.advertise()
+	err = c.advertise(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = c.findPeers()
+	err = c.findPeers(ctx)
 	if err != nil {
 		return err
 	}
@@ -166,36 +164,36 @@ func (c *Client) peerDiscovery() error {
 	return nil
 }
 
-func (c *Client) setupPeerDiscovery() error {
+func (c *Client) setupPeerDiscovery(ctx context.Context) error {
 	// wait for DHT
 	<-c.dht.RefreshRoutingTable()
 	c.disc = discovery.NewRoutingDiscovery(c.dht)
 	return nil
 }
 
-func (c *Client) advertise() error {
+func (c *Client) advertise(ctx context.Context) error {
 	// TODO(tzdybal): add configuration parameter for re-advertise frequency
-	discovery.Advertise(c.ctx, c.disc, c.getNamespace(), discovery.TTL(reAdvertisePeriod))
+	discovery.Advertise(ctx, c.disc, c.getNamespace(), discovery.TTL(reAdvertisePeriod))
 	return nil
 }
 
-func (c *Client) findPeers() error {
+func (c *Client) findPeers(ctx context.Context) error {
 	// TODO(tzdybal): add configuration parameter for max peers
-	peerCh, err := c.disc.FindPeers(c.ctx, c.getNamespace(), cdiscovery.Limit(60))
+	peerCh, err := c.disc.FindPeers(ctx, c.getNamespace(), cdiscovery.Limit(60))
 	if err != nil {
 		return err
 	}
 
 	for peer := range peerCh {
-		go c.tryConnect(peer)
+		go c.tryConnect(ctx, peer)
 	}
 
 	return nil
 }
 
 // tryConnect attempts to connect to a peer and logs error if necessary
-func (c *Client) tryConnect(peer peer.AddrInfo) {
-	err := c.host.Connect(c.ctx, peer)
+func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
+	err := c.host.Connect(ctx, peer)
 	if err != nil {
 		c.logger.Error("failed to connect to peer", "peer", peer, "error", err)
 	}
