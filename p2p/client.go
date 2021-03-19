@@ -37,6 +37,10 @@ type Client struct {
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
 
+	// cancel is used to cancel context passed to libp2p functions
+	// it's required because of discovery.Advertise call
+	cancel context.CancelFunc
+
 	logger log.Logger
 }
 
@@ -66,6 +70,8 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger)
 // 2. Setup DHT, establish connection to seed nodes and initialize peer discovery.
 // 3. Use active peer discovery to look for peers from same ORU network.
 func (c *Client) Start(ctx context.Context) error {
+	// create new, cancelable context
+	ctx, c.cancel = context.WithCancel(ctx)
 	c.logger.Debug("starting P2P client")
 	err := c.listen(ctx)
 	if err != nil {
@@ -89,6 +95,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 // Close gently stops Client.
 func (c *Client) Close() error {
+	c.cancel()
 	dhtErr := c.dht.Close()
 	if dhtErr != nil {
 		c.logger.Error("failed to close DHT", "error", dhtErr)
