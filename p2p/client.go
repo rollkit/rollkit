@@ -13,15 +13,22 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p/p2p/host/routed"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/multiformats/go-multiaddr"
+	"go.uber.org/multierr"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/log"
 )
 
-// reAdvertisePeriod defines a period after which P2P client re-attempt advertising namespace in DHT.
-const reAdvertisePeriod = 1 * time.Hour
+const (
+	// reAdvertisePeriod defines a period after which P2P client re-attempt advertising namespace in DHT.
+	reAdvertisePeriod = 1 * time.Hour
+
+	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
+	txTopicSuffix = "-tx"
+)
 
 // Client is a P2P client, implemented with libp2p.
 //
@@ -33,9 +40,10 @@ type Client struct {
 	chainID string
 	privKey crypto.PrivKey
 
-	host host.Host
-	dht  *dht.IpfsDHT
-	disc *discovery.RoutingDiscovery
+	host    host.Host
+	dht     *dht.IpfsDHT
+	disc    *discovery.RoutingDiscovery
+	txTopic *pubsub.Topic
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -98,22 +106,28 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 		return err
 	}
 
+	c.logger.Debug("setting up gossiping")
+	err = c.setupGossiping(ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Close gently stops Client.
 func (c *Client) Close() error {
 	c.cancel()
-	dhtErr := c.dht.Close()
-	if dhtErr != nil {
-		c.logger.Error("failed to close DHT", "error", dhtErr)
-	}
-	err := c.host.Close()
-	if err != nil {
-		c.logger.Error("failed to close P2P host", "error", err)
-		return err
-	}
-	return dhtErr
+
+	return multierr.Combine(
+		c.txTopic.Close(),
+		c.dht.Close(),
+		c.host.Close(),
+	)
+}
+
+func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
+	return c.txTopic.Publish(ctx, tx)
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -211,6 +225,20 @@ func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 	}
 }
 
+func (c *Client) setupGossiping(ctx context.Context) error {
+	ps, err := pubsub.NewGossipSub(ctx, c.host, pubsub.WithDiscovery(c.disc))
+	if err != nil {
+		return err
+	}
+	txTopic, err := ps.Join(c.getTxTopic())
+	if err != nil {
+		return err
+	}
+	c.txTopic = txTopic
+
+	return nil
+}
+
 func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
 	if len(seedStr) == 0 {
 		return []peer.AddrInfo{}
@@ -239,4 +267,8 @@ func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
+}
+
+func (c *Client) getTxTopic() string {
+	return c.getNamespace() + txTopicSuffix
 }
