@@ -6,6 +6,9 @@ import (
 
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
+
+	llcfg "github.com/lazyledger/lazyledger-core/config"
+	"github.com/lazyledger/lazyledger-core/mempool"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -19,8 +22,10 @@ type Node struct {
 	eventBus *types.EventBus
 	proxyApp proxy.AppConns
 
-	conf   config.NodeConfig
-	client *p2p.Client
+	conf config.NodeConfig
+	P2P  *p2p.Client
+
+	Mempool mempool.Mempool
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -45,11 +50,15 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		return nil, err
 	}
 
+
+	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+
 	node := &Node{
 		proxyApp: proxyApp,
 		eventBus: eventBus,
 		conf:     conf,
-		client:   client,
+		P2P:      client,
+		Mempool:  mp,
 		ctx:      ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -59,7 +68,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 func (n *Node) OnStart() error {
 	n.Logger.Info("starting P2P client")
-	err := n.client.Start(n.ctx)
+	err := n.P2P.Start(n.ctx)
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
@@ -68,7 +77,7 @@ func (n *Node) OnStart() error {
 }
 
 func (n *Node) OnStop() {
-	n.client.Close()
+	n.P2P.Close()
 }
 
 func (n *Node) OnReset() error {
@@ -89,5 +98,4 @@ func (n *Node) EventBus() *types.EventBus {
 
 func (n *Node) ProxyApp() proxy.AppConns {
 	return n.proxyApp
-
 }
