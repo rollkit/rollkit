@@ -56,8 +56,7 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-// TODO(tzdybal): pass chainID
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, ErrNoPrivKey
 	}
@@ -67,6 +66,7 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger)
 	return &Client{
 		conf:    conf,
 		privKey: privKey,
+		chainID: chainID,
 		logger:  logger,
 	}, nil
 }

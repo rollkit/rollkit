@@ -54,7 +54,7 @@ func (t *MockLogger) Error(msg string, keyvals ...interface{}) {
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	client, err := NewClient(config.P2PConfig{}, privKey, &TestLogger{t})
+	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", &TestLogger{t})
 	assert := assert.New(t)
 	assert.NoError(err)
 	assert.NotNil(client)
@@ -152,7 +152,7 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := &MockLogger{}
-			client, err := NewClient(config.P2PConfig{}, privKey, logger)
+			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork", logger)
 			require.NoError(err)
 			require.NotNil(client)
 			actual := client.getSeedAddrInfo(c.input)

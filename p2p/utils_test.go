@@ -50,6 +50,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conns map[int][]
 		client, err := NewClient(config.P2PConfig{
 			Seeds: seeds[i]},
 			mnet.Hosts()[i].Peerstore().PrivKey(mnet.Hosts()[i].ID()),
+			"Test",
 			logger)
 		require.NoError(err)
 		require.NotNil(client)
