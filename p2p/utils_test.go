@@ -27,11 +27,11 @@ func (tn testNet) WaitForDHT() {
 	}
 }
 
-func startTestNetwork(t *testing.T, n int, conns map[int][]int, logger log.Logger) testNet {
+func startTestNetwork(ctx context.Context, t *testing.T, n int, conns map[int][]int, logger log.Logger) testNet {
 	t.Helper()
 	require := require.New(t)
 
-	mnet, err := mocknet.FullMeshLinked(context.Background(), n)
+	mnet, err := mocknet.FullMeshLinked(ctx, n)
 	require.NoError(err)
 
 	// prepare seed node lists
@@ -58,7 +58,7 @@ func startTestNetwork(t *testing.T, n int, conns map[int][]int, logger log.Logge
 	}
 
 	for i, c := range clients {
-		c.startWithHost(context.Background(), mnet.Hosts()[i])
+		c.startWithHost(ctx, mnet.Hosts()[i])
 	}
 
 	return clients
