@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lazyledger/lazyledger-core/libs/log"
@@ -20,9 +21,13 @@ type Node struct {
 
 	conf   config.NodeConfig
 	client *p2p.Client
+
+	// keep context here only because of API compatibility
+	// - it's used in `OnStart` (defined in service.Service interface)
+	ctx context.Context
 }
 
-func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
+func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -45,6 +50,7 @@ func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy
 		eventBus: eventBus,
 		conf:     conf,
 		client:   client,
+		ctx:      ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -53,7 +59,7 @@ func NewNode(conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy
 
 func (n *Node) OnStart() error {
 	n.Logger.Info("starting P2P client")
-	err := n.client.Start()
+	err := n.client.Start(n.ctx)
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
@@ -62,7 +68,7 @@ func (n *Node) OnStart() error {
 }
 
 func (n *Node) OnStop() {
-	panic("not implemented!")
+	n.client.Close()
 }
 
 func (n *Node) OnReset() error {
