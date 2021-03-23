@@ -71,15 +71,11 @@ func TestBootstrapping(t *testing.T) {
 	assert := assert.New(t)
 	logger := &TestLogger{t}
 
-	clients := makeTestNetowork(t, 4, map[int][]int{
+	clients := startTestNetwork(t, 4, map[int][]int{
 		1: []int{0},
 		2: []int{0, 1},
 		3: []int{0},
 	}, logger)
-
-	err := clients.Start(context.Background())
-	defer clients.Close()
-	assert.NoError(err)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -93,7 +89,7 @@ func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
 	logger := &TestLogger{t}
 
-	clients := makeTestNetowork(t, 5, map[int][]int{
+	clients := startTestNetwork(t, 5, map[int][]int{
 		1: []int{0},
 		2: []int{0},
 		3: []int{1},
@@ -104,10 +100,6 @@ func TestDiscovery(t *testing.T) {
 	clients[2].chainID = "ORU2"
 	clients[3].chainID = "ORU1"
 	clients[4].chainID = "ORU1"
-
-	err := clients.Start(context.Background())
-	defer clients.Close()
-	assert.NoError(err)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()

@@ -73,13 +73,21 @@ func (c *Client) Start(ctx context.Context) error {
 	// create new, cancelable context
 	ctx, c.cancel = context.WithCancel(ctx)
 	c.logger.Debug("starting P2P client")
-	err := c.listen(ctx)
+	host, err := c.listen(ctx)
 	if err != nil {
 		return err
 	}
+	return c.startWithHost(ctx, host)
+}
+
+func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
+	c.host = h
+	for _, a := range c.host.Addrs() {
+		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
+	}
 
 	c.logger.Debug("setting up DHT")
-	err = c.setupDHT(ctx)
+	err := c.setupDHT(ctx)
 	if err != nil {
 		return err
 	}
@@ -108,26 +116,19 @@ func (c *Client) Close() error {
 	return dhtErr
 }
 
-func (c *Client) listen(ctx context.Context) error {
+func (c *Client) listen(ctx context.Context) (host.Host, error) {
 	var err error
 	maddr, err := multiaddr.NewMultiaddr(c.conf.ListenAddress)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	c.host, err = libp2p.New(ctx,
-		libp2p.ListenAddrs(maddr),
-		libp2p.Identity(c.privKey),
-	)
+	host, err := libp2p.New(ctx, libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, a := range c.host.Addrs() {
-		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
-	}
-
-	return nil
+	return host, nil
 }
 
 func (c *Client) setupDHT(ctx context.Context) error {
