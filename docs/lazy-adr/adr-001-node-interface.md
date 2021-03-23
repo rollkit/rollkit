@@ -1,14 +1,14 @@
 # Using Optimint `Node` as replacement of Tendermint `Node`
 
-Replacing on the `Node` level gives much flexibility. Still, entire RPC communication can be reused, and there is no need to refactor cosmos-sdk.
+Replacing on the `Node` level gives much flexibility. Still, significant amount of code can be reused, and there is no need to refactor lazyledger-core.
 Cosmos SDK is tigtly coupled with Tendermint with regards to node creation, RPC, app initialization, etc. De-coupling requires big refactoring of cosmos-sdk.
 
 There are known issues related to Tendermint RPC communication. 
 
 ## Replacing Tendermint `Node`
 Tendermint `Node` is a struct. It's used directly in cosmos-sdk (not via interface).
-Easiest way to replace it, is to introduce interface that will be implemented by both Tendermint and Optimint.
-### Required interface:
+We don't need to introduce common interface `Node`s, because the plan is to use scafolding tool in the feature, so we can make any required changes in cosmos-sdk.
+### Interface required by cosmos-sdk:
 * BaseService (struct):
   * Service (interface)
 	  * Start()
@@ -18,9 +18,6 @@ Easiest way to replace it, is to introduce interface that will be implemented by
 * Direct access:
   * ConfigureRPC()
   * EventBus()
-
-### Module level dependencies
-`NodeInterface` has to be defined in Tendermint/lazyledger-core module. It can't be done in cosmos-sdk, as `Node` is used directly in Tendermint/lazyledger-core (for example in `proxy` and `rpc`) packages. Because of this, Optimint will depend on Tendermint.
 
 ## Alternative approaches
 ### Create RPC from scratch
@@ -42,6 +39,5 @@ Using 'vanilla' repositories (not forks) probably will make easier to upstream c
 easier.
 
 ## Development
-For development, there are `master-optimint` branches in both `lazyledger-core` and `cosmos-sdk`. Versions with `-optimint` suffix will be released from those branches for easier dependency management during development. Ideally, we should be able to push some changes upstream so we don't need to maintain forks.
-
+For development, there is `master-optimint` branch in `cosmos-sdk` repository. Versions with `-optimint` suffix will be released from this branch for easier dependency management during development.
 
