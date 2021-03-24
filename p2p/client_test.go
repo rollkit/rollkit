@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -110,6 +111,35 @@ func TestDiscovery(t *testing.T) {
 
 	assert.Contains(clients[3].host.Network().Peers(), clients[4].host.ID())
 	assert.Contains(clients[4].host.Network().Peers(), clients[3].host.ID())
+}
+
+func TestGossiping(t *testing.T) {
+	assert := assert.New(t)
+	logger := &TestLogger{t}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clients := startTestNetwork(ctx, t, 5, map[int][]int{
+		1: []int{0},
+		2: []int{0},
+		3: []int{1},
+		4: []int{2},
+	}, logger)
+
+	// wait for clients to finish refreshing routing tables
+	clients.WaitForDHT()
+
+	time.Sleep(5 * time.Second)
+
+	// gossip from client 4
+	err := clients[4].GossipTx(ctx, []byte("sample tx"))
+	assert.NoError(err)
+
+	nCtx, nCancel := context.WithTimeout(ctx, 1*time.Second)
+	defer nCancel()
+	msg, err := clients[3].txSub.Next(nCtx)
+	assert.NoError(err)
+	assert.NotNil(msg)
 }
 
 func TestSeedStringParsing(t *testing.T) {

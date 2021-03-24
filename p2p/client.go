@@ -44,6 +44,7 @@ type Client struct {
 	dht     *dht.IpfsDHT
 	disc    *discovery.RoutingDiscovery
 	txTopic *pubsub.Topic
+	txSub   *pubsub.Subscription
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -235,6 +236,11 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 		return err
 	}
 	c.txTopic = txTopic
+	txSub, err := txTopic.Subscribe()
+	if err != nil {
+		return err
+	}
+	c.txSub = txSub
 
 	return nil
 }
