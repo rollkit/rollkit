@@ -74,10 +74,10 @@ func TestBootstrapping(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clients := startTestNetwork(ctx, t, 4, map[int][]int{
-		1: []int{0},
-		2: []int{0, 1},
-		3: []int{0},
+	clients := startTestNetwork(ctx, t, 4, map[int]hostDescr{
+		1: hostDescr{conns: []int{0}},
+		2: hostDescr{conns: []int{0, 1}},
+		3: hostDescr{conns: []int{0}},
 	}, logger)
 
 	// wait for clients to finish refreshing routing tables
@@ -94,17 +94,12 @@ func TestDiscovery(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clients := startTestNetwork(ctx, t, 5, map[int][]int{
-		1: []int{0},
-		2: []int{0},
-		3: []int{1},
-		4: []int{2},
+	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
+		1: hostDescr{conns: []int{0}, chainID: "ORU2"},
+		2: hostDescr{conns: []int{0}, chainID: "ORU2"},
+		3: hostDescr{conns: []int{1}, chainID: "ORU1"},
+		4: hostDescr{conns: []int{2}, chainID: "ORU1"},
 	}, logger)
-
-	clients[1].chainID = "ORU2"
-	clients[2].chainID = "ORU2"
-	clients[3].chainID = "ORU1"
-	clients[4].chainID = "ORU1"
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -119,25 +114,25 @@ func TestGossiping(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clients := startTestNetwork(ctx, t, 5, map[int][]int{
-		1: []int{0},
-		2: []int{0},
-		3: []int{1},
-		4: []int{2},
+	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
+		1: hostDescr{conns: []int{0}, chainID: "test"},
+		2: hostDescr{conns: []int{0}, chainID: "test"},
+		3: hostDescr{conns: []int{1}, chainID: "test"},
+		4: hostDescr{conns: []int{2}, chainID: "test", realKey: true},
 	}, logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(10*time.Second)
 
 	// gossip from client 4
 	err := clients[4].GossipTx(ctx, []byte("sample tx"))
 	assert.NoError(err)
 
-	nCtx, nCancel := context.WithTimeout(ctx, 1*time.Second)
+	nCtx, nCancel := context.WithTimeout(ctx, 300*time.Second)
 	defer nCancel()
-	msg, err := clients[3].txSub.Next(nCtx)
+	msg, err := clients[2].txSub.Next(nCtx)
 	assert.NoError(err)
 	assert.NotNil(msg)
 }
