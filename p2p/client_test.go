@@ -109,26 +109,33 @@ func TestDiscovery(t *testing.T) {
 }
 
 func TestGossiping(t *testing.T) {
+	log.SetDebugLogging()
+
 	assert := assert.New(t)
 	logger := &TestLogger{t}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
-		1: hostDescr{conns: []int{0}, chainID: "test"},
-		2: hostDescr{conns: []int{0}, chainID: "test"},
-		3: hostDescr{conns: []int{1}, chainID: "test"},
+		1: hostDescr{conns: []int{0}, chainID: "test", realKey: true},
+		2: hostDescr{conns: []int{0}, chainID: "test", realKey: true},
+		3: hostDescr{conns: []int{1}, chainID: "test", realKey: true},
 		4: hostDescr{conns: []int{2}, chainID: "test", realKey: true},
 	}, logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
 
-	time.Sleep(10*time.Second)
+	time.Sleep(3 * time.Second)
 
 	// gossip from client 4
-	err := clients[4].GossipTx(ctx, []byte("sample tx"))
-	assert.NoError(err)
+	go func() {
+		for {
+			err := clients[4].GossipTx(ctx, []byte("sample tx"))
+			assert.NoError(err)
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	nCtx, nCancel := context.WithTimeout(ctx, 300*time.Second)
 	defer nCancel()

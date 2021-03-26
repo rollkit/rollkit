@@ -85,6 +85,9 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	err := mnet.LinkAll()
 	require.NoError(err)
 
+	err = mnet.ConnectAllButSelf()
+	require.NoError(err)
+
 	// prepare seed node lists
 	seeds := make([]string, n)
 	for src, descr := range conf {
@@ -108,6 +111,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 
 		clients[i] = client
 	}
+
 
 	for i, c := range clients {
 		c.startWithHost(ctx, mnet.Hosts()[i])
