@@ -95,20 +95,20 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
 	}
 
+	c.logger.Debug("setting up gossiping")
+	err := c.setupGossiping(ctx)
+	if err != nil {
+		return err
+	}
+
 	c.logger.Debug("setting up DHT")
-	err := c.setupDHT(ctx)
+	err = c.setupDHT(ctx)
 	if err != nil {
 		return err
 	}
 
 	c.logger.Debug("setting up active peer discovery")
 	err = c.peerDiscovery(ctx)
-	if err != nil {
-		return err
-	}
-
-	c.logger.Debug("setting up gossiping")
-	err = c.setupGossiping(ctx)
 	if err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 }
 
 func (c *Client) setupGossiping(ctx context.Context) error {
-	ps, err := pubsub.NewGossipSub(ctx, c.host, pubsub.WithDiscovery(c.disc))
+	ps, err := pubsub.NewGossipSub(ctx, c.host /*pubsub.WithDiscovery(c.disc)*/)
 	if err != nil {
 		return err
 	}

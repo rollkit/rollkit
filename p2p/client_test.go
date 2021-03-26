@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -109,7 +110,11 @@ func TestDiscovery(t *testing.T) {
 }
 
 func TestGossiping(t *testing.T) {
-	log.SetDebugLogging()
+	//log.SetDebugLogging()
+	log.SetLogLevel("pubsub", "DEBUG")
+	log.SetLogLevel("discovery", "DEBUG")
+	//log.SetLogLevel("mocknet", "DEBUG")
+	//log.SetLogLevel("dht", "DEBUG")
 
 	assert := assert.New(t)
 	logger := &TestLogger{t}
@@ -117,6 +122,7 @@ func TestGossiping(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
+		0: hostDescr{conns: []int{}, chainID: "test", realKey: true},
 		1: hostDescr{conns: []int{0}, chainID: "test", realKey: true},
 		2: hostDescr{conns: []int{0}, chainID: "test", realKey: true},
 		3: hostDescr{conns: []int{1}, chainID: "test", realKey: true},
@@ -126,22 +132,33 @@ func TestGossiping(t *testing.T) {
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
 
-	time.Sleep(3 * time.Second)
-
 	// gossip from client 4
 	go func() {
-		for {
-			err := clients[4].GossipTx(ctx, []byte("sample tx"))
+		for i := 0; i < 10; i++ {
+			logger.Debug("gossip tx", "client", i)
+			err := clients[4].GossipTx(ctx, []byte(fmt.Sprintf("hello %d", i)))
 			assert.NoError(err)
 			time.Sleep(1 * time.Second)
 		}
 	}()
 
-	nCtx, nCancel := context.WithTimeout(ctx, 300*time.Second)
-	defer nCancel()
-	msg, err := clients[2].txSub.Next(nCtx)
-	assert.NoError(err)
-	assert.NotNil(msg)
+	var wg sync.WaitGroup
+	wg.Add(len(clients))
+	for c := range clients {
+		go func(i int) {
+			defer wg.Done()
+			nCtx, nCancel := context.WithTimeout(ctx, 300*time.Second)
+			defer nCancel()
+			for {
+				msg, err := clients[i].txSub.Next(nCtx)
+				logger.Debug("recv", "client", i, "msg", string(msg.Data))
+				assert.NoError(err)
+				assert.NotNil(msg)
+			}
+		}(c)
+	}
+
+	wg.Wait()
 }
 
 func TestSeedStringParsing(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -85,8 +86,8 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	err := mnet.LinkAll()
 	require.NoError(err)
 
-	err = mnet.ConnectAllButSelf()
-	require.NoError(err)
+	//err = mnet.ConnectAllButSelf()
+	//require.NoError(err)
 
 	// prepare seed node lists
 	seeds := make([]string, n)
@@ -96,7 +97,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 			require.Less(dst, n)
 			seeds[src] += mnet.Hosts()[dst].Addrs()[0].String() + "/p2p/" + mnet.Peers()[dst].Pretty() + ","
 		}
-
+		strings.TrimSuffix(seeds[src], ",")
 	}
 
 	clients := make([]*Client, n)
