@@ -22,9 +22,13 @@ import (
 	"github.com/lazyledger/optimint/log"
 )
 
+// TODO(tzdybal): refactor to configuration parameters
 const (
 	// reAdvertisePeriod defines a period after which P2P client re-attempt advertising namespace in DHT.
 	reAdvertisePeriod = 1 * time.Hour
+
+	// peerLimit defines limit of number of peers returned during active peer discovery.
+	peerLimit = 60
 
 	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
 	txTopicSuffix = "-tx"
@@ -76,8 +80,9 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, lo
 //
 // Following steps are taken:
 // 1. Setup libp2p host, start listening for incoming connections.
-// 2. Setup DHT, establish connection to seed nodes and initialize peer discovery.
-// 3. Use active peer discovery to look for peers from same ORU network.
+// 2. Setup gossibsub.
+// 3. Setup DHT, establish connection to seed nodes and initialize peer discovery.
+// 4. Use active peer discovery to look for peers from same ORU network.
 func (c *Client) Start(ctx context.Context) error {
 	// create new, cancelable context
 	ctx, c.cancel = context.WithCancel(ctx)
@@ -193,20 +198,22 @@ func (c *Client) peerDiscovery(ctx context.Context) error {
 
 func (c *Client) setupPeerDiscovery(ctx context.Context) error {
 	// wait for DHT
-	<-c.dht.RefreshRoutingTable()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.dht.RefreshRoutingTable():
+	}
 	c.disc = discovery.NewRoutingDiscovery(c.dht)
 	return nil
 }
 
 func (c *Client) advertise(ctx context.Context) error {
-	// TODO(tzdybal): add configuration parameter for re-advertise frequency
-	discovery.Advertise(ctx, c.disc, c.getNamespace(), discovery.TTL(reAdvertisePeriod))
+	discovery.Advertise(ctx, c.disc, c.getNamespace(), cdiscovery.TTL(reAdvertisePeriod))
 	return nil
 }
 
 func (c *Client) findPeers(ctx context.Context) error {
-	// TODO(tzdybal): add configuration parameter for max peers
-	peerCh, err := c.disc.FindPeers(ctx, c.getNamespace(), cdiscovery.Limit(60))
+	peerCh, err := c.disc.FindPeers(ctx, c.getNamespace(), cdiscovery.Limit(peerLimit))
 	if err != nil {
 		return err
 	}
@@ -227,7 +234,7 @@ func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 }
 
 func (c *Client) setupGossiping(ctx context.Context) error {
-	ps, err := pubsub.NewGossipSub(ctx, c.host /*pubsub.WithDiscovery(c.disc)*/)
+	ps, err := pubsub.NewGossipSub(ctx, c.host)
 	if err != nil {
 		return err
 	}
