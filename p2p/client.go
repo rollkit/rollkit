@@ -34,6 +34,12 @@ const (
 	txTopicSuffix = "-tx"
 )
 
+// TODO(tzdybal): refactor. This is only a stub.
+type Tx struct {
+	Data []byte
+}
+type TxHandler func(*Tx)
+
 // Client is a P2P client, implemented with libp2p.
 //
 // Initially, client connects to predefined seed nodes (aka bootnodes, bootstrap nodes).
@@ -44,11 +50,13 @@ type Client struct {
 	chainID string
 	privKey crypto.PrivKey
 
-	host    host.Host
-	dht     *dht.IpfsDHT
-	disc    *discovery.RoutingDiscovery
-	txTopic *pubsub.Topic
-	txSub   *pubsub.Subscription
+	host host.Host
+	dht  *dht.IpfsDHT
+	disc *discovery.RoutingDiscovery
+
+	txTopic   *pubsub.Topic
+	txSub     *pubsub.Subscription
+	txHandler TxHandler
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -134,6 +142,10 @@ func (c *Client) Close() error {
 
 func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 	return c.txTopic.Publish(ctx, tx)
+}
+
+func (c *Client) SetTxHandler(handler TxHandler) {
+	c.txHandler = handler
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -249,7 +261,26 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 	c.txSub = txSub
 
+	go c.processTxs(ctx)
+
 	return nil
+}
+
+func (c *Client) processTxs(ctx context.Context) {
+	for {
+		msg, err := c.txSub.Next(ctx)
+		if err != nil {
+			c.logger.Error("failed to read transaction", "error", err)
+			return
+		}
+		if msg.GetFrom() == c.host.ID() {
+			continue
+		}
+
+		if c.txHandler != nil {
+			c.txHandler(&Tx{msg.Data})
+		}
+	}
 }
 
 func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {

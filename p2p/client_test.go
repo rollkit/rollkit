@@ -110,54 +110,54 @@ func TestDiscovery(t *testing.T) {
 }
 
 func TestGossiping(t *testing.T) {
-	//log.SetDebugLogging()
-	log.SetLogLevel("pubsub", "DEBUG")
-	log.SetLogLevel("discovery", "DEBUG")
-	//log.SetLogLevel("mocknet", "DEBUG")
-	//log.SetLogLevel("dht", "DEBUG")
-
 	assert := assert.New(t)
 	logger := &TestLogger{t}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// network connections topology: 3<->1<->0<->2<->4
 	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
-		0: hostDescr{conns: []int{}, chainID: "test", realKey: true},
-		1: hostDescr{conns: []int{0}, chainID: "test", realKey: true},
-		2: hostDescr{conns: []int{0}, chainID: "test", realKey: true},
-		3: hostDescr{conns: []int{1}, chainID: "test", realKey: true},
-		4: hostDescr{conns: []int{2}, chainID: "test", realKey: true},
+		0: hostDescr{conns: []int{}, chainID: "2"},
+		1: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
+		2: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
+		3: hostDescr{conns: []int{1}, chainID: "2", realKey: true},
+		4: hostDescr{conns: []int{2}, chainID: "2", realKey: true},
 	}, logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
 
-	// gossip from client 4
-	go func() {
-		for i := 0; i < 10; i++ {
-			logger.Debug("gossip tx", "client", i)
-			err := clients[4].GossipTx(ctx, []byte(fmt.Sprintf("hello %d", i)))
-			assert.NoError(err)
-			time.Sleep(1 * time.Second)
-		}
-	}()
-
+	var expectedMsg = []byte("foobar")
 	var wg sync.WaitGroup
-	wg.Add(len(clients))
-	for c := range clients {
-		go func(i int) {
-			defer wg.Done()
-			nCtx, nCancel := context.WithTimeout(ctx, 300*time.Second)
-			defer nCancel()
-			for {
-				msg, err := clients[i].txSub.Next(nCtx)
-				logger.Debug("recv", "client", i, "msg", string(msg.Data))
-				assert.NoError(err)
-				assert.NotNil(msg)
-			}
-		}(c)
-	}
 
+	// ensure that Tx is delivered to client
+	assertRecv := func(tx *Tx) {
+		logger.Debug("received tx", "body", string(tx.Data))
+		assert.Equal(expectedMsg, tx.Data)
+		wg.Done()
+	}
+	wg.Add(2)
+	clients[0].SetTxHandler(assertRecv)
+	clients[3].SetTxHandler(assertRecv)
+
+	// ensure that Tx is not delivered to client
+	assertNotRecv := func(*Tx) {
+		t.Fatal("unexpected Tx received")
+	}
+	clients[1].SetTxHandler(assertNotRecv)
+	clients[2].SetTxHandler(assertNotRecv)
+	clients[4].SetTxHandler(assertNotRecv)
+
+	// this sleep is required for pubsub to "propagate" subscription information
+	// TODO(tzdybal): is there a better way to wait for readiness?
+	time.Sleep(1 * time.Second)
+
+	// gossip from client 4
+	err := clients[4].GossipTx(ctx, expectedMsg)
+	assert.NoError(err)
+
+	// wait for clients that should receive Tx
 	wg.Wait()
 }
 
