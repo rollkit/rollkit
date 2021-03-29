@@ -7,7 +7,7 @@ Libp2p provides multiple ways to discover peers (DHT, mDNS). Currently there are
     * This does not limit applications as they can still create independent networks with separate set of seed nodes.
 2. Nodes in the network will serve DHT. It will be used for active peer discovery. Client of each ORU network will be able to find other peers in this particular network.
     * All nodes will cooperate on the same DHT.
-    * ChainID will be used to advertise that client works in given ORU network.
+    * ChainID will be used to advertise that client participates in a particular ORU network.
 3. Nodes from multiple networks will help with peer discovery (via single DHT).
 4. After connecting to nodes found in DHT, GossipSub will handle peer lists for clients.
 
