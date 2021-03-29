@@ -1,6 +1,6 @@
 # Peer Discovery
 
-Libp2p provide multiple ways to discover peers (DHT, mDNS). Currently there are no plans to support mDNS (as it's limited to local networks).
+Libp2p provides multiple ways to discover peers (DHT, mDNS). Currently there are no plans to support mDNS (as it's limited to local networks).
 
 ## Proposed network architecture
 1. There will be a set of well-known, application-agnostic seed nodes. Every optimint client will be able to connect to such node, addresses will be saved in configuration.
