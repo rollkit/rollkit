@@ -36,8 +36,18 @@ func TestInfo(t *testing.T) {
 	assert.Equal(expectedInfo, info.Response)
 }
 
-func TestMempool(t *testing.T) {
+func TestCheckTx(t *testing.T) {
+	assert := assert.New(t)
 
+	mockApp, rpc := getRPC(t)
+	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+
+	expectedTx := []byte("tx data")
+
+	res, err := rpc.CheckTx(context.Background(), expectedTx)
+	assert.NoError(err)
+	assert.NotNil(res)
+	mockApp.AssertCalled(t, "CheckTx", abci.RequestCheckTx{Tx: expectedTx, Type: abci.CheckTxType_New})
 }
 
 func getRPC(t *testing.T) (*mocks.Application, *Local) {
