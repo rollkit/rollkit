@@ -2,10 +2,12 @@ package rpcclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	"github.com/lazyledger/lazyledger-core/config"
 	tmbytes "github.com/lazyledger/lazyledger-core/libs/bytes"
 	tmpubsub "github.com/lazyledger/lazyledger-core/libs/pubsub"
 	tmquery "github.com/lazyledger/lazyledger-core/libs/pubsub/query"
@@ -19,11 +21,16 @@ import (
 	"github.com/lazyledger/optimint/node"
 )
 
+const (
+	SubscribeTimeout = 5 * time.Second
+)
+
 var _ rpcclient.Client = &Local{}
 
 type Local struct {
 	*types.EventBus
-	ctx *rpctypes.Context
+	ctx    *rpctypes.Context
+	config *config.RPCConfig
 
 	node *node.Node
 }
@@ -32,6 +39,7 @@ func NewLocal(node *node.Node) *Local {
 	return &Local{
 		EventBus: node.EventBus(),
 		ctx:      &rpctypes.Context{},
+		config:   config.DefaultRPCConfig(),
 		node:     node,
 	}
 }
@@ -65,8 +73,82 @@ func (l *Local) ABCIQueryWithOptions(ctx context.Context, path string, data tmby
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
 func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-	// needs mempool
-	panic("not implemented!")
+	subscriber := "" //ctx.RemoteAddr()
+
+	if l.EventBus.NumClients() >= l.config.MaxSubscriptionClients {
+		return nil, fmt.Errorf("max_subscription_clients %d reached", l.config.MaxSubscriptionClients)
+	} else if l.EventBus.NumClientSubscriptions(subscriber) >= l.config.MaxSubscriptionsPerClient {
+		return nil, fmt.Errorf("max_subscriptions_per_client %d reached", l.config.MaxSubscriptionsPerClient)
+	}
+
+	// Subscribe to tx being committed in block.
+	subCtx, cancel := context.WithTimeout(ctx, SubscribeTimeout)
+	defer cancel()
+	q := types.EventQueryTxFor(tx)
+	deliverTxSub, err := l.EventBus.Subscribe(subCtx, subscriber, q)
+	if err != nil {
+		err = fmt.Errorf("failed to subscribe to tx: %w", err)
+		l.Logger.Error("Error on broadcast_tx_commit", "err", err)
+		return nil, err
+	}
+	defer func() {
+		if err := l.EventBus.Unsubscribe(context.Background(), subscriber, q); err != nil {
+			l.Logger.Error("Error unsubscribing from eventBus", "err", err)
+		}
+	}()
+
+	// Broadcast tx and wait for CheckTx result
+	checkTxResCh := make(chan *abci.Response, 1)
+	err = l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+		checkTxResCh <- res
+	}, mempool.TxInfo{Context: ctx})
+	if err != nil {
+		l.Logger.Error("Error on broadcastTxCommit", "err", err)
+		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
+	}
+	checkTxResMsg := <-checkTxResCh
+	checkTxRes := checkTxResMsg.GetCheckTx()
+	if checkTxRes.Code != abci.CodeTypeOK {
+		return &ctypes.ResultBroadcastTxCommit{
+			CheckTx:   *checkTxRes,
+			DeliverTx: abci.ResponseDeliverTx{},
+			Hash:      tx.Hash(),
+		}, nil
+	}
+
+	// Wait for the tx to be included in a block or timeout.
+	select {
+	case msg := <-deliverTxSub.Out(): // The tx was included in a block.
+		deliverTxRes := msg.Data().(types.EventDataTx)
+		return &ctypes.ResultBroadcastTxCommit{
+			CheckTx:   *checkTxRes,
+			DeliverTx: deliverTxRes.Result,
+			Hash:      tx.Hash(),
+			Height:    deliverTxRes.Height,
+		}, nil
+	case <-deliverTxSub.Cancelled():
+		var reason string
+		if deliverTxSub.Err() == nil {
+			reason = "Tendermint exited"
+		} else {
+			reason = deliverTxSub.Err().Error()
+		}
+		err = fmt.Errorf("deliverTxSub was cancelled (reason: %s)", reason)
+		l.Logger.Error("Error on broadcastTxCommit", "err", err)
+		return &ctypes.ResultBroadcastTxCommit{
+			CheckTx:   *checkTxRes,
+			DeliverTx: abci.ResponseDeliverTx{},
+			Hash:      tx.Hash(),
+		}, err
+	case <-time.After(l.config.TimeoutBroadcastTxCommit):
+		err = errors.New("timed out waiting for tx to be included in a block")
+		l.Logger.Error("Error on broadcastTxCommit", "err", err)
+		return &ctypes.ResultBroadcastTxCommit{
+			CheckTx:   *checkTxRes,
+			DeliverTx: abci.ResponseDeliverTx{},
+			Hash:      tx.Hash(),
+		}, err
+	}
 }
 
 // BroadcastTxAsync returns right away, with no response. Does not wait for

@@ -100,6 +100,65 @@ func TestBroadcastTxSync(t *testing.T) {
 	mockApp.AssertExpectations(t)
 }
 
+func TestBroadcastTxCommit(t *testing.T) {
+	assert := assert.New(t)
+	//require := require.New(t)
+
+	expectedTx := []byte("tx data")
+	expectedResponse := abci.ResponseCheckTx{
+		Code:      abci.CodeTypeOK,
+		Data:      []byte("data"),
+		Log:       "log",
+		Info:      "info",
+		GasWanted: 0,
+		GasUsed:   0,
+		Events:    nil,
+		Codespace: "space",
+	}
+
+
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.BeginBlock(abci.RequestBeginBlock{})
+	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedResponse)
+
+	mockApp.On("Commit", mock.Anything).Run(func(args mock.Arguments) {
+		t.Log(args...)
+	}).Return(abci.ResponseCommit{})
+
+	go func() {
+		//<-time.After(1 * time.Second)
+		err := rpc.node.EventBus().Publish(types.EventTx, types.EventDataTx{TxResult:abci.TxResult{
+			Height: 1,
+			Index:  0,
+			Tx:     expectedTx,
+			Result: abci.ResponseDeliverTx{
+				Code:      0,
+				Data:      nil,
+				Log:       "",
+				Info:      "",
+				GasWanted: 0,
+				GasUsed:   0,
+				Events:    nil,
+				Codespace: "",
+			},
+		}})
+		if err != nil {
+			t.Log("failed to publish event:", err)
+		}
+	}()
+
+	res, err := rpc.BroadcastTxCommit(context.Background(), expectedTx)
+	assert.NoError(err)
+	assert.NotNil(res)
+	assert.Equal(expectedResponse.Code, res.CheckTx.Code)
+	assert.Equal(expectedResponse.Data, res.CheckTx.Data)
+	assert.Equal(expectedResponse.Log, res.CheckTx.Log)
+	assert.Equal(expectedResponse.Codespace, res.CheckTx.Codespace)
+	assert.NotEmpty(res.Hash)
+	mockApp.AssertExpectations(t)
+}
+
 func getRPC(t *testing.T) (*mocks.Application, *Local) {
 	t.Helper()
 	require := require.New(t)
