@@ -13,15 +13,32 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p/p2p/host/routed"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/multiformats/go-multiaddr"
+	"go.uber.org/multierr"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/log"
 )
 
-// reAdvertisePeriod defines a period after which P2P client re-attempt advertising namespace in DHT.
-const reAdvertisePeriod = 1 * time.Hour
+// TODO(tzdybal): refactor to configuration parameters
+const (
+	// reAdvertisePeriod defines a period after which P2P client re-attempt advertising namespace in DHT.
+	reAdvertisePeriod = 1 * time.Hour
+
+	// peerLimit defines limit of number of peers returned during active peer discovery.
+	peerLimit = 60
+
+	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
+	txTopicSuffix = "-tx"
+)
+
+// TODO(tzdybal): refactor. This is only a stub.
+type Tx struct {
+	Data []byte
+}
+type TxHandler func(*Tx)
 
 // Client is a P2P client, implemented with libp2p.
 //
@@ -37,6 +54,10 @@ type Client struct {
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
 
+	txTopic   *pubsub.Topic
+	txSub     *pubsub.Subscription
+	txHandler TxHandler
+
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
 	cancel context.CancelFunc
@@ -48,8 +69,7 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-// TODO(tzdybal): pass chainID
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, ErrNoPrivKey
 	}
@@ -59,6 +79,7 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger)
 	return &Client{
 		conf:    conf,
 		privKey: privKey,
+		chainID: chainID,
 		logger:  logger,
 	}, nil
 }
@@ -67,8 +88,9 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, logger log.Logger)
 //
 // Following steps are taken:
 // 1. Setup libp2p host, start listening for incoming connections.
-// 2. Setup DHT, establish connection to seed nodes and initialize peer discovery.
-// 3. Use active peer discovery to look for peers from same ORU network.
+// 2. Setup gossibsub.
+// 3. Setup DHT, establish connection to seed nodes and initialize peer discovery.
+// 4. Use active peer discovery to look for peers from same ORU network.
 func (c *Client) Start(ctx context.Context) error {
 	// create new, cancelable context
 	ctx, c.cancel = context.WithCancel(ctx)
@@ -86,8 +108,14 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
 	}
 
+	c.logger.Debug("setting up gossiping")
+	err := c.setupGossiping(ctx)
+	if err != nil {
+		return err
+	}
+
 	c.logger.Debug("setting up DHT")
-	err := c.setupDHT(ctx)
+	err = c.setupDHT(ctx)
 	if err != nil {
 		return err
 	}
@@ -104,16 +132,20 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 // Close gently stops Client.
 func (c *Client) Close() error {
 	c.cancel()
-	dhtErr := c.dht.Close()
-	if dhtErr != nil {
-		c.logger.Error("failed to close DHT", "error", dhtErr)
-	}
-	err := c.host.Close()
-	if err != nil {
-		c.logger.Error("failed to close P2P host", "error", err)
-		return err
-	}
-	return dhtErr
+
+	return multierr.Combine(
+		c.txTopic.Close(),
+		c.dht.Close(),
+		c.host.Close(),
+	)
+}
+
+func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
+	return c.txTopic.Publish(ctx, tx)
+}
+
+func (c *Client) SetTxHandler(handler TxHandler) {
+	c.txHandler = handler
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -178,20 +210,22 @@ func (c *Client) peerDiscovery(ctx context.Context) error {
 
 func (c *Client) setupPeerDiscovery(ctx context.Context) error {
 	// wait for DHT
-	<-c.dht.RefreshRoutingTable()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.dht.RefreshRoutingTable():
+	}
 	c.disc = discovery.NewRoutingDiscovery(c.dht)
 	return nil
 }
 
 func (c *Client) advertise(ctx context.Context) error {
-	// TODO(tzdybal): add configuration parameter for re-advertise frequency
-	discovery.Advertise(ctx, c.disc, c.getNamespace(), discovery.TTL(reAdvertisePeriod))
+	discovery.Advertise(ctx, c.disc, c.getNamespace(), cdiscovery.TTL(reAdvertisePeriod))
 	return nil
 }
 
 func (c *Client) findPeers(ctx context.Context) error {
-	// TODO(tzdybal): add configuration parameter for max peers
-	peerCh, err := c.disc.FindPeers(ctx, c.getNamespace(), cdiscovery.Limit(60))
+	peerCh, err := c.disc.FindPeers(ctx, c.getNamespace(), cdiscovery.Limit(peerLimit))
 	if err != nil {
 		return err
 	}
@@ -208,6 +242,44 @@ func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 	err := c.host.Connect(ctx, peer)
 	if err != nil {
 		c.logger.Error("failed to connect to peer", "peer", peer, "error", err)
+	}
+}
+
+func (c *Client) setupGossiping(ctx context.Context) error {
+	ps, err := pubsub.NewGossipSub(ctx, c.host)
+	if err != nil {
+		return err
+	}
+	txTopic, err := ps.Join(c.getTxTopic())
+	if err != nil {
+		return err
+	}
+	c.txTopic = txTopic
+	txSub, err := txTopic.Subscribe()
+	if err != nil {
+		return err
+	}
+	c.txSub = txSub
+
+	go c.processTxs(ctx)
+
+	return nil
+}
+
+func (c *Client) processTxs(ctx context.Context) {
+	for {
+		msg, err := c.txSub.Next(ctx)
+		if err != nil {
+			c.logger.Error("failed to read transaction", "error", err)
+			return
+		}
+		if msg.GetFrom() == c.host.ID() {
+			continue
+		}
+
+		if c.txHandler != nil {
+			c.txHandler(&Tx{msg.Data})
+		}
 	}
 }
 
@@ -239,4 +311,8 @@ func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
+}
+
+func (c *Client) getTxTopic() string {
+	return c.getNamespace() + txTopicSuffix
 }
