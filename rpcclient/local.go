@@ -9,6 +9,7 @@ import (
 	tmbytes "github.com/lazyledger/lazyledger-core/libs/bytes"
 	tmpubsub "github.com/lazyledger/lazyledger-core/libs/pubsub"
 	tmquery "github.com/lazyledger/lazyledger-core/libs/pubsub/query"
+	"github.com/lazyledger/lazyledger-core/mempool"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	rpcclient "github.com/lazyledger/lazyledger-core/rpc/client"
 	ctypes "github.com/lazyledger/lazyledger-core/rpc/core/types"
@@ -61,19 +62,45 @@ func (l *Local) ABCIQueryWithOptions(ctx context.Context, path string, data tmby
 	return &ctypes.ResultABCIQuery{Response: *resQuery}, nil
 }
 
+// BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
+// More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
 func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	// needs mempool
 	panic("not implemented!")
 }
 
+// BroadcastTxAsync returns right away, with no response. Does not wait for
+// CheckTx nor DeliverTx results.
+// More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	// needs mempool
-	panic("not implemented!")
+	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{Context: ctx})
+
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultBroadcastTx{Hash: tx.Hash()}, nil
 }
 
+// BroadcastTxSync returns with the response from CheckTx. Does not wait for
+// DeliverTx result.
+// More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
 func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	// needs mempool
-	panic("not implemented!")
+	resCh := make(chan *abci.Response, 1)
+	err := l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+		resCh <- res
+	}, mempool.TxInfo{Context: ctx})
+	if err != nil {
+		return nil, err
+	}
+	res := <-resCh
+	r := res.GetCheckTx()
+	return &ctypes.ResultBroadcastTx{
+		Code:      r.Code,
+		Data:      r.Data,
+		Log:       r.Log,
+		Codespace: r.Codespace,
+		Hash:      tx.Hash(),
+	}, nil
 }
 
 func (l *Local) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
