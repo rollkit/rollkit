@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"github.com/lazyledger/lazyledger-core/libs/bytes"
 	"testing"
+	"time"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	"github.com/lazyledger/lazyledger-core/libs/log"
@@ -102,10 +103,10 @@ func TestBroadcastTxSync(t *testing.T) {
 
 func TestBroadcastTxCommit(t *testing.T) {
 	assert := assert.New(t)
-	//require := require.New(t)
+	require := require.New(t)
 
 	expectedTx := []byte("tx data")
-	expectedResponse := abci.ResponseCheckTx{
+	expectedCheckResp := abci.ResponseCheckTx{
 		Code:      abci.CodeTypeOK,
 		Data:      []byte("data"),
 		Log:       "log",
@@ -115,47 +116,38 @@ func TestBroadcastTxCommit(t *testing.T) {
 		Events:    nil,
 		Codespace: "space",
 	}
-
+	expectedDeliverResp := abci.ResponseDeliverTx{
+		Code:      0,
+		Data:      []byte("foo"),
+		Log:       "bar",
+		Info:      "baz",
+		GasWanted: 100,
+		GasUsed:   10,
+		Events:    nil,
+		Codespace: "space",
+	}
 
 	mockApp, rpc := getRPC(t)
 	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.BeginBlock(abci.RequestBeginBlock{})
-	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedResponse)
-
-	mockApp.On("Commit", mock.Anything).Run(func(args mock.Arguments) {
-		t.Log(args...)
-	}).Return(abci.ResponseCommit{})
+	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedCheckResp)
 
 	go func() {
-		//<-time.After(1 * time.Second)
-		err := rpc.node.EventBus().Publish(types.EventTx, types.EventDataTx{TxResult:abci.TxResult{
+		<-time.After(10 * time.Millisecond)
+		err := rpc.node.EventBus().PublishEventTx(types.EventDataTx{TxResult:abci.TxResult{
 			Height: 1,
 			Index:  0,
 			Tx:     expectedTx,
-			Result: abci.ResponseDeliverTx{
-				Code:      0,
-				Data:      nil,
-				Log:       "",
-				Info:      "",
-				GasWanted: 0,
-				GasUsed:   0,
-				Events:    nil,
-				Codespace: "",
-			},
+			Result: expectedDeliverResp,
 		}})
-		if err != nil {
-			t.Log("failed to publish event:", err)
-		}
+		require.NoError(err)
 	}()
 
 	res, err := rpc.BroadcastTxCommit(context.Background(), expectedTx)
 	assert.NoError(err)
-	assert.NotNil(res)
-	assert.Equal(expectedResponse.Code, res.CheckTx.Code)
-	assert.Equal(expectedResponse.Data, res.CheckTx.Data)
-	assert.Equal(expectedResponse.Log, res.CheckTx.Log)
-	assert.Equal(expectedResponse.Codespace, res.CheckTx.Codespace)
-	assert.NotEmpty(res.Hash)
+	require.NotNil(res)
+	assert.Equal(expectedCheckResp, res.CheckTx)
+	assert.Equal(expectedDeliverResp, res.DeliverTx)
 	mockApp.AssertExpectations(t)
 }
 
