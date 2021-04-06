@@ -37,6 +37,7 @@ const (
 // TODO(tzdybal): refactor. This is only a stub.
 type Tx struct {
 	Data []byte
+	From peer.ID
 }
 type TxHandler func(*Tx)
 
@@ -278,7 +279,7 @@ func (c *Client) processTxs(ctx context.Context) {
 		}
 
 		if c.txHandler != nil {
-			c.txHandler(&Tx{msg.Data})
+			c.txHandler(&Tx{Data: msg.Data, From: msg.GetFrom()})
 		}
 	}
 }
