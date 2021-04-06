@@ -91,12 +91,13 @@ func (n *Node) mempoolLoop(ctx context.Context) {
 func (n *Node) OnStart() error {
 	n.Logger.Info("starting P2P client")
 	err := n.P2P.Start(n.ctx)
-	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
-		n.incommingTxCh <- tx
-	})
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
+	go n.mempoolLoop(n.ctx)
+	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
+		n.incommingTxCh <- tx
+	})
 
 	return nil
 }
