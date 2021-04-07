@@ -142,6 +142,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
+	c.logger.Debug("Gossiping TX", "len", len(tx))
 	return c.txTopic.Publish(ctx, tx)
 }
 

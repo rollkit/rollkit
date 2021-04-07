@@ -3,9 +3,11 @@ package node
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	llcfg "github.com/lazyledger/lazyledger-core/config"
+	"github.com/lazyledger/lazyledger-core/libs/clist"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
 	"github.com/lazyledger/lazyledger-core/mempool"
@@ -73,15 +75,61 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	return node, nil
 }
 
-func (n *Node) mempoolLoop(ctx context.Context) {
+func (n *Node) mempoolReadLoop(ctx context.Context) {
 	for {
 		select {
 		case tx := <-n.incommingTxCh:
+			n.Logger.Debug("tx received", "from", tx.From, "bytes", len(tx.Data))
 			n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
 				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
 				SenderP2PID: corep2p.ID(tx.From),
 				Context:     ctx,
 			})
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (n *Node) mempoolPublishLoop(ctx context.Context) {
+	rawMempool := n.Mempool.(*mempool.CListMempool)
+	var next *clist.CElement
+
+	for {
+		// wait for transactions
+		if next == nil {
+			select {
+			case <-rawMempool.TxsWaitChan():
+				if next = rawMempool.TxsFront(); next != nil {
+					continue
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		// send transactions
+		for {
+			v := reflect.Indirect(reflect.ValueOf(next.Value))
+			f := v.FieldByName("tx")
+			tx := f.Bytes()
+
+			err := n.P2P.GossipTx(ctx, tx)
+			if err != nil {
+				n.Logger.Error("failed to gossip transaction", "error", err)
+				continue
+			}
+
+			n := next.Next()
+			if n == nil {
+				continue
+			}
+			next = n
+		}
+
+		select {
+		case <-next.NextWaitChan():
+			next = next.Next()
 		case <-ctx.Done():
 			return
 		}
@@ -94,7 +142,8 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
-	go n.mempoolLoop(n.ctx)
+	go n.mempoolReadLoop(n.ctx)
+	go n.mempoolPublishLoop(n.ctx)
 	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
 		n.incommingTxCh <- tx
 	})
