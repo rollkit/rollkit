@@ -59,13 +59,13 @@ func TestMempoolDirectly(t *testing.T) {
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
-	node.incommingTxCh <- &p2p.Tx{Data: []byte("foobar"), From: pid}
-	node.incommingTxCh <- &p2p.Tx{Data: []byte("lazyledger"), From: pid}
+	node.incommingTxCh <- &p2p.Tx{Data: []byte("tx1"), From: pid}
+	node.incommingTxCh <- &p2p.Tx{Data: []byte("tx2"), From: pid}
 	time.Sleep(100 * time.Millisecond)
-	node.incommingTxCh <- &p2p.Tx{Data: []byte("foobar"), From: pid}
-	node.incommingTxCh <- &p2p.Tx{Data: []byte("lazyledger"), From: pid}
+	node.incommingTxCh <- &p2p.Tx{Data: []byte("tx3"), From: pid}
+	node.incommingTxCh <- &p2p.Tx{Data: []byte("tx4"), From: pid}
 
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(node.Mempool.TxsBytes(), int64(2*len("foobar"+"lazyledger")))
+	assert.Equal(int64(4*len("tx*")), node.Mempool.TxsBytes())
 }
