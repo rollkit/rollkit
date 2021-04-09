@@ -41,7 +41,7 @@ func TestStartup(t *testing.T) {
 	assert.True(node.IsRunning())
 }
 
-func TestMempool(t *testing.T) {
+func TestMempoolDirectly(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -60,8 +60,12 @@ func TestMempool(t *testing.T) {
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
 	node.incommingTxCh <- &p2p.Tx{Data: []byte("foobar"), From: pid}
+	node.incommingTxCh <- &p2p.Tx{Data: []byte("lazyledger"), From: pid}
+	time.Sleep(100 * time.Millisecond)
+	node.incommingTxCh <- &p2p.Tx{Data: []byte("foobar"), From: pid}
+	node.incommingTxCh <- &p2p.Tx{Data: []byte("lazyledger"), From: pid}
 
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(node.Mempool.TxsBytes(), int64(len("foobar")))
+	assert.Equal(node.Mempool.TxsBytes(), int64(2*len("foobar"+"lazyledger")))
 }

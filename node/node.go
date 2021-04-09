@@ -120,11 +120,11 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 				continue
 			}
 
-			n := next.Next()
-			if n == nil {
-				continue
+			nx := next.Next()
+			if nx == nil {
+				break
 			}
-			next = n
+			next = nx
 		}
 
 		select {
