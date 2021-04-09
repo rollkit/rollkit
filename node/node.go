@@ -97,7 +97,9 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 
 	for {
 		// wait for transactions
+		n.Logger.Debug("loop begin")
 		if next == nil {
+			n.Logger.Debug("waiting for mempool")
 			select {
 			case <-rawMempool.TxsWaitChan():
 				if next = rawMempool.TxsFront(); next != nil {
@@ -110,6 +112,8 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 
 		// send transactions
 		for {
+			n.Logger.Debug("Gossiping...")
+			// TODO(tzdybal): refactor lazyledger-core to avoid reflection
 			v := reflect.Indirect(reflect.ValueOf(next.Value))
 			f := v.FieldByName("tx")
 			tx := f.Bytes()
@@ -127,6 +131,7 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 			next = nx
 		}
 
+		n.Logger.Debug("waiting for next...")
 		select {
 		case <-next.NextWaitChan():
 			next = next.Next()

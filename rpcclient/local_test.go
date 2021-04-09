@@ -3,18 +3,20 @@ package rpcclient
 import (
 	"context"
 	"crypto/rand"
-	"github.com/lazyledger/lazyledger-core/libs/bytes"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	"github.com/lazyledger/lazyledger-core/libs/bytes"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/mocks"
@@ -134,7 +136,7 @@ func TestBroadcastTxCommit(t *testing.T) {
 
 	go func() {
 		<-time.After(10 * time.Millisecond)
-		err := rpc.node.EventBus().PublishEventTx(types.EventDataTx{TxResult:abci.TxResult{
+		err := rpc.node.EventBus().PublishEventTx(types.EventDataTx{TxResult: abci.TxResult{
 			Height: 1,
 			Index:  0,
 			Tx:     expectedTx,
@@ -164,4 +166,56 @@ func getRPC(t *testing.T) (*mocks.Application, *Local) {
 	require.NotNil(rpc)
 
 	return app, rpc
+}
+
+func TestMempool2Nodes(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	app := &mocks.Application{}
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	key1, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	key2, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+
+	id1, err := peer.IDFromPrivateKey(key1)
+	require.NoError(err)
+
+	node1, err := node.NewNode(context.Background(), config.NodeConfig{
+		P2P: config.P2PConfig{
+			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
+		},
+	}, key1, proxy.NewLocalClientCreator(app), &types.GenesisDoc{}, log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node1)
+
+	node2, err := node.NewNode(context.Background(), config.NodeConfig{
+		P2P: config.P2PConfig{
+			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
+			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
+		},
+	}, key2, proxy.NewLocalClientCreator(app), &types.GenesisDoc{}, log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node1)
+
+	err = node1.Start()
+	require.NoError(err)
+
+	err = node2.Start()
+	require.NoError(err)
+
+	time.Sleep(2 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	local := NewLocal(node1)
+	require.NotNil(local)
+
+	resp, err := local.BroadcastTxSync(ctx, []byte("foobar"))
+	assert.NoError(err)
+	assert.NotNil(resp)
+
+	time.Sleep(1 * time.Second)
+
+	assert.Equal(node2.Mempool.TxsBytes(), int64(len("foobar")))
 }
