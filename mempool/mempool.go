@@ -9,6 +9,10 @@ import (
 	"github.com/lazyledger/lazyledger-core/types"
 )
 
+// UnknownPeerID is the peer ID to use when running CheckTx when there is
+// no peer (e.g. RPC)
+const UnknownPeerID uint16 = 0
+
 // Mempool defines the mempool interface.
 //
 // Updates to the mempool need to be synchronized with committing a block so
