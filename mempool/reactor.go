@@ -228,7 +228,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		}
 
 		// Allow for a lag of 1 block.
-		memTx := next.Value.(*mempoolTx)
+		memTx := next.Value.(*MempoolTx)
 		if peerState.GetHeight() < memTx.Height()-1 {
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 			continue
@@ -274,20 +274,20 @@ func (memR *Reactor) txs(next *clist.CElement, peerID uint16, peerHeight int64) 
 	batch := make([][]byte, 0)
 
 	for {
-		memTx := next.Value.(*mempoolTx)
+		memTx := next.Value.(*MempoolTx)
 
 		if _, ok := memTx.senders.Load(peerID); !ok {
 			// If current batch + this tx size is greater than max => return.
 			batchMsg := protomem.Message{
 				Sum: &protomem.Message_Txs{
-					Txs: &protomem.Txs{Txs: append(batch, memTx.tx)},
+					Txs: &protomem.Txs{Txs: append(batch, memTx.Tx)},
 				},
 			}
 			if batchMsg.Size() > memR.config.MaxBatchBytes {
 				return batch
 			}
 
-			batch = append(batch, memTx.tx)
+			batch = append(batch, memTx.Tx)
 		}
 
 		n := next.Next()

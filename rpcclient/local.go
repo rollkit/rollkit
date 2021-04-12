@@ -11,13 +11,13 @@ import (
 	tmbytes "github.com/lazyledger/lazyledger-core/libs/bytes"
 	tmpubsub "github.com/lazyledger/lazyledger-core/libs/pubsub"
 	tmquery "github.com/lazyledger/lazyledger-core/libs/pubsub/query"
-	"github.com/lazyledger/lazyledger-core/mempool"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	rpcclient "github.com/lazyledger/lazyledger-core/rpc/client"
 	ctypes "github.com/lazyledger/lazyledger-core/rpc/core/types"
 	rpctypes "github.com/lazyledger/lazyledger-core/rpc/jsonrpc/types"
 	"github.com/lazyledger/lazyledger-core/types"
 
+	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/node"
 )
 

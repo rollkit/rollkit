@@ -3,20 +3,19 @@ package node
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	llcfg "github.com/lazyledger/lazyledger-core/config"
 	"github.com/lazyledger/lazyledger-core/libs/clist"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
-	"github.com/lazyledger/lazyledger-core/mempool"
 	corep2p "github.com/lazyledger/lazyledger-core/p2p"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/lazyledger/optimint/config"
+	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/p2p"
 )
 
@@ -114,10 +113,8 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 		// send transactions
 		for {
 			n.Logger.Debug("Gossiping...")
-			// TODO(tzdybal): refactor lazyledger-core to avoid reflection
-			v := reflect.Indirect(reflect.ValueOf(next.Value))
-			f := v.FieldByName("tx")
-			tx := f.Bytes()
+			memTx := next.Value.(*mempool.MempoolTx)
+			tx := memTx.Tx
 
 			err := n.P2P.GossipTx(ctx, tx)
 			if err != nil {
