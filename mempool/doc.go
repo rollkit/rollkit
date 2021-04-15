@@ -1,3 +1,9 @@
+// This is a copy of mempool implementation from Tendermint.
+// Because of different "reactor" logic, some changes in visibility was required.
+// Changes:
+// * MempoolTx is exported
+// * MempoolTx.Tx field is exported
+
 // The mempool pushes new txs onto the proxyAppConn.
 // It gets a stream of (req, res) tuples from the proxy.
 // The mempool stores good txs in a concurrent linked-list.
