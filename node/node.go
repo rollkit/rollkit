@@ -30,9 +30,10 @@ type Node struct {
 	conf config.NodeConfig
 	P2P  *p2p.Client
 
-	Mempool       mempool.Mempool
-	mempoolIDs    *mempoolIDs
-	incommingTxCh chan *p2p.Tx
+	// TODO(tzdybal): consider extracting "mempool reactor"
+	Mempool      mempool.Mempool
+	mempoolIDs   *mempoolIDs
+	incomingTxCh chan *p2p.Tx
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -60,15 +61,15 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 
 	node := &Node{
-		proxyApp:      proxyApp,
-		eventBus:      eventBus,
-		genesis:       genesis,
-		conf:          conf,
-		P2P:           client,
-		Mempool:       mp,
-		mempoolIDs:    newMempoolIDs(),
-		incommingTxCh: make(chan *p2p.Tx),
-		ctx:           ctx,
+		proxyApp:     proxyApp,
+		eventBus:     eventBus,
+		genesis:      genesis,
+		conf:         conf,
+		P2P:          client,
+		Mempool:      mp,
+		mempoolIDs:   newMempoolIDs(),
+		incomingTxCh: make(chan *p2p.Tx),
+		ctx:          ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -78,7 +79,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 func (n *Node) mempoolReadLoop(ctx context.Context) {
 	for {
 		select {
-		case tx := <-n.incommingTxCh:
+		case tx := <-n.incomingTxCh:
 			n.Logger.Debug("tx received", "from", tx.From, "bytes", len(tx.Data))
 			n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
 				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
@@ -150,7 +151,7 @@ func (n *Node) OnStart() error {
 	go n.mempoolReadLoop(n.ctx)
 	go n.mempoolPublishLoop(n.ctx)
 	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
-		n.incommingTxCh <- tx
+		n.incomingTxCh <- tx
 	})
 
 	return nil

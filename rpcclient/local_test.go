@@ -29,6 +29,8 @@ var expectedInfo = abci.ResponseInfo{
 	LastBlockHeight: 0,
 }
 
+var mockTxProcessingTime = 10 * time.Millisecond
+
 func TestInfo(t *testing.T) {
 	assert := assert.New(t)
 
@@ -135,7 +137,7 @@ func TestBroadcastTxCommit(t *testing.T) {
 	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedCheckResp)
 
 	go func() {
-		<-time.After(10 * time.Millisecond)
+		time.Sleep(mockTxProcessingTime)
 		err := rpc.node.EventBus().PublishEventTx(types.EventDataTx{TxResult: abci.TxResult{
 			Height: 1,
 			Index:  0,

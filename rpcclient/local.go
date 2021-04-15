@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	// TODO(tzdybal): make this configurable
 	SubscribeTimeout = 5 * time.Second
 )
 
@@ -73,6 +74,9 @@ func (l *Local) ABCIQueryWithOptions(ctx context.Context, path string, data tmby
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
 func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	// This implementation corresponds to Tendermints implementation from rpc/core/mempool.go.
+	// ctx.RemoteAddr godoc: If neither HTTPReq nor WSConn is set, an empty string is returned.
+	// This code is a local client, so we can assume that subscriber is ""
 	subscriber := "" //ctx.RemoteAddr()
 
 	if l.EventBus.NumClients() >= l.config.MaxSubscriptionClients {
