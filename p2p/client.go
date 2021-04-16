@@ -37,6 +37,7 @@ const (
 // TODO(tzdybal): refactor. This is only a stub.
 type Tx struct {
 	Data []byte
+	From peer.ID
 }
 type TxHandler func(*Tx)
 
@@ -141,6 +142,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
+	c.logger.Debug("Gossiping TX", "len", len(tx))
 	return c.txTopic.Publish(ctx, tx)
 }
 
@@ -278,7 +280,7 @@ func (c *Client) processTxs(ctx context.Context) {
 		}
 
 		if c.txHandler != nil {
-			c.txHandler(&Tx{msg.Data})
+			c.txHandler(&Tx{Data: msg.Data, From: msg.GetFrom()})
 		}
 	}
 }

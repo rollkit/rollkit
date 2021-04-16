@@ -3,12 +3,15 @@ package node
 import (
 	"context"
 	"fmt"
+	"reflect"
 
+	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	llcfg "github.com/lazyledger/lazyledger-core/config"
+	"github.com/lazyledger/lazyledger-core/libs/clist"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
-
-	llcfg "github.com/lazyledger/lazyledger-core/config"
 	"github.com/lazyledger/lazyledger-core/mempool"
+	corep2p "github.com/lazyledger/lazyledger-core/p2p"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -27,7 +30,10 @@ type Node struct {
 	conf config.NodeConfig
 	P2P  *p2p.Client
 
-	Mempool mempool.Mempool
+	// TODO(tzdybal): consider extracting "mempool reactor"
+	Mempool      mempool.Mempool
+	mempoolIDs   *mempoolIDs
+	incomingTxCh chan *p2p.Tx
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -55,17 +61,85 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 
 	node := &Node{
-		proxyApp: proxyApp,
-		eventBus: eventBus,
-		genesis:  genesis,
-		conf:     conf,
-		P2P:      client,
-		Mempool:  mp,
-		ctx:      ctx,
+		proxyApp:     proxyApp,
+		eventBus:     eventBus,
+		genesis:      genesis,
+		conf:         conf,
+		P2P:          client,
+		Mempool:      mp,
+		mempoolIDs:   newMempoolIDs(),
+		incomingTxCh: make(chan *p2p.Tx),
+		ctx:          ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
+}
+
+func (n *Node) mempoolReadLoop(ctx context.Context) {
+	for {
+		select {
+		case tx := <-n.incomingTxCh:
+			n.Logger.Debug("tx received", "from", tx.From, "bytes", len(tx.Data))
+			n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
+				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
+				SenderP2PID: corep2p.ID(tx.From),
+				Context:     ctx,
+			})
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (n *Node) mempoolPublishLoop(ctx context.Context) {
+	rawMempool := n.Mempool.(*mempool.CListMempool)
+	var next *clist.CElement
+
+	for {
+		// wait for transactions
+		n.Logger.Debug("loop begin")
+		if next == nil {
+			n.Logger.Debug("waiting for mempool")
+			select {
+			case <-rawMempool.TxsWaitChan():
+				if next = rawMempool.TxsFront(); next != nil {
+					continue
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		// send transactions
+		for {
+			n.Logger.Debug("Gossiping...")
+			// TODO(tzdybal): refactor lazyledger-core to avoid reflection
+			v := reflect.Indirect(reflect.ValueOf(next.Value))
+			f := v.FieldByName("tx")
+			tx := f.Bytes()
+
+			err := n.P2P.GossipTx(ctx, tx)
+			if err != nil {
+				n.Logger.Error("failed to gossip transaction", "error", err)
+				continue
+			}
+
+			nx := next.Next()
+			if nx == nil {
+				break
+			}
+			next = nx
+		}
+
+		n.Logger.Debug("waiting for next...")
+		select {
+		case <-next.NextWaitChan():
+			next = next.Next()
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (n *Node) OnStart() error {
@@ -74,6 +148,11 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
+	go n.mempoolReadLoop(n.ctx)
+	go n.mempoolPublishLoop(n.ctx)
+	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
+		n.incomingTxCh <- tx
+	})
 
 	return nil
 }
