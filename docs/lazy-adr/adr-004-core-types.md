@@ -106,13 +106,80 @@ type EvidenceData struct {
 - TODO: that's it, or are the more?
 
 
-### Commit
+#### Commit
 
 ```go
 type Commit struct {
     Height     uint64
     HeaderHash [32]byte
     Signatures []Signature // most of the time this is a single signature
+}
+```
+
+#### ConsensusParams
+
+[ConsensusParams](https://docs.tendermint.com/master/spec/core/state.html#consensusparams) can be updated by the application through ABCI.
+This could be seen as a state transition and the ConsensusHash in the header would then require a dedicated state fraud proof. 
+That said, none of the existing default Cosmos-SDK modules actually make use of this functionality though.
+Hence, we can treat the ConsensusParams as constants (for the same app version). 
+We clearly need to communicate this to optimistic rollup chain developers. 
+Ideally, we should ensure this programmatically to guarantee that this assumption always holds inside optimint.
+
+The ConsensusParams have the exact same structure as in Tendermint. For the sake of self-containedness we still list them here:
+
+
+```go
+// ConsensusParams contains consensus critical parameters that determine the
+// validity of blocks.
+type ConsensusParams struct {
+    Block     BlockParams     
+    Evidence  EvidenceParams  
+    Validator ValidatorParams 
+    Version   VersionParams   
+}
+
+// BlockParams contains limits on the block size.
+type BlockParams struct {
+    // Max block size, in bytes.
+    // Note: must be greater than 0
+    MaxBytes int64 
+    // Max gas per block.
+    // Note: must be greater or equal to -1
+    MaxGas int64
+    // Minimum time increment between consecutive blocks (in milliseconds) If the
+    // block header timestamp is ahead of the system clock, decrease this value.
+    //
+    // Not exposed to the application.
+    TimeIotaMs int64
+}
+
+// EvidenceParams determine how we handle evidence of malfeasance.
+type EvidenceParams struct {
+    // Max age of evidence, in blocks.
+    //
+    // The basic formula for calculating this is: MaxAgeDuration / {average block
+    // time}.
+    MaxAgeNumBlocks int64 
+    // Max age of evidence, in time.
+    //
+    // It should correspond with an app's "unbonding period" or other similar
+    // mechanism for handling [Nothing-At-Stake
+    // attacks](https://github.com/ethereum/wiki/wiki/Proof-of-Stake-FAQ#what-is-the-nothing-at-stake-problem-and-how-can-it-be-fixed).
+    MaxAgeDuration time.Duration
+    // This sets the maximum size of total evidence in bytes that can be committed in a single block.
+    // and should fall comfortably under the max block bytes.
+    // Default is 1048576 or 1MB
+    MaxBytes int64
+}
+
+// ValidatorParams restrict the public key types validators can use.
+type ValidatorParams struct {
+    PubKeyTypes []string
+}
+
+// VersionParams contains the ABCI application version.
+type VersionParams struct {
+    AppVersion uint64
 }
 ```
 
