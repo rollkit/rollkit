@@ -12,7 +12,9 @@ This document describes the core data structures of any Optimint-powered blockch
 
 ## Alternative Approaches
 
-> This section contains information around alternative options that are considered before making a decision. It should contain a explanation on why the alternative approach(es) were not chosen.
+Alternatives for ChainID:
+ - an integer type like unit64
+ - a string that fulfills some basic rules like the ChainID for Cosmos chains
 
 ## Decision
 
@@ -41,9 +43,7 @@ If necessary `Tx` could be turned into a struct. Currently, there is no need for
 type Header struct {
     // Block and App version
     Version Version 
-    // TODO this is redundant; understand if
-    // anything like the ChainID in the Header is 
-    // required for IBC though.
+    // NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
     NamespaceID [8]byte  
     
     Height  uint64               
@@ -59,11 +59,14 @@ type Header struct {
     AppHash            [32]byte  // state after applying txs from the current block
     
     // root hash of all results from the txs from the previous block
-    LastResultsHash [32]byte // TODO this is ABCI specific: do we really need it though?
+    // This is ABCI specific but smart-contract chains require some way of committing to transaction receipts/results.
+    LastResultsHash [32]byte
     
-    // TODO: do we need this to be included in the header?
-    // the address can be derived from the pubkey which can be derived 
+    
+    // Note that the address can be derived from the pubkey which can be derived 
     // from the signature when using secp256k.
+    // We keep this in case users choose another signature format where the 
+    // pubkey can't be recovered by the signature (e.g. ed25519).
     ProposerAddress Address  // original proposer of the block
 }
 
@@ -183,39 +186,7 @@ type VersionParams struct {
 }
 ```
 
-> This section does not need to be filled in at the start of the ADR, but must be completed prior to the merging of the implementation.
->
-> Here are some common questions that get answered as part of the detailed design:
->
-> - What are the user requirements?
->
-> - What systems will be affected?
->
-> - What new data structures are needed, what data structures will be changed?
->
-> - What new APIs will be needed, what APIs will be changed?
->
-> - What are the efficiency considerations (time/space)?
->
-> - What are the expected access patterns (load/throughput)?
->
-> - Are there any logging, monitoring or observability needs?
->
-> - Are there any security considerations?
->
-> - Are there any privacy considerations?
->
-> - How will the changes be tested?
->
-> - If the change is large, how will the changes be broken up for ease of review?
->
-> - Will these changes require a breaking (major) release?
->
-> - Does this change require coordination with the LazyLedger fork of the SDK or lazyledger-app?
-
 ## Status
-
-> A decision may be "proposed" if it hasn't been agreed upon yet, or "accepted" once it is agreed upon. Once the ADR has been implemented mark the ADR as "implemented". If a later ADR changes or reverses a decision, it may be marked as "deprecated" or "superseded" with a reference to its replacement.
 
 Proposed
 
@@ -231,8 +202,6 @@ Proposed
 
 ## References
 
-> Are there any relevant PR comments, issues that led up to this, or articles referenced for why we made the given design choice? If so link them here!
+- https://github.com/lazyledger/optimint/pull/41
 
-- {reference link}
 
-TODO link to PR adding go code
