@@ -226,32 +226,32 @@ func (l *Local) Unsubscribe(ctx context.Context, subscriber, query string) error
 
 func (l *Local) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
 	// needs genesis provider
-	panic("not implemented!")
+	panic("Genesis - not implemented!")
 }
 
 func (l *Local) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	// needs block store
-	panic("not implemented!")
+	panic("BlockchainInfo - not implemented!")
 }
 
 func (l *Local) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
 	// needs P2P layer
-	panic("not implemented!")
+	panic("NetInfo - not implemented!")
 }
 
 func (l *Local) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	// need consensus state
-	panic("not implemented!")
+	panic("DumpConsensusState - not implemented!")
 }
 
 func (l *Local) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
 	// need consensus state
-	panic("not implemented!")
+	panic("ConsensusState - not implemented!")
 }
 
 func (l *Local) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
 	// needs state storage
-	panic("not implemented!")
+	panic("ConsensusParams - not implemented!")
 }
 
 func (l *Local) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
@@ -260,56 +260,56 @@ func (l *Local) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 
 func (l *Local) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	// needs block store
-	panic("not implemented!")
+	panic("Block - not implemented!")
 }
 
 func (l *Local) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
 	// needs block store
-	panic("not implemented!")
+	panic("BlockByHash - not implemented!")
 }
 
 func (l *Local) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
 	// needs block store
-	panic("not implemented!")
+	panic("BlockResults - not implemented!")
 }
 
 func (l *Local) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	// needs block store
-	panic("not implemented!")
+	panic("Commit - not implemented!")
 }
 
 func (l *Local) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {
-	panic("not implemented!")
+	panic("Validators - not implemented!")
 }
 
 func (l *Local) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
 	// needs block store, tx index (?)
-	panic("not implemented!")
+	panic("Tx - not implemented!")
 }
 
 func (l *Local) TxSearch(ctx context.Context, query string, prove bool, page, perPage *int, orderBy string) (*ctypes.ResultTxSearch, error) {
 	// needs block store
-	panic("not implemented!")
+	panic("TxSearch - not implemented!")
 }
 
 func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	// needs block store, P2P layer
-	panic("not implemented!")
+	panic("Status - not implemented!")
 }
 
 func (l *Local) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
 	// needs evidence pool?
-	panic("not implemented!")
+	panic("BroadcastEvidence - not implemented!")
 }
 
 func (l *Local) UnconfirmedTxs(ctx context.Context, limit *int) (*ctypes.ResultUnconfirmedTxs, error) {
 	// needs mempool
-	panic("not implemented!")
+	panic("UnconfirmedTxs - not implemented!")
 }
 
 func (l *Local) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
 	// needs mempool
-	panic("not implemented!")
+	panic("NumUnconfirmedTxs - not implemented!")
 }
 
 func (l *Local) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
