@@ -88,9 +88,10 @@ type Block struct {
 
 type Data struct {
     Txs Txs
-	IntermediateStateRoots IntermediateStateRoots
-	Evidence EvidenceData
+    IntermediateStateRoots IntermediateStateRoots
+    Evidence EvidenceData
 }
+
 type EvidenceData struct {
     Evidence []Evidence
 }
