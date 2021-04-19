@@ -6,7 +6,65 @@ import (
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/lazyledger/optimint/config"
 )
+
+func TestTranslateAddresses(t *testing.T) {
+	t.Parallel()
+
+	invalidCosmos := "foobar"
+	validCosmos := "127.0.0.1:1234"
+	validOptimint := "/ip4/127.0.0.1/tcp/1234"
+
+	cases := []struct {
+		name        string
+		input       config.NodeConfig
+		expected    config.NodeConfig
+		expectedErr string
+	}{
+		{"empty", config.NodeConfig{}, config.NodeConfig{}, ""},
+		{
+			"valid listen address",
+			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validCosmos}},
+			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validOptimint}},
+			"",
+		},
+		{
+			"valid seed address",
+			config.NodeConfig{P2P: config.P2PConfig{Seeds: validCosmos + "," + validCosmos}},
+			config.NodeConfig{P2P: config.P2PConfig{Seeds: validOptimint + "," + validOptimint}},
+			"",
+		},
+		{
+			"invalid listen address",
+			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: invalidCosmos}},
+			config.NodeConfig{},
+			ErrInvalidAddress.Error(),
+		},
+		{
+			"invalid seed address",
+			config.NodeConfig{P2P: config.P2PConfig{Seeds: validCosmos + "," + invalidCosmos}},
+			config.NodeConfig{},
+			ErrInvalidAddress.Error(),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert := assert.New(t)
+			// c.input is changed in place
+			err := TranslateAddresses(&c.input)
+			if c.expectedErr != "" {
+				assert.Error(err)
+				assert.True(strings.HasPrefix(err.Error(), c.expectedErr), "invalid error message")
+			} else {
+				assert.NoError(err)
+				assert.Equal(c.expected, c.input)
+			}
+		})
+	}
+}
 
 func TestGetMultiaddr(t *testing.T) {
 	t.Parallel()
