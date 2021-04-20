@@ -4,6 +4,8 @@ type Header struct {
 	// Block and App version
 	Version Version
 	// NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
+	// TODO(ismail): figure out if we want to use namespace.ID here instead (downside is that it isn't fixed size)
+	// at least extract the used constants (32, 8) as package variables though.
 	NamespaceID [8]byte
 
 	Height uint64

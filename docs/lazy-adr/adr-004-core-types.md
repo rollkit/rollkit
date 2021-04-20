@@ -2,11 +2,9 @@
 
 ## Changelog
 
-- {date}: {changelog}
+- 19-04-2021: Initial Draft
 
 ## Context
-
-> This section contains all the context one needs to understand the current state, and why there is a problem. It should be as succinct as possible and introduce the high level idea behind the solution.
 
 This document describes the core data structures of any Optimint-powered blockchain.
 
@@ -102,11 +100,13 @@ type EvidenceData struct {
 
 #### Evidence
 
-`Evidence` represents a go-interface (or oneof in protobuf) of known set of concrete fraud-proofs:
+`Evidence` represents a go-interface (or oneof in protobuf) of known set of concrete fraud-proofs.
+The details for this will be defined in a separated adr/PR.
+
+Here is an incomplete list of potenial evidence types:
 - Same Aggregator signed two different blocks at the same height
-  - TODO: figure out if this is actually malicious / slashable behaviour - eg. clients could simply accept the last block included in a LL block
+  - figure out if this is actually malicious / slashable behaviour - e.g. clients could simply accept the last block included in a LL block
 - State Transition Fraud Proofs (for previous blocks)
-- TODO: that's it, or are the more?
 
 
 #### Commit
@@ -188,15 +188,24 @@ type VersionParams struct {
 
 ## Status
 
-Proposed
+Proposed and partly implemented.
+
+For finishing the implementation these items need to be tackled at least:
+
+- [ ] methods on core types (e.g. for hashing and basic validation etc)
+- [ ] equivalent types for serialization purposes (probably protobuf)
+- [ ] conversion from and to protobuf
+
 
 ## Consequences
 
-> This section describes the consequences, after applying the decision. All consequences should be summarized here, not just the "positive" ones.
-
 ### Positive
 
+- very close to the original Tendermint types which makes on-boarding devs familiar for the Cosmos-SDK and Tendermint easier
+
 ### Negative
+
+- dependency on abci types for evidence interface (in the current implementation at least)
 
 ### Neutral
 
