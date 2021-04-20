@@ -3,9 +3,7 @@ package types
 type Header struct {
 	// Block and App version
 	Version Version
-	// TODO this is redundant; understand if
-	// anything like the ChainID in the Header is
-	// required for IBC though.
+	// NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
 	NamespaceID [8]byte
 
 	Height uint64
@@ -20,12 +18,15 @@ type Header struct {
 	ConsensusHash  [32]byte // consensus params for current block
 	AppHash        [32]byte // state after applying txs from the current block
 
-	// root hash of all results from the txs from the previous block
-	LastResultsHash [32]byte // TODO this is ABCI specific: do we really need it though?
+	// Root hash of all results from the txs from the previous block.
+	// This is ABCI specific but smart-contract chains require some way of committing
+	// to transaction receipts/results.
+	LastResultsHash [32]byte
 
-	// TODO: do we need this to be included in the header?
-	// the address can be derived from the pubkey which can be derived
+	// Note that the address can be derived from the pubkey which can be derived
 	// from the signature when using secp256k.
+	// We keep this in case users choose another signature format where the
+	// pubkey can't be recovered by the signature (e.g. ed25519).
 	ProposerAddress []byte // original proposer of the block
 }
 
