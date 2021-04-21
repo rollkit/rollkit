@@ -71,6 +71,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		Mempool:      mp,
 		mempoolIDs:   newMempoolIDs(),
 		incomingTxCh: make(chan *p2p.Tx),
+		BlockStore:   store.NewBlockStore(),
 		ctx:          ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
