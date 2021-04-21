@@ -159,7 +159,7 @@ func (n *Node) OnStop() {
 }
 
 func (n *Node) OnReset() error {
-	panic("not implemented!")
+	panic("OnReset - not implemented!")
 }
 
 func (n *Node) SetLogger(logger log.Logger) {
