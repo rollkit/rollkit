@@ -293,8 +293,33 @@ func (l *Local) TxSearch(ctx context.Context, query string, prove bool, page, pe
 }
 
 func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
-	// needs block store, P2P layer
-	panic("Status - not implemented!")
+	latest := l.node.BlockStore.LoadBlock(l.node.BlockStore.Height())
+	if latest == nil {
+		// TODO(tzdybal): extract error
+		return nil, errors.New("failed to find latest block")
+	}
+
+	latestBlockHash := latest.Header.DataHash
+	latestAppHash := latest.Header.AppHash
+	latestHeight := latest.Header.Height
+	latestBlockTimeNano := latest.Header.Time
+
+	result := &ctypes.ResultStatus{
+		// TODO(tzdybal): NodeInfo, ValidatorInfo
+		SyncInfo: ctypes.SyncInfo{
+			LatestBlockHash:   latestBlockHash[:],
+			LatestAppHash:     latestAppHash[:],
+			LatestBlockHeight: int64(latestHeight),
+			LatestBlockTime:   time.Unix(0, int64(latestBlockTimeNano)),
+			// TODO(tzdybal): add missing fields
+			//EarliestBlockHash:   earliestBlockHash,
+			//EarliestAppHash:     earliestAppHash,
+			//EarliestBlockHeight: earliestBlockHeight,
+			//EarliestBlockTime:   time.Unix(0, earliestBlockTimeNano),
+			//CatchingUp:          env.ConsensusReactor.WaitSync(),
+		},
+	}
+	return result, nil
 }
 
 func (l *Local) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {

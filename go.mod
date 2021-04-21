@@ -3,6 +3,7 @@ module github.com/lazyledger/optimint
 go 1.15
 
 require (
+	github.com/dgraph-io/badger/v3 v3.2011.1 // indirect
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/protobuf v1.3.2

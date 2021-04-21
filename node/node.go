@@ -17,6 +17,7 @@ import (
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/p2p"
+	"github.com/lazyledger/optimint/store"
 )
 
 type Node struct {
@@ -33,6 +34,8 @@ type Node struct {
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.Tx
+
+	BlockStore store.BlockStore
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
