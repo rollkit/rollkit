@@ -5,8 +5,8 @@ import "github.com/lazyledger/optimint/types"
 type BlockStore interface {
 	Height() uint64
 
-	SaveBlock(block *types.Block)
+	SaveBlock(block *types.Block) error
 
-	LoadBlock(height uint64) *types.Block
-	LoadBlockByHash(hash [32]byte) *types.Block
+	LoadBlock(height uint64) (*types.Block, error)
+	LoadBlockByHash(hash [32]byte) (*types.Block, error)
 }

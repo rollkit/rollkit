@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/lazyledger/optimint/types"
+	"go.uber.org/multierr"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -35,9 +36,12 @@ func (bs *DefaultBlockStore) Height() uint64 {
 	return bs.height
 }
 
-func (bs *DefaultBlockStore) SaveBlock(block *types.Block) {
+func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 	// TODO(tzdybal): proper serialization & hashing
-	hash := getHash(block)
+	hash, err := getHash(block)
+	if err != nil {
+		return err
+	}
 	key := append(blockPreffix[:], hash[:]...)
 
 	height := make([]byte, 8)
@@ -46,22 +50,28 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) {
 
 	var value bytes.Buffer
 	enc := gob.NewEncoder(&value)
-	enc.Encode(block)
+	err = enc.Encode(block)
+	if err != nil {
+		return err
+	}
 
 	bs.mtx.Lock()
 	defer bs.mtx.Unlock()
-	bs.db.Set(key, value.Bytes())
-	bs.db.Set(ikey, hash[:])
+	// TODO(tzdybal): use transaction for consistency of DB
+	err = multierr.Append(err, bs.db.Set(key, value.Bytes()))
+	err = multierr.Append(err, bs.db.Set(ikey, hash[:]))
 
 	if block.Header.Height > bs.height {
 		bs.height = block.Header.Height
 	}
+
+	return err
 }
 
 // TODO(tzdybal): what is more common access pattern? by height or by hash?
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
-func (bs *DefaultBlockStore) LoadBlock(height uint64) *types.Block {
+func (bs *DefaultBlockStore) LoadBlock(height uint64) (*types.Block, error) {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, height)
 	ikey := append(indexPreffix[:], buf[:]...)
@@ -71,7 +81,7 @@ func (bs *DefaultBlockStore) LoadBlock(height uint64) *types.Block {
 	bs.mtx.RUnlock()
 
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	// TODO(tzdybal): any better way to convert slice to array?
@@ -80,7 +90,7 @@ func (bs *DefaultBlockStore) LoadBlock(height uint64) *types.Block {
 	return bs.LoadBlockByHash(h)
 }
 
-func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) *types.Block {
+func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	key := append(blockPreffix[:], hash[:]...)
 
 	bs.mtx.RLock()
@@ -88,21 +98,27 @@ func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) *types.Block {
 	bs.mtx.RUnlock()
 
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	dec := gob.NewDecoder(bytes.NewReader(blockData))
 	var block types.Block
-	dec.Decode(&block)
+	err = dec.Decode(&block)
+	if err != nil {
+		return nil, err
+	}
 
-	return &block
+	return &block, nil
 }
 
 // TODO(tzdybal): replace with proper hashing mechanism
-func getHash(block *types.Block) [32]byte {
+func getHash(block *types.Block) ([32]byte, error) {
 	var header bytes.Buffer
 	enc := gob.NewEncoder(&header)
-	enc.Encode(block.Header)
+	err := enc.Encode(block.Header)
+	if err != nil {
+		return [32]byte{}, err
+	}
 
-	return sha3.Sum256(header.Bytes())
+	return sha3.Sum256(header.Bytes()), nil
 }

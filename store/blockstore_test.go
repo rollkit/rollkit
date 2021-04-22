@@ -14,12 +14,12 @@ func TestBlockstoreHeight(t *testing.T) {
 	bstore := NewBlockStore()
 	assert.Equal(uint64(0), bstore.Height())
 
-	bstore.SaveBlock(&types.Block{
+	err := bstore.SaveBlock(&types.Block{
 		Header: types.Header{
 			Height: 1,
 		},
 	})
-
+	assert.NoError(err)
 	assert.Equal(uint64(1), bstore.Height())
 }
 
@@ -29,15 +29,16 @@ func TestBlockstoreLoad(t *testing.T) {
 
 	bstore := NewBlockStore()
 
-	bstore.SaveBlock(&types.Block{
+	err := bstore.SaveBlock(&types.Block{
 		Header: types.Header{
 			Height: 1,
 		},
 	})
-
+	require.NoError(err)
 	assert.Equal(uint64(1), bstore.Height())
 
-	block := bstore.LoadBlock(1)
+	block, err := bstore.LoadBlock(1)
+	require.NoError(err)
 	require.NotNil(block)
 
 	assert.Equal(uint64(1), block.Header.Height)
