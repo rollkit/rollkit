@@ -14,8 +14,8 @@ import (
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/mocks"
@@ -37,7 +37,10 @@ func TestStartup(t *testing.T) {
 
 	err = node.Start()
 	assert.NoError(err)
-	defer node.Stop()
+	defer func() {
+		err := node.Stop()
+		assert.NoError(err)
+	}()
 	assert.True(node.IsRunning())
 }
 

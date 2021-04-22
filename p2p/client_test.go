@@ -67,7 +67,7 @@ func TestClientStartup(t *testing.T) {
 }
 
 func TestBootstrapping(t *testing.T) {
-	log.SetLogLevel("dht", "INFO")
+	_ = log.SetLogLevel("dht", "INFO")
 	//log.SetDebugLogging()
 
 	assert := assert.New(t)
