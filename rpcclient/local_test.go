@@ -31,6 +31,16 @@ var expectedInfo = abci.ResponseInfo{
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
+func TestConnectionGetters(t *testing.T) {
+	assert := assert.New(t)
+
+	_, rpc := getRPC(t)
+	assert.NotNil(rpc.consensus())
+	assert.NotNil(rpc.mempool())
+	assert.NotNil(rpc.snapshot())
+	assert.NotNil(rpc.query())
+}
+
 func TestInfo(t *testing.T) {
 	assert := assert.New(t)
 

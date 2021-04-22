@@ -80,11 +80,14 @@ func (n *Node) mempoolReadLoop(ctx context.Context) {
 		select {
 		case tx := <-n.incomingTxCh:
 			n.Logger.Debug("tx received", "from", tx.From, "bytes", len(tx.Data))
-			n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
+			err := n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
 				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
 				SenderP2PID: corep2p.ID(tx.From),
 				Context:     ctx,
 			})
+			if err != nil {
+				n.Logger.Error("failed to execute CheckTx", "error", err)
+			}
 		case <-ctx.Done():
 			return
 		}

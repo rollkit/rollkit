@@ -76,7 +76,9 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 			privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 			addr, err := getAddr(privKey)
 			require.NoError(err)
-			mnet.AddPeer(privKey, addr)
+			host, err := mnet.AddPeer(privKey, addr)
+			require.NoError(err)
+			require.NotEmpty(host)
 		} else {
 			_, err := mnet.GenPeer()
 			require.NoError(err)
@@ -111,7 +113,8 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	}
 
 	for i, c := range clients {
-		c.startWithHost(ctx, mnet.Hosts()[i])
+		err := c.startWithHost(ctx, mnet.Hosts()[i])
+		require.NoError(err)
 	}
 
 	return clients
