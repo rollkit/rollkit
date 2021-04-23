@@ -161,6 +161,10 @@ func (n *Node) OnStart() error {
 	return nil
 }
 
+func (n *Node) GetGenesis() *types.GenesisDoc {
+	return n.genesis
+}
+
 func (n *Node) OnStop() {
 	n.P2P.Close()
 }

@@ -22,6 +22,9 @@ import (
 )
 
 const (
+	defaultPerPage = 30
+	maxPerPage     = 100
+
 	// TODO(tzdybal): make this configurable
 	SubscribeTimeout = 5 * time.Second
 )
@@ -224,9 +227,8 @@ func (l *Local) Unsubscribe(ctx context.Context, subscriber, query string) error
 	return l.EventBus.Unsubscribe(ctx, subscriber, q)
 }
 
-func (l *Local) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
-	// needs genesis provider
-	panic("Genesis - not implemented!")
+func (l *Local) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
+	return &ctypes.ResultGenesis{Genesis: l.node.GetGenesis()}, nil
 }
 
 func (l *Local) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
@@ -327,14 +329,23 @@ func (l *Local) BroadcastEvidence(ctx context.Context, evidence types.Evidence) 
 	panic("BroadcastEvidence - not implemented!")
 }
 
-func (l *Local) UnconfirmedTxs(ctx context.Context, limit *int) (*ctypes.ResultUnconfirmedTxs, error) {
-	// needs mempool
-	panic("UnconfirmedTxs - not implemented!")
+func (l *Local) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.ResultUnconfirmedTxs, error) {
+	// reuse per_page validator
+	limit := validatePerPage(limitPtr)
+
+	txs := l.node.Mempool.ReapMaxTxs(limit)
+	return &ctypes.ResultUnconfirmedTxs{
+		Count:      len(txs),
+		Total:      l.node.Mempool.Size(),
+		TotalBytes: l.node.Mempool.TxsBytes(),
+		Txs:        txs}, nil
 }
 
 func (l *Local) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
-	// needs mempool
-	panic("NumUnconfirmedTxs - not implemented!")
+	return &ctypes.ResultUnconfirmedTxs{
+		Count:      l.node.Mempool.Size(),
+		Total:      l.node.Mempool.Size(),
+		TotalBytes: l.node.Mempool.TxsBytes()}, nil
 }
 
 func (l *Local) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
@@ -407,4 +418,18 @@ func (l *Local) query() proxy.AppConnQuery {
 
 func (l *Local) snapshot() proxy.AppConnSnapshot {
 	return l.node.ProxyApp().Snapshot()
+}
+
+func validatePerPage(perPagePtr *int) int {
+	if perPagePtr == nil { // no per_page parameter
+		return defaultPerPage
+	}
+
+	perPage := *perPagePtr
+	if perPage < 1 {
+		return defaultPerPage
+	} else if perPage > maxPerPage {
+		return maxPerPage
+	}
+	return perPage
 }
