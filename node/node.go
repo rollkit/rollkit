@@ -169,7 +169,7 @@ func (n *Node) OnStart() error {
 	return nil
 }
 
-func (n *Node) GetGenesis() *types.GenesisDoc {
+func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 	return n.genesis
 }
 
