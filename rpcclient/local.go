@@ -238,7 +238,25 @@ func (l *Local) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) 
 
 func (l *Local) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
 	// needs P2P layer
-	panic("NetInfo - not implemented!")
+
+	res := ctypes.ResultNetInfo{
+		Listening: true,
+	}
+	for _, ma := range l.node.P2P.Addrs() {
+		res.Listeners = append(res.Listeners, ma.String())
+	}
+	peers := l.node.P2P.Peers()
+	res.NPeers = len(peers)
+	for _, peer := range peers {
+		res.Peers = append(res.Peers, ctypes.Peer{
+			NodeInfo:         peer.NodeInfo,
+			IsOutbound:       peer.IsOutbound,
+			ConnectionStatus: peer.ConnectionStatus,
+			RemoteIP:         peer.RemoteIP,
+		})
+	}
+
+	return &res, nil
 }
 
 func (l *Local) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {

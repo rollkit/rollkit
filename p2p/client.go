@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	cdiscovery "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -18,6 +19,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/multierr"
 
+	"github.com/lazyledger/lazyledger-core/p2p"
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/log"
 )
@@ -148,6 +150,41 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 
 func (c *Client) SetTxHandler(handler TxHandler) {
 	c.txHandler = handler
+}
+
+func (c *Client) Addrs() []multiaddr.Multiaddr {
+	return c.host.Addrs()
+}
+
+// TODO(tzdybal): move it somewhere
+type PeerConnection struct {
+	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
+	IsOutbound       bool                 `json:"is_outbound"`
+	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
+	RemoteIP         string               `json:"remote_ip"`
+}
+
+func (c *Client) Peers() []PeerConnection {
+	conns := c.host.Network().Conns()
+	res := make([]PeerConnection, 0, len(conns))
+	for _, conn := range conns {
+		pc := PeerConnection{
+			NodeInfo: p2p.DefaultNodeInfo{
+				ListenAddr:    c.conf.ListenAddress,
+				Network:       c.chainID,
+				DefaultNodeID: p2p.ID(conn.RemotePeer().String()),
+				// TODO(tzdybal): fill more fields
+			},
+			IsOutbound: conn.Stat().Direction == network.DirOutbound,
+			ConnectionStatus: p2p.ConnectionStatus{
+				Duration: time.Now().Sub(conn.Stat().Opened),
+				// TODO(tzdybal): fill more fields
+			},
+			RemoteIP: conn.RemoteMultiaddr().String(),
+		}
+		res = append(res, pc)
+	}
+	return res
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
