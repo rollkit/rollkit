@@ -76,9 +76,7 @@ func (bs *DefaultBlockStore) LoadBlock(height uint64) (*types.Block, error) {
 	binary.LittleEndian.PutUint64(buf, height)
 	ikey := append(indexPreffix[:], buf[:]...)
 
-	bs.mtx.RLock()
 	hash, err := bs.db.Get(ikey)
-	bs.mtx.RUnlock()
 
 	if err != nil {
 		return nil, err
