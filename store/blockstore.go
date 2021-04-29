@@ -7,13 +7,13 @@ import (
 	"sync"
 
 	"github.com/lazyledger/optimint/types"
+	"github.com/minio/sha256-simd"
 	"go.uber.org/multierr"
-	"golang.org/x/crypto/sha3"
 )
 
 var (
-	blockPreffix = [1]byte{1}
-	indexPreffix = [1]byte{2}
+	blockPrefix = [1]byte{1}
+	indexPrefix = [1]byte{2}
 )
 
 type DefaultBlockStore struct {
@@ -21,6 +21,7 @@ type DefaultBlockStore struct {
 
 	height uint64
 
+	// mtx protects height
 	mtx sync.RWMutex
 }
 
@@ -42,11 +43,11 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 	if err != nil {
 		return err
 	}
-	key := append(blockPreffix[:], hash[:]...)
+	key := append(blockPrefix[:], hash[:]...)
 
 	height := make([]byte, 8)
 	binary.LittleEndian.PutUint64(height, block.Header.Height)
-	ikey := append(indexPreffix[:], height[:]...)
+	ikey := append(indexPrefix[:], height[:]...)
 
 	var value bytes.Buffer
 	enc := gob.NewEncoder(&value)
@@ -74,7 +75,7 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 func (bs *DefaultBlockStore) LoadBlock(height uint64) (*types.Block, error) {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, height)
-	ikey := append(indexPreffix[:], buf[:]...)
+	ikey := append(indexPrefix[:], buf[:]...)
 
 	hash, err := bs.db.Get(ikey)
 
@@ -89,11 +90,9 @@ func (bs *DefaultBlockStore) LoadBlock(height uint64) (*types.Block, error) {
 }
 
 func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
-	key := append(blockPreffix[:], hash[:]...)
+	key := append(blockPrefix[:], hash[:]...)
 
-	bs.mtx.RLock()
 	blockData, err := bs.db.Get(key)
-	bs.mtx.RUnlock()
 
 	if err != nil {
 		return nil, err
@@ -118,5 +117,5 @@ func getHash(block *types.Block) ([32]byte, error) {
 		return [32]byte{}, err
 	}
 
-	return sha3.Sum256(header.Bytes()), nil
+	return sha256.Sum256(header.Bytes()), nil
 }
