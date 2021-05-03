@@ -7,6 +7,11 @@ import "github.com/lazyledger/optimint/types"
 // the underlying DA chain.
 type StatusCode uint64
 
+const (
+	StatusSuccess StatusCode = iota
+	StatusError
+)
+
 type ResultSubmitBlock struct {
 	// Code is to determine if the action succeeded.
 	Code StatusCode
