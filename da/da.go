@@ -9,18 +9,24 @@ type StatusCode uint64
 
 const (
 	StatusSuccess StatusCode = iota
+	StatusTimeout
 	StatusError
 )
 
 type ResultSubmitBlock struct {
 	// Code is to determine if the action succeeded.
 	Code StatusCode
+	// Message may contain DA layer specific information (like detailed error message)
+	Message string
 	// Not sure if this needs to be bubbled up to other
 	// parts of Optimint.
 	// Hash hash.Hash
 }
 
 type DataAvailabilityLayerClient interface {
+	// Init is called once to allow DA client to read configuration and initialize resources.
+	Init(config string) error
+
 	Start() error
 	Stop() error
 
