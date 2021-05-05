@@ -1,13 +1,37 @@
-package da
+package lazyledger
 
 import (
+	"time"
+
+	"github.com/pelletier/go-toml"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	apptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 
+	"github.com/lazyledger/optimint/da"
 	"github.com/lazyledger/optimint/types"
 )
 
+type Config struct {
+	// PayForMessage related params
+	NamespaceID []byte
+	PubKey      []byte
+	BaseRateMax uint64
+	TipRateMax  uint64
+	From        string
+
+	// RPC related params
+	Address string
+	Timeout time.Duration
+}
+
 type LazyLedger struct {
+	config Config
+}
+
+// Init is called once to allow DA client to read configuration and initialize resources.
+func (ll *LazyLedger) Init(config []byte) error {
+	return toml.Unmarshal(config, &ll.config)
 }
 
 func (ll *LazyLedger) Start() error {
@@ -21,17 +45,17 @@ func (ll *LazyLedger) Stop() error {
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
-func (ll *LazyLedger) SubmitBlock(block *types.Block) ResultSubmitBlock {
+func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	msg, err := ll.preparePayForMessage(block)
 	if err != nil {
-		return ResultSubmitBlock{
-			Code: StatusError,
+		return da.ResultSubmitBlock{
+			Code: da.StatusError,
 		}
 	}
 
 	ll.callRPC(msg)
 
-	return ResultSubmitBlock{Code: StatusSuccess}
+	return da.ResultSubmitBlock{Code: da.StatusSuccess}
 }
 
 func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWirePayForMessage, error) {
@@ -39,21 +63,16 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	var message []byte
 
 	// TODO(tzdybal): add configuration
-	var namespaceID []byte
-	var pubKey []byte
-	var baseRateMax uint64
-	var tipRateMax uint64
-	var account string // AKA from
 	var keyring keyring.Keyring
 
 	// create PayForMessage message
 	msg, err := apptypes.NewMsgWirePayForMessage(
-		namespaceID,
+		ll.config.NamespaceID,
 		message,
-		pubKey,
+		ll.config.PubKey,
 		&apptypes.TransactionFee{
-			BaseRateMax: baseRateMax,
-			TipRateMax:  tipRateMax,
+			BaseRateMax: ll.config.BaseRateMax,
+			TipRateMax:  ll.config.TipRateMax,
 		},
 		apptypes.SquareSize,
 	)
@@ -62,7 +81,7 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	}
 
 	// sign the PayForMessage's ShareCommitments
-	err = msg.SignShareCommitments(account, keyring)
+	err = msg.SignShareCommitments(ll.config.From, keyring)
 	if err != nil {
 		return nil, err
 	}
