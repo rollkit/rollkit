@@ -33,7 +33,7 @@ func TranslateAddresses(conf *config.NodeConfig) error {
 
 func GetMultiAddr(addr string) (multiaddr.Multiaddr, error) {
 	var err error
-	var p2pId multiaddr.Multiaddr
+	var p2pID multiaddr.Multiaddr
 	parts := strings.Split(addr, "://")
 	proto := "tcp"
 	if len(parts) == 2 {
@@ -42,7 +42,7 @@ func GetMultiAddr(addr string) (multiaddr.Multiaddr, error) {
 	}
 
 	if at := strings.IndexRune(addr, '@'); at != -1 {
-		p2pId, err = multiaddr.NewMultiaddr("/p2p/" + addr[:at])
+		p2pID, err = multiaddr.NewMultiaddr("/p2p/" + addr[:at])
 		if err != nil {
 			return nil, err
 		}
@@ -56,8 +56,8 @@ func GetMultiAddr(addr string) (multiaddr.Multiaddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p2pId != nil {
-		maddr = maddr.Encapsulate(p2pId)
+	if p2pID != nil {
+		maddr = maddr.Encapsulate(p2pID)
 	}
 	return maddr, nil
 }
