@@ -1,4 +1,4 @@
-// This is a copy of mempool implementation from Tendermint.
+// Package mempool is a copy of mempool implementation from Tendermint.
 // Because of different "reactor" logic, some changes in visibility was required.
 // Changes:
 // * MempoolTx is exported
@@ -26,4 +26,6 @@
 // broadcastTxRoutine().
 
 // TODO: Better handle abci client errors. (make it automatically handle connection errors)
+
+// Package mempool is a copy of mempool implementation from Tendermint.
 package mempool

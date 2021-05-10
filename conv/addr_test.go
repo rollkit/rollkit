@@ -70,8 +70,8 @@ func TestGetMultiaddr(t *testing.T) {
 	t.Parallel()
 
 	valid := mustGetMultiaddr(t, "/ip4/127.0.0.1/tcp/1234")
-	withId := mustGetMultiaddr(t, "/ip4/127.0.0.1/tcp/1234/p2p/k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7")
-	udpWithId := mustGetMultiaddr(t, "/ip4/127.0.0.1/udp/1234/p2p/k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7")
+	withID := mustGetMultiaddr(t, "/ip4/127.0.0.1/tcp/1234/p2p/k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7")
+	udpWithID := mustGetMultiaddr(t, "/ip4/127.0.0.1/udp/1234/p2p/k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7")
 
 	cases := []struct {
 		name        string
@@ -84,8 +84,8 @@ func TestGetMultiaddr(t *testing.T) {
 		{"ip only", "127.0.0.1", nil, ErrInvalidAddress.Error()},
 		{"with invalid id", "deadbeef@127.0.0.1:1234", nil, "failed to parse multiaddr"},
 		{"valid", "127.0.0.1:1234", valid, ""},
-		{"valid with id", "k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7@127.0.0.1:1234", withId, ""},
-		{"valid with id and proto", "udp://k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7@127.0.0.1:1234", udpWithId, ""},
+		{"valid with id", "k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7@127.0.0.1:1234", withID, ""},
+		{"valid with id and proto", "udp://k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7@127.0.0.1:1234", udpWithID, ""},
 	}
 
 	for _, c := range cases {
