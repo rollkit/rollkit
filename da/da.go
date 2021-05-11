@@ -1,6 +1,9 @@
 package da
 
-import "github.com/lazyledger/optimint/types"
+import (
+	"github.com/lazyledger/optimint/log"
+	"github.com/lazyledger/optimint/types"
+)
 
 // TODO define an enum of different non-happy-path cases
 // that might need to be handled by Optimint independent of
@@ -25,7 +28,7 @@ type ResultSubmitBlock struct {
 
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(config string) error
+	Init(config []byte, logger log.Logger) error
 
 	Start() error
 	Stop() error
