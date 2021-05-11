@@ -1,9 +1,7 @@
 package store
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"sync"
 
 	"github.com/lazyledger/optimint/types"
@@ -49,9 +47,7 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 	binary.LittleEndian.PutUint64(height, block.Header.Height)
 	ikey := append(indexPrefix[:], height[:]...)
 
-	var value bytes.Buffer
-	enc := gob.NewEncoder(&value)
-	err = enc.Encode(block)
+	blob, err := types.SerializeBlock(block)
 	if err != nil {
 		return err
 	}
@@ -59,7 +55,7 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 	bs.mtx.Lock()
 	defer bs.mtx.Unlock()
 	// TODO(tzdybal): use transaction for consistency of DB
-	err = multierr.Append(err, bs.db.Set(key, value.Bytes()))
+	err = multierr.Append(err, bs.db.Set(key, blob))
 	err = multierr.Append(err, bs.db.Set(ikey, hash[:]))
 
 	if block.Header.Height > bs.height {
@@ -98,24 +94,15 @@ func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) (*types.Block, error
 		return nil, err
 	}
 
-	dec := gob.NewDecoder(bytes.NewReader(blockData))
-	var block types.Block
-	err = dec.Decode(&block)
-	if err != nil {
-		return nil, err
-	}
-
-	return &block, nil
+	return types.DeserializeBlock(blockData)
 }
 
 // TODO(tzdybal): replace with proper hashing mechanism
 func getHash(block *types.Block) ([32]byte, error) {
-	var header bytes.Buffer
-	enc := gob.NewEncoder(&header)
-	err := enc.Encode(block.Header)
+	blob, err := types.SerializeBlockHeader(block)
 	if err != nil {
 		return [32]byte{}, err
 	}
 
-	return sha256.Sum256(header.Bytes()), nil
+	return sha256.Sum256(blob), nil
 }

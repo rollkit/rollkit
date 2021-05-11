@@ -66,8 +66,9 @@ func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWirePayForMessage, error) {
 	// TODO(tzdybal): serialize block
 	var message []byte
+	message, err := types.SerializeBlock(block)
 
-	// TODO(tzdybal): add configuration
+	// TODO(tzdybal): add keyring
 	var keyring keyring.Keyring
 
 	// create PayForMessage message
