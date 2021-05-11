@@ -1,6 +1,8 @@
 package lazyledger
 
 import (
+	"io"
+	"os"
 	"time"
 
 	"github.com/pelletier/go-toml"
@@ -24,11 +26,18 @@ type Config struct {
 	// RPC related params
 	Address string
 	Timeout time.Duration
+
+	// keyring related params
+	AppName string
+	Backend string
+	RootDir string
 }
 
 type LazyLedger struct {
 	config Config
 	logger log.Logger
+
+	keyring keyring.Keyring
 }
 
 var _ da.DataAvailabilityLayerClient = &LazyLedger{}
@@ -36,7 +45,15 @@ var _ da.DataAvailabilityLayerClient = &LazyLedger{}
 // Init is called once to allow DA client to read configuration and initialize resources.
 func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
 	ll.logger = logger
-	return toml.Unmarshal(config, &ll.config)
+	err := toml.Unmarshal(config, &ll.config)
+	if err != nil {
+		return err
+	}
+	var userInput io.Reader
+	// TODO(tzdybal): this means interactive reading from stdin - shouldn't we replace this somehow?
+	userInput = os.Stdin
+	ll.keyring, err = keyring.New(ll.config.AppName, ll.config.Backend, ll.config.RootDir, userInput)
+	return err
 }
 
 func (ll *LazyLedger) Start() error {

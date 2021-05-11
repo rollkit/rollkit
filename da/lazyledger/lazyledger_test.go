@@ -1,6 +1,7 @@
 package lazyledger
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,8 +15,8 @@ func TestConfiguration(t *testing.T) {
 		err      error
 		expected Config
 	}{
-		{"empty config", []byte(""), nil, Config{}},
-		{"with namespace id", []byte("NamespaceID = [3, 2, 1]"), nil, Config{NamespaceID: []byte{0x03, 0x02, 0x01}}},
+		{"empty config", []byte(""), errors.New("unknown keyring backend "), Config{}},
+		{"with namespace id", []byte("NamespaceID = [3, 2, 1]\nBackend = 'test'"), nil, Config{NamespaceID: []byte{0x03, 0x02, 0x01}, Backend: "test"}},
 	}
 
 	for _, c := range cases {
