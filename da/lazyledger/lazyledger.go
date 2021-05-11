@@ -9,6 +9,7 @@ import (
 	apptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 
 	"github.com/lazyledger/optimint/da"
+	"github.com/lazyledger/optimint/log"
 	"github.com/lazyledger/optimint/types"
 )
 
@@ -27,10 +28,14 @@ type Config struct {
 
 type LazyLedger struct {
 	config Config
+	logger log.Logger
 }
 
+var _ da.DataAvailabilityLayerClient = &LazyLedger{}
+
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (ll *LazyLedger) Init(config []byte) error {
+func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
+	ll.logger = logger
 	return toml.Unmarshal(config, &ll.config)
 }
 
