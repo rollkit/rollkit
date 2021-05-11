@@ -22,7 +22,7 @@ func TestConfiguration(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ll := &LazyLedger{}
-			err := ll.Init(c.input)
+			err := ll.Init(c.input, nil)
 
 			if c.err != nil {
 				assert.EqualError(err, c.err.Error())
