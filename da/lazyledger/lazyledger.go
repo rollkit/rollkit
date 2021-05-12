@@ -2,6 +2,8 @@ package lazyledger
 
 import (
 	"io"
+	"net/rpc"
+	"net/rpc/jsonrpc"
 	"os"
 	"time"
 
@@ -38,6 +40,8 @@ type LazyLedger struct {
 	logger log.Logger
 
 	keyring keyring.Keyring
+
+	rpcClient *rpc.Client
 }
 
 var _ da.DataAvailabilityLayerClient = &LazyLedger{}
@@ -56,14 +60,13 @@ func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
 	return err
 }
 
-func (ll *LazyLedger) Start() error {
-	// nothing special to do here
-	return nil
+func (ll *LazyLedger) Start() (err error) {
+	ll.rpcClient, err = jsonrpc.Dial("tcp", ll.config.Address)
+	return
 }
 
 func (ll *LazyLedger) Stop() error {
-	// nothing special to do here
-	return nil
+	return ll.rpcClient.Close()
 }
 
 // SubmitBlock submits the passed in block to the DA layer.
@@ -87,6 +90,9 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	// TODO(tzdybal): serialize block
 	var message []byte
 	message, err := types.SerializeBlock(block)
+	if err != nil {
+		return nil, err
+	}
 
 	// create PayForMessage message
 	msg, err := apptypes.NewMsgWirePayForMessage(
@@ -118,6 +124,11 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	return msg, nil
 }
 
-func (ll *LazyLedger) callRPC(*apptypes.MsgWirePayForMessage) {
-	panic("not implemented!")
+func (ll *LazyLedger) callRPC(msg *apptypes.MsgWirePayForMessage) error {
+	err := ll.rpcClient.Call("broadcast_tx_sync", msg, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
