@@ -12,7 +12,6 @@ type StatusCode uint64
 
 const (
 	StatusSuccess StatusCode = iota
-	StatusTimeout
 	StatusError
 )
 
