@@ -2,6 +2,7 @@ package lazyledger
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -49,15 +50,33 @@ func TestSubmission(t *testing.T) {
 	}}
 
 	ll := &LazyLedger{}
-	err := ll.Init([]byte("From='test'\nNamespaceID = [3, 2, 1, 0, 3, 2, 1, 0]\nBackend = 'test'"), nil)
-	ll.keyring = generateKeyring(t, "test")
+	keyring := generateKeyring(t, "test")
+	key, err := keyring.Key("test")
+	keyStr := ""
+	for _, b := range key.GetPubKey().Bytes() {
+		keyStr += strconv.Itoa(int(b)) + ", "
+	}
 	require.NoError(err)
+	conf := "PubKey=[" + keyStr + "]" + `
+	Backend = 'test'
+	From = 'test'
+	Address = '127.0.0.1:26657'
+	NamespaceID = [3, 2, 1, 0, 3, 2, 1, 0]
+	`
+	err = ll.Init([]byte(conf), nil)
+	require.NoError(err)
+	ll.keyring = keyring
+
+	err = ll.Start()
+	require.NoError(err)
+
 	result := ll.SubmitBlock(block)
-	assert.Equal(da.StatusSuccess, result.Code)
 	assert.Equal("", result.Message)
+	assert.Equal(da.StatusSuccess, result.Code)
 }
 
 func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
+	t.Helper()
 	kb := keyring.NewInMemory()
 
 	for _, acc := range accts {
