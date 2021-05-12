@@ -57,11 +57,13 @@ func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
 }
 
 func (ll *LazyLedger) Start() error {
-	panic("not implemented") // TODO: Implement
+	// nothing special to do here
+	return nil
 }
 
 func (ll *LazyLedger) Stop() error {
-	panic("not implemented") // TODO: Implement
+	// nothing special to do here
+	return nil
 }
 
 // SubmitBlock submits the passed in block to the DA layer.
@@ -70,12 +72,13 @@ func (ll *LazyLedger) Stop() error {
 func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	msg, err := ll.preparePayForMessage(block)
 	if err != nil {
-		return da.ResultSubmitBlock{
-			Code: da.StatusError,
-		}
+		return da.ResultSubmitBlock{Code: da.StatusError, Message: err.Error()}
 	}
 
-	ll.callRPC(msg)
+	err = ll.callRPC(msg)
+	if err != nil {
+		return da.ResultSubmitBlock{Code: da.StatusError, Message: err.Error()}
+	}
 
 	return da.ResultSubmitBlock{Code: da.StatusSuccess}
 }
@@ -84,9 +87,6 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	// TODO(tzdybal): serialize block
 	var message []byte
 	message, err := types.SerializeBlock(block)
-
-	// TODO(tzdybal): add keyring
-	var keyring keyring.Keyring
 
 	// create PayForMessage message
 	msg, err := apptypes.NewMsgWirePayForMessage(
@@ -104,7 +104,7 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	}
 
 	// sign the PayForMessage's ShareCommitments
-	err = msg.SignShareCommitments(ll.config.From, keyring)
+	err = msg.SignShareCommitments(ll.config.From, ll.keyring)
 	if err != nil {
 		return nil, err
 	}
