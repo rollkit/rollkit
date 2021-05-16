@@ -60,7 +60,7 @@ func TestSubmission(t *testing.T) {
 	conf := "PubKey=[" + keyStr + "]" + `
 	Backend = 'test'
 	From = 'test'
-	Address = '127.0.0.1:26657'
+	Address = '127.0.0.1:9191'
 	NamespaceID = [3, 2, 1, 0, 3, 2, 1, 0]
 	`
 	err = ll.Init([]byte(conf), nil)

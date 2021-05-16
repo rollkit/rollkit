@@ -1,15 +1,17 @@
 package lazyledger
 
 import (
+	"context"
+	"fmt"
 	"io"
-	"net/rpc"
-	"net/rpc/jsonrpc"
 	"os"
 	"time"
 
 	"github.com/pelletier/go-toml"
+	"google.golang.org/grpc"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/types/tx"
 	apptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 
 	"github.com/lazyledger/optimint/da"
@@ -41,7 +43,7 @@ type LazyLedger struct {
 
 	keyring keyring.Keyring
 
-	rpcClient *rpc.Client
+	rpcClient *grpc.ClientConn
 }
 
 var _ da.DataAvailabilityLayerClient = &LazyLedger{}
@@ -61,7 +63,7 @@ func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
 }
 
 func (ll *LazyLedger) Start() (err error) {
-	ll.rpcClient, err = jsonrpc.Dial("tcp", ll.config.Address)
+	ll.rpcClient, err = grpc.Dial(ll.config.Address, grpc.WithInsecure())
 	return
 }
 
@@ -125,7 +127,20 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 }
 
 func (ll *LazyLedger) callRPC(msg *apptypes.MsgWirePayForMessage) error {
-	err := ll.rpcClient.Call("broadcast_tx_sync", msg, nil)
+	txClient := tx.NewServiceClient(ll.rpcClient)
+
+	txBytes, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	resp, err := txClient.BroadcastTx(context.Background(),
+		&tx.BroadcastTxRequest{
+			Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
+			TxBytes: txBytes,
+		},
+	)
+	fmt.Println("tzdybal:", resp)
 	if err != nil {
 		return err
 	}
