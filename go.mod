@@ -22,6 +22,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/multierr v1.6.0
 	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc // indirect
+	google.golang.org/grpc v1.35.0
 )
 
 replace (
