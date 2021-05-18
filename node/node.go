@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"time"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	llcfg "github.com/lazyledger/lazyledger-core/config"
@@ -11,21 +12,22 @@ import (
 	"github.com/lazyledger/lazyledger-core/libs/service"
 	corep2p "github.com/lazyledger/lazyledger-core/p2p"
 	"github.com/lazyledger/lazyledger-core/proxy"
-	"github.com/lazyledger/lazyledger-core/types"
+	lltypes "github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/p2p"
 	"github.com/lazyledger/optimint/store"
+	"github.com/lazyledger/optimint/types"
 )
 
 type Node struct {
 	service.BaseService
-	eventBus *types.EventBus
+	eventBus *lltypes.EventBus
 	proxyApp proxy.AppConns
 
-	genesis *types.GenesisDoc
+	genesis *lltypes.GenesisDoc
 
 	conf config.NodeConfig
 	P2P  *p2p.Client
@@ -42,14 +44,14 @@ type Node struct {
 	ctx context.Context
 }
 
-func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *types.GenesisDoc, logger log.Logger) (*Node, error) {
+func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *lltypes.GenesisDoc, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
 	}
 
-	eventBus := types.NewEventBus()
+	eventBus := lltypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -146,6 +148,69 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 	}
 }
 
+func (n *Node) aggregationLoop(ctx context.Context) {
+	tick := time.NewTicker(n.conf.BlockTime)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			err := n.publishBlock(ctx)
+			if err != nil {
+				n.Logger.Error("error while publishing block", "error", err)
+			}
+		}
+	}
+}
+
+func (n *Node) publishBlock(ctx context.Context) error {
+	n.Logger.Info("Creating and publishing block")
+
+	var maxBlockSize = int64(32 * 1024) // TODO(tzdybal): is this consensus param or config?
+	// TODO(tzdybal): mempool should use types.Tx, not lltypes.Tx - merge the types
+	txs := n.Mempool.ReapMaxBytesMaxGas(maxBlockSize, -1)
+	// TODO(tzdybal): should "empty blocks" be configurable?
+	if len(txs) == 0 {
+		return nil
+	}
+	block := n.makeBlock(n.BlockStore.Height()+1, txs)
+	return n.broadcastBlock(ctx, block)
+}
+
+func (n *Node) makeBlock(height uint64, txs lltypes.Txs) *types.Block {
+	// TODO(tzdybal): fill all fields
+	block := &types.Block{
+		Header:     types.Header{
+			Version:         types.Version{
+				Block: 0,
+				App:   0,
+			},
+			NamespaceID:     [8]byte{},
+			Height:          0,
+			Time:            0,
+			LastHeaderHash:  [32]byte{},
+			LastCommitHash:  [32]byte{},
+			DataHash:        [32]byte{},
+			ConsensusHash:   [32]byte{},
+			AppHash:         [32]byte{},
+			LastResultsHash: [32]byte{},
+			ProposerAddress: nil,
+		},
+		Data:       types.Data{
+			Txs:                    nil,
+			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
+			Evidence:               types.EvidenceData{Evidence: nil},
+		},
+		LastCommit: nil,
+	}
+
+	return block
+}
+
+func (n *Node) broadcastBlock(ctx context.Context, block *types.Block) error {
+	return nil
+}
+
 func (n *Node) OnStart() error {
 	n.Logger.Info("starting P2P client")
 	err := n.P2P.Start(n.ctx)
@@ -154,6 +219,9 @@ func (n *Node) OnStart() error {
 	}
 	go n.mempoolReadLoop(n.ctx)
 	go n.mempoolPublishLoop(n.ctx)
+	if n.conf.Aggregator {
+		go n.aggregationLoop(n.ctx)
+	}
 	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
 		n.incomingTxCh <- tx
 	})
@@ -177,7 +245,7 @@ func (n *Node) GetLogger() log.Logger {
 	return n.Logger
 }
 
-func (n *Node) EventBus() *types.EventBus {
+func (n *Node) EventBus() *lltypes.EventBus {
 	return n.eventBus
 }
 
