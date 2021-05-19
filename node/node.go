@@ -166,28 +166,28 @@ func (n *Node) aggregationLoop(ctx context.Context) {
 func (n *Node) publishBlock(ctx context.Context) error {
 	n.Logger.Info("Creating and publishing block")
 
-	var maxBlockSize = int64(32 * 1024) // TODO(tzdybal): is this consensus param or config?
+	var maxBlockSize = int64(32 * 1024) // TODO(tzdybal): is this consensus param or config
 	// TODO(tzdybal): mempool should use types.Tx, not lltypes.Tx - merge the types
 	txs := n.Mempool.ReapMaxBytesMaxGas(maxBlockSize, -1)
 	// TODO(tzdybal): should "empty blocks" be configurable?
 	if len(txs) == 0 {
 		return nil
 	}
-	block := n.makeBlock(n.BlockStore.Height()+1, txs)
+	block := n.makeBlock(n.BlockStore.Height()+1, types.Txs(txs))
 	return n.broadcastBlock(ctx, block)
 }
 
-func (n *Node) makeBlock(height uint64, txs lltypes.Txs) *types.Block {
+func (n *Node) makeBlock(height uint64, txs types.Txs) *types.Block {
 	// TODO(tzdybal): fill all fields
 	block := &types.Block{
-		Header:     types.Header{
-			Version:         types.Version{
+		Header: types.Header{
+			Version: types.Version{
 				Block: 0,
 				App:   0,
 			},
 			NamespaceID:     [8]byte{},
-			Height:          0,
-			Time:            0,
+			Height:          height,
+			Time:            uint64(time.Now().UnixNano()), // TODO(tzdybal): how to get TAI64?
 			LastHeaderHash:  [32]byte{},
 			LastCommitHash:  [32]byte{},
 			DataHash:        [32]byte{},
@@ -196,8 +196,8 @@ func (n *Node) makeBlock(height uint64, txs lltypes.Txs) *types.Block {
 			LastResultsHash: [32]byte{},
 			ProposerAddress: nil,
 		},
-		Data:       types.Data{
-			Txs:                    nil,
+		Data: types.Data{
+			Txs:                    txs,
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},

@@ -1,5 +1,9 @@
 package types
 
-type Tx []byte
+import (
+	"github.com/lazyledger/lazyledger-core/types"
+)
 
-type Txs []Tx
+type Tx types.Tx
+
+type Txs types.Txs

@@ -4,9 +4,12 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/lazyledger/optimint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	lltypes "github.com/lazyledger/lazyledger-core/types"
+
+	"github.com/lazyledger/optimint/types"
 )
 
 func TestBlockstoreHeight(t *testing.T) {
@@ -105,7 +108,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 	}
 
 	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = getRandomTx()
+		block.Data.Txs[i] = lltypes.Tx(getRandomTx())
 		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
 	}
 
