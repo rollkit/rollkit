@@ -1,0 +1,42 @@
+syntax = "proto3";
+package optimint;
+
+// option go_package = "github.com/lazyledger/optimint/proto";
+import "tendermint/types/types.proto";
+
+message Version {
+	uint64 block = 1;
+	uint64 app = 2;
+}
+
+message Header {
+	Version version = 1;
+	bytes namespace_id = 2;
+	uint64 height = 3;
+	uint64 time = 4;
+	bytes last_header_hash = 5;
+	bytes last_commit_hash = 6;
+	bytes data_hash = 7;
+	bytes consensus_hash = 8;
+	bytes app_hash = 9;
+	bytes last_results_hash = 10;
+	bytes proposer_address = 11;
+}
+
+message Commit {
+	uint64 height = 1;
+	bytes hader_hash = 2;
+	repeated bytes signatures = 3;
+}
+
+message Data {
+	repeated bytes txs = 1;
+	repeated bytes intermediate_state_roots = 2;
+	repeated tendermint.types.Evidence evidence = 3;
+}
+
+message Block {	
+	Header header = 1;
+	Data data = 2;
+	Commit last_commit = 3;
+}
