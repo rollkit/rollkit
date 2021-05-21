@@ -7,6 +7,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2011.1
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/protobuf v1.3.2
+	github.com/golang/protobuf v1.4.3
 	github.com/ipfs/go-log v1.0.4
 	github.com/lazyledger/lazyledger-app v0.0.0-20210421070454-76641cc80638
 	github.com/lazyledger/lazyledger-core v0.0.0-20210219190522-0eccfb24e2aa
