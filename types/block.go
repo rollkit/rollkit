@@ -1,5 +1,10 @@
 package types
 
+import (
+	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	pb "github.com/lazyledger/optimint/types/pb/optimint"
+)
+
 type Header struct {
 	// Block and App version
 	Version Version
@@ -67,4 +72,65 @@ type Signature []byte
 
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
+}
+
+func (h *Header) ToProto() *pb.Header {
+	return &pb.Header{
+		Version: &pb.Version{
+			Block: h.Version.Block,
+			App:   h.Version.App,
+		},
+		NamespaceId:     h.NamespaceID[:],
+		Height:          h.Height,
+		Time:            h.Time,
+		LastHeaderHash:  h.LastHeaderHash[:],
+		LastCommitHash:  h.LastCommitHash[:],
+		DataHash:        h.DataHash[:],
+		ConsensusHash:   h.ConsensusHash[:],
+		AppHash:         h.AppHash[:],
+		LastResultsHash: h.LastResultsHash[:],
+		ProposerAddress: h.ProposerAddress[:],
+	}
+}
+
+func (b *Block) ToProto() pb.Block {
+	return pb.Block{
+		Header: b.Header.ToProto(),
+		Data: &pb.Data{
+			Txs:                    txsToByteSlices(b.Data.Txs),
+			IntermediateStateRoots: b.Data.IntermediateStateRoots.RawRootsList,
+			Evidence:               evidenceToProto(b.Data.Evidence),
+		},
+		LastCommit: &pb.Commit{
+			Height:     b.LastCommit.Height,
+			HaderHash:  b.LastCommit.HeaderHash[:],
+			Signatures: signaturesToByteSlices(b.LastCommit.Signatures),
+		},
+	}
+}
+
+func txsToByteSlices(txs Txs) [][]byte {
+	bytes := make([][]byte, len(txs))
+	for i := range txs {
+		bytes[i] = txs[i]
+	}
+	return bytes
+}
+
+func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
+	var ret []*abci.Evidence
+	for _, e := range evidence.Evidence {
+		for _, ae := range e.ABCI() {
+			ret = append(ret, &ae)
+		}
+	}
+	return ret
+}
+
+func signaturesToByteSlices(sigs []Signature) [][]byte {
+	bytes := make([][]byte, len(sigs))
+	for i := range sigs {
+		bytes[i] = sigs[i]
+	}
+	return bytes
 }

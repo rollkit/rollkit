@@ -2,11 +2,11 @@ syntax = "proto3";
 package optimint;
 
 // option go_package = "github.com/lazyledger/optimint/proto";
-import "tendermint/types/types.proto";
+import "tendermint/abci/types.proto";
 
 message Version {
-	uint64 block = 1;
-	uint64 app = 2;
+	uint32 block = 1;
+	uint32 app = 2;
 }
 
 message Header {
@@ -32,7 +32,7 @@ message Commit {
 message Data {
 	repeated bytes txs = 1;
 	repeated bytes intermediate_state_roots = 2;
-	repeated tendermint.types.Evidence evidence = 3;
+	repeated tendermint.abci.Evidence evidence = 3;
 }
 
 message Block {	
