@@ -148,7 +148,10 @@ func (b *Block) ToProto() *pb.Block {
 }
 
 func (b *Block) FromProto(other *pb.Block) error {
-	b.Header.FromProto(other.Header)
+	err := b.Header.FromProto(other.Header)
+	if err != nil {
+		return err
+	}
 	b.Data.Txs = byteSlicesToTxs(other.Data.Txs)
 	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
 	b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
