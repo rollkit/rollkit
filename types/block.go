@@ -49,7 +49,7 @@ type Version struct {
 type Block struct {
 	Header     Header
 	Data       Data
-	LastCommit *Commit
+	LastCommit Commit
 }
 
 type Data struct {
@@ -93,8 +93,46 @@ func (h *Header) ToProto() *pb.Header {
 	}
 }
 
-func (b *Block) ToProto() pb.Block {
-	return pb.Block{
+func (h *Header) FromProto(other *pb.Header) error {
+	h.Version.Block = other.Version.Block
+	h.Version.App = other.Version.App
+	if !safeCopy(h.NamespaceID[:], other.NamespaceId) {
+		return ErrInvalidNamespaceId
+	}
+	h.Height = other.Height
+	h.Time = other.Time
+	if !safeCopy(h.LastHeaderHash[:], other.LastHeaderHash) {
+		return ErrInvalidLastHeaderHash
+	}
+	if !safeCopy(h.LastCommitHash[:], other.LastCommitHash) {
+		return ErrInvalidLastCommitHash
+	}
+	if !safeCopy(h.DataHash[:], other.DataHash) {
+		return ErrInvalidDataHash
+	}
+	if !safeCopy(h.ConsensusHash[:], other.ConsensusHash) {
+		return ErrInvalidConsensusHash
+	}
+	if !safeCopy(h.AppHash[:], other.AppHash) {
+		return ErrInvalidAppHash
+	}
+	if !safeCopy(h.LastResultsHash[:], other.LastResultsHash) {
+		return ErrInvalidLastResultsHash
+	}
+	if !safeCopy(h.ProposerAddress[:], other.ProposerAddress) {
+		return ErrInvalidProposerAddress
+	}
+
+	return nil
+}
+
+func safeCopy(dst, src []byte) bool {
+	n := copy(dst, src)
+	return n == len(dst)
+}
+
+func (b *Block) ToProto() *pb.Block {
+	return &pb.Block{
 		Header: b.Header.ToProto(),
 		Data: &pb.Data{
 			Txs:                    txsToByteSlices(b.Data.Txs),
@@ -103,10 +141,26 @@ func (b *Block) ToProto() pb.Block {
 		},
 		LastCommit: &pb.Commit{
 			Height:     b.LastCommit.Height,
-			HaderHash:  b.LastCommit.HeaderHash[:],
+			HeaderHash: b.LastCommit.HeaderHash[:],
 			Signatures: signaturesToByteSlices(b.LastCommit.Signatures),
 		},
 	}
+}
+
+func (b *Block) FromProto(other *pb.Block) error {
+	b.Header.FromProto(other.Header)
+	b.Data.Txs = byteSlicesToTxs(other.Data.Txs)
+	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
+	b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
+	if other.LastCommit != nil {
+		b.LastCommit.Height = other.LastCommit.Height
+		if !safeCopy(b.LastCommit.HeaderHash[:], other.LastCommit.HeaderHash) {
+			return ErrInvalidLastCommitHeaderHash
+		}
+		b.LastCommit.Signatures = byteSlicesToSignatures(other.LastCommit.Signatures)
+	}
+
+	return nil
 }
 
 func txsToByteSlices(txs Txs) [][]byte {
@@ -115,6 +169,14 @@ func txsToByteSlices(txs Txs) [][]byte {
 		bytes[i] = txs[i]
 	}
 	return bytes
+}
+
+func byteSlicesToTxs(bytes [][]byte) Txs {
+	txs := make(Txs, len(bytes))
+	for i := range txs {
+		txs[i] = bytes[i]
+	}
+	return txs
 }
 
 func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
@@ -127,10 +189,30 @@ func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
 	return ret
 }
 
+func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
+	var ret EvidenceData
+	// TODO(tzdybal): right now Evidence is just an interface without implementations
+	return ret
+}
+
 func signaturesToByteSlices(sigs []Signature) [][]byte {
+	if sigs == nil {
+		return nil
+	}
 	bytes := make([][]byte, len(sigs))
 	for i := range sigs {
 		bytes[i] = sigs[i]
 	}
 	return bytes
+}
+
+func byteSlicesToSignatures(bytes [][]byte) []Signature {
+	if bytes == nil {
+		return nil
+	}
+	sigs := make([]Signature, len(bytes))
+	for i := range bytes {
+		sigs[i] = bytes[i]
+	}
+	return sigs
 }
