@@ -25,7 +25,7 @@ message Header {
 
 message Commit {
 	uint64 height = 1;
-	bytes hader_hash = 2;
+	bytes header_hash = 2;
 	repeated bytes signatures = 3;
 }
 

@@ -1,36 +1,25 @@
 package types
 
 import (
-	"bytes"
-	"encoding/gob"
+	pb "github.com/lazyledger/optimint/types/pb/optimint"
 )
 
 func SerializeBlock(block *Block) ([]byte, error) {
-	return actuallySerialize(block)
+	return block.ToProto().Marshal()
 }
 
 func DeserializeBlock(data []byte) (*Block, error) {
-	var block Block
-	dec := gob.NewDecoder(bytes.NewReader(data))
-	err := dec.Decode(&block)
+	var pBlock pb.Block
+	err := pBlock.Unmarshal(data)
 	if err != nil {
 		return nil, err
 	}
-	return &block, nil
+	block := &Block{}
+	err = block.FromProto(&pBlock)
+
+	return block, err
 }
 
 func SerializeBlockHeader(block *Block) ([]byte, error) {
-	return actuallySerialize(block.Header)
-}
-
-// actuallySerialize is a single function that unifies serialization.
-// Currently, temporarily, it uses encoding/gob
-func actuallySerialize(object interface{}) ([]byte, error) {
-	var data bytes.Buffer
-	enc := gob.NewEncoder(&data)
-	err := enc.Encode(object)
-	if err != nil {
-		return nil, err
-	}
-	return data.Bytes(), nil
+	return block.Header.ToProto().Marshal()
 }
