@@ -188,7 +188,10 @@ func (n *Node) publishBlock(ctx context.Context) error {
 		return nil
 	}
 	block := n.makeBlock(n.BlockStore.Height()+1, types.Txs(txs))
-	n.BlockStore.SaveBlock(block)
+	err := n.BlockStore.SaveBlock(block)
+	if err != nil {
+		return err
+	}
 	return n.broadcastBlock(ctx, block)
 }
 
