@@ -12,6 +12,8 @@ type MockDataAvailabilityLayerClient struct {
 	Blocks []*types.Block
 }
 
+var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
+
 // Init is called once to allow DA client to read configuration and initialize resources.
 func (m *MockDataAvailabilityLayerClient) Init(config []byte, logger log.Logger) error {
 	m.logger = logger

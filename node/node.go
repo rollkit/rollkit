@@ -14,8 +14,11 @@ import (
 	"github.com/lazyledger/lazyledger-core/proxy"
 	lltypes "github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"go.uber.org/multierr"
 
 	"github.com/lazyledger/optimint/config"
+	"github.com/lazyledger/optimint/da"
+	"github.com/lazyledger/optimint/da/registry"
 	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/p2p"
 	"github.com/lazyledger/optimint/store"
@@ -38,6 +41,8 @@ type Node struct {
 	incomingTxCh chan *p2p.Tx
 
 	BlockStore store.BlockStore
+
+	dalc da.DataAvailabilityLayerClient
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -62,6 +67,15 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		return nil, err
 	}
 
+	dalc := registry.GetClient(conf.DALayer)
+	if dalc == nil {
+		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
+	}
+	err = dalc.Init(conf.DAConfig, logger)
+	if err != nil {
+		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
+	}
+
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 
 	node := &Node{
@@ -70,6 +84,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		genesis:      genesis,
 		conf:         conf,
 		P2P:          client,
+		dalc:         dalc,
 		Mempool:      mp,
 		mempoolIDs:   newMempoolIDs(),
 		incomingTxCh: make(chan *p2p.Tx),
@@ -169,11 +184,11 @@ func (n *Node) publishBlock(ctx context.Context) error {
 	var maxBlockSize = int64(32 * 1024) // TODO(tzdybal): is this consensus param or config
 	// TODO(tzdybal): mempool should use types.Tx, not lltypes.Tx - merge the types
 	txs := n.Mempool.ReapMaxBytesMaxGas(maxBlockSize, -1)
-	// TODO(tzdybal): should "empty blocks" be configurable?
 	if len(txs) == 0 {
 		return nil
 	}
 	block := n.makeBlock(n.BlockStore.Height()+1, types.Txs(txs))
+	n.BlockStore.SaveBlock(block)
 	return n.broadcastBlock(ctx, block)
 }
 
@@ -217,6 +232,10 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
+	err = n.dalc.Start()
+	if err != nil {
+		return fmt.Errorf("error while starting data availability layer client: %w", err)
+	}
 	go n.mempoolReadLoop(n.ctx)
 	go n.mempoolPublishLoop(n.ctx)
 	if n.conf.Aggregator {
@@ -230,7 +249,9 @@ func (n *Node) OnStart() error {
 }
 
 func (n *Node) OnStop() {
-	n.P2P.Close()
+	err := n.dalc.Stop()
+	err = multierr.Append(err, n.P2P.Close())
+	n.Logger.Error("errors while stopping node: %w", err)
 }
 
 func (n *Node) OnReset() error {
