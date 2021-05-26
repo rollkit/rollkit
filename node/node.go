@@ -121,9 +121,7 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 
 	for {
 		// wait for transactions
-		n.Logger.Debug("loop begin")
 		if next == nil {
-			n.Logger.Debug("waiting for mempool")
 			select {
 			case <-rawMempool.TxsWaitChan():
 				if next = rawMempool.TxsFront(); next != nil {
@@ -136,7 +134,6 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 
 		// send transactions
 		for {
-			n.Logger.Debug("Gossiping...")
 			memTx := next.Value.(*mempool.MempoolTx)
 			tx := memTx.Tx
 
@@ -153,7 +150,6 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 			next = nx
 		}
 
-		n.Logger.Debug("waiting for next...")
 		select {
 		case <-next.NextWaitChan():
 			next = next.Next()
