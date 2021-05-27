@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/lazyledger/optimint/types"
-	"github.com/minio/sha256-simd"
 	"go.uber.org/multierr"
 )
 
@@ -37,7 +36,7 @@ func (bs *DefaultBlockStore) Height() uint64 {
 
 func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 	// TODO(tzdybal): proper serialization & hashing
-	hash, err := getHash(block)
+	hash, err := types.Hash(&block.Header)
 	if err != nil {
 		return err
 	}
@@ -47,7 +46,7 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 	binary.LittleEndian.PutUint64(height, block.Header.Height)
 	ikey := append(indexPrefix[:], height[:]...)
 
-	blob, err := types.SerializeBlock(block)
+	blob, err := block.Serialize()
 	if err != nil {
 		return err
 	}
@@ -95,14 +94,4 @@ func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) (*types.Block, error
 	}
 
 	return types.DeserializeBlock(blockData)
-}
-
-// TODO(tzdybal): replace with proper hashing mechanism
-func getHash(block *types.Block) ([32]byte, error) {
-	blob, err := types.SerializeBlockHeader(block)
-	if err != nil {
-		return [32]byte{}, err
-	}
-
-	return sha256.Sum256(blob), nil
 }

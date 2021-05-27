@@ -183,16 +183,29 @@ func (n *Node) publishBlock(ctx context.Context) error {
 	if len(txs) == 0 {
 		return nil
 	}
-	block := n.makeBlock(n.BlockStore.Height()+1, types.Txs(txs))
-	err := n.BlockStore.SaveBlock(block)
+
+	block, err := n.makeBlock(n.BlockStore.Height()+1, types.Txs(txs))
+	if err != nil {
+		return err
+	}
+
+	err = n.BlockStore.SaveBlock(block)
 	if err != nil {
 		return err
 	}
 	return n.broadcastBlock(ctx, block)
 }
 
-func (n *Node) makeBlock(height uint64, txs types.Txs) *types.Block {
+func (n *Node) makeBlock(height uint64, txs types.Txs) (*types.Block, error) {
 	// TODO(tzdybal): fill all fields
+	lastBlock, err := n.BlockStore.LoadBlock(height - 1)
+	if err != nil {
+		return nil, err
+	}
+	lastHash, err := types.Hash(&lastBlock.Header)
+	if err != nil {
+		return nil, err
+	}
 	block := &types.Block{
 		Header: types.Header{
 			Version: types.Version{
@@ -202,7 +215,7 @@ func (n *Node) makeBlock(height uint64, txs types.Txs) *types.Block {
 			NamespaceID:     [8]byte{},
 			Height:          height,
 			Time:            uint64(time.Now().UnixNano()), // TODO(tzdybal): how to get TAI64?
-			LastHeaderHash:  [32]byte{},
+			LastHeaderHash:  lastHash,
 			LastCommitHash:  [32]byte{},
 			DataHash:        [32]byte{},
 			ConsensusHash:   [32]byte{},
@@ -215,10 +228,10 @@ func (n *Node) makeBlock(height uint64, txs types.Txs) *types.Block {
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
-		LastCommit: nil,
+		// LastCommit: nil, // TODO(tzdybal)
 	}
 
-	return block
+	return block, nil
 }
 
 func (n *Node) broadcastBlock(ctx context.Context, block *types.Block) error {

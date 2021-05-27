@@ -4,8 +4,16 @@ import (
 	pb "github.com/lazyledger/optimint/types/pb/optimint"
 )
 
-func SerializeBlock(block *Block) ([]byte, error) {
-	return block.ToProto().Marshal()
+type Serializable interface {
+	Serialize() ([]byte, error)
+}
+
+func (b *Block) Serialize() ([]byte, error) {
+	return b.ToProto().Marshal()
+}
+
+func (h *Header) Serialize() ([]byte, error) {
+	return h.ToProto().Marshal()
 }
 
 func DeserializeBlock(data []byte) (*Block, error) {
@@ -18,8 +26,4 @@ func DeserializeBlock(data []byte) (*Block, error) {
 	err = block.FromProto(&pBlock)
 
 	return block, err
-}
-
-func SerializeBlockHeader(block *Block) ([]byte, error) {
-	return block.Header.ToProto().Marshal()
 }
