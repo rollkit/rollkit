@@ -206,6 +206,7 @@ func (n *Node) makeBlock(height uint64, txs types.Txs) (*types.Block, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	block := &types.Block{
 		Header: types.Header{
 			Version: types.Version{
@@ -229,6 +230,11 @@ func (n *Node) makeBlock(height uint64, txs types.Txs) (*types.Block, error) {
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
 		// LastCommit: nil, // TODO(tzdybal)
+	}
+
+	block.Header.DataHash, err = types.Hash(&block.Data)
+	if err != nil {
+		return nil, err
 	}
 
 	return block, nil

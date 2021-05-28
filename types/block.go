@@ -133,17 +133,25 @@ func safeCopy(dst, src []byte) bool {
 
 func (b *Block) ToProto() *pb.Block {
 	return &pb.Block{
-		Header: b.Header.ToProto(),
-		Data: &pb.Data{
-			Txs:                    txsToByteSlices(b.Data.Txs),
-			IntermediateStateRoots: b.Data.IntermediateStateRoots.RawRootsList,
-			Evidence:               evidenceToProto(b.Data.Evidence),
-		},
-		LastCommit: &pb.Commit{
-			Height:     b.LastCommit.Height,
-			HeaderHash: b.LastCommit.HeaderHash[:],
-			Signatures: signaturesToByteSlices(b.LastCommit.Signatures),
-		},
+		Header:     b.Header.ToProto(),
+		Data:       b.Data.ToProto(),
+		LastCommit: b.LastCommit.ToProto(),
+	}
+}
+
+func (d *Data) ToProto() *pb.Data {
+	return &pb.Data{
+		Txs:                    txsToByteSlices(d.Txs),
+		IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
+		Evidence:               evidenceToProto(d.Evidence),
+	}
+}
+
+func (c *Commit) ToProto() *pb.Commit {
+	return &pb.Commit{
+		Height:     c.Height,
+		HeaderHash: c.HeaderHash[:],
+		Signatures: signaturesToByteSlices(c.Signatures),
 	}
 }
 
