@@ -2,7 +2,7 @@ package store
 
 import "github.com/lazyledger/optimint/types"
 
-type BlockStore interface {
+type Store interface {
 	Height() uint64
 
 	SaveBlock(block *types.Block) error

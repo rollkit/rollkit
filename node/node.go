@@ -35,7 +35,7 @@ type Node struct {
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.Tx
 
-	BlockStore store.BlockStore
+	BlockStore store.Store
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
