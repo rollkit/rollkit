@@ -18,5 +18,4 @@ require (
 	github.com/prometheus/client_golang v1.8.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/multierr v1.6.0
-	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc // indirect
 )
