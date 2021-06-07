@@ -4,28 +4,59 @@ package optimint;
 // option go_package = "github.com/lazyledger/optimint/proto";
 import "tendermint/abci/types.proto";
 
+// Version captures the consensus rules for processing a block in the blockchain,
+// including all blockchain data structures and the rules of the application's
+// state transition machine.
+// This is equivalent to the tmversion.Consensus type in Tendermint.
 message Version {
 	uint32 block = 1;
 	uint32 app = 2;
 }
 
 message Header {
+	// Block and App version
 	Version version = 1;
+	// NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
 	bytes namespace_id = 2;
+
+	// Block height
 	uint64 height = 3;
+
+	// Block creation time
 	uint64 time = 4;
+
+	// Previous block info
 	bytes last_header_hash = 5;
+
+	// Commit from aggregator(s) from the last block
 	bytes last_commit_hash = 6;
+	
+	// Block.Data root aka Transactions
 	bytes data_hash = 7;
+
+	// Consensus params for current block
 	bytes consensus_hash = 8;
+
+	// State after applying txs from the current block
 	bytes app_hash = 9;
+
+	// Root hash of all results from the txs from the previous block.
+	// This is ABCI specific but smart-contract chains require some way of committing
+	// to transaction receipts/results.
 	bytes last_results_hash = 10;
+
+	// Original proposer of the block
+	// Note that the address can be derived from the pubkey which can be derived
+	// from the signature when using secp256k.
+	// We keep this in case users choose another signature format where the
+	// pubkey can't be recovered by the signature (e.g. ed25519).
 	bytes proposer_address = 11;
 }
 
 message Commit {
 	uint64 height = 1;
 	bytes hader_hash = 2;
+	// Note: most of the time this will be a single sinature
 	repeated bytes signatures = 3;
 }
 
