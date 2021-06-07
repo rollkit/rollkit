@@ -43,7 +43,7 @@ func TestConfiguration(t *testing.T) {
 }
 
 func TestSubmission(t *testing.T) {
-	t.Skip("unfinished test/implementation")
+	// t.Skip("unfinished test/implementation")
 	assert := assert.New(t)
 	require := require.New(t)
 	block := &types.Block{Header: types.Header{
@@ -61,7 +61,7 @@ func TestSubmission(t *testing.T) {
 	conf := "PubKey=[" + keyStr + "]" + `
 	Backend = 'test'
 	From = 'test'
-	Address = '127.0.0.1:9191'
+	Address = '127.0.0.1:9090'
 	NamespaceID = [3, 2, 1, 0, 3, 2, 1, 0]
 	`
 	err = ll.Init([]byte(conf), nil)
