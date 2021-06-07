@@ -15,7 +15,7 @@ var (
 	indexPrefix = [1]byte{2}
 )
 
-type DefaultBlockStore struct {
+type DefaultStore struct {
 	db KVStore
 
 	height uint64
@@ -24,19 +24,19 @@ type DefaultBlockStore struct {
 	mtx sync.RWMutex
 }
 
-var _ Store = &DefaultBlockStore{}
+var _ Store = &DefaultStore{}
 
-func NewBlockStore() Store {
-	return &DefaultBlockStore{db: NewInMemoryKVStore()}
+func New() Store {
+	return &DefaultStore{db: NewInMemoryKVStore()}
 }
 
-func (bs *DefaultBlockStore) Height() uint64 {
-	bs.mtx.RLock()
-	defer bs.mtx.RUnlock()
-	return bs.height
+func (s *DefaultStore) Height() uint64 {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.height
 }
 
-func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
+func (s *DefaultStore) SaveBlock(block *types.Block) error {
 	hash, err := hash.Hash(&block.Header)
 	if err != nil {
 		return err
@@ -49,14 +49,14 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 
 	blob, err := block.MarshalBinary()
 
-	bs.mtx.Lock()
-	defer bs.mtx.Unlock()
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	// TODO(tzdybal): use transaction for consistency of DB
-	err = multierr.Append(err, bs.db.Set(key, blob))
-	err = multierr.Append(err, bs.db.Set(ikey, hash[:]))
+	err = multierr.Append(err, s.db.Set(key, blob))
+	err = multierr.Append(err, s.db.Set(ikey, hash[:]))
 
-	if block.Header.Height > bs.height {
-		bs.height = block.Header.Height
+	if block.Header.Height > s.height {
+		s.height = block.Header.Height
 	}
 
 	return err
@@ -65,12 +65,12 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 // TODO(tzdybal): what is more common access pattern? by height or by hash?
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
-func (bs *DefaultBlockStore) LoadBlock(height uint64) (*types.Block, error) {
+func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, height)
 	ikey := append(indexPrefix[:], buf[:]...)
 
-	hash, err := bs.db.Get(ikey)
+	hash, err := s.db.Get(ikey)
 
 	if err != nil {
 		return nil, err
@@ -79,13 +79,13 @@ func (bs *DefaultBlockStore) LoadBlock(height uint64) (*types.Block, error) {
 	// TODO(tzdybal): any better way to convert slice to array?
 	var h [32]byte
 	copy(h[:], hash)
-	return bs.LoadBlockByHash(h)
+	return s.LoadBlockByHash(h)
 }
 
-func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
+func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	key := append(blockPrefix[:], hash[:]...)
 
-	blockData, err := bs.db.Get(key)
+	blockData, err := s.db.Get(key)
 
 	if err != nil {
 		return nil, err
