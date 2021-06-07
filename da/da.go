@@ -11,7 +11,9 @@ import (
 type StatusCode uint64
 
 const (
-	StatusSuccess StatusCode = iota
+	StatusUnknown StatusCode = iota
+	StatusSuccess
+	StatusTimeout
 	StatusError
 )
 

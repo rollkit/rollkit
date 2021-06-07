@@ -34,6 +34,10 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+// Version captures the consensus rules for processing a block in the blockchain,
+// including all blockchain data structures and the rules of the application's
+// state transition machine.
+// This is equivalent to the tmversion.Consensus type in Tendermint.
 type Version struct {
 	Block uint32 `protobuf:"varint,1,opt,name=block,proto3" json:"block,omitempty"`
 	App   uint32 `protobuf:"varint,2,opt,name=app,proto3" json:"app,omitempty"`
@@ -59,17 +63,34 @@ func (m *Version) GetApp() uint32 {
 }
 
 type Header struct {
-	Version         *Version `protobuf:"bytes,1,opt,name=version" json:"version,omitempty"`
-	NamespaceId     []byte   `protobuf:"bytes,2,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
-	Height          uint64   `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	Time            uint64   `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
-	LastHeaderHash  []byte   `protobuf:"bytes,5,opt,name=last_header_hash,json=lastHeaderHash,proto3" json:"last_header_hash,omitempty"`
-	LastCommitHash  []byte   `protobuf:"bytes,6,opt,name=last_commit_hash,json=lastCommitHash,proto3" json:"last_commit_hash,omitempty"`
-	DataHash        []byte   `protobuf:"bytes,7,opt,name=data_hash,json=dataHash,proto3" json:"data_hash,omitempty"`
-	ConsensusHash   []byte   `protobuf:"bytes,8,opt,name=consensus_hash,json=consensusHash,proto3" json:"consensus_hash,omitempty"`
-	AppHash         []byte   `protobuf:"bytes,9,opt,name=app_hash,json=appHash,proto3" json:"app_hash,omitempty"`
-	LastResultsHash []byte   `protobuf:"bytes,10,opt,name=last_results_hash,json=lastResultsHash,proto3" json:"last_results_hash,omitempty"`
-	ProposerAddress []byte   `protobuf:"bytes,11,opt,name=proposer_address,json=proposerAddress,proto3" json:"proposer_address,omitempty"`
+	// Block and App version
+	Version *Version `protobuf:"bytes,1,opt,name=version" json:"version,omitempty"`
+	// NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
+	NamespaceId []byte `protobuf:"bytes,2,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
+	// Block height
+	Height uint64 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	// Block creation time
+	Time uint64 `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
+	// Previous block info
+	LastHeaderHash []byte `protobuf:"bytes,5,opt,name=last_header_hash,json=lastHeaderHash,proto3" json:"last_header_hash,omitempty"`
+	// Commit from aggregator(s) from the last block
+	LastCommitHash []byte `protobuf:"bytes,6,opt,name=last_commit_hash,json=lastCommitHash,proto3" json:"last_commit_hash,omitempty"`
+	// Block.Data root aka Transactions
+	DataHash []byte `protobuf:"bytes,7,opt,name=data_hash,json=dataHash,proto3" json:"data_hash,omitempty"`
+	// Consensus params for current block
+	ConsensusHash []byte `protobuf:"bytes,8,opt,name=consensus_hash,json=consensusHash,proto3" json:"consensus_hash,omitempty"`
+	// State after applying txs from the current block
+	AppHash []byte `protobuf:"bytes,9,opt,name=app_hash,json=appHash,proto3" json:"app_hash,omitempty"`
+	// Root hash of all results from the txs from the previous block.
+	// This is ABCI specific but smart-contract chains require some way of committing
+	// to transaction receipts/results.
+	LastResultsHash []byte `protobuf:"bytes,10,opt,name=last_results_hash,json=lastResultsHash,proto3" json:"last_results_hash,omitempty"`
+	// Original proposer of the block
+	// Note that the address can be derived from the pubkey which can be derived
+	// from the signature when using secp256k.
+	// We keep this in case users choose another signature format where the
+	// pubkey can't be recovered by the signature (e.g. ed25519).
+	ProposerAddress []byte `protobuf:"bytes,11,opt,name=proposer_address,json=proposerAddress,proto3" json:"proposer_address,omitempty"`
 }
 
 func (m *Header) Reset()                    { *m = Header{} }
@@ -155,8 +176,9 @@ func (m *Header) GetProposerAddress() []byte {
 }
 
 type Commit struct {
-	Height     uint64   `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
-	HeaderHash []byte   `protobuf:"bytes,2,opt,name=header_hash,json=headerHash,proto3" json:"header_hash,omitempty"`
+	Height     uint64 `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
+	HeaderHash []byte `protobuf:"bytes,2,opt,name=header_hash,json=headerHash,proto3" json:"header_hash,omitempty"`
+	// Note: most of the time this will be a single sinature
 	Signatures [][]byte `protobuf:"bytes,3,rep,name=signatures" json:"signatures,omitempty"`
 }
 

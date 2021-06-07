@@ -1,8 +1,9 @@
-# ADR {ADR-NUMBER}: {TITLE}
+# ADR 005: Data Availability Client Interface
 
 ## Changelog
 
 - 2021.04.30: Initial draft
+- 2021.06.03: Init method added
 
 ## Context
 
@@ -15,7 +16,7 @@ Optimint requires data availability layer. Different implementations are expecte
 ## Decision
 
 Defined interface should be very generic.
-Interface should consist of 3 methods: `Start`, `Stop`, `SubmitBlock`.
+Interface should consist of 4 methods: `Init`, `Start`, `Stop`, `SubmitBlock`.
 All the details are implementation-specific.
 
 ## Detailed Design
@@ -23,6 +24,9 @@ All the details are implementation-specific.
 Definition of interface:
 ```go
 type DataAvailabilityLayerClient interface {
+	// Init is called once to allow DA client to read configuration and initialize resources.
+	Init(config []byte, logger log.Logger) error
+
 	Start() error
 	Stop() error
 
@@ -37,13 +41,11 @@ type DataAvailabilityLayerClient interface {
 // the underlying DA chain.
 type StatusCode uint64
 
-type ResultSubmitBlock struct {
-	// Code is to determine if the action succeeded.
-	Code StatusCode
-	// Not sure if this needs to be bubbled up to other
-	// parts of Optimint.
-	// Hash hash.Hash
-}
+const (
+	StatusSuccess StatusCode = iota
+	StatusTimeout
+	StatusError
+)
 ```
 >
 
@@ -65,4 +67,3 @@ Implemented
 
 > Are there any relevant PR comments, issues that led up to this, or articles referenced for why we made the given design choice? If so link them here!
 
-- {reference link}
