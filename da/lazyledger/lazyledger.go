@@ -10,8 +10,13 @@ import (
 	"github.com/pelletier/go-toml"
 	"google.golang.org/grpc"
 
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"github.com/lazyledger/lazyledger-app/app/params"
 	apptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 
 	"github.com/lazyledger/optimint/da"
@@ -29,6 +34,7 @@ type Config struct {
 
 	// RPC related params
 	Address string
+	ChainID string
 	Timeout time.Duration
 
 	// keyring related params
@@ -126,20 +132,103 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	return msg, nil
 }
 
-func (ll *LazyLedger) callRPC(msg *apptypes.MsgWirePayForMessage) error {
-	txClient := tx.NewServiceClient(ll.rpcClient)
+func (ll *LazyLedger) sign(msg *apptypes.MsgWirePayForMessage) (*tx.BroadcastTxRequest, error) {
+	encCfg := params.MakeEncodingConfig()
 
-	txBytes, err := msg.Marshal()
+	// Create a new TxBuilder.
+	txBuilder := encCfg.TxConfig.NewTxBuilder()
+
+	txBuilder = setConfigs(txBuilder)
+
+	err := txBuilder.SetMsgs(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := ll.keyring.Key(ll.config.From)
+	if err != nil {
+		return nil, err
+	}
+
+	sigV2 := signing.SignatureV2{
+		PubKey: info.GetPubKey(),
+		Data: &signing.SingleSignatureData{
+			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+			Signature: nil,
+		},
+		Sequence: 0, // we need to find this by querying the node
+	}
+
+	txBuilder.SetSignatures(sigV2)
+
+	signerData := authsigning.SignerData{
+		ChainID:       ll.config.ChainID,
+		AccountNumber: 0,
+		Sequence:      0,
+	}
+
+	// Generate the bytes to be signed.
+	bytesToSign, err := encCfg.TxConfig.SignModeHandler().GetSignBytes(
+		signing.SignMode_SIGN_MODE_DIRECT,
+		signerData,
+		txBuilder.GetTx(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sign those bytes
+	sigBytes, _, err := ll.keyring.Sign(ll.config.From, bytesToSign)
+	if err != nil {
+		return nil, err
+	}
+
+	// Construct the SignatureV2 struct
+	sig := signing.SignatureV2{
+		PubKey: info.GetPubKey(),
+		Data: &signing.SingleSignatureData{
+			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+			Signature: sigBytes,
+		},
+		Sequence: 0,
+	}
+
+	err = txBuilder.SetSignatures(sig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generated Protobuf-encoded bytes.
+	txBytes, err := encCfg.TxConfig.TxEncoder()(txBuilder.GetTx())
+	if err != nil {
+		return nil, err
+	}
+
+	return &tx.BroadcastTxRequest{
+		Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
+		TxBytes: txBytes,
+	}, nil
+}
+
+func setConfigs(builder client.TxBuilder) client.TxBuilder {
+	coin := sdk.Coin{
+		Denom:  "token",
+		Amount: sdk.NewInt(10),
+	}
+	builder.SetGasLimit(100000)
+	builder.SetFeeAmount(sdk.NewCoins(coin))
+	return builder
+}
+
+func (ll *LazyLedger) callRPC(msg *apptypes.MsgWirePayForMessage) error {
+	txReq, err := ll.sign(msg)
 	if err != nil {
 		return err
 	}
 
-	resp, err := txClient.BroadcastTx(context.Background(),
-		&tx.BroadcastTxRequest{
-			Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
-			TxBytes: txBytes,
-		},
-	)
+	txClient := tx.NewServiceClient(ll.rpcClient)
+
+	resp, err := txClient.BroadcastTx(context.Background(), txReq)
 	fmt.Println("tzdybal:", resp)
 	if err != nil {
 		return err
