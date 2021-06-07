@@ -1,6 +1,6 @@
 package types
 
-import "crypto/sha256"
+import "github.com/minio/sha256-simd"
 
 func Hash(object Serializable) ([32]byte, error) {
 	blob, err := object.Serialize()
