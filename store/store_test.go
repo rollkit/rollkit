@@ -4,9 +4,10 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/lazyledger/optimint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lazyledger/optimint/types"
 )
 
 func TestBlockstoreHeight(t *testing.T) {
@@ -40,7 +41,7 @@ func TestBlockstoreHeight(t *testing.T) {
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
-				err := bstore.SaveBlock(block)
+				err := bstore.SaveBlock(block, &types.Commit{})
 				assert.NoError(err)
 			}
 
@@ -77,7 +78,7 @@ func TestBlockstoreLoad(t *testing.T) {
 			bstore := New()
 
 			for _, block := range c.blocks {
-				err := bstore.SaveBlock(block)
+				err := bstore.SaveBlock(block, &types.Commit{})
 				require.NoError(err)
 			}
 

@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	blockPrefix = [1]byte{1}
-	indexPrefix = [1]byte{2}
+	blockPrefix  = [1]byte{1}
+	indexPrefix  = [1]byte{2}
+	commitPrefix = [1]byte{3}
 )
 
 type DefaultStore struct {
@@ -36,7 +37,7 @@ func (s *DefaultStore) Height() uint64 {
 	return s.height
 }
 
-func (s *DefaultStore) SaveBlock(block *types.Block) error {
+func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
 	hash, err := hash.Hash(&block.Header)
 	if err != nil {
 		return err
@@ -95,4 +96,12 @@ func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	err = block.UnmarshalBinary(blockData)
 
 	return block, err
+}
+
+func (d *DefaultStore) LoadCommit(height uint64) (*types.Block, error) {
+	panic("not implemented") // TODO: Implement
+}
+
+func (d *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Block, error) {
+	panic("not implemented") // TODO: Implement
 }
