@@ -1,9 +1,13 @@
 package types
 
-import "github.com/minio/sha256-simd"
+import (
+	"encoding"
 
-func Hash(object Serializable) ([32]byte, error) {
-	blob, err := object.Serialize()
+	"github.com/minio/sha256-simd"
+)
+
+func Hash(object encoding.BinaryMarshaler) ([32]byte, error) {
+	blob, err := object.MarshalBinary()
 	if err != nil {
 		return [32]byte{}, err
 	}

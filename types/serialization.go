@@ -4,34 +4,29 @@ import (
 	pb "github.com/lazyledger/optimint/types/pb/optimint"
 )
 
-type Serializable interface {
-	Serialize() ([]byte, error)
-}
-
-func (b *Block) Serialize() ([]byte, error) {
+func (b *Block) MarshalBinary() ([]byte, error) {
 	return b.ToProto().Marshal()
 }
 
-func (h *Header) Serialize() ([]byte, error) {
+func (h *Header) MarshalBinary() ([]byte, error) {
 	return h.ToProto().Marshal()
 }
 
-func (d *Data) Serialize() ([]byte, error) {
+func (d *Data) MarshalBinary() ([]byte, error) {
 	return d.ToProto().Marshal()
 }
 
-func (c *Commit) Serialize() ([]byte, error) {
+func (c *Commit) MarshalBinary() ([]byte, error) {
 	return c.ToProto().Marshal()
 }
 
-func DeserializeBlock(data []byte) (*Block, error) {
+func (b *Block) UnmarshalBinary(data []byte) error {
 	var pBlock pb.Block
 	err := pBlock.Unmarshal(data)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	block := &Block{}
-	err = block.FromProto(&pBlock)
+	err = b.FromProto(&pBlock)
 
-	return block, err
+	return err
 }
