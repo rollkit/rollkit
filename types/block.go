@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	pb "github.com/lazyledger/optimint/types/pb/optimint"
 )
@@ -97,27 +98,27 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.Version.Block = other.Version.Block
 	h.Version.App = other.Version.App
 	if !safeCopy(h.NamespaceID[:], other.NamespaceId) {
-		return ErrInvalidNamespaceId
+		return errors.New("invalid lenght of 'NamespaceId'")
 	}
 	h.Height = other.Height
 	h.Time = other.Time
 	if !safeCopy(h.LastHeaderHash[:], other.LastHeaderHash) {
-		return ErrInvalidLastHeaderHash
+		return errors.New("invalid lenght of 'InvalidLastHeaderHash'")
 	}
 	if !safeCopy(h.LastCommitHash[:], other.LastCommitHash) {
-		return ErrInvalidLastCommitHash
+		return errors.New("invalid lenght of 'InvalidLastCommitHash'")
 	}
 	if !safeCopy(h.DataHash[:], other.DataHash) {
-		return ErrInvalidDataHash
+		return errors.New("invalid lenght of 'InvalidDataHash'")
 	}
 	if !safeCopy(h.ConsensusHash[:], other.ConsensusHash) {
-		return ErrInvalidConsensusHash
+		return errors.New("invalid lenght of 'InvalidConsensusHash'")
 	}
 	if !safeCopy(h.AppHash[:], other.AppHash) {
-		return ErrInvalidAppHash
+		return errors.New("invalid lenght of 'InvalidAppHash'")
 	}
 	if !safeCopy(h.LastResultsHash[:], other.LastResultsHash) {
-		return ErrInvalidLastResultsHash
+		return errors.New("invalid lenght of 'InvalidLastResultsHash'")
 	}
 	if len(other.ProposerAddress) > 0 {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
@@ -172,7 +173,7 @@ func (b *Block) FromProto(other *pb.Block) error {
 	if other.LastCommit != nil {
 		b.LastCommit.Height = other.LastCommit.Height
 		if !safeCopy(b.LastCommit.HeaderHash[:], other.LastCommit.HeaderHash) {
-			return ErrInvalidLastCommitHeaderHash
+			return errors.New("invalid lenght of 'InvalidLastCommit.HeaderHash'")
 		}
 		b.LastCommit.Signatures = byteSlicesToSignatures(other.LastCommit.Signatures)
 	}
