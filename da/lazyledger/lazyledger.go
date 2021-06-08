@@ -16,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/lazyledger/lazyledger-app/app/params"
 	apptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 
@@ -28,17 +29,25 @@ type Config struct {
 	// PayForMessage related params
 	NamespaceID []byte
 	PubKey      []byte
-	BaseRateMax uint64
-	TipRateMax  uint64
+	BaseRateMax uint64 // currently not used
+	TipRateMax  uint64 // currently not used
 	From        string
 
+	// temporary fee fields
+	gasLimit  uint64
+	feeAmount uint64
+
 	// RPC related params
-	Address string
-	ChainID string
-	Timeout time.Duration
+	RPCAddress string
+	ChainID    string
+	Timeout    time.Duration
 
 	// keyring related params
-	AppName string
+
+	// KeyringAccName is the name of the account registered in the keyring
+	// for the `From` address field
+	KeyringAccName string
+	// Backend is the backend of keyring that contains the KeyringAccName
 	Backend string
 	RootDir string
 }
@@ -64,12 +73,12 @@ func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
 	var userInput io.Reader
 	// TODO(tzdybal): this means interactive reading from stdin - shouldn't we replace this somehow?
 	userInput = os.Stdin
-	ll.keyring, err = keyring.New(ll.config.AppName, ll.config.Backend, ll.config.RootDir, userInput)
+	ll.keyring, err = keyring.New(ll.config.KeyringAccName, ll.config.Backend, ll.config.RootDir, userInput)
 	return err
 }
 
 func (ll *LazyLedger) Start() (err error) {
-	ll.rpcClient, err = grpc.Dial(ll.config.Address, grpc.WithInsecure())
+	ll.rpcClient, err = grpc.Dial(ll.config.RPCAddress, grpc.WithInsecure())
 	return
 }
 
@@ -92,6 +101,24 @@ func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	}
 
 	return da.ResultSubmitBlock{Code: da.StatusSuccess}
+}
+
+func (ll *LazyLedger) callRPC(msg *apptypes.MsgWirePayForMessage) error {
+	txReq, err := ll.sign(msg)
+	if err != nil {
+		return err
+	}
+
+	txClient := tx.NewServiceClient(ll.rpcClient)
+
+	resp, err := txClient.BroadcastTx(context.Background(), txReq)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(resp.String())
+
+	return nil
 }
 
 func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWirePayForMessage, error) {
@@ -118,7 +145,7 @@ func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWir
 	}
 
 	// sign the PayForMessage's ShareCommitments
-	err = msg.SignShareCommitments(ll.config.From, ll.keyring)
+	err = msg.SignShareCommitments(ll.config.KeyringAccName, ll.keyring)
 	if err != nil {
 		return nil, err
 	}
@@ -138,33 +165,39 @@ func (ll *LazyLedger) sign(msg *apptypes.MsgWirePayForMessage) (*tx.BroadcastTxR
 	// Create a new TxBuilder.
 	txBuilder := encCfg.TxConfig.NewTxBuilder()
 
-	txBuilder = setConfigs(txBuilder)
+	txBuilder = ll.setConfigs(txBuilder)
 
 	err := txBuilder.SetMsgs(msg)
 	if err != nil {
 		return nil, err
 	}
 
-	info, err := ll.keyring.Key(ll.config.From)
+	info, err := ll.keyring.Key(ll.config.KeyringAccName)
 	if err != nil {
 		return nil, err
 	}
 
+	// we must first set an empty signature
 	sigV2 := signing.SignatureV2{
 		PubKey: info.GetPubKey(),
 		Data: &signing.SingleSignatureData{
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: nil,
 		},
-		Sequence: 0, // we need to find this by querying the node
+		Sequence: 0,
 	}
 
 	txBuilder.SetSignatures(sigV2)
 
+	accNum, seq, err := ll.queryAccount()
+	if err != nil {
+		return nil, err
+	}
+
 	signerData := authsigning.SignerData{
 		ChainID:       ll.config.ChainID,
-		AccountNumber: 0,
-		Sequence:      0,
+		AccountNumber: accNum,
+		Sequence:      seq,
 	}
 
 	// Generate the bytes to be signed.
@@ -190,7 +223,7 @@ func (ll *LazyLedger) sign(msg *apptypes.MsgWirePayForMessage) (*tx.BroadcastTxR
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: sigBytes,
 		},
-		Sequence: 0,
+		Sequence: seq,
 	}
 
 	err = txBuilder.SetSignatures(sig)
@@ -205,34 +238,38 @@ func (ll *LazyLedger) sign(msg *apptypes.MsgWirePayForMessage) (*tx.BroadcastTxR
 	}
 
 	return &tx.BroadcastTxRequest{
+		// probably need to change this
 		Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
 		TxBytes: txBytes,
 	}, nil
 }
 
-func setConfigs(builder client.TxBuilder) client.TxBuilder {
+func (ll *LazyLedger) setConfigs(builder client.TxBuilder) client.TxBuilder {
 	coin := sdk.Coin{
 		Denom:  "token",
-		Amount: sdk.NewInt(10),
+		Amount: sdk.NewInt(int64(ll.config.feeAmount)),
 	}
-	builder.SetGasLimit(100000)
+	// todo(evan): don't hardcode the gas limit
+	builder.SetGasLimit(ll.config.gasLimit)
 	builder.SetFeeAmount(sdk.NewCoins(coin))
 	return builder
 }
 
-func (ll *LazyLedger) callRPC(msg *apptypes.MsgWirePayForMessage) error {
-	txReq, err := ll.sign(msg)
+// queryAccount fetches the account number and sequence number from the lazyledger-app node
+func (ll *LazyLedger) queryAccount() (accNum uint64, seqNum uint64, err error) {
+	qclient := authtypes.NewQueryClient(ll.rpcClient)
+	resp, err := qclient.Account(
+		context.TODO(),
+		&authtypes.QueryAccountRequest{Address: ll.config.From},
+	)
 	if err != nil {
-		return err
+		return accNum, seqNum, err
 	}
 
-	txClient := tx.NewServiceClient(ll.rpcClient)
+	fmt.Println(resp.String())
 
-	resp, err := txClient.BroadcastTx(context.Background(), txReq)
-	fmt.Println("tzdybal:", resp)
-	if err != nil {
-		return err
-	}
+	// acc := resp.Account.Value
 
-	return nil
+	// accNum, seqNum = acc.GetAccountNumber(), acc.GetSequence()
+	return
 }
