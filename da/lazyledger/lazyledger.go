@@ -187,7 +187,10 @@ func (ll *LazyLedger) sign(msg *apptypes.MsgWirePayForMessage) (*tx.BroadcastTxR
 		Sequence: 0,
 	}
 
-	txBuilder.SetSignatures(sigV2)
+	err = txBuilder.SetSignatures(sigV2)
+	if err != nil {
+		return nil, err
+	}
 
 	accNum, seq, err := ll.queryAccount()
 	if err != nil {
