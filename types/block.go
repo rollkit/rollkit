@@ -119,8 +119,9 @@ func (h *Header) FromProto(other *pb.Header) error {
 	if !safeCopy(h.LastResultsHash[:], other.LastResultsHash) {
 		return ErrInvalidLastResultsHash
 	}
-	if !safeCopy(h.ProposerAddress[:], other.ProposerAddress) {
-		return ErrInvalidProposerAddress
+	if len(other.ProposerAddress) > 0 {
+		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
+		copy(h.ProposerAddress, other.ProposerAddress)
 	}
 
 	return nil
@@ -188,6 +189,9 @@ func txsToByteSlices(txs Txs) [][]byte {
 }
 
 func byteSlicesToTxs(bytes [][]byte) Txs {
+	if len(bytes) == 0 {
+		return nil
+	}
 	txs := make(Txs, len(bytes))
 	for i := range txs {
 		txs[i] = bytes[i]
