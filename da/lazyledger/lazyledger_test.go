@@ -52,7 +52,8 @@ func TestSubmission(t *testing.T) {
 
 	ll := &LazyLedger{}
 	keyring := generateKeyring(t, "test")
-	key, err := keyring.Key("test")
+	key, err := keyring.Key("test-account")
+	require.NoError(err)
 	keyStr := ""
 	for _, b := range key.GetPubKey().Bytes() {
 		keyStr += strconv.Itoa(int(b)) + ", "
@@ -60,8 +61,9 @@ func TestSubmission(t *testing.T) {
 	require.NoError(err)
 	conf := "PubKey=[" + keyStr + "]" + `
 	Backend = 'test'
-	From = 'test'
-	Address = '127.0.0.1:9090'
+	From = 'cosmos1xgx6xf23sqaas6yn9k0upw4m5lyzh725jhnc2x'
+	KeyringAccName = 'test-account'
+	RPCAddress = '127.0.0.1:9090'
 	NamespaceID = [3, 2, 1, 0, 3, 2, 1, 0]
 	`
 	err = ll.Init([]byte(conf), nil)
@@ -87,5 +89,15 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 		}
 	}
 
+	_, err := kb.NewAccount(testAccName, testMnemo, "1234", "", hd.Secp256k1)
+	if err != nil {
+		panic(err)
+	}
+
 	return kb
 }
+
+const (
+	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
+	testAccName = "test-account"
+)
