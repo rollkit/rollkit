@@ -1,9 +1,7 @@
 package store
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"sync"
 
 	"github.com/lazyledger/optimint/types"
@@ -47,17 +45,12 @@ func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
 	binary.LittleEndian.PutUint64(height, block.Header.Height)
 	ikey := append(indexPrefix[:], height[:]...)
 
-	var value bytes.Buffer
-	enc := gob.NewEncoder(&value)
-	err = enc.Encode(block)
-	if err != nil {
-		return err
-	}
+	blob, err := block.MarshalBinary()
 
 	bs.mtx.Lock()
 	defer bs.mtx.Unlock()
 	// TODO(tzdybal): use transaction for consistency of DB
-	err = multierr.Append(err, bs.db.Set(key, value.Bytes()))
+	err = multierr.Append(err, bs.db.Set(key, blob))
 	err = multierr.Append(err, bs.db.Set(ikey, hash[:]))
 
 	if block.Header.Height > bs.height {
@@ -96,12 +89,8 @@ func (bs *DefaultBlockStore) LoadBlockByHash(hash [32]byte) (*types.Block, error
 		return nil, err
 	}
 
-	dec := gob.NewDecoder(bytes.NewReader(blockData))
-	var block types.Block
-	err = dec.Decode(&block)
-	if err != nil {
-		return nil, err
-	}
+	block := new(types.Block)
+	err = block.UnmarshalBinary(blockData)
 
-	return &block, nil
+	return block, err
 }
