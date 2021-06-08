@@ -44,7 +44,7 @@ type Version struct {
 type Block struct {
 	Header     Header
 	Data       Data
-	LastCommit *Commit
+	LastCommit Commit
 }
 
 type Data struct {
