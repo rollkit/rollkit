@@ -4,8 +4,10 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/lazyledger/optimint/types"
 	"go.uber.org/multierr"
+
+	"github.com/lazyledger/optimint/hash"
+	"github.com/lazyledger/optimint/types"
 )
 
 var (
@@ -35,7 +37,7 @@ func (bs *DefaultBlockStore) Height() uint64 {
 }
 
 func (bs *DefaultBlockStore) SaveBlock(block *types.Block) error {
-	hash, err := types.Hash(&block.Header)
+	hash, err := hash.Hash(&block.Header)
 	if err != nil {
 		return err
 	}
