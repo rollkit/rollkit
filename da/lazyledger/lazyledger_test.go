@@ -2,11 +2,13 @@ package lazyledger
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/lazyledger/optimint/da"
 	"github.com/lazyledger/optimint/types"
 	"github.com/stretchr/testify/assert"
@@ -51,24 +53,13 @@ func TestSubmission(t *testing.T) {
 	}}
 
 	ll := &LazyLedger{}
-	keyring := generateKeyring(t, "test")
-	key, err := keyring.Key("test-account")
+	kr := generateKeyring(t)
+	key, err := kr.Key("test-account")
 	require.NoError(err)
-	keyStr := ""
-	for _, b := range key.GetPubKey().Bytes() {
-		keyStr += strconv.Itoa(int(b)) + ", "
-	}
-	require.NoError(err)
-	conf := "PubKey=[" + keyStr + "]" + `
-	Backend = 'test'
-	From = 'cosmos1xgx6xf23sqaas6yn9k0upw4m5lyzh725jhnc2x'
-	KeyringAccName = 'test-account'
-	RPCAddress = '127.0.0.1:9090'
-	NamespaceID = [3, 2, 1, 0, 3, 2, 1, 0]
-	`
+	conf := testConfig(key)
 	err = ll.Init([]byte(conf), nil)
 	require.NoError(err)
-	ll.keyring = keyring
+	ll.keyring = kr
 
 	err = ll.Start()
 	require.NoError(err)
@@ -76,6 +67,63 @@ func TestSubmission(t *testing.T) {
 	result := ll.SubmitBlock(block)
 	assert.Equal("", result.Message)
 	assert.Equal(da.StatusSuccess, result.Code)
+}
+
+func testConfig(key keyring.Info) string {
+	keyStr := ""
+	for _, b := range key.GetPubKey().Bytes() {
+		keyStr += strconv.Itoa(int(b)) + ", "
+	}
+	conf := fmt.Sprintf(`PubKey=[%s]
+	Backend = 'test'
+	From = '%s'
+	KeyringAccName = 'test-account'
+	RPCAddress = '127.0.0.1:9090'
+	NamespaceID = [3, 2, 1, 0, 3, 2, 1, 0]
+	GasLimit = 100000
+	FeeAmount = 1
+	ChainID = 'test'
+
+	`, keyStr, key.GetAddress().String())
+	return conf
+}
+
+func Test_buildTx(t *testing.T) {
+	kr := generateKeyring(t)
+	key, err := kr.Key("test-account")
+	require.NoError(t, err)
+	conf := testConfig(key)
+	ll := LazyLedger{}
+	err = ll.Init([]byte(conf), nil)
+	require.NoError(t, err)
+	ll.keyring = kr
+
+	key, err = ll.keyring.Key("test-account")
+	require.NoError(t, err)
+
+	block := &types.Block{Header: types.Header{
+		Height: 1,
+	}}
+
+	msg, err := ll.preparePayForMessage(block)
+	require.NoError(t, err)
+
+	signedTx, err := ll.buildTx(msg, 0, 0)
+	require.NoError(t, err)
+
+	sigs, err := signedTx.GetSignaturesV2()
+	require.NoError(t, err)
+
+	signerData := authsigning.SignerData{
+		ChainID:       "test",
+		AccountNumber: 0,
+		Sequence:      0,
+	}
+
+	// Generated Protobuf-encoded bytes.
+	require.NoError(t, err)
+	err = authsigning.VerifySignature(key.GetPubKey(), signerData, sigs[0].Data, ll.encCfg.TxConfig.SignModeHandler(), signedTx)
+	require.NoError(t, err)
 }
 
 func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
