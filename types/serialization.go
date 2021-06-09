@@ -131,7 +131,10 @@ func (b *Block) FromProto(other *pb.Block) error {
 	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
 	b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
 	if other.LastCommit != nil {
-		b.LastCommit.FromProto(other.LastCommit)
+		err := b.LastCommit.FromProto(other.LastCommit)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
