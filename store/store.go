@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/binary"
+	"errors"
 	"sync"
 
 	"go.uber.org/multierr"
@@ -42,19 +43,26 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	if err != nil {
 		return err
 	}
-	key := append(blockPrefix[:], hash[:]...)
+	blockKey := getBlockKey(hash)
+	commitKey := getCommitKey(hash)
+	indexKey := getIndexKey(block.Header.Height)
 
-	height := make([]byte, 8)
-	binary.LittleEndian.PutUint64(height, block.Header.Height)
-	ikey := append(indexPrefix[:], height[:]...)
+	blockBlob, err := block.MarshalBinary()
+	if err != nil {
+		return err
+	}
 
-	blob, err := block.MarshalBinary()
+	commitBlob, err := commit.MarshalBinary()
+	if err != nil {
+		return err
+	}
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	// TODO(tzdybal): use transaction for consistency of DB
-	err = multierr.Append(err, s.db.Set(key, blob))
-	err = multierr.Append(err, s.db.Set(ikey, hash[:]))
+	err = multierr.Append(err, s.db.Set(blockKey, blockBlob))
+	err = multierr.Append(err, s.db.Set(commitKey, commitBlob))
+	err = multierr.Append(err, s.db.Set(indexKey, hash[:]))
 
 	if block.Header.Height > s.height {
 		s.height = block.Header.Height
@@ -67,26 +75,15 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
 func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, height)
-	ikey := append(indexPrefix[:], buf[:]...)
-
-	hash, err := s.db.Get(ikey)
-
+	h, err := s.loadHashFromIndex(height)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO(tzdybal): any better way to convert slice to array?
-	var h [32]byte
-	copy(h[:], hash)
 	return s.LoadBlockByHash(h)
 }
 
 func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
-	key := append(blockPrefix[:], hash[:]...)
-
-	blockData, err := s.db.Get(key)
+	blockData, err := s.db.Get(getBlockKey(hash))
 
 	if err != nil {
 		return nil, err
@@ -98,10 +95,48 @@ func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	return block, err
 }
 
-func (d *DefaultStore) LoadCommit(height uint64) (*types.Block, error) {
-	panic("not implemented") // TODO: Implement
+func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
+	hash, err := s.loadHashFromIndex(height)
+	if err != nil {
+		return nil, err
+	}
+	return s.LoadCommitByHash(hash)
 }
 
-func (d *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Block, error) {
-	panic("not implemented") // TODO: Implement
+func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
+	commitData, err := s.db.Get(getCommitKey(hash))
+	if err != nil {
+		return nil, err
+	}
+	commit := new(types.Commit)
+	err = commit.UnmarshalBinary(commitData)
+	return commit, err
+}
+
+func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
+	blob, err := s.db.Get(getIndexKey(height))
+
+	var hash [32]byte
+	if err != nil {
+		return hash, err
+	}
+	if len(blob) != len(hash) {
+		return hash, errors.New("invalid hash length")
+	}
+	copy(hash[:], blob)
+	return hash, nil
+}
+
+func getBlockKey(hash [32]byte) []byte {
+	return append(blockPrefix[:], hash[:]...)
+}
+
+func getCommitKey(hash [32]byte) []byte {
+	return append(commitPrefix[:], hash[:]...)
+}
+
+func getIndexKey(height uint64) []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, height)
+	return append(indexPrefix[:], buf[:]...)
 }

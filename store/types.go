@@ -10,6 +10,6 @@ type Store interface {
 	LoadBlock(height uint64) (*types.Block, error)
 	LoadBlockByHash(hash [32]byte) (*types.Block, error)
 
-	LoadCommit(height uint64) (*types.Block, error)
-	LoadCommitByHash(hash [32]byte) (*types.Block, error)
+	LoadCommit(height uint64) (*types.Commit, error)
+	LoadCommitByHash(hash [32]byte) (*types.Commit, error)
 }

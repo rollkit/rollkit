@@ -19,10 +19,6 @@ func (d *Data) MarshalBinary() ([]byte, error) {
 	return d.ToProto().Marshal()
 }
 
-func (c *Commit) MarshalBinary() ([]byte, error) {
-	return c.ToProto().Marshal()
-}
-
 func (b *Block) UnmarshalBinary(data []byte) error {
 	var pBlock pb.Block
 	err := pBlock.Unmarshal(data)
@@ -30,7 +26,20 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	err = b.FromProto(&pBlock)
+	return err
+}
 
+func (c *Commit) MarshalBinary() ([]byte, error) {
+	return c.ToProto().Marshal()
+}
+
+func (c *Commit) UnmarshalBinary(data []byte) error {
+	var pCommit pb.Commit
+	err := pCommit.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	err = c.FromProto(&pCommit)
 	return err
 }
 
@@ -113,14 +122,6 @@ func (d *Data) ToProto() *pb.Data {
 	}
 }
 
-func (c *Commit) ToProto() *pb.Commit {
-	return &pb.Commit{
-		Height:     c.Height,
-		HeaderHash: c.HeaderHash[:],
-		Signatures: signaturesToByteSlices(c.Signatures),
-	}
-}
-
 func (b *Block) FromProto(other *pb.Block) error {
 	err := b.Header.FromProto(other.Header)
 	if err != nil {
@@ -130,12 +131,26 @@ func (b *Block) FromProto(other *pb.Block) error {
 	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
 	b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
 	if other.LastCommit != nil {
-		b.LastCommit.Height = other.LastCommit.Height
-		if !safeCopy(b.LastCommit.HeaderHash[:], other.LastCommit.HeaderHash) {
-			return errors.New("invalid length of 'InvalidLastCommit.HeaderHash'")
-		}
-		b.LastCommit.Signatures = byteSlicesToSignatures(other.LastCommit.Signatures)
+		b.LastCommit.FromProto(other.LastCommit)
 	}
+
+	return nil
+}
+
+func (c *Commit) ToProto() *pb.Commit {
+	return &pb.Commit{
+		Height:     c.Height,
+		HeaderHash: c.HeaderHash[:],
+		Signatures: signaturesToByteSlices(c.Signatures),
+	}
+}
+
+func (c *Commit) FromProto(other *pb.Commit) error {
+	c.Height = other.Height
+	if !safeCopy(c.HeaderHash[:], other.HeaderHash) {
+		return errors.New("invalid length of HeaderHash")
+	}
+	c.Signatures = byteSlicesToSignatures(other.Signatures)
 
 	return nil
 }
