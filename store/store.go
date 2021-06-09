@@ -137,6 +137,6 @@ func getCommitKey(hash [32]byte) []byte {
 
 func getIndexKey(height uint64) []byte {
 	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, height)
+	binary.BigEndian.PutUint64(buf, height)
 	return append(indexPrefix[:], buf[:]...)
 }
