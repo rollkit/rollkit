@@ -2,7 +2,6 @@ package lazyledger
 
 import (
 	"context"
-	"io"
 	"os"
 	"time"
 
@@ -66,9 +65,8 @@ func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
 		return err
 	}
 
-	var userInput io.Reader
 	// TODO(tzdybal): this means interactive reading from stdin - shouldn't we replace this somehow?
-	userInput = os.Stdin
+	userInput := os.Stdin
 	ll.keyring, err = keyring.New(ll.config.KeyringAccName, ll.config.Backend, ll.config.RootDir, userInput)
 	return err
 }
@@ -94,7 +92,7 @@ func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	ctx, cancel := context.WithTimeout(context.TODO(), ll.config.Timeout)
 	defer cancel()
 
-	ll.callRPC(ctx, msg)
+	err = ll.callRPC(ctx, msg)
 	if err != nil {
 		return da.ResultSubmitBlock{Code: da.StatusError, Message: err.Error()}
 	}
