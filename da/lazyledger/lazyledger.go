@@ -25,7 +25,6 @@ type Config struct {
 	PubKey      []byte
 	BaseRateMax uint64 // currently not used
 	TipRateMax  uint64 // currently not used
-	From        string
 
 	// temporary fee fields
 	GasLimit  uint64
