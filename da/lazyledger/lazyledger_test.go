@@ -68,6 +68,7 @@ func TestSubmission(t *testing.T) {
 	assert.Equal(da.StatusSuccess, result.Code)
 }
 
+// nolint: unused
 func testConfig(key keyring.Info) string {
 	keyStr := ""
 	for _, b := range key.GetPubKey().Bytes() {
@@ -87,6 +88,7 @@ func testConfig(key keyring.Info) string {
 	return conf
 }
 
+// nolint: unused
 func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	t.Helper()
 	kb := keyring.NewInMemory()
