@@ -460,8 +460,8 @@ github.com/lazyledger/cosmos-sdk v0.40.0-rc5.0.20210121152417-3addd7f65d1c h1:OF
 github.com/lazyledger/cosmos-sdk v0.40.0-rc5.0.20210121152417-3addd7f65d1c/go.mod h1:pPx3/tAjdExEctV+nKzvNeedZcvuys5fUD0A3r5XX20=
 github.com/lazyledger/go-leopard v0.0.0-20200604113236-298f93361181 h1:mUeCGuCgjZVadW4CzA2dMBq7p2BqaoCfpnKjxMmSaSE=
 github.com/lazyledger/go-leopard v0.0.0-20200604113236-298f93361181/go.mod h1:v1o1CRihQ9i7hizx23KK4aR79lxA6VDUIzUCfDva0XQ=
-github.com/lazyledger/lazyledger-app v0.0.0-20210421070454-76641cc80638 h1:eTyDJGbJxrs/SxLC0JkglKlPLOiPR1AeaSK9s3IX9ZU=
-github.com/lazyledger/lazyledger-app v0.0.0-20210421070454-76641cc80638/go.mod h1:YXf0VFCIWp8uaeEKf89aW5jR32syrq5vyxbL62TQFfU=
+github.com/lazyledger/lazyledger-app v0.0.0-20210610204649-0c5a9b3f170b h1:bbqIxmrZeDBHAVphmPsYdDQ+7ALxEbh5gI2K53ieOUg=
+github.com/lazyledger/lazyledger-app v0.0.0-20210610204649-0c5a9b3f170b/go.mod h1:YXf0VFCIWp8uaeEKf89aW5jR32syrq5vyxbL62TQFfU=
 github.com/lazyledger/lazyledger-core v0.0.0-20210115223437-eff282ad2592/go.mod h1:yNWM9NVGWzSqRS56TL5cVdD6fS0eoxZlCZNHRvxjneE=
 github.com/lazyledger/lazyledger-core v0.0.0-20210122184344-b83e6766973c/go.mod h1:w3QtViDbWfzQ7Jk5uRAKnnfGGJswYTgZLHMZyeyGELg=
 github.com/lazyledger/lazyledger-core v0.0.0-20210219190522-0eccfb24e2aa h1:MFi5bQnxlFsrWPuld0gT3N6I3K9DcD2YBMwVP2Evwfo=
