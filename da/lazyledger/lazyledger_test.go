@@ -8,7 +8,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/lazyledger/optimint/da"
 	"github.com/lazyledger/optimint/types"
 	"github.com/stretchr/testify/assert"
@@ -86,44 +85,6 @@ func testConfig(key keyring.Info) string {
 
 	`, keyStr, key.GetAddress().String())
 	return conf
-}
-
-func Test_buildTx(t *testing.T) {
-	kr := generateKeyring(t)
-	key, err := kr.Key("test-account")
-	require.NoError(t, err)
-	conf := testConfig(key)
-	ll := LazyLedger{}
-	err = ll.Init([]byte(conf), nil)
-	require.NoError(t, err)
-	ll.keyring = kr
-
-	key, err = ll.keyring.Key("test-account")
-	require.NoError(t, err)
-
-	block := &types.Block{Header: types.Header{
-		Height: 1,
-	}}
-
-	msg, err := ll.preparePayForMessage(block)
-	require.NoError(t, err)
-
-	signedTx, err := ll.buildTx(msg, 0, 0)
-	require.NoError(t, err)
-
-	sigs, err := signedTx.GetSignaturesV2()
-	require.NoError(t, err)
-
-	signerData := authsigning.SignerData{
-		ChainID:       "test",
-		AccountNumber: 0,
-		Sequence:      0,
-	}
-
-	// Generated Protobuf-encoded bytes.
-	require.NoError(t, err)
-	err = authsigning.VerifySignature(key.GetPubKey(), signerData, sigs[0].Data, ll.encCfg.TxConfig.SignModeHandler(), signedTx)
-	require.NoError(t, err)
 }
 
 func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
