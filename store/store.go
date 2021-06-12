@@ -43,10 +43,6 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	if err != nil {
 		return err
 	}
-	blockKey := getBlockKey(hash)
-	commitKey := getCommitKey(hash)
-	indexKey := getIndexKey(block.Header.Height)
-
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
 		return err
@@ -59,16 +55,20 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	// TODO(tzdybal): use transaction for consistency of DB
-	err = multierr.Append(err, s.db.Set(blockKey, blockBlob))
-	err = multierr.Append(err, s.db.Set(commitKey, commitBlob))
-	err = multierr.Append(err, s.db.Set(indexKey, hash[:]))
+	// TODO(tzdybal): use transaction for consistency of DB (https://github.com/lazyledger/optimint/issues/80)
+	err = multierr.Append(err, s.db.Set(getBlockKey(hash), blockBlob))
+	err = multierr.Append(err, s.db.Set(getCommitKey(hash), commitBlob))
+	err = multierr.Append(err, s.db.Set(getIndexKey(block.Header.Height), hash[:]))
+
+	if err != nil {
+		return err
+	}
 
 	if block.Header.Height > s.height {
 		s.height = block.Header.Height
 	}
 
-	return err
+	return nil
 }
 
 // TODO(tzdybal): what is more common access pattern? by height or by hash?

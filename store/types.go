@@ -7,7 +7,7 @@ type Store interface {
 	// Height returns height of the highest block in store.
 	Height() uint64
 
-	// SaveBlock saves block along with it's commit.
+	// SaveBlock saves block along with its seen commit (which will be included in the next block).
 	SaveBlock(block *types.Block, commit *types.Commit) error
 
 	// LoadBlock returns block at given height, or error if it's not found in Store.
