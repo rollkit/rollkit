@@ -22,7 +22,7 @@ type DefaultStore struct {
 
 	height uint64
 
-	// mtx protects height
+	// mtx ensures that db is in sync with height
 	mtx sync.RWMutex
 }
 
