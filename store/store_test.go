@@ -4,9 +4,11 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/lazyledger/optimint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lazyledger/optimint/hash"
+	"github.com/lazyledger/optimint/types"
 )
 
 func TestBlockstoreHeight(t *testing.T) {
@@ -36,11 +38,11 @@ func TestBlockstoreHeight(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			bstore := NewBlockStore()
+			bstore := New()
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
-				err := bstore.SaveBlock(block)
+				err := bstore.SaveBlock(block, &types.Commit{})
 				assert.NoError(err)
 			}
 
@@ -74,10 +76,12 @@ func TestBlockstoreLoad(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 
-			bstore := NewBlockStore()
+			bstore := New()
 
 			for _, block := range c.blocks {
-				err := bstore.SaveBlock(block)
+				headerHash, err := hash.Hash(&block.Header)
+				require.NoError(err)
+				err = bstore.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: headerHash})
 				require.NoError(err)
 			}
 
@@ -86,6 +90,14 @@ func TestBlockstoreLoad(t *testing.T) {
 				assert.NoError(err)
 				assert.NotNil(block)
 				assert.Equal(expected, block)
+
+				commit, err := bstore.LoadCommit(expected.Header.Height)
+				assert.NoError(err)
+				assert.NotNil(commit)
+				assert.Equal(expected.Header.Height, commit.Height)
+				headerHash, err := hash.Hash(&expected.Header)
+				require.NoError(err)
+				assert.Equal(headerHash, commit.HeaderHash)
 			}
 		})
 	}
