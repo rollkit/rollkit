@@ -9,7 +9,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
 	github.com/ipfs/go-log v1.0.4
-	github.com/lazyledger/lazyledger-app v0.0.0-20210610204649-0c5a9b3f170b
+	github.com/lazyledger/lazyledger-app v0.0.0-20210615142030-0e60861ff7f5
 	github.com/lazyledger/lazyledger-core v0.0.0-20210219190522-0eccfb24e2aa
 	github.com/libp2p/go-libp2p v0.13.0
 	github.com/libp2p/go-libp2p-core v0.8.5

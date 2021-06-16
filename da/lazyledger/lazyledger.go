@@ -100,32 +100,28 @@ func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 }
 
 func (ll *LazyLedger) callRPC(ctx context.Context, msg *apptypes.MsgWirePayForMessage) error {
-	info, err := ll.keyring.Key(ll.config.KeyringAccName)
-	if err != nil {
-		return err
-	}
+	signer := appclient.NewKeyringSigner(ll.keyring, ll.config.KeyringAccName, ll.config.ChainID)
 
-	b := appclient.NewBuilder(info.GetAddress(), ll.config.ChainID)
-
-	err = b.UpdateAccountNumber(ctx, ll.rpcClient)
+	err := signer.QueryAccountNumber(ctx, ll.rpcClient)
 	if err != nil {
 		return err
 	}
 
 	coin := sdk.Coin{
 		Denom:  "token",
-		Amount: sdk.NewInt(10),
+		Amount: sdk.NewInt(10), // TODO(tzdybal): un-hardcode
 	}
-	b.SetFeeAmount(sdk.NewCoins(coin))
 
-	b.SetGasLimit(ll.config.GasLimit)
+	builder := signer.NewTxBuilder()
+	builder.SetFeeAmount(sdk.NewCoins(coin))
+	builder.SetGasLimit(ll.config.GasLimit)
 
-	signedTx, err := b.BuildSignedTx(msg, ll.keyring)
+	signedTx, err := signer.BuildSignedTx(builder, msg)
 	if err != nil {
 		return err
 	}
 
-	rawTx, err := b.EncodeTx(signedTx)
+	rawTx, err := signer.EncodeTx(signedTx)
 	if err != nil {
 		return err
 	}
