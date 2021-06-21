@@ -142,7 +142,7 @@ func (ll *LazyLedger) callRPC(ctx context.Context, msg *apptypes.MsgWirePayForMe
 func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWirePayForMessage, error) {
 	// TODO(tzdybal): serialize block
 	var message []byte
-	message, err := block.Serialize()
+	message, err := block.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
