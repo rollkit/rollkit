@@ -44,7 +44,7 @@ func TestConfiguration(t *testing.T) {
 }
 
 func TestSubmission(t *testing.T) {
-	// t.Skip("unfinished test/implementation")
+	t.Skip("this test requires configured and running lazyledger-appd")
 	assert := assert.New(t)
 	require := require.New(t)
 	block := &types.Block{Header: types.Header{
