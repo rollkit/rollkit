@@ -37,8 +37,8 @@ type Header struct {
 // state transition machine.
 // This is equivalent to the tmversion.Consensus type in Tendermint.
 type Version struct {
-	Block uint32
-	App   uint32
+	Block uint64
+	App   uint64
 }
 
 type Block struct {

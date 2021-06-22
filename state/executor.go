@@ -1,7 +1,9 @@
 package state
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"time"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
@@ -9,6 +11,7 @@ import (
 	"github.com/lazyledger/lazyledger-core/proxy"
 	lltypes "github.com/lazyledger/lazyledger-core/types"
 
+	abciconv "github.com/lazyledger/optimint/conv/abci"
 	"github.com/lazyledger/optimint/hash"
 	"github.com/lazyledger/optimint/log"
 	"github.com/lazyledger/optimint/mempool"
@@ -30,7 +33,7 @@ func NewBlockExecutor(mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, 
 	}
 }
 
-func (e *BlockExecutor) CreateProposalBlock(height uint64, commit *types.Block, state *State) *types.Block {
+func (e *BlockExecutor) CreateProposalBlock(height uint64, commit *types.Commit, state *State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
@@ -40,12 +43,12 @@ func (e *BlockExecutor) CreateProposalBlock(height uint64, commit *types.Block, 
 		Header: types.Header{
 			Version: types.Version{
 				// TODO(tzdybal): uint32 vs int64
-				Block: uint32(state.Version.Consensus.Block),
-				App:   uint32(state.Version.Consensus.App),
+				Block: state.Version.Consensus.Block,
+				App:   state.Version.Consensus.App,
 			},
 			NamespaceID:     [8]byte{},
 			Height:          height,
-			Time:            uint64(time.Now().UnixNano()), // TODO(tzdybal): how to get TAI64?
+			Time:            uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
 			LastHeaderHash:  [32]byte{},
 			LastCommitHash:  [32]byte{},
 			DataHash:        [32]byte{},
@@ -131,7 +134,26 @@ func (e *BlockExecutor) commit(state *State, block *types.Block, deliverTxs []*a
 }
 
 func (e *BlockExecutor) validate(state *State, block *types.Block) error {
-	// TODO(tzdybal): implement
+	if block.Header.Version.App != state.Version.Consensus.App ||
+		block.Header.Version.Block != state.Version.Consensus.Block {
+		return errors.New("block version mismatch")
+	}
+	if state.LastBlockHeight <= 0 && block.Header.Height != uint64(state.InitialHeight) {
+		return errors.New("initial block height mismatch")
+	}
+	if state.LastBlockHeight > 0 && block.Header.Height != uint64(state.LastBlockHeight)+1 {
+		return errors.New("block height mismatch")
+	}
+	if !bytes.Equal(block.Header.AppHash[:], state.AppHash) {
+		return errors.New("AppHash mismatch")
+	}
+
+	if !bytes.Equal(block.Header.LastResultsHash[:], state.LastResultsHash) {
+		return errors.New("LastResultsHash mismatch")
+	}
+
+	// TODO(tzdybal): what else to check
+
 	return nil
 }
 
@@ -166,8 +188,13 @@ func (e *BlockExecutor) execute(state *State, block *types.Block) (*tmstate.ABCI
 	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
 		context.TODO(),
 		abci.RequestBeginBlock{
-			// TODO(tzdybal): fill this
-			Hash: hash[:],
+			Hash:   hash[:],
+			Header: abciconv.ToABCIHeader(&block.Header),
+			LastCommitInfo: abci.LastCommitInfo{
+				Round: 0,
+				Votes: nil,
+			},
+			ByzantineValidators: nil,
 		})
 
 	for _, tx := range block.Data.Txs {
