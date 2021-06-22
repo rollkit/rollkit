@@ -42,7 +42,6 @@ func (e *BlockExecutor) CreateProposalBlock(height uint64, commit *types.Commit,
 	block := &types.Block{
 		Header: types.Header{
 			Version: types.Version{
-				// TODO(tzdybal): uint32 vs int64
 				Block: state.Version.Consensus.Block,
 				App:   state.Version.Consensus.App,
 			},
