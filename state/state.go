@@ -53,10 +53,10 @@ type State struct {
 	LastHeightConsensusParamsChanged int64
 
 	// Merkle root of the results from executing prev block
-	LastResultsHash []byte
+	LastResultsHash [32]byte
 
 	// the latest AppHash we've received from calling abci.Commit()
-	AppHash []byte
+	AppHash [32]byte
 }
 
 func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
@@ -78,7 +78,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
 
-	return State{
+	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
 		InitialHeight: genDoc.InitialHeight,
@@ -94,7 +94,8 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 
 		ConsensusParams:                  *genDoc.ConsensusParams,
 		LastHeightConsensusParamsChanged: genDoc.InitialHeight,
+	}
+	copy(s.AppHash[:], genDoc.AppHash)
 
-		AppHash: genDoc.AppHash,
-	}, nil
+	return s, nil
 }
