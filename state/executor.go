@@ -66,13 +66,13 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 	return block
 }
 
-func (e *BlockExecutor) ApplyBlock(state State, block *types.Block) (State, uint64, error) {
+func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *types.Block) (State, uint64, error) {
 	err := e.validate(state, block)
 	if err != nil {
 		return State{}, 0, err
 	}
 
-	resp, err := e.execute(state, block)
+	resp, err := e.execute(ctx, state, block)
 	if err != nil {
 		return State{}, 0, err
 	}
@@ -82,7 +82,7 @@ func (e *BlockExecutor) ApplyBlock(state State, block *types.Block) (State, uint
 		return State{}, 0, err
 	}
 
-	appHash, retainHeight, err := e.commit(state, block, resp.DeliverTxs)
+	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
 	if err != nil {
 		return State{}, 0, err
 	}
@@ -109,7 +109,7 @@ func (e *BlockExecutor) updateState(state State, block *types.Block, abciRespons
 	return s, nil
 }
 
-func (e *BlockExecutor) commit(state State, block *types.Block, deliverTxs []*abci.ResponseDeliverTx) ([]byte, uint64, error) {
+func (e *BlockExecutor) commit(ctx context.Context, state State, block *types.Block, deliverTxs []*abci.ResponseDeliverTx) ([]byte, uint64, error) {
 	e.mempool.Lock()
 	defer e.mempool.Unlock()
 
@@ -118,7 +118,7 @@ func (e *BlockExecutor) commit(state State, block *types.Block, deliverTxs []*ab
 		return nil, 0, err
 	}
 
-	resp, err := e.proxyApp.CommitSync(context.TODO())
+	resp, err := e.proxyApp.CommitSync(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -157,7 +157,7 @@ func (e *BlockExecutor) validate(state State, block *types.Block) error {
 	return nil
 }
 
-func (e *BlockExecutor) execute(state State, block *types.Block) (*tmstate.ABCIResponses, error) {
+func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.Block) (*tmstate.ABCIResponses, error) {
 	abciResponses := new(tmstate.ABCIResponses)
 	abciResponses.DeliverTxs = make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
 
@@ -186,7 +186,7 @@ func (e *BlockExecutor) execute(state State, block *types.Block) (*tmstate.ABCIR
 		return nil, err
 	}
 	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
-		context.TODO(),
+		ctx,
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
 			Header: abciconv.ToABCIHeader(&block.Header),
@@ -198,13 +198,13 @@ func (e *BlockExecutor) execute(state State, block *types.Block) (*tmstate.ABCIR
 		})
 
 	for _, tx := range block.Data.Txs {
-		_, err = e.proxyApp.DeliverTxAsync(context.TODO(), abci.RequestDeliverTx{Tx: tx})
+		_, err = e.proxyApp.DeliverTxAsync(ctx, abci.RequestDeliverTx{Tx: tx})
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(context.TODO(), abci.RequestEndBlock{Height: int64(block.Header.Height)})
+	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(ctx, abci.RequestEndBlock{Height: int64(block.Header.Height)})
 	if err != nil {
 		return nil, err
 	}
