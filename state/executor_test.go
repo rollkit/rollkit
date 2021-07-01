@@ -18,7 +18,7 @@ import (
 	"github.com/lazyledger/optimint/types"
 )
 
-func TestCreateProposalBlock(t *testing.T) {
+func TestCreateBlock(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
@@ -40,14 +40,14 @@ func TestCreateProposalBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxGas = 100000
 
 	// empty block
-	block := executor.CreateProposalBlock(1, &types.Commit{}, state)
+	block := executor.CreateBlock(1, &types.Commit{}, state)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
 	assert.Equal(uint64(1), block.Header.Height)
 
 	// one small Tx
 	mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
-	block = executor.CreateProposalBlock(2, &types.Commit{}, state)
+	block = executor.CreateBlock(2, &types.Commit{}, state)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Header.Height)
 	assert.Len(block.Data.Txs, 1)
@@ -55,7 +55,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	// now there are 3 Txs, and only two can fit into single block
 	mpool.CheckTx([]byte{4, 5, 6, 7}, func(r *abci.Response) {}, mempool.TxInfo{})
 	mpool.CheckTx(make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
-	block = executor.CreateProposalBlock(3, &types.Commit{}, state)
+	block = executor.CreateBlock(3, &types.Commit{}, state)
 	require.NotNil(block)
 	assert.Len(block.Data.Txs, 2)
 }
@@ -92,7 +92,7 @@ func TestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxGas = 100000
 
 	mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
-	block := executor.CreateProposalBlock(1, &types.Commit{}, state)
+	block := executor.CreateBlock(1, &types.Commit{}, state)
 	require.NotNil(block)
 	assert.Equal(uint64(1), block.Header.Height)
 	assert.Len(block.Data.Txs, 1)
@@ -107,7 +107,7 @@ func TestApplyBlock(t *testing.T) {
 	mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{})
 	mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.Response) {}, mempool.TxInfo{})
 	mpool.CheckTx(make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
-	block = executor.CreateProposalBlock(2, &types.Commit{}, newState)
+	block = executor.CreateBlock(2, &types.Commit{}, newState)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Header.Height)
 	assert.Len(block.Data.Txs, 3)

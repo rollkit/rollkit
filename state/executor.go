@@ -33,7 +33,7 @@ func NewBlockExecutor(mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, 
 	}
 }
 
-func (e *BlockExecutor) CreateProposalBlock(height uint64, commit *types.Commit, state State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
