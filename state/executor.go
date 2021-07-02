@@ -141,6 +141,10 @@ func (e *BlockExecutor) commit(ctx context.Context, state State, block *types.Bl
 }
 
 func (e *BlockExecutor) validate(state State, block *types.Block) error {
+	err := block.ValidateBasic()
+	if err != nil {
+		return err
+	}
 	if block.Header.Version.App != state.Version.Consensus.App ||
 		block.Header.Version.Block != state.Version.Consensus.Block {
 		return errors.New("block version mismatch")
