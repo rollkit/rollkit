@@ -36,12 +36,7 @@ type State struct {
 	LastBlockID     types.BlockID
 	LastBlockTime   time.Time
 
-	// LastValidators is used to validate block.LastCommit.
-	// Validators are persisted to the database separately every time they change,
-	// so we can query for historical validator sets.
-	// Note that if s.LastBlockHeight causes a valset change,
-	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1 + 1
-	// Extra +1 due to nextValSet delay.
+	// In the MVP implementation, there will be only one Validator
 	NextValidators              *types.ValidatorSet
 	Validators                  *types.ValidatorSet
 	LastValidators              *types.ValidatorSet

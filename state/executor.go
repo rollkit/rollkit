@@ -93,13 +93,20 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 }
 
 func (e *BlockExecutor) updateState(state State, block *types.Block, abciResponses *tmstate.ABCIResponses) (State, error) {
-	// TODO(tzdybal): blockID
+	h, err := hash.Hash(&block.Header)
+	if err != nil {
+		return State{}, err
+	}
 	s := State{
 		Version:         state.Version,
 		ChainID:         state.ChainID,
 		InitialHeight:   state.InitialHeight,
 		LastBlockHeight: int64(block.Header.Height),
 		LastBlockTime:   time.Unix(int64(block.Header.Time), 0),
+		LastBlockID: lltypes.BlockID{
+			Hash: h[:],
+			// for now, we don't care about part set headers
+		},
 		// skipped all "Validators" fields
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
@@ -185,11 +192,15 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	if err != nil {
 		return nil, err
 	}
+	abciHeader, err := abciconv.ToABCIHeader(&block.Header)
+	if err != nil {
+		return nil, err
+	}
 	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
 		ctx,
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
-			Header: abciconv.ToABCIHeader(&block.Header),
+			Header: abciHeader,
 			LastCommitInfo: abci.LastCommitInfo{
 				Round: 0,
 				Votes: nil,
