@@ -48,15 +48,18 @@ func TestCreateBlock(t *testing.T) {
 	assert.Equal(uint64(1), block.Header.Height)
 
 	// one small Tx
-	mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	require.NoError(err)
 	block = executor.CreateBlock(2, &types.Commit{}, state)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Header.Height)
 	assert.Len(block.Data.Txs, 1)
 
 	// now there are 3 Txs, and only two can fit into single block
-	mpool.CheckTx([]byte{4, 5, 6, 7}, func(r *abci.Response) {}, mempool.TxInfo{})
-	mpool.CheckTx(make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
+	err = mpool.CheckTx([]byte{4, 5, 6, 7}, func(r *abci.Response) {}, mempool.TxInfo{})
+	require.NoError(err)
+	err = mpool.CheckTx(make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
+	require.NoError(err)
 	block = executor.CreateBlock(3, &types.Commit{}, state)
 	require.NotNil(block)
 	assert.Len(block.Data.Txs, 2)
@@ -74,7 +77,8 @@ func TestApplyBlock(t *testing.T) {
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	var mockAppHash [32]byte
-	rand.Read(mockAppHash[:])
+	_, err := rand.Read(mockAppHash[:])
+	require.NoError(err)
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
 		Data: mockAppHash[:],
 	})
@@ -94,7 +98,8 @@ func TestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 
-	mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	_ = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	require.NoError(err)
 	block := executor.CreateBlock(1, &types.Commit{}, state)
 	require.NotNil(block)
 	assert.Equal(uint64(1), block.Header.Height)
@@ -106,10 +111,10 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(int64(1), newState.LastBlockHeight)
 	assert.Equal(mockAppHash, newState.AppHash)
 
-	mpool.CheckTx([]byte{0, 1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
-	mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{})
-	mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.Response) {}, mempool.TxInfo{})
-	mpool.CheckTx(make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
+	require.NoError(mpool.CheckTx([]byte{0, 1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
 	block = executor.CreateBlock(2, &types.Commit{}, newState)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Header.Height)

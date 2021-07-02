@@ -218,6 +218,9 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 			},
 			ByzantineValidators: nil,
 		})
+	if err != nil {
+		return nil, err
+	}
 
 	for _, tx := range block.Data.Txs {
 		_, err = e.proxyApp.DeliverTxAsync(ctx, abci.RequestDeliverTx{Tx: tx})
