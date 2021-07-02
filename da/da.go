@@ -5,11 +5,13 @@ import (
 	"github.com/lazyledger/optimint/types"
 )
 
-// TODO define an enum of different non-happy-path cases
+// StatusCode is a type for DA layer return status.
+// TODO: define an enum of different non-happy-path cases
 // that might need to be handled by Optimint independent of
 // the underlying DA chain.
 type StatusCode uint64
 
+// Data Availability return codes.
 const (
 	StatusUnknown StatusCode = iota
 	StatusSuccess
@@ -17,6 +19,7 @@ const (
 	StatusError
 )
 
+// ResultSubmitBlock contains information returned from DA layer after block submission.
 type ResultSubmitBlock struct {
 	// Code is to determine if the action succeeded.
 	Code StatusCode
@@ -27,6 +30,8 @@ type ResultSubmitBlock struct {
 	// Hash hash.Hash
 }
 
+// DataAvailabilityLayerClient defines generic interface for DA layer block submission.
+// It also contains life-cycle methods.
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
 	Init(config []byte, logger log.Logger) error

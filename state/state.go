@@ -24,6 +24,7 @@ var InitStateVersion = tmstate.Version{
 	Software: version.TMCoreSemVer,
 }
 
+// State contains information about current state of the blockchain.
 type State struct {
 	Version tmstate.Version
 
@@ -54,6 +55,7 @@ type State struct {
 	AppHash [32]byte
 }
 
+// NewFromGenesisDoc reads blockchain State from genesis.
 func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 	err := genDoc.ValidateAndComplete()
 	if err != nil {

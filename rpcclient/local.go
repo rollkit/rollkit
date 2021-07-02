@@ -23,7 +23,7 @@ import (
 
 const (
 	// TODO(tzdybal): make this configurable
-	SubscribeTimeout = 5 * time.Second
+	subscribeTimeout = 5 * time.Second
 )
 
 var _ rpcclient.Client = &Local{}
@@ -86,7 +86,7 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 	}
 
 	// Subscribe to tx being committed in block.
-	subCtx, cancel := context.WithTimeout(ctx, SubscribeTimeout)
+	subCtx, cancel := context.WithTimeout(ctx, subscribeTimeout)
 	defer cancel()
 	q := types.EventQueryTxFor(tx)
 	deliverTxSub, err := l.EventBus.Subscribe(subCtx, subscriber, q)

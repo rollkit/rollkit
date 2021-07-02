@@ -20,6 +20,8 @@ import (
 	"github.com/lazyledger/optimint/store"
 )
 
+// Node represents a client node in Optimint network.
+// It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
 	eventBus *types.EventBus
@@ -42,6 +44,7 @@ type Node struct {
 	ctx context.Context
 }
 
+// NewNode creates new Optimint node.
 func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *types.GenesisDoc, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
@@ -146,6 +149,7 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 	}
 }
 
+// OnStart is a part of Service interface.
 func (n *Node) OnStart() error {
 	n.Logger.Info("starting P2P client")
 	err := n.P2P.Start(n.ctx)
@@ -161,26 +165,32 @@ func (n *Node) OnStart() error {
 	return nil
 }
 
+// OnStop is a part of Service interface.
 func (n *Node) OnStop() {
 	n.P2P.Close()
 }
 
+// OnReset is a part of Service interface.
 func (n *Node) OnReset() error {
 	panic("OnReset - not implemented!")
 }
 
+// SetLogger sets the logger used by node.
 func (n *Node) SetLogger(logger log.Logger) {
 	n.Logger = logger
 }
 
+// GetLogger returns logger.
 func (n *Node) GetLogger() log.Logger {
 	return n.Logger
 }
 
+// EventBus gives access to Node's event bus.
 func (n *Node) EventBus() *types.EventBus {
 	return n.eventBus
 }
 
+// ProxyApp returns ABCI proxy connections to comminicate with aplication.
 func (n *Node) ProxyApp() proxy.AppConns {
 	return n.proxyApp
 }

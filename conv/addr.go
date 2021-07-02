@@ -7,6 +7,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
+// TranslateAddresses updates conf by changing Cosmos-style addresses to Multiaddr format.
 func TranslateAddresses(conf *config.NodeConfig) error {
 	if conf.P2P.ListenAddress != "" {
 		addr, err := GetMultiAddr(conf.P2P.ListenAddress)
@@ -31,6 +32,8 @@ func TranslateAddresses(conf *config.NodeConfig) error {
 	return nil
 }
 
+// GetMultiAddr converts single Cosmos-style network address into Multiaddr.
+// Input format: [protocol://][<NODE_ID>@]<IPv4>:<PORT>
 func GetMultiAddr(addr string) (multiaddr.Multiaddr, error) {
 	var err error
 	var p2pID multiaddr.Multiaddr
@@ -50,7 +53,7 @@ func GetMultiAddr(addr string) (multiaddr.Multiaddr, error) {
 	}
 	parts = strings.Split(addr, ":")
 	if len(parts) != 2 {
-		return nil, ErrInvalidAddress
+		return nil, errInvalidAddress
 	}
 	maddr, err := multiaddr.NewMultiaddr("/ip4/" + parts[0] + "/" + proto + "/" + parts[1])
 	if err != nil {

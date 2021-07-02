@@ -40,13 +40,13 @@ func TestTranslateAddresses(t *testing.T) {
 			"invalid listen address",
 			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: invalidCosmos}},
 			config.NodeConfig{},
-			ErrInvalidAddress.Error(),
+			errInvalidAddress.Error(),
 		},
 		{
 			"invalid seed address",
 			config.NodeConfig{P2P: config.P2PConfig{Seeds: validCosmos + "," + invalidCosmos}},
 			config.NodeConfig{},
-			ErrInvalidAddress.Error(),
+			errInvalidAddress.Error(),
 		},
 	}
 
@@ -79,9 +79,9 @@ func TestGetMultiaddr(t *testing.T) {
 		expected    multiaddr.Multiaddr
 		expectedErr string
 	}{
-		{"empty", "", nil, ErrInvalidAddress.Error()},
+		{"empty", "", nil, errInvalidAddress.Error()},
 		{"no port", "127.0.0.1:", nil, "failed to parse multiaddr"},
-		{"ip only", "127.0.0.1", nil, ErrInvalidAddress.Error()},
+		{"ip only", "127.0.0.1", nil, errInvalidAddress.Error()},
 		{"with invalid id", "deadbeef@127.0.0.1:1234", nil, "failed to parse multiaddr"},
 		{"valid", "127.0.0.1:1234", valid, ""},
 		{"valid with id", "k2k4r8oqamigqdo6o7hsbfwd45y70oyynp98usk7zmyfrzpqxh1pohl7@127.0.0.1:1234", withID, ""},

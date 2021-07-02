@@ -17,6 +17,6 @@ type Store interface {
 
 	// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
 	LoadCommit(height uint64) (*types.Commit, error)
-	// LoadCommit returns commit for a block with given block header hash, or error if it's not found in Store.
+	// LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
 	LoadCommitByHash(hash [32]byte) (*types.Commit, error)
 }

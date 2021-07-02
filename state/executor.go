@@ -18,23 +18,29 @@ import (
 	"github.com/lazyledger/optimint/types"
 )
 
+// BlockExecutor creates and applies blocks and maintain state.
 type BlockExecutor struct {
 	proposerAddress []byte
+	namespaceID     [8]byte
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
 
 	logger log.Logger
 }
 
-func NewBlockExecutor(proposerAddress []byte, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
+// NewBlockExecutor creates new instance of BlockExecutor.
+// Proposer address and namespace ID will be used in all newly created blocks.
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
+		namespaceID:     namespaceID,
 		proxyApp:        proxyApp,
 		mempool:         mempool,
 		logger:          logger,
 	}
 }
 
+// CreateBlock reaps transactions from mempool and builds a block.
 func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
@@ -47,7 +53,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 				Block: state.Version.Consensus.Block,
 				App:   state.Version.Consensus.App,
 			},
-			NamespaceID:     [8]byte{},
+			NamespaceID:     e.namespaceID,
 			Height:          height,
 			Time:            uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
 			LastHeaderHash:  [32]byte{},
@@ -68,6 +74,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 	return block
 }
 
+// ApplyBlock validates, executes and commits the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *types.Block) (State, uint64, error) {
 	err := e.validate(state, block)
 	if err != nil {
@@ -164,8 +171,6 @@ func (e *BlockExecutor) validate(state State, block *types.Block) error {
 	if !bytes.Equal(block.Header.LastResultsHash[:], state.LastResultsHash[:]) {
 		return errors.New("LastResultsHash mismatch")
 	}
-
-	// TODO(tzdybal): what else to check
 
 	return nil
 }

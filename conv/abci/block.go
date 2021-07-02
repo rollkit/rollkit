@@ -10,6 +10,7 @@ import (
 	"github.com/lazyledger/optimint/types"
 )
 
+// ToABCIHeader converts Optimint header to Header format defined in ABCI.
 func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 	h, err := hash.Hash(header)
 	if err != nil {

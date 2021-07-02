@@ -11,6 +11,7 @@ type KVStore interface {
 	Delete(key []byte) error            // Delete deletes a key.
 }
 
+// NewInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
 func NewInMemoryKVStore() KVStore {
 	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true))
 	if err != nil {
