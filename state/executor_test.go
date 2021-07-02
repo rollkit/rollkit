@@ -34,7 +34,7 @@ func TestCreateBlock(t *testing.T) {
 	require.NotNil(client)
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor(mpool, proxy.NewAppConnConsensus(client), logger)
+	executor := NewBlockExecutor([]byte("test address"), mpool, proxy.NewAppConnConsensus(client), logger)
 
 	state := State{}
 	state.ConsensusParams.Block.MaxBytes = 100
@@ -84,7 +84,7 @@ func TestApplyBlock(t *testing.T) {
 	require.NotNil(client)
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor(mpool, proxy.NewAppConnConsensus(client), logger)
+	executor := NewBlockExecutor([]byte("test address"), mpool, proxy.NewAppConnConsensus(client), logger)
 
 	state := State{}
 	state.InitialHeight = 1

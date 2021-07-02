@@ -19,17 +19,19 @@ import (
 )
 
 type BlockExecutor struct {
-	proxyApp proxy.AppConnConsensus
-	mempool  mempool.Mempool
+	proposerAddress []byte
+	proxyApp        proxy.AppConnConsensus
+	mempool         mempool.Mempool
 
 	logger log.Logger
 }
 
-func NewBlockExecutor(mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
-		proxyApp: proxyApp,
-		mempool:  mempool,
-		logger:   logger,
+		proposerAddress: proposerAddress,
+		proxyApp:        proxyApp,
+		mempool:         mempool,
+		logger:          logger,
 	}
 }
 
@@ -54,7 +56,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 			ConsensusHash:   [32]byte{},
 			AppHash:         state.AppHash,
 			LastResultsHash: state.LastResultsHash,
-			ProposerAddress: nil,
+			ProposerAddress: e.proposerAddress,
 		},
 		Data: types.Data{
 			Txs:                    toOptimintTxs(mempoolTxs),
