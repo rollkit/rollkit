@@ -170,7 +170,7 @@ func getRPC(t *testing.T) (*mocks.Application, *Local) {
 	require := require.New(t)
 	app := &mocks.Application{}
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{}, log.TestingLogger())
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -193,6 +193,7 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NoError(err)
 
 	node1, err := node.NewNode(context.Background(), config.NodeConfig{
+		DALayer: "mock",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
@@ -201,6 +202,7 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NotNil(node1)
 
 	node2, err := node.NewNode(context.Background(), config.NodeConfig{
+		DALayer: "mock",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
