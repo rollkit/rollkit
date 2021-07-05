@@ -6,7 +6,13 @@ import "time"
 type NodeConfig struct {
 	P2P        P2PConfig
 	Aggregator bool
-	BlockTime  time.Duration
-	DALayer    string
-	DAConfig   []byte
+	AggregatorConfig
+	DALayer  string
+	DAConfig []byte
+}
+
+type AggregatorConfig struct {
+	BlockTime       time.Duration
+	NamespaceID     [8]byte
+	ProposerAddress []byte
 }

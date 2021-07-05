@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"time"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	llcfg "github.com/lazyledger/lazyledger-core/config"
@@ -22,7 +21,6 @@ import (
 	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/p2p"
 	"github.com/lazyledger/optimint/store"
-	"github.com/lazyledger/optimint/types"
 )
 
 // Node represents a client node in Optimint network.
@@ -42,9 +40,9 @@ type Node struct {
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.Tx
 
-	BlockStore store.Store
-
-	dalc da.DataAvailabilityLayerClient
+	Store      store.Store
+	aggregator *Aggregator
+	dalc       da.DataAvailabilityLayerClient
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -81,17 +79,31 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 
+	proposerAddr, err := nodeKey.GetPublic().Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("invalid node key: %w", err)
+	}
+	conf.ProposerAddress = proposerAddr
+
+	store := store.New()
+
+	aggregator, err := NewAggregator(conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger)
+	if err != nil {
+		return nil, fmt.Errorf("aggregator initialization error: %w", err)
+	}
+
 	node := &Node{
 		proxyApp:     proxyApp,
 		eventBus:     eventBus,
 		genesis:      genesis,
 		conf:         conf,
 		P2P:          client,
+		aggregator:   aggregator,
 		dalc:         dalc,
 		Mempool:      mp,
 		mempoolIDs:   newMempoolIDs(),
 		incomingTxCh: make(chan *p2p.Tx),
-		BlockStore:   store.New(),
+		Store:        store,
 		ctx:          ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -162,40 +174,6 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 	}
 }
 
-func (n *Node) aggregationLoop(ctx context.Context) {
-	tick := time.NewTicker(n.conf.BlockTime)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-			err := n.publishBlock(ctx)
-			if err != nil {
-				n.Logger.Error("error while publishing block", "error", err)
-			}
-		}
-	}
-}
-
-func (n *Node) publishBlock(ctx context.Context) error {
-	n.Logger.Info("Creating and publishing block")
-
-	// TODO(tzdybal): use block executor here
-	var err error
-	var block *types.Block
-	var commit *types.Commit
-
-	err = n.BlockStore.SaveBlock(block, commit)
-	if err != nil {
-		return err
-	}
-	return n.broadcastBlock(ctx, block)
-}
-
-func (n *Node) broadcastBlock(ctx context.Context, block *types.Block) error {
-	return nil
-}
-
 // OnStart is a part of Service interface.
 func (n *Node) OnStart() error {
 	n.Logger.Info("starting P2P client")
@@ -210,7 +188,7 @@ func (n *Node) OnStart() error {
 	go n.mempoolReadLoop(n.ctx)
 	go n.mempoolPublishLoop(n.ctx)
 	if n.conf.Aggregator {
-		go n.aggregationLoop(n.ctx)
+		go n.aggregator.aggregationLoop(n.ctx)
 	}
 	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
 		n.incomingTxCh <- tx
