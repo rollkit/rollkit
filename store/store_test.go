@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lazyledger/optimint/hash"
 	"github.com/lazyledger/optimint/types"
 )
 
@@ -79,9 +78,7 @@ func TestBlockstoreLoad(t *testing.T) {
 			bstore := New()
 
 			for _, block := range c.blocks {
-				headerHash, err := hash.Hash(&block.Header)
-				require.NoError(err)
-				err = bstore.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: headerHash})
+				err := bstore.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: block.Header.Hash()})
 				require.NoError(err)
 			}
 
@@ -95,8 +92,7 @@ func TestBlockstoreLoad(t *testing.T) {
 				assert.NoError(err)
 				assert.NotNil(commit)
 				assert.Equal(expected.Header.Height, commit.Height)
-				headerHash, err := hash.Hash(&expected.Header)
-				require.NoError(err)
+				headerHash := expected.Header.Hash()
 				assert.Equal(headerHash, commit.HeaderHash)
 			}
 		})

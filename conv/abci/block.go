@@ -6,16 +6,12 @@ import (
 	tmproto "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
 	tmversion "github.com/lazyledger/lazyledger-core/proto/tendermint/version"
 
-	"github.com/lazyledger/optimint/hash"
 	"github.com/lazyledger/optimint/types"
 )
 
 // ToABCIHeader converts Optimint header to Header format defined in ABCI.
 func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
-	h, err := hash.Hash(header)
-	if err != nil {
-		return tmproto.Header{}, err
-	}
+	hash := header.Hash()
 	return tmproto.Header{
 		Version: tmversion.Consensus{
 			Block: uint64(header.Version.Block),
@@ -25,7 +21,7 @@ func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 		Height:  int64(header.Height),
 		Time:    time.Unix(int64(header.Time), 0),
 		LastBlockId: tmproto.BlockID{
-			Hash: h[:],
+			Hash: hash[:],
 			PartSetHeader: tmproto.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
