@@ -17,8 +17,8 @@ import (
 	"github.com/lazyledger/optimint/types"
 )
 
-// Aggregator is responsible for aggregating transactions into blocks.
-type Aggregator struct {
+// aggregator is responsible for aggregating transactions into blocks.
+type aggregator struct {
 	state state.State
 
 	conf config.AggregatorConfig
@@ -39,7 +39,7 @@ func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.Stat
 	return s, err
 }
 
-func NewAggregator(
+func newAggregator(
 	conf config.AggregatorConfig,
 	genesis *lltypes.GenesisDoc,
 	store store.Store,
@@ -47,7 +47,7 @@ func NewAggregator(
 	proxyApp proxy.AppConnConsensus,
 	dalc da.DataAvailabilityLayerClient,
 	logger log.Logger,
-) (*Aggregator, error) {
+) (*aggregator, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func NewAggregator(
 
 	exec := state.NewBlockExecutor(conf.ProposerAddress, conf.NamespaceID, mempool, proxyApp, logger)
 
-	agg := &Aggregator{
+	agg := &aggregator{
 		state:    s,
 		store:    store,
 		executor: exec,
@@ -65,7 +65,7 @@ func NewAggregator(
 	return agg, nil
 }
 
-func (n *Aggregator) aggregationLoop(ctx context.Context) {
+func (n *aggregator) aggregationLoop(ctx context.Context) {
 	tick := time.NewTicker(n.conf.BlockTime)
 	for {
 		select {
@@ -80,7 +80,7 @@ func (n *Aggregator) aggregationLoop(ctx context.Context) {
 	}
 }
 
-func (n *Aggregator) publishBlock(ctx context.Context) error {
+func (n *aggregator) publishBlock(ctx context.Context) error {
 	n.logger.Info("Creating and publishing block")
 
 	// TODO(tzdybal): use block executor here
@@ -102,7 +102,7 @@ func (n *Aggregator) publishBlock(ctx context.Context) error {
 	return n.broadcastBlock(ctx, block)
 }
 
-func (n *Aggregator) broadcastBlock(ctx context.Context, block *types.Block) error {
+func (n *aggregator) broadcastBlock(ctx context.Context, block *types.Block) error {
 	res := n.dalc.SubmitBlock(block)
 	if res.Code != da.StatusSuccess {
 		return fmt.Errorf("DA layer submission failed: %s", res.Message)

@@ -11,6 +11,7 @@ type NodeConfig struct {
 	DAConfig []byte
 }
 
+// AggregatorConfig consists of all parameters required by Aggregator.
 type AggregatorConfig struct {
 	BlockTime       time.Duration
 	NamespaceID     [8]byte

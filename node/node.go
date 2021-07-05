@@ -41,7 +41,7 @@ type Node struct {
 	incomingTxCh chan *p2p.Tx
 
 	Store      store.Store
-	aggregator *Aggregator
+	aggregator *aggregator
 	dalc       da.DataAvailabilityLayerClient
 
 	// keep context here only because of API compatibility
@@ -87,7 +87,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	store := store.New()
 
-	aggregator, err := NewAggregator(conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger)
+	aggregator, err := newAggregator(conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger)
 	if err != nil {
 		return nil, fmt.Errorf("aggregator initialization error: %w", err)
 	}
