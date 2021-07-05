@@ -12,7 +12,6 @@ import (
 	lltypes "github.com/lazyledger/lazyledger-core/types"
 
 	abciconv "github.com/lazyledger/optimint/conv/abci"
-	"github.com/lazyledger/optimint/hash"
 	"github.com/lazyledger/optimint/log"
 	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/types"
@@ -102,10 +101,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 }
 
 func (e *BlockExecutor) updateState(state State, block *types.Block, abciResponses *tmstate.ABCIResponses) (State, error) {
-	h, err := hash.Hash(&block.Header)
-	if err != nil {
-		return State{}, err
-	}
+	hash := block.Header.Hash()
 	s := State{
 		Version:         state.Version,
 		ChainID:         state.ChainID,
@@ -113,7 +109,7 @@ func (e *BlockExecutor) updateState(state State, block *types.Block, abciRespons
 		LastBlockHeight: int64(block.Header.Height),
 		LastBlockTime:   time.Unix(int64(block.Header.Time), 0),
 		LastBlockID: lltypes.BlockID{
-			Hash: h[:],
+			Hash: hash[:],
 			// for now, we don't care about part set headers
 		},
 		// skipped all "Validators" fields
@@ -199,10 +195,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 		}
 	})
 
-	hash, err := hash.Hash(block)
-	if err != nil {
-		return nil, err
-	}
+	hash := block.Hash()
 	abciHeader, err := abciconv.ToABCIHeader(&block.Header)
 	if err != nil {
 		return nil, err
