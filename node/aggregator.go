@@ -7,6 +7,7 @@ import (
 
 	"github.com/lazyledger/lazyledger-core/proxy"
 	lltypes "github.com/lazyledger/lazyledger-core/types"
+	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/lazyledger/optimint/config"
 	"github.com/lazyledger/optimint/da"
@@ -19,7 +20,7 @@ import (
 
 // aggregator is responsible for aggregating transactions into blocks.
 type aggregator struct {
-	state state.State
+	lastState state.State
 
 	conf config.AggregatorConfig
 
@@ -30,7 +31,7 @@ type aggregator struct {
 	logger log.Logger
 }
 
-// GetInitialState tries to load state from Store, and if it's not available it reads GenesisDoc.
+// initialize tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.State, error) {
 	s, err := store.LoadState()
 	if err != nil {
@@ -40,6 +41,7 @@ func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.Stat
 }
 
 func newAggregator(
+	proposerKey crypto.PrivKey,
 	conf config.AggregatorConfig,
 	genesis *lltypes.GenesisDoc,
 	store store.Store,
@@ -53,13 +55,13 @@ func newAggregator(
 		return nil, err
 	}
 
-	exec := state.NewBlockExecutor(conf.ProposerAddress, conf.NamespaceID, mempool, proxyApp, logger)
+	exec := state.NewBlockExecutor(proposerKey, conf.NamespaceID, mempool, proxyApp, logger)
 
 	agg := &aggregator{
-		state:    s,
-		store:    store,
-		executor: exec,
-		dalc:     dalc,
+		lastState: s,
+		store:     store,
+		executor:  exec,
+		dalc:      dalc,
 	}
 
 	return agg, nil
@@ -84,21 +86,33 @@ func (n *aggregator) publishBlock(ctx context.Context) error {
 	n.logger.Info("Creating and publishing block")
 
 	// TODO(tzdybal): use block executor here
-	var err error
-	var block *types.Block
-	var commit *types.Commit
-	var state state.State
-
-	block = n.executor.CreateBlock(n.store.Height()+1, commit, state)
-	n.state, _, err = n.executor.ApplyBlock(ctx, state, block)
+	lastCommit, err := n.store.LoadCommit(n.store.Height())
 	if err != nil {
 		return err
 	}
 
+	block := n.executor.CreateBlock(n.store.Height()+1, lastCommit, n.lastState)
+	newState, _, err := n.executor.ApplyBlock(ctx, n.lastState, block)
+	if err != nil {
+		return err
+	}
+
+	commit := &types.Commit{
+		Height:     block.Header.Height,
+		HeaderHash: block.Header.Hash(),
+		// TODO(tzdybal): sign
+	}
 	err = n.store.SaveBlock(block, commit)
 	if err != nil {
 		return err
 	}
+
+	n.lastState = newState
+	err = n.store.UpdateState(n.lastState)
+	if err != nil {
+		return err
+	}
+
 	return n.broadcastBlock(ctx, block)
 }
 

@@ -13,7 +13,6 @@ type NodeConfig struct {
 
 // AggregatorConfig consists of all parameters required by Aggregator.
 type AggregatorConfig struct {
-	BlockTime       time.Duration
-	NamespaceID     [8]byte
-	ProposerAddress []byte
+	BlockTime   time.Duration
+	NamespaceID [8]byte
 }

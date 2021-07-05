@@ -79,15 +79,9 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 
-	proposerAddr, err := nodeKey.GetPublic().Bytes()
-	if err != nil {
-		return nil, fmt.Errorf("invalid node key: %w", err)
-	}
-	conf.ProposerAddress = proposerAddr
-
 	store := store.New()
 
-	aggregator, err := newAggregator(conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger)
+	aggregator, err := newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger)
 	if err != nil {
 		return nil, fmt.Errorf("aggregator initialization error: %w", err)
 	}
