@@ -67,26 +67,26 @@ func newAggregator(
 	return agg, nil
 }
 
-func (n *aggregator) aggregationLoop(ctx context.Context) {
-	tick := time.NewTicker(n.conf.BlockTime)
+func (a *aggregator) aggregationLoop(ctx context.Context) {
+	tick := time.NewTicker(a.conf.BlockTime)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-tick.C:
-			err := n.publishBlock(ctx)
+			err := a.publishBlock(ctx)
 			if err != nil {
-				n.logger.Error("error while publishing block", "error", err)
+				a.logger.Error("error while publishing block", "error", err)
 			}
 		}
 	}
 }
 
-func (n *aggregator) publishBlock(ctx context.Context) error {
-	n.logger.Info("Creating and publishing block")
+func (a *aggregator) publishBlock(ctx context.Context) error {
+	a.logger.Info("Creating and publishing block")
 
-	// TODO(tzdybal): use block executor here
-	lastCommit, err := n.store.LoadCommit(n.store.Height())
+	block := a.executor.CreateBlock(a.store.Height()+1, lastCommit, a.lastState)
+	newState, _, err := a.executor.ApplyBlock(ctx, a.lastState, block)
 	if err != nil {
 		return err
 	}
@@ -102,22 +102,22 @@ func (n *aggregator) publishBlock(ctx context.Context) error {
 		HeaderHash: block.Header.Hash(),
 		// TODO(tzdybal): sign
 	}
-	err = n.store.SaveBlock(block, commit)
+	err = a.store.SaveBlock(block, commit)
 	if err != nil {
 		return err
 	}
 
-	n.lastState = newState
-	err = n.store.UpdateState(n.lastState)
+	a.lastState = newState
+	err = a.store.UpdateState(a.lastState)
 	if err != nil {
 		return err
 	}
 
-	return n.broadcastBlock(ctx, block)
+	return a.broadcastBlock(ctx, block)
 }
 
-func (n *aggregator) broadcastBlock(ctx context.Context, block *types.Block) error {
-	res := n.dalc.SubmitBlock(block)
+func (a *aggregator) broadcastBlock(ctx context.Context, block *types.Block) error {
+	res := a.dalc.SubmitBlock(block)
 	if res.Code != da.StatusSuccess {
 		return fmt.Errorf("DA layer submission failed: %s", res.Message)
 
