@@ -1,5 +1,6 @@
 package types
 
+// Header defines the structure of Optimint block header.
 type Header struct {
 	// Block and App version
 	Version Version
@@ -37,34 +38,41 @@ type Header struct {
 // state transition machine.
 // This is equivalent to the tmversion.Consensus type in Tendermint.
 type Version struct {
-	Block uint32
-	App   uint32
+	Block uint64
+	App   uint64
 }
 
+// Block defines the structure of Optimint block.
 type Block struct {
 	Header     Header
 	Data       Data
 	LastCommit Commit
 }
 
+// Data defines Optimint block data.
 type Data struct {
 	Txs                    Txs
 	IntermediateStateRoots IntermediateStateRoots
 	Evidence               EvidenceData
 }
 
+// EvidenceData defines how evidence is stored in block.
 type EvidenceData struct {
 	Evidence []Evidence
 }
 
+// Commit cointains evidence of block creation.
 type Commit struct {
 	Height     uint64
 	HeaderHash [32]byte
 	Signatures []Signature // most of the time this is a single signature
 }
 
+// Signature represents signature of block creator.
 type Signature []byte
 
+// IntermediateStateRoots describes the state between transactions.
+// They are required for fraud proofs.
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }

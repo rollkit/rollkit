@@ -34,11 +34,13 @@ const (
 	txTopicSuffix = "-tx"
 )
 
-// TODO(tzdybal): refactor. This is only a stub.
+// Tx represents transaction gossiped via P2P network.
 type Tx struct {
 	Data []byte
 	From peer.ID
 }
+
+// TxHandler is a callback function type.
 type TxHandler func(*Tx)
 
 // Client is a P2P client, implemented with libp2p.
@@ -72,7 +74,7 @@ type Client struct {
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
 func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, logger log.Logger) (*Client, error) {
 	if privKey == nil {
-		return nil, ErrNoPrivKey
+		return nil, errNoPrivKey
 	}
 	if conf.ListenAddress == "" {
 		conf.ListenAddress = config.DefaultListenAddress
@@ -141,11 +143,13 @@ func (c *Client) Close() error {
 	)
 }
 
+// GossipTx sends the transaction to the P2P network.
 func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 	c.logger.Debug("Gossiping TX", "len", len(tx))
 	return c.txTopic.Publish(ctx, tx)
 }
 
+// SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
 func (c *Client) SetTxHandler(handler TxHandler) {
 	c.txHandler = handler
 }

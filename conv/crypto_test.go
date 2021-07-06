@@ -25,9 +25,9 @@ func TestGetNodeKey(t *testing.T) {
 		expectedType pb.KeyType
 		err          error
 	}{
-		{"nil", nil, pb.KeyType(-1), ErrNilKey},
-		{"empty", &p2p.NodeKey{}, pb.KeyType(-1), ErrNilKey},
-		{"invalid", &invalid, pb.KeyType(-1), ErrUnsupportedKeyType},
+		{"nil", nil, pb.KeyType(-1), errNilKey},
+		{"empty", &p2p.NodeKey{}, pb.KeyType(-1), errNilKey},
+		{"invalid", &invalid, pb.KeyType(-1), errUnsupportedKeyType},
 		{"valid", &valid, pb.KeyType_Ed25519, nil},
 	}
 

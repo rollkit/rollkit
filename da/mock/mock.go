@@ -6,6 +6,8 @@ import (
 	"github.com/lazyledger/optimint/types"
 )
 
+// MockDataAvailabilityLayerClient is intended only for usage in tests.
+// It does actually ensures DA - it stores data in-memory.
 type MockDataAvailabilityLayerClient struct {
 	logger log.Logger
 
@@ -18,11 +20,13 @@ func (m *MockDataAvailabilityLayerClient) Init(config []byte, logger log.Logger)
 	return nil
 }
 
+// Start implements DataAvailabilityLayerClient interface.
 func (m *MockDataAvailabilityLayerClient) Start() error {
 	m.logger.Debug("Mock Data Availability Layer Client starting")
 	return nil
 }
 
+// Stop implements DataAvailabilityLayerClient interface.
 func (m *MockDataAvailabilityLayerClient) Stop() error {
 	m.logger.Debug("Mock Data Availability Layer Client stopped")
 	return nil

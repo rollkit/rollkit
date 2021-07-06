@@ -9,8 +9,8 @@ import "tendermint/abci/types.proto";
 // state transition machine.
 // This is equivalent to the tmversion.Consensus type in Tendermint.
 message Version {
-	uint32 block = 1;
-	uint32 app = 2;
+	uint64 block = 1;
+	uint64 app = 2;
 }
 
 message Header {

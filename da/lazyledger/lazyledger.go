@@ -19,6 +19,7 @@ import (
 	"github.com/lazyledger/optimint/types"
 )
 
+// Config holds all configuration required by LazyLedger DA layer client.
 type Config struct {
 	// PayForMessage related params
 	NamespaceID []byte
@@ -45,6 +46,8 @@ type Config struct {
 	RootDir string
 }
 
+// LazyLedger implements DataAvailabilityLayerClient interface.
+// It use lazyledger-app via gRPC.
 type LazyLedger struct {
 	config Config
 	logger log.Logger
@@ -70,11 +73,13 @@ func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
 	return err
 }
 
+// Start establishes gRPC connection to lazyledger app.
 func (ll *LazyLedger) Start() (err error) {
 	ll.rpcClient, err = grpc.Dial(ll.config.RPCAddress, grpc.WithInsecure())
 	return
 }
 
+// Stop closes gRPC connection.
 func (ll *LazyLedger) Stop() error {
 	return ll.rpcClient.Close()
 }

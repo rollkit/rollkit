@@ -17,6 +17,7 @@ var (
 	commitPrefix = [1]byte{3}
 )
 
+// DefaultStore is a default store implmementation.
 type DefaultStore struct {
 	db KVStore
 
@@ -28,16 +29,20 @@ type DefaultStore struct {
 
 var _ Store = &DefaultStore{}
 
+// New returns new, default store.
 func New() Store {
 	return &DefaultStore{db: NewInMemoryKVStore()}
 }
 
+// Height returns height of the highest block saved in the Store.
 func (s *DefaultStore) Height() uint64 {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	return s.height
 }
 
+// SaveBlock adds block to the store along with corresponding commit.
+// Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
 	hash, err := hash.Hash(&block.Header)
 	if err != nil {
@@ -71,6 +76,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	return nil
 }
 
+// LoadBlock returns block at given height, or error if it's not found in Store.
 // TODO(tzdybal): what is more common access pattern? by height or by hash?
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
@@ -82,6 +88,7 @@ func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
 	return s.LoadBlockByHash(h)
 }
 
+// LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
 func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	blockData, err := s.db.Get(getBlockKey(hash))
 
@@ -95,6 +102,7 @@ func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	return block, err
 }
 
+// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
 func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 	hash, err := s.loadHashFromIndex(height)
 	if err != nil {
@@ -103,6 +111,7 @@ func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 	return s.LoadCommitByHash(hash)
 }
 
+// LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
 func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 	commitData, err := s.db.Get(getCommitKey(hash))
 	if err != nil {

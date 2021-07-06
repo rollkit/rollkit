@@ -7,18 +7,22 @@ import (
 	pb "github.com/lazyledger/optimint/types/pb/optimint"
 )
 
+// MarshalBinary encodes Block into binary form and returns it.
 func (b *Block) MarshalBinary() ([]byte, error) {
 	return b.ToProto().Marshal()
 }
 
+// MarshalBinary encodes Header into binary form and returns it.
 func (h *Header) MarshalBinary() ([]byte, error) {
 	return h.ToProto().Marshal()
 }
 
+// MarshalBinary encodes Data into binary form and returns it.
 func (d *Data) MarshalBinary() ([]byte, error) {
 	return d.ToProto().Marshal()
 }
 
+// UnmarshalBinary decodes binary form of Block into object.
 func (b *Block) UnmarshalBinary(data []byte) error {
 	var pBlock pb.Block
 	err := pBlock.Unmarshal(data)
@@ -29,10 +33,12 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+// MarshalBinary encodes Commit into binary form and returns it.
 func (c *Commit) MarshalBinary() ([]byte, error) {
 	return c.ToProto().Marshal()
 }
 
+// UnmarshalBinary decodes binary form of Commit into object.
 func (c *Commit) UnmarshalBinary(data []byte) error {
 	var pCommit pb.Commit
 	err := pCommit.Unmarshal(data)
@@ -43,6 +49,7 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+// ToProto converts Header into protobuf representation and returns it.
 func (h *Header) ToProto() *pb.Header {
 	return &pb.Header{
 		Version: &pb.Version{
@@ -62,6 +69,7 @@ func (h *Header) ToProto() *pb.Header {
 	}
 }
 
+// FromProto fills Header with data from its protobuf representation.
 func (h *Header) FromProto(other *pb.Header) error {
 	h.Version.Block = other.Version.Block
 	h.Version.App = other.Version.App
@@ -106,6 +114,7 @@ func safeCopy(dst, src []byte) bool {
 	return true
 }
 
+// ToProto converts Block into protobuf representation and returns it.
 func (b *Block) ToProto() *pb.Block {
 	return &pb.Block{
 		Header:     b.Header.ToProto(),
@@ -114,6 +123,7 @@ func (b *Block) ToProto() *pb.Block {
 	}
 }
 
+// ToProto converts Data into protobuf representation and returns it.
 func (d *Data) ToProto() *pb.Data {
 	return &pb.Data{
 		Txs:                    txsToByteSlices(d.Txs),
@@ -122,6 +132,7 @@ func (d *Data) ToProto() *pb.Data {
 	}
 }
 
+// FromProto fills Block with data from its protobuf representation.
 func (b *Block) FromProto(other *pb.Block) error {
 	err := b.Header.FromProto(other.Header)
 	if err != nil {
@@ -140,6 +151,7 @@ func (b *Block) FromProto(other *pb.Block) error {
 	return nil
 }
 
+// ToProto converts Commit into protobuf representation and returns it.
 func (c *Commit) ToProto() *pb.Commit {
 	return &pb.Commit{
 		Height:     c.Height,
@@ -148,6 +160,7 @@ func (c *Commit) ToProto() *pb.Commit {
 	}
 }
 
+// FromProto fills Commit with data from its protobuf representation.
 func (c *Commit) FromProto(other *pb.Commit) error {
 	c.Height = other.Height
 	if !safeCopy(c.HeaderHash[:], other.HeaderHash) {
