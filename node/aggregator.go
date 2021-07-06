@@ -22,7 +22,8 @@ import (
 type aggregator struct {
 	lastState state.State
 
-	conf config.AggregatorConfig
+	conf    config.AggregatorConfig
+	genesis *lltypes.GenesisDoc
 
 	proposerKey crypto.PrivKey
 
@@ -67,10 +68,12 @@ func newAggregator(
 	agg := &aggregator{
 		proposerKey: proposerKey,
 		conf:        conf,
+		genesis:     genesis,
 		lastState:   s,
 		store:       store,
 		executor:    exec,
 		dalc:        dalc,
+		logger:      logger,
 	}
 
 	return agg, nil
@@ -92,15 +95,21 @@ func (a *aggregator) aggregationLoop(ctx context.Context) {
 }
 
 func (a *aggregator) publishBlock(ctx context.Context) error {
-	a.logger.Info("Creating and publishing block")
+	a.logger.Info("Creating and publishing block", "height", a.store.Height())
 
-	// TODO(tzdybal): keep lastCommit in aggregator to reduce IO
-	lastCommit, err := a.store.LoadCommit(a.store.Height())
-	if err != nil {
-		return err
+	var lastCommit *types.Commit
+	var err error
+	if a.store.Height()+1 == uint64(a.genesis.InitialHeight) {
+		lastCommit = &types.Commit{Height: a.store.Height(), HeaderHash: [32]byte{}}
+	} else {
+		lastCommit, err = a.store.LoadCommit(a.store.Height())
+		if err != nil {
+			return fmt.Errorf("error while loading last commit: %w", err)
+		}
 	}
 
 	block := a.executor.CreateBlock(a.store.Height()+1, lastCommit, a.lastState)
+	a.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 	newState, _, err := a.executor.ApplyBlock(ctx, a.lastState, block)
 	if err != nil {
 		return err

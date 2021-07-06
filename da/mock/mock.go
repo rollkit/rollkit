@@ -38,6 +38,7 @@ func (m *MockDataAvailabilityLayerClient) Stop() error {
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
 func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
+	m.logger.Debug("Block submitted to DA layer!")
 	m.Blocks = append(m.Blocks, block)
 
 	return da.ResultSubmitBlock{
