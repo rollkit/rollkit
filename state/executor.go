@@ -10,7 +10,6 @@ import (
 	tmstate "github.com/lazyledger/lazyledger-core/proto/tendermint/state"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	lltypes "github.com/lazyledger/lazyledger-core/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
 
 	abciconv "github.com/lazyledger/optimint/conv/abci"
 	"github.com/lazyledger/optimint/log"
@@ -20,23 +19,23 @@ import (
 
 // BlockExecutor creates and applies blocks and maintain state.
 type BlockExecutor struct {
-	proposerKey crypto.PrivKey
-	namespaceID [8]byte
-	proxyApp    proxy.AppConnConsensus
-	mempool     mempool.Mempool
+	proposerAddress []byte
+	namespaceID     [8]byte
+	proxyApp        proxy.AppConnConsensus
+	mempool         mempool.Mempool
 
 	logger log.Logger
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerKey crypto.PrivKey, namespaceID [8]byte, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
-		proposerKey: proposerKey,
-		namespaceID: namespaceID,
-		proxyApp:    proxyApp,
-		mempool:     mempool,
-		logger:      logger,
+		proposerAddress: proposerAddress,
+		namespaceID:     namespaceID,
+		proxyApp:        proxyApp,
+		mempool:         mempool,
+		logger:          logger,
 	}
 }
 
@@ -46,12 +45,6 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
-
-	proposerAddress, err := e.proposerKey.GetPublic().Bytes()
-	if err != nil {
-		// TODO(tzdybal): add error!
-		return nil
-	}
 
 	block := &types.Block{
 		Header: types.Header{
@@ -68,7 +61,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 			ConsensusHash:   [32]byte{},
 			AppHash:         state.AppHash,
 			LastResultsHash: state.LastResultsHash,
-			ProposerAddress: proposerAddress,
+			ProposerAddress: e.proposerAddress,
 		},
 		Data: types.Data{
 			Txs:                    toOptimintTxs(mempoolTxs),

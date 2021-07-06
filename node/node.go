@@ -72,7 +72,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	if dalc == nil {
 		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
 	}
-	err = dalc.Init(conf.DAConfig, logger)
+	err = dalc.Init(conf.DAConfig, logger.With("module", "da_client"))
 	if err != nil {
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
@@ -81,7 +81,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	store := store.New()
 
-	aggregator, err := newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger)
+	aggregator, err := newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
 	if err != nil {
 		return nil, fmt.Errorf("aggregator initialization error: %w", err)
 	}
@@ -195,7 +195,7 @@ func (n *Node) OnStart() error {
 func (n *Node) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
-	n.Logger.Error("errors while stopping node: %w", err)
+	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
 // OnReset is a part of Service interface.

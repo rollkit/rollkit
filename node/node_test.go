@@ -72,3 +72,28 @@ func TestMempoolDirectly(t *testing.T) {
 
 	assert.Equal(int64(4*len("tx*")), node.Mempool.TxsBytes())
 }
+
+func TestAggregatorMode(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	app := &mocks.Application{}
+	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	aggregatorConfig := config.AggregatorConfig{
+		BlockTime:   1 * time.Second,
+		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
+	}
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, AggregatorConfig: aggregatorConfig}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node)
+
+	assert.False(node.IsRunning())
+
+	err = node.Start()
+	assert.NoError(err)
+	defer func() {
+		err := node.Stop()
+		assert.NoError(err)
+	}()
+	assert.True(node.IsRunning())
+}

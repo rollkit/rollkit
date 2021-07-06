@@ -24,6 +24,8 @@ type aggregator struct {
 
 	conf config.AggregatorConfig
 
+	proposerKey crypto.PrivKey
+
 	store    store.Store
 	dalc     da.DataAvailabilityLayerClient
 	executor *state.BlockExecutor
@@ -55,13 +57,20 @@ func newAggregator(
 		return nil, err
 	}
 
-	exec := state.NewBlockExecutor(proposerKey, conf.NamespaceID, mempool, proxyApp, logger)
+	proposerAddress, err := proposerKey.GetPublic().Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, mempool, proxyApp, logger)
 
 	agg := &aggregator{
-		lastState: s,
-		store:     store,
-		executor:  exec,
-		dalc:      dalc,
+		proposerKey: proposerKey,
+		conf:        conf,
+		lastState:   s,
+		store:       store,
+		executor:    exec,
+		dalc:        dalc,
 	}
 
 	return agg, nil
@@ -85,14 +94,23 @@ func (a *aggregator) aggregationLoop(ctx context.Context) {
 func (a *aggregator) publishBlock(ctx context.Context) error {
 	a.logger.Info("Creating and publishing block")
 
+	// TODO(tzdybal): keep lastCommit in aggregator to reduce IO
+	lastCommit, err := a.store.LoadCommit(a.store.Height())
+	if err != nil {
+		return err
+	}
+
 	block := a.executor.CreateBlock(a.store.Height()+1, lastCommit, a.lastState)
 	newState, _, err := a.executor.ApplyBlock(ctx, a.lastState, block)
 	if err != nil {
 		return err
 	}
 
-	block := n.executor.CreateBlock(n.store.Height()+1, lastCommit, n.lastState)
-	newState, _, err := n.executor.ApplyBlock(ctx, n.lastState, block)
+	header, err := block.Header.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	sign, err := a.proposerKey.Sign(header)
 	if err != nil {
 		return err
 	}
@@ -100,7 +118,7 @@ func (a *aggregator) publishBlock(ctx context.Context) error {
 	commit := &types.Commit{
 		Height:     block.Header.Height,
 		HeaderHash: block.Header.Hash(),
-		// TODO(tzdybal): sign
+		Signatures: []types.Signature{sign},
 	}
 	err = a.store.SaveBlock(block, commit)
 	if err != nil {

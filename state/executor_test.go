@@ -13,7 +13,6 @@ import (
 	cfg "github.com/lazyledger/lazyledger-core/config"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/proxy"
-	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/mocks"
@@ -34,10 +33,9 @@ func TestCreateBlock(t *testing.T) {
 	require.NotNil(client)
 
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor(key, nsID, mpool, proxy.NewAppConnConsensus(client), logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, mpool, proxy.NewAppConnConsensus(client), logger)
 
 	state := State{}
 	state.ConsensusParams.Block.MaxBytes = 100
@@ -90,10 +88,9 @@ func TestApplyBlock(t *testing.T) {
 	require.NotNil(client)
 
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor(key, nsID, mpool, proxy.NewAppConnConsensus(client), logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, mpool, proxy.NewAppConnConsensus(client), logger)
 
 	state := State{}
 	state.InitialHeight = 1
