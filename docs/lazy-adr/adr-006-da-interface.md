@@ -4,6 +4,7 @@
 
 - 2021.04.30: Initial draft
 - 2021.06.03: Init method added
+- 2021.07.08: Added CheckBlockAvailability method, added KVStore to Init method, added missing result types
 
 ## Context
 
@@ -25,7 +26,7 @@ Definition of interface:
 ```go
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(config []byte, logger log.Logger) error
+	Init(config []byte, kvStore store.KVStore, logger log.Logger) error
 
 	Start() error
 	Stop() error
@@ -34,6 +35,9 @@ type DataAvailabilityLayerClient interface {
 	// This should create a transaction which (potentially)
 	// triggers a state transition in the DA layer.
 	SubmitBlock(block *types.Block) ResultSubmitBlock
+
+	// CheckBlockAvailability queries DA layer to check block's data availability.
+	CheckBlockAvailability(block *types.Block) ResultCheckBlock
 }
 
 // TODO define an enum of different non-happy-path cases
@@ -41,11 +45,35 @@ type DataAvailabilityLayerClient interface {
 // the underlying DA chain.
 type StatusCode uint64
 
+// Data Availability return codes.
 const (
-	StatusSuccess StatusCode = iota
+	StatusUnknown StatusCode = iota
+	StatusSuccess
 	StatusTimeout
 	StatusError
 )
+
+// ResultSubmitBlock contains information returned from DA layer after block submission.
+type ResultSubmitBlock struct {
+	// Code is to determine if the action succeeded.
+	Code StatusCode
+	// Message may contain DA layer specific information (like detailed error message).
+	Message string
+	// Not sure if this needs to be bubbled up to other
+	// parts of Optimint.
+	// Hash hash.Hash
+}
+
+// ResultCheckBlock contains information about block availability, returned from DA layer client.
+type ResultCheckBlock struct {
+	// Code is to determine if data availability layer client was able to execute availability query.
+	Code StatusCode
+	// DataAvailable is the actual answer whether the block is available or not.
+	// It can be true if and only if Code is equal to StatusSuccess.
+	DataAvailable bool
+	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
+	Message string
+}
 ```
 >
 
