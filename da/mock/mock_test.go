@@ -17,7 +17,7 @@ func TestLifecycle(t *testing.T) {
 
 	require := require.New(t)
 
-	err := da.Init([]byte{}, nil, &test.TestLogger{t})
+	err := da.Init([]byte{}, nil, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = da.Start()
@@ -33,7 +33,7 @@ func TestMockDALC(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{t})
+	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -72,7 +72,7 @@ func TestRetrieve(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{t})
+	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()

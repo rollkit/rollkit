@@ -93,7 +93,7 @@ func (ll *LazyLedger) Stop() error {
 func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	msg, err := ll.preparePayForMessage(block)
 	if err != nil {
-		return da.ResultSubmitBlock{da.DAResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
 	ctx, cancel := context.WithTimeout(context.TODO(), ll.config.Timeout)
@@ -101,10 +101,10 @@ func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 
 	err = ll.callRPC(ctx, msg)
 	if err != nil {
-		return da.ResultSubmitBlock{da.DAResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	return da.ResultSubmitBlock{da.DAResult{Code: da.StatusSuccess}}
+	return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusSuccess}}
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
