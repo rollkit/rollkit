@@ -16,6 +16,7 @@ import (
 
 	"github.com/lazyledger/optimint/da"
 	"github.com/lazyledger/optimint/log"
+	"github.com/lazyledger/optimint/store"
 	"github.com/lazyledger/optimint/types"
 )
 
@@ -49,8 +50,9 @@ type Config struct {
 // LazyLedger implements DataAvailabilityLayerClient interface.
 // It use lazyledger-app via gRPC.
 type LazyLedger struct {
-	config Config
-	logger log.Logger
+	config  Config
+	kvStore store.KVStore
+	logger  log.Logger
 
 	keyring keyring.Keyring
 
@@ -60,8 +62,9 @@ type LazyLedger struct {
 var _ da.DataAvailabilityLayerClient = &LazyLedger{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (ll *LazyLedger) Init(config []byte, logger log.Logger) error {
+func (ll *LazyLedger) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
 	ll.logger = logger
+	ll.kvStore = kvStore
 	err := toml.Unmarshal(config, &ll.config)
 	if err != nil {
 		return err
@@ -90,7 +93,7 @@ func (ll *LazyLedger) Stop() error {
 func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	msg, err := ll.preparePayForMessage(block)
 	if err != nil {
-		return da.ResultSubmitBlock{Code: da.StatusError, Message: err.Error()}
+		return da.ResultSubmitBlock{da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
 	ctx, cancel := context.WithTimeout(context.TODO(), ll.config.Timeout)
@@ -98,10 +101,15 @@ func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 
 	err = ll.callRPC(ctx, msg)
 	if err != nil {
-		return da.ResultSubmitBlock{Code: da.StatusError, Message: err.Error()}
+		return da.ResultSubmitBlock{da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	return da.ResultSubmitBlock{Code: da.StatusSuccess}
+	return da.ResultSubmitBlock{da.DAResult{Code: da.StatusSuccess}}
+}
+
+// CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
+func (l *LazyLedger) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
+	panic("not implemented") // TODO: Implement
 }
 
 func (ll *LazyLedger) callRPC(ctx context.Context, msg *apptypes.MsgWirePayForMessage) error {

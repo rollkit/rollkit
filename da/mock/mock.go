@@ -3,6 +3,7 @@ package mock
 import (
 	"github.com/lazyledger/optimint/da"
 	"github.com/lazyledger/optimint/log"
+	"github.com/lazyledger/optimint/store"
 	"github.com/lazyledger/optimint/types"
 )
 
@@ -14,8 +15,10 @@ type MockDataAvailabilityLayerClient struct {
 	Blocks []*types.Block
 }
 
+var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
+
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *MockDataAvailabilityLayerClient) Init(config []byte, logger log.Logger) error {
+func (m *MockDataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
 	m.logger = logger
 	return nil
 }
@@ -39,7 +42,14 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 	m.Blocks = append(m.Blocks, block)
 
 	return da.ResultSubmitBlock{
-		Code:    da.StatusSuccess,
-		Message: "OK",
+		DAResult: da.DAResult{
+			Code:    da.StatusSuccess,
+			Message: "OK",
+		},
 	}
+}
+
+// CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
+func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
+	panic("not implemented") // TODO: Implement
 }
