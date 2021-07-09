@@ -4,7 +4,7 @@
 
 - 2021.04.30: Initial draft
 - 2021.06.03: Init method added
-- 2021.07.08: Added CheckBlockAvailability method, added KVStore to Init method, added missing result types
+- 2021.07.09: Added CheckBlockAvailability method, added KVStore to Init method, added missing result types
 
 ## Context
 
@@ -17,7 +17,8 @@ Optimint requires data availability layer. Different implementations are expecte
 ## Decision
 
 Defined interface should be very generic.
-Interface should consist of 4 methods: `Init`, `Start`, `Stop`, `SubmitBlock`.
+Interface should consist of 5 methods: `Init`, `Start`, `Stop`, `SubmitBlock`, `CheckBlockAvailability`.
+There is also optional interface `BlockRetriever` for data availability layer clients that are also able to get block data.
 All the details are implementation-specific.
 
 ## Detailed Design
@@ -40,6 +41,12 @@ type DataAvailabilityLayerClient interface {
 	CheckBlockAvailability(block *types.Block) ResultCheckBlock
 }
 
+// BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
+// block data from DA layer. This gives the ability to use it for block synchronization.
+type BlockRetriever interface {
+	RetrieveBlock(height uint64) ResultRetrieveBlock
+}
+
 // TODO define an enum of different non-happy-path cases
 // that might need to be handled by Optimint independent of
 // the underlying DA chain.
@@ -53,12 +60,16 @@ const (
 	StatusError
 )
 
-// ResultSubmitBlock contains information returned from DA layer after block submission.
-type ResultSubmitBlock struct {
+type DAResult struct {
 	// Code is to determine if the action succeeded.
 	Code StatusCode
-	// Message may contain DA layer specific information (like detailed error message).
+	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
 	Message string
+}
+
+// ResultSubmitBlock contains information returned from DA layer after block submission.
+type ResultSubmitBlock struct {
+	DAResult
 	// Not sure if this needs to be bubbled up to other
 	// parts of Optimint.
 	// Hash hash.Hash
@@ -66,13 +77,17 @@ type ResultSubmitBlock struct {
 
 // ResultCheckBlock contains information about block availability, returned from DA layer client.
 type ResultCheckBlock struct {
-	// Code is to determine if data availability layer client was able to execute availability query.
-	Code StatusCode
+	DAResult
 	// DataAvailable is the actual answer whether the block is available or not.
 	// It can be true if and only if Code is equal to StatusSuccess.
 	DataAvailable bool
-	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
-	Message string
+}
+
+type ResultRetrieveBlock struct {
+	DAResult
+	// Block is the full block retrieved from Data Availability Layer.
+	// If Code is not equal to StatusSuccess, it has to be nil.
+	Block *types.Block
 }
 ```
 >
