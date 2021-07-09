@@ -3,7 +3,6 @@ package p2p
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -16,47 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lazyledger/optimint/config"
+	"github.com/lazyledger/optimint/log/test"
 )
-
-// TODO(tzdybal): move to some common place
-type TestLogger struct {
-	t *testing.T
-}
-
-func (t *TestLogger) Debug(msg string, keyvals ...interface{}) {
-	t.t.Helper()
-	t.t.Log(append([]interface{}{"DEBUG: " + msg}, keyvals...)...)
-}
-
-func (t *TestLogger) Info(msg string, keyvals ...interface{}) {
-	t.t.Helper()
-	t.t.Log(append([]interface{}{"INFO:  " + msg}, keyvals...)...)
-}
-
-func (t *TestLogger) Error(msg string, keyvals ...interface{}) {
-	t.t.Helper()
-	t.t.Log(append([]interface{}{"ERROR: " + msg}, keyvals...)...)
-}
-
-type MockLogger struct {
-	debug, info, err []string
-}
-
-func (t *MockLogger) Debug(msg string, keyvals ...interface{}) {
-	t.debug = append(t.debug, fmt.Sprint(append([]interface{}{msg}, keyvals...)...))
-}
-
-func (t *MockLogger) Info(msg string, keyvals ...interface{}) {
-	t.info = append(t.info, fmt.Sprint(append([]interface{}{msg}, keyvals...)...))
-}
-
-func (t *MockLogger) Error(msg string, keyvals ...interface{}) {
-	t.err = append(t.err, fmt.Sprint(append([]interface{}{msg}, keyvals...)...))
-}
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", &TestLogger{t})
+	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", &test.TestLogger{t})
 	assert := assert.New(t)
 	assert.NoError(err)
 	assert.NotNil(client)
@@ -71,7 +35,7 @@ func TestBootstrapping(t *testing.T) {
 	//log.SetDebugLogging()
 
 	assert := assert.New(t)
-	logger := &TestLogger{t}
+	logger := &test.TestLogger{t}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -91,7 +55,7 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := &TestLogger{t}
+	logger := &test.TestLogger{t}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -111,7 +75,7 @@ func TestDiscovery(t *testing.T) {
 
 func TestGossiping(t *testing.T) {
 	assert := assert.New(t)
-	logger := &TestLogger{t}
+	logger := &test.TestLogger{t}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -200,7 +164,7 @@ func TestSeedStringParsing(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
-			logger := &MockLogger{}
+			logger := &test.MockLogger{}
 			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork", logger)
 			require.NoError(err)
 			require.NotNil(client)
@@ -208,7 +172,7 @@ func TestSeedStringParsing(t *testing.T) {
 			assert.NotNil(actual)
 			assert.Equal(c.expected, actual)
 			// ensure that errors are logged
-			assert.Equal(c.nErrors, len(logger.err))
+			assert.Equal(c.nErrors, len(logger.ErrLines))
 		})
 	}
 }

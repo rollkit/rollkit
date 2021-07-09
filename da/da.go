@@ -71,5 +71,6 @@ type DataAvailabilityLayerClient interface {
 // BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
 // block data from DA layer. This gives the ability to use it for block synchronization.
 type BlockRetriever interface {
+	// RetrieveBlock returns block at given height from data availability layer.
 	RetrieveBlock(height uint64) ResultRetrieveBlock
 }
