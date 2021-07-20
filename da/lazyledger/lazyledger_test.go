@@ -30,7 +30,7 @@ func TestConfiguration(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ll := &LazyLedger{}
-			err := ll.Init(c.input, nil)
+			err := ll.Init(c.input, nil, nil)
 
 			if c.err != nil {
 				assert.EqualError(err, c.err.Error())
@@ -56,7 +56,7 @@ func TestSubmission(t *testing.T) {
 	key, err := kr.Key("test-account")
 	require.NoError(err)
 	conf := testConfig(key)
-	err = ll.Init([]byte(conf), nil)
+	err = ll.Init([]byte(conf), nil, nil)
 	require.NoError(err)
 	ll.keyring = kr
 
