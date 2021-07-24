@@ -2,26 +2,34 @@ package test
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 )
 
 // TODO(tzdybal): move to some common place
 type TestLogger struct {
-	T *testing.T
+	mtx sync.Mutex
+	T   *testing.T
 }
 
 func (t *TestLogger) Debug(msg string, keyvals ...interface{}) {
 	t.T.Helper()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 	t.T.Log(append([]interface{}{"DEBUG: " + msg}, keyvals...)...)
 }
 
 func (t *TestLogger) Info(msg string, keyvals ...interface{}) {
 	t.T.Helper()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 	t.T.Log(append([]interface{}{"INFO:  " + msg}, keyvals...)...)
 }
 
 func (t *TestLogger) Error(msg string, keyvals ...interface{}) {
 	t.T.Helper()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
 	t.T.Log(append([]interface{}{"ERROR: " + msg}, keyvals...)...)
 }
 
