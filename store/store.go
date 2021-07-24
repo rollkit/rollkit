@@ -32,8 +32,8 @@ type DefaultStore struct {
 var _ Store = &DefaultStore{}
 
 // New returns new, default store.
-func New() Store {
-	return &DefaultStore{db: NewInMemoryKVStore()}
+func New(kv KVStore) Store {
+	return &DefaultStore{db: kv}
 }
 
 // Height returns height of the highest block saved in the Store.

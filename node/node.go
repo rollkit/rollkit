@@ -23,6 +23,12 @@ import (
 	"github.com/lazyledger/optimint/store"
 )
 
+// prefixes used in KV store to separate main node data from DALC data
+var (
+	mainPrefix = []byte{0}
+	dalcPrefix = []byte{1}
+)
+
 // Node represents a client node in Optimint network.
 // It connects all the components and orchestrates their work.
 type Node struct {
@@ -68,18 +74,23 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		return nil, err
 	}
 
+	// TODO(tzdybal): change after implementing https://github.com/celestiaorg/optimint/issues/67
+	baseKV := store.NewInMemoryKVStore()
+	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
+	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
+
+	store := store.New(mainKV)
+
 	dalc := registry.GetClient(conf.DALayer)
 	if dalc == nil {
 		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
 	}
-	err = dalc.Init(conf.DAConfig, logger.With("module", "da_client"))
+	err = dalc.Init(conf.DAConfig, dalcKV, logger.With("module", "da_client"))
 	if err != nil {
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
 
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
-
-	store := store.New()
 
 	aggregator, err := newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
 	if err != nil {

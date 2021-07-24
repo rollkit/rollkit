@@ -37,7 +37,7 @@ func TestBlockstoreHeight(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			bstore := New()
+			bstore := New(NewInMemoryKVStore())
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
@@ -75,7 +75,7 @@ func TestBlockstoreLoad(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 
-			bstore := New()
+			bstore := New(NewInMemoryKVStore())
 
 			for _, block := range c.blocks {
 				err := bstore.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: block.Header.Hash()})
