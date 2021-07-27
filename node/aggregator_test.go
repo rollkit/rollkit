@@ -88,7 +88,8 @@ func TestInitialState(t *testing.T) {
 	emptyStore := store.New(store.NewInMemoryKVStore())
 
 	fullStore := store.New(store.NewInMemoryKVStore())
-	fullStore.UpdateState(sampleState)
+	err := fullStore.UpdateState(sampleState)
+	require.NoError(t, err)
 
 	cases := []struct {
 		name                    string

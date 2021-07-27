@@ -23,23 +23,25 @@ import (
 // TestTxGossipingAndAggregation setups a network of nodes, with single aggregator and multiple producers.
 // Nodes should gossip transactions and aggregator node should produce blocks.
 func TestTxGossipingAndAggregation(t *testing.T) {
+	require := require.New(t)
+
 	nodes := createNodes(11, t)
 
 	for _, n := range nodes {
-		n.Start()
+		require.NoError(n.Start())
 	}
 
 	time.Sleep(250 * time.Millisecond)
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
-		nodes[i].P2P.GossipTx(context.TODO(), []byte(data))
+		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
 	}
 
 	time.Sleep(1 * time.Second)
 
 	for _, n := range nodes {
-		n.Stop()
+		require.NoError(n.Stop())
 	}
 }
 
