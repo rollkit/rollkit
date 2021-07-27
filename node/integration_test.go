@@ -31,14 +31,14 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		require.NoError(n.Start())
 	}
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond)
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
 		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	for _, n := range nodes {
 		require.NoError(n.Stop())
