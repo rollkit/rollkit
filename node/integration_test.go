@@ -25,7 +25,7 @@ import (
 func TestTxGossipingAndAggregation(t *testing.T) {
 	require := require.New(t)
 
-	nodes := createNodes(11, t)
+	nodes, aggApp := createNodes(11, t)
 
 	for _, n := range nodes {
 		require.NoError(n.Start())
@@ -43,9 +43,12 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	for _, n := range nodes {
 		require.NoError(n.Stop())
 	}
+
+	aggApp.AssertNumberOfCalls(t, "DeliverTx", 10)
+	aggApp.AssertExpectations(t)
 }
 
-func createNodes(num int, t *testing.T) []*Node {
+func createNodes(num int, t *testing.T) ([]*Node, *mocks.Application) {
 	t.Helper()
 
 	// create keys first, as they are required for P2P connections
@@ -55,20 +58,21 @@ func createNodes(num int, t *testing.T) []*Node {
 	}
 
 	nodes := make([]*Node, num)
-	nodes[0] = createNode(0, true, keys, t)
+	var aggApp *mocks.Application
+	nodes[0], aggApp = createNode(0, true, keys, t)
 	for i := 1; i < num; i++ {
-		nodes[i] = createNode(i, false, keys, t)
+		nodes[i], _ = createNode(i, false, keys, t)
 	}
 
-	return nodes
+	return nodes, aggApp
 }
 
-func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) *Node {
+func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) (*Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
 	// random connections to other nodes will be added
-	startPort := 9000
+	startPort := 10000
 	p2pConfig := config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
@@ -111,5 +115,5 @@ func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) *No
 	require.NoError(err)
 	require.NotNil(node)
 
-	return node
+	return node, app
 }
