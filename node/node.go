@@ -229,7 +229,7 @@ func (n *Node) EventBus() *lltypes.EventBus {
 	return n.eventBus
 }
 
-// ProxyApp returns ABCI proxy connections to comminicate with aplication.
+// ProxyApp returns ABCI proxy connections to communicate with application.
 func (n *Node) ProxyApp() proxy.AppConns {
 	return n.proxyApp
 }
