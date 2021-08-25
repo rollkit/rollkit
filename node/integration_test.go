@@ -31,7 +31,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		require.NoError(n.Start())
 	}
 
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()

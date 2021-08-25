@@ -80,18 +80,29 @@ func newAggregator(
 }
 
 func (a *aggregator) aggregationLoop(ctx context.Context) {
-	tick := time.NewTicker(a.conf.BlockTime)
+	timer := time.NewTimer(a.conf.BlockTime)
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-tick.C:
+		case <-timer.C:
+			start := time.Now()
 			err := a.publishBlock(ctx)
 			if err != nil {
 				a.logger.Error("error while publishing block", "error", err)
 			}
+			timer.Reset(a.getRemainingSleep(start))
 		}
 	}
+}
+
+func (a *aggregator) getRemainingSleep(start time.Time) time.Duration {
+	publishingDuration := time.Since(start)
+	sleepDuration := a.conf.BlockTime - publishingDuration
+	if sleepDuration < 0 {
+		sleepDuration = 0
+	}
+	return sleepDuration
 }
 
 func (a *aggregator) publishBlock(ctx context.Context) error {
@@ -99,7 +110,10 @@ func (a *aggregator) publishBlock(ctx context.Context) error {
 
 	var lastCommit *types.Commit
 	var err error
-	if a.store.Height()+1 == uint64(a.genesis.InitialHeight) {
+	newHeight := a.store.Height() + 1
+
+	// this is a special case, when first block is produced - there is no previous commit
+	if newHeight == uint64(a.genesis.InitialHeight) {
 		lastCommit = &types.Commit{Height: a.store.Height(), HeaderHash: [32]byte{}}
 	} else {
 		lastCommit, err = a.store.LoadCommit(a.store.Height())
@@ -108,18 +122,18 @@ func (a *aggregator) publishBlock(ctx context.Context) error {
 		}
 	}
 
-	block := a.executor.CreateBlock(a.store.Height()+1, lastCommit, a.lastState)
+	block := a.executor.CreateBlock(newHeight, lastCommit, a.lastState)
 	a.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 	newState, _, err := a.executor.ApplyBlock(ctx, a.lastState, block)
 	if err != nil {
 		return err
 	}
 
-	header, err := block.Header.MarshalBinary()
+	headerBytes, err := block.Header.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	sign, err := a.proposerKey.Sign(header)
+	sign, err := a.proposerKey.Sign(headerBytes)
 	if err != nil {
 		return err
 	}
