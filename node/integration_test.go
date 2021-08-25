@@ -38,7 +38,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
 	}
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	for _, n := range nodes {
 		require.NoError(n.Stop())
