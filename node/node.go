@@ -92,9 +92,12 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 
-	aggregator, err := newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
-	if err != nil {
-		return nil, fmt.Errorf("aggregator initialization error: %w", err)
+	var aggregator *aggregator = nil
+	if conf.Aggregator {
+		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
+		if err != nil {
+			return nil, fmt.Errorf("aggregator initialization error: %w", err)
+		}
 	}
 
 	node := &Node{
