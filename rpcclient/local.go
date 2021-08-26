@@ -293,7 +293,7 @@ func (l *Local) TxSearch(ctx context.Context, query string, prove bool, page, pe
 }
 
 func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
-	latest, err := l.node.BlockStore.LoadBlock(l.node.BlockStore.Height())
+	latest, err := l.node.Store.LoadBlock(l.node.Store.Height())
 	if err != nil {
 		// TODO(tzdybal): extract error
 		return nil, fmt.Errorf("failed to find latest block: %w", err)

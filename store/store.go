@@ -2,11 +2,13 @@ package store
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"sync"
 
 	"go.uber.org/multierr"
 
+	"github.com/lazyledger/optimint/state"
 	"github.com/lazyledger/optimint/types"
 )
 
@@ -14,6 +16,7 @@ var (
 	blockPrefix  = [1]byte{1}
 	indexPrefix  = [1]byte{2}
 	commitPrefix = [1]byte{3}
+	statePreffix = [1]byte{4}
 )
 
 // DefaultStore is a default store implmementation.
@@ -29,8 +32,8 @@ type DefaultStore struct {
 var _ Store = &DefaultStore{}
 
 // New returns new, default store.
-func New() Store {
-	return &DefaultStore{db: NewInMemoryKVStore()}
+func New(kv KVStore) Store {
+	return &DefaultStore{db: kv}
 }
 
 // Height returns height of the highest block saved in the Store.
@@ -118,6 +121,29 @@ func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 	return commit, err
 }
 
+// UpdateState updates state saved in Store. Only one State is stored.
+// If there is no State in Store, state will be saved.
+func (s *DefaultStore) UpdateState(state state.State) error {
+	blob, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	return s.db.Set(getStateKey(), blob)
+}
+
+// LoadState returns last state saved with UpdateState.
+func (s *DefaultStore) LoadState() (state.State, error) {
+	var state state.State
+
+	blob, err := s.db.Get(getStateKey())
+	if err != nil {
+		return state, err
+	}
+
+	err = json.Unmarshal(blob, &state)
+	return state, err
+}
+
 func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
 	blob, err := s.db.Get(getIndexKey(height))
 
@@ -144,4 +170,8 @@ func getIndexKey(height uint64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, height)
 	return append(indexPrefix[:], buf[:]...)
+}
+
+func getStateKey() []byte {
+	return statePreffix[:]
 }

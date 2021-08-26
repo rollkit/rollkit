@@ -11,23 +11,32 @@ import (
 	"github.com/lazyledger/lazyledger-core/libs/service"
 	corep2p "github.com/lazyledger/lazyledger-core/p2p"
 	"github.com/lazyledger/lazyledger-core/proxy"
-	"github.com/lazyledger/lazyledger-core/types"
+	lltypes "github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"go.uber.org/multierr"
 
 	"github.com/lazyledger/optimint/config"
+	"github.com/lazyledger/optimint/da"
+	"github.com/lazyledger/optimint/da/registry"
 	"github.com/lazyledger/optimint/mempool"
 	"github.com/lazyledger/optimint/p2p"
 	"github.com/lazyledger/optimint/store"
+)
+
+// prefixes used in KV store to separate main node data from DALC data
+var (
+	mainPrefix = []byte{0}
+	dalcPrefix = []byte{1}
 )
 
 // Node represents a client node in Optimint network.
 // It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
-	eventBus *types.EventBus
+	eventBus *lltypes.EventBus
 	proxyApp proxy.AppConns
 
-	genesis *types.GenesisDoc
+	genesis *lltypes.GenesisDoc
 
 	conf config.NodeConfig
 	P2P  *p2p.Client
@@ -37,7 +46,9 @@ type Node struct {
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.Tx
 
-	BlockStore store.Store
+	Store      store.Store
+	aggregator *aggregator
+	dalc       da.DataAvailabilityLayerClient
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -45,14 +56,14 @@ type Node struct {
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *types.GenesisDoc, logger log.Logger) (*Node, error) {
+func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *lltypes.GenesisDoc, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
 	}
 
-	eventBus := types.NewEventBus()
+	eventBus := lltypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -63,7 +74,31 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		return nil, err
 	}
 
+	// TODO(tzdybal): change after implementing https://github.com/celestiaorg/optimint/issues/67
+	baseKV := store.NewInMemoryKVStore()
+	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
+	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
+
+	store := store.New(mainKV)
+
+	dalc := registry.GetClient(conf.DALayer)
+	if dalc == nil {
+		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
+	}
+	err = dalc.Init(conf.DAConfig, dalcKV, logger.With("module", "da_client"))
+	if err != nil {
+		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
+	}
+
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+
+	var aggregator *aggregator = nil
+	if conf.Aggregator {
+		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
+		if err != nil {
+			return nil, fmt.Errorf("aggregator initialization error: %w", err)
+		}
+	}
 
 	node := &Node{
 		proxyApp:     proxyApp,
@@ -71,10 +106,12 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		genesis:      genesis,
 		conf:         conf,
 		P2P:          client,
+		aggregator:   aggregator,
+		dalc:         dalc,
 		Mempool:      mp,
 		mempoolIDs:   newMempoolIDs(),
 		incomingTxCh: make(chan *p2p.Tx),
-		BlockStore:   store.New(),
+		Store:        store,
 		ctx:          ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -107,9 +144,7 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 
 	for {
 		// wait for transactions
-		n.Logger.Debug("loop begin")
 		if next == nil {
-			n.Logger.Debug("waiting for mempool")
 			select {
 			case <-rawMempool.TxsWaitChan():
 				if next = rawMempool.TxsFront(); next != nil {
@@ -122,7 +157,6 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 
 		// send transactions
 		for {
-			n.Logger.Debug("Gossiping...")
 			memTx := next.Value.(*mempool.MempoolTx)
 			tx := memTx.Tx
 
@@ -139,7 +173,6 @@ func (n *Node) mempoolPublishLoop(ctx context.Context) {
 			next = nx
 		}
 
-		n.Logger.Debug("waiting for next...")
 		select {
 		case <-next.NextWaitChan():
 			next = next.Next()
@@ -156,8 +189,15 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
+	err = n.dalc.Start()
+	if err != nil {
+		return fmt.Errorf("error while starting data availability layer client: %w", err)
+	}
 	go n.mempoolReadLoop(n.ctx)
 	go n.mempoolPublishLoop(n.ctx)
+	if n.conf.Aggregator {
+		go n.aggregator.aggregationLoop(n.ctx)
+	}
 	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
 		n.incomingTxCh <- tx
 	})
@@ -167,7 +207,9 @@ func (n *Node) OnStart() error {
 
 // OnStop is a part of Service interface.
 func (n *Node) OnStop() {
-	n.P2P.Close()
+	err := n.dalc.Stop()
+	err = multierr.Append(err, n.P2P.Close())
+	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
 // OnReset is a part of Service interface.
@@ -186,7 +228,7 @@ func (n *Node) GetLogger() log.Logger {
 }
 
 // EventBus gives access to Node's event bus.
-func (n *Node) EventBus() *types.EventBus {
+func (n *Node) EventBus() *lltypes.EventBus {
 	return n.eventBus
 }
 
