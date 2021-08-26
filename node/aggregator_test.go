@@ -65,7 +65,7 @@ func TestAggregatorMode(t *testing.T) {
 			case <-ctx.Done():
 				return
 			default:
-				node.incomingTxCh <- &p2p.Tx{Data: []byte(time.Now().String()), From: pid}
+				node.incomingTxCh <- &p2p.GossipMessage{Data: []byte(time.Now().String()), From: pid}
 				time.Sleep(time.Duration(mrand.Uint32()%20) * time.Millisecond)
 			}
 		}

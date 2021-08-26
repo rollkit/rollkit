@@ -34,14 +34,14 @@ const (
 	txTopicSuffix = "-tx"
 )
 
-// Tx represents transaction gossiped via P2P network.
-type Tx struct {
+// GossipMessage represents transaction gossiped via P2P network.
+type GossipMessage struct {
 	Data []byte
 	From peer.ID
 }
 
-// TxHandler is a callback function type.
-type TxHandler func(*Tx)
+// GossipHandler is a callback function type.
+type GossipHandler func(*GossipMessage)
 
 // Client is a P2P client, implemented with libp2p.
 //
@@ -59,7 +59,7 @@ type Client struct {
 
 	txTopic   *pubsub.Topic
 	txSub     *pubsub.Subscription
-	txHandler TxHandler
+	txHandler GossipHandler
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -150,7 +150,7 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 }
 
 // SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
-func (c *Client) SetTxHandler(handler TxHandler) {
+func (c *Client) SetTxHandler(handler GossipHandler) {
 	c.txHandler = handler
 }
 
@@ -284,7 +284,7 @@ func (c *Client) processTxs(ctx context.Context) {
 		}
 
 		if c.txHandler != nil {
-			c.txHandler(&Tx{Data: msg.Data, From: msg.GetFrom()})
+			c.txHandler(&GossipMessage{Data: msg.Data, From: msg.GetFrom()})
 		}
 	}
 }

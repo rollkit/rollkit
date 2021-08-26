@@ -62,11 +62,11 @@ func TestMempoolDirectly(t *testing.T) {
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
-	node.incomingTxCh <- &p2p.Tx{Data: []byte("tx1"), From: pid}
-	node.incomingTxCh <- &p2p.Tx{Data: []byte("tx2"), From: pid}
+	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx1"), From: pid}
+	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx2"), From: pid}
 	time.Sleep(100 * time.Millisecond)
-	node.incomingTxCh <- &p2p.Tx{Data: []byte("tx3"), From: pid}
-	node.incomingTxCh <- &p2p.Tx{Data: []byte("tx4"), From: pid}
+	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx3"), From: pid}
+	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx4"), From: pid}
 
 	time.Sleep(1 * time.Second)
 

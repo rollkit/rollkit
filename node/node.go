@@ -44,7 +44,7 @@ type Node struct {
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
-	incomingTxCh chan *p2p.Tx
+	incomingTxCh chan *p2p.GossipMessage
 
 	Store      store.Store
 	aggregator *aggregator
@@ -110,7 +110,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		dalc:         dalc,
 		Mempool:      mp,
 		mempoolIDs:   newMempoolIDs(),
-		incomingTxCh: make(chan *p2p.Tx),
+		incomingTxCh: make(chan *p2p.GossipMessage),
 		Store:        store,
 		ctx:          ctx,
 	}
@@ -198,7 +198,7 @@ func (n *Node) OnStart() error {
 	if n.conf.Aggregator {
 		go n.aggregator.aggregationLoop(n.ctx)
 	}
-	n.P2P.SetTxHandler(func(tx *p2p.Tx) {
+	n.P2P.SetTxHandler(func(tx *p2p.GossipMessage) {
 		n.incomingTxCh <- tx
 	})
 
