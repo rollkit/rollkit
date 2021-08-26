@@ -34,7 +34,7 @@ type aggregator struct {
 	logger log.Logger
 }
 
-// initialize tries to load lastState from Store, and if it's not available it reads GenesisDoc.
+// getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.State, error) {
 	s, err := store.LoadState()
 	if err != nil {
