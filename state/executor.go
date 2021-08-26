@@ -11,10 +11,10 @@ import (
 	"github.com/lazyledger/lazyledger-core/proxy"
 	lltypes "github.com/lazyledger/lazyledger-core/types"
 
-	abciconv "github.com/lazyledger/optimint/conv/abci"
-	"github.com/lazyledger/optimint/log"
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/types"
+	abciconv "github.com/celestiaorg/optimint/conv/abci"
+	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // BlockExecutor creates and applies blocks and maintain state.

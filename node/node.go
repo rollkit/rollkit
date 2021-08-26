@@ -15,12 +15,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"go.uber.org/multierr"
 
-	"github.com/lazyledger/optimint/config"
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/da/registry"
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/p2p"
-	"github.com/lazyledger/optimint/store"
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/da/registry"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/p2p"
+	"github.com/celestiaorg/optimint/store"
 )
 
 // prefixes used in KV store to separate main node data from DALC data

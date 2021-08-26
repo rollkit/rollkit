@@ -14,10 +14,10 @@ import (
 	appclient "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/client"
 	apptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/log"
-	"github.com/lazyledger/optimint/store"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // Config holds all configuration required by LazyLedger DA layer client.

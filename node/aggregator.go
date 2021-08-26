@@ -9,13 +9,13 @@ import (
 	lltypes "github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 
-	"github.com/lazyledger/optimint/config"
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/log"
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/state"
-	"github.com/lazyledger/optimint/store"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/state"
+	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // aggregator is responsible for aggregating transactions into blocks.

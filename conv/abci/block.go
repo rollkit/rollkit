@@ -6,7 +6,7 @@ import (
 	tmproto "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
 	tmversion "github.com/lazyledger/lazyledger-core/proto/tendermint/version"
 
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // ToABCIHeader converts Optimint header to Header format defined in ABCI.

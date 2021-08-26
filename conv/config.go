@@ -3,7 +3,7 @@ package conv
 import (
 	tmcfg "github.com/lazyledger/lazyledger-core/config"
 
-	"github.com/lazyledger/optimint/config"
+	"github.com/celestiaorg/optimint/config"
 )
 
 // GetNodeConfig translates Tendermint's configuration into Optimint configuration.

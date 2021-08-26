@@ -1,4 +1,4 @@
-module github.com/lazyledger/optimint
+module github.com/celestiaorg/optimint
 
 go 1.15
 
@@ -16,17 +16,16 @@ require (
 	github.com/libp2p/go-libp2p-discovery v0.5.0
 	github.com/libp2p/go-libp2p-kad-dht v0.11.1
 	github.com/libp2p/go-libp2p-pubsub v0.4.1
-	github.com/minio/sha256-simd v0.1.1 // indirect
+	github.com/minio/sha256-simd v0.1.1
 	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/pelletier/go-toml v1.9.0
 	github.com/prometheus/client_golang v1.8.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/multierr v1.6.0
-	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc // indirect
 	google.golang.org/grpc v1.35.0
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk v0.40.0-rc5 => github.com/lazyledger/cosmos-sdk v0.40.0-rc5.0.20210121152417-3addd7f65d1c
+	github.com/cosmos/cosmos-sdk v0.40.0-rc5 => github.com/celestiaorg/cosmos-sdk v0.40.0-rc5.0.20210121152417-3addd7f65d1c
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 )

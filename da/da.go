@@ -1,9 +1,9 @@
 package da
 
 import (
-	"github.com/lazyledger/optimint/log"
-	"github.com/lazyledger/optimint/store"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // StatusCode is a type for DA layer return status.

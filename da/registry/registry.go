@@ -1,9 +1,9 @@
 package registry
 
 import (
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/da/lazyledger"
-	"github.com/lazyledger/optimint/da/mock"
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/da/lazyledger"
+	"github.com/celestiaorg/optimint/da/mock"
 )
 
 // this is a central registry for all Data Availability Layer Clients

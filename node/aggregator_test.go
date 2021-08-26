@@ -7,21 +7,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lazyledger/optimint/state"
-
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	"github.com/lazyledger/lazyledger-core/types"
-	"github.com/lazyledger/optimint/config"
-	"github.com/lazyledger/optimint/mocks"
-	"github.com/lazyledger/optimint/p2p"
-	"github.com/lazyledger/optimint/store"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/mocks"
+	"github.com/celestiaorg/optimint/p2p"
+	"github.com/celestiaorg/optimint/state"
+	"github.com/celestiaorg/optimint/store"
 )
 
 func TestAggregatorMode(t *testing.T) {

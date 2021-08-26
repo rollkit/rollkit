@@ -14,9 +14,9 @@ import (
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/proxy"
 
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/mocks"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/mocks"
+	"github.com/celestiaorg/optimint/types"
 )
 
 func TestCreateBlock(t *testing.T) {

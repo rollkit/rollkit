@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/celestiaorg/optimint/config"
 	tmcfg "github.com/lazyledger/lazyledger-core/config"
-	"github.com/lazyledger/optimint/config"
 )
 
 func TestGetNodeConfig(t *testing.T) {

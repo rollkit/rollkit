@@ -18,9 +18,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 
-	"github.com/lazyledger/optimint/config"
-	"github.com/lazyledger/optimint/mocks"
-	"github.com/lazyledger/optimint/node"
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/mocks"
+	"github.com/celestiaorg/optimint/node"
 )
 
 var expectedInfo = abci.ResponseInfo{

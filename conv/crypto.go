@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lazyledger/lazyledger-core/p2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
+
+	"github.com/lazyledger/lazyledger-core/p2p"
 )
 
 var (

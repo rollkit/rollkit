@@ -17,8 +17,8 @@ import (
 	rpctypes "github.com/lazyledger/lazyledger-core/rpc/jsonrpc/types"
 	"github.com/lazyledger/lazyledger-core/types"
 
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/node"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/node"
 )
 
 const (

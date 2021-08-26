@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
