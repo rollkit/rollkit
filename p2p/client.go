@@ -32,6 +32,9 @@ const (
 
 	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
 	txTopicSuffix = "-tx"
+
+	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
+	headerTopicSuffix = "-header"
 )
 
 // Client is a P2P client, implemented with libp2p.
@@ -50,6 +53,8 @@ type Client struct {
 
 	txGossip    *Gossip
 	txValidator pubsub.Validator
+
+	headerGossip *Gossip
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -146,6 +151,17 @@ func (c *Client) SetTxHandler(handler GossipHandler) {
 
 func (c *Client) SetTxValidator(val pubsub.Validator) {
 	c.txValidator = val
+}
+
+// GossipHeader sends the block header to the P2P network.
+func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
+	c.logger.Debug("Gossiping block header", "len", len(headerBytes))
+	return c.headerGossip.Publish(ctx, headerBytes)
+}
+
+// SetHeaderHandler sets the callback function, that will be invoked after block header is received from P2P network.
+func (c *Client) SetHeaderHandler(handler GossipHandler) {
+	c.headerGossip.handler = handler
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -262,8 +278,13 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	go c.txGossip.ProcessMessages(ctx)
+
+	c.headerGossip, err = NewGossip(c.host, ps, c.getHeaderTopic(), c.logger)
+	if err != nil {
+		return err
+	}
+	go c.headerGossip.ProcessMessages(ctx)
 
 	return nil
 }
@@ -300,4 +321,8 @@ func (c *Client) getNamespace() string {
 
 func (c *Client) getTxTopic() string {
 	return c.getNamespace() + txTopicSuffix
+}
+
+func (c *Client) getHeaderTopic() string {
+	return c.getNamespace() + headerTopicSuffix
 }

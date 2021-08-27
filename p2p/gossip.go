@@ -67,7 +67,7 @@ func (g *Gossip) ProcessMessages(ctx context.Context) {
 	for {
 		msg, err := g.sub.Next(ctx)
 		if err != nil {
-			g.logger.Error("failed to read transaction", "error", err)
+			g.logger.Error("failed to read message", "error", err)
 			return
 		}
 		if msg.GetFrom() == g.ownId {

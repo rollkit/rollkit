@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/p2p"
 	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -47,6 +48,8 @@ type Node struct {
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.GossipMessage
+
+	incomingHeaderCh chan *p2p.GossipMessage
 
 	Store      store.Store
 	aggregator *aggregator
@@ -111,22 +114,79 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	}
 
 	node := &Node{
-		proxyApp:     proxyApp,
-		eventBus:     eventBus,
-		genesis:      genesis,
-		conf:         conf,
-		P2P:          client,
-		aggregator:   aggregator,
-		dalc:         dalc,
-		Mempool:      mp,
-		mempoolIDs:   mpIDs,
-		incomingTxCh: make(chan *p2p.GossipMessage),
-		Store:        store,
-		ctx:          ctx,
+		proxyApp:         proxyApp,
+		eventBus:         eventBus,
+		genesis:          genesis,
+		conf:             conf,
+		P2P:              client,
+		aggregator:       aggregator,
+		dalc:             dalc,
+		Mempool:          mp,
+		mempoolIDs:       mpIDs,
+		incomingTxCh:     make(chan *p2p.GossipMessage),
+		incomingHeaderCh: make(chan *p2p.GossipMessage),
+		Store:            store,
+		ctx:              ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
+}
+
+func (n *Node) headerReadLoop(ctx context.Context) {
+	for {
+		select {
+		case headerMsg := <-n.incomingHeaderCh:
+			n.Logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
+			var header types.Header
+			err := header.UnmarshalBinary(headerMsg.Data)
+			if err != nil {
+				n.Logger.Error("failed to deserialize header", "error", err)
+				continue
+			}
+			err = header.ValidateBasic()
+			if err != nil {
+				n.Logger.Error("failed to validate header", "error", err)
+				continue
+			}
+			hash := header.Hash()
+			n.Logger.Debug("header details", "height", header.Height, "hash", hash, "lastHeaderHash", header.LastHeaderHash)
+
+			// TODO(tzdybal): this is simplified version for MVP - blocks are fetched only via DALC
+			blockRes := n.dalc.(da.BlockRetriever).RetrieveBlock(header.Height)
+			var block *types.Block
+			switch blockRes.Code {
+			case da.StatusSuccess:
+				block = blockRes.Block
+			case da.StatusError:
+			case da.StatusTimeout:
+			default:
+			}
+			// TODO(tzdybal): this is so wrong!
+			//n.aggregator.executor.ApplyBlock(ctx, n.aggregator.lastState, block)
+			n.Logger.Debug("full block", "block", block)
+		case <-ctx.Done():
+			break
+		}
+	}
+}
+
+func (n *Node) headerPublishLoop(ctx context.Context) {
+	for {
+		select {
+		case header := <-n.aggregator.newHeaders:
+			headerBytes, err := header.MarshalBinary()
+			if err != nil {
+				n.Logger.Error("failed to serialize block header", "error", err)
+			}
+			err = n.P2P.GossipHeader(ctx, headerBytes)
+			if err != nil {
+				n.Logger.Error("failed to gossip block header", "error", err)
+			}
+		case <-ctx.Done():
+			break
+		}
+	}
 }
 
 // OnStart is a part of Service interface.
@@ -142,7 +202,11 @@ func (n *Node) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		go n.aggregator.aggregationLoop(n.ctx)
+		go n.headerPublishLoop(n.ctx)
 	}
+	n.P2P.SetHeaderHandler(func(header *p2p.GossipMessage) {
+		n.incomingHeaderCh <- header
+	})
 
 	return nil
 }
