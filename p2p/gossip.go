@@ -9,7 +9,7 @@ import (
 	"github.com/lazyledger/optimint/log"
 )
 
-// GossipMessage represents transaction gossiped via P2P network.
+// GossipMessage represents message gossiped via P2P network (e.g. transaction, Block etc).
 type GossipMessage struct {
 	Data []byte
 	From peer.ID
@@ -29,7 +29,7 @@ type Gossip struct {
 	logger log.Logger
 }
 
-// NewGossip create new, ready to use instance of Gossip.
+// NewGossip creates new, ready to use instance of Gossip.
 //
 // Returned Gossip object can be used for sending (Publishing) and receiving messages in topic identified by topicStr.
 func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Logger) (*Gossip, error) {
