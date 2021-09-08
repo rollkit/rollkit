@@ -96,7 +96,7 @@ func TestGossiping(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// ensure that Tx is delivered to client
-	assertRecv := func(tx *Tx) {
+	assertRecv := func(tx *GossipMessage) {
 		logger.Debug("received tx", "body", string(tx.Data))
 		assert.Equal(expectedMsg, tx.Data)
 		wg.Done()
@@ -106,7 +106,7 @@ func TestGossiping(t *testing.T) {
 	clients[3].SetTxHandler(assertRecv)
 
 	// ensure that Tx is not delivered to client
-	assertNotRecv := func(*Tx) {
+	assertNotRecv := func(*GossipMessage) {
 		t.Fatal("unexpected Tx received")
 	}
 	clients[1].SetTxHandler(assertNotRecv)

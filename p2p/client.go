@@ -34,15 +34,6 @@ const (
 	txTopicSuffix = "-tx"
 )
 
-// Tx represents transaction gossiped via P2P network.
-type Tx struct {
-	Data []byte
-	From peer.ID
-}
-
-// TxHandler is a callback function type.
-type TxHandler func(*Tx)
-
 // Client is a P2P client, implemented with libp2p.
 //
 // Initially, client connects to predefined seed nodes (aka bootnodes, bootstrap nodes).
@@ -57,9 +48,7 @@ type Client struct {
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
 
-	txTopic   *pubsub.Topic
-	txSub     *pubsub.Subscription
-	txHandler TxHandler
+	txGossip *Gossip
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -137,7 +126,7 @@ func (c *Client) Close() error {
 	c.cancel()
 
 	return multierr.Combine(
-		c.txTopic.Close(),
+		c.txGossip.Close(),
 		c.dht.Close(),
 		c.host.Close(),
 	)
@@ -146,12 +135,12 @@ func (c *Client) Close() error {
 // GossipTx sends the transaction to the P2P network.
 func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 	c.logger.Debug("Gossiping TX", "len", len(tx))
-	return c.txTopic.Publish(ctx, tx)
+	return c.txGossip.Publish(ctx, tx)
 }
 
 // SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
-func (c *Client) SetTxHandler(handler TxHandler) {
-	c.txHandler = handler
+func (c *Client) SetTxHandler(handler GossipHandler) {
+	c.txGossip.handler = handler
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -256,37 +245,14 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	txTopic, err := ps.Join(c.getTxTopic())
+	c.txGossip, err = NewGossip(c.host, ps, c.getTxTopic(), c.logger)
 	if err != nil {
 		return err
 	}
-	c.txTopic = txTopic
-	txSub, err := txTopic.Subscribe()
-	if err != nil {
-		return err
-	}
-	c.txSub = txSub
 
-	go c.processTxs(ctx)
+	go c.txGossip.ProcessMessages(ctx)
 
 	return nil
-}
-
-func (c *Client) processTxs(ctx context.Context) {
-	for {
-		msg, err := c.txSub.Next(ctx)
-		if err != nil {
-			c.logger.Error("failed to read transaction", "error", err)
-			return
-		}
-		if msg.GetFrom() == c.host.ID() {
-			continue
-		}
-
-		if c.txHandler != nil {
-			c.txHandler(&Tx{Data: msg.Data, From: msg.GetFrom()})
-		}
-	}
 }
 
 func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
