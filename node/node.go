@@ -6,13 +6,14 @@ import (
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
 	llcfg "github.com/lazyledger/lazyledger-core/config"
-	"github.com/lazyledger/lazyledger-core/libs/clist"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/lazyledger/lazyledger-core/libs/service"
 	corep2p "github.com/lazyledger/lazyledger-core/p2p"
 	"github.com/lazyledger/lazyledger-core/proxy"
 	lltypes "github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/multierr"
 
 	"github.com/lazyledger/optimint/config"
@@ -73,6 +74,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	if err != nil {
 		return nil, err
 	}
+	client.SetTxValidator(newProxyAppValidator(proxyApp))
 
 	// TODO(tzdybal): change after implementing https://github.com/celestiaorg/optimint/issues/67
 	baseKV := store.NewInMemoryKVStore()
@@ -138,50 +140,6 @@ func (n *Node) mempoolReadLoop(ctx context.Context) {
 	}
 }
 
-func (n *Node) mempoolPublishLoop(ctx context.Context) {
-	rawMempool := n.Mempool.(*mempool.CListMempool)
-	var next *clist.CElement
-
-	for {
-		// wait for transactions
-		if next == nil {
-			select {
-			case <-rawMempool.TxsWaitChan():
-				if next = rawMempool.TxsFront(); next != nil {
-					continue
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-
-		// send transactions
-		for {
-			memTx := next.Value.(*mempool.MempoolTx)
-			tx := memTx.Tx
-
-			err := n.P2P.GossipTx(ctx, tx)
-			if err != nil {
-				n.Logger.Error("failed to gossip transaction", "error", err)
-				continue
-			}
-
-			nx := next.Next()
-			if nx == nil {
-				break
-			}
-			next = nx
-		}
-
-		select {
-		case <-next.NextWaitChan():
-			next = next.Next()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 // OnStart is a part of Service interface.
 func (n *Node) OnStart() error {
 	n.Logger.Info("starting P2P client")
@@ -194,7 +152,6 @@ func (n *Node) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	go n.mempoolReadLoop(n.ctx)
-	go n.mempoolPublishLoop(n.ctx)
 	if n.conf.Aggregator {
 		go n.aggregator.aggregationLoop(n.ctx)
 	}
@@ -235,4 +192,20 @@ func (n *Node) EventBus() *lltypes.EventBus {
 // ProxyApp returns ABCI proxy connections to communicate with application.
 func (n *Node) ProxyApp() proxy.AppConns {
 	return n.proxyApp
+}
+
+func newProxyAppValidator(app proxy.AppConns) pubsub.Validator {
+	return func(c context.Context, i peer.ID, m *pubsub.Message) bool {
+		req := abci.RequestCheckTx{
+			Tx:   m.Data,
+			Type: abci.CheckTxType_New,
+		}
+		resp, err := app.Mempool().CheckTxSync(c, req)
+		if err != nil || resp.Code != abci.CodeTypeOK {
+			// todo(evan): check if we should log this
+			return false
+		}
+
+		return true
+	}
 }

@@ -50,6 +50,8 @@ type Client struct {
 
 	txGossip *Gossip
 
+	validator pubsub.Validator
+
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
 	cancel context.CancelFunc
@@ -141,6 +143,11 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 // SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
 func (c *Client) SetTxHandler(handler GossipHandler) {
 	c.txGossip.handler = handler
+}
+
+// SetTxValidator sets the validator function that will be called before gossiping transactions
+func (c *Client) SetTxValidator(val pubsub.Validator) {
+	c.validator = val
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -244,6 +251,12 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	ps, err := pubsub.NewGossipSub(ctx, c.host)
 	if err != nil {
 		return err
+	}
+	if c.validator != nil {
+		err = ps.RegisterTopicValidator(c.getTxTopic(), c.validator)
+		if err != nil {
+			return err
+		}
 	}
 	c.txGossip, err = NewGossip(c.host, ps, c.getTxTopic(), c.logger)
 	if err != nil {
