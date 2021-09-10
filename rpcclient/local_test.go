@@ -76,7 +76,6 @@ func TestBroadcastTxAsync(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(t, err)
-	defer rpc.node.Stop()
 
 	res, err := rpc.BroadcastTxAsync(context.Background(), expectedTx)
 	assert.NoError(err)
@@ -87,6 +86,9 @@ func TestBroadcastTxAsync(t *testing.T) {
 	assert.Empty(res.Codespace)
 	assert.NotEmpty(res.Hash)
 	mockApp.AssertExpectations(t)
+
+	err = rpc.node.Stop()
+	require.NoError(t, err)
 }
 
 func TestBroadcastTxSync(t *testing.T) {
@@ -108,7 +110,6 @@ func TestBroadcastTxSync(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(t, err)
-	defer rpc.node.Stop()
 
 	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedResponse)
 
@@ -121,6 +122,9 @@ func TestBroadcastTxSync(t *testing.T) {
 	assert.Equal(expectedResponse.Codespace, res.Codespace)
 	assert.NotEmpty(res.Hash)
 	mockApp.AssertExpectations(t)
+
+	err = rpc.node.Stop()
+	require.NoError(t, err)
 }
 
 func TestBroadcastTxCommit(t *testing.T) {
@@ -157,7 +161,6 @@ func TestBroadcastTxCommit(t *testing.T) {
 	// in order to broadcast, the node must be started
 	err := rpc.node.Start()
 	require.NoError(err)
-	defer rpc.node.Stop()
 
 	go func() {
 		time.Sleep(mockTxProcessingTime)
@@ -176,6 +179,9 @@ func TestBroadcastTxCommit(t *testing.T) {
 	assert.Equal(expectedCheckResp, res.CheckTx)
 	assert.Equal(expectedDeliverResp, res.DeliverTx)
 	mockApp.AssertExpectations(t)
+
+	err = rpc.node.Stop()
+	require.NoError(err)
 }
 
 func getRPC(t *testing.T) (*mocks.Application, *Local) {
