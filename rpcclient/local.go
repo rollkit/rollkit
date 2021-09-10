@@ -101,7 +101,7 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 		}
 	}()
 
-	// Broadcast tx and wait for CheckTx result
+	// add to mempool and wait for CheckTx result
 	checkTxResCh := make(chan *abci.Response, 1)
 	err = l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		checkTxResCh <- res
@@ -118,6 +118,12 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 			DeliverTx: abci.ResponseDeliverTx{},
 			Hash:      tx.Hash(),
 		}, nil
+	}
+
+	// broadcast tx
+	err = l.node.P2P.GossipTx(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("tx added to local mempool but failure to broadcast: %w", err)
 	}
 
 	// Wait for the tx to be included in a block or timeout.
@@ -160,9 +166,13 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{Context: ctx})
-
 	if err != nil {
 		return nil, err
+	}
+	// broadcast tx
+	err = l.node.P2P.GossipTx(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
 	}
 	return &ctypes.ResultBroadcastTx{Hash: tx.Hash()}, nil
 }
@@ -180,6 +190,13 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	}
 	res := <-resCh
 	r := res.GetCheckTx()
+
+	// broadcast tx
+	err = l.node.P2P.GossipTx(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
+	}
+
 	return &ctypes.ResultBroadcastTx{
 		Code:      r.Code,
 		Data:      r.Data,
