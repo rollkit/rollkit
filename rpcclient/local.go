@@ -169,7 +169,7 @@ func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.Resu
 	if err != nil {
 		return nil, err
 	}
-	// broadcast tx
+	// gossipTx optimistically
 	err = l.node.P2P.GossipTx(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
@@ -191,10 +191,11 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	res := <-resCh
 	r := res.GetCheckTx()
 
-	// broadcast tx
-	err = l.node.P2P.GossipTx(ctx, tx)
-	if err != nil {
-		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
+	if r.Code == abci.CodeTypeOK {
+		err = l.node.P2P.GossipTx(ctx, tx)
+		if err != nil {
+			return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
+		}
 	}
 
 	return &ctypes.ResultBroadcastTx{
