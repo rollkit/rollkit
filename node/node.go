@@ -188,7 +188,6 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 			Context:     ctx,
 		})
 		switch err.(type) {
-		case nil:
 		case mempool.ErrTxInCache:
 			return true
 		case mempool.ErrMempoolIsFull:
@@ -197,6 +196,7 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 			return false
 		case mempool.ErrPreCheck:
 			return false
+		default:
 		}
 		res := <-checkTxResCh
 		checkTxResp := res.GetCheckTx()

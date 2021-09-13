@@ -194,6 +194,7 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	if r.Code == abci.CodeTypeOK {
 		err = l.node.P2P.GossipTx(ctx, tx)
 		if err != nil {
+			l.node.Mempool.RemoveTxByKey(mempool.TxKey(tx), true)
 			return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
 		}
 	}
