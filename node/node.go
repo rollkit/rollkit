@@ -200,10 +200,7 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 		}
 		res := <-checkTxResCh
 		checkTxResp := res.GetCheckTx()
-		if checkTxResp.Code == abci.CodeTypeOK {
-			return true
-		}
 
-		return false
+		return checkTxResp.Code == abci.CodeTypeOK
 	}
 }
