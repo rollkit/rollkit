@@ -283,7 +283,7 @@ func (mem *CListMempool) CheckTx(tx types.Tx, cb func(*abci.Response), txInfo Tx
 			// but they can spam the same tx with little cost to them atm.
 		}
 
-		return ErrTxInCache
+		return ErrTxInCache{}
 	}
 
 	ctx := context.Background()

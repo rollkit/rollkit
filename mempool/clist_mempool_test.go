@@ -189,7 +189,7 @@ func TestMempoolUpdate(t *testing.T) {
 		require.NoError(t, err)
 		err = mempool.CheckTx([]byte{0x01}, nil, TxInfo{})
 		if assert.Error(t, err) {
-			assert.Equal(t, ErrTxInCache, err)
+			assert.Equal(t, ErrTxInCache{}, err)
 		}
 	}
 

@@ -19,7 +19,7 @@ const UnknownPeerID uint16 = 0
 // apps can reset their transient state on Commit.
 type Mempool interface {
 	// CheckTx executes a new transaction against the application to determine
-	// its validity and whether it should be added to the mempool.
+	// its validity. If valid, the tx is automatically added to the mempool.
 	CheckTx(tx types.Tx, callback func(*abci.Response), txInfo TxInfo) error
 
 	// ReapMaxBytesMaxGas reaps transactions from the mempool up to maxBytes

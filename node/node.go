@@ -74,7 +74,6 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	if err != nil {
 		return nil, err
 	}
-	client.SetTxValidator(newProxyAppValidator(proxyApp))
 
 	// TODO(tzdybal): change after implementing https://github.com/celestiaorg/optimint/issues/67
 	baseKV := store.NewInMemoryKVStore()
@@ -93,6 +92,10 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	}
 
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mpIDs := newMempoolIDs()
+
+	txValidator := newTxValidator(mp, mpIDs, logger)
+	client.SetTxValidator(txValidator)
 
 	var aggregator *aggregator = nil
 	if conf.Aggregator {
@@ -111,7 +114,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		aggregator:   aggregator,
 		dalc:         dalc,
 		Mempool:      mp,
-		mempoolIDs:   newMempoolIDs(),
+		mempoolIDs:   mpIDs,
 		incomingTxCh: make(chan *p2p.GossipMessage),
 		Store:        store,
 		ctx:          ctx,
@@ -119,25 +122,6 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
-}
-
-func (n *Node) mempoolReadLoop(ctx context.Context) {
-	for {
-		select {
-		case tx := <-n.incomingTxCh:
-			n.Logger.Debug("tx received", "from", tx.From, "bytes", len(tx.Data))
-			err := n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
-				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
-				SenderP2PID: corep2p.ID(tx.From),
-				Context:     ctx,
-			})
-			if err != nil {
-				n.Logger.Error("failed to execute CheckTx", "error", err)
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 // OnStart is a part of Service interface.
@@ -151,13 +135,9 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
-	go n.mempoolReadLoop(n.ctx)
 	if n.conf.Aggregator {
 		go n.aggregator.aggregationLoop(n.ctx)
 	}
-	n.P2P.SetTxHandler(func(tx *p2p.GossipMessage) {
-		n.incomingTxCh <- tx
-	})
 
 	return nil
 }
@@ -194,18 +174,36 @@ func (n *Node) ProxyApp() proxy.AppConns {
 	return n.proxyApp
 }
 
-func newProxyAppValidator(app proxy.AppConns) pubsub.Validator {
-	return func(c context.Context, i peer.ID, m *pubsub.Message) bool {
-		req := abci.RequestCheckTx{
-			Tx:   m.Data,
-			Type: abci.CheckTxType_New,
-		}
-		resp, err := app.Mempool().CheckTxSync(c, req)
-		if err != nil || resp.Code != abci.CodeTypeOK {
-			// todo(evan): check if we should log this
+// newTxValidator creates a pubsub validator that uses the node's mempool to check the
+// transaction. If the transaction is valid, then it is added to the mempool
+func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) pubsub.Validator {
+	return func(ctx context.Context, i peer.ID, m *pubsub.Message) bool {
+		logger.Debug("transaction of size %d recieved", "bytes", len(m.Data))
+		checkTxResCh := make(chan *abci.Response, 1)
+		err := pool.CheckTx(m.Data, func(resp *abci.Response) {
+			checkTxResCh <- resp
+		}, mempool.TxInfo{
+			SenderID:    poolIDs.GetForPeer(m.GetFrom()),
+			SenderP2PID: corep2p.ID(m.GetFrom()),
+			Context:     ctx,
+		})
+		switch err.(type) {
+		case nil:
+		case mempool.ErrTxInCache:
+			return true
+		case mempool.ErrMempoolIsFull:
+			return true
+		case mempool.ErrTxTooLarge:
+			return false
+		case mempool.ErrPreCheck:
 			return false
 		}
+		res := <-checkTxResCh
+		checkTxResp := res.GetCheckTx()
+		if checkTxResp.Code == abci.CodeTypeOK {
+			return true
+		}
 
-		return true
+		return false
 	}
 }

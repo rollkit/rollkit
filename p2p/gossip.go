@@ -38,6 +38,7 @@ func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Lo
 	if err != nil {
 		return nil, err
 	}
+
 	subscription, err := topic.Subscribe()
 	if err != nil {
 		return nil, err
