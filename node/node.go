@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	abci "github.com/lazyledger/lazyledger-core/abci/types"
@@ -187,14 +188,14 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 			SenderP2PID: corep2p.ID(m.GetFrom()),
 			Context:     ctx,
 		})
-		switch err.(type) {
-		case mempool.ErrTxInCache:
+		switch {
+		case errors.Is(err, mempool.ErrTxInCache):
 			return true
-		case mempool.ErrMempoolIsFull:
+		case errors.Is(err, mempool.ErrMempoolIsFull{}):
 			return true
-		case mempool.ErrTxTooLarge:
+		case errors.Is(err, mempool.ErrTxTooLarge{}):
 			return false
-		case mempool.ErrPreCheck:
+		case errors.Is(err, mempool.ErrPreCheck{}):
 			return false
 		default:
 		}
