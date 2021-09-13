@@ -82,6 +82,8 @@ type Mempool interface {
 	// Any further writes will not be relayed to disk.
 	CloseWAL()
 
+	// RemoveTxByKey removes a transaction from the mempool using a transasction's
+	// key (sha256 hash of the tx bytes)
 	RemoveTxByKey(txKey [TxKeySize]byte, removeFromCache bool)
 }
 
