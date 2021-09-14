@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lazyledger/lazyledger-core/proxy"
-	lltypes "github.com/lazyledger/lazyledger-core/types"
+	"github.com/tendermint/tendermint/proxy"
+	lltypes "github.com/tendermint/tendermint/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/celestiaorg/optimint/config"

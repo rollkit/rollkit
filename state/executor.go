@@ -6,10 +6,10 @@ import (
 	"errors"
 	"time"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	tmstate "github.com/lazyledger/lazyledger-core/proto/tendermint/state"
-	"github.com/lazyledger/lazyledger-core/proxy"
-	lltypes "github.com/lazyledger/lazyledger-core/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	"github.com/tendermint/tendermint/proxy"
+	lltypes "github.com/tendermint/tendermint/types"
 
 	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/log"

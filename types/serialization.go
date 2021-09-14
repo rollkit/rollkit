@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	pb "github.com/celestiaorg/optimint/types/pb/optimint"
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // MarshalBinary encodes Block into binary form and returns it.

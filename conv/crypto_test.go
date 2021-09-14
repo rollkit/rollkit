@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lazyledger/lazyledger-core/crypto/secp256k1"
-	"github.com/lazyledger/lazyledger-core/p2p"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
+	"github.com/tendermint/tendermint/p2p"
 	pb "github.com/libp2p/go-libp2p-core/crypto/pb"
 )
 

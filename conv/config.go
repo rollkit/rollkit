@@ -1,7 +1,7 @@
 package conv
 
 import (
-	tmcfg "github.com/lazyledger/lazyledger-core/config"
+	tmcfg "github.com/tendermint/tendermint/config"
 
 	"github.com/celestiaorg/optimint/config"
 )

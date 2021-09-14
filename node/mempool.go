@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	tmsync "github.com/lazyledger/lazyledger-core/libs/sync"
+	tmsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
