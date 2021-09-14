@@ -191,11 +191,18 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	res := <-resCh
 	r := res.GetCheckTx()
 
+	// gossip the transaction if it's in the mempool.
+	// Note: we have to do this here because, unlike the tendermint mempool reactor, there
+	// is no routine that gossips transactions after they enter the pool
 	if r.Code == abci.CodeTypeOK {
 		err = l.node.P2P.GossipTx(ctx, tx)
 		if err != nil {
+			// the transaction must be removed from the mempool if it cannot be gossiped.
+			// if this does not occur, then the user will not be able to try again using
+			// this node, as the CheckTx call above will return an error indicating that
+			// the tx is already in the mempool
 			l.node.Mempool.RemoveTxByKey(mempool.TxKey(tx), true)
-			return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
+			return nil, fmt.Errorf("valid tra: %w", err)
 		}
 	}
 
