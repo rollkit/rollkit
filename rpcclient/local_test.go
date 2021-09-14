@@ -250,7 +250,7 @@ func TestMempool2Nodes(t *testing.T) {
 	resp, err := local.BroadcastTxSync(ctx, []byte("bad"))
 	assert.NoError(err)
 	assert.NotNil(resp)
-	// broadcast the bad Tx, this should not be propogated or added to the local mempool
+	// broadcast the bad Tx, this should be propogated and added to the local mempool
 	resp, err = local.BroadcastTxSync(ctx, []byte("good"))
 	assert.NoError(err)
 	assert.NotNil(resp)
