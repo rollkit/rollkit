@@ -204,7 +204,9 @@ func TestMempool2Nodes(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	// app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
+	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
@@ -244,11 +246,15 @@ func TestMempool2Nodes(t *testing.T) {
 	local := NewLocal(node1)
 	require.NotNil(local)
 
-	resp, err := local.BroadcastTxSync(ctx, []byte("foobar"))
+	// broadcast the bad Tx, this should not be propogated or added to the local mempool
+	resp, err := local.BroadcastTxSync(ctx, []byte("bad"))
 	assert.NoError(err)
 	assert.NotNil(resp)
-
+	// broadcast the bad Tx, this should not be propogated or added to the local mempool
+	resp, err = local.BroadcastTxSync(ctx, []byte("good"))
+	assert.NoError(err)
+	assert.NotNil(resp)
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(node2.Mempool.TxsBytes(), int64(len("foobar")))
+	assert.Equal(node2.Mempool.TxsBytes(), int64(len("good")))
 }
