@@ -6,15 +6,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pb "github.com/libp2p/go-libp2p-core/crypto/pb"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"github.com/tendermint/tendermint/p2p"
-	pb "github.com/libp2p/go-libp2p-core/crypto/pb"
 )
 
 func TestGetNodeKey(t *testing.T) {
 	t.Parallel()
 
-	valid := p2p.GenNodeKey()
+	privKey := ed25519.GenPrivKey()
+	valid := p2p.NodeKey{
+		PrivKey: privKey,
+	}
 	invalid := p2p.NodeKey{
 		PrivKey: secp256k1.GenPrivKey(),
 	}

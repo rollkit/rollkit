@@ -3,7 +3,6 @@ package mempool
 import (
 	"bytes"
 	"container/list"
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"sync"
@@ -186,7 +185,7 @@ func (mem *CListMempool) TxsBytes() int64 {
 
 // Lock() must be help by the caller during execution.
 func (mem *CListMempool) FlushAppConn() error {
-	return mem.proxyAppConn.FlushSync(context.Background())
+	return mem.proxyAppConn.FlushSync()
 }
 
 // XXX: Unsafe! Calling Flush may leave mempool in inconsistent state.
@@ -286,16 +285,7 @@ func (mem *CListMempool) CheckTx(tx types.Tx, cb func(*abci.Response), txInfo Tx
 		return ErrTxInCache
 	}
 
-	ctx := context.Background()
-	if txInfo.Context != nil {
-		ctx = txInfo.Context
-	}
-
-	reqRes, err := mem.proxyAppConn.CheckTxAsync(ctx, abci.RequestCheckTx{Tx: tx})
-	if err != nil {
-		mem.cache.Remove(tx)
-		return err
-	}
+	reqRes := mem.proxyAppConn.CheckTxAsync(abci.RequestCheckTx{Tx: tx})
 	reqRes.SetCallback(mem.reqResCb(tx, txInfo.SenderID, txInfo.SenderP2PID, cb))
 
 	return nil
@@ -437,7 +427,7 @@ func (mem *CListMempool) resCbFirstTime(
 			}
 			memTx.senders.Store(peerID, true)
 			mem.addTx(memTx)
-			mem.logger.Info("Added good transaction",
+			mem.logger.Debug("added good transaction",
 				"tx", txID(tx),
 				"res", r,
 				"height", memTx.height,
@@ -446,11 +436,13 @@ func (mem *CListMempool) resCbFirstTime(
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
-			mem.logger.Info("Rejected bad transaction",
+			mem.logger.Debug("rejected bad transaction",
 				"tx", txID(tx), "peerID", peerP2PID, "res", r, "err", postCheckErr)
 			mem.metrics.FailedTxs.Add(1)
-			// remove from cache (it might be good later)
-			mem.cache.Remove(tx)
+			if !mem.config.KeepInvalidTxsInCache {
+				// remove from cache (it might be good later)
+				mem.cache.Remove(tx)
+			}
 		}
 	default:
 		// ignore other messages
@@ -480,9 +472,9 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 			// Good, nothing to do.
 		} else {
 			// Tx became invalidated due to newly committed block.
-			mem.logger.Info("Tx is no longer valid", "tx", txID(tx), "res", r, "err", postCheckErr)
+			mem.logger.Debug("tx is no longer valid", "tx", txID(tx), "res", r, "err", postCheckErr)
 			// NOTE: we remove tx from the cache because it might be good later
-			mem.removeTx(tx, mem.recheckCursor, true)
+			mem.removeTx(tx, mem.recheckCursor, !mem.config.KeepInvalidTxsInCache)
 		}
 		if mem.recheckCursor == mem.recheckEnd {
 			mem.recheckCursor = nil
@@ -491,7 +483,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 		}
 		if mem.recheckCursor == nil {
 			// Done!
-			mem.logger.Info("Done rechecking txs")
+			mem.logger.Debug("done rechecking txs")
 
 			// incase the recheck removed all txs
 			if mem.Size() > 0 {
@@ -596,7 +588,7 @@ func (mem *CListMempool) Update(
 		if deliverTxResponses[i].Code == abci.CodeTypeOK {
 			// Add valid committed tx to the cache (if missing).
 			_ = mem.cache.Push(tx)
-		} else {
+		} else if !mem.config.KeepInvalidTxsInCache {
 			// Allow invalid transactions to be resubmitted.
 			mem.cache.Remove(tx)
 		}
@@ -620,7 +612,7 @@ func (mem *CListMempool) Update(
 	// or just notify there're some txs left.
 	if mem.Size() > 0 {
 		if mem.config.Recheck {
-			mem.logger.Info("Recheck txs", "numtxs", mem.Size(), "height", height)
+			mem.logger.Debug("recheck txs", "numtxs", mem.Size(), "height", height)
 			mem.recheckTxs()
 			// At this point, mem.txs are being rechecked.
 			// mem.recheckCursor re-scans mem.txs and possibly removes some txs.
@@ -644,26 +636,17 @@ func (mem *CListMempool) recheckTxs() {
 	mem.recheckCursor = mem.txs.Front()
 	mem.recheckEnd = mem.txs.Back()
 
-	ctx := context.Background()
-
 	// Push txs to proxyAppConn
 	// NOTE: globalCb may be called concurrently.
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*MempoolTx)
-		_, err := mem.proxyAppConn.CheckTxAsync(ctx, abci.RequestCheckTx{
+		mem.proxyAppConn.CheckTxAsync(abci.RequestCheckTx{
 			Tx:   memTx.Tx,
 			Type: abci.CheckTxType_Recheck,
 		})
-		if err != nil {
-			// No need in retrying since memTx will be rechecked after next block.
-			mem.logger.Error("Can't check tx", "err", err)
-		}
 	}
 
-	_, err := mem.proxyAppConn.FlushAsync(ctx)
-	if err != nil {
-		mem.logger.Error("Can't flush txs", "err", err)
-	}
+	mem.proxyAppConn.FlushAsync()
 }
 
 //--------------------------------------------------------------------------------
@@ -774,7 +757,7 @@ func TxKey(tx types.Tx) [TxKeySize]byte {
 	return sha256.Sum256(tx)
 }
 
-// txID is the hex encoded hash of the bytes as a types.Tx.
-func txID(tx []byte) string {
-	return fmt.Sprintf("%X", types.Tx(tx).Hash())
+// txID is a hash of the Tx.
+func txID(tx []byte) []byte {
+	return types.Tx(tx).Hash()
 }

@@ -8,11 +8,11 @@ import (
 	"github.com/pelletier/go-toml"
 	"google.golang.org/grpc"
 
+	appclient "github.com/celestiaorg/celestia-app/x/payment/client"
+	apptypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
-	appclient "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/client"
-	apptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"

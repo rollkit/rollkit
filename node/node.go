@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/clist"
@@ -12,7 +13,6 @@ import (
 	corep2p "github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
 	lltypes "github.com/tendermint/tendermint/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
@@ -127,7 +127,6 @@ func (n *Node) mempoolReadLoop(ctx context.Context) {
 			err := n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
 				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
 				SenderP2PID: corep2p.ID(tx.From),
-				Context:     ctx,
 			})
 			if err != nil {
 				n.Logger.Error("failed to execute CheckTx", "error", err)
