@@ -1,4 +1,4 @@
-package lazyledger
+package celestia
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-// Config holds all configuration required by LazyLedger DA layer client.
+// Config holds all configuration required by Celestia DA layer client.
 type Config struct {
 	// PayForMessage related params
 	NamespaceID []byte
@@ -47,9 +47,9 @@ type Config struct {
 	RootDir string
 }
 
-// LazyLedger implements DataAvailabilityLayerClient interface.
-// It use lazyledger-app via gRPC.
-type LazyLedger struct {
+// Celestia implements DataAvailabilityLayerClient interface.
+// It use celestia-app via gRPC.
+type Celestia struct {
 	config  Config
 	kvStore store.KVStore
 	logger  log.Logger
@@ -59,10 +59,10 @@ type LazyLedger struct {
 	rpcClient *grpc.ClientConn
 }
 
-var _ da.DataAvailabilityLayerClient = &LazyLedger{}
+var _ da.DataAvailabilityLayerClient = &Celestia{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (ll *LazyLedger) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (ll *Celestia) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
 	ll.logger = logger
 	ll.kvStore = kvStore
 	err := toml.Unmarshal(config, &ll.config)
@@ -76,21 +76,21 @@ func (ll *LazyLedger) Init(config []byte, kvStore store.KVStore, logger log.Logg
 	return err
 }
 
-// Start establishes gRPC connection to lazyledger app.
-func (ll *LazyLedger) Start() (err error) {
+// Start establishes gRPC connection to celestia-app.
+func (ll *Celestia) Start() (err error) {
 	ll.rpcClient, err = grpc.Dial(ll.config.RPCAddress, grpc.WithInsecure())
 	return
 }
 
 // Stop closes gRPC connection.
-func (ll *LazyLedger) Stop() error {
+func (ll *Celestia) Stop() error {
 	return ll.rpcClient.Close()
 }
 
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
-func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
+func (ll *Celestia) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	msg, err := ll.preparePayForMessage(block)
 	if err != nil {
 		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
@@ -108,11 +108,11 @@ func (ll *LazyLedger) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-func (l *LazyLedger) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
+func (l *Celestia) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
 	panic("not implemented") // TODO: Implement
 }
 
-func (ll *LazyLedger) callRPC(ctx context.Context, msg *apptypes.MsgWirePayForMessage) error {
+func (ll *Celestia) callRPC(ctx context.Context, msg *apptypes.MsgWirePayForMessage) error {
 	signer := appclient.NewKeyringSigner(ll.keyring, ll.config.KeyringAccName, ll.config.ChainID)
 
 	err := signer.QueryAccountNumber(ctx, ll.rpcClient)
@@ -148,7 +148,7 @@ func (ll *LazyLedger) callRPC(ctx context.Context, msg *apptypes.MsgWirePayForMe
 	return nil
 }
 
-func (ll *LazyLedger) preparePayForMessage(block *types.Block) (*apptypes.MsgWirePayForMessage, error) {
+func (ll *Celestia) preparePayForMessage(block *types.Block) (*apptypes.MsgWirePayForMessage, error) {
 	// TODO(tzdybal): serialize block
 	var message []byte
 	message, err := block.MarshalBinary()

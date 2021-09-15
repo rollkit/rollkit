@@ -1,4 +1,4 @@
-package lazyledger
+package celestia
 
 import (
 	"errors"
@@ -29,7 +29,7 @@ func TestConfiguration(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ll := &LazyLedger{}
+			ll := &Celestia{}
 			err := ll.Init(c.input, nil, nil)
 
 			if c.err != nil {
@@ -44,14 +44,14 @@ func TestConfiguration(t *testing.T) {
 }
 
 func TestSubmission(t *testing.T) {
-	t.Skip("this test requires configured and running lazyledger-appd")
+	t.Skip("this test requires configured and running celestia-appd")
 	assert := assert.New(t)
 	require := require.New(t)
 	block := &types.Block{Header: types.Header{
 		Height: 1,
 	}}
 
-	ll := &LazyLedger{}
+	ll := &Celestia{}
 	kr := generateKeyring(t)
 	key, err := kr.Key("test-account")
 	require.NoError(err)
