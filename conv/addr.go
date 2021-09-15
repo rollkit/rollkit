@@ -3,8 +3,9 @@ package conv
 import (
 	"strings"
 
-	"github.com/lazyledger/optimint/config"
 	"github.com/multiformats/go-multiaddr"
+
+	"github.com/celestiaorg/optimint/config"
 )
 
 // TranslateAddresses updates conf by changing Cosmos-style addresses to Multiaddr format.

@@ -3,8 +3,8 @@ package types
 import (
 	"errors"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	pb "github.com/lazyledger/optimint/types/pb/optimint"
+	pb "github.com/celestiaorg/optimint/types/pb/optimint"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // MarshalBinary encodes Block into binary form and returns it.

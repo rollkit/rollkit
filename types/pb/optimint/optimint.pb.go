@@ -19,7 +19,7 @@ package optimint
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import tendermint_abci "github.com/lazyledger/lazyledger-core/abci/types"
+import tendermint_abci "github.com/tendermint/tendermint/abci/types"
 
 import io "io"
 

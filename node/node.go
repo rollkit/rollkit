@@ -4,23 +4,23 @@ import (
 	"context"
 	"fmt"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	llcfg "github.com/lazyledger/lazyledger-core/config"
-	"github.com/lazyledger/lazyledger-core/libs/clist"
-	"github.com/lazyledger/lazyledger-core/libs/log"
-	"github.com/lazyledger/lazyledger-core/libs/service"
-	corep2p "github.com/lazyledger/lazyledger-core/p2p"
-	"github.com/lazyledger/lazyledger-core/proxy"
-	lltypes "github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	abci "github.com/tendermint/tendermint/abci/types"
+	llcfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/clist"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/libs/service"
+	corep2p "github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/proxy"
+	lltypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	"github.com/lazyledger/optimint/config"
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/da/registry"
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/p2p"
-	"github.com/lazyledger/optimint/store"
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/da/registry"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/p2p"
+	"github.com/celestiaorg/optimint/store"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -127,7 +127,6 @@ func (n *Node) mempoolReadLoop(ctx context.Context) {
 			err := n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
 				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
 				SenderP2PID: corep2p.ID(tx.From),
-				Context:     ctx,
 			})
 			if err != nil {
 				n.Logger.Error("failed to execute CheckTx", "error", err)

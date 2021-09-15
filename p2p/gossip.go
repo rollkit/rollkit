@@ -2,11 +2,12 @@ package p2p
 
 import (
 	"context"
+
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
-	"github.com/lazyledger/optimint/log"
+	"github.com/celestiaorg/optimint/log"
 )
 
 // GossipMessage represents message gossiped via P2P network (e.g. transaction, Block etc).

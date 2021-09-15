@@ -6,19 +6,19 @@ import (
 	"fmt"
 	"time"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	"github.com/lazyledger/lazyledger-core/config"
-	tmbytes "github.com/lazyledger/lazyledger-core/libs/bytes"
-	tmpubsub "github.com/lazyledger/lazyledger-core/libs/pubsub"
-	tmquery "github.com/lazyledger/lazyledger-core/libs/pubsub/query"
-	"github.com/lazyledger/lazyledger-core/proxy"
-	rpcclient "github.com/lazyledger/lazyledger-core/rpc/client"
-	ctypes "github.com/lazyledger/lazyledger-core/rpc/core/types"
-	rpctypes "github.com/lazyledger/lazyledger-core/rpc/jsonrpc/types"
-	"github.com/lazyledger/lazyledger-core/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/config"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
+	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	"github.com/tendermint/tendermint/proxy"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/jsonrpc/types"
+	"github.com/tendermint/tendermint/types"
 
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/node"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/node"
 )
 
 const (
@@ -46,7 +46,7 @@ func NewLocal(node *node.Node) *Local {
 }
 
 func (l *Local) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := l.query().InfoSync(ctx, proxy.RequestInfo)
+	resInfo, err := l.query().InfoSync(proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (l *Local) ABCIQuery(ctx context.Context, path string, data tmbytes.HexByte
 }
 
 func (l *Local) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := l.query().QuerySync(ctx, abci.RequestQuery{
+	resQuery, err := l.query().QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -105,7 +105,7 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 	checkTxResCh := make(chan *abci.Response, 1)
 	err = l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		checkTxResCh <- res
-	}, mempool.TxInfo{Context: ctx})
+	}, mempool.TxInfo{})
 	if err != nil {
 		l.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
@@ -159,7 +159,7 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{Context: ctx})
+	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
 
 	if err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	resCh := make(chan *abci.Response, 1)
 	err := l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		resCh <- res
-	}, mempool.TxInfo{Context: ctx})
+	}, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
@@ -227,6 +227,11 @@ func (l *Local) Unsubscribe(ctx context.Context, subscriber, query string) error
 func (l *Local) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
 	// needs genesis provider
 	panic("Genesis - not implemented!")
+}
+
+func (l *Local) GenesisChunked(context.Context, uint) (*ctypes.ResultGenesisChunk, error) {
+	// needs genesis provider
+	panic("GenesisChunked - not implemented!")
 }
 
 func (l *Local) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
@@ -292,6 +297,12 @@ func (l *Local) TxSearch(ctx context.Context, query string, prove bool, page, pe
 	panic("TxSearch - not implemented!")
 }
 
+// BlockSearch defines a method to search for a paginated set of blocks by
+// BeginBlock and EndBlock event search criteria.
+func (l *Local) BlockSearch(ctx context.Context, query string, page, perPage *int, orderBy string) (*ctypes.ResultBlockSearch, error) {
+	panic("BlockSearch - not implemented!")
+}
+
 func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	latest, err := l.node.Store.LoadBlock(l.node.Store.Height())
 	if err != nil {
@@ -338,7 +349,7 @@ func (l *Local) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirme
 }
 
 func (l *Local) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := l.mempool().CheckTxSync(ctx, abci.RequestCheckTx{Tx: tx})
+	res, err := l.mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
