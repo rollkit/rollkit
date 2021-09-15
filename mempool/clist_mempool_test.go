@@ -29,6 +29,13 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
+const (
+	// UnknownPeerID is the peer ID to use when running CheckTx when there is
+	// no peer (e.g. RPC)
+	// Note: copied from reactor.go
+	UnknownPeerID uint16 = 0
+)
+
 // A cleanupFunc cleans up any config / test files created for a particular
 // test.
 type cleanupFunc func()
