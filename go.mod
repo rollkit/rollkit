@@ -22,7 +22,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.13
-	go.uber.org/multierr v1.6.0
+	go.uber.org/multierr v1.7.0
 	google.golang.org/grpc v1.40.0
 )
 
