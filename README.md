@@ -8,3 +8,4 @@ Design document: https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyx
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/optimint)](https://goreportcard.com/report/github.com/celestiaorg/optimint)
 [![codecov](https://codecov.io/gh/celestiaorg/optimint/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/optimint)
 [![GoDoc](https://godoc.org/github.com/celestiaorg/optimint?status.svg)](https://godoc.org/github.com/celestiaorg/optimint)
+![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)
