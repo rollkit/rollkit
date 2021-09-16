@@ -7,7 +7,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.40.0-rc5
 	github.com/dgraph-io/badger/v3 v3.2011.1
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/go-kit/kit v0.10.0
+	github.com/go-kit/kit v0.11.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/ipfs/go-log v1.0.4
