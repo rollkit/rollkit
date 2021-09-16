@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "11:00"
+    open-pull-requests-limit: 10
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    reviewers:
+      - liamsi
+      - tzdybal
+      - Wondertan
+    labels:
+      - T:dependencies
