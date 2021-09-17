@@ -186,7 +186,6 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 		}, mempool.TxInfo{
 			SenderID:    poolIDs.GetForPeer(m.GetFrom()),
 			SenderP2PID: corep2p.ID(m.GetFrom()),
-			Context:     ctx,
 		})
 		switch {
 		case errors.Is(err, mempool.ErrTxInCache):

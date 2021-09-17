@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lazyledger/optimint/mempool"
+	"github.com/celestiaorg/optimint/mempool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

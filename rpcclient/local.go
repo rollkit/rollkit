@@ -165,7 +165,7 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{Context: ctx})
+	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
