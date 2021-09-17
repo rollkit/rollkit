@@ -6,20 +6,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lazyledger/optimint/mempool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	"github.com/lazyledger/lazyledger-core/libs/log"
-	"github.com/lazyledger/lazyledger-core/proxy"
-	"github.com/lazyledger/lazyledger-core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/types"
 
-	"github.com/lazyledger/optimint/config"
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/mocks"
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/mocks"
 )
 
 // simply check that node is starting and stopping without panicking

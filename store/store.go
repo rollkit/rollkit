@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/multierr"
 
-	"github.com/lazyledger/optimint/state"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/state"
+	"github.com/celestiaorg/optimint/types"
 )
 
 var (
@@ -59,7 +59,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	// TODO(tzdybal): use transaction for consistency of DB (https://github.com/lazyledger/optimint/issues/80)
+	// TODO(tzdybal): use transaction for consistency of DB (https://github.com/celestiaorg/optimint/issues/80)
 	err = multierr.Append(err, s.db.Set(getBlockKey(hash), blockBlob))
 	err = multierr.Append(err, s.db.Set(getCommitKey(hash), commitBlob))
 	err = multierr.Append(err, s.db.Set(getIndexKey(block.Header.Height), hash[:]))

@@ -1,8 +1,8 @@
 package store
 
 import (
-	"github.com/lazyledger/optimint/state"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/state"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // Store is minimal interface for storing and retrieving blocks, commits and state.

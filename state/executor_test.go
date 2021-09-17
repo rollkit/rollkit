@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	cfg "github.com/lazyledger/lazyledger-core/config"
-	"github.com/lazyledger/lazyledger-core/libs/log"
-	"github.com/lazyledger/lazyledger-core/proxy"
+	abci "github.com/tendermint/tendermint/abci/types"
+	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/proxy"
 
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/mocks"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/mocks"
+	"github.com/celestiaorg/optimint/types"
 )
 
 func TestCreateBlock(t *testing.T) {

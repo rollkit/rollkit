@@ -18,8 +18,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/multierr"
 
-	"github.com/lazyledger/optimint/config"
-	"github.com/lazyledger/optimint/log"
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/log"
 )
 
 // TODO(tzdybal): refactor to configuration parameters

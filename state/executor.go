@@ -6,15 +6,15 @@ import (
 	"errors"
 	"time"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	tmstate "github.com/lazyledger/lazyledger-core/proto/tendermint/state"
-	"github.com/lazyledger/lazyledger-core/proxy"
-	lltypes "github.com/lazyledger/lazyledger-core/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	"github.com/tendermint/tendermint/proxy"
+	lltypes "github.com/tendermint/tendermint/types"
 
-	abciconv "github.com/lazyledger/optimint/conv/abci"
-	"github.com/lazyledger/optimint/log"
-	"github.com/lazyledger/optimint/mempool"
-	"github.com/lazyledger/optimint/types"
+	abciconv "github.com/celestiaorg/optimint/conv/abci"
+	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // BlockExecutor creates and applies blocks and maintain state.
@@ -130,7 +130,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state State, block *types.Bl
 		return nil, 0, err
 	}
 
-	resp, err := e.proxyApp.CommitSync(ctx)
+	resp, err := e.proxyApp.CommitSync()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -201,7 +201,6 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 		return nil, err
 	}
 	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
-		ctx,
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
 			Header: abciHeader,
@@ -216,13 +215,13 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 
 	for _, tx := range block.Data.Txs {
-		_, err = e.proxyApp.DeliverTxAsync(ctx, abci.RequestDeliverTx{Tx: tx})
-		if err != nil {
-			return nil, err
+		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
+		if res.GetException() != nil {
+			return nil, errors.New(res.GetException().GetError())
 		}
 	}
 
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(ctx, abci.RequestEndBlock{Height: int64(block.Header.Height)})
+	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height)})
 	if err != nil {
 		return nil, err
 	}

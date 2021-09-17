@@ -1,12 +1,12 @@
 package mempool
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
+	mrand "math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,14 +17,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lazyledger/lazyledger-core/abci/example/counter"
-	"github.com/lazyledger/lazyledger-core/abci/example/kvstore"
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	cfg "github.com/lazyledger/lazyledger-core/config"
-	"github.com/lazyledger/lazyledger-core/libs/log"
-	tmrand "github.com/lazyledger/lazyledger-core/libs/rand"
-	"github.com/lazyledger/lazyledger-core/proxy"
-	"github.com/lazyledger/lazyledger-core/types"
+	"github.com/tendermint/tendermint/abci/example/counter"
+	"github.com/tendermint/tendermint/abci/example/kvstore"
+	abciserver "github.com/tendermint/tendermint/abci/server"
+	abci "github.com/tendermint/tendermint/abci/types"
+	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/log"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/libs/service"
+	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/types"
+)
+
+const (
+	// UnknownPeerID is the peer ID to use when running CheckTx when there is
+	// no peer (e.g. RPC)
+	// Note: copied from reactor.go
+	UnknownPeerID uint16 = 0
 )
 
 // A cleanupFunc cleans up any config / test files created for a particular
@@ -119,7 +128,7 @@ func TestReapMaxBytesMaxGas(t *testing.T) {
 		{20, 0, -1, 0},
 		{20, 0, 10, 0},
 		{20, 10, 10, 0},
-		{20, 28, 10, 1},
+		{20, 24, 10, 1},
 		{20, 240, 5, 5},
 		{20, 240, -1, 10},
 		{20, 240, 10, 10},
@@ -157,15 +166,14 @@ func TestMempoolFilters(t *testing.T) {
 	}{
 		{10, nopPreFilter, nopPostFilter, 10},
 		{10, PreCheckMaxBytes(10), nopPostFilter, 0},
-		{10, PreCheckMaxBytes(28), nopPostFilter, 10},
+		{10, PreCheckMaxBytes(22), nopPostFilter, 10},
 		{10, nopPreFilter, PostCheckMaxGas(-1), 10},
 		{10, nopPreFilter, PostCheckMaxGas(0), 0},
 		{10, nopPreFilter, PostCheckMaxGas(1), 10},
 		{10, nopPreFilter, PostCheckMaxGas(3000), 10},
 		{10, PreCheckMaxBytes(10), PostCheckMaxGas(20), 0},
 		{10, PreCheckMaxBytes(30), PostCheckMaxGas(20), 10},
-		{10, PreCheckMaxBytes(28), PostCheckMaxGas(1), 10},
-		{10, PreCheckMaxBytes(28), PostCheckMaxGas(1), 10},
+		{10, PreCheckMaxBytes(22), PostCheckMaxGas(1), 10},
 		{10, PreCheckMaxBytes(22), PostCheckMaxGas(0), 0},
 	}
 	for tcIndex, tt := range tests {
@@ -215,6 +223,63 @@ func TestMempoolUpdate(t *testing.T) {
 	}
 }
 
+func TestMempool_KeepInvalidTxsInCache(t *testing.T) {
+	app := counter.NewApplication(true)
+	cc := proxy.NewLocalClientCreator(app)
+	wcfg := cfg.DefaultConfig()
+	wcfg.Mempool.KeepInvalidTxsInCache = true
+	mempool, cleanup := newMempoolWithAppAndConfig(cc, wcfg)
+	defer cleanup()
+
+	// 1. An invalid transaction must remain in the cache after Update
+	{
+		a := make([]byte, 8)
+		binary.BigEndian.PutUint64(a, 0)
+
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, 1)
+
+		err := mempool.CheckTx(b, nil, TxInfo{})
+		require.NoError(t, err)
+
+		// simulate new block
+		_ = app.DeliverTx(abci.RequestDeliverTx{Tx: a})
+		_ = app.DeliverTx(abci.RequestDeliverTx{Tx: b})
+		err = mempool.Update(1, []types.Tx{a, b},
+			[]*abci.ResponseDeliverTx{{Code: abci.CodeTypeOK}, {Code: 2}}, nil, nil)
+		require.NoError(t, err)
+
+		// a must be added to the cache
+		err = mempool.CheckTx(a, nil, TxInfo{})
+		if assert.Error(t, err) {
+			assert.Equal(t, ErrTxInCache, err)
+		}
+
+		// b must remain in the cache
+		err = mempool.CheckTx(b, nil, TxInfo{})
+		if assert.Error(t, err) {
+			assert.Equal(t, ErrTxInCache, err)
+		}
+	}
+
+	// 2. An invalid transaction must remain in the cache
+	{
+		a := make([]byte, 8)
+		binary.BigEndian.PutUint64(a, 0)
+
+		// remove a from the cache to test (2)
+		mempool.cache.Remove(a)
+
+		err := mempool.CheckTx(a, nil, TxInfo{})
+		require.NoError(t, err)
+
+		err = mempool.CheckTx(a, nil, TxInfo{})
+		if assert.Error(t, err) {
+			assert.Equal(t, ErrTxInCache, err)
+		}
+	}
+}
+
 func TestTxsAvailable(t *testing.T) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
@@ -261,6 +326,7 @@ func TestTxsAvailable(t *testing.T) {
 
 func TestSerialReap(t *testing.T) {
 	app := counter.NewApplication(true)
+	app.SetOption(abci.RequestSetOption{Key: "serial", Value: "on"})
 	cc := proxy.NewLocalClientCreator(app)
 
 	mempool, cleanup := newMempoolWithApp(cc)
@@ -312,12 +378,11 @@ func TestSerialReap(t *testing.T) {
 	}
 
 	commitRange := func(start, end int) {
-		ctx := context.Background()
 		// Deliver some txs.
 		for i := start; i < end; i++ {
 			txBytes := make([]byte, 8)
 			binary.BigEndian.PutUint64(txBytes, uint64(i))
-			res, err := appConnCon.DeliverTxSync(ctx, abci.RequestDeliverTx{Tx: txBytes})
+			res, err := appConnCon.DeliverTxSync(abci.RequestDeliverTx{Tx: txBytes})
 			if err != nil {
 				t.Errorf("client error committing tx: %v", err)
 			}
@@ -326,7 +391,7 @@ func TestSerialReap(t *testing.T) {
 					res.Code, res.Data, res.Log)
 			}
 		}
-		res, err := appConnCon.CommitSync(ctx)
+		res, err := appConnCon.CommitSync()
 		if err != nil {
 			t.Errorf("client error committing: %v", err)
 		}
@@ -520,11 +585,10 @@ func TestMempoolTxsBytes(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	ctx := context.Background()
-	res, err := appConnCon.DeliverTxSync(ctx, abci.RequestDeliverTx{Tx: txBytes})
+	res, err := appConnCon.DeliverTxSync(abci.RequestDeliverTx{Tx: txBytes})
 	require.NoError(t, err)
 	require.EqualValues(t, 0, res.Code)
-	res2, err := appConnCon.CommitSync(ctx)
+	res2, err := appConnCon.CommitSync()
 	require.NoError(t, err)
 	require.NotEmpty(t, res2.Data)
 
@@ -544,9 +608,68 @@ func TestMempoolTxsBytes(t *testing.T) {
 
 }
 
+// This will non-deterministically catch some concurrency failures like
+// https://github.com/tendermint/tendermint/issues/3509
+// TODO: all of the tests should probably also run using the remote proxy app
+// since otherwise we're not actually testing the concurrency of the mempool here!
+func TestMempoolRemoteAppConcurrency(t *testing.T) {
+	sockPath := fmt.Sprintf("unix:///tmp/echo_%v.sock", tmrand.Str(6))
+	app := kvstore.NewApplication()
+	cc, server := newRemoteApp(t, sockPath, app)
+	t.Cleanup(func() {
+		if err := server.Stop(); err != nil {
+			t.Error(err)
+		}
+	})
+	config := cfg.ResetTestRoot("mempool_test")
+	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
+	defer cleanup()
+
+	// generate small number of txs
+	nTxs := 10
+	txLen := 200
+	txs := make([]types.Tx, nTxs)
+	for i := 0; i < nTxs; i++ {
+		txs[i] = tmrand.Bytes(txLen)
+	}
+
+	// simulate a group of peers sending them over and over
+	N := config.Mempool.Size
+	maxPeers := 5
+	for i := 0; i < N; i++ {
+		peerID := mrand.Intn(maxPeers)
+		txNum := mrand.Intn(nTxs)
+		tx := txs[txNum]
+
+		// this will err with ErrTxInCache many times ...
+		mempool.CheckTx(tx, nil, TxInfo{SenderID: uint16(peerID)}) //nolint: errcheck // will error
+	}
+	err := mempool.FlushAppConn()
+	require.NoError(t, err)
+}
+
+// caller must close server
+func newRemoteApp(
+	t *testing.T,
+	addr string,
+	app abci.Application,
+) (
+	clientCreator proxy.ClientCreator,
+	server service.Service,
+) {
+	clientCreator = proxy.NewRemoteClientCreator(addr, "socket", true)
+
+	// Start server
+	server = abciserver.NewSocketServer(addr, app)
+	server.SetLogger(log.TestingLogger().With("module", "abci-server"))
+	if err := server.Start(); err != nil {
+		t.Fatalf("Error starting socket server: %v", err.Error())
+	}
+	return clientCreator, server
+}
 func checksumIt(data []byte) string {
 	h := sha256.New()
-	h.Write(data) //nolint: errcheck // ignore errcheck
+	h.Write(data)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 

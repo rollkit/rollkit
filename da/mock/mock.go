@@ -1,10 +1,10 @@
 package mock
 
 import (
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/log"
-	"github.com/lazyledger/optimint/store"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // MockDataAvailabilityLayerClient is intended only for usage in tests.

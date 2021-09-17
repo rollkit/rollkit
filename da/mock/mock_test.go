@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lazyledger/optimint/da"
-	"github.com/lazyledger/optimint/log/test"
-	"github.com/lazyledger/optimint/types"
+	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/log/test"
+	"github.com/celestiaorg/optimint/types"
 )
 
 func TestLifecycle(t *testing.T) {

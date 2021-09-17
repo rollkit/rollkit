@@ -1,7 +1,7 @@
 syntax = "proto3";
 package optimint;
 
-// option go_package = "github.com/lazyledger/optimint/proto";
+// option go_package = "github.com/celestiaorg/optimint/proto";
 import "tendermint/abci/types.proto";
 
 // Version captures the consensus rules for processing a block in the blockchain,

@@ -1,17 +1,12 @@
 package mempool
 
 import (
-	"context"
 	"fmt"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	"github.com/lazyledger/lazyledger-core/p2p"
-	"github.com/lazyledger/lazyledger-core/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/types"
 )
-
-// UnknownPeerID is the peer ID to use when running CheckTx when there is
-// no peer (e.g. RPC)
-const UnknownPeerID uint16 = 0
 
 // Mempool defines the mempool interface.
 //
@@ -107,8 +102,6 @@ type TxInfo struct {
 	SenderID uint16
 	// SenderP2PID is the actual p2p.ID of the sender, used e.g. for logging.
 	SenderP2PID p2p.ID
-	// Context is the optional context to cancel CheckTx
-	Context context.Context
 }
 
 //--------------------------------------------------------------------------------

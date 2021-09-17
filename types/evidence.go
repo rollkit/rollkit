@@ -5,7 +5,7 @@ import (
 
 	// TODO: either copy the vanilla abci types (or the protos) into this repo
 	// or, import the vanilla tendermint types instead.
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // Evidence represents any provable malicious activity by a validator.
