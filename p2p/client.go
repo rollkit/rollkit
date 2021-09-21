@@ -48,7 +48,8 @@ type Client struct {
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
 
-	txGossip *Gossip
+	txGossip    *Gossip
+	txValidator pubsub.Validator
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -141,6 +142,10 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 // SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
 func (c *Client) SetTxHandler(handler GossipHandler) {
 	c.txGossip.handler = handler
+}
+
+func (c *Client) SetTxValidator(val pubsub.Validator) {
+	c.txValidator = val
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -245,6 +250,14 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	if c.txValidator != nil {
+		err = ps.RegisterTopicValidator(c.getTxTopic(), c.txValidator)
+		if err != nil {
+			return err
+		}
+	}
+
 	c.txGossip, err = NewGossip(c.host, ps, c.getTxTopic(), c.logger)
 	if err != nil {
 		return err

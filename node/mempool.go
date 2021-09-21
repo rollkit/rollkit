@@ -61,8 +61,8 @@ func (ids *mempoolIDs) Reclaim(peer peer.ID) {
 
 // GetForPeer returns an ID for the peer. ID is generated if required.
 func (ids *mempoolIDs) GetForPeer(peer peer.ID) uint16 {
-	ids.mtx.RLock()
-	defer ids.mtx.RUnlock()
+	ids.mtx.Lock()
+	defer ids.mtx.Unlock()
 
 	id, ok := ids.peerMap[peer]
 	if !ok {

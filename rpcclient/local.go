@@ -101,7 +101,7 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 		}
 	}()
 
-	// Broadcast tx and wait for CheckTx result
+	// add to mempool and wait for CheckTx result
 	checkTxResCh := make(chan *abci.Response, 1)
 	err = l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		checkTxResCh <- res
@@ -118,6 +118,12 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 			DeliverTx: abci.ResponseDeliverTx{},
 			Hash:      tx.Hash(),
 		}, nil
+	}
+
+	// broadcast tx
+	err = l.node.P2P.GossipTx(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("tx added to local mempool but failure to broadcast: %w", err)
 	}
 
 	// Wait for the tx to be included in a block or timeout.
@@ -160,9 +166,13 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
-
 	if err != nil {
 		return nil, err
+	}
+	// gossipTx optimistically
+	err = l.node.P2P.GossipTx(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
 	}
 	return &ctypes.ResultBroadcastTx{Hash: tx.Hash()}, nil
 }
@@ -180,6 +190,22 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	}
 	res := <-resCh
 	r := res.GetCheckTx()
+
+	// gossip the transaction if it's in the mempool.
+	// Note: we have to do this here because, unlike the tendermint mempool reactor, there
+	// is no routine that gossips transactions after they enter the pool
+	if r.Code == abci.CodeTypeOK {
+		err = l.node.P2P.GossipTx(ctx, tx)
+		if err != nil {
+			// the transaction must be removed from the mempool if it cannot be gossiped.
+			// if this does not occur, then the user will not be able to try again using
+			// this node, as the CheckTx call above will return an error indicating that
+			// the tx is already in the mempool
+			l.node.Mempool.RemoveTxByKey(mempool.TxKey(tx), true)
+			return nil, fmt.Errorf("valid tra: %w", err)
+		}
+	}
+
 	return &ctypes.ResultBroadcastTx{
 		Code:      r.Code,
 		Data:      r.Data,

@@ -74,6 +74,9 @@ func TestBroadcastTxAsync(t *testing.T) {
 	mockApp, rpc := getRPC(t)
 	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(abci.ResponseCheckTx{})
 
+	err := rpc.node.Start()
+	require.NoError(t, err)
+
 	res, err := rpc.BroadcastTxAsync(context.Background(), expectedTx)
 	assert.NoError(err)
 	assert.NotNil(res)
@@ -83,6 +86,9 @@ func TestBroadcastTxAsync(t *testing.T) {
 	assert.Empty(res.Codespace)
 	assert.NotEmpty(res.Hash)
 	mockApp.AssertExpectations(t)
+
+	err = rpc.node.Stop()
+	require.NoError(t, err)
 }
 
 func TestBroadcastTxSync(t *testing.T) {
@@ -102,6 +108,9 @@ func TestBroadcastTxSync(t *testing.T) {
 
 	mockApp, rpc := getRPC(t)
 
+	err := rpc.node.Start()
+	require.NoError(t, err)
+
 	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedResponse)
 
 	res, err := rpc.BroadcastTxSync(context.Background(), expectedTx)
@@ -113,6 +122,9 @@ func TestBroadcastTxSync(t *testing.T) {
 	assert.Equal(expectedResponse.Codespace, res.Codespace)
 	assert.NotEmpty(res.Hash)
 	mockApp.AssertExpectations(t)
+
+	err = rpc.node.Stop()
+	require.NoError(t, err)
 }
 
 func TestBroadcastTxCommit(t *testing.T) {
@@ -146,6 +158,10 @@ func TestBroadcastTxCommit(t *testing.T) {
 	mockApp.BeginBlock(abci.RequestBeginBlock{})
 	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedCheckResp)
 
+	// in order to broadcast, the node must be started
+	err := rpc.node.Start()
+	require.NoError(err)
+
 	go func() {
 		time.Sleep(mockTxProcessingTime)
 		err := rpc.node.EventBus().PublishEventTx(types.EventDataTx{TxResult: abci.TxResult{
@@ -163,6 +179,9 @@ func TestBroadcastTxCommit(t *testing.T) {
 	assert.Equal(expectedCheckResp, res.CheckTx)
 	assert.Equal(expectedDeliverResp, res.DeliverTx)
 	mockApp.AssertExpectations(t)
+
+	err = rpc.node.Stop()
+	require.NoError(err)
 }
 
 func getRPC(t *testing.T) (*mocks.Application, *Local) {
@@ -185,7 +204,9 @@ func TestMempool2Nodes(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	// app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
+	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
@@ -225,11 +246,21 @@ func TestMempool2Nodes(t *testing.T) {
 	local := NewLocal(node1)
 	require.NotNil(local)
 
-	resp, err := local.BroadcastTxSync(ctx, []byte("foobar"))
+	// broadcast the bad Tx, this should not be propogated or added to the local mempool
+	resp, err := local.BroadcastTxSync(ctx, []byte("bad"))
 	assert.NoError(err)
 	assert.NotNil(resp)
+	// broadcast the good Tx, this should be propogated and added to the local mempool
+	resp, err = local.BroadcastTxSync(ctx, []byte("good"))
+	assert.NoError(err)
+	assert.NotNil(resp)
+	// broadcast the good Tx again in the same block, this should not be propogated and
+	// added to the local mempool
+	resp, err = local.BroadcastTxSync(ctx, []byte("good"))
+	assert.Error(err)
+	assert.Nil(resp)
 
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(node2.Mempool.TxsBytes(), int64(len("foobar")))
+	assert.Equal(node2.Mempool.TxsBytes(), int64(len("good")))
 }

@@ -2,12 +2,14 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
 	corep2p "github.com/tendermint/tendermint/p2p"
@@ -91,6 +93,10 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	}
 
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mpIDs := newMempoolIDs()
+
+	txValidator := newTxValidator(mp, mpIDs, logger)
+	client.SetTxValidator(txValidator)
 
 	var aggregator *aggregator = nil
 	if conf.Aggregator {
@@ -109,7 +115,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		aggregator:   aggregator,
 		dalc:         dalc,
 		Mempool:      mp,
-		mempoolIDs:   newMempoolIDs(),
+		mempoolIDs:   mpIDs,
 		incomingTxCh: make(chan *p2p.GossipMessage),
 		Store:        store,
 		ctx:          ctx,
@@ -117,68 +123,6 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
-}
-
-func (n *Node) mempoolReadLoop(ctx context.Context) {
-	for {
-		select {
-		case tx := <-n.incomingTxCh:
-			n.Logger.Debug("tx received", "from", tx.From, "bytes", len(tx.Data))
-			err := n.Mempool.CheckTx(tx.Data, func(resp *abci.Response) {}, mempool.TxInfo{
-				SenderID:    n.mempoolIDs.GetForPeer(tx.From),
-				SenderP2PID: corep2p.ID(tx.From),
-			})
-			if err != nil {
-				n.Logger.Error("failed to execute CheckTx", "error", err)
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (n *Node) mempoolPublishLoop(ctx context.Context) {
-	rawMempool := n.Mempool.(*mempool.CListMempool)
-	var next *clist.CElement
-
-	for {
-		// wait for transactions
-		if next == nil {
-			select {
-			case <-rawMempool.TxsWaitChan():
-				if next = rawMempool.TxsFront(); next != nil {
-					continue
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-
-		// send transactions
-		for {
-			memTx := next.Value.(*mempool.MempoolTx)
-			tx := memTx.Tx
-
-			err := n.P2P.GossipTx(ctx, tx)
-			if err != nil {
-				n.Logger.Error("failed to gossip transaction", "error", err)
-				continue
-			}
-
-			nx := next.Next()
-			if nx == nil {
-				break
-			}
-			next = nx
-		}
-
-		select {
-		case <-next.NextWaitChan():
-			next = next.Next()
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 // OnStart is a part of Service interface.
@@ -192,14 +136,9 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
-	go n.mempoolReadLoop(n.ctx)
-	go n.mempoolPublishLoop(n.ctx)
 	if n.conf.Aggregator {
 		go n.aggregator.aggregationLoop(n.ctx)
 	}
-	n.P2P.SetTxHandler(func(tx *p2p.GossipMessage) {
-		n.incomingTxCh <- tx
-	})
 
 	return nil
 }
@@ -234,4 +173,34 @@ func (n *Node) EventBus() *lltypes.EventBus {
 // ProxyApp returns ABCI proxy connections to communicate with application.
 func (n *Node) ProxyApp() proxy.AppConns {
 	return n.proxyApp
+}
+
+// newTxValidator creates a pubsub validator that uses the node's mempool to check the
+// transaction. If the transaction is valid, then it is added to the mempool
+func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) pubsub.Validator {
+	return func(ctx context.Context, i peer.ID, m *pubsub.Message) bool {
+		logger.Debug("transaction of size %d recieved", "bytes", len(m.Data))
+		checkTxResCh := make(chan *abci.Response, 1)
+		err := pool.CheckTx(m.Data, func(resp *abci.Response) {
+			checkTxResCh <- resp
+		}, mempool.TxInfo{
+			SenderID:    poolIDs.GetForPeer(m.GetFrom()),
+			SenderP2PID: corep2p.ID(m.GetFrom()),
+		})
+		switch {
+		case errors.Is(err, mempool.ErrTxInCache):
+			return true
+		case errors.Is(err, mempool.ErrMempoolIsFull{}):
+			return true
+		case errors.Is(err, mempool.ErrTxTooLarge{}):
+			return false
+		case errors.Is(err, mempool.ErrPreCheck{}):
+			return false
+		default:
+		}
+		res := <-checkTxResCh
+		checkTxResp := res.GetCheckTx()
+
+		return checkTxResp.Code == abci.CodeTypeOK
+	}
 }

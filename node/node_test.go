@@ -6,20 +6,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/optimint/mempool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/mocks"
-	"github.com/celestiaorg/optimint/p2p"
 )
 
 // simply check that node is starting and stopping without panicking
@@ -62,11 +62,23 @@ func TestMempoolDirectly(t *testing.T) {
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
-	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx1"), From: pid}
-	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx2"), From: pid}
+	err = node.Mempool.CheckTx([]byte("tx1"), func(r *abci.Response) {}, mempool.TxInfo{
+		SenderID: node.mempoolIDs.GetForPeer(pid),
+	})
+	require.NoError(err)
+	err = node.Mempool.CheckTx([]byte("tx2"), func(r *abci.Response) {}, mempool.TxInfo{
+		SenderID: node.mempoolIDs.GetForPeer(pid),
+	})
+	require.NoError(err)
 	time.Sleep(100 * time.Millisecond)
-	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx3"), From: pid}
-	node.incomingTxCh <- &p2p.GossipMessage{Data: []byte("tx4"), From: pid}
+	err = node.Mempool.CheckTx([]byte("tx3"), func(r *abci.Response) {}, mempool.TxInfo{
+		SenderID: node.mempoolIDs.GetForPeer(pid),
+	})
+	require.NoError(err)
+	err = node.Mempool.CheckTx([]byte("tx4"), func(r *abci.Response) {}, mempool.TxInfo{
+		SenderID: node.mempoolIDs.GetForPeer(pid),
+	})
+	require.NoError(err)
 
 	time.Sleep(1 * time.Second)
 
