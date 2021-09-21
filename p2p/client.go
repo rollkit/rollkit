@@ -51,8 +51,7 @@ type Client struct {
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
 
-	txGossiper  *Gossiper
-	txValidator pubsub.Validator
+	txGossiper *Gossiper
 
 	headerGossiper *Gossiper
 
@@ -150,7 +149,7 @@ func (c *Client) SetTxHandler(handler GossipHandler) {
 }
 
 func (c *Client) SetTxValidator(val pubsub.Validator) {
-	c.txValidator = val
+	c.txGossiper.validator = val
 }
 
 // GossipHeader sends the block header to the P2P network.
@@ -267,8 +266,8 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 		return err
 	}
 
-	if c.txValidator != nil {
-		err = ps.RegisterTopicValidator(c.getTxTopic(), c.txValidator)
+	if c.txGossiper.validator != nil {
+		err = ps.RegisterTopicValidator(c.getTxTopic(), c.txGossiper.validator)
 		if err != nil {
 			return err
 		}

@@ -23,9 +23,10 @@ type GossipHandler func(*GossipMessage)
 type Gossiper struct {
 	ownId peer.ID
 
-	topic   *pubsub.Topic
-	sub     *pubsub.Subscription
-	handler GossipHandler
+	topic     *pubsub.Topic
+	sub       *pubsub.Subscription
+	handler   GossipHandler
+	validator pubsub.Validator
 
 	logger log.Logger
 }
