@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/tendermint/tendermint/proxy"
 	lltypes "github.com/tendermint/tendermint/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
@@ -58,7 +58,7 @@ func newAggregator(
 		return nil, err
 	}
 
-	proposerAddress, err := proposerKey.GetPublic().Bytes()
+	proposerAddress, err := proposerKey.GetPublic().Raw()
 	if err != nil {
 		return nil, err
 	}
