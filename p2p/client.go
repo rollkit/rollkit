@@ -51,9 +51,12 @@ type Client struct {
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
 
-	txGossiper *Gossiper
+	txGossiper  *Gossiper
+	txValidator pubsub.Validator
 
-	headerGossiper *Gossiper
+	headerGossiper  *Gossiper
+	headerValidator pubsub.Validator
+	headerHandler   GossipHandler
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -132,6 +135,7 @@ func (c *Client) Close() error {
 
 	return multierr.Combine(
 		c.txGossiper.Close(),
+		c.headerGossiper.Close(),
 		c.dht.Close(),
 		c.host.Close(),
 	)
@@ -148,8 +152,9 @@ func (c *Client) SetTxHandler(handler GossipHandler) {
 	c.txGossiper.handler = handler
 }
 
+// SetTxValidator sets the callback function, that will be invoked during message gossiping.
 func (c *Client) SetTxValidator(val pubsub.Validator) {
-	c.txGossiper.validator = val
+	c.txValidator = val
 }
 
 // GossipHeader sends the block header to the P2P network.
@@ -158,9 +163,14 @@ func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
 	return c.headerGossiper.Publish(ctx, headerBytes)
 }
 
+// SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
+func (c *Client) SetHeaderValidator(validator pubsub.Validator) {
+	c.headerValidator = validator
+}
+
 // SetHeaderHandler sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderHandler(handler GossipHandler) {
-	c.headerGossiper.handler = handler
+	c.headerHandler = handler
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -266,20 +276,14 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 		return err
 	}
 
-	if c.txGossiper.validator != nil {
-		err = ps.RegisterTopicValidator(c.getTxTopic(), c.txGossiper.validator)
-		if err != nil {
-			return err
-		}
-	}
-
-	c.txGossiper, err = NewGossip(c.host, ps, c.getTxTopic(), c.logger)
+	c.txGossiper, err = NewGossiper(c.host, ps, c.getTxTopic(), c.logger, WithValidator(c.txValidator))
 	if err != nil {
 		return err
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossip(c.host, ps, c.getHeaderTopic(), c.logger)
+	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger,
+		WithValidator(c.headerValidator), WithHandler(c.headerHandler))
 	if err != nil {
 		return err
 	}

@@ -104,6 +104,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	txValidator := newTxValidator(mp, mpIDs, logger)
 	client.SetTxValidator(txValidator)
+	client.SetHeaderValidator(newHeaderValidator(logger))
 
 	var aggregator *aggregator = nil
 	if conf.Aggregator {
@@ -137,18 +138,13 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 	for {
 		select {
 		case headerMsg := <-n.incomingHeaderCh:
-			n.Logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
 			var header types.Header
 			err := header.UnmarshalBinary(headerMsg.Data)
 			if err != nil {
 				n.Logger.Error("failed to deserialize header", "error", err)
 				continue
 			}
-			err = header.ValidateBasic()
-			if err != nil {
-				n.Logger.Error("failed to validate header", "error", err)
-				continue
-			}
+			// header is already validated during libp2p pubsub validation phase
 			hash := header.Hash()
 			n.Logger.Debug("header details", "height", header.Height, "hash", hash, "lastHeaderHash", header.LastHeaderHash)
 
@@ -270,5 +266,23 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 		checkTxResp := res.GetCheckTx()
 
 		return checkTxResp.Code == abci.CodeTypeOK
+	}
+}
+
+func newHeaderValidator(logger log.Logger) pubsub.Validator {
+	return func(ctx context.Context, id peer.ID, headerMsg *pubsub.Message) bool {
+		logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
+		var header types.Header
+		err := header.UnmarshalBinary(headerMsg.Data)
+		if err != nil {
+			logger.Error("failed to deserialize header", "error", err)
+			return false
+		}
+		err = header.ValidateBasic()
+		if err != nil {
+			logger.Error("failed to validate header", "error", err)
+			return false
+		}
+		return true
 	}
 }
