@@ -51,10 +51,10 @@ type Client struct {
 	dht  *dht.IpfsDHT
 	disc *discovery.RoutingDiscovery
 
-	txGossip    *Gossip
+	txGossiper  *Gossiper
 	txValidator pubsub.Validator
 
-	headerGossip *Gossip
+	headerGossiper *Gossiper
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -132,7 +132,7 @@ func (c *Client) Close() error {
 	c.cancel()
 
 	return multierr.Combine(
-		c.txGossip.Close(),
+		c.txGossiper.Close(),
 		c.dht.Close(),
 		c.host.Close(),
 	)
@@ -141,12 +141,12 @@ func (c *Client) Close() error {
 // GossipTx sends the transaction to the P2P network.
 func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 	c.logger.Debug("Gossiping TX", "len", len(tx))
-	return c.txGossip.Publish(ctx, tx)
+	return c.txGossiper.Publish(ctx, tx)
 }
 
 // SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
 func (c *Client) SetTxHandler(handler GossipHandler) {
-	c.txGossip.handler = handler
+	c.txGossiper.handler = handler
 }
 
 func (c *Client) SetTxValidator(val pubsub.Validator) {
@@ -156,12 +156,12 @@ func (c *Client) SetTxValidator(val pubsub.Validator) {
 // GossipHeader sends the block header to the P2P network.
 func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
 	c.logger.Debug("Gossiping block header", "len", len(headerBytes))
-	return c.headerGossip.Publish(ctx, headerBytes)
+	return c.headerGossiper.Publish(ctx, headerBytes)
 }
 
 // SetHeaderHandler sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderHandler(handler GossipHandler) {
-	c.headerGossip.handler = handler
+	c.headerGossiper.handler = handler
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
@@ -274,17 +274,17 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 		}
 	}
 
-	c.txGossip, err = NewGossip(c.host, ps, c.getTxTopic(), c.logger)
+	c.txGossiper, err = NewGossip(c.host, ps, c.getTxTopic(), c.logger)
 	if err != nil {
 		return err
 	}
-	go c.txGossip.ProcessMessages(ctx)
+	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossip, err = NewGossip(c.host, ps, c.getHeaderTopic(), c.logger)
+	c.headerGossiper, err = NewGossip(c.host, ps, c.getHeaderTopic(), c.logger)
 	if err != nil {
 		return err
 	}
-	go c.headerGossip.ProcessMessages(ctx)
+	go c.headerGossiper.ProcessMessages(ctx)
 
 	return nil
 }

@@ -19,8 +19,8 @@ type GossipMessage struct {
 // GossipHandler is a callback function type.
 type GossipHandler func(*GossipMessage)
 
-// Gossip is an abstraction of P2P publish subscribe mechanism.
-type Gossip struct {
+// Gossiper is an abstraction of P2P publish subscribe mechanism.
+type Gossiper struct {
 	ownId peer.ID
 
 	topic   *pubsub.Topic
@@ -30,10 +30,10 @@ type Gossip struct {
 	logger log.Logger
 }
 
-// NewGossip creates new, ready to use instance of Gossip.
+// NewGossip creates new, ready to use instance of Gossiper.
 //
-// Returned Gossip object can be used for sending (Publishing) and receiving messages in topic identified by topicStr.
-func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Logger) (*Gossip, error) {
+// Returned Gossiper object can be used for sending (Publishing) and receiving messages in topic identified by topicStr.
+func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Logger) (*Gossiper, error) {
 	topic, err := ps.Join(topicStr)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Lo
 	if err != nil {
 		return nil, err
 	}
-	return &Gossip{
+	return &Gossiper{
 		ownId:   host.ID(),
 		topic:   topic,
 		sub:     subscription,
@@ -52,18 +52,18 @@ func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Lo
 	}, nil
 }
 
-func (g *Gossip) Close() error {
+func (g *Gossiper) Close() error {
 	g.sub.Cancel()
 	return g.topic.Close()
 }
 
 // Publish publishes data to gossip topic.
-func (g *Gossip) Publish(ctx context.Context, data []byte) error {
+func (g *Gossiper) Publish(ctx context.Context, data []byte) error {
 	return g.topic.Publish(ctx, data)
 }
 
 // ProcessMessages waits for messages published in the topic and execute handler.
-func (g *Gossip) ProcessMessages(ctx context.Context) {
+func (g *Gossiper) ProcessMessages(ctx context.Context) {
 	for {
 		msg, err := g.sub.Next(ctx)
 		if err != nil {
