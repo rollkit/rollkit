@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"net"
 	"strings"
 	"testing"
@@ -109,7 +108,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 			logger)
 		require.NoError(err)
 		require.NotNil(client)
-		client.SetTxValidator(func(ctx context.Context, id peer.ID, message *pubsub.Message) bool {
+		client.SetTxValidator(func(_ *GossipMessage) bool {
 			// TODO(tzdybal): consider actually validating something here
 			return true
 		})

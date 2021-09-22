@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-
 	"go.uber.org/multierr"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -21,6 +20,9 @@ type GossipMessage struct {
 // GossipHandler is a callback function type.
 type GossipHandler func(*GossipMessage)
 
+// GossipValidator is a callback function type.
+type GossipValidator func(*GossipMessage) bool
+
 // GossiperOption sets optional parameters of Gossiper.
 type GossiperOption func(*Gossiper) error
 
@@ -33,9 +35,9 @@ func WithHandler(handler GossipHandler) GossiperOption {
 }
 
 // WithValidator options registers topic validator for Gossiper.
-func WithValidator(validator pubsub.Validator) GossiperOption {
+func WithValidator(validator GossipValidator) GossiperOption {
 	return func(g *Gossiper) error {
-		return g.ps.RegisterTopicValidator(g.topic.String(), validator)
+		return g.ps.RegisterTopicValidator(g.topic.String(), wrapValidator(validator))
 	}
 }
 
@@ -112,5 +114,14 @@ func (g *Gossiper) ProcessMessages(ctx context.Context) {
 		if g.handler != nil {
 			g.handler(&GossipMessage{Data: msg.Data, From: msg.GetFrom()})
 		}
+	}
+}
+
+func wrapValidator(validator GossipValidator) pubsub.Validator {
+	return func(_ context.Context, _ peer.ID, msg *pubsub.Message) bool {
+		return validator(&GossipMessage{
+			Data: msg.Data,
+			From: msg.GetFrom(),
+		})
 	}
 }

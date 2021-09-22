@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
@@ -241,15 +239,15 @@ func (n *Node) ProxyApp() proxy.AppConns {
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
 // transaction. If the transaction is valid, then it is added to the mempool
-func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) pubsub.Validator {
-	return func(ctx context.Context, i peer.ID, m *pubsub.Message) bool {
+func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) p2p.GossipValidator {
+	return func(m *p2p.GossipMessage) bool {
 		logger.Debug("transaction of size %d recieved", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
 		err := pool.CheckTx(m.Data, func(resp *abci.Response) {
 			checkTxResCh <- resp
 		}, mempool.TxInfo{
-			SenderID:    poolIDs.GetForPeer(m.GetFrom()),
-			SenderP2PID: corep2p.ID(m.GetFrom()),
+			SenderID:    poolIDs.GetForPeer(m.From),
+			SenderP2PID: corep2p.ID(m.From),
 		})
 		switch {
 		case errors.Is(err, mempool.ErrTxInCache):
@@ -269,8 +267,8 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 	}
 }
 
-func newHeaderValidator(logger log.Logger) pubsub.Validator {
-	return func(ctx context.Context, id peer.ID, headerMsg *pubsub.Message) bool {
+func newHeaderValidator(logger log.Logger) p2p.GossipValidator {
+	return func(headerMsg *p2p.GossipMessage) bool {
 		logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
 		var header types.Header
 		err := header.UnmarshalBinary(headerMsg.Data)

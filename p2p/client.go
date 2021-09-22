@@ -52,10 +52,10 @@ type Client struct {
 	disc *discovery.RoutingDiscovery
 
 	txGossiper  *Gossiper
-	txValidator pubsub.Validator
+	txValidator GossipValidator
 
 	headerGossiper  *Gossiper
-	headerValidator pubsub.Validator
+	headerValidator GossipValidator
 	headerHandler   GossipHandler
 
 	// cancel is used to cancel context passed to libp2p functions
@@ -153,7 +153,7 @@ func (c *Client) SetTxHandler(handler GossipHandler) {
 }
 
 // SetTxValidator sets the callback function, that will be invoked during message gossiping.
-func (c *Client) SetTxValidator(val pubsub.Validator) {
+func (c *Client) SetTxValidator(val GossipValidator) {
 	c.txValidator = val
 }
 
@@ -164,7 +164,7 @@ func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
 }
 
 // SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
-func (c *Client) SetHeaderValidator(validator pubsub.Validator) {
+func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
 }
 
