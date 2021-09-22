@@ -112,7 +112,7 @@ func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) (*N
 		keys[n],
 		proxy.NewLocalClientCreator(app),
 		&types.GenesisDoc{ChainID: "test"},
-		log.TestingLogger())
+		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
 

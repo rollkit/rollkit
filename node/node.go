@@ -241,7 +241,7 @@ func (n *Node) ProxyApp() proxy.AppConns {
 // transaction. If the transaction is valid, then it is added to the mempool
 func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) p2p.GossipValidator {
 	return func(m *p2p.GossipMessage) bool {
-		logger.Debug("transaction of size %d recieved", "bytes", len(m.Data))
+		logger.Debug("transaction received", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
 		err := pool.CheckTx(m.Data, func(resp *abci.Response) {
 			checkTxResCh <- resp
