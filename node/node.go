@@ -86,7 +86,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
 	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
 
-	store := store.New(mainKV)
+	s := store.New(mainKV)
 
 	dalc := registry.GetClient(conf.DALayer)
 	if dalc == nil {
@@ -106,7 +106,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	var aggregator *aggregator = nil
 	if conf.Aggregator {
-		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
+		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
 		if err != nil {
 			return nil, fmt.Errorf("aggregator initialization error: %w", err)
 		}
@@ -124,7 +124,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		mempoolIDs:       mpIDs,
 		incomingTxCh:     make(chan *p2p.GossipMessage),
 		incomingHeaderCh: make(chan *p2p.GossipMessage),
-		Store:            store,
+		Store:            s,
 		ctx:              ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -156,8 +156,7 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 			case da.StatusTimeout:
 			default:
 			}
-			// TODO(tzdybal): this is so wrong!
-			//n.aggregator.executor.ApplyBlock(ctx, n.aggregator.lastState, block)
+			// TODO(tzdybal): actually apply block
 			n.Logger.Debug("full block", "block", block)
 		case <-ctx.Done():
 			break
@@ -201,6 +200,7 @@ func (n *Node) OnStart() error {
 	n.P2P.SetHeaderHandler(func(header *p2p.GossipMessage) {
 		n.incomingHeaderCh <- header
 	})
+	go n.headerReadLoop(n.ctx)
 
 	return nil
 }
