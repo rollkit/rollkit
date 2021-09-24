@@ -255,11 +255,6 @@ func (l *Local) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
 	panic("Genesis - not implemented!")
 }
 
-func (l *Local) GenesisChunked(context.Context, uint) (*ctypes.ResultGenesisChunk, error) {
-	// needs genesis provider
-	panic("GenesisChunked - not implemented!")
-}
-
 func (l *Local) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	// needs block store
 	panic("BlockchainInfo - not implemented!")
@@ -321,12 +316,6 @@ func (l *Local) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.Result
 func (l *Local) TxSearch(ctx context.Context, query string, prove bool, page, perPage *int, orderBy string) (*ctypes.ResultTxSearch, error) {
 	// needs block store
 	panic("TxSearch - not implemented!")
-}
-
-// BlockSearch defines a method to search for a paginated set of blocks by
-// BeginBlock and EndBlock event search criteria.
-func (l *Local) BlockSearch(ctx context.Context, query string, page, perPage *int, orderBy string) (*ctypes.ResultBlockSearch, error) {
-	panic("BlockSearch - not implemented!")
 }
 
 func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
