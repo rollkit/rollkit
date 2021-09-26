@@ -1,6 +1,9 @@
 package store
 
-import "github.com/dgraph-io/badger/v3"
+import (
+	"github.com/dgraph-io/badger/v3"
+	"path/filepath"
+)
 
 // KVStore encapsulates key-value store abstraction, in minimalistic interface.
 //
@@ -20,4 +23,23 @@ func NewInMemoryKVStore() KVStore {
 	return &BadgerKV{
 		db: db,
 	}
+}
+
+func NewKVStore(rootDir, dbPath, dbName string) KVStore {
+	path := filepath.Join(rootify(rootDir, dbPath), dbName)
+	db, err := badger.Open(badger.DefaultOptions(path))
+	if err != nil {
+		panic(err)
+	}
+	return &BadgerKV{
+		db: db,
+	}
+}
+
+// rootify works just like in cosmos-sdk
+func rootify(rootDir, dbPath string) string {
+	if filepath.IsAbs(dbPath) {
+		return dbPath
+	}
+	return filepath.Join(rootDir, dbPath)
 }

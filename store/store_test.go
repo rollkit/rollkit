@@ -2,6 +2,7 @@ package store
 
 import (
 	"math/rand"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,32 +71,43 @@ func TestBlockstoreLoad(t *testing.T) {
 		}},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
-			require := require.New(t)
+	tmpDir, err := os.MkdirTemp("", "optimint_test")
+	require.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		if err != nil {
+			t.Log("failed to remove temporary directory", err)
+		}
+	}()
 
-			bstore := New(NewInMemoryKVStore())
+	for _, kv := range []KVStore{NewInMemoryKVStore(), NewKVStore(tmpDir, "db", "test")} {
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				assert := assert.New(t)
+				require := require.New(t)
 
-			for _, block := range c.blocks {
-				err := bstore.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: block.Header.Hash()})
-				require.NoError(err)
-			}
+				bstore := New(kv)
 
-			for _, expected := range c.blocks {
-				block, err := bstore.LoadBlock(expected.Header.Height)
-				assert.NoError(err)
-				assert.NotNil(block)
-				assert.Equal(expected, block)
+				for _, block := range c.blocks {
+					err := bstore.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: block.Header.Hash()})
+					require.NoError(err)
+				}
 
-				commit, err := bstore.LoadCommit(expected.Header.Height)
-				assert.NoError(err)
-				assert.NotNil(commit)
-				assert.Equal(expected.Header.Height, commit.Height)
-				headerHash := expected.Header.Hash()
-				assert.Equal(headerHash, commit.HeaderHash)
-			}
-		})
+				for _, expected := range c.blocks {
+					block, err := bstore.LoadBlock(expected.Header.Height)
+					assert.NoError(err)
+					assert.NotNil(block)
+					assert.Equal(expected, block)
+
+					commit, err := bstore.LoadCommit(expected.Header.Height)
+					assert.NoError(err)
+					assert.NotNil(commit)
+					assert.Equal(expected.Header.Height, commit.Height)
+					headerHash := expected.Header.Hash()
+					assert.Equal(headerHash, commit.HeaderHash)
+				}
+			})
+		}
 	}
 }
 
