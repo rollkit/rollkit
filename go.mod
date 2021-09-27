@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.13
 	go.uber.org/multierr v1.7.0
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.41.0
 )
 
 replace (
