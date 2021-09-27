@@ -1,8 +1,9 @@
 package store
 
 import (
-	"github.com/dgraph-io/badger/v3"
 	"path/filepath"
+
+	"github.com/dgraph-io/badger/v3"
 )
 
 // KVStore encapsulates key-value store abstraction, in minimalistic interface.
