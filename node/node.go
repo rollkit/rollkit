@@ -76,8 +76,12 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		return nil, err
 	}
 
-	// TODO(tzdybal): change after implementing https://github.com/celestiaorg/optimint/issues/67
-	baseKV := store.NewInMemoryKVStore()
+	var baseKV store.KVStore
+	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+		baseKV = store.NewInMemoryKVStore()
+	} else {
+		baseKV = store.NewKVStore(conf.RootDir, conf.DBPath, "optimint")
+	}
 	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
 	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
 

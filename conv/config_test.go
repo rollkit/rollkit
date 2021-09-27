@@ -20,6 +20,8 @@ func TestGetNodeConfig(t *testing.T) {
 		{"empty", nil, config.NodeConfig{}},
 		{"Seeds", &tmcfg.Config{P2P: &tmcfg.P2PConfig{Seeds: "seeds"}}, config.NodeConfig{P2P: config.P2PConfig{Seeds: "seeds"}}},
 		{"ListenAddress", &tmcfg.Config{P2P: &tmcfg.P2PConfig{ListenAddress: "127.0.0.1:7676"}}, config.NodeConfig{P2P: config.P2PConfig{ListenAddress: "127.0.0.1:7676"}}},
+		{"RootDir", &tmcfg.Config{BaseConfig: tmcfg.BaseConfig{RootDir: "~/root"}}, config.NodeConfig{RootDir: "~/root"}},
+		{"DBPath", &tmcfg.Config{BaseConfig: tmcfg.BaseConfig{DBPath: "./database"}}, config.NodeConfig{DBPath: "./database"}},
 	}
 
 	for _, c := range cases {

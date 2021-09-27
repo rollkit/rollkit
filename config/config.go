@@ -4,6 +4,8 @@ import "time"
 
 // NodeConfig stores Optimint node configuration.
 type NodeConfig struct {
+	RootDir    string
+	DBPath     string
 	P2P        P2PConfig
 	Aggregator bool
 	AggregatorConfig
