@@ -1,4 +1,4 @@
-package mock
+package test
 
 import (
 	"math/rand"
@@ -8,28 +8,41 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/log/test"
 	"github.com/celestiaorg/optimint/types"
 )
 
 func TestLifecycle(t *testing.T) {
-	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
+	for _, dalc := range registry.RegisteredClients() {
+		t.Run(dalc, func(t *testing.T) {
+			doTestLifecycle(t, registry.GetClient(dalc))
+		})
+	}
+}
 
+func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := da.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
 	require.NoError(err)
 
-	err = da.Start()
+	err = dalc.Start()
 	require.NoError(err)
 
-	err = da.Stop()
+	err = dalc.Stop()
 	require.NoError(err)
 }
 
 func TestMockDALC(t *testing.T) {
-	var dalc da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
+	for _, dalc := range registry.RegisteredClients() {
+		t.Run(dalc, func(t *testing.T) {
+			doTestDALC(t, registry.GetClient(dalc))
+		})
+	}
+}
 
+func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -65,9 +78,15 @@ func TestMockDALC(t *testing.T) {
 }
 
 func TestRetrieve(t *testing.T) {
-	mock := &MockDataAvailabilityLayerClient{}
-	var dalc da.DataAvailabilityLayerClient = mock
-	var retriever da.BlockRetriever = mock
+	for _, dalc := range registry.RegisteredClients() {
+		t.Run(dalc, func(t *testing.T) {
+			doTestRetrieve(t, registry.GetClient(dalc))
+		})
+	}
+}
+
+func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
+	retriever := dalc.(da.BlockRetriever)
 
 	require := require.New(t)
 	assert := assert.New(t)
