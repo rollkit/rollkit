@@ -168,7 +168,7 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case header := <-n.aggregator.newHeaders:
+		case header := <-n.aggregator.headerCh:
 			headerBytes, err := header.MarshalBinary()
 			if err != nil {
 				n.Logger.Error("failed to serialize block header", "error", err)

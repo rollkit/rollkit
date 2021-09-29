@@ -31,7 +31,7 @@ type aggregator struct {
 	dalc     da.DataAvailabilityLayerClient
 	executor *state.BlockExecutor
 
-	newHeaders chan *types.Header
+	headerCh chan *types.Header
 
 	logger log.Logger
 }
@@ -75,7 +75,7 @@ func newAggregator(
 		store:       store,
 		executor:    exec,
 		dalc:        dalc,
-		newHeaders:  make(chan *types.Header),
+		headerCh:  make(chan *types.Header),
 		logger:      logger,
 	}
 
@@ -166,7 +166,7 @@ func (a *aggregator) broadcastBlock(ctx context.Context, block *types.Block) err
 		return fmt.Errorf("DA layer submission failed: %s", res.Message)
 	}
 
-	a.newHeaders <- &block.Header
+	a.headerCh <- &block.Header
 
 	return nil
 }
