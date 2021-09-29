@@ -16,3 +16,11 @@ var clients = map[string]func() da.DataAvailabilityLayerClient{
 func GetClient(name string) da.DataAvailabilityLayerClient {
 	return clients[name]()
 }
+
+func RegisteredClients() []string {
+	registered := make([]string, 0, len(clients))
+	for name, _ := range clients {
+		registered = append(registered, name)
+	}
+	return registered
+}
