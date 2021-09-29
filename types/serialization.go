@@ -12,16 +12,6 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	return b.ToProto().Marshal()
 }
 
-// MarshalBinary encodes Header into binary form and returns it.
-func (h *Header) MarshalBinary() ([]byte, error) {
-	return h.ToProto().Marshal()
-}
-
-// MarshalBinary encodes Data into binary form and returns it.
-func (d *Data) MarshalBinary() ([]byte, error) {
-	return d.ToProto().Marshal()
-}
-
 // UnmarshalBinary decodes binary form of Block into object.
 func (b *Block) UnmarshalBinary(data []byte) error {
 	var pBlock pb.Block
@@ -31,6 +21,27 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 	}
 	err = b.FromProto(&pBlock)
 	return err
+}
+
+// MarshalBinary encodes Header into binary form and returns it.
+func (h *Header) MarshalBinary() ([]byte, error) {
+	return h.ToProto().Marshal()
+}
+
+// UnmarshalBinary decodes binary form of Header into object.
+func (h *Header) UnmarshalBinary(data []byte) error {
+	var pHeader pb.Header
+	err := pHeader.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	err = h.FromProto(&pHeader)
+	return err
+}
+
+// MarshalBinary encodes Data into binary form and returns it.
+func (d *Data) MarshalBinary() ([]byte, error) {
+	return d.ToProto().Marshal()
 }
 
 // MarshalBinary encodes Commit into binary form and returns it.

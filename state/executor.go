@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-// BlockExecutor creates and applies blocks and maintain state.
+// BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
 	proposerAddress []byte
 	namespaceID     [8]byte

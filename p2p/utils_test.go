@@ -108,6 +108,10 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 			logger)
 		require.NoError(err)
 		require.NotNil(client)
+		client.SetTxValidator(func(_ *GossipMessage) bool {
+			// TODO(tzdybal): consider actually validating something here
+			return true
+		})
 
 		clients[i] = client
 	}
