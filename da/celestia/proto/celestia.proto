@@ -1,0 +1,35 @@
+syntax = "proto3";
+package celestia;
+
+// option go_package = "github.com/celestiaorg/optimint/da/celestia/proto";
+import "tendermint/types/types.proto";
+
+service DataRetriever {
+	rpc RetrieveShares (Request) returns (Shares) {}
+	rpc RetrieveStateRelevantMessages (Request) returns (StateRevelantMessages) {}
+	rpc RetrieveMessages (Request) returns (tendermint.types.Messages) {}
+}
+
+message DataAvailabilityHeader {
+	repeated bytes row_roots = 1;
+	repeated bytes column_roots = 2;
+}
+
+message Request {
+	// NamespaceID identifies the namespace in Celestia chain.
+	bytes namespace_id = 1;
+
+	// DataAvailabilityHeader identifies the block in Celestia chain.
+	tendermint.types.DataAvailabilityHeader dah = 2;
+}
+
+message Shares {
+	repeated bytes shares = 1;
+}
+
+message StateRevelantMessages {
+	repeated bytes txs = 1;
+	tendermint.types.IntermediateStateRoots intermediate_state_roots = 2;
+	tendermint.types.EvidenceList evidence = 3;
+}
+
