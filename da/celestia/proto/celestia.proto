@@ -1,7 +1,7 @@
 syntax = "proto3";
 package celestia;
 
-// option go_package = "github.com/celestiaorg/optimint/da/celestia/proto";
+option go_package = "github.com/celestiaorg/optimint/da/celestia/pb";
 import "tendermint/types/types.proto";
 
 service DataRetriever {
