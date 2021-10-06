@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -120,8 +121,7 @@ func (a *blockManager) syncLoop(ctx context.Context) {
 			newHeight := header.Height
 			currentHeight := a.store.Height()
 			if newHeight > currentHeight {
-				// TODO(tzdybal): syncTarget should be atomic
-				a.syncTarget = newHeight
+				atomic.StoreUint64(&a.syncTarget, newHeight)
 				a.retrieveCh <- newHeight
 			}
 		case block := <-a.blockInCh:
@@ -163,8 +163,8 @@ func (a *blockManager) retrieveLoop(ctx context.Context) {
 	for {
 		select {
 		case <-a.retrieveCh:
-			// TODO(tzdybal): syncTarget should be atomic
-			for h := a.store.Height() + 1; h <= a.syncTarget; h++ {
+			target := atomic.LoadUint64(&a.syncTarget)
+			for h := a.store.Height() + 1; h <= target; h++ {
 				a.logger.Debug("trying to retrieve block from DALC", "height", h)
 				a.mustRetrieveBlock(ctx, h)
 			}
