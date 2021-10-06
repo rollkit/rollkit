@@ -162,7 +162,7 @@ func (a *blockManager) syncLoop(ctx context.Context) {
 func (a *blockManager) retrieveLoop(ctx context.Context) {
 	for {
 		select {
-		case _ = <-a.retrieveCh:
+		case <-a.retrieveCh:
 			// TODO(tzdybal): syncTarget should be atomic
 			for h := a.store.Height() + 1; h <= a.syncTarget; h++ {
 				a.logger.Debug("trying to retrieve block from DALC", "height", h)
