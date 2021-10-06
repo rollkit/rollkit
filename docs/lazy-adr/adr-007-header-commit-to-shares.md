@@ -8,7 +8,7 @@
 
 1. Only [a single data root must be included in the Celestia block header](https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#header); if more than one data root is included, light nodes will not have any guarantees that the data behind the other data roots is available unless they run a separate sampling process per data root.
 1. [PayForMessaage transactions](https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#signedtransactiondatapayformessage) include a commitment of roots of subtrees of the Celestia data root. This is a requirement for compact proofs that a message was or was not included correctly.
-1. [Over the wire](https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#wiretxpayformessage), PayForMessage transactions include (potentially) multiple signatures for the same message with different layouts in the Celestia block, to allow for [non-interactive message inclusion](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules).
+1. [Over the wire](https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#wiretxpayformessage), PayForMessage transactions include (potentially) multiple signatures for the same message with different sizes of Celestia block, to allow for [non-interactive message inclusion](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules).
 
 Rollup blocks must follow a similar strategy to the above. Specifically, the data root in rollup block headers [must commit to subtree roots in the Celestia data root](https://github.com/celestiaorg/optimint/issues/133), otherwise rollup nodes would not have any guarantees that the data behind the data root in a rollup block header is available.
 
@@ -28,16 +28,21 @@ A different message can be includes per witness for PayForMessage transactions o
 
 ### Alternative 3: Auction Off Rows Instead of Shares
 
-Instead of auctioning off individual shares, rows can be auctioned off entirely. In other words, only a single message can be included per row (though a message may span more than one row), and always begins at the start of a row. As a consequence, the layout of each message is known, and there is no longer a need for multiple witnesses or messages in each PayForMessage over the wire. This will also simplify various codepaths that no longer need to account for the potential of multiple messages and namespaces per row.
+Instead of auctioning off individual shares, rows can be auctioned off entirely. In other words, only a single message can be included per row (though a message may span more than one row), and always begins at the start of a row. This will also simplify various codepaths that no longer need to account for the potential of multiple messages and namespaces per row.
 
-This should solve the issue, but is also a design pivot. It is not yet decided whether this pivot is worth taking.
+This would not solve anything since the size of the square will still change, and is also a design pivot. It is not yet decided whether this pivot is worth taking.
+
+An alternative to this alternative would be to make the block size fixed. Combined with auctioning off rows, this would enormously simplify message inclusion logic.
 
 ## Decision
 
-> This section records the decision that was made.
-> It is best to record as much info as possible from the discussion that happened. This aids in not having to go back to the Pull Request to get the needed information.
+Resolving this issue is accomplished with two components.
 
-TODO
+First, the rollup transactions are committed to _in share form and layout_ in the rollup block header, similar to the commitment in PayForMessage. For this, only rollup transactions are committed to, and begin aligned with power of 2 shares. This commitment will be different than the one in the PayForMessage transaction that pays for this message since that commits to both the rollup transactions and rollup block header. A new rollup block header and commitment is constructed for each of the different block sizes possible.
+
+To preserve the property that rollup transactions begin aligned at a power of 2 boundary, we append the rollup block header _after_ the transactions, effectively turning it into a footer. Instead of downloading the first X shares of each message to extract the header for DoS prevention, rollup nodes will instead download the last X shares of each message.
+
+In order to avoid having to include many different messages with PayForMessage over the wire, we modify the WirePayForMessage structure to include a new field, `footers`. The number of footers must be equal to the number of witnesses. When verifying each witness, the associated footer is appended to the message, which combined is the effective message.
 
 ## Detailed Design
 
