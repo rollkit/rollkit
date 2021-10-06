@@ -18,13 +18,13 @@ Rollup blocks must follow a similar strategy to the above. Specifically, the dat
 
 One proposal is to simply not include any commitment to data in the rollup block header, and use the `MessageShareCommitment` field in the respective PayForMessage transaction to commit to _both_ the rollup block header and rollup block data.
 
-This may only work securely under certain scenarios, but not in the general case. Since rollup block data is not committed to in the rollup block header, is will not be signed over by the rollup block producer set (e.g. if the rollup block producers are using a Tendermint-like protocol) and can therefore be malleated by this parties.
+This may only work securely under certain scenarios, but not in the general case. Since rollup block data is not committed to in the rollup block header, it will not be signed over by the rollup block producer set (e.g. if the rollup block producers are using a Tendermint-like protocol) and can therefore be malleated by these parties.
 
 ### Alternative 2: One Message Per Layout
 
 Another proposal is having the rollup block header commit to subtree roots. However, since the layout of shares (and thus, the subtree structures) might change depending on the size of the data square, this means the message that is paid for in PayForMessage is different depending on the layout (since the message includes the rollup block header).
 
-A different message can be includes per witness for PayForMessage transactions over the wire. This would lead to unacceptably high networking overhead unfortunately, since messages are expected to be quite large individually.
+A different message can be included per witness for PayForMessage transactions over the wire. This would lead to unacceptably high networking overhead unfortunately, since messages are expected to be quite large individually.
 
 ### Alternative 3: Auction Off Rows Instead of Shares
 
