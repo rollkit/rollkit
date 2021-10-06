@@ -8,13 +8,13 @@ type NodeConfig struct {
 	DBPath     string
 	P2P        P2PConfig
 	Aggregator bool
-	AggregatorConfig
+	BlockManagerConfig
 	DALayer  string
 	DAConfig []byte
 }
 
-// AggregatorConfig consists of all parameters required by Aggregator.
-type AggregatorConfig struct {
+// BlockManagerConfig consists of all parameters required by BlockManagerConfig
+type BlockManagerConfig struct {
 	BlockTime   time.Duration
 	NamespaceID [8]byte
 }

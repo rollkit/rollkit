@@ -18,20 +18,28 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-// aggregator is responsible for aggregating transactions into blocks.
-type aggregator struct {
+// blockManager is responsible for aggregating transactions into blocks.
+type blockManager struct {
 	lastState state.State
 
-	conf    config.AggregatorConfig
+	conf    config.BlockManagerConfig
 	genesis *lltypes.GenesisDoc
 
 	proposerKey crypto.PrivKey
 
 	store    store.Store
-	dalc     da.DataAvailabilityLayerClient
 	executor *state.BlockExecutor
 
-	headerCh chan *types.Header
+	dalc      da.DataAvailabilityLayerClient
+	retriever da.BlockRetriever
+
+	headerOutCh chan *types.Header
+	headerInCh  chan *types.Header
+
+	syncTarget uint64
+	blockInCh  chan *types.Block
+	retrieveCh chan uint64
+	syncCache  map[uint64]*types.Block
 
 	logger log.Logger
 }
@@ -45,16 +53,16 @@ func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.Stat
 	return s, err
 }
 
-func newAggregator(
+func newBlockManager(
 	proposerKey crypto.PrivKey,
-	conf config.AggregatorConfig,
+	conf config.BlockManagerConfig,
 	genesis *lltypes.GenesisDoc,
 	store store.Store,
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,
 	dalc da.DataAvailabilityLayerClient,
 	logger log.Logger,
-) (*aggregator, error) {
+) (*blockManager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
 		return nil, err
@@ -67,7 +75,7 @@ func newAggregator(
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, mempool, proxyApp, logger)
 
-	agg := &aggregator{
+	agg := &blockManager{
 		proposerKey: proposerKey,
 		conf:        conf,
 		genesis:     genesis,
@@ -75,14 +83,19 @@ func newAggregator(
 		store:       store,
 		executor:    exec,
 		dalc:        dalc,
-		headerCh:  make(chan *types.Header),
+		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
+		headerOutCh: make(chan *types.Header),
+		headerInCh:  make(chan *types.Header),
+		blockInCh:   make(chan *types.Block),
+		retrieveCh:  make(chan uint64),
+		syncCache:   make(map[uint64]*types.Block),
 		logger:      logger,
 	}
 
 	return agg, nil
 }
 
-func (a *aggregator) aggregationLoop(ctx context.Context) {
+func (a *blockManager) aggregationLoop(ctx context.Context) {
 	timer := time.NewTimer(a.conf.BlockTime)
 	for {
 		select {
@@ -99,7 +112,100 @@ func (a *aggregator) aggregationLoop(ctx context.Context) {
 	}
 }
 
-func (a *aggregator) getRemainingSleep(start time.Time) time.Duration {
+func (a *blockManager) syncLoop(ctx context.Context) {
+	for {
+		select {
+		case header := <-a.headerInCh:
+			a.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
+			newHeight := header.Height
+			currentHeight := a.store.Height()
+			if newHeight > currentHeight {
+				// TODO(tzdybal): syncTarget should be atomic
+				a.syncTarget = newHeight
+				a.retrieveCh <- newHeight
+			}
+		case block := <-a.blockInCh:
+			a.logger.Debug("block body retrieved from DALC",
+				"height", block.Header.Height,
+				"hash", block.Hash(),
+			)
+			a.syncCache[block.Header.Height] = block
+			currentHeight := a.store.Height() // TODO(tzdybal): maybe store a copy in memory
+			b1, ok1 := a.syncCache[currentHeight+1]
+			b2, ok2 := a.syncCache[currentHeight+2]
+			if ok1 && ok2 {
+				newState, _, err := a.executor.ApplyBlock(ctx, a.lastState, b1)
+				if err != nil {
+					a.logger.Error("failed to ApplyBlock", "error", err)
+					continue
+				}
+				err = a.store.SaveBlock(b1, &b2.LastCommit)
+				if err != nil {
+					a.logger.Error("failed to save block", "error", err)
+					continue
+				}
+
+				a.lastState = newState
+				err = a.store.UpdateState(a.lastState)
+				if err != nil {
+					a.logger.Error("failed to save updated state", "error", err)
+					continue
+				}
+				delete(a.syncCache, currentHeight+1)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (a *blockManager) retrieveLoop(ctx context.Context) {
+	for {
+		select {
+		case _ = <-a.retrieveCh:
+			// TODO(tzdybal): syncTarget should be atomic
+			for h := a.store.Height() + 1; h <= a.syncTarget; h++ {
+				a.logger.Debug("trying to retrieve block from DALC", "height", h)
+				a.mustRetrieveBlock(ctx, h)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (a *blockManager) mustRetrieveBlock(ctx context.Context, height uint64) {
+	// TOOD(tzdybal): extract configuration option
+	maxRetries := 10
+
+	for r := 0; r < maxRetries; r++ {
+		err := a.fetchBlock(ctx, height)
+		if err == nil {
+			return
+		}
+		// TODO(tzdybal): configuration option
+		// TODO(tzdybal): exponential backoff
+		time.Sleep(100 * time.Millisecond)
+	}
+	// TODO(tzdybal): this is only temporary solution, for MVP
+	panic("failed to retrieve block with DALC")
+}
+
+func (a *blockManager) fetchBlock(ctx context.Context, height uint64) error {
+	var err error
+	blockRes := a.retriever.RetrieveBlock(height)
+	switch blockRes.Code {
+	case da.StatusSuccess:
+		a.blockInCh <- blockRes.Block
+	case da.StatusError:
+		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
+	case da.StatusTimeout:
+		err = fmt.Errorf("timeout during retrieve block: %s", blockRes.Message)
+	}
+	return err
+}
+
+func (a *blockManager) getRemainingSleep(start time.Time) time.Duration {
 	publishingDuration := time.Since(start)
 	sleepDuration := a.conf.BlockTime - publishingDuration
 	if sleepDuration < 0 {
@@ -108,9 +214,7 @@ func (a *aggregator) getRemainingSleep(start time.Time) time.Duration {
 	return sleepDuration
 }
 
-func (a *aggregator) publishBlock(ctx context.Context) error {
-	a.logger.Info("Creating and publishing block", "height", a.store.Height())
-
+func (a *blockManager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
 	var err error
 	newHeight := a.store.Height() + 1
@@ -124,6 +228,8 @@ func (a *aggregator) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
 	}
+
+	a.logger.Info("Creating and publishing block", "height", newHeight)
 
 	block := a.executor.CreateBlock(newHeight, lastCommit, a.lastState)
 	a.logger.Debug("block info", "num_tx", len(block.Data.Txs))
@@ -160,13 +266,13 @@ func (a *aggregator) publishBlock(ctx context.Context) error {
 	return a.broadcastBlock(ctx, block)
 }
 
-func (a *aggregator) broadcastBlock(ctx context.Context, block *types.Block) error {
+func (a *blockManager) broadcastBlock(ctx context.Context, block *types.Block) error {
 	res := a.dalc.SubmitBlock(block)
 	if res.Code != da.StatusSuccess {
 		return fmt.Errorf("DA layer submission failed: %s", res.Message)
 	}
 
-	a.headerCh <- &block.Header
+	a.headerOutCh <- &block.Header
 
 	return nil
 }

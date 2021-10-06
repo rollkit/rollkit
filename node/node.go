@@ -49,9 +49,9 @@ type Node struct {
 
 	incomingHeaderCh chan *p2p.GossipMessage
 
-	Store      store.Store
-	aggregator *aggregator
-	dalc       da.DataAvailabilityLayerClient
+	Store        store.Store
+	blockManager *blockManager
+	dalc         da.DataAvailabilityLayerClient
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -105,12 +105,9 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	client.SetTxValidator(txValidator)
 	client.SetHeaderValidator(newHeaderValidator(logger))
 
-	var aggregator *aggregator = nil
-	if conf.Aggregator {
-		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
-		if err != nil {
-			return nil, fmt.Errorf("aggregator initialization error: %w", err)
-		}
+	blockManager, err := newBlockManager(nodeKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "BlockManager"))
+	if err != nil {
+		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	node := &Node{
@@ -119,7 +116,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		genesis:          genesis,
 		conf:             conf,
 		P2P:              client,
-		aggregator:       aggregator,
+		blockManager:     blockManager,
 		dalc:             dalc,
 		Mempool:          mp,
 		mempoolIDs:       mpIDs,
@@ -128,6 +125,10 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		Store:            s,
 		ctx:              ctx,
 	}
+	node.P2P.SetHeaderHandler(func(msg *p2p.GossipMessage) {
+		node.incomingHeaderCh <- msg
+	})
+
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
@@ -137,28 +138,14 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 	for {
 		select {
 		case headerMsg := <-n.incomingHeaderCh:
+			n.Logger.Info("tzdybal")
 			var header types.Header
 			err := header.UnmarshalBinary(headerMsg.Data)
 			if err != nil {
 				n.Logger.Error("failed to deserialize header", "error", err)
 				continue
 			}
-			// header is already validated during libp2p pubsub validation phase
-			hash := header.Hash()
-			n.Logger.Debug("header details", "height", header.Height, "hash", hash, "lastHeaderHash", header.LastHeaderHash)
-
-			// TODO(tzdybal): this is simplified version for MVP - blocks are fetched only via DALC
-			blockRes := n.dalc.(da.BlockRetriever).RetrieveBlock(header.Height)
-			var block *types.Block
-			switch blockRes.Code {
-			case da.StatusSuccess:
-				block = blockRes.Block
-			case da.StatusError:
-			case da.StatusTimeout:
-			default:
-			}
-			// TODO(tzdybal): actually apply block
-			n.Logger.Debug("full block", "block", block)
+			n.blockManager.headerInCh <- &header
 		case <-ctx.Done():
 			break
 		}
@@ -168,7 +155,7 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case header := <-n.aggregator.headerCh:
+		case header := <-n.blockManager.headerOutCh:
 			headerBytes, err := header.MarshalBinary()
 			if err != nil {
 				n.Logger.Error("failed to serialize block header", "error", err)
@@ -195,12 +182,12 @@ func (n *Node) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	if n.conf.Aggregator {
-		go n.aggregator.aggregationLoop(n.ctx)
+		go n.blockManager.aggregationLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 	}
-	n.P2P.SetHeaderHandler(func(header *p2p.GossipMessage) {
-		n.incomingHeaderCh <- header
-	})
+	go n.blockManager.retrieveLoop(n.ctx)
+	go n.blockManager.syncLoop(n.ctx)
+
 	go n.headerReadLoop(n.ctx)
 
 	return nil

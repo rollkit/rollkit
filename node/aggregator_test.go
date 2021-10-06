@@ -7,17 +7,19 @@ import (
 	"testing"
 	"time"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/da"
+	mockda "github.com/celestiaorg/optimint/da/mock"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/p2p"
 	"github.com/celestiaorg/optimint/state"
@@ -38,11 +40,11 @@ func TestAggregatorMode(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
-	aggregatorConfig := config.AggregatorConfig{
+	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   500 * time.Millisecond,
 		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, AggregatorConfig: aggregatorConfig}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -118,7 +120,7 @@ func TestInitialState(t *testing.T) {
 	}
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	conf := config.AggregatorConfig{
+	conf := config.BlockManagerConfig{
 		BlockTime:   10 * time.Second,
 		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 	}
@@ -126,7 +128,9 @@ func TestInitialState(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			agg, err := newAggregator(key, conf, c.genesis, c.store, nil, nil, nil, log.TestingLogger())
+			logger := log.TestingLogger()
+			dalc := getMockDALC(logger)
+			agg, err := newBlockManager(key, conf, c.genesis, c.store, nil, nil, dalc, logger)
 			assert.NoError(err)
 			assert.NotNil(agg)
 			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
@@ -134,4 +138,11 @@ func TestInitialState(t *testing.T) {
 			assert.Equal(c.expectedLastBlockHeight, agg.lastState.LastBlockHeight)
 		})
 	}
+}
+
+func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
+	dalc := &mockda.MockDataAvailabilityLayerClient{}
+	dalc.Init(nil, nil, logger)
+	dalc.Start()
+	return dalc
 }

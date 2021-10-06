@@ -18,6 +18,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/mocks"
 )
 
@@ -60,15 +61,16 @@ func createNodes(num int, t *testing.T) ([]*Node, *mocks.Application) {
 
 	nodes := make([]*Node, num)
 	var aggApp *mocks.Application
-	nodes[0], aggApp = createNode(0, true, keys, t)
+	dalc := getMockDALC(log.TestingLogger())
+	nodes[0], aggApp = createNode(0, true, dalc, keys, t)
 	for i := 1; i < num; i++ {
-		nodes[i], _ = createNode(i, false, keys, t)
+		nodes[i], _ = createNode(i, false, dalc, keys, t)
 	}
 
 	return nodes, aggApp
 }
 
-func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) (*Node, *mocks.Application) {
+func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, t *testing.T) (*Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -77,7 +79,7 @@ func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) (*N
 	p2pConfig := config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
-	aggConfig := config.AggregatorConfig{
+	bmConfig := config.BlockManagerConfig{
 		BlockTime:   200 * time.Millisecond,
 		NamespaceID: [8]byte{8, 7, 6, 5, 4, 3, 2, 1},
 	}
@@ -94,20 +96,18 @@ func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) (*N
 
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	if aggregator {
-		app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-		app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-		app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	}
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 
 	node, err := NewNode(
 		context.Background(),
 		config.NodeConfig{
-			P2P:              p2pConfig,
-			DALayer:          "mock",
-			Aggregator:       aggregator,
-			AggregatorConfig: aggConfig,
+			P2P:                p2pConfig,
+			DALayer:            "mock",
+			Aggregator:         aggregator,
+			BlockManagerConfig: bmConfig,
 		},
 		keys[n],
 		proxy.NewLocalClientCreator(app),
@@ -115,6 +115,11 @@ func createNode(n int, aggregator bool, keys []crypto.PrivKey, t *testing.T) (*N
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
+
+	// use same, common DALC, so nodes can share data
+	node.dalc = dalc
+	node.blockManager.dalc = dalc
+	node.blockManager.retriever = dalc.(da.BlockRetriever)
 
 	return node, app
 }
