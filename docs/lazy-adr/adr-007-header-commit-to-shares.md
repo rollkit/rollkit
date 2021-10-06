@@ -44,6 +44,8 @@ To preserve the property that rollup transactions begin aligned at a power of 2 
 
 In order to avoid having to include many different messages with PayForMessage over the wire, we modify the WirePayForMessage structure to include a new field, `footers`. The number of footers must be equal to the number of witnesses. When verifying each witness, the associated footer is appended to the message, which combined is the effective message.
 
+![Proposal.](figures/header_shares_commit.jpg)
+
 ## Detailed Design
 
 TODO
