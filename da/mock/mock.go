@@ -1,8 +1,6 @@
 package mock
 
 import (
-	"sync"
-
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
@@ -17,19 +15,18 @@ type MockDataAvailabilityLayerClient struct {
 	Blocks     map[[32]byte]*types.Block
 	BlockIndex map[uint64][32]byte
 
-	mtx sync.Mutex
+	dalcKV *store.PrefixKV
 }
 
 var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &MockDataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *MockDataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
+func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV *store.PrefixKV, logger log.Logger) error {
 	m.logger = logger
 	m.Blocks = make(map[[32]byte]*types.Block)
 	m.BlockIndex = make(map[uint64][32]byte)
+	m.dalcKV = dalcKV
 	return nil
 }
 
@@ -49,8 +46,6 @@ func (m *MockDataAvailabilityLayerClient) Stop() error {
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
 func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
 	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height)
 
 	hash := block.Header.Hash()
@@ -67,19 +62,12 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
 func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
 	_, ok := m.Blocks[header.Hash()]
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: ok}
 }
 
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	hash, ok := m.BlockIndex[height]
-	if !ok {
-		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError}}
-	}
+	hash := m.BlockIndex[height]
 	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Block: m.Blocks[hash]}
 }
