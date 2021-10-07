@@ -139,7 +139,6 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 	for {
 		select {
 		case headerMsg := <-n.incomingHeaderCh:
-			n.Logger.Info("tzdybal")
 			var header types.Header
 			err := header.UnmarshalBinary(headerMsg.Data)
 			if err != nil {

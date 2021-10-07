@@ -79,9 +79,10 @@ func TestAggregatorMode(t *testing.T) {
 // TestTxGossipingAndAggregation setups a network of nodes, with single aggregator and multiple producers.
 // Nodes should gossip transactions and aggregator node should produce blocks.
 func TestTxGossipingAndAggregation(t *testing.T) {
+	assert := assert.New(t)
 	require := require.New(t)
 
-	nodes, aggApp := createNodes(11, t)
+	nodes, apps := createNodes(11, t)
 
 	for _, n := range nodes {
 		require.NoError(n.Start())
@@ -99,12 +100,48 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	for _, n := range nodes {
 		require.NoError(n.Stop())
 	}
+	aggApp := apps[0]
+	apps = apps[1:]
 
 	aggApp.AssertNumberOfCalls(t, "DeliverTx", 10)
 	aggApp.AssertExpectations(t)
+
+	for i, app := range apps {
+		app.AssertNumberOfCalls(t, "DeliverTx", 10)
+		app.AssertExpectations(t)
+
+		// assert that we have most of the blocks from aggregator
+		beginCnt := 0
+		endCnt := 0
+		commitCnt := 0
+		for _, call := range app.Calls {
+			switch call.Method {
+			case "BeginBlock":
+				beginCnt++
+			case "EndBlock":
+				endCnt++
+			case "Commit":
+				commitCnt++
+			}
+		}
+		aggregatorHeight := nodes[0].Store.Height()
+		adjustedHeight := int(aggregatorHeight - 3) // 3 is completely arbitrary
+		assert.GreaterOrEqual(beginCnt, adjustedHeight)
+		assert.GreaterOrEqual(endCnt, adjustedHeight)
+		assert.GreaterOrEqual(commitCnt, adjustedHeight)
+
+		// assert that all blocks known to node are same as produced by aggregator
+		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
+			nodeBlock, err := nodes[i].Store.LoadBlock(h)
+			require.NoError(err)
+			aggBlock, err := nodes[0].Store.LoadBlock(h)
+			require.NoError(err)
+			assert.Equal(aggBlock, nodeBlock)
+		}
+	}
 }
 
-func createNodes(num int, t *testing.T) ([]*Node, *mocks.Application) {
+func createNodes(num int, t *testing.T) ([]*Node, []*mocks.Application) {
 	t.Helper()
 
 	// create keys first, as they are required for P2P connections
@@ -114,16 +151,16 @@ func createNodes(num int, t *testing.T) ([]*Node, *mocks.Application) {
 	}
 
 	nodes := make([]*Node, num)
-	var aggApp *mocks.Application
+	apps := make([]*mocks.Application, num)
 	dalc := &mockda.MockDataAvailabilityLayerClient{}
 	_ = dalc.Init(nil, nil, log.TestingLogger())
 	_ = dalc.Start()
-	nodes[0], aggApp = createNode(0, true, dalc, keys, t)
+	nodes[0], apps[0] = createNode(0, true, dalc, keys, t)
 	for i := 1; i < num; i++ {
-		nodes[i], _ = createNode(i, false, dalc, keys, t)
+		nodes[i], apps[i] = createNode(i, false, dalc, keys, t)
 	}
 
-	return nodes, aggApp
+	return nodes, apps
 }
 
 func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, t *testing.T) (*Node, *mocks.Application) {
