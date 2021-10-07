@@ -1,4 +1,4 @@
-package node
+package block
 
 import (
 	"context"
@@ -19,8 +19,8 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-// blockManager is responsible for aggregating transactions into blocks.
-type blockManager struct {
+// Manager is responsible for aggregating transactions into blocks.
+type Manager struct {
 	lastState state.State
 
 	conf    config.BlockManagerConfig
@@ -34,8 +34,8 @@ type blockManager struct {
 	dalc      da.DataAvailabilityLayerClient
 	retriever da.BlockRetriever
 
-	headerOutCh chan *types.Header
-	headerInCh  chan *types.Header
+	HeaderOutCh chan *types.Header
+	HeaderInCh  chan *types.Header
 
 	syncTarget uint64
 	blockInCh  chan *types.Block
@@ -54,7 +54,7 @@ func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.Stat
 	return s, err
 }
 
-func newBlockManager(
+func NewManager(
 	proposerKey crypto.PrivKey,
 	conf config.BlockManagerConfig,
 	genesis *lltypes.GenesisDoc,
@@ -63,7 +63,7 @@ func newBlockManager(
 	proxyApp proxy.AppConnConsensus,
 	dalc da.DataAvailabilityLayerClient,
 	logger log.Logger,
-) (*blockManager, error) {
+) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func newBlockManager(
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, mempool, proxyApp, logger)
 
-	agg := &blockManager{
+	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
 		genesis:     genesis,
@@ -85,8 +85,8 @@ func newBlockManager(
 		executor:    exec,
 		dalc:        dalc,
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
-		headerOutCh: make(chan *types.Header),
-		headerInCh:  make(chan *types.Header),
+		HeaderOutCh: make(chan *types.Header),
+		HeaderInCh:  make(chan *types.Header),
 		blockInCh:   make(chan *types.Block),
 		retrieveCh:  make(chan uint64),
 		syncCache:   make(map[uint64]*types.Block),
@@ -96,62 +96,67 @@ func newBlockManager(
 	return agg, nil
 }
 
-func (a *blockManager) aggregationLoop(ctx context.Context) {
-	timer := time.NewTimer(a.conf.BlockTime)
+func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
+	m.dalc = dalc
+	m.retriever = dalc.(da.BlockRetriever)
+}
+
+func (m *Manager) AggregationLoop(ctx context.Context) {
+	timer := time.NewTimer(m.conf.BlockTime)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
 			start := time.Now()
-			err := a.publishBlock(ctx)
+			err := m.publishBlock(ctx)
 			if err != nil {
-				a.logger.Error("error while publishing block", "error", err)
+				m.logger.Error("error while publishing block", "error", err)
 			}
-			timer.Reset(a.getRemainingSleep(start))
+			timer.Reset(m.getRemainingSleep(start))
 		}
 	}
 }
 
-func (a *blockManager) syncLoop(ctx context.Context) {
+func (m *Manager) SyncLoop(ctx context.Context) {
 	for {
 		select {
-		case header := <-a.headerInCh:
-			a.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
+		case header := <-m.HeaderInCh:
+			m.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
 			newHeight := header.Height
-			currentHeight := a.store.Height()
+			currentHeight := m.store.Height()
 			if newHeight > currentHeight {
-				atomic.StoreUint64(&a.syncTarget, newHeight)
-				a.retrieveCh <- newHeight
+				atomic.StoreUint64(&m.syncTarget, newHeight)
+				m.retrieveCh <- newHeight
 			}
-		case block := <-a.blockInCh:
-			a.logger.Debug("block body retrieved from DALC",
+		case block := <-m.blockInCh:
+			m.logger.Debug("block body retrieved from DALC",
 				"height", block.Header.Height,
 				"hash", block.Hash(),
 			)
-			a.syncCache[block.Header.Height] = block
-			currentHeight := a.store.Height() // TODO(tzdybal): maybe store a copy in memory
-			b1, ok1 := a.syncCache[currentHeight+1]
-			b2, ok2 := a.syncCache[currentHeight+2]
+			m.syncCache[block.Header.Height] = block
+			currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
+			b1, ok1 := m.syncCache[currentHeight+1]
+			b2, ok2 := m.syncCache[currentHeight+2]
 			if ok1 && ok2 {
-				newState, _, err := a.executor.ApplyBlock(ctx, a.lastState, b1)
+				newState, _, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 				if err != nil {
-					a.logger.Error("failed to ApplyBlock", "error", err)
+					m.logger.Error("failed to ApplyBlock", "error", err)
 					continue
 				}
-				err = a.store.SaveBlock(b1, &b2.LastCommit)
+				err = m.store.SaveBlock(b1, &b2.LastCommit)
 				if err != nil {
-					a.logger.Error("failed to save block", "error", err)
+					m.logger.Error("failed to save block", "error", err)
 					continue
 				}
 
-				a.lastState = newState
-				err = a.store.UpdateState(a.lastState)
+				m.lastState = newState
+				err = m.store.UpdateState(m.lastState)
 				if err != nil {
-					a.logger.Error("failed to save updated state", "error", err)
+					m.logger.Error("failed to save updated state", "error", err)
 					continue
 				}
-				delete(a.syncCache, currentHeight+1)
+				delete(m.syncCache, currentHeight+1)
 			}
 		case <-ctx.Done():
 			return
@@ -159,14 +164,14 @@ func (a *blockManager) syncLoop(ctx context.Context) {
 	}
 }
 
-func (a *blockManager) retrieveLoop(ctx context.Context) {
+func (m *Manager) RetrieveLoop(ctx context.Context) {
 	for {
 		select {
-		case <-a.retrieveCh:
-			target := atomic.LoadUint64(&a.syncTarget)
-			for h := a.store.Height() + 1; h <= target; h++ {
-				a.logger.Debug("trying to retrieve block from DALC", "height", h)
-				a.mustRetrieveBlock(ctx, h)
+		case <-m.retrieveCh:
+			target := atomic.LoadUint64(&m.syncTarget)
+			for h := m.store.Height() + 1; h <= target; h++ {
+				m.logger.Debug("trying to retrieve block from DALC", "height", h)
+				m.mustRetrieveBlock(ctx, h)
 			}
 		case <-ctx.Done():
 			return
@@ -174,12 +179,12 @@ func (a *blockManager) retrieveLoop(ctx context.Context) {
 	}
 }
 
-func (a *blockManager) mustRetrieveBlock(ctx context.Context, height uint64) {
+func (m *Manager) mustRetrieveBlock(ctx context.Context, height uint64) {
 	// TOOD(tzdybal): extract configuration option
 	maxRetries := 10
 
 	for r := 0; r < maxRetries; r++ {
-		err := a.fetchBlock(ctx, height)
+		err := m.fetchBlock(ctx, height)
 		if err == nil {
 			return
 		}
@@ -191,12 +196,12 @@ func (a *blockManager) mustRetrieveBlock(ctx context.Context, height uint64) {
 	panic("failed to retrieve block with DALC")
 }
 
-func (a *blockManager) fetchBlock(ctx context.Context, height uint64) error {
+func (m *Manager) fetchBlock(ctx context.Context, height uint64) error {
 	var err error
-	blockRes := a.retriever.RetrieveBlock(height)
+	blockRes := m.retriever.RetrieveBlock(height)
 	switch blockRes.Code {
 	case da.StatusSuccess:
-		a.blockInCh <- blockRes.Block
+		m.blockInCh <- blockRes.Block
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
 	case da.StatusTimeout:
@@ -205,35 +210,35 @@ func (a *blockManager) fetchBlock(ctx context.Context, height uint64) error {
 	return err
 }
 
-func (a *blockManager) getRemainingSleep(start time.Time) time.Duration {
+func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	publishingDuration := time.Since(start)
-	sleepDuration := a.conf.BlockTime - publishingDuration
+	sleepDuration := m.conf.BlockTime - publishingDuration
 	if sleepDuration < 0 {
 		sleepDuration = 0
 	}
 	return sleepDuration
 }
 
-func (a *blockManager) publishBlock(ctx context.Context) error {
+func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
 	var err error
-	newHeight := a.store.Height() + 1
+	newHeight := m.store.Height() + 1
 
 	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight == uint64(a.genesis.InitialHeight) {
-		lastCommit = &types.Commit{Height: a.store.Height(), HeaderHash: [32]byte{}}
+	if newHeight == uint64(m.genesis.InitialHeight) {
+		lastCommit = &types.Commit{Height: m.store.Height(), HeaderHash: [32]byte{}}
 	} else {
-		lastCommit, err = a.store.LoadCommit(a.store.Height())
+		lastCommit, err = m.store.LoadCommit(m.store.Height())
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
 	}
 
-	a.logger.Info("Creating and publishing block", "height", newHeight)
+	m.logger.Info("Creating and publishing block", "height", newHeight)
 
-	block := a.executor.CreateBlock(newHeight, lastCommit, a.lastState)
-	a.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-	newState, _, err := a.executor.ApplyBlock(ctx, a.lastState, block)
+	block := m.executor.CreateBlock(newHeight, lastCommit, m.lastState)
+	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
+	newState, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
 	}
@@ -242,7 +247,7 @@ func (a *blockManager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	sign, err := a.proposerKey.Sign(headerBytes)
+	sign, err := m.proposerKey.Sign(headerBytes)
 	if err != nil {
 		return err
 	}
@@ -252,27 +257,27 @@ func (a *blockManager) publishBlock(ctx context.Context) error {
 		HeaderHash: block.Header.Hash(),
 		Signatures: []types.Signature{sign},
 	}
-	err = a.store.SaveBlock(block, commit)
+	err = m.store.SaveBlock(block, commit)
 	if err != nil {
 		return err
 	}
 
-	a.lastState = newState
-	err = a.store.UpdateState(a.lastState)
+	m.lastState = newState
+	err = m.store.UpdateState(m.lastState)
 	if err != nil {
 		return err
 	}
 
-	return a.broadcastBlock(ctx, block)
+	return m.broadcastBlock(ctx, block)
 }
 
-func (a *blockManager) broadcastBlock(ctx context.Context, block *types.Block) error {
-	res := a.dalc.SubmitBlock(block)
+func (m *Manager) broadcastBlock(ctx context.Context, block *types.Block) error {
+	res := m.dalc.SubmitBlock(block)
 	if res.Code != da.StatusSuccess {
 		return fmt.Errorf("DA layer submission failed: %s", res.Message)
 	}
 
-	a.headerOutCh <- &block.Header
+	m.HeaderOutCh <- &block.Header
 
 	return nil
 }

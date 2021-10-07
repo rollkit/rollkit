@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/optimint/block"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -50,7 +51,7 @@ type Node struct {
 	incomingHeaderCh chan *p2p.GossipMessage
 
 	Store        store.Store
-	blockManager *blockManager
+	blockManager *block.Manager
 	dalc         da.DataAvailabilityLayerClient
 
 	// keep context here only because of API compatibility
@@ -105,7 +106,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	client.SetTxValidator(txValidator)
 	client.SetHeaderValidator(newHeaderValidator(logger))
 
-	blockManager, err := newBlockManager(nodeKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "BlockManager"))
+	blockManager, err := block.NewManager(nodeKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "BlockManager"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -145,7 +146,7 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 				n.Logger.Error("failed to deserialize header", "error", err)
 				continue
 			}
-			n.blockManager.headerInCh <- &header
+			n.blockManager.HeaderInCh <- &header
 		case <-ctx.Done():
 			break
 		}
@@ -155,7 +156,7 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case header := <-n.blockManager.headerOutCh:
+		case header := <-n.blockManager.HeaderOutCh:
 			headerBytes, err := header.MarshalBinary()
 			if err != nil {
 				n.Logger.Error("failed to serialize block header", "error", err)
@@ -182,11 +183,11 @@ func (n *Node) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	if n.conf.Aggregator {
-		go n.blockManager.aggregationLoop(n.ctx)
+		go n.blockManager.AggregationLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 	}
-	go n.blockManager.retrieveLoop(n.ctx)
-	go n.blockManager.syncLoop(n.ctx)
+	go n.blockManager.RetrieveLoop(n.ctx)
+	go n.blockManager.SyncLoop(n.ctx)
 
 	go n.headerReadLoop(n.ctx)
 

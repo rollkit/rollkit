@@ -1,80 +1,22 @@
-package node
+package block
 
 import (
-	"context"
 	"crypto/rand"
-	mrand "math/rand"
 	"testing"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
 	mockda "github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/mocks"
-	"github.com/celestiaorg/optimint/p2p"
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/store"
 )
-
-func TestAggregatorMode(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   500 * time.Millisecond,
-		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
-	}
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
-
-	assert.False(node.IsRunning())
-
-	err = node.Start()
-	assert.NoError(err)
-	defer func() {
-		err := node.Stop()
-		assert.NoError(err)
-	}()
-	assert.True(node.IsRunning())
-
-	pid, err := peer.IDFromPrivateKey(anotherKey)
-	require.NoError(err)
-	ctx, cancel := context.WithCancel(context.TODO())
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				node.incomingTxCh <- &p2p.GossipMessage{Data: []byte(time.Now().String()), From: pid}
-				time.Sleep(time.Duration(mrand.Uint32()%20) * time.Millisecond)
-			}
-		}
-	}()
-	time.Sleep(5 * time.Second)
-	cancel()
-}
 
 func TestInitialState(t *testing.T) {
 	genesis := &types.GenesisDoc{
@@ -130,7 +72,7 @@ func TestInitialState(t *testing.T) {
 			assert := assert.New(t)
 			logger := log.TestingLogger()
 			dalc := getMockDALC(logger)
-			agg, err := newBlockManager(key, conf, c.genesis, c.store, nil, nil, dalc, logger)
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, logger)
 			assert.NoError(err)
 			assert.NotNil(agg)
 			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
