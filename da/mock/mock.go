@@ -14,16 +14,19 @@ type MockDataAvailabilityLayerClient struct {
 
 	Blocks     map[[32]byte]*types.Block
 	BlockIndex map[uint64][32]byte
+
+	dalcKV *store.PrefixKV
 }
 
 var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &MockDataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *MockDataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV *store.PrefixKV, logger log.Logger) error {
 	m.logger = logger
 	m.Blocks = make(map[[32]byte]*types.Block)
 	m.BlockIndex = make(map[uint64][32]byte)
+	m.dalcKV = dalcKV
 	return nil
 }
 

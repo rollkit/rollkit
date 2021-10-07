@@ -9,15 +9,20 @@ import (
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log/test"
+	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
+
+var dalcPrefix = []byte{1}
+var baseKV store.KVStore = store.NewInMemoryKVStore()
+var dalcKV *store.PrefixKV = store.NewPrefixKV(baseKV, dalcPrefix)
 
 func TestLifecycle(t *testing.T) {
 	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
 
 	require := require.New(t)
 
-	err := da.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := da.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = da.Start()
@@ -33,7 +38,7 @@ func TestMockDALC(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
