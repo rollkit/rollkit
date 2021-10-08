@@ -51,7 +51,7 @@ type Config struct {
 // It use celestia-app via gRPC.
 type Celestia struct {
 	config  Config
-	kvStore store.KVStore
+	kvStore *store.PrefixKV
 	logger  log.Logger
 
 	keyring keyring.Keyring
@@ -62,7 +62,7 @@ type Celestia struct {
 var _ da.DataAvailabilityLayerClient = &Celestia{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (ll *Celestia) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (ll *Celestia) Init(config []byte, kvStore *store.PrefixKV, logger log.Logger) error {
 	ll.logger = logger
 	ll.kvStore = kvStore
 	err := toml.Unmarshal(config, &ll.config)
