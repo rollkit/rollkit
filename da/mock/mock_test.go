@@ -13,9 +13,10 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-var dalcPrefix = []byte{1}
-var baseKV store.KVStore = store.NewInMemoryKVStore()
-var dalcKV *store.PrefixKV = store.NewPrefixKV(baseKV, dalcPrefix)
+var (
+	dalcPrefix                 = []byte{1}
+	dalcKV     *store.PrefixKV = store.NewPrefixKV(store.NewInMemoryKVStore(), dalcPrefix)
+)
 
 func TestLifecycle(t *testing.T) {
 	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
@@ -77,7 +78,7 @@ func TestRetrieve(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -112,6 +113,13 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = getRandomTx()
 		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
+	}
+
+	// TODO(https://github.com/celestiaorg/optimint/issues/143)
+	// This is a hack to get around equality checks on serialization round trips
+	if nTxs == 0 {
+		block.Data.Txs = nil
+		block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 
 	return block
