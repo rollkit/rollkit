@@ -13,10 +13,6 @@ import (
 // It does actually ensures DA - it stores data in-memory.
 type MockDataAvailabilityLayerClient struct {
 	logger log.Logger
-
-	Blocks     map[[32]byte]*types.Block
-	BlockIndex map[uint64][32]byte
-
 	dalcKV store.KVStore
 }
 
@@ -26,8 +22,6 @@ var _ da.BlockRetriever = &MockDataAvailabilityLayerClient{}
 // Init is called once to allow DA client to read configuration and initialize resources.
 func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV store.KVStore, logger log.Logger) error {
 	m.logger = logger
-	m.Blocks = make(map[[32]byte]*types.Block)
-	m.BlockIndex = make(map[uint64][32]byte)
 	m.dalcKV = dalcKV
 	return nil
 }
@@ -53,12 +47,7 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 	hash := block.Header.Hash()
 	blob, err := block.MarshalBinary()
 	if err != nil {
-		return da.ResultSubmitBlock{
-			DAResult: da.DAResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
 	b := make([]byte, 8)
@@ -66,9 +55,6 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 
 	m.dalcKV.Set(b, hash[:])
 	m.dalcKV.Set(hash[:], blob)
-
-	m.Blocks[hash] = block
-	m.BlockIndex[block.Header.Height] = hash
 
 	return da.ResultSubmitBlock{
 		DAResult: da.DAResult{
@@ -80,8 +66,12 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
 func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
-	_, ok := m.Blocks[header.Hash()]
-	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: ok}
+	hash := header.Hash()
+	_, err := m.dalcKV.Get(hash[:])
+	if err != nil {
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: true}
 }
 
 // RetrieveBlock returns block at given height from data availability layer.

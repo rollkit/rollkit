@@ -66,7 +66,7 @@ func TestMockDALC(t *testing.T) {
 
 	// this block was never submitted to DA
 	check = dalc.CheckBlockAvailability(&b3.Header)
-	assert.Equal(da.StatusSuccess, check.Code)
+	assert.Equal(da.StatusError, check.Code)
 	assert.False(check.DataAvailable)
 }
 
