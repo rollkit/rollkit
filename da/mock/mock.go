@@ -42,6 +42,8 @@ func (m *MockDataAvailabilityLayerClient) Stop() error {
 	return nil
 }
 
+// TODO(jbowen93): This is where storage to the kvStore needs to take place
+
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
@@ -65,6 +67,8 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 	_, ok := m.Blocks[header.Hash()]
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: ok}
 }
+
+// TODO(jbowen93): This is where retrieval from the kvStore needs to take place
 
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
