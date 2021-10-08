@@ -13,7 +13,7 @@ func TestPrefixKV(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	base := NewInMemoryKVStore()
+	base := NewDefaultInMemoryKVStore()
 
 	p1 := NewPrefixKV(base, []byte{1})
 	p2 := NewPrefixKV(base, []byte{2})

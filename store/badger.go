@@ -1,8 +1,11 @@
 package store
 
-import "github.com/dgraph-io/badger/v3"
+import (
+	"github.com/dgraph-io/badger/v3"
+)
 
 var _ KVStore = &BadgerKV{}
+var _ Batch = &BadgerBatch{}
 
 // BadgerKV is a implementation of KVStore using Badger v3.
 type BadgerKV struct {
@@ -40,4 +43,28 @@ func (b *BadgerKV) Delete(key []byte) error {
 		return err
 	}
 	return txn.Commit()
+}
+
+func (b *BadgerKV) NewBatch() Batch {
+	//write transactions should be short lived as they use extra resources in badger
+	return &BadgerBatch{
+		txn: *b.db.NewTransaction(true),
+	}
+}
+
+type BadgerBatch struct {
+	txn badger.Txn
+}
+
+func (bb *BadgerBatch) Aggregate(key, value []byte) error {
+	if err := bb.txn.SetEntry(badger.NewEntry(key, value)); err != nil {
+		bb.txn.Discard()
+		return err
+	}
+
+	return nil
+}
+
+func (bb *BadgerBatch) Commit() error {
+	return bb.txn.Commit()
 }

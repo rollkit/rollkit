@@ -6,10 +6,9 @@ import (
 	"errors"
 	"sync"
 
-	"go.uber.org/multierr"
-
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
+	"go.uber.org/multierr"
 )
 
 var (
@@ -33,7 +32,9 @@ var _ Store = &DefaultStore{}
 
 // New returns new, default store.
 func New(kv KVStore) Store {
-	return &DefaultStore{db: kv}
+	return &DefaultStore{
+		db: kv,
+	}
 }
 
 // Height returns height of the highest block saved in the Store.
@@ -59,12 +60,18 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
+
+	bb := s.db.NewBatch()
+	err = multierr.Append(err, bb.Aggregate(getBlockKey(hash), blockBlob))
+	err = multierr.Append(err, bb.Aggregate(getCommitKey(hash), commitBlob))
+	err = multierr.Append(err, bb.Aggregate(getIndexKey(block.Header.Height), hash[:]))
 	// TODO(tzdybal): use transaction for consistency of DB (https://github.com/celestiaorg/optimint/issues/80)
-	err = multierr.Append(err, s.db.Set(getBlockKey(hash), blockBlob))
-	err = multierr.Append(err, s.db.Set(getCommitKey(hash), commitBlob))
-	err = multierr.Append(err, s.db.Set(getIndexKey(block.Header.Height), hash[:]))
 
 	if err != nil {
+		return err
+	}
+
+	if err = bb.Commit(); err != nil {
 		return err
 	}
 

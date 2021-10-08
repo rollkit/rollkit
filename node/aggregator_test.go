@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/mocks"
@@ -85,9 +85,9 @@ func TestInitialState(t *testing.T) {
 		LastBlockHeight: 128,
 	}
 
-	emptyStore := store.New(store.NewInMemoryKVStore())
+	emptyStore := store.New(store.NewDefaultInMemoryKVStore())
 
-	fullStore := store.New(store.NewInMemoryKVStore())
+	fullStore := store.New(store.NewDefaultInMemoryKVStore())
 	err := fullStore.UpdateState(sampleState)
 	require.NoError(t, err)
 
