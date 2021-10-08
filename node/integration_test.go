@@ -41,7 +41,7 @@ func TestAggregatorMode(t *testing.T) {
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   500 * time.Millisecond,
+		BlockTime:   1 * time.Second,
 		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
@@ -82,7 +82,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	nodes, apps := createNodes(11, t)
+	clientNodes := 4
+	nodes, apps := createNodes(clientNodes+1, t)
 
 	for _, n := range nodes {
 		require.NoError(n.Start())
@@ -103,11 +104,11 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	aggApp := apps[0]
 	apps = apps[1:]
 
-	aggApp.AssertNumberOfCalls(t, "DeliverTx", 10)
+	aggApp.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
 	aggApp.AssertExpectations(t)
 
 	for i, app := range apps {
-		app.AssertNumberOfCalls(t, "DeliverTx", 10)
+		app.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
 		app.AssertExpectations(t)
 
 		// assert that we have most of the blocks from aggregator
@@ -173,7 +174,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
 	bmConfig := config.BlockManagerConfig{
-		BlockTime:   200 * time.Millisecond,
+		BlockTime:   1 * time.Second,
 		NamespaceID: [8]byte{8, 7, 6, 5, 4, 3, 2, 1},
 	}
 	for i := 0; i < len(keys); i++ {
@@ -215,3 +216,4 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 
 	return node, app
 }
+
