@@ -69,6 +69,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			deserialized := &Block{}
 			err = deserialized.UnmarshalBinary(blob)
 			assert.NoError(err)
+
 			assert.Equal(c.input, deserialized)
 		})
 	}
