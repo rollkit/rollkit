@@ -30,8 +30,6 @@ func TestConfiguration(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ll := &Celestia{}
-
-			// TODO(jbowen93): This is where we need to pass a test kvStore
 			err := ll.Init(c.input, nil, nil)
 
 			if c.err != nil {
@@ -58,7 +56,6 @@ func TestSubmission(t *testing.T) {
 	key, err := kr.Key("test-account")
 	require.NoError(err)
 	conf := testConfig(key)
-	// TODO(jbowen93): This is where we need to pass a test kvStore
 	err = ll.Init([]byte(conf), nil, nil)
 	require.NoError(err)
 	ll.keyring = kr

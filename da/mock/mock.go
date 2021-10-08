@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"encoding/binary"
+
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
@@ -15,14 +17,14 @@ type MockDataAvailabilityLayerClient struct {
 	Blocks     map[[32]byte]*types.Block
 	BlockIndex map[uint64][32]byte
 
-	dalcKV *store.PrefixKV
+	dalcKV store.KVStore
 }
 
 var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &MockDataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV *store.PrefixKV, logger log.Logger) error {
+func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV store.KVStore, logger log.Logger) error {
 	m.logger = logger
 	m.Blocks = make(map[[32]byte]*types.Block)
 	m.BlockIndex = make(map[uint64][32]byte)
@@ -42,8 +44,6 @@ func (m *MockDataAvailabilityLayerClient) Stop() error {
 	return nil
 }
 
-// TODO(jbowen93): This is where storage to the kvStore needs to take place
-
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
@@ -51,6 +51,22 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height)
 
 	hash := block.Header.Hash()
+	blob, err := block.MarshalBinary()
+	if err != nil {
+		return da.ResultSubmitBlock{
+			DAResult: da.DAResult{
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+		}
+	}
+
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, block.Header.Height)
+
+	m.dalcKV.Set(b, hash[:])
+	m.dalcKV.Set(hash[:], blob)
+
 	m.Blocks[hash] = block
 	m.BlockIndex[block.Header.Height] = hash
 
@@ -68,10 +84,24 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: ok}
 }
 
-// TODO(jbowen93): This is where retrieval from the kvStore needs to take place
-
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
-	hash := m.BlockIndex[height]
-	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Block: m.Blocks[hash]}
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, height)
+	hash, err := m.dalcKV.Get(b)
+	if err != nil {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+	blob, err := m.dalcKV.Get(hash)
+	if err != nil {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+
+	block := &types.Block{}
+	err = block.UnmarshalBinary(blob)
+	if err != nil {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+
+	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Block: block}
 }

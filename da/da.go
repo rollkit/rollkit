@@ -54,7 +54,7 @@ type ResultRetrieveBlock struct {
 // It also contains life-cycle methods.
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(config []byte, kvStore *store.PrefixKV, logger log.Logger) error
+	Init(config []byte, kvStore store.KVStore, logger log.Logger) error
 
 	Start() error
 	Stop() error

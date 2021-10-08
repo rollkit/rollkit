@@ -13,9 +13,10 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-var dalcPrefix = []byte{1}
-var baseKV store.KVStore = store.NewInMemoryKVStore()
-var dalcKV *store.PrefixKV = store.NewPrefixKV(baseKV, dalcPrefix)
+var (
+	dalcPrefix                 = []byte{1}
+	dalcKV     *store.PrefixKV = store.NewPrefixKV(store.NewInMemoryKVStore(), dalcPrefix)
+)
 
 func TestLifecycle(t *testing.T) {
 	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
