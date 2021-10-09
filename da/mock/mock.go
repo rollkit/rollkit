@@ -50,7 +50,7 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	err = m.dalcKV.Set(getIndexKey(block.Header.Height), hash[:])
+	err = m.dalcKV.Set(getKey(block.Header.Height), hash[:])
 	if err != nil {
 		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -79,7 +79,7 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
-	hash, err := m.dalcKV.Get(getIndexKey(height))
+	hash, err := m.dalcKV.Get(getKey(height))
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -97,8 +97,7 @@ func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.Result
 	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Block: block}
 }
 
-// getIndexKey converts a uint64 hieght into an 8 byte big endian slice
-func getIndexKey(height uint64) []byte {
+func getKey(height uint64) []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, height)
 	return b
