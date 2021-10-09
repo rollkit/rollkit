@@ -78,16 +78,18 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestRetrieve(t *testing.T) {
-	for _, dalc := range registry.RegisteredClients() {
-		t.Run(dalc, func(t *testing.T) {
-			doTestRetrieve(t, registry.GetClient(dalc))
+	for _, client := range registry.RegisteredClients() {
+		t.Run(client, func(t *testing.T) {
+			dalc := registry.GetClient(client)
+			_, ok := dalc.(da.BlockRetriever)
+			if ok {
+				doTestRetrieve(t, dalc)
+			}
 		})
 	}
 }
 
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
-	retriever := dalc.(da.BlockRetriever)
-
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -96,6 +98,8 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	err = dalc.Start()
 	require.NoError(err)
+
+	retriever := dalc.(da.BlockRetriever)
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
