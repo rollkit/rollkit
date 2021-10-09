@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/binary"
 	"errors"
 
 	pb "github.com/celestiaorg/optimint/types/pb/optimint"
@@ -181,13 +180,6 @@ func (c *Commit) FromProto(other *pb.Commit) error {
 	c.Signatures = byteSlicesToSignatures(other.Signatures)
 
 	return nil
-}
-
-// Uint64ToByteSlice converts a uint64 into an 8 byte little endian slice
-func Uint64ToByteSlice(v uint64) []byte {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, v)
-	return b
 }
 
 func txsToByteSlices(txs Txs) [][]byte {
