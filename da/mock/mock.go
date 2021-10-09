@@ -48,8 +48,14 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	m.dalcKV.Set(types.Uint64ToByteSlice(block.Header.Height), hash[:])
-	m.dalcKV.Set(hash[:], blob)
+	err = m.dalcKV.Set(types.Uint64ToByteSlice(block.Header.Height), hash[:])
+	if err != nil {
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+	err = m.dalcKV.Set(hash[:], blob)
+	if err != nil {
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
 
 	return da.ResultSubmitBlock{
 		DAResult: da.DAResult{
