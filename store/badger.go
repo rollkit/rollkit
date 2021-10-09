@@ -48,23 +48,31 @@ func (b *BadgerKV) Delete(key []byte) error {
 func (b *BadgerKV) NewBatch() Batch {
 	//write transactions should be short lived as they use extra resources in badger
 	return &BadgerBatch{
-		txn: *b.db.NewTransaction(true),
+		txn: b.db.NewTransaction(true),
 	}
 }
 
 type BadgerBatch struct {
-	txn badger.Txn
+	txn *badger.Txn
 }
 
-func (bb *BadgerBatch) Aggregate(key, value []byte) error {
-	if err := bb.txn.SetEntry(badger.NewEntry(key, value)); err != nil {
-		bb.txn.Discard()
+func (bb *BadgerBatch) Set(key, value []byte) error {
+	if err := bb.txn.Set(key, value); err != nil {
+		bb.Discard()
 		return err
 	}
 
 	return nil
 }
 
+func (bb *BadgerBatch) Delete(key []byte) error {
+	return bb.txn.Delete(key)
+}
+
 func (bb *BadgerBatch) Commit() error {
 	return bb.txn.Commit()
+}
+
+func (bb *BadgerBatch) Discard() {
+	bb.txn.Discard()
 }

@@ -17,11 +17,11 @@ type KVStore interface {
 }
 
 type Batch interface {
-	Aggregate(key, value []byte) error //Accumulates KV entries in a transaction
-	Commit() error                     //Commits the transaction
+	Set(key, value []byte) error //Accumulates KV entries in a transaction
+	Delete(key []byte) error     //Deletes the given key
+	Commit() error               //Commits the transaction
+	Discard()                    //Discards the transaction
 }
-
-//TAKE A LOOK AT THIS!: https://pkg.go.dev/github.com/dgraph-io/badger/v3#example-Txn.NewIterator
 
 // NewInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
 func NewDefaultInMemoryKVStore() KVStore {
@@ -44,16 +44,6 @@ func NewDefaultKVStore(rootDir, dbPath, dbName string) KVStore {
 		db: db,
 	}
 }
-
-/*func NewKVBatchWriter(kvstore KVStore, limit uint) KVBatchWriter {
-	db := kvstore.GetDb()
-	return &BadgerKVBatchWriter{
-		db: *db,
-		//batch:  db.db.NewWriteBatch(),
-		kvlist: make([]*pb.KV, 0, limit),
-		limit:  limit,
-	}
-}*/
 
 // rootify works just like in cosmos-sdk
 func rootify(rootDir, dbPath string) string {

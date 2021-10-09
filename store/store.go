@@ -62,10 +62,9 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	defer s.mtx.Unlock()
 
 	bb := s.db.NewBatch()
-	err = multierr.Append(err, bb.Aggregate(getBlockKey(hash), blockBlob))
-	err = multierr.Append(err, bb.Aggregate(getCommitKey(hash), commitBlob))
-	err = multierr.Append(err, bb.Aggregate(getIndexKey(block.Header.Height), hash[:]))
-	// TODO(tzdybal): use transaction for consistency of DB (https://github.com/celestiaorg/optimint/issues/80)
+	err = multierr.Append(err, bb.Set(getBlockKey(hash), blockBlob))
+	err = multierr.Append(err, bb.Set(getCommitKey(hash), commitBlob))
+	err = multierr.Append(err, bb.Set(getIndexKey(block.Header.Height), hash[:]))
 
 	if err != nil {
 		return err
