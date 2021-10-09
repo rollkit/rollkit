@@ -1,8 +1,6 @@
 package mock
 
 import (
-	"encoding/binary"
-
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
@@ -50,10 +48,7 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, block.Header.Height)
-
-	m.dalcKV.Set(b, hash[:])
+	m.dalcKV.Set(types.Uint64ToByteSlice(block.Header.Height), hash[:])
 	m.dalcKV.Set(hash[:], blob)
 
 	return da.ResultSubmitBlock{
@@ -69,16 +64,14 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 	hash := header.Hash()
 	_, err := m.dalcKV.Get(hash[:])
 	if err != nil {
-		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
 	}
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: true}
 }
 
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, height)
-	hash, err := m.dalcKV.Get(b)
+	hash, err := m.dalcKV.Get(types.Uint64ToByteSlice(height))
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}

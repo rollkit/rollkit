@@ -13,11 +13,6 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-var (
-	dalcPrefix                 = []byte{1}
-	dalcKV     *store.PrefixKV = store.NewPrefixKV(store.NewInMemoryKVStore(), dalcPrefix)
-)
-
 func TestLifecycle(t *testing.T) {
 	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
 	dalcKV := store.NewInMemoryKVStore()
@@ -68,7 +63,7 @@ func TestMockDALC(t *testing.T) {
 
 	// this block was never submitted to DA
 	check = dalc.CheckBlockAvailability(&b3.Header)
-	assert.Equal(da.StatusError, check.Code)
+	assert.Equal(da.StatusSuccess, check.Code)
 	assert.False(check.DataAvailable)
 }
 
