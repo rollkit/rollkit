@@ -9,7 +9,7 @@ import (
 var _ KVStore = &BadgerKV{}
 
 var (
-	// ErrKeyNotFound custom for for non existing keys in the DB.
+	// ErrKeyNotFound is returned if key is not found in KVStore.
 	ErrKeyNotFound = errors.New("key not found")
 )
 
