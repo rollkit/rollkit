@@ -84,9 +84,6 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
 	hash, err := m.dalcKV.Get(getKey(height))
-	if errors.Is(err, store.ErrKeyNotFound) {
-		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
-	}
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
