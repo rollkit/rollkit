@@ -3,14 +3,16 @@ package node
 import (
 	"context"
 	"crypto/rand"
-	mockda "github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/p2p"
-	"github.com/stretchr/testify/assert"
 	mrand "math/rand"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	mockda "github.com/celestiaorg/optimint/da/mock"
+	"github.com/celestiaorg/optimint/p2p"
+	"github.com/celestiaorg/optimint/store"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -154,7 +156,7 @@ func createNodes(num int, t *testing.T) ([]*Node, []*mocks.Application) {
 	nodes := make([]*Node, num)
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.MockDataAvailabilityLayerClient{}
-	_ = dalc.Init(nil, nil, log.TestingLogger())
+	_ = dalc.Init(nil, store.NewInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
 	nodes[0], apps[0] = createNode(0, true, dalc, keys, t)
 	for i := 1; i < num; i++ {
@@ -216,4 +218,3 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 
 	return node, app
 }
-

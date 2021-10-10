@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/log/test"
+	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
 
@@ -24,7 +25,8 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	dalcKV := store.NewInMemoryKVStore()
+	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -46,7 +48,8 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	dalcKV := store.NewInMemoryKVStore()
+	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -93,7 +96,8 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	dalcKV := store.NewInMemoryKVStore()
+	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
