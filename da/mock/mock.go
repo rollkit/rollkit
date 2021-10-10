@@ -2,11 +2,13 @@ package mock
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
+	"github.com/dgraph-io/badger"
 )
 
 // MockDataAvailabilityLayerClient is intended only for usage in tests.
@@ -71,6 +73,9 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
 	hash := header.Hash()
 	_, err := m.dalcKV.Get(hash[:])
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
+	}
 	if err != nil {
 		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
 	}
@@ -80,10 +85,16 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
 	hash, err := m.dalcKV.Get(getKey(height))
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 	blob, err := m.dalcKV.Get(hash)
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
