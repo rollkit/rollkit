@@ -88,9 +88,6 @@ func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.Result
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 	blob, err := m.dalcKV.Get(hash)
-	if errors.Is(err, store.ErrKeyNotFound) {
-		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
-	}
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
