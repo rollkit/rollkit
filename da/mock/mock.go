@@ -76,7 +76,7 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
 	}
 	if err != nil {
-		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}, DataAvailable: false}
 	}
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: true}
 }
