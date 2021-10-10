@@ -16,14 +16,13 @@ func TestGet(t *testing.T) {
 	}{
 		{"empty key", []byte{}, badger.ErrEmptyKey},
 		{"not found key", []byte("missing key"), ErrKeyNotFound},
-		{"invalid key", []byte("!badger"), badger.ErrInvalidKey},
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := dalcKV.Get(tt.key)
 			if err.Error() != tt.err.Error() {
-				t.Errorf("Invalid err, got: %#v expected %#v", err, tt.err)
+				t.Errorf("Invalid err, got: %v expected %v", err, tt.err)
 			}
 		})
 	}
