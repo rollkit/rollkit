@@ -125,6 +125,9 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			m.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
 			newHeight := header.Height
 			currentHeight := m.store.Height()
+			// in case of client reconnecting after being offline
+			// newHeight may be significantly larger than currentHeight
+			// it's handled gently in RetrieveLoop
 			if newHeight > currentHeight {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCh <- newHeight
