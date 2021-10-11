@@ -9,15 +9,17 @@ import (
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log/test"
+	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
 
 func TestLifecycle(t *testing.T) {
 	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
+	dalcKV := store.NewDefaultInMemoryKVStore()
 
 	require := require.New(t)
 
-	err := da.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := da.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = da.Start()
@@ -29,11 +31,12 @@ func TestLifecycle(t *testing.T) {
 
 func TestMockDALC(t *testing.T) {
 	var dalc da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
+	dalcKV := store.NewDefaultInMemoryKVStore()
 
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -69,10 +72,12 @@ func TestRetrieve(t *testing.T) {
 	var dalc da.DataAvailabilityLayerClient = mock
 	var retriever da.BlockRetriever = mock
 
+	dalcKV := store.NewDefaultInMemoryKVStore()
+
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -107,6 +112,13 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = getRandomTx()
 		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
+	}
+
+	// TODO(https://github.com/celestiaorg/optimint/issues/143)
+	// This is a hack to get around equality checks on serialization round trips
+	if nTxs == 0 {
+		block.Data.Txs = nil
+		block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 
 	return block

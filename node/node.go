@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
@@ -23,6 +21,7 @@ import (
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/p2p"
 	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -47,6 +46,8 @@ type Node struct {
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.GossipMessage
+
+	incomingHeaderCh chan *p2p.GossipMessage
 
 	Store      store.Store
 	aggregator *aggregator
@@ -78,14 +79,17 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	var baseKV store.KVStore
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+
 		baseKV = store.NewDefaultInMemoryKVStore()
+		logger.Info("WARNING: working in in-memory mode")
+
 	} else {
 		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "optimint")
 	}
 	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
 	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
 
-	store := store.New(mainKV)
+	s := store.New(mainKV)
 
 	dalc := registry.GetClient(conf.DALayer)
 	if dalc == nil {
@@ -101,32 +105,84 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	txValidator := newTxValidator(mp, mpIDs, logger)
 	client.SetTxValidator(txValidator)
+	client.SetHeaderValidator(newHeaderValidator(logger))
 
 	var aggregator *aggregator = nil
 	if conf.Aggregator {
-		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, store, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
+		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
 		if err != nil {
 			return nil, fmt.Errorf("aggregator initialization error: %w", err)
 		}
 	}
 
 	node := &Node{
-		proxyApp:     proxyApp,
-		eventBus:     eventBus,
-		genesis:      genesis,
-		conf:         conf,
-		P2P:          client,
-		aggregator:   aggregator,
-		dalc:         dalc,
-		Mempool:      mp,
-		mempoolIDs:   mpIDs,
-		incomingTxCh: make(chan *p2p.GossipMessage),
-		Store:        store,
-		ctx:          ctx,
+		proxyApp:         proxyApp,
+		eventBus:         eventBus,
+		genesis:          genesis,
+		conf:             conf,
+		P2P:              client,
+		aggregator:       aggregator,
+		dalc:             dalc,
+		Mempool:          mp,
+		mempoolIDs:       mpIDs,
+		incomingTxCh:     make(chan *p2p.GossipMessage),
+		incomingHeaderCh: make(chan *p2p.GossipMessage),
+		Store:            s,
+		ctx:              ctx,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
+}
+
+func (n *Node) headerReadLoop(ctx context.Context) {
+	for {
+		select {
+		case headerMsg := <-n.incomingHeaderCh:
+			var header types.Header
+			err := header.UnmarshalBinary(headerMsg.Data)
+			if err != nil {
+				n.Logger.Error("failed to deserialize header", "error", err)
+				continue
+			}
+			// header is already validated during libp2p pubsub validation phase
+			hash := header.Hash()
+			n.Logger.Debug("header details", "height", header.Height, "hash", hash, "lastHeaderHash", header.LastHeaderHash)
+
+			// TODO(tzdybal): this is simplified version for MVP - blocks are fetched only via DALC
+			blockRes := n.dalc.(da.BlockRetriever).RetrieveBlock(header.Height)
+			var block *types.Block
+			switch blockRes.Code {
+			case da.StatusSuccess:
+				block = blockRes.Block
+			case da.StatusError:
+			case da.StatusTimeout:
+			default:
+			}
+			// TODO(tzdybal): actually apply block
+			n.Logger.Debug("full block", "block", block)
+		case <-ctx.Done():
+			break
+		}
+	}
+}
+
+func (n *Node) headerPublishLoop(ctx context.Context) {
+	for {
+		select {
+		case header := <-n.aggregator.headerCh:
+			headerBytes, err := header.MarshalBinary()
+			if err != nil {
+				n.Logger.Error("failed to serialize block header", "error", err)
+			}
+			err = n.P2P.GossipHeader(ctx, headerBytes)
+			if err != nil {
+				n.Logger.Error("failed to gossip block header", "error", err)
+			}
+		case <-ctx.Done():
+			break
+		}
+	}
 }
 
 // OnStart is a part of Service interface.
@@ -142,7 +198,12 @@ func (n *Node) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		go n.aggregator.aggregationLoop(n.ctx)
+		go n.headerPublishLoop(n.ctx)
 	}
+	n.P2P.SetHeaderHandler(func(header *p2p.GossipMessage) {
+		n.incomingHeaderCh <- header
+	})
+	go n.headerReadLoop(n.ctx)
 
 	return nil
 }
@@ -181,15 +242,15 @@ func (n *Node) ProxyApp() proxy.AppConns {
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
 // transaction. If the transaction is valid, then it is added to the mempool
-func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) pubsub.Validator {
-	return func(ctx context.Context, i peer.ID, m *pubsub.Message) bool {
-		logger.Debug("transaction of size %d recieved", "bytes", len(m.Data))
+func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) p2p.GossipValidator {
+	return func(m *p2p.GossipMessage) bool {
+		logger.Debug("transaction received", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
 		err := pool.CheckTx(m.Data, func(resp *abci.Response) {
 			checkTxResCh <- resp
 		}, mempool.TxInfo{
-			SenderID:    poolIDs.GetForPeer(m.GetFrom()),
-			SenderP2PID: corep2p.ID(m.GetFrom()),
+			SenderID:    poolIDs.GetForPeer(m.From),
+			SenderP2PID: corep2p.ID(m.From),
 		})
 		switch {
 		case errors.Is(err, mempool.ErrTxInCache):
@@ -206,5 +267,23 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 		checkTxResp := res.GetCheckTx()
 
 		return checkTxResp.Code == abci.CodeTypeOK
+	}
+}
+
+func newHeaderValidator(logger log.Logger) p2p.GossipValidator {
+	return func(headerMsg *p2p.GossipMessage) bool {
+		logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
+		var header types.Header
+		err := header.UnmarshalBinary(headerMsg.Data)
+		if err != nil {
+			logger.Error("failed to deserialize header", "error", err)
+			return false
+		}
+		err = header.ValidateBasic()
+		if err != nil {
+			logger.Error("failed to validate header", "error", err)
+			return false
+		}
+		return true
 	}
 }

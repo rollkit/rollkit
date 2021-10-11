@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"encoding/binary"
+
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
@@ -11,19 +13,16 @@ import (
 // It does actually ensures DA - it stores data in-memory.
 type MockDataAvailabilityLayerClient struct {
 	logger log.Logger
-
-	Blocks     map[[32]byte]*types.Block
-	BlockIndex map[uint64][32]byte
+	dalcKV store.KVStore
 }
 
 var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &MockDataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *MockDataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV store.KVStore, logger log.Logger) error {
 	m.logger = logger
-	m.Blocks = make(map[[32]byte]*types.Block)
-	m.BlockIndex = make(map[uint64][32]byte)
+	m.dalcKV = dalcKV
 	return nil
 }
 
@@ -46,8 +45,19 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height)
 
 	hash := block.Header.Hash()
-	m.Blocks[hash] = block
-	m.BlockIndex[block.Header.Height] = hash
+	blob, err := block.MarshalBinary()
+	if err != nil {
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+
+	err = m.dalcKV.Set(getKey(block.Header.Height), hash[:])
+	if err != nil {
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+	err = m.dalcKV.Set(hash[:], blob)
+	if err != nil {
+		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
 
 	return da.ResultSubmitBlock{
 		DAResult: da.DAResult{
@@ -59,12 +69,36 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
 func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
-	_, ok := m.Blocks[header.Hash()]
-	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: ok}
+	hash := header.Hash()
+	_, err := m.dalcKV.Get(hash[:])
+	if err != nil {
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
+	}
+	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: true}
 }
 
 // RetrieveBlock returns block at given height from data availability layer.
 func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
-	hash := m.BlockIndex[height]
-	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Block: m.Blocks[hash]}
+	hash, err := m.dalcKV.Get(getKey(height))
+	if err != nil {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+	blob, err := m.dalcKV.Get(hash)
+	if err != nil {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+
+	block := &types.Block{}
+	err = block.UnmarshalBinary(blob)
+	if err != nil {
+		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	}
+
+	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Block: block}
+}
+
+func getKey(height uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, height)
+	return b
 }

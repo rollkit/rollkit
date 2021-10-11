@@ -31,6 +31,8 @@ type aggregator struct {
 	dalc     da.DataAvailabilityLayerClient
 	executor *state.BlockExecutor
 
+	headerCh chan *types.Header
+
 	logger log.Logger
 }
 
@@ -73,6 +75,7 @@ func newAggregator(
 		store:       store,
 		executor:    exec,
 		dalc:        dalc,
+		headerCh:  make(chan *types.Header),
 		logger:      logger,
 	}
 
@@ -161,7 +164,9 @@ func (a *aggregator) broadcastBlock(ctx context.Context, block *types.Block) err
 	res := a.dalc.SubmitBlock(block)
 	if res.Code != da.StatusSuccess {
 		return fmt.Errorf("DA layer submission failed: %s", res.Message)
-
 	}
+
+	a.headerCh <- &block.Header
+
 	return nil
 }
