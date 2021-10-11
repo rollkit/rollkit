@@ -4,9 +4,7 @@ go 1.15
 
 require (
 	github.com/celestiaorg/celestia-app v0.0.0-00010101000000-000000000000
-	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cosmos/cosmos-sdk v0.40.0-rc5
-	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/badger/v3 v3.2011.1
 	github.com/go-kit/kit v0.11.0
 	github.com/gogo/protobuf v1.3.2

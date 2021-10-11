@@ -3,10 +3,10 @@ package store
 import (
 	"testing"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v3"
 )
 
-func TestGet(t *testing.T) {
+func TestGetErrors(t *testing.T) {
 	dalcKV := NewInMemoryKVStore()
 
 	tc := []struct {
@@ -28,7 +28,7 @@ func TestGet(t *testing.T) {
 	}
 }
 
-func TestSet(t *testing.T) {
+func TestSetErrors(t *testing.T) {
 	dalcKV := NewInMemoryKVStore()
 
 	tc := []struct {
@@ -51,7 +51,7 @@ func TestSet(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
+func TestDeleteErrors(t *testing.T) {
 	dalcKV := NewInMemoryKVStore()
 
 	tc := []struct {
