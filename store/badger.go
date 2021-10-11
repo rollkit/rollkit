@@ -52,27 +52,31 @@ func (b *BadgerKV) NewBatch() Batch {
 	}
 }
 
+//BadgerBatch encapsulates badger transaction
 type BadgerBatch struct {
 	txn *badger.Txn
 }
 
+//Set accumulates key-value entries in a transaction
 func (bb *BadgerBatch) Set(key, value []byte) error {
 	if err := bb.txn.Set(key, value); err != nil {
-		bb.Discard()
 		return err
 	}
 
 	return nil
 }
 
+//Delete removes the key and associated value from store
 func (bb *BadgerBatch) Delete(key []byte) error {
 	return bb.txn.Delete(key)
 }
 
+//Commit commits a transaction
 func (bb *BadgerBatch) Commit() error {
 	return bb.txn.Commit()
 }
 
+//Discard cancels a transaction
 func (bb *BadgerBatch) Discard() {
 	bb.txn.Discard()
 }

@@ -79,10 +79,8 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	var baseKV store.KVStore
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
-
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV = store.NewDefaultInMemoryKVStore()
-
 	} else {
 		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "optimint")
 	}

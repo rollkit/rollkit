@@ -6,9 +6,10 @@ import (
 	"errors"
 	"sync"
 
+	"go.uber.org/multierr"
+
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
-	"go.uber.org/multierr"
 )
 
 var (
@@ -67,6 +68,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	err = multierr.Append(err, bb.Set(getIndexKey(block.Header.Height), hash[:]))
 
 	if err != nil {
+		bb.Discard()
 		return err
 	}
 
