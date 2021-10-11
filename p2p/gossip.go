@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"go.uber.org/multierr"
 
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -19,10 +20,32 @@ type GossipMessage struct {
 // GossipHandler is a callback function type.
 type GossipHandler func(*GossipMessage)
 
-// Gossip is an abstraction of P2P publish subscribe mechanism.
-type Gossip struct {
+// GossipValidator is a callback function type.
+type GossipValidator func(*GossipMessage) bool
+
+// GossiperOption sets optional parameters of Gossiper.
+type GossiperOption func(*Gossiper) error
+
+// WithHandler option sets message handler to Gossiper.
+func WithHandler(handler GossipHandler) GossiperOption {
+	return func(g *Gossiper) error {
+		g.handler = handler
+		return nil
+	}
+}
+
+// WithValidator options registers topic validator for Gossiper.
+func WithValidator(validator GossipValidator) GossiperOption {
+	return func(g *Gossiper) error {
+		return g.ps.RegisterTopicValidator(g.topic.String(), wrapValidator(validator))
+	}
+}
+
+// Gossiper is an abstraction of P2P publish subscribe mechanism.
+type Gossiper struct {
 	ownId peer.ID
 
+	ps      *pubsub.PubSub
 	topic   *pubsub.Topic
 	sub     *pubsub.Subscription
 	handler GossipHandler
@@ -30,10 +53,10 @@ type Gossip struct {
 	logger log.Logger
 }
 
-// NewGossip creates new, ready to use instance of Gossip.
+// NewGossiper creates new, ready to use instance of Gossiper.
 //
-// Returned Gossip object can be used for sending (Publishing) and receiving messages in topic identified by topicStr.
-func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Logger) (*Gossip, error) {
+// Returned Gossiper object can be used for sending (Publishing) and receiving messages in topic identified by topicStr.
+func NewGossiper(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Logger, options ...GossiperOption) (*Gossiper, error) {
 	topic, err := ps.Join(topicStr)
 	if err != nil {
 		return nil, err
@@ -43,31 +66,45 @@ func NewGossip(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.Lo
 	if err != nil {
 		return nil, err
 	}
-	return &Gossip{
+	g := &Gossiper{
 		ownId:   host.ID(),
+		ps:      ps,
 		topic:   topic,
 		sub:     subscription,
 		handler: nil,
 		logger:  logger,
-	}, nil
+	}
+
+	for _, option := range options {
+		err := option(g)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return g, nil
 }
 
-func (g *Gossip) Close() error {
+func (g *Gossiper) Close() error {
+	err := g.ps.UnregisterTopicValidator(g.topic.String())
 	g.sub.Cancel()
-	return g.topic.Close()
+	return multierr.Combine(
+		err,
+		g.topic.Close(),
+	)
 }
 
 // Publish publishes data to gossip topic.
-func (g *Gossip) Publish(ctx context.Context, data []byte) error {
+func (g *Gossiper) Publish(ctx context.Context, data []byte) error {
 	return g.topic.Publish(ctx, data)
 }
 
 // ProcessMessages waits for messages published in the topic and execute handler.
-func (g *Gossip) ProcessMessages(ctx context.Context) {
+func (g *Gossiper) ProcessMessages(ctx context.Context) {
 	for {
 		msg, err := g.sub.Next(ctx)
 		if err != nil {
-			g.logger.Error("failed to read transaction", "error", err)
+			g.logger.Error("failed to read message", "error", err)
 			return
 		}
 		if msg.GetFrom() == g.ownId {
@@ -77,5 +114,14 @@ func (g *Gossip) ProcessMessages(ctx context.Context) {
 		if g.handler != nil {
 			g.handler(&GossipMessage{Data: msg.Data, From: msg.GetFrom()})
 		}
+	}
+}
+
+func wrapValidator(validator GossipValidator) pubsub.Validator {
+	return func(_ context.Context, _ peer.ID, msg *pubsub.Message) bool {
+		return validator(&GossipMessage{
+			Data: msg.Data,
+			From: msg.GetFrom(),
+		})
 	}
 }
