@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/dgraph-io/badger/v3"
@@ -21,7 +22,7 @@ func TestGetErrors(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := dalcKV.Get(tt.key)
-			if err.Error() != tt.err.Error() {
+			if !errors.Is(err, tt.err) {
 				t.Errorf("Invalid err, got: %v expected %v", err, tt.err)
 			}
 		})
@@ -44,7 +45,7 @@ func TestSetErrors(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			err := dalcKV.Set(tt.key, tt.value)
-			if err.Error() != tt.err.Error() {
+			if !errors.Is(tt.err, err) {
 				t.Errorf("Invalid err, got: %v expected %v", err, tt.err)
 			}
 		})
@@ -66,7 +67,7 @@ func TestDeleteErrors(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			err := dalcKV.Delete(tt.key)
-			if err.Error() != tt.err.Error() {
+			if !errors.Is(err, tt.err) {
 				t.Errorf("Invalid err, got: %v expected %v", err, tt.err)
 			}
 		})
