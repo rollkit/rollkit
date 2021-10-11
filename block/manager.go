@@ -8,7 +8,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/tendermint/tendermint/proxy"
-	lltypes "github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
@@ -24,7 +24,7 @@ type Manager struct {
 	lastState state.State
 
 	conf    config.BlockManagerConfig
-	genesis *lltypes.GenesisDoc
+	genesis *tmtypes.GenesisDoc
 
 	proposerKey crypto.PrivKey
 
@@ -46,7 +46,7 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.State, error) {
+func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (state.State, error) {
 	s, err := store.LoadState()
 	if err != nil {
 		s, err = state.NewFromGenesisDoc(genesis)
@@ -57,7 +57,7 @@ func getInitialState(store store.Store, genesis *lltypes.GenesisDoc) (state.Stat
 func NewManager(
 	proposerKey crypto.PrivKey,
 	conf config.BlockManagerConfig,
-	genesis *lltypes.GenesisDoc,
+	genesis *tmtypes.GenesisDoc,
 	store store.Store,
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/celestiaorg/optimint/block"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -13,7 +14,7 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	corep2p "github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
-	lltypes "github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
@@ -35,10 +36,10 @@ var (
 // It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
-	eventBus *lltypes.EventBus
+	eventBus *tmtypes.EventBus
 	proxyApp proxy.AppConns
 
-	genesis *lltypes.GenesisDoc
+	genesis *tmtypes.GenesisDoc
 
 	conf config.NodeConfig
 	P2P  *p2p.Client
@@ -60,14 +61,14 @@ type Node struct {
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *lltypes.GenesisDoc, logger log.Logger) (*Node, error) {
+func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
 	}
 
-	eventBus := lltypes.NewEventBus()
+	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -216,7 +217,7 @@ func (n *Node) GetLogger() log.Logger {
 }
 
 // EventBus gives access to Node's event bus.
-func (n *Node) EventBus() *lltypes.EventBus {
+func (n *Node) EventBus() *tmtypes.EventBus {
 	return n.eventBus
 }
 
