@@ -9,7 +9,6 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	context "golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -66,21 +65,25 @@ func main() {
 	var conf grpcda.Config
 	conf = grpcda.DefaultConfig
 
+	logger := tmlog.NewTMLogger(os.Stdout)
+
 	lis, err := net.Listen("tcp", conf.Host + ":" + strconv.Itoa(conf.Port))
 	if err != nil {
-		log.Panic(err)
+		logger.Error("failed to create listener", "error", err)
+		panic(err)
 	}
 
 	srv := grpc.NewServer()
 	mockImpl := MockImpl{}
 	kv := store.NewKVStore(".", "db", "optimint")
-	err = mockImpl.mock.Init(nil, kv, tmlog.NewTMLogger(os.Stdout))
+	err = mockImpl.mock.Init(nil, kv, logger)
 	if err != nil {
-		log.Panic(err)
+		logger.Error("failed to initialize mock DALC", "error", err)
+		panic(err)
 	}
 	dalc.RegisterDataAvailabilityLayerClientServiceServer(srv, mockImpl)
 	err = srv.Serve(lis)
 	if err != nil {
-		log.Printf("error while serving: %v", err)
+		logger.Error("error while serving", "error", err)
 	}
 }
