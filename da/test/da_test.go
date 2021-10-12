@@ -1,4 +1,4 @@
-package mock
+package test
 
 import (
 	"math/rand"
@@ -8,35 +8,45 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/log/test"
-	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
 
 func TestLifecycle(t *testing.T) {
-	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
-	dalcKV := store.NewInMemoryKVStore()
+	for _, dalc := range registry.RegisteredClients() {
+		t.Run(dalc, func(t *testing.T) {
+			doTestLifecycle(t, registry.GetClient(dalc))
+		})
+	}
+}
 
+func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := da.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
 	require.NoError(err)
 
-	err = da.Start()
+	err = dalc.Start()
 	require.NoError(err)
 
-	err = da.Stop()
+	err = dalc.Stop()
 	require.NoError(err)
 }
 
 func TestMockDALC(t *testing.T) {
-	var dalc da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
-	dalcKV := store.NewInMemoryKVStore()
+	for _, dalc := range registry.RegisteredClients() {
+		t.Run(dalc, func(t *testing.T) {
+			doTestDALC(t, registry.GetClient(dalc))
+		})
+	}
+}
 
+func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -68,20 +78,28 @@ func TestMockDALC(t *testing.T) {
 }
 
 func TestRetrieve(t *testing.T) {
-	mock := &MockDataAvailabilityLayerClient{}
-	var dalc da.DataAvailabilityLayerClient = mock
-	var retriever da.BlockRetriever = mock
+	for _, client := range registry.RegisteredClients() {
+		t.Run(client, func(t *testing.T) {
+			dalc := registry.GetClient(client)
+			_, ok := dalc.(da.BlockRetriever)
+			if ok {
+				doTestRetrieve(t, dalc)
+			}
+		})
+	}
+}
 
-	dalcKV := store.NewInMemoryKVStore()
-
+func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, dalcKV, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
 	require.NoError(err)
+
+	retriever := dalc.(da.BlockRetriever)
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
@@ -114,8 +132,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
 	}
 
-	// TODO(https://github.com/celestiaorg/optimint/issues/143)
-	// This is a hack to get around equality checks on serialization round trips
+	// TODO(tzdybal): see https://github.com/celestiaorg/optimint/issues/143
 	if nTxs == 0 {
 		block.Data.Txs = nil
 		block.Data.IntermediateStateRoots.RawRootsList = nil
