@@ -1,7 +1,12 @@
 package test
 
 import (
+	grpcda "github.com/celestiaorg/optimint/da/grpc"
+	"github.com/celestiaorg/optimint/da/grpc/mockserv"
+	"google.golang.org/grpc"
 	"math/rand"
+	"net"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +20,8 @@ import (
 )
 
 func TestLifecycle(t *testing.T) {
+	srv := startMockServ(t)
+	defer srv.GracefulStop()
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestLifecycle(t, registry.GetClient(dalc))
@@ -37,6 +44,8 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestMockDALC(t *testing.T) {
+	srv := startMockServ(t)
+	defer srv.GracefulStop()
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestDALC(t, registry.GetClient(dalc))
@@ -81,6 +90,8 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestRetrieve(t *testing.T) {
+	srv := startMockServ(t)
+	defer srv.GracefulStop()
 	for _, client := range registry.RegisteredClients() {
 		t.Run(client, func(t *testing.T) {
 			dalc := registry.GetClient(client)
@@ -90,6 +101,21 @@ func TestRetrieve(t *testing.T) {
 			}
 		})
 	}
+}
+
+func startMockServ(t *testing.T) *grpc.Server {
+	conf := grpcda.DefaultConfig
+	srv := mockserv.GetServer(store.NewInMemoryKVStore(), conf)
+	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		if err := srv.Serve(lis); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	return srv
 }
 
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
