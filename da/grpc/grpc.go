@@ -27,7 +27,7 @@ type Config struct {
 	Port int    `json:"port"`
 }
 
-var DefaultConfig = Config {
+var DefaultConfig = Config{
 	Host: "127.0.0.1",
 	Port: 7980,
 }
@@ -35,7 +35,7 @@ var DefaultConfig = Config {
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
-func (d DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (d *DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
 	if len(config) == 0 {
 		d.config = DefaultConfig
 		return nil
@@ -43,12 +43,12 @@ func (d DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, 
 	return json.Unmarshal(config, &d.config)
 }
 
-func (d DataAvailabilityLayerClient) Start() error {
+func (d *DataAvailabilityLayerClient) Start() error {
 	var err error
 	var opts []grpc.DialOption
 	// TODO(tzdybal): add more options
 	opts = append(opts, grpc.WithInsecure())
-	d.conn, err = grpc.Dial(d.config.Host + ":" + strconv.Itoa(d.config.Port), opts...)
+	d.conn, err = grpc.Dial(d.config.Host+":"+strconv.Itoa(d.config.Port), opts...)
 	if err != nil {
 		return err
 	}
@@ -58,11 +58,11 @@ func (d DataAvailabilityLayerClient) Start() error {
 	return nil
 }
 
-func (d DataAvailabilityLayerClient) Stop() error {
+func (d *DataAvailabilityLayerClient) Stop() error {
 	return d.conn.Close()
 }
 
-func (d DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
+func (d *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	resp, err := d.client.SubmitBlock(context.TODO(), &dalc.SubmitBlockRequest{Block: block.ToProto()})
 	if err != nil {
 		return da.ResultSubmitBlock{
@@ -74,7 +74,7 @@ func (d DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSu
 	}
 }
 
-func (d DataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
+func (d *DataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
 	resp, err := d.client.CheckBlockAvailability(context.TODO(), &dalc.CheckBlockAvailabilityRequest{Header: header.ToProto()})
 	if err != nil {
 		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
@@ -85,7 +85,7 @@ func (d DataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header
 	}
 }
 
-func (d DataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
+func (d *DataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
 	resp, err := d.client.RetrieveBlock(context.TODO(), &dalc.RetrieveBlockRequest{Height: height})
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
