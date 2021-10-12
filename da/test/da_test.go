@@ -1,13 +1,14 @@
 package test
 
 import (
-	grpcda "github.com/celestiaorg/optimint/da/grpc"
-	"github.com/celestiaorg/optimint/da/grpc/mockserv"
-	"google.golang.org/grpc"
 	"math/rand"
 	"net"
 	"strconv"
 	"testing"
+
+	grpcda "github.com/celestiaorg/optimint/da/grpc"
+	"github.com/celestiaorg/optimint/da/grpc/mockserv"
+	"google.golang.org/grpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -108,9 +109,7 @@ func startMockServ(t *testing.T) *grpc.Server {
 		t.Fatal(err)
 	}
 	go func() {
-		if err := srv.Serve(lis); err != nil {
-			t.Fatal(err)
-		}
+		_ = srv.Serve(lis)
 	}()
 	return srv
 }
