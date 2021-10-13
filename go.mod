@@ -4,9 +4,8 @@ go 1.15
 
 require (
 	github.com/celestiaorg/celestia-app v0.0.0-00010101000000-000000000000
-	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cosmos/cosmos-sdk v0.40.0-rc5
-	github.com/dgraph-io/badger/v3 v3.2011.1
+	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/go-kit/kit v0.11.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
@@ -15,7 +14,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-discovery v0.5.1
 	github.com/libp2p/go-libp2p-kad-dht v0.13.1
-	github.com/libp2p/go-libp2p-pubsub v0.5.4
+	github.com/libp2p/go-libp2p-pubsub v0.5.5
 	github.com/libp2p/go-libp2p-quic-transport v0.12.0 // indirect
 	github.com/minio/sha256-simd v1.0.0
 	github.com/multiformats/go-multiaddr v0.4.1
