@@ -8,6 +8,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -37,6 +38,34 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, mempool mempo
 		mempool:         mempool,
 		logger:          logger,
 	}
+}
+
+func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseInitChain, error) {
+	params := genesis.ConsensusParams
+	return e.proxyApp.InitChainSync(abci.RequestInitChain{
+		Time:    genesis.GenesisTime,
+		ChainId: genesis.ChainID,
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxBytes: params.Block.MaxBytes,
+				MaxGas:   params.Block.MaxGas,
+			},
+			Evidence: &tmproto.EvidenceParams{
+				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
+				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
+				MaxBytes:        params.Evidence.MaxBytes,
+			},
+			Validator: &tmproto.ValidatorParams{
+				PubKeyTypes: params.Validator.PubKeyTypes,
+			},
+			Version: &tmproto.VersionParams{
+				AppVersion: params.Version.AppVersion,
+			},
+		},
+		Validators:    nil,
+		AppStateBytes: genesis.AppState,
+		InitialHeight: genesis.InitialHeight,
+	})
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
