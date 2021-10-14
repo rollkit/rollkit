@@ -2,6 +2,7 @@ package mock
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
@@ -71,8 +72,11 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
 	hash := header.Hash()
 	_, err := m.dalcKV.Get(hash[:])
-	if err != nil {
+	if errors.Is(err, store.ErrKeyNotFound) {
 		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
+	}
+	if err != nil {
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}, DataAvailable: false}
 	}
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: true}
 }
