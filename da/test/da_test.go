@@ -8,6 +8,7 @@ import (
 
 	grpcda "github.com/celestiaorg/optimint/da/grpc"
 	"github.com/celestiaorg/optimint/da/grpc/mockserv"
+	"github.com/celestiaorg/optimint/store"
 	"google.golang.org/grpc"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require.NoError(err)
 }
 
-func TestMockDALC(t *testing.T) {
+func TestDALC(t *testing.T) {
 	srv := startMockServ(t)
 	defer srv.GracefulStop()
 	for _, dalc := range registry.RegisteredClients() {
@@ -56,7 +57,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, store.NewInMemoryKVStore(), &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -118,7 +119,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, store.NewInMemoryKVStore(), &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
