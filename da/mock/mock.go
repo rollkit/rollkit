@@ -14,6 +14,7 @@ import (
 // It does actually ensures DA - it stores data in-memory.
 type MockDataAvailabilityLayerClient struct {
 	logger log.Logger
+
 	dalcKV store.KVStore
 }
 
@@ -23,7 +24,9 @@ var _ da.BlockRetriever = &MockDataAvailabilityLayerClient{}
 // Init is called once to allow DA client to read configuration and initialize resources.
 func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV store.KVStore, logger log.Logger) error {
 	m.logger = logger
+
 	m.dalcKV = dalcKV
+
 	return nil
 }
 
