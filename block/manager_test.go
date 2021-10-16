@@ -8,13 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-<<<<<<< HEAD:node/aggregator_test.go
-	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
-=======
-	"github.com/tendermint/tendermint/libs/log"
->>>>>>> 7d2f4ae96f40d1c1f8c0dd054f6f5d7535a9e7c8:block/manager_test.go
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
