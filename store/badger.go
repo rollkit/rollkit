@@ -55,8 +55,9 @@ func (b *BadgerKV) Delete(key []byte) error {
 	return txn.Commit()
 }
 
+// NewBatch creates new batch.
+// Note: badger batches should be short lived as they use extra resources.
 func (b *BadgerKV) NewBatch() Batch {
-	//write transactions should be short lived as they use extra resources in badger
 	return &BadgerBatch{
 		txn: b.db.NewTransaction(true),
 	}
