@@ -16,12 +16,12 @@ type KVStore interface {
 	NewBatch() Batch
 }
 
-//Batch enables batching of transactions
+// Batch enables batching of transactions
 type Batch interface {
-	Set(key, value []byte) error //Accumulates KV entries in a transaction
-	Delete(key []byte) error     //Deletes the given key
-	Commit() error               //Commits the transaction
-	Discard()                    //Discards the transaction
+	Set(key, value []byte) error // Accumulates KV entries in a transaction
+	Delete(key []byte) error     // Deletes the given key
+	Commit() error               // Commits the transaction
+	Discard()                    // Discards the transaction
 }
 
 // NewInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
