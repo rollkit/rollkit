@@ -1,11 +1,18 @@
 package store
 
 import (
+	"errors"
+
 	"github.com/dgraph-io/badger/v3"
 )
 
 var _ KVStore = &BadgerKV{}
 var _ Batch = &BadgerBatch{}
+
+var (
+	// ErrKeyNotFound is returned if key is not found in KVStore.
+	ErrKeyNotFound = errors.New("key not found")
+)
 
 // BadgerKV is a implementation of KVStore using Badger v3.
 type BadgerKV struct {
@@ -17,6 +24,9 @@ func (b *BadgerKV) Get(key []byte) ([]byte, error) {
 	txn := b.db.NewTransaction(false)
 	defer txn.Discard()
 	item, err := txn.Get(key)
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return nil, ErrKeyNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
