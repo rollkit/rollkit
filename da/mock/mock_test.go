@@ -15,7 +15,7 @@ import (
 
 func TestLifecycle(t *testing.T) {
 	var da da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
-	dalcKV := store.NewInMemoryKVStore()
+	dalcKV := store.NewDefaultInMemoryKVStore()
 
 	require := require.New(t)
 
@@ -31,7 +31,7 @@ func TestLifecycle(t *testing.T) {
 
 func TestMockDALC(t *testing.T) {
 	var dalc da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
-	dalcKV := store.NewInMemoryKVStore()
+	dalcKV := store.NewDefaultInMemoryKVStore()
 
 	require := require.New(t)
 	assert := assert.New(t)
@@ -72,7 +72,7 @@ func TestRetrieve(t *testing.T) {
 	var dalc da.DataAvailabilityLayerClient = mock
 	var retriever da.BlockRetriever = mock
 
-	dalcKV := store.NewInMemoryKVStore()
+	dalcKV := store.NewDefaultInMemoryKVStore()
 
 	require := require.New(t)
 	assert := assert.New(t)

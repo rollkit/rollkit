@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetErrors(t *testing.T) {
-	dalcKV := NewInMemoryKVStore()
+	dalcKV := NewDefaultInMemoryKVStore()
 
 	tc := []struct {
 		name string
@@ -30,7 +30,7 @@ func TestGetErrors(t *testing.T) {
 }
 
 func TestSetErrors(t *testing.T) {
-	dalcKV := NewInMemoryKVStore()
+	dalcKV := NewDefaultInMemoryKVStore()
 
 	tc := []struct {
 		name  string
@@ -53,7 +53,7 @@ func TestSetErrors(t *testing.T) {
 }
 
 func TestDeleteErrors(t *testing.T) {
-	dalcKV := NewInMemoryKVStore()
+	dalcKV := NewDefaultInMemoryKVStore()
 
 	tc := []struct {
 		name string

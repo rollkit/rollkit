@@ -13,7 +13,7 @@ func TestPrefixKV(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	base := NewInMemoryKVStore()
+	base := NewDefaultInMemoryKVStore()
 
 	p1 := NewPrefixKV(base, []byte{1})
 	p2 := NewPrefixKV(base, []byte{2})
@@ -70,4 +70,37 @@ func TestPrefixKV(t *testing.T) {
 	v, err = p2.Get(key2)
 	require.NoError(err)
 	assert.Equal(val22, v)
+}
+
+func TestPrefixKVBatch(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+	require := require.New(t)
+
+	basekv := NewDefaultInMemoryKVStore()
+	prefixkv := NewPrefixKV(basekv, []byte("prefix1"))
+	prefixbatchkv1 := prefixkv.NewBatch()
+
+	keys := [][]byte{[]byte("key1"), []byte("key2"), []byte("key3"), []byte("key4")}
+	values := [][]byte{[]byte("value1"), []byte("value2"), []byte("value3"), []byte("value4")}
+
+	for i := 0; i < len(keys); i++ {
+		err := prefixbatchkv1.Set(keys[i], values[i])
+		require.NoError(err)
+	}
+
+	err := prefixbatchkv1.Commit()
+	require.NoError(err)
+
+	for i := 0; i < len(keys); i++ {
+		vals, err := prefixkv.Get(keys[i])
+		assert.Equal(vals, values[i])
+		require.NoError(err)
+	}
+
+	prefixbatchkv2 := prefixkv.NewBatch()
+	err = prefixbatchkv2.Delete([]byte("key1"))
+	require.NoError(err)
+
 }
