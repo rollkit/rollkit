@@ -29,9 +29,9 @@ func TestInitialState(t *testing.T) {
 		LastBlockHeight: 128,
 	}
 
-	emptyStore := store.New(store.NewInMemoryKVStore())
+	emptyStore := store.New(store.NewDefaultInMemoryKVStore())
 
-	fullStore := store.New(store.NewInMemoryKVStore())
+	fullStore := store.New(store.NewDefaultInMemoryKVStore())
 	err := fullStore.UpdateState(sampleState)
 	require.NoError(t, err)
 

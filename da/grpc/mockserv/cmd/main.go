@@ -14,7 +14,7 @@ func main() {
 	// TODO(tzdybal): read config from somewhere
 	conf := grpcda.DefaultConfig
 
-	kv := store.NewKVStore(".", "db", "optimint")
+	kv := store.NewDefaultKVStore(".", "db", "optimint")
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
 		log.Panic(err)

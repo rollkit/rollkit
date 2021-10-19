@@ -13,10 +13,19 @@ type KVStore interface {
 	Get(key []byte) ([]byte, error)     // Get gets the value for a key.
 	Set(key []byte, value []byte) error // Set updates the value for a key.
 	Delete(key []byte) error            // Delete deletes a key.
+	NewBatch() Batch
+}
+
+// Batch enables batching of transactions
+type Batch interface {
+	Set(key, value []byte) error // Accumulates KV entries in a transaction
+	Delete(key []byte) error     // Deletes the given key
+	Commit() error               // Commits the transaction
+	Discard()                    // Discards the transaction
 }
 
 // NewInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
-func NewInMemoryKVStore() KVStore {
+func NewDefaultInMemoryKVStore() KVStore {
 	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true))
 	if err != nil {
 		panic(err)
@@ -26,7 +35,7 @@ func NewInMemoryKVStore() KVStore {
 	}
 }
 
-func NewKVStore(rootDir, dbPath, dbName string) KVStore {
+func NewDefaultKVStore(rootDir, dbPath, dbName string) KVStore {
 	path := filepath.Join(rootify(rootDir, dbPath), dbName)
 	db, err := badger.Open(badger.DefaultOptions(path))
 	if err != nil {

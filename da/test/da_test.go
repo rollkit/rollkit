@@ -57,7 +57,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, store.NewInMemoryKVStore(), &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, store.NewDefaultInMemoryKVStore(), &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -104,7 +104,7 @@ func TestRetrieve(t *testing.T) {
 
 func startMockServ(t *testing.T) *grpc.Server {
 	conf := grpcda.DefaultConfig
-	srv := mockserv.GetServer(store.NewInMemoryKVStore(), conf)
+	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf)
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, store.NewInMemoryKVStore(), &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, store.NewDefaultInMemoryKVStore(), &test.TestLogger{T: t})
 	require.NoError(err)
 
 	err = dalc.Start()

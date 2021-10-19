@@ -7,6 +7,7 @@ import (
 )
 
 var _ KVStore = &BadgerKV{}
+var _ Batch = &BadgerBatch{}
 
 var (
 	// ErrKeyNotFound is returned if key is not found in KVStore.
@@ -52,4 +53,41 @@ func (b *BadgerKV) Delete(key []byte) error {
 		return err
 	}
 	return txn.Commit()
+}
+
+// NewBatch creates new batch.
+// Note: badger batches should be short lived as they use extra resources.
+func (b *BadgerKV) NewBatch() Batch {
+	return &BadgerBatch{
+		txn: b.db.NewTransaction(true),
+	}
+}
+
+// BadgerBatch encapsulates badger transaction
+type BadgerBatch struct {
+	txn *badger.Txn
+}
+
+// Set accumulates key-value entries in a transaction
+func (bb *BadgerBatch) Set(key, value []byte) error {
+	if err := bb.txn.Set(key, value); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Delete removes the key and associated value from store
+func (bb *BadgerBatch) Delete(key []byte) error {
+	return bb.txn.Delete(key)
+}
+
+// Commit commits a transaction
+func (bb *BadgerBatch) Commit() error {
+	return bb.txn.Commit()
+}
+
+// Discard cancels a transaction
+func (bb *BadgerBatch) Discard() {
+	bb.txn.Discard()
 }

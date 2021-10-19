@@ -38,7 +38,7 @@ func TestBlockstoreHeight(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			bstore := New(NewInMemoryKVStore())
+			bstore := New(NewDefaultInMemoryKVStore())
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
@@ -80,7 +80,7 @@ func TestBlockstoreLoad(t *testing.T) {
 		}
 	}()
 
-	for _, kv := range []KVStore{NewInMemoryKVStore(), NewKVStore(tmpDir, "db", "test")} {
+	for _, kv := range []KVStore{NewDefaultInMemoryKVStore(), NewDefaultKVStore(tmpDir, "db", "test")} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				assert := assert.New(t)
