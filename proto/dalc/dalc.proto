@@ -42,7 +42,7 @@ message RetrieveBlockResponse {
 	optimint.Block block = 2;
 }
 
-service DataAvailabilityLayerClientService {
+service DALCService {
 	rpc SubmitBlock(SubmitBlockRequest) returns (SubmitBlockResponse) {}
 	rpc CheckBlockAvailability(CheckBlockAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
 	rpc RetrieveBlock(RetrieveBlockRequest) returns (RetrieveBlockResponse) {}

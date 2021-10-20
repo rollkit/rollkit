@@ -18,7 +18,7 @@ type DataAvailabilityLayerClient struct {
 	config Config
 
 	conn   *grpc.ClientConn
-	client dalc.DataAvailabilityLayerClientServiceClient
+	client dalc.DALCServiceClient
 }
 
 type Config struct {
@@ -53,7 +53,7 @@ func (d *DataAvailabilityLayerClient) Start() error {
 		return err
 	}
 
-	d.client = dalc.NewDataAvailabilityLayerClientServiceClient(d.conn)
+	d.client = dalc.NewDALCServiceClient(d.conn)
 
 	return nil
 }
