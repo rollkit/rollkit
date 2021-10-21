@@ -116,7 +116,7 @@ func TestRestart(t *testing.T) {
 
 	assert := assert.New(t)
 
-	kv := NewInMemoryKVStore()
+	kv := NewDefaultInMemoryKVStore()
 	s1 := New(kv)
 	expectedHeight := uint64(10)
 	//block := getRandomBlock(expectedHeight, 10)
