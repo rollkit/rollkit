@@ -149,6 +149,9 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 	}
 
 	err = json.Unmarshal(blob, &state)
+	s.mtx.Lock()
+	s.height = uint64(state.LastBlockHeight)
+	s.mtx.Unlock()
 	return state, err
 }
 

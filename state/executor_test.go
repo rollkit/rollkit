@@ -20,6 +20,7 @@ import (
 )
 
 func TestCreateBlock(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -66,6 +67,7 @@ func TestCreateBlock(t *testing.T) {
 }
 
 func TestApplyBlock(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
