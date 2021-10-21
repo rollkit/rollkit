@@ -5,13 +5,12 @@ go 1.15
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
-	github.com/dgraph-io/badger/v3 v3.2011.1
+	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/go-kit/kit v0.11.0
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
-	github.com/golang/snappy v0.0.3-0.20201103224600-674baa8c7fc3 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f // indirect
 	github.com/ipfs/go-log v1.0.5
 	github.com/kr/text v0.2.0 // indirect
