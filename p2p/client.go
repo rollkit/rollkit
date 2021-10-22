@@ -56,7 +56,7 @@ type Client struct {
 
 	headerGossiper  *Gossiper
 	headerValidator GossipValidator
-	headerHandler   GossipHandler
+	//headerHandler   GossipHandler
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -148,9 +148,9 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 }
 
 // SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
-func (c *Client) SetTxHandler(handler GossipHandler) {
+/*func (c *Client) SetTxHandler(handler GossipHandler) {
 	c.txGossiper.handler = handler
-}
+}*/
 
 // SetTxValidator sets the callback function, that will be invoked during message gossiping.
 func (c *Client) SetTxValidator(val GossipValidator) {
@@ -169,9 +169,9 @@ func (c *Client) SetHeaderValidator(validator GossipValidator) {
 }
 
 // SetHeaderHandler sets the callback function, that will be invoked after block header is received from P2P network.
-func (c *Client) SetHeaderHandler(handler GossipHandler) {
+/*func (c *Client) SetHeaderHandler(handler GossipHandler) {
 	c.headerHandler = handler
-}
+}*/
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
 	var err error
@@ -283,7 +283,7 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	go c.txGossiper.ProcessMessages(ctx)
 
 	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger,
-		WithValidator(c.headerValidator), WithHandler(c.headerHandler))
+		WithValidator(c.headerValidator))
 	if err != nil {
 		return err
 	}

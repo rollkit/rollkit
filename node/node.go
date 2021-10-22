@@ -127,8 +127,14 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		Store:            s,
 		ctx:              ctx,
 	}
-	node.P2P.SetHeaderHandler(func(msg *p2p.GossipMessage) {
+	/*node.P2P.SetHeaderHandler(func(msg *p2p.GossipMessage) {
 		node.incomingHeaderCh <- msg
+	})*/
+
+	// Does this make sense ?
+	node.P2P.SetHeaderValidator(func(msg *p2p.GossipMessage) bool {
+		node.incomingHeaderCh <- msg
+		return true
 	})
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)

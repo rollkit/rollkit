@@ -96,22 +96,30 @@ func TestGossiping(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// ensure that Tx is delivered to client
-	assertRecv := func(tx *GossipMessage) {
+	assertRecv := func(tx *GossipMessage) bool {
 		logger.Debug("received tx", "body", string(tx.Data))
 		assert.Equal(expectedMsg, tx.Data)
 		wg.Done()
+		return true
 	}
 	wg.Add(2)
-	clients[0].SetTxHandler(assertRecv)
-	clients[3].SetTxHandler(assertRecv)
+	clients[0].SetTxValidator(assertRecv)
+	clients[3].SetTxValidator(assertRecv)
+	//clients[0].SetTxHandler(assertRecv)
+	//clients[3].SetTxHandler(assertRecv)
 
 	// ensure that Tx is not delivered to client
-	assertNotRecv := func(*GossipMessage) {
+	assertNotRecv := func(*GossipMessage) bool {
 		t.Fatal("unexpected Tx received")
+		return false
 	}
-	clients[1].SetTxHandler(assertNotRecv)
-	clients[2].SetTxHandler(assertNotRecv)
-	clients[4].SetTxHandler(assertNotRecv)
+	//clients[1].SetTxHandler(assertNotRecv)
+	//clients[2].SetTxHandler(assertNotRecv)
+	//clients[4].SetTxHandler(assertNotRecv)
+
+	clients[1].SetTxValidator(assertNotRecv)
+	clients[2].SetTxValidator(assertNotRecv)
+	clients[4].SetTxValidator(assertNotRecv)
 
 	// this sleep is required for pubsub to "propagate" subscription information
 	// TODO(tzdybal): is there a better way to wait for readiness?
