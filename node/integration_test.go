@@ -33,6 +33,7 @@ func TestAggregatorMode(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
@@ -191,6 +192,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
 
 	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
