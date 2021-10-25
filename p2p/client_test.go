@@ -105,17 +105,12 @@ func TestGossiping(t *testing.T) {
 	wg.Add(2)
 	clients[0].SetTxValidator(assertRecv)
 	clients[3].SetTxValidator(assertRecv)
-	//clients[0].SetTxHandler(assertRecv)
-	//clients[3].SetTxHandler(assertRecv)
 
 	// ensure that Tx is not delivered to client
 	assertNotRecv := func(*GossipMessage) bool {
 		t.Fatal("unexpected Tx received")
 		return false
 	}
-	//clients[1].SetTxHandler(assertNotRecv)
-	//clients[2].SetTxHandler(assertNotRecv)
-	//clients[4].SetTxHandler(assertNotRecv)
 
 	clients[1].SetTxValidator(assertNotRecv)
 	clients[2].SetTxValidator(assertNotRecv)

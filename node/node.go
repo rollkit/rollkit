@@ -105,7 +105,9 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 
 	txValidator := newTxValidator(mp, mpIDs, logger)
 	client.SetTxValidator(txValidator)
-	client.SetHeaderValidator(newHeaderValidator(logger))
+
+	incomingHeaderCh := make(chan *p2p.GossipMessage)
+	client.SetHeaderValidator(newHeaderValidator(logger, incomingHeaderCh))
 
 	blockManager, err := block.NewManager(nodeKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "BlockManager"))
 	if err != nil {
@@ -123,19 +125,10 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		Mempool:          mp,
 		mempoolIDs:       mpIDs,
 		incomingTxCh:     make(chan *p2p.GossipMessage),
-		incomingHeaderCh: make(chan *p2p.GossipMessage),
+		incomingHeaderCh: incomingHeaderCh,
 		Store:            s,
 		ctx:              ctx,
 	}
-	/*node.P2P.SetHeaderHandler(func(msg *p2p.GossipMessage) {
-		node.incomingHeaderCh <- msg
-	})*/
-
-	// Does this make sense ?
-	node.P2P.SetHeaderValidator(func(msg *p2p.GossipMessage) bool {
-		node.incomingHeaderCh <- msg
-		return true
-	})
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -262,7 +255,7 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 	}
 }
 
-func newHeaderValidator(logger log.Logger) p2p.GossipValidator {
+func newHeaderValidator(logger log.Logger, incomingHeaderCh chan *p2p.GossipMessage) p2p.GossipValidator {
 	return func(headerMsg *p2p.GossipMessage) bool {
 		logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
 		var header types.Header
@@ -276,6 +269,7 @@ func newHeaderValidator(logger log.Logger) p2p.GossipValidator {
 			logger.Error("failed to validate header", "error", err)
 			return false
 		}
+		incomingHeaderCh <- headerMsg
 		return true
 	}
 }
