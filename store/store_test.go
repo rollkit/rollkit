@@ -1,17 +1,17 @@
 package store
 
 import (
+	"github.com/celestiaorg/optimint/state"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"math/rand"
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/celestiaorg/optimint/types"
 )
 
-func TestBlockstoreHeight(t *testing.T) {
+func TestStoreHeight(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string
@@ -38,7 +38,7 @@ func TestBlockstoreHeight(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			bstore := New(NewInMemoryKVStore())
+			bstore := New(NewDefaultInMemoryKVStore())
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
@@ -51,7 +51,7 @@ func TestBlockstoreHeight(t *testing.T) {
 	}
 }
 
-func TestBlockstoreLoad(t *testing.T) {
+func TestStoreLoad(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name   string
@@ -80,7 +80,7 @@ func TestBlockstoreLoad(t *testing.T) {
 		}
 	}()
 
-	for _, kv := range []KVStore{NewInMemoryKVStore(), NewKVStore(tmpDir, "db", "test")} {
+	for _, kv := range []KVStore{NewDefaultInMemoryKVStore(), NewDefaultKVStore(tmpDir, "db", "test")} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				assert := assert.New(t)
@@ -109,6 +109,28 @@ func TestBlockstoreLoad(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestRestart(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	kv := NewDefaultInMemoryKVStore()
+	s1 := New(kv)
+	expectedHeight := uint64(10)
+	//block := getRandomBlock(expectedHeight, 10)
+	//err := s1.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: block.Header.Hash()})
+	err := s1.UpdateState(state.State{
+		LastBlockHeight: int64(expectedHeight),
+	})
+	assert.NoError(err)
+
+	s2 := New(kv)
+	_, err = s2.LoadState()
+	assert.NoError(err)
+
+	assert.Equal(expectedHeight, s2.Height())
 }
 
 func getRandomBlock(height uint64, nTxs int) *types.Block {

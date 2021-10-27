@@ -8,8 +8,9 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
-	lltypes "github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/log"
@@ -37,6 +38,34 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, mempool mempo
 		mempool:         mempool,
 		logger:          logger,
 	}
+}
+
+func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseInitChain, error) {
+	params := genesis.ConsensusParams
+	return e.proxyApp.InitChainSync(abci.RequestInitChain{
+		Time:    genesis.GenesisTime,
+		ChainId: genesis.ChainID,
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxBytes: params.Block.MaxBytes,
+				MaxGas:   params.Block.MaxGas,
+			},
+			Evidence: &tmproto.EvidenceParams{
+				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
+				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
+				MaxBytes:        params.Evidence.MaxBytes,
+			},
+			Validator: &tmproto.ValidatorParams{
+				PubKeyTypes: params.Validator.PubKeyTypes,
+			},
+			Version: &tmproto.VersionParams{
+				AppVersion: params.Version.AppVersion,
+			},
+		},
+		Validators:    nil,
+		AppStateBytes: genesis.AppState,
+		InitialHeight: genesis.InitialHeight,
+	})
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
@@ -108,7 +137,7 @@ func (e *BlockExecutor) updateState(state State, block *types.Block, abciRespons
 		InitialHeight:   state.InitialHeight,
 		LastBlockHeight: int64(block.Header.Height),
 		LastBlockTime:   time.Unix(int64(block.Header.Time), 0),
-		LastBlockID: lltypes.BlockID{
+		LastBlockID: tmtypes.BlockID{
 			Hash: hash[:],
 			// for now, we don't care about part set headers
 		},
@@ -116,7 +145,7 @@ func (e *BlockExecutor) updateState(state State, block *types.Block, abciRespons
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
 	}
-	copy(s.LastResultsHash[:], lltypes.NewResults(abciResponses.DeliverTxs).Hash())
+	copy(s.LastResultsHash[:], tmtypes.NewResults(abciResponses.DeliverTxs).Hash())
 
 	return s, nil
 }
@@ -229,7 +258,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	return abciResponses, nil
 }
 
-func toOptimintTxs(txs lltypes.Txs) types.Txs {
+func toOptimintTxs(txs tmtypes.Txs) types.Txs {
 	optiTxs := make(types.Txs, len(txs))
 	for i := range txs {
 		optiTxs[i] = []byte(txs[i])
@@ -237,8 +266,8 @@ func toOptimintTxs(txs lltypes.Txs) types.Txs {
 	return optiTxs
 }
 
-func fromOptimintTxs(optiTxs types.Txs) lltypes.Txs {
-	txs := make(lltypes.Txs, len(optiTxs))
+func fromOptimintTxs(optiTxs types.Txs) tmtypes.Txs {
+	txs := make(tmtypes.Txs, len(optiTxs))
 	for i := range optiTxs {
 		txs[i] = []byte(optiTxs[i])
 	}

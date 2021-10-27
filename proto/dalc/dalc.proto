@@ -1,0 +1,49 @@
+syntax = "proto3";
+package dalc;
+option go_package = "github.com/celestiaorg/optimint/types/pb/dalc";
+
+import "optimint/optimint.proto";
+
+enum StatusCode {
+	STATUS_CODE_UNSPECIFIED = 0;
+	STATUS_CODE_SUCCESS = 1;
+	STATUS_CODE_TIMEOUT = 2;
+	STATUS_CODE_ERROR   = 3;
+}
+
+message DAResponse {
+	StatusCode code = 1;
+	string message = 2;
+}
+
+message SubmitBlockRequest {
+	optimint.Block block = 1;
+}
+
+message SubmitBlockResponse {
+	DAResponse result = 1;
+}
+
+message CheckBlockAvailabilityRequest {
+	optimint.Header header = 1;
+}
+
+message CheckBlockAvailabilityResponse {
+	DAResponse result = 1;
+	bool data_available = 2;
+}
+
+message RetrieveBlockRequest {
+	uint64 height = 1;
+}
+
+message RetrieveBlockResponse {
+	DAResponse result = 1;
+	optimint.Block block = 2;
+}
+
+service DALCService {
+	rpc SubmitBlock(SubmitBlockRequest) returns (SubmitBlockResponse) {}
+	rpc CheckBlockAvailability(CheckBlockAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
+	rpc RetrieveBlock(RetrieveBlockRequest) returns (RetrieveBlockResponse) {}
+}

@@ -22,7 +22,9 @@ jobs:
       run: go build -v ./...
 
     - name: Test & Coverage
-      run: go test -race -coverprofile=coverage.txt -covermode=atomic -v ./...
+      run: |
+        go install github.com/ory/go-acc@v0.2.6
+        go-acc -o coverage.txt ./... -- -v --race
 
     - uses: codecov/codecov-action@v2.1.0
       with:

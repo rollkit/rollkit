@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/optimint/block"
+
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
@@ -12,7 +14,7 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	corep2p "github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
-	lltypes "github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
@@ -34,10 +36,10 @@ var (
 // It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
-	eventBus *lltypes.EventBus
+	eventBus *tmtypes.EventBus
 	proxyApp proxy.AppConns
 
-	genesis *lltypes.GenesisDoc
+	genesis *tmtypes.GenesisDoc
 
 	conf config.NodeConfig
 	P2P  *p2p.Client
@@ -49,9 +51,9 @@ type Node struct {
 
 	incomingHeaderCh chan *p2p.GossipMessage
 
-	Store      store.Store
-	aggregator *aggregator
-	dalc       da.DataAvailabilityLayerClient
+	Store        store.Store
+	blockManager *block.Manager
+	dalc         da.DataAvailabilityLayerClient
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -59,14 +61,14 @@ type Node struct {
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *lltypes.GenesisDoc, logger log.Logger) (*Node, error) {
+func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
 	}
 
-	eventBus := lltypes.NewEventBus()
+	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -80,9 +82,9 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	var baseKV store.KVStore
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
-		baseKV = store.NewInMemoryKVStore()
+		baseKV = store.NewDefaultInMemoryKVStore()
 	} else {
-		baseKV = store.NewKVStore(conf.RootDir, conf.DBPath, "optimint")
+		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "optimint")
 	}
 	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
 	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
@@ -105,12 +107,9 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	client.SetTxValidator(txValidator)
 	client.SetHeaderValidator(newHeaderValidator(logger))
 
-	var aggregator *aggregator = nil
-	if conf.Aggregator {
-		aggregator, err = newAggregator(nodeKey, conf.AggregatorConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "aggregator"))
-		if err != nil {
-			return nil, fmt.Errorf("aggregator initialization error: %w", err)
-		}
+	blockManager, err := block.NewManager(nodeKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "BlockManager"))
+	if err != nil {
+		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	node := &Node{
@@ -119,7 +118,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		genesis:          genesis,
 		conf:             conf,
 		P2P:              client,
-		aggregator:       aggregator,
+		blockManager:     blockManager,
 		dalc:             dalc,
 		Mempool:          mp,
 		mempoolIDs:       mpIDs,
@@ -128,6 +127,10 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		Store:            s,
 		ctx:              ctx,
 	}
+	node.P2P.SetHeaderHandler(func(msg *p2p.GossipMessage) {
+		node.incomingHeaderCh <- msg
+	})
+
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
@@ -143,22 +146,7 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 				n.Logger.Error("failed to deserialize header", "error", err)
 				continue
 			}
-			// header is already validated during libp2p pubsub validation phase
-			hash := header.Hash()
-			n.Logger.Debug("header details", "height", header.Height, "hash", hash, "lastHeaderHash", header.LastHeaderHash)
-
-			// TODO(tzdybal): this is simplified version for MVP - blocks are fetched only via DALC
-			blockRes := n.dalc.(da.BlockRetriever).RetrieveBlock(header.Height)
-			var block *types.Block
-			switch blockRes.Code {
-			case da.StatusSuccess:
-				block = blockRes.Block
-			case da.StatusError:
-			case da.StatusTimeout:
-			default:
-			}
-			// TODO(tzdybal): actually apply block
-			n.Logger.Debug("full block", "block", block)
+			n.blockManager.HeaderInCh <- &header
 		case <-ctx.Done():
 			break
 		}
@@ -168,7 +156,7 @@ func (n *Node) headerReadLoop(ctx context.Context) {
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case header := <-n.aggregator.headerCh:
+		case header := <-n.blockManager.HeaderOutCh:
 			headerBytes, err := header.MarshalBinary()
 			if err != nil {
 				n.Logger.Error("failed to serialize block header", "error", err)
@@ -195,12 +183,12 @@ func (n *Node) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	if n.conf.Aggregator {
-		go n.aggregator.aggregationLoop(n.ctx)
+		go n.blockManager.AggregationLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 	}
-	n.P2P.SetHeaderHandler(func(header *p2p.GossipMessage) {
-		n.incomingHeaderCh <- header
-	})
+	go n.blockManager.RetrieveLoop(n.ctx)
+	go n.blockManager.SyncLoop(n.ctx)
+
 	go n.headerReadLoop(n.ctx)
 
 	return nil
@@ -229,7 +217,7 @@ func (n *Node) GetLogger() log.Logger {
 }
 
 // EventBus gives access to Node's event bus.
-func (n *Node) EventBus() *lltypes.EventBus {
+func (n *Node) EventBus() *tmtypes.EventBus {
 	return n.eventBus
 }
 

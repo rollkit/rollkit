@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/mocks"
@@ -188,6 +188,7 @@ func getRPC(t *testing.T) (*mocks.Application, *Local) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
@@ -204,7 +205,7 @@ func TestMempool2Nodes(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	// app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(rand.Reader)
