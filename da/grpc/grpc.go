@@ -38,11 +38,11 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 func (d *DataAvailabilityLayerClient) Init(config []byte, _ store.KVStore, logger log.Logger) error {
+	d.logger = logger
 	if len(config) == 0 {
 		d.config = DefaultConfig
 		return nil
 	}
-	d.logger = logger
 	return json.Unmarshal(config, &d.config)
 }
 
