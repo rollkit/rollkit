@@ -36,11 +36,11 @@ type Local struct {
 	node *node.Node
 }
 
-func NewLocal(node *node.Node) *Local {
+func NewLocal(node *node.Node, config *config.RPCConfig) *Local {
 	return &Local{
 		EventBus: node.EventBus(),
 		ctx:      &rpctypes.Context{},
-		config:   config.DefaultRPCConfig(),
+		config:   config,
 		node:     node,
 	}
 }
