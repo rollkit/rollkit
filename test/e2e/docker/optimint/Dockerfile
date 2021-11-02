@@ -8,24 +8,22 @@ WORKDIR /src/optimint
 RUN mkdir build
 
 # Fetch dependencies separately (for layer caching)
-# COPY go.mod go.sum ./
-# RUN go mod download
+COPY go.mod go.sum ./
+RUN go mod download
 
 # copy optimint
 COPY . .
+
+ENTRYPOINT ["/src/optimint/test/e2e/docker/optimint/docker-entrypoint.sh"]
 
 WORKDIR /src/optimint/test/e2e
 
 RUN make rollup && cp build/rollupd /usr/bin/rollupd
 
-WORKDIR /src/optimint/test/e2e/docker/optimint
-
-COPY . /usr/bin/
-
 WORKDIR /optimint
 VOLUME /optimint
 
 EXPOSE 26656 26657 9090
-ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+
 CMD ["start-optimint"]
 STOPSIGNAL SIGTERM

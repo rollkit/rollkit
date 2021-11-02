@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+  aggregator0:
+    container_name: aggregator0
+    build:
+        context: ../../
+        dockerfile: ./test/e2e/docker/optimint/Dockerfile
+    ports:
+      - "26656-26657:26656-26657"
+      - "6060:6060"
+      - "27000:26660"
+    volumes:
+      - ./build:/tendermint:Z
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.2
+
+  dalc:
+    container_name: dalc
+    build:
+        context: ../../
+        dockerfile: ./test/e2e/docker/mockdalc/Dockerfile
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./build:/tendermint:Z
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.3
+
+networks:
+  localnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      -
+        subnet: 192.167.10.0/16
