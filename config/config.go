@@ -26,5 +26,10 @@ type BlockManagerConfig struct {
 }
 
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) {
-	_ =  v.UnmarshalKey("optimint", nc)
+	nc.Aggregator = v.GetBool("optimint.aggregator")
+	nc.DALayer = v.GetString("optimint.da_layer")
+	nc.DAConfig = v.GetString("optimint.da_config")
+	nc.BlockTime = v.GetDuration("optimint.block_time")
+	nsID := v.GetString("optimint.namespace_id")
+	copy(nc.NamespaceID[:], nsID)
 }
