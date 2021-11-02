@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"time"
@@ -33,20 +34,25 @@ type BlockManagerConfig struct {
 	NamespaceID [8]byte       `mapstructure:"namespace_id"`
 }
 
-func (nc *NodeConfig) GetViperConfig(v *viper.Viper) {
+func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
 	nc.DALayer = v.GetString(flagDALayer)
 	nc.DAConfig = v.GetString(flagDAConfig)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nsID := v.GetString(flagNamespaceID)
-	copy(nc.NamespaceID[:], nsID)
+	bytes, err := hex.DecodeString(nsID)
+	if err != nil {
+		return err
+	}
+	copy(nc.NamespaceID[:], bytes)
+	return nil
 }
 
 func AddFlags(cmd *cobra.Command) {
-	// TODO(tzdybal): extract default values
-	cmd.Flags().Bool(flagAggregator, false, "run node in aggregator mode")
-	cmd.Flags().String(flagDALayer, "mock", "Data Availability Layer Client name (mock or grpc")
-	cmd.Flags().String(flagDAConfig, "", "Data Availability Layer Client config")
-	cmd.Flags().Duration(flagBlockTime, 15*time.Second, "block time (for aggregator mode)")
-	cmd.Flags().BytesHex(flagNamespaceID, nil, "namespace identifies (8 bytes in hex)")
+	def := DefaultNodeConfig
+	cmd.Flags().Bool(flagAggregator, def.Aggregator, "run node in aggregator mode")
+	cmd.Flags().String(flagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
+	cmd.Flags().String(flagDAConfig, def.DAConfig, "Data Availability Layer Client config")
+	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
+	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
 }
