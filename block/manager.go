@@ -3,6 +3,8 @@ package block
 import (
 	"context"
 	"fmt"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"sync/atomic"
 	"time"
 
@@ -75,6 +77,17 @@ func NewManager(
 	}
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, mempool, proxyApp, logger)
+	if s.LastBlockHeight+1 == genesis.InitialHeight {
+		res, err := exec.InitChain(genesis)
+		if err != nil {
+			return nil, err
+		}
+
+		updateState(&s, res)
+		if err := store.UpdateState(s); err != nil {
+			return nil, err
+		}
+	}
 
 	agg := &Manager{
 		proposerKey: proposerKey,
@@ -283,4 +296,37 @@ func (m *Manager) broadcastBlock(ctx context.Context, block *types.Block) error 
 	m.HeaderOutCh <- &block.Header
 
 	return nil
+}
+
+func updateState(s *state.State, res *abci.ResponseInitChain) {
+	// If the app did not return an app hash, we keep the one set from the genesis doc in
+	// the state. We don't set appHash since we don't want the genesis doc app hash
+	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.
+	if len(res.AppHash) > 0 {
+		copy(s.AppHash[:], res.AppHash)
+	}
+
+	if res.ConsensusParams != nil {
+		params := res.ConsensusParams
+		if params.Block != nil {
+			s.ConsensusParams.Block.MaxBytes = params.Block.MaxBytes
+			s.ConsensusParams.Block.MaxGas = params.Block.MaxGas
+		}
+		if params.Evidence != nil {
+			s.ConsensusParams.Evidence.MaxAgeNumBlocks = params.Evidence.MaxAgeNumBlocks
+			s.ConsensusParams.Evidence.MaxAgeDuration = params.Evidence.MaxAgeDuration
+			s.ConsensusParams.Evidence.MaxBytes = params.Evidence.MaxBytes
+		}
+		if params.Validator != nil {
+			// Copy params.Validator.PubkeyTypes, and set result's value to the copy.
+			// This avoids having to initialize the slice to 0 values, and then write to it again.
+			s.ConsensusParams.Validator.PubKeyTypes = append([]string{}, params.Validator.PubKeyTypes...)
+		}
+		if params.Version != nil {
+			s.ConsensusParams.Version.AppVersion = params.Version.AppVersion
+		}
+		s.Version.Consensus.App = s.ConsensusParams.Version.AppVersion
+	}
+	// We update the last results hash with the empty hash, to conform with RFC-6962.
+	copy(s.LastResultsHash[:], merkle.HashFromByteSlices(nil))
 }

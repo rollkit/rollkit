@@ -147,11 +147,6 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 	return c.txGossiper.Publish(ctx, tx)
 }
 
-// SetTxHandler sets the callback function, that will be invoked after transaction is received from P2P network.
-/*func (c *Client) SetTxHandler(handler GossipHandler) {
-	c.txGossiper.handler = handler
-}*/
-
 // SetTxValidator sets the callback function, that will be invoked during message gossiping.
 func (c *Client) SetTxValidator(val GossipValidator) {
 	c.txValidator = val
@@ -167,11 +162,6 @@ func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
 func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
 }
-
-// SetHeaderHandler sets the callback function, that will be invoked after block header is received from P2P network.
-/*func (c *Client) SetHeaderHandler(handler GossipHandler) {
-	c.headerHandler = handler
-}*/
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
 	var err error

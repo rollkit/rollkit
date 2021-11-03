@@ -90,15 +90,11 @@ func (g *Gossiper) Publish(ctx context.Context, data []byte) error {
 // ProcessMessages waits for messages published in the topic and execute handler.
 func (g *Gossiper) ProcessMessages(ctx context.Context) {
 	for {
-		msg, err := g.sub.Next(ctx)
+		_, err := g.sub.Next(ctx)
 		if err != nil {
 			g.logger.Error("failed to read message", "error", err)
 			return
 		}
-		if msg.GetFrom() == g.ownId {
-			continue
-		}
-
 		// Logic is handled in validator
 	}
 }
