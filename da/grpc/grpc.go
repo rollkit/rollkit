@@ -19,6 +19,8 @@ type DataAvailabilityLayerClient struct {
 
 	conn   *grpc.ClientConn
 	client dalc.DALCServiceClient
+
+	logger log.Logger
 }
 
 type Config struct {
@@ -35,7 +37,8 @@ var DefaultConfig = Config{
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
-func (d *DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (d *DataAvailabilityLayerClient) Init(config []byte, _ store.KVStore, logger log.Logger) error {
+	d.logger = logger
 	if len(config) == 0 {
 		d.config = DefaultConfig
 		return nil
@@ -44,6 +47,7 @@ func (d *DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore,
 }
 
 func (d *DataAvailabilityLayerClient) Start() error {
+	d.logger.Info("starting GRPC DALC", "host", d.config.Host, "port", d.config.Port)
 	var err error
 	var opts []grpc.DialOption
 	// TODO(tzdybal): add more options
@@ -59,6 +63,7 @@ func (d *DataAvailabilityLayerClient) Start() error {
 }
 
 func (d *DataAvailabilityLayerClient) Stop() error {
+	d.logger.Info("stopoing GRPC DALC")
 	return d.conn.Close()
 }
 
