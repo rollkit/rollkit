@@ -17,14 +17,16 @@ require (
 	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-discovery v0.5.1
-	github.com/libp2p/go-libp2p-kad-dht v0.13.1
-	github.com/libp2p/go-libp2p-pubsub v0.5.5
+	github.com/libp2p/go-libp2p-kad-dht v0.15.0
+	github.com/libp2p/go-libp2p-pubsub v0.5.6
 	github.com/libp2p/go-libp2p-quic-transport v0.12.0 // indirect
 	github.com/minio/sha256-simd v1.0.0
 	github.com/multiformats/go-multiaddr v0.4.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.8.0 // indirect
 	github.com/smartystreets/assertions v1.0.1 // indirect
+	github.com/spf13/cobra v1.2.1
+	github.com/spf13/viper v1.9.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.13

@@ -26,7 +26,8 @@ func TestGetNodeConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			actual := GetNodeConfig(c.input)
+			var actual config.NodeConfig
+			GetNodeConfig(&actual, c.input)
 			assert.Equal(t, c.expected, actual)
 		})
 	}
