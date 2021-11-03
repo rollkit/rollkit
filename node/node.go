@@ -49,8 +49,6 @@ type Node struct {
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.GossipMessage
 
-	incomingHeaderCh chan *types.Header
-
 	Store        store.Store
 	blockManager *block.Manager
 	dalc         da.DataAvailabilityLayerClient
@@ -109,19 +107,18 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	}
 
 	node := &Node{
-		proxyApp:         proxyApp,
-		eventBus:         eventBus,
-		genesis:          genesis,
-		conf:             conf,
-		P2P:              client,
-		blockManager:     blockManager,
-		dalc:             dalc,
-		Mempool:          mp,
-		mempoolIDs:       mpIDs,
-		incomingTxCh:     make(chan *p2p.GossipMessage),
-		incomingHeaderCh: make(chan *types.Header),
-		Store:            s,
-		ctx:              ctx,
+		proxyApp:     proxyApp,
+		eventBus:     eventBus,
+		genesis:      genesis,
+		conf:         conf,
+		P2P:          client,
+		blockManager: blockManager,
+		dalc:         dalc,
+		Mempool:      mp,
+		mempoolIDs:   mpIDs,
+		incomingTxCh: make(chan *p2p.GossipMessage),
+		Store:        s,
+		ctx:          ctx,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -130,18 +127,6 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	node.P2P.SetHeaderValidator(node.newHeaderValidator())
 
 	return node, nil
-}
-
-func (n *Node) headerReadLoop(ctx context.Context) {
-	for {
-		select {
-		case header := <-n.incomingHeaderCh:
-			n.blockManager.HeaderInCh <- header
-
-		case <-ctx.Done():
-			break
-		}
-	}
 }
 
 func (n *Node) headerPublishLoop(ctx context.Context) {
@@ -179,8 +164,6 @@ func (n *Node) OnStart() error {
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx)
-
-	go n.headerReadLoop(n.ctx)
 
 	return nil
 }
@@ -263,7 +246,7 @@ func (n *Node) newHeaderValidator() p2p.GossipValidator {
 			n.Logger.Error("failed to validate header", "error", err)
 			return false
 		}
-		n.incomingHeaderCh <- &header
+		n.blockManager.HeaderInCh <- &header
 		return true
 	}
 }
