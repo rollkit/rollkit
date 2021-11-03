@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/containerd/continuity v0.1.0 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
@@ -29,7 +30,7 @@ require (
 	github.com/spf13/viper v1.9.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/tendermint/tendermint v0.34.13
+	github.com/tendermint/tendermint v0.34.14
 	go.uber.org/multierr v1.7.0
 	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f
 	google.golang.org/genproto v0.0.0-20210830153122-0bac4d21c8ea // indirect
