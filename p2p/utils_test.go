@@ -62,7 +62,7 @@ func getAddr(sk crypto.PrivKey) (multiaddr.Multiaddr, error) {
 	return a, nil
 }
 
-func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hostDescr, logger log.Logger) testNet {
+func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hostDescr, logger log.Logger, validators []GossipValidator) testNet {
 	t.Helper()
 	require := require.New(t)
 
@@ -108,13 +108,14 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 			logger)
 		require.NoError(err)
 		require.NotNil(client)
-		client.SetTxValidator(func(_ *GossipMessage) bool {
+		/*client.SetTxValidator(func(_ *GossipMessage) bool {
 			// TODO(tzdybal): consider actually validating something here
 			return true
-		})
-
+		})*/
+		client.SetTxValidator(validators[i])
 		clients[i] = client
 	}
+	//require.Equal(n, len(validators))
 
 	for i, c := range clients {
 		err := c.startWithHost(ctx, mnet.Hosts()[i])

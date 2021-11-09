@@ -43,7 +43,7 @@ func TestBootstrapping(t *testing.T) {
 		1: hostDescr{conns: []int{0}},
 		2: hostDescr{conns: []int{0, 1}},
 		3: hostDescr{conns: []int{0}},
-	}, logger)
+	}, logger, make([]GossipValidator, 4))
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -64,7 +64,7 @@ func TestDiscovery(t *testing.T) {
 		2: hostDescr{conns: []int{0}, chainID: "ORU2"},
 		3: hostDescr{conns: []int{1}, chainID: "ORU1"},
 		4: hostDescr{conns: []int{2}, chainID: "ORU1"},
-	}, logger)
+	}, logger, make([]GossipValidator, 5))
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -80,31 +80,18 @@ func TestGossiping(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// network connections topology: 3<->1<->0<->2<->4
-	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
-		0: hostDescr{conns: []int{}, chainID: "2"},
-		1: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
-		2: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
-		3: hostDescr{conns: []int{1}, chainID: "2", realKey: true},
-		4: hostDescr{conns: []int{2}, chainID: "2", realKey: true},
-	}, logger)
-
-	// wait for clients to finish refreshing routing tables
-	clients.WaitForDHT()
-
 	var expectedMsg = []byte("foobar")
 	var wg sync.WaitGroup
 
+	wg.Add(3)
+
 	// ensure that Tx is delivered to client
 	assertRecv := func(tx *GossipMessage) bool {
-		logger.Debug("received tx", "body", string(tx.Data))
+		logger.Debug("received tx", "body", string(tx.Data), "from", tx.From)
 		assert.Equal(expectedMsg, tx.Data)
 		wg.Done()
 		return true
 	}
-	wg.Add(2)
-	clients[0].SetTxValidator(assertRecv)
-	clients[3].SetTxValidator(assertRecv)
 
 	// ensure that Tx is not delivered to client
 	assertNotRecv := func(*GossipMessage) bool {
@@ -112,9 +99,28 @@ func TestGossiping(t *testing.T) {
 		return false
 	}
 
-	clients[1].SetTxValidator(assertNotRecv)
-	clients[2].SetTxValidator(assertNotRecv)
-	clients[4].SetTxValidator(assertNotRecv)
+	validators := make([]GossipValidator, 0, 5)
+	validators = append(validators, assertRecv, assertNotRecv, assertNotRecv, assertRecv, assertRecv)
+
+	// network connections topology: 3<->1<->0<->2<->4
+	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
+		0: hostDescr{conns: []int{}, chainID: "2"},
+		1: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
+		2: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
+		3: hostDescr{conns: []int{1}, chainID: "2", realKey: true},
+		4: hostDescr{conns: []int{2}, chainID: "2", realKey: true},
+	}, logger, validators)
+
+	// wait for clients to finish refreshing routing tables
+	clients.WaitForDHT()
+
+	//wg.Add(2)
+	//clients[0].SetTxValidator(assertRecv)
+	//clients[3].SetTxValidator(assertRecv)
+
+	//clients[1].SetTxValidator(assertNotRecv)
+	//clients[2].SetTxValidator(assertNotRecv)
+	//clients[4].SetTxValidator(assertNotRecv)
 
 	// this sleep is required for pubsub to "propagate" subscription information
 	// TODO(tzdybal): is there a better way to wait for readiness?
