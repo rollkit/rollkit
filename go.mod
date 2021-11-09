@@ -33,7 +33,7 @@ require (
 	go.uber.org/multierr v1.7.0
 	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f
 	google.golang.org/genproto v0.0.0-20210830153122-0bac4d21c8ea // indirect
-	google.golang.org/grpc v1.41.0
+	google.golang.org/grpc v1.42.0
 )
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
