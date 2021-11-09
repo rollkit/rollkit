@@ -7,13 +7,11 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
-	github.com/go-kit/kit v0.11.0
-	github.com/go-logfmt/logfmt v0.5.1 // indirect
+	github.com/go-kit/kit v0.12.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f // indirect
 	github.com/ipfs/go-log v1.0.5
-	github.com/kr/text v0.2.0 // indirect
 	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-discovery v0.5.1
@@ -31,8 +29,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.13
 	go.uber.org/multierr v1.7.0
-	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f
-	google.golang.org/genproto v0.0.0-20210830153122-0bac4d21c8ea // indirect
+	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
 	google.golang.org/grpc v1.42.0
 )
 
