@@ -239,7 +239,7 @@ func TestMempool2Nodes(t *testing.T) {
 	err = node2.Start()
 	require.NoError(err)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -261,7 +261,12 @@ func TestMempool2Nodes(t *testing.T) {
 	assert.Error(err)
 	assert.Nil(resp)
 
-	time.Sleep(1 * time.Second)
+	node2.Mempool.EnableTxsAvailable()
+	txAvailable := node2.Mempool.TxsAvailable()
+	select {
+	case <-txAvailable:
+	case <-ctx.Done():
+	}
 
 	assert.Equal(node2.Mempool.TxsBytes(), int64(len("good")))
 }
