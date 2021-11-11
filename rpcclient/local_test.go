@@ -261,7 +261,6 @@ func TestMempool2Nodes(t *testing.T) {
 	assert.Error(err)
 	assert.Nil(resp)
 
-	node2.Mempool.EnableTxsAvailable()
 	txAvailable := node2.Mempool.TxsAvailable()
 	select {
 	case <-txAvailable:
