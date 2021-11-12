@@ -49,8 +49,6 @@ type Node struct {
 	mempoolIDs   *mempoolIDs
 	incomingTxCh chan *p2p.GossipMessage
 
-	incomingHeaderCh chan *p2p.GossipMessage
-
 	Store        store.Store
 	blockManager *block.Manager
 	dalc         da.DataAvailabilityLayerClient
@@ -103,54 +101,32 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 	mpIDs := newMempoolIDs()
 
-	txValidator := newTxValidator(mp, mpIDs, logger)
-	client.SetTxValidator(txValidator)
-	client.SetHeaderValidator(newHeaderValidator(logger))
-
 	blockManager, err := block.NewManager(nodeKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, logger.With("module", "BlockManager"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	node := &Node{
-		proxyApp:         proxyApp,
-		eventBus:         eventBus,
-		genesis:          genesis,
-		conf:             conf,
-		P2P:              client,
-		blockManager:     blockManager,
-		dalc:             dalc,
-		Mempool:          mp,
-		mempoolIDs:       mpIDs,
-		incomingTxCh:     make(chan *p2p.GossipMessage),
-		incomingHeaderCh: make(chan *p2p.GossipMessage),
-		Store:            s,
-		ctx:              ctx,
+		proxyApp:     proxyApp,
+		eventBus:     eventBus,
+		genesis:      genesis,
+		conf:         conf,
+		P2P:          client,
+		blockManager: blockManager,
+		dalc:         dalc,
+		Mempool:      mp,
+		mempoolIDs:   mpIDs,
+		incomingTxCh: make(chan *p2p.GossipMessage),
+		Store:        s,
+		ctx:          ctx,
 	}
-	node.P2P.SetHeaderHandler(func(msg *p2p.GossipMessage) {
-		node.incomingHeaderCh <- msg
-	})
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
-	return node, nil
-}
+	node.P2P.SetTxValidator(node.newTxValidator())
+	node.P2P.SetHeaderValidator(node.newHeaderValidator())
 
-func (n *Node) headerReadLoop(ctx context.Context) {
-	for {
-		select {
-		case headerMsg := <-n.incomingHeaderCh:
-			var header types.Header
-			err := header.UnmarshalBinary(headerMsg.Data)
-			if err != nil {
-				n.Logger.Error("failed to deserialize header", "error", err)
-				continue
-			}
-			n.blockManager.HeaderInCh <- &header
-		case <-ctx.Done():
-			break
-		}
-	}
+	return node, nil
 }
 
 func (n *Node) headerPublishLoop(ctx context.Context) {
@@ -190,8 +166,6 @@ func (n *Node) OnStart() error {
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx)
 
-	go n.headerReadLoop(n.ctx)
-
 	return nil
 }
 
@@ -229,14 +203,14 @@ func (n *Node) ProxyApp() proxy.AppConns {
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
 // transaction. If the transaction is valid, then it is added to the mempool
-func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger) p2p.GossipValidator {
+func (n *Node) newTxValidator() p2p.GossipValidator {
 	return func(m *p2p.GossipMessage) bool {
-		logger.Debug("transaction received", "bytes", len(m.Data))
+		n.Logger.Debug("transaction received", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
-		err := pool.CheckTx(m.Data, func(resp *abci.Response) {
+		err := n.Mempool.CheckTx(m.Data, func(resp *abci.Response) {
 			checkTxResCh <- resp
 		}, mempool.TxInfo{
-			SenderID:    poolIDs.GetForPeer(m.From),
+			SenderID:    n.mempoolIDs.GetForPeer(m.From),
 			SenderP2PID: corep2p.ID(m.From),
 		})
 		switch {
@@ -257,20 +231,23 @@ func newTxValidator(pool mempool.Mempool, poolIDs *mempoolIDs, logger log.Logger
 	}
 }
 
-func newHeaderValidator(logger log.Logger) p2p.GossipValidator {
+// newHeaderValidator returns a pubsub validator that runs basic checks and forwards
+// the deserialized header for further processing
+func (n *Node) newHeaderValidator() p2p.GossipValidator {
 	return func(headerMsg *p2p.GossipMessage) bool {
-		logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
+		n.Logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
 		var header types.Header
 		err := header.UnmarshalBinary(headerMsg.Data)
 		if err != nil {
-			logger.Error("failed to deserialize header", "error", err)
+			n.Logger.Error("failed to deserialize header", "error", err)
 			return false
 		}
 		err = header.ValidateBasic()
 		if err != nil {
-			logger.Error("failed to validate header", "error", err)
+			n.Logger.Error("failed to validate header", "error", err)
 			return false
 		}
+		n.blockManager.HeaderInCh <- &header
 		return true
 	}
 }
