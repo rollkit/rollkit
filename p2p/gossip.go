@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+
 	"go.uber.org/multierr"
 
 	"github.com/libp2p/go-libp2p-core/host"
@@ -17,22 +18,11 @@ type GossipMessage struct {
 	From peer.ID
 }
 
-// GossipHandler is a callback function type.
-type GossipHandler func(*GossipMessage)
-
 // GossipValidator is a callback function type.
 type GossipValidator func(*GossipMessage) bool
 
 // GossiperOption sets optional parameters of Gossiper.
 type GossiperOption func(*Gossiper) error
-
-// WithHandler option sets message handler to Gossiper.
-func WithHandler(handler GossipHandler) GossiperOption {
-	return func(g *Gossiper) error {
-		g.handler = handler
-		return nil
-	}
-}
 
 // WithValidator options registers topic validator for Gossiper.
 func WithValidator(validator GossipValidator) GossiperOption {
@@ -45,10 +35,9 @@ func WithValidator(validator GossipValidator) GossiperOption {
 type Gossiper struct {
 	ownId peer.ID
 
-	ps      *pubsub.PubSub
-	topic   *pubsub.Topic
-	sub     *pubsub.Subscription
-	handler GossipHandler
+	ps    *pubsub.PubSub
+	topic *pubsub.Topic
+	sub   *pubsub.Subscription
 
 	logger log.Logger
 }
@@ -67,12 +56,11 @@ func NewGossiper(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.
 		return nil, err
 	}
 	g := &Gossiper{
-		ownId:   host.ID(),
-		ps:      ps,
-		topic:   topic,
-		sub:     subscription,
-		handler: nil,
-		logger:  logger,
+		ownId:  host.ID(),
+		ps:     ps,
+		topic:  topic,
+		sub:    subscription,
+		logger: logger,
 	}
 
 	for _, option := range options {
@@ -102,18 +90,12 @@ func (g *Gossiper) Publish(ctx context.Context, data []byte) error {
 // ProcessMessages waits for messages published in the topic and execute handler.
 func (g *Gossiper) ProcessMessages(ctx context.Context) {
 	for {
-		msg, err := g.sub.Next(ctx)
+		_, err := g.sub.Next(ctx)
 		if err != nil {
 			g.logger.Error("failed to read message", "error", err)
 			return
 		}
-		if msg.GetFrom() == g.ownId {
-			continue
-		}
-
-		if g.handler != nil {
-			g.handler(&GossipMessage{Data: msg.Data, From: msg.GetFrom()})
-		}
+		// Logic is handled in validator
 	}
 }
 
