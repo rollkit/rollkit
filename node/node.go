@@ -93,7 +93,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	if dalc == nil {
 		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
 	}
-	err = dalc.Init(conf.DAConfig, dalcKV, logger.With("module", "da_client"))
+	err = dalc.Init([]byte(conf.DAConfig), dalcKV, logger.With("module", "da_client"))
 	if err != nil {
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
@@ -159,6 +159,7 @@ func (n *Node) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	if n.conf.Aggregator {
+		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 	}

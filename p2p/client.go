@@ -56,7 +56,6 @@ type Client struct {
 
 	headerGossiper  *Gossiper
 	headerValidator GossipValidator
-	//headerHandler   GossipHandler
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call

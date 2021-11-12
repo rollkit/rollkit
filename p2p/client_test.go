@@ -43,7 +43,7 @@ func TestBootstrapping(t *testing.T) {
 		1: hostDescr{conns: []int{0}},
 		2: hostDescr{conns: []int{0, 1}},
 		3: hostDescr{conns: []int{0}},
-	}, logger, make([]GossipValidator, 4))
+	}, make([]GossipValidator, 4), logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -64,7 +64,7 @@ func TestDiscovery(t *testing.T) {
 		2: hostDescr{conns: []int{0}, chainID: "ORU2"},
 		3: hostDescr{conns: []int{1}, chainID: "ORU1"},
 		4: hostDescr{conns: []int{2}, chainID: "ORU1"},
-	}, logger, make([]GossipValidator, 5))
+	}, make([]GossipValidator, 5), logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -99,8 +99,7 @@ func TestGossiping(t *testing.T) {
 		return false
 	}
 
-	validators := make([]GossipValidator, 0, 5)
-	validators = append(validators, assertRecv, assertNotRecv, assertNotRecv, assertRecv, assertRecv)
+	validators := []GossipValidator{assertRecv, assertNotRecv, assertNotRecv, assertRecv, assertRecv}
 
 	// network connections topology: 3<->1<->0<->2<->4
 	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
@@ -109,18 +108,10 @@ func TestGossiping(t *testing.T) {
 		2: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
 		3: hostDescr{conns: []int{1}, chainID: "2", realKey: true},
 		4: hostDescr{conns: []int{2}, chainID: "2", realKey: true},
-	}, logger, validators)
+	}, validators, logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
-
-	//wg.Add(2)
-	//clients[0].SetTxValidator(assertRecv)
-	//clients[3].SetTxValidator(assertRecv)
-
-	//clients[1].SetTxValidator(assertNotRecv)
-	//clients[2].SetTxValidator(assertNotRecv)
-	//clients[4].SetTxValidator(assertNotRecv)
 
 	// this sleep is required for pubsub to "propagate" subscription information
 	// TODO(tzdybal): is there a better way to wait for readiness?
