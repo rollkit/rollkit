@@ -43,7 +43,7 @@ func TestBootstrapping(t *testing.T) {
 		1: hostDescr{conns: []int{0}},
 		2: hostDescr{conns: []int{0, 1}},
 		3: hostDescr{conns: []int{0}},
-	}, logger)
+	}, make([]GossipValidator, 4), logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -64,7 +64,7 @@ func TestDiscovery(t *testing.T) {
 		2: hostDescr{conns: []int{0}, chainID: "ORU2"},
 		3: hostDescr{conns: []int{1}, chainID: "ORU1"},
 		4: hostDescr{conns: []int{2}, chainID: "ORU1"},
-	}, logger)
+	}, make([]GossipValidator, 5), logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
@@ -80,6 +80,27 @@ func TestGossiping(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var expectedMsg = []byte("foobar")
+	var wg sync.WaitGroup
+
+	wg.Add(3)
+
+	// ensure that Tx is delivered to client
+	assertRecv := func(tx *GossipMessage) bool {
+		logger.Debug("received tx", "body", string(tx.Data), "from", tx.From)
+		assert.Equal(expectedMsg, tx.Data)
+		wg.Done()
+		return true
+	}
+
+	// ensure that Tx is not delivered to client
+	assertNotRecv := func(*GossipMessage) bool {
+		t.Fatal("unexpected Tx received")
+		return false
+	}
+
+	validators := []GossipValidator{assertRecv, assertNotRecv, assertNotRecv, assertRecv, assertRecv}
+
 	// network connections topology: 3<->1<->0<->2<->4
 	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
 		0: hostDescr{conns: []int{}, chainID: "2"},
@@ -87,31 +108,10 @@ func TestGossiping(t *testing.T) {
 		2: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
 		3: hostDescr{conns: []int{1}, chainID: "2", realKey: true},
 		4: hostDescr{conns: []int{2}, chainID: "2", realKey: true},
-	}, logger)
+	}, validators, logger)
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
-
-	var expectedMsg = []byte("foobar")
-	var wg sync.WaitGroup
-
-	// ensure that Tx is delivered to client
-	assertRecv := func(tx *GossipMessage) {
-		logger.Debug("received tx", "body", string(tx.Data))
-		assert.Equal(expectedMsg, tx.Data)
-		wg.Done()
-	}
-	wg.Add(2)
-	clients[0].SetTxHandler(assertRecv)
-	clients[3].SetTxHandler(assertRecv)
-
-	// ensure that Tx is not delivered to client
-	assertNotRecv := func(*GossipMessage) {
-		t.Fatal("unexpected Tx received")
-	}
-	clients[1].SetTxHandler(assertNotRecv)
-	clients[2].SetTxHandler(assertNotRecv)
-	clients[4].SetTxHandler(assertNotRecv)
 
 	// this sleep is required for pubsub to "propagate" subscription information
 	// TODO(tzdybal): is there a better way to wait for readiness?
