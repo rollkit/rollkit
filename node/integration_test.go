@@ -215,10 +215,6 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 		wg.Done()
 	})
 
-	// } else {
-	// app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	// }
-
 	node, err := NewNode(
 		context.Background(),
 		config.NodeConfig{
