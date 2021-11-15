@@ -6,6 +6,7 @@ import (
 	mrand "math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -85,9 +86,11 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
+	var wg sync.WaitGroup
 	clientNodes := 4
-	nodes, apps := createNodes(clientNodes+1, t)
+	nodes, apps := createNodes(clientNodes+1, &wg, t)
 
+	wg.Add((clientNodes + 1) * clientNodes)
 	for _, n := range nodes {
 		require.NoError(n.Start())
 	}
@@ -99,7 +102,17 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
 	}
 
-	time.Sleep(4 * time.Second)
+	timeout := time.NewTimer(time.Second * 5)
+	doneChan := make(chan struct{})
+	go func() {
+		defer close(doneChan)
+		wg.Wait()
+	}()
+	select {
+	case <-doneChan:
+	case <-timeout.C:
+		t.FailNow()
+	}
 
 	for _, n := range nodes {
 		require.NoError(n.Stop())
@@ -145,7 +158,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
-func createNodes(num int, t *testing.T) ([]*Node, []*mocks.Application) {
+func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
 	t.Helper()
 
 	// create keys first, as they are required for P2P connections
@@ -159,15 +172,15 @@ func createNodes(num int, t *testing.T) ([]*Node, []*mocks.Application) {
 	dalc := &mockda.MockDataAvailabilityLayerClient{}
 	_ = dalc.Init(nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
-	nodes[0], apps[0] = createNode(0, true, dalc, keys, t)
+	nodes[0], apps[0] = createNode(0, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {
-		nodes[i], apps[i] = createNode(i, false, dalc, keys, t)
+		nodes[i], apps[i] = createNode(i, false, dalc, keys, wg, t)
 	}
 
 	return nodes, apps
 }
 
-func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, t *testing.T) (*Node, *mocks.Application) {
+func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -197,7 +210,9 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
+		wg.Done()
+	})
 
 	node, err := NewNode(
 		context.Background(),
