@@ -1,4 +1,4 @@
-package rpcclient
+package rpc
 
 import (
 	"context"
@@ -257,7 +257,7 @@ func (l *Local) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
 	return &ctypes.ResultGenesis{Genesis: l.node.GetGenesis()}, nil
 }
 
-func (l *Local) GenesisChunked(context.Context, uint) (*ctypes.ResultGenesisChunk, error) {
+func (l *Local) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
 	// needs genesis provider
 	panic("GenesisChunked - not implemented!")
 }
