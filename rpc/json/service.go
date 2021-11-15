@@ -6,16 +6,52 @@ import (
 
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
-	gorillarpc "github.com/gorilla/rpc/v2"
-	gorillajson "github.com/gorilla/rpc/v2/json"
-
 	"github.com/celestiaorg/optimint/rpc"
+	gorillarpc "github.com/gorilla/rpc/v2"
 )
+
+const serviceName = "optimint"
+
+func getServiceName(method string) string {
+	return serviceName + "." + method
+}
 
 func GetHttpHandler(l *rpc.Local) (http.Handler, error) {
 	s := gorillarpc.NewServer()
-	s.RegisterCodec(gorillajson.NewCodec(), "application/json")
-	err := s.RegisterService(&service{l: l}, "")
+	aliases := map[string]string{
+		"subscribe":            getServiceName("Subscribe"),
+		"unsubscribe":          getServiceName("Unsubscribe"),
+		"unsubscribe_all":      getServiceName("UnsubscribeAll"),
+		"health":               getServiceName("Health"),
+		"status":               getServiceName("Status"),
+		"net_info":             getServiceName("NetInfo"),
+		"blockchain":           getServiceName("BlockchainInfo"),
+		"genesis":              getServiceName("Genesis"),
+		"genesis_chunked":      getServiceName("GenesisChunked"),
+		"block":                getServiceName("Block"),
+		"block_by_hash":        getServiceName("BlockByHash"),
+		"block_results":        getServiceName("BlockResults"),
+		"commit":               getServiceName("Commit"),
+		"check_tx":             getServiceName("CheckTx"),
+		"tx":                   getServiceName("Tx"),
+		"tx_search":            getServiceName("TxSearch"),
+		"block_search":         getServiceName("BlockSearch"),
+		"validators":           getServiceName("Validators"),
+		"dump_consensus_state": getServiceName("DumpConsensusState"),
+		"consensus_state":      getServiceName("GetConsensusState"),
+		"consensus_params":     getServiceName("ConsensusParams"),
+		"unconfirmed_txs":      getServiceName("UnconfirmedTxs"),
+		"num_unconfirmed_txs":  getServiceName("NumUnconfirmedTxs"),
+		"broadcast_tx_commit":  getServiceName("BroadcastTxCommit"),
+		"broadcast_tx_sync":    getServiceName("BroadcastTxSync"),
+		"broadcast_tx_async":   getServiceName("BroadcastTxAsync"),
+		"abci_query":           getServiceName("ABCIQuery"),
+		"abci_info":            getServiceName("ABCIInfo"),
+
+		"broadcast_evidence": getServiceName("BroadcastEvidence"),
+	}
+	s.RegisterCodec(NewMapperCodec(aliases), "application/json")
+	err := s.RegisterService(&service{l: l}, serviceName)
 	return s, err
 }
 
