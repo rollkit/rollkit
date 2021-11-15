@@ -18,5 +18,14 @@ func GetNodeConfig(nodeConf *config.NodeConfig, tmConf *tmcfg.Config) {
 			nodeConf.P2P.ListenAddress = tmConf.P2P.ListenAddress
 			nodeConf.P2P.Seeds = tmConf.P2P.Seeds
 		}
+		if tmConf.RPC != nil {
+			nodeConf.RPC.ListenAddress = tmConf.RPC.ListenAddress
+			nodeConf.RPC.CORSAllowedOrigins = tmConf.RPC.CORSAllowedOrigins
+			nodeConf.RPC.CORSAllowedMethods = tmConf.RPC.CORSAllowedMethods
+			nodeConf.RPC.CORSAllowedHeaders = tmConf.RPC.CORSAllowedHeaders
+			nodeConf.RPC.MaxOpenConnections = tmConf.RPC.MaxOpenConnections
+			nodeConf.RPC.TLSCertFile = tmConf.RPC.TLSCertFile
+			nodeConf.RPC.TLSKeyFile = tmConf.RPC.TLSKeyFile
+		}
 	}
 }

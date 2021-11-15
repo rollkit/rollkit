@@ -21,6 +21,7 @@ type NodeConfig struct {
 	RootDir string
 	DBPath  string
 	P2P     P2PConfig
+	RPC     RPCConfig
 	// parameters below are optimint specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
