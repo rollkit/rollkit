@@ -2,9 +2,11 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"github.com/tendermint/tendermint/libs/log"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/net/netutil"
@@ -59,12 +61,14 @@ func (s *Server) startRPC() error {
 		s.Logger.Info("Listen address not specified - RPC will not be exposed")
 		return nil
 	}
-	handler, err := json.GetHttpHandler(s.client)
-	if err != nil {
-		return err
+	parts := strings.SplitN(s.config.ListenAddress, "://", 2)
+	if len(parts) != 2 {
+		return errors.New("invalid RPC listen address: expecting tcp://host:port")
 	}
+	proto := parts[0]
+	addr := parts[1]
 
-	listener, err := net.Listen("tcp", s.config.ListenAddress)
+	listener, err := net.Listen(proto, addr)
 	if err != nil {
 		return err
 	}
@@ -73,6 +77,11 @@ func (s *Server) startRPC() error {
 		s.Logger.Debug("limiting number of connections", "limit", s.config.MaxOpenConnections)
 		listener = netutil.LimitListener(listener, s.config.MaxOpenConnections)
 	}
+
+		handler, err := json.GetHttpHandler(s.client)
+		if err != nil {
+			return err
+		}
 
 	if s.config.IsCorsEnabled() {
 		s.Logger.Debug("CORS enabled",
