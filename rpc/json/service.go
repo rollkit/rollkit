@@ -6,7 +6,7 @@ import (
 
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
-	"github.com/celestiaorg/optimint/rpc"
+	"github.com/celestiaorg/optimint/rpc/client"
 	gorillarpc "github.com/gorilla/rpc/v2"
 )
 
@@ -16,7 +16,7 @@ func getServiceName(method string) string {
 	return serviceName + "." + method
 }
 
-func GetHttpHandler(l *rpc.Local) (http.Handler, error) {
+func GetHttpHandler(l *client.Client) (http.Handler, error) {
 	s := gorillarpc.NewServer()
 	aliases := map[string]string{
 		"subscribe":            getServiceName("Subscribe"),
@@ -56,7 +56,7 @@ func GetHttpHandler(l *rpc.Local) (http.Handler, error) {
 }
 
 type service struct {
-	l *rpc.Local
+	l *client.Client
 }
 
 func (s *service) Subscribe(req *http.Request, args *SubscribeArgs, resp *ctypes.ResultSubscribe) error {

@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/node"
-	"github.com/celestiaorg/optimint/rpc"
+	"github.com/celestiaorg/optimint/rpc/client"
 	gorillajson "github.com/gorilla/rpc/v2/json"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestHandlerMapping(t *testing.T) {
 }
 
 // copied from rpc
-func getRPC(t *testing.T) (*mocks.Application, *rpc.Local) {
+func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
@@ -51,7 +51,7 @@ func getRPC(t *testing.T) (*mocks.Application, *rpc.Local) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	local := rpc.NewLocal(node)
+	local := client.NewClient(node)
 	require.NotNil(local)
 
 	return app, local
