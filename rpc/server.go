@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/cors"
 	"github.com/tendermint/tendermint/config"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/libs/service"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 
 	"github.com/celestiaorg/optimint/node"
 	"github.com/celestiaorg/optimint/rpc/client"
@@ -20,20 +20,21 @@ type Server struct {
 	*service.BaseService
 
 	config *config.RPCConfig
-	local  *client.Client
+	client *client.Client
 
 	server http.Server
 }
 
+
 func NewServer(node *node.Node, config *config.RPCConfig) *Server {
 	return &Server{
 		config: config,
-		local:  client.NewClient(node),
+		client: client.NewClient(node),
 	}
 }
 
 func (s *Server) Client() rpcclient.Client {
-	return s.local
+	return s.client
 }
 
 func (s *Server) OnStart() error {
@@ -45,7 +46,7 @@ func (s *Server) startRPC() error {
 		s.Logger.Info("Listen address not specified - RPC will not be exposed")
 		return nil
 	}
-	handler, err := json.GetHttpHandler(s.local)
+	handler, err := json.GetHttpHandler(s.client)
 	if err != nil {
 		return err
 	}
