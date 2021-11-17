@@ -16,11 +16,10 @@ func GetHttpHandler(l *client.Client) (http.Handler, error) {
 }
 
 type method struct {
-	m        reflect.Value
-	argsType reflect.Type
+	m          reflect.Value
+	argsType   reflect.Type
 	returnType reflect.Type
 }
-
 
 func newMethod(m interface{}) *method {
 	mType := reflect.TypeOf(m)

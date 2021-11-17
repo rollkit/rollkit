@@ -8,20 +8,20 @@ import (
 
 type MapperCodec struct {
 	aliases map[string]string
-	codec gorillarpc.Codec
+	codec   gorillarpc.Codec
 }
 
 func (m *MapperCodec) NewRequest(request *http.Request) gorillarpc.CodecRequest {
 	return &MapperCodecRequest{
 		CodecRequest: m.codec.NewRequest(request).(*gorillajson.CodecRequest),
-		aliases: m.aliases,
+		aliases:      m.aliases,
 	}
 }
 
 func NewMapperCodec(aliases map[string]string) *MapperCodec {
 	return &MapperCodec{
 		aliases: aliases,
-		codec: gorillajson.NewCodec(),
+		codec:   gorillajson.NewCodec(),
 	}
 }
 

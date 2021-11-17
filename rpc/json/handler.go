@@ -46,10 +46,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		rets := methodSpec.m.Call([]reflect.Value{
-			reflect.ValueOf(r),
-			args,
-		})
+	rets := methodSpec.m.Call([]reflect.Value{
+		reflect.ValueOf(r),
+		args,
+	})
 
 	// Extract the result to error if needed.
 	var errResult error
@@ -71,4 +71,3 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		codecReq.WriteError(w, statusCode, errResult)
 	}
 }
-

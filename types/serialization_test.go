@@ -47,7 +47,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			},
 			Data: Data{
 				Txs:                    nil,
-				IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{[]byte{0x1}}},
+				IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
 				// TODO(tzdybal): update when we have actual evidence types
 				Evidence: EvidenceData{Evidence: nil},
 			},

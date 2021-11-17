@@ -30,7 +30,6 @@ type Server struct {
 	server http.Server
 }
 
-
 func NewServer(node *node.Node, config *config.RPCConfig, logger log.Logger) *Server {
 	srv := &Server{
 		config: config,
@@ -78,10 +77,10 @@ func (s *Server) startRPC() error {
 		listener = netutil.LimitListener(listener, s.config.MaxOpenConnections)
 	}
 
-		handler, err := json.GetHttpHandler(s.client)
-		if err != nil {
-			return err
-		}
+	handler, err := json.GetHttpHandler(s.client)
+	if err != nil {
+		return err
+	}
 
 	if s.config.IsCorsEnabled() {
 		s.Logger.Debug("CORS enabled",

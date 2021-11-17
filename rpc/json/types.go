@@ -5,25 +5,25 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type SubscribeArgs struct{
+type SubscribeArgs struct {
 }
-type UnsubscribeArgs struct{
+type UnsubscribeArgs struct {
 }
-type UnsubscribeAllArgs struct{
+type UnsubscribeAllArgs struct {
 }
 
 // info API
-type HealthArgs struct{
+type HealthArgs struct {
 }
-type StatusArgs struct{
+type StatusArgs struct {
 }
-type NetInfoArgs struct{
+type NetInfoArgs struct {
 }
 type BlockchainInfoArgs struct {
 	MinHeight int64
 	MaxHeight int64
 }
-type GenesisArgs struct{
+type GenesisArgs struct {
 }
 type GenesisChunkedArgs struct {
 	Id uint
@@ -65,9 +65,9 @@ type ValidatorsArgs struct {
 	Page    int
 	PerPage int
 }
-type DumpConsensusStateArgs struct{
+type DumpConsensusStateArgs struct {
 }
-type GetConsensusStateArgs struct{
+type GetConsensusStateArgs struct {
 }
 type ConsensusParamsArgs struct {
 	Height int64
@@ -75,7 +75,7 @@ type ConsensusParamsArgs struct {
 type UnconfirmedTxsArgs struct {
 	Limit int
 }
-type NumUnconfirmedTxsArgs struct{
+type NumUnconfirmedTxsArgs struct {
 }
 
 // tx broadcast API
@@ -94,7 +94,7 @@ type ABCIQueryArgs struct {
 	Path string
 	Data bytes.HexBytes
 }
-type ABCIInfoArgs struct{
+type ABCIInfoArgs struct {
 }
 
 // evidence API
