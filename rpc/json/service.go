@@ -2,7 +2,7 @@ package json
 
 import (
 	"errors"
-	"github.com/gorilla/rpc/v2/json"
+	"github.com/gorilla/rpc/v2/json2"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"net/http"
 	"reflect"
@@ -13,7 +13,7 @@ import (
 )
 
 func GetHttpHandler(l *client.Client) (http.Handler, error) {
-	return newHandler(newService(l), json.NewCodec()), nil
+	return newHandler(newService(l), json2.NewCodec()), nil
 }
 
 type method struct {
