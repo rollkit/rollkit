@@ -3,6 +3,7 @@ package json
 import (
 	"errors"
 	"github.com/gorilla/rpc/v2/json"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"net/http"
 	"reflect"
 
@@ -16,10 +17,11 @@ func GetHttpHandler(l *client.Client) (http.Handler, error) {
 }
 
 type method struct {
-	m          reflect.Value
-	argsType   reflect.Type
+	m        reflect.Value
+	argsType reflect.Type
 	returnType reflect.Type
 }
+
 
 func newMethod(m interface{}) *method {
 	mType := reflect.TypeOf(m)
@@ -136,7 +138,7 @@ func (s *service) Tx(req *http.Request, args *TxArgs) (*ctypes.ResultTx, error) 
 }
 
 func (s *service) TxSearch(req *http.Request, args *TxSearchArgs) (*ctypes.ResultTxSearch, error) {
-	return s.client.TxSearch(req.Context(), args.Query, args.Proove, &args.Page, &args.PerPage, args.OrderBy)
+	return s.client.TxSearch(req.Context(), args.Query, args.Prove, &args.Page, &args.PerPage, args.OrderBy)
 }
 
 func (s *service) BlockSearch(req *http.Request, args *BlockSearchArgs) (*ctypes.ResultBlockSearch, error) {
@@ -182,7 +184,10 @@ func (s *service) BroadcastTxAsync(req *http.Request, args *BroadcastTxAsyncArgs
 
 // abci API
 func (s *service) ABCIQuery(req *http.Request, args *ABCIQueryArgs) (*ctypes.ResultABCIQuery, error) {
-	return s.client.ABCIQuery(req.Context(), args.Path, args.Data)
+	return s.client.ABCIQueryWithOptions(req.Context(), args.Path, args.Data, rpcclient.ABCIQueryOptions{
+		Height: args.Height,
+		Prove:  args.Prove,
+	})
 }
 
 func (s *service) ABCIInfo(req *http.Request, args *ABCIInfoArgs) (*ctypes.ResultABCIInfo, error) {
