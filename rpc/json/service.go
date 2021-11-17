@@ -102,7 +102,7 @@ func (s *service) NetInfo(req *http.Request, args *NetInfoArgs) (*ctypes.ResultN
 }
 
 func (s *service) BlockchainInfo(req *http.Request, args *BlockchainInfoArgs) (*ctypes.ResultBlockchainInfo, error) {
-	return s.client.BlockchainInfo(req.Context(), args.MinHeight, args.MaxHeight)
+	return s.client.BlockchainInfo(req.Context(), int64(args.MinHeight), int64(args.MaxHeight))
 }
 
 func (s *service) Genesis(req *http.Request, args *GenesisArgs) (*ctypes.ResultGenesis, error) {
@@ -110,11 +110,11 @@ func (s *service) Genesis(req *http.Request, args *GenesisArgs) (*ctypes.ResultG
 }
 
 func (s *service) GenesisChunked(req *http.Request, args *GenesisChunkedArgs) (*ctypes.ResultGenesisChunk, error) {
-	return s.client.GenesisChunked(req.Context(), args.Id)
+	return s.client.GenesisChunked(req.Context(), uint(args.Id))
 }
 
 func (s *service) Block(req *http.Request, args *BlockArgs) (*ctypes.ResultBlock, error) {
-	return s.client.Block(req.Context(), &args.Height)
+	return s.client.Block(req.Context(), (*int64)(&args.Height))
 }
 
 func (s *service) BlockByHash(req *http.Request, args *BlockByHashArgs) (*ctypes.ResultBlock, error) {
@@ -122,11 +122,11 @@ func (s *service) BlockByHash(req *http.Request, args *BlockByHashArgs) (*ctypes
 }
 
 func (s *service) BlockResults(req *http.Request, args *BlockResultsArgs) (*ctypes.ResultBlockResults, error) {
-	return s.client.BlockResults(req.Context(), &args.Height)
+	return s.client.BlockResults(req.Context(), (*int64)(&args.Height))
 }
 
 func (s *service) Commit(req *http.Request, args *CommitArgs) (*ctypes.ResultCommit, error) {
-	return s.client.Commit(req.Context(), &args.Height)
+	return s.client.Commit(req.Context(), (*int64)(&args.Height))
 }
 
 func (s *service) CheckTx(req *http.Request, args *CheckTxArgs) (*ctypes.ResultCheckTx, error) {
@@ -138,15 +138,15 @@ func (s *service) Tx(req *http.Request, args *TxArgs) (*ctypes.ResultTx, error) 
 }
 
 func (s *service) TxSearch(req *http.Request, args *TxSearchArgs) (*ctypes.ResultTxSearch, error) {
-	return s.client.TxSearch(req.Context(), args.Query, args.Prove, &args.Page, &args.PerPage, args.OrderBy)
+	return s.client.TxSearch(req.Context(), args.Query, args.Prove, (*int)(&args.Page), (*int)(&args.PerPage), args.OrderBy)
 }
 
 func (s *service) BlockSearch(req *http.Request, args *BlockSearchArgs) (*ctypes.ResultBlockSearch, error) {
-	return s.client.BlockSearch(req.Context(), args.Query, &args.Page, &args.PerPage, args.OrderBy)
+	return s.client.BlockSearch(req.Context(), args.Query, (*int)(&args.Page), (*int)(&args.PerPage), args.OrderBy)
 }
 
 func (s *service) Validators(req *http.Request, args *ValidatorsArgs) (*ctypes.ResultValidators, error) {
-	return s.client.Validators(req.Context(), &args.Height, &args.Page, &args.PerPage)
+	return s.client.Validators(req.Context(), (*int64)(&args.Height), (*int)(&args.Page), (*int)(&args.PerPage))
 }
 
 func (s *service) DumpConsensusState(req *http.Request, args *DumpConsensusStateArgs) (*ctypes.ResultDumpConsensusState, error) {
@@ -158,11 +158,11 @@ func (s *service) GetConsensusState(req *http.Request, args *GetConsensusStateAr
 }
 
 func (s *service) ConsensusParams(req *http.Request, args *ConsensusParamsArgs) (*ctypes.ResultConsensusParams, error) {
-	return s.client.ConsensusParams(req.Context(), &args.Height)
+	return s.client.ConsensusParams(req.Context(), (*int64)(&args.Height))
 }
 
 func (s *service) UnconfirmedTxs(req *http.Request, args *UnconfirmedTxsArgs) (*ctypes.ResultUnconfirmedTxs, error) {
-	return s.client.UnconfirmedTxs(req.Context(), &args.Limit)
+	return s.client.UnconfirmedTxs(req.Context(), (*int)(&args.Limit))
 }
 
 func (s *service) NumUnconfirmedTxs(req *http.Request, args *NumUnconfirmedTxsArgs) (*ctypes.ResultUnconfirmedTxs, error) {
@@ -185,7 +185,7 @@ func (s *service) BroadcastTxAsync(req *http.Request, args *BroadcastTxAsyncArgs
 // abci API
 func (s *service) ABCIQuery(req *http.Request, args *ABCIQueryArgs) (*ctypes.ResultABCIQuery, error) {
 	return s.client.ABCIQueryWithOptions(req.Context(), args.Path, args.Data, rpcclient.ABCIQueryOptions{
-		Height: args.Height,
+		Height: int64(args.Height),
 		Prove:  args.Prove,
 	})
 }

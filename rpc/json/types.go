@@ -1,9 +1,14 @@
 package json
 
 import (
+	"encoding/json"
+	"reflect"
+	"strconv"
+
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
 )
+
 
 type SubscribeArgs struct {
 }
@@ -20,25 +25,25 @@ type StatusArgs struct {
 type NetInfoArgs struct {
 }
 type BlockchainInfoArgs struct {
-	MinHeight int64
-	MaxHeight int64
+	MinHeight StrInt64
+	MaxHeight StrInt64
 }
 type GenesisArgs struct {
 }
 type GenesisChunkedArgs struct {
-	Id uint `json:"chunk"`
+	Id StrUint `json:"chunk"`
 }
 type BlockArgs struct {
-	Height int64 `json:"height"`
+	Height StrInt64 `json:"height"`
 }
 type BlockByHashArgs struct {
 	Hash []byte `json:"hash"`
 }
 type BlockResultsArgs struct {
-	Height int64 `json:"height"`
+	Height StrInt64 `json:"height"`
 }
 type CommitArgs struct {
-	Height int64 `json:"height"`
+	Height StrInt64 `json:"height"`
 }
 type CheckTxArgs struct {
 	Tx types.Tx `json:"tx"`
@@ -50,30 +55,30 @@ type TxArgs struct {
 type TxSearchArgs struct {
 	Query   string `json:"query"`
 	Prove   bool   `json:"prove"`
-	Page    int    `json:"page"`
-	PerPage int    `json:"per_page"`
+	Page    StrInt    `json:"page"`
+	PerPage StrInt    `json:"per_page"`
 	OrderBy string `json:"order_by"`
 }
 type BlockSearchArgs struct {
 	Query   string `json:"query"`
-	Page    int    `json:"page"`
-	PerPage int    `json:"per_page"`
+	Page    StrInt    `json:"page"`
+	PerPage StrInt    `json:"per_page"`
 	OrderBy string `json:"order_by"`
 }
 type ValidatorsArgs struct {
-	Height  int64 `json:"height"`
-	Page    int   `json:"page"`
-	PerPage int   `json:"per_page"`
+	Height  StrInt64 `json:"height"`
+	Page    StrInt   `json:"page"`
+	PerPage StrInt   `json:"per_page"`
 }
 type DumpConsensusStateArgs struct {
 }
 type GetConsensusStateArgs struct {
 }
 type ConsensusParamsArgs struct {
-	Height int64 `json:"height"`
+	Height StrInt64 `json:"height"`
 }
 type UnconfirmedTxsArgs struct {
-	Limit int `json:"limit"`
+	Limit StrInt `json:"limit"`
 }
 type NumUnconfirmedTxsArgs struct {
 }
@@ -93,7 +98,7 @@ type BroadcastTxAsyncArgs struct {
 type ABCIQueryArgs struct {
 	Path   string         `json:"path"`
 	Data   bytes.HexBytes `json:"data"`
-	Height int64          `json:"height"`
+	Height StrInt64          `json:"height"`
 	Prove  bool           `json:"prove"`
 }
 type ABCIInfoArgs struct {
@@ -105,3 +110,61 @@ type BroadcastEvidenceArgs struct {
 }
 
 type EmptyResult struct{}
+
+// JSON-deserialization specific types
+
+// StrInt is an proper int or quoted "int"
+type StrInt int
+
+// StrUint is an proper uint or quoted "uint"
+type StrUint uint
+
+// StrInt64 is an proper int64 or quoted "int64"
+type StrInt64 int64
+
+func (s *StrInt64) UnmarshalJSON(b []byte) error {
+	return unmarshalStrInt64(b, s)
+}
+
+func (s *StrInt) UnmarshalJSON(b []byte) error {
+	var val StrInt64
+	err := unmarshalStrInt64(b, &val)
+	*s = StrInt(val)
+	return err
+}
+
+func (s *StrUint) UnmarshalJSON(b []byte) error {
+	var val StrInt64
+	err := unmarshalStrInt64(b, &val)
+	*s = StrUint(val)
+	return err
+}
+
+func unmarshalStrInt64(b []byte, s *StrInt64) error {
+	var i interface{}
+	err := json.Unmarshal(b, &i)
+	if err != nil {
+		return err
+	}
+
+	switch v := i.(type) {
+	case int:
+		*s = StrInt64(v)
+	case int64:
+		*s = StrInt64(v)
+	case string:
+		iv, err := strconv.Atoi(v)
+		if err != nil {
+			return err
+		}
+		*s = StrInt64(iv)
+	default:
+		return &json.UnsupportedValueError{
+			Value: reflect.ValueOf(i),
+			Str:   string(b),
+		}
+	}
+	return nil
+}
+
+
