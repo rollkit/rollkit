@@ -40,6 +40,22 @@ func TestHandlerMapping(t *testing.T) {
 	assert.Equal(200, resp.Code)
 }
 
+func TestEmptyRequest(t *testing.T) {
+
+	assert := assert.New(t)
+	require := require.New(t)
+
+	_, local := getRPC(t)
+	handler, err := GetHttpHandler(local)
+	require.NoError(err)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(resp, req)
+
+	assert.Equal(200, resp.Code)
+}
+
 // copied from rpc
 func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	t.Helper()

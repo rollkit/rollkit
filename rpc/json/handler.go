@@ -1,7 +1,9 @@
 package json
 
 import (
+	"errors"
 	"github.com/gorilla/rpc/v2"
+	"io"
 	"net/http"
 	"reflect"
 )
@@ -21,15 +23,15 @@ func newHandler(s *service, codec rpc.Codec) *handler {
 // ServeHTTP servces HTTP request
 // implementation is highly inspired by Gorilla RPC v2 (but simplified a lot)
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		rpc.WriteError(w, http.StatusMethodNotAllowed, "rpc: POST method required, received "+r.Method)
-		return
-	}
 	// Create a new c request.
 	codecReq := h.c.NewRequest(r)
 	// Get service method to be called.
 	method, errMethod := codecReq.Method()
 	if errMethod != nil {
+		if errors.Is(errMethod, io.EOF) && method == "" {
+			// just serve empty page if request is empty
+			return
+		}
 		codecReq.WriteError(w, http.StatusBadRequest, errMethod)
 		return
 	}
