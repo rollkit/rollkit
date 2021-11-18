@@ -22,7 +22,7 @@ import (
 type BlockExecutor struct {
 	proposerAddress []byte
 	namespaceID     [8]byte
-	chainID string
+	chainID         string
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
 
@@ -35,6 +35,7 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		namespaceID:     namespaceID,
+		chainID:         chainID,
 		proxyApp:        proxyApp,
 		mempool:         mempool,
 		logger:          logger,
