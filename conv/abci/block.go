@@ -10,6 +10,7 @@ import (
 )
 
 // ToABCIHeader converts Optimint header to Header format defined in ABCI.
+// Caller should fill all the fields that are not available in Optimint header (like ChainID).
 func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 	hash := header.Hash()
 	return tmproto.Header{
@@ -17,7 +18,6 @@ func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 			Block: uint64(header.Version.Block),
 			App:   uint64(header.Version.App),
 		},
-		ChainID: "", // TODO(tzdybal)
 		Height:  int64(header.Height),
 		Time:    time.Unix(int64(header.Time), 0),
 		LastBlockId: tmproto.BlockID{
