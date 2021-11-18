@@ -8,6 +8,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -71,10 +72,11 @@ func NewManager(
 		return nil, err
 	}
 
-	proposerAddress, err := proposerKey.GetPublic().Raw()
+	rawKey, err := proposerKey.GetPublic().Raw()
 	if err != nil {
 		return nil, err
 	}
+	proposerAddress := tmcrypto.AddressHash(rawKey)
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
