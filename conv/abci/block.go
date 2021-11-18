@@ -44,24 +44,17 @@ func ToABCIBlock(block *types.Block) (tmproto.Block, error) {
 	if err != nil {
 		return tmproto.Block{}, err
 	}
-	hash := block.Hash()
+	abciCommit := ToABCICommit(&block.LastCommit)
+	// This assumes that we have only one signature
+	if len(abciCommit.Signatures) == 1 {
+		abciCommit.Signatures[0].ValidatorAddress = block.Header.ProposerAddress
+	}
 	abciBlock := tmproto.Block{
 		Header: abciHeader,
 		Evidence: tmproto.EvidenceList{
 			Evidence: nil,
 		},
-		LastCommit: &tmproto.Commit{
-			Height: int64(block.LastCommit.Height),
-			Round:  0,
-			BlockID: tmproto.BlockID{
-				Hash: hash[:],
-				PartSetHeader: tmproto.PartSetHeader{
-					Total: 0,
-					Hash:  nil,
-				},
-			},
-			Signatures: nil,
-		},
+		LastCommit: abciCommit,
 	}
 	abciBlock.Data.Txs = make([][]byte, len(block.Data.Txs))
 	for i := range block.Data.Txs {
@@ -69,4 +62,25 @@ func ToABCIBlock(block *types.Block) (tmproto.Block, error) {
 	}
 
 	return abciBlock, nil
+}
+
+func ToABCICommit(commit *types.Commit) *tmproto.Commit {
+	tmCommit := tmproto.Commit{
+		Height: int64(commit.Height),
+		Round:  0,
+		BlockID:    tmproto.BlockID{
+			Hash:          commit.HeaderHash[:],
+			PartSetHeader: tmproto.PartSetHeader{},
+		},
+	}
+	for _, sig := range commit.Signatures {
+		commitSig := tmproto.CommitSig{
+			BlockIdFlag:      tmproto.BlockIDFlagCommit,
+			//ValidatorAddress: nil,
+			//Timestamp:        nil,
+			Signature:        sig,
+		}
+		tmCommit.Signatures = append(tmCommit.Signatures, commitSig)
+	}
+	return &tmCommit
 }

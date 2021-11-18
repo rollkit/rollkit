@@ -16,9 +16,9 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 
+	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/node"
-	abciconv "github.com/celestiaorg/optimint/conv/abci"
 )
 
 const (

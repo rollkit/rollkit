@@ -76,7 +76,16 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
-	lastCommitHash := lastCommit.Hash()
+	abciCommit := abciconv.ToABCICommit(lastCommit)
+	if len(abciCommit.Signatures) == 1 {
+		abciCommit.Signatures[0].ValidatorAddress = e.proposerAddress
+	}
+	tmCommit, err := tmtypes.CommitFromProto(abciCommit)
+	if err != nil {
+		return nil
+	}
+	var lastCommitHash [32]byte
+	copy(lastCommitHash[:], tmCommit.Hash().Bytes())
 
 	block := &types.Block{
 		Header: types.Header{
