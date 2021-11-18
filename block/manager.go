@@ -117,7 +117,7 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 }
 
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	timer := time.NewTimer(m.conf.BlockTime)
+	timer := time.NewTimer(0)
 	for {
 		select {
 		case <-ctx.Done():
