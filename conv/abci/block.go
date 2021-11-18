@@ -38,3 +38,35 @@ func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
+
+func ToABCIBlock(block *types.Block) (tmproto.Block, error) {
+	abciHeader, err := ToABCIHeader(&block.Header)
+	if err != nil {
+		return tmproto.Block{}, err
+	}
+	hash := block.Hash()
+	abciBlock := tmproto.Block{
+		Header: abciHeader,
+		Evidence: tmproto.EvidenceList{
+			Evidence: nil,
+		},
+		LastCommit: &tmproto.Commit{
+			Height: int64(block.LastCommit.Height),
+			Round:  0,
+			BlockID: tmproto.BlockID{
+				Hash: hash[:],
+				PartSetHeader: tmproto.PartSetHeader{
+					Total: 0,
+					Hash:  nil,
+				},
+			},
+			Signatures: nil,
+		},
+	}
+	abciBlock.Data.Txs = make([][]byte, len(block.Data.Txs))
+	for i := range block.Data.Txs {
+		abciBlock.Data.Txs[i] = block.Data.Txs[i]
+	}
+
+	return abciBlock, nil
+}

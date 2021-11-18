@@ -18,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/node"
+	abciconv "github.com/celestiaorg/optimint/conv/abci"
 )
 
 const (
@@ -308,7 +309,30 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	// needs block store
-	panic("Block - not implemented!")
+	block, err := c.node.Store.LoadBlock(uint64(*height))
+	if err != nil {
+		return nil, err
+	}
+	hash := block.Hash()
+	// TODO(tzdybal): convert directly to Tendermint type
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	if err != nil {
+		return nil, err
+	}
+	tmBlock, err := types.BlockFromProto(&abciBlock)
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultBlock{
+		BlockID: types.BlockID{
+			Hash: hash[:],
+			PartSetHeader: types.PartSetHeader{
+				Total: 0,
+				Hash:  nil,
+			},
+		},
+		Block:  tmBlock,
+	}, nil
 }
 
 func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
