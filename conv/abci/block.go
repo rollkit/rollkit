@@ -15,11 +15,11 @@ func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 	hash := header.Hash()
 	return tmproto.Header{
 		Version: tmversion.Consensus{
-			Block: uint64(header.Version.Block),
-			App:   uint64(header.Version.App),
+			Block: header.Version.Block,
+			App:   header.Version.App,
 		},
-		Height:  int64(header.Height),
-		Time:    time.Unix(int64(header.Time), 0),
+		Height: int64(header.Height),
+		Time:   time.Unix(int64(header.Time), 0),
 		LastBlockId: tmproto.BlockID{
 			Hash: hash[:],
 			PartSetHeader: tmproto.PartSetHeader{
