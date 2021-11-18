@@ -14,6 +14,10 @@ func (b *Block) Hash() [32]byte {
 	return hash(b)
 }
 
+func (c *Commit) Hash() [32]byte {
+	return hash(c)
+}
+
 func hash(obj encoding.BinaryMarshaler) [32]byte {
 	blob, err := obj.MarshalBinary()
 	if err != nil {

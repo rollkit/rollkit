@@ -71,11 +71,12 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash [32]byte, state State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
+	lastCommitHash := lastCommit.Hash()
 
 	block := &types.Block{
 		Header: types.Header{
@@ -86,8 +87,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 			NamespaceID:     e.namespaceID,
 			Height:          height,
 			Time:            uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
-			LastHeaderHash:  [32]byte{},
-			LastCommitHash:  [32]byte{},
+			LastHeaderHash:  lastHeaderHash,
+			LastCommitHash:  lastCommitHash,
 			DataHash:        [32]byte{},
 			ConsensusHash:   [32]byte{},
 			AppHash:         state.AppHash,
