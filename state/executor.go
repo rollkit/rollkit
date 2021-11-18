@@ -22,6 +22,7 @@ import (
 type BlockExecutor struct {
 	proposerAddress []byte
 	namespaceID     [8]byte
+	chainID string
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
 
@@ -30,7 +31,7 @@ type BlockExecutor struct {
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		namespaceID:     namespaceID,
@@ -226,6 +227,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 
 	hash := block.Hash()
 	abciHeader, err := abciconv.ToABCIHeader(&block.Header)
+	abciHeader.ChainID = e.chainID
 	if err != nil {
 		return nil, err
 	}
