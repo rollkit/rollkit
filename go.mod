@@ -16,7 +16,7 @@ require (
 	github.com/gorilla/rpc v1.2.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.15.1
-	github.com/libp2p/go-libp2p-core v0.9.0
+	github.com/libp2p/go-libp2p-core v0.11.0
 	github.com/libp2p/go-libp2p-discovery v0.5.1
 	github.com/libp2p/go-libp2p-kad-dht v0.15.0
 	github.com/libp2p/go-libp2p-pubsub v0.5.6
@@ -25,7 +25,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.4.1
 	github.com/onsi/gomega v1.16.0 // indirect
 	github.com/prometheus/client_golang v1.11.0
-	github.com/rs/cors v1.8.0 // indirect
+	github.com/rs/cors v1.8.0
 	github.com/smartystreets/assertions v1.0.1 // indirect
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
