@@ -1,6 +1,7 @@
 package abci
 
 import (
+	tmtypes "github.com/tendermint/tendermint/types"
 	"time"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -34,7 +35,7 @@ func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
 		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       nil,
+		EvidenceHash:       tmtypes.EvidenceList{}.Hash(),
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
@@ -57,9 +58,12 @@ func ToABCIBlock(block *types.Block) (tmproto.Block, error) {
 		LastCommit: abciCommit,
 	}
 	abciBlock.Data.Txs = make([][]byte, len(block.Data.Txs))
+	txs := tmtypes.Txs(make([]tmtypes.Tx, len(block.Data.Txs)))
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = block.Data.Txs[i]
+		txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
+	abciBlock.Header.DataHash = txs.Hash()
 
 	return abciBlock, nil
 }

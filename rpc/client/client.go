@@ -309,7 +309,14 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	// needs block store
-	block, err := c.node.Store.LoadBlock(uint64(*height))
+	var h uint64
+	if height == nil {
+		h = c.node.Store.Height()
+	} else {
+		h = uint64(*height)
+	}
+
+	block, err := c.node.Store.LoadBlock(h)
 	if err != nil {
 		return nil, err
 	}

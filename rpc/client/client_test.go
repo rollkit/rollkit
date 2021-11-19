@@ -2,7 +2,10 @@ package client
 
 import (
 	"context"
-	"crypto/rand"
+	crand "crypto/rand"
+	"github.com/celestiaorg/optimint/state"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -16,11 +19,12 @@ import (
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/node"
+	"github.com/celestiaorg/optimint/types"
 )
 
 var expectedInfo = abci.ResponseInfo{
@@ -164,7 +168,7 @@ func TestBroadcastTxCommit(t *testing.T) {
 
 	go func() {
 		time.Sleep(mockTxProcessingTime)
-		err := rpc.node.EventBus().PublishEventTx(types.EventDataTx{TxResult: abci.TxResult{
+		err := rpc.node.EventBus().PublishEventTx(tmtypes.EventDataTx{TxResult: abci.TxResult{
 			Height: 1,
 			Index:  0,
 			Tx:     expectedTx,
@@ -184,13 +188,87 @@ func TestBroadcastTxCommit(t *testing.T) {
 	require.NoError(err)
 }
 
+func TestGetBlock(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	err := rpc.node.Start()
+	require.NoError(err)
+
+	err = rpc.node.Store.SaveBlock(getRandomBlock(1, 10), &types.Commit{})
+	require.NoError(err)
+
+	blockResp, err := rpc.Block(context.Background(), nil)
+	require.NoError(err)
+	require.NotNil(blockResp)
+
+	assert.NotNil(blockResp.Block)
+
+	err = rpc.node.Stop()
+	require.NoError(err)
+}
+
+// copy-pasted from store/store_test.go
+func getRandomBlock(height uint64, nTxs int) *types.Block {
+	block := &types.Block{
+		Header: types.Header{
+			Height:  height,
+			Version: types.Version{Block:state.InitStateVersion.Consensus.Block},
+			ProposerAddress: getRandomBytes(20),
+		},
+		Data: types.Data{
+			Txs: make(types.Txs, nTxs),
+			IntermediateStateRoots: types.IntermediateStateRoots{
+				RawRootsList: make([][]byte, nTxs),
+			},
+		},
+	}
+	copy(block.Header.AppHash[:], getRandomBytes(32))
+
+	for i := 0; i < nTxs; i++ {
+		block.Data.Txs[i] = getRandomTx()
+		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
+	}
+
+	// TODO(tzdybal): see https://github.com/celestiaorg/optimint/issues/143
+	if nTxs == 0 {
+		block.Data.Txs = nil
+		block.Data.IntermediateStateRoots.RawRootsList = nil
+	}
+
+	tmprotoLC, err := tmtypes.CommitFromProto(&tmproto.Commit{})
+	if err != nil {
+		return nil
+	}
+	copy(block.Header.LastCommitHash[:], tmprotoLC.Hash())
+
+	return block
+}
+
+func getRandomTx() types.Tx {
+	size := rand.Int()%100 + 100
+	return types.Tx(getRandomBytes(size))
+}
+
+func getRandomBytes(n int) []byte {
+	data := make([]byte, n)
+	_, _ = rand.Read(data)
+	return data
+}
+
 func getRPC(t *testing.T) (*mocks.Application, *Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -208,8 +286,8 @@ func TestMempool2Nodes(t *testing.T) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
-	key1, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	key2, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	id1, err := peer.IDFromPrivateKey(key1)
 	require.NoError(err)
@@ -219,7 +297,7 @@ func TestMempool2Nodes(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
-	}, key1, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -229,7 +307,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
