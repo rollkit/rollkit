@@ -4,23 +4,26 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"github.com/celestiaorg/optimint/config"
-	"github.com/celestiaorg/optimint/mocks"
-	"github.com/celestiaorg/optimint/node"
-	"github.com/celestiaorg/optimint/rpc/client"
-	gorillajson "github.com/gorilla/rpc/v2/json"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/types"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	gorillajson "github.com/gorilla/rpc/v2/json"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/mocks"
+	"github.com/celestiaorg/optimint/node"
+	"github.com/celestiaorg/optimint/rpc/client"
 )
 
 func TestHandlerMapping(t *testing.T) {
@@ -69,7 +72,7 @@ func TestStringyRequest(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(brokenJSON))
 	resp := httptest.NewRecorder()
-	assert.PanicsWithValue("TxSearch - not implemented!", func() {handler.ServeHTTP(resp, req)})
+	assert.PanicsWithValue("TxSearch - not implemented!", func() { handler.ServeHTTP(resp, req) })
 
 	assert.Equal(200, resp.Code)
 	assert.Empty(resp.Body.String())

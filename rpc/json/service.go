@@ -2,11 +2,11 @@ package json
 
 import (
 	"errors"
-	"github.com/gorilla/rpc/v2/json2"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"net/http"
 	"reflect"
 
+	"github.com/gorilla/rpc/v2/json2"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/celestiaorg/optimint/rpc/client"
@@ -17,11 +17,10 @@ func GetHttpHandler(l *client.Client) (http.Handler, error) {
 }
 
 type method struct {
-	m        reflect.Value
-	argsType reflect.Type
+	m          reflect.Value
+	argsType   reflect.Type
 	returnType reflect.Type
 }
-
 
 func newMethod(m interface{}) *method {
 	mType := reflect.TypeOf(m)

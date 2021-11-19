@@ -2,10 +2,11 @@ package json
 
 import (
 	"errors"
-	"github.com/gorilla/rpc/v2"
 	"io"
 	"net/http"
 	"reflect"
+
+	"github.com/gorilla/rpc/v2"
 )
 
 type handler struct {

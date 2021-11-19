@@ -9,7 +9,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-
 type SubscribeArgs struct {
 }
 type UnsubscribeArgs struct {
@@ -55,14 +54,14 @@ type TxArgs struct {
 type TxSearchArgs struct {
 	Query   string `json:"query"`
 	Prove   bool   `json:"prove"`
-	Page    StrInt    `json:"page"`
-	PerPage StrInt    `json:"per_page"`
+	Page    StrInt `json:"page"`
+	PerPage StrInt `json:"per_page"`
 	OrderBy string `json:"order_by"`
 }
 type BlockSearchArgs struct {
 	Query   string `json:"query"`
-	Page    StrInt    `json:"page"`
-	PerPage StrInt    `json:"per_page"`
+	Page    StrInt `json:"page"`
+	PerPage StrInt `json:"per_page"`
 	OrderBy string `json:"order_by"`
 }
 type ValidatorsArgs struct {
@@ -98,7 +97,7 @@ type BroadcastTxAsyncArgs struct {
 type ABCIQueryArgs struct {
 	Path   string         `json:"path"`
 	Data   bytes.HexBytes `json:"data"`
-	Height StrInt64          `json:"height"`
+	Height StrInt64       `json:"height"`
 	Prove  bool           `json:"prove"`
 }
 type ABCIInfoArgs struct {
@@ -166,5 +165,3 @@ func unmarshalStrInt64(b []byte, s *StrInt64) error {
 	}
 	return nil
 }
-
-

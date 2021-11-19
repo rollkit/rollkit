@@ -3,18 +3,17 @@ package rpc
 import (
 	"context"
 	"errors"
-	"github.com/tendermint/tendermint/libs/log"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	"golang.org/x/net/netutil"
-
 	"github.com/rs/cors"
 	"github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	"golang.org/x/net/netutil"
 
 	"github.com/celestiaorg/optimint/node"
 	"github.com/celestiaorg/optimint/rpc/client"
