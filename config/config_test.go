@@ -1,11 +1,12 @@
 package config
 
 import (
+	"testing"
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestViperAndCobra(t *testing.T) {

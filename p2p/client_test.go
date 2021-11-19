@@ -40,9 +40,9 @@ func TestBootstrapping(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clients := startTestNetwork(ctx, t, 4, map[int]hostDescr{
-		1: hostDescr{conns: []int{0}},
-		2: hostDescr{conns: []int{0, 1}},
-		3: hostDescr{conns: []int{0}},
+		1: {conns: []int{0}},
+		2: {conns: []int{0, 1}},
+		3: {conns: []int{0}},
 	}, make([]GossipValidator, 4), logger)
 
 	// wait for clients to finish refreshing routing tables
@@ -60,10 +60,10 @@ func TestDiscovery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
-		1: hostDescr{conns: []int{0}, chainID: "ORU2"},
-		2: hostDescr{conns: []int{0}, chainID: "ORU2"},
-		3: hostDescr{conns: []int{1}, chainID: "ORU1"},
-		4: hostDescr{conns: []int{2}, chainID: "ORU1"},
+		1: {conns: []int{0}, chainID: "ORU2"},
+		2: {conns: []int{0}, chainID: "ORU2"},
+		3: {conns: []int{1}, chainID: "ORU1"},
+		4: {conns: []int{2}, chainID: "ORU1"},
 	}, make([]GossipValidator, 5), logger)
 
 	// wait for clients to finish refreshing routing tables
@@ -103,11 +103,11 @@ func TestGossiping(t *testing.T) {
 
 	// network connections topology: 3<->1<->0<->2<->4
 	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
-		0: hostDescr{conns: []int{}, chainID: "2"},
-		1: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
-		2: hostDescr{conns: []int{0}, chainID: "1", realKey: true},
-		3: hostDescr{conns: []int{1}, chainID: "2", realKey: true},
-		4: hostDescr{conns: []int{2}, chainID: "2", realKey: true},
+		0: {conns: []int{}, chainID: "2"},
+		1: {conns: []int{0}, chainID: "1", realKey: true},
+		2: {conns: []int{0}, chainID: "1", realKey: true},
+		3: {conns: []int{1}, chainID: "2", realKey: true},
+		4: {conns: []int{2}, chainID: "2", realKey: true},
 	}, validators, logger)
 
 	// wait for clients to finish refreshing routing tables

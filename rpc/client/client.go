@@ -1,4 +1,4 @@
-package rpcclient
+package client
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	rpctypes "github.com/tendermint/tendermint/rpc/jsonrpc/types"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/mempool"
@@ -22,43 +21,44 @@ import (
 )
 
 const (
+	defaultPerPage = 30
+	maxPerPage     = 100
+
 	// TODO(tzdybal): make this configurable
 	subscribeTimeout = 5 * time.Second
 )
 
-var _ rpcclient.Client = &Local{}
+var _ rpcclient.Client = &Client{}
 
-type Local struct {
+type Client struct {
 	*types.EventBus
-	ctx    *rpctypes.Context
 	config *config.RPCConfig
 
 	node *node.Node
 }
 
-func NewLocal(node *node.Node) *Local {
-	return &Local{
+func NewClient(node *node.Node) *Client {
+	return &Client{
 		EventBus: node.EventBus(),
-		ctx:      &rpctypes.Context{},
 		config:   config.DefaultRPCConfig(),
 		node:     node,
 	}
 }
 
-func (l *Local) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := l.query().InfoSync(proxy.RequestInfo)
+func (c *Client) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
+	resInfo, err := c.query().InfoSync(proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}
 	return &ctypes.ResultABCIInfo{Response: *resInfo}, nil
 }
 
-func (l *Local) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
-	return l.ABCIQueryWithOptions(ctx, path, data, rpcclient.DefaultABCIQueryOptions)
+func (c *Client) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
+	return c.ABCIQueryWithOptions(ctx, path, data, rpcclient.DefaultABCIQueryOptions)
 }
 
-func (l *Local) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := l.query().QuerySync(abci.RequestQuery{
+func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+	resQuery, err := c.query().QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -67,47 +67,47 @@ func (l *Local) ABCIQueryWithOptions(ctx context.Context, path string, data tmby
 	if err != nil {
 		return nil, err
 	}
-	l.Logger.Info("ABCIQuery", "path", path, "data", data, "result", resQuery)
+	c.Logger.Info("ABCIQuery", "path", path, "data", data, "result", resQuery)
 	return &ctypes.ResultABCIQuery{Response: *resQuery}, nil
 }
 
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
-func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	// This implementation corresponds to Tendermints implementation from rpc/core/mempool.go.
 	// ctx.RemoteAddr godoc: If neither HTTPReq nor WSConn is set, an empty string is returned.
 	// This code is a local client, so we can assume that subscriber is ""
 	subscriber := "" //ctx.RemoteAddr()
 
-	if l.EventBus.NumClients() >= l.config.MaxSubscriptionClients {
-		return nil, fmt.Errorf("max_subscription_clients %d reached", l.config.MaxSubscriptionClients)
-	} else if l.EventBus.NumClientSubscriptions(subscriber) >= l.config.MaxSubscriptionsPerClient {
-		return nil, fmt.Errorf("max_subscriptions_per_client %d reached", l.config.MaxSubscriptionsPerClient)
+	if c.EventBus.NumClients() >= c.config.MaxSubscriptionClients {
+		return nil, fmt.Errorf("max_subscription_clients %d reached", c.config.MaxSubscriptionClients)
+	} else if c.EventBus.NumClientSubscriptions(subscriber) >= c.config.MaxSubscriptionsPerClient {
+		return nil, fmt.Errorf("max_subscriptions_per_client %d reached", c.config.MaxSubscriptionsPerClient)
 	}
 
 	// Subscribe to tx being committed in block.
 	subCtx, cancel := context.WithTimeout(ctx, subscribeTimeout)
 	defer cancel()
 	q := types.EventQueryTxFor(tx)
-	deliverTxSub, err := l.EventBus.Subscribe(subCtx, subscriber, q)
+	deliverTxSub, err := c.EventBus.Subscribe(subCtx, subscriber, q)
 	if err != nil {
 		err = fmt.Errorf("failed to subscribe to tx: %w", err)
-		l.Logger.Error("Error on broadcast_tx_commit", "err", err)
+		c.Logger.Error("Error on broadcast_tx_commit", "err", err)
 		return nil, err
 	}
 	defer func() {
-		if err := l.EventBus.Unsubscribe(context.Background(), subscriber, q); err != nil {
-			l.Logger.Error("Error unsubscribing from eventBus", "err", err)
+		if err := c.EventBus.Unsubscribe(context.Background(), subscriber, q); err != nil {
+			c.Logger.Error("Error unsubscribing from eventBus", "err", err)
 		}
 	}()
 
 	// add to mempool and wait for CheckTx result
 	checkTxResCh := make(chan *abci.Response, 1)
-	err = l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+	err = c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		checkTxResCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
-		l.Logger.Error("Error on broadcastTxCommit", "err", err)
+		c.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
 	}
 	checkTxResMsg := <-checkTxResCh
@@ -121,7 +121,7 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 	}
 
 	// broadcast tx
-	err = l.node.P2P.GossipTx(ctx, tx)
+	err = c.node.P2P.GossipTx(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("tx added to local mempool but failure to broadcast: %w", err)
 	}
@@ -144,15 +144,15 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 			reason = deliverTxSub.Err().Error()
 		}
 		err = fmt.Errorf("deliverTxSub was cancelled (reason: %s)", reason)
-		l.Logger.Error("Error on broadcastTxCommit", "err", err)
+		c.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return &ctypes.ResultBroadcastTxCommit{
 			CheckTx:   *checkTxRes,
 			DeliverTx: abci.ResponseDeliverTx{},
 			Hash:      tx.Hash(),
 		}, err
-	case <-time.After(l.config.TimeoutBroadcastTxCommit):
+	case <-time.After(c.config.TimeoutBroadcastTxCommit):
 		err = errors.New("timed out waiting for tx to be included in a block")
-		l.Logger.Error("Error on broadcastTxCommit", "err", err)
+		c.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return &ctypes.ResultBroadcastTxCommit{
 			CheckTx:   *checkTxRes,
 			DeliverTx: abci.ResponseDeliverTx{},
@@ -164,13 +164,13 @@ func (l *Local) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Res
 // BroadcastTxAsync returns right away, with no response. Does not wait for
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
-func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	err := l.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
+func (c *Client) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	err := c.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
 	// gossipTx optimistically
-	err = l.node.P2P.GossipTx(ctx, tx)
+	err = c.node.P2P.GossipTx(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
 	}
@@ -180,9 +180,9 @@ func (l *Local) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.Resu
 // BroadcastTxSync returns with the response from CheckTx. Does not wait for
 // DeliverTx result.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
-func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	resCh := make(chan *abci.Response, 1)
-	err := l.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+	err := c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		resCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
@@ -195,13 +195,13 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	// Note: we have to do this here because, unlike the tendermint mempool reactor, there
 	// is no routine that gossips transactions after they enter the pool
 	if r.Code == abci.CodeTypeOK {
-		err = l.node.P2P.GossipTx(ctx, tx)
+		err = c.node.P2P.GossipTx(ctx, tx)
 		if err != nil {
 			// the transaction must be removed from the mempool if it cannot be gossiped.
 			// if this does not occur, then the user will not be able to try again using
 			// this node, as the CheckTx call above will return an error indicating that
 			// the tx is already in the mempool
-			l.node.Mempool.RemoveTxByKey(mempool.TxKey(tx), true)
+			c.node.Mempool.RemoveTxByKey(mempool.TxKey(tx), true)
 			return nil, fmt.Errorf("valid tra: %w", err)
 		}
 	}
@@ -215,7 +215,7 @@ func (l *Local) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resul
 	}, nil
 }
 
-func (l *Local) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
+func (c *Client) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
 	q, err := tmquery.New(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse query: %w", err)
@@ -228,109 +228,126 @@ func (l *Local) Subscribe(ctx context.Context, subscriber, query string, outCapa
 
 	var sub types.Subscription
 	if outCap > 0 {
-		sub, err = l.EventBus.Subscribe(ctx, subscriber, q, outCap)
+		sub, err = c.EventBus.Subscribe(ctx, subscriber, q, outCap)
 	} else {
-		sub, err = l.EventBus.SubscribeUnbuffered(ctx, subscriber, q)
+		sub, err = c.EventBus.SubscribeUnbuffered(ctx, subscriber, q)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe: %w", err)
 	}
 
 	outc := make(chan ctypes.ResultEvent, outCap)
-	go l.eventsRoutine(sub, subscriber, q, outc)
+	go c.eventsRoutine(sub, subscriber, q, outc)
 
 	return outc, nil
 }
 
-func (l *Local) Unsubscribe(ctx context.Context, subscriber, query string) error {
+func (c *Client) Unsubscribe(ctx context.Context, subscriber, query string) error {
 	q, err := tmquery.New(query)
 	if err != nil {
 		return fmt.Errorf("failed to parse query: %w", err)
 	}
-	return l.EventBus.Unsubscribe(ctx, subscriber, q)
+	return c.EventBus.Unsubscribe(ctx, subscriber, q)
 }
 
-func (l *Local) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) {
-	// needs genesis provider
-	panic("Genesis - not implemented!")
+func (c *Client) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
+	return &ctypes.ResultGenesis{Genesis: c.node.GetGenesis()}, nil
 }
 
-func (l *Local) GenesisChunked(context.Context, uint) (*ctypes.ResultGenesisChunk, error) {
+func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
 	// needs genesis provider
 	panic("GenesisChunked - not implemented!")
 }
 
-func (l *Local) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	// needs block store
 	panic("BlockchainInfo - not implemented!")
 }
 
-func (l *Local) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
+func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
 	// needs P2P layer
-	panic("NetInfo - not implemented!")
+
+	res := ctypes.ResultNetInfo{
+		Listening: true,
+	}
+	for _, ma := range c.node.P2P.Addrs() {
+		res.Listeners = append(res.Listeners, ma.String())
+	}
+	peers := c.node.P2P.Peers()
+	res.NPeers = len(peers)
+	for _, peer := range peers {
+		res.Peers = append(res.Peers, ctypes.Peer{
+			NodeInfo:         peer.NodeInfo,
+			IsOutbound:       peer.IsOutbound,
+			ConnectionStatus: peer.ConnectionStatus,
+			RemoteIP:         peer.RemoteIP,
+		})
+	}
+
+	return &res, nil
 }
 
-func (l *Local) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
+func (c *Client) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	// need consensus state
 	panic("DumpConsensusState - not implemented!")
 }
 
-func (l *Local) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
+func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
 	// need consensus state
 	panic("ConsensusState - not implemented!")
 }
 
-func (l *Local) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
+func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
 	// needs state storage
 	panic("ConsensusParams - not implemented!")
 }
 
-func (l *Local) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
+func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 	return &ctypes.ResultHealth{}, nil
 }
 
-func (l *Local) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
+func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	// needs block store
 	panic("Block - not implemented!")
 }
 
-func (l *Local) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
+func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
 	// needs block store
 	panic("BlockByHash - not implemented!")
 }
 
-func (l *Local) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
+func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
 	// needs block store
 	panic("BlockResults - not implemented!")
 }
 
-func (l *Local) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
+func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	// needs block store
 	panic("Commit - not implemented!")
 }
 
-func (l *Local) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {
+func (c *Client) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {
 	panic("Validators - not implemented!")
 }
 
-func (l *Local) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
+func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
 	// needs block store, tx index (?)
 	panic("Tx - not implemented!")
 }
 
-func (l *Local) TxSearch(ctx context.Context, query string, prove bool, page, perPage *int, orderBy string) (*ctypes.ResultTxSearch, error) {
+func (c *Client) TxSearch(ctx context.Context, query string, prove bool, page, perPage *int, orderBy string) (*ctypes.ResultTxSearch, error) {
 	// needs block store
 	panic("TxSearch - not implemented!")
 }
 
 // BlockSearch defines a method to search for a paginated set of blocks by
 // BeginBlock and EndBlock event search criteria.
-func (l *Local) BlockSearch(ctx context.Context, query string, page, perPage *int, orderBy string) (*ctypes.ResultBlockSearch, error) {
+func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *int, orderBy string) (*ctypes.ResultBlockSearch, error) {
 	panic("BlockSearch - not implemented!")
 }
 
-func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
-	latest, err := l.node.Store.LoadBlock(l.node.Store.Height())
+func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
+	latest, err := c.node.Store.LoadBlock(c.node.Store.Height())
 	if err != nil {
 		// TODO(tzdybal): extract error
 		return nil, fmt.Errorf("failed to find latest block: %w", err)
@@ -359,30 +376,36 @@ func (l *Local) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	return result, nil
 }
 
-func (l *Local) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
+func (c *Client) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
 	// needs evidence pool?
 	panic("BroadcastEvidence - not implemented!")
 }
 
-func (l *Local) UnconfirmedTxs(ctx context.Context, limit *int) (*ctypes.ResultUnconfirmedTxs, error) {
-	// needs mempool
-	panic("UnconfirmedTxs - not implemented!")
+func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
+	panic("NumUnconfiredTxs - not implemented!")
 }
 
-func (l *Local) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
-	// needs mempool
-	panic("NumUnconfirmedTxs - not implemented!")
+func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.ResultUnconfirmedTxs, error) {
+	// reuse per_page validator
+	limit := validatePerPage(limitPtr)
+
+	txs := c.node.Mempool.ReapMaxTxs(limit)
+	return &ctypes.ResultUnconfirmedTxs{
+		Count:      len(txs),
+		Total:      c.node.Mempool.Size(),
+		TotalBytes: c.node.Mempool.TxsBytes(),
+		Txs:        txs}, nil
 }
 
-func (l *Local) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := l.mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
+func (c *Client) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
+	res, err := c.mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
 	return &ctypes.ResultCheckTx{ResponseCheckTx: *res}, nil
 }
 
-func (l *Local) eventsRoutine(sub types.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
+func (c *Client) eventsRoutine(sub types.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
 	for {
 		select {
 		case msg := <-sub.Out():
@@ -393,7 +416,7 @@ func (l *Local) eventsRoutine(sub types.Subscription, subscriber string, q tmpub
 				select {
 				case outc <- result:
 				default:
-					l.Logger.Error("wanted to publish ResultEvent, but out channel is full", "result", result, "query", result.Query)
+					c.Logger.Error("wanted to publish ResultEvent, but out channel is full", "result", result, "query", result.Query)
 				}
 			}
 		case <-sub.Cancelled():
@@ -401,26 +424,26 @@ func (l *Local) eventsRoutine(sub types.Subscription, subscriber string, q tmpub
 				return
 			}
 
-			l.Logger.Error("subscription was cancelled, resubscribing...", "err", sub.Err(), "query", q.String())
-			sub = l.resubscribe(subscriber, q)
+			c.Logger.Error("subscription was cancelled, resubscribing...", "err", sub.Err(), "query", q.String())
+			sub = c.resubscribe(subscriber, q)
 			if sub == nil { // client was stopped
 				return
 			}
-		case <-l.Quit():
+		case <-c.Quit():
 			return
 		}
 	}
 }
 
 // Try to resubscribe with exponential backoff.
-func (l *Local) resubscribe(subscriber string, q tmpubsub.Query) types.Subscription {
+func (c *Client) resubscribe(subscriber string, q tmpubsub.Query) types.Subscription {
 	attempts := 0
 	for {
-		if !l.IsRunning() {
+		if !c.IsRunning() {
 			return nil
 		}
 
-		sub, err := l.EventBus.Subscribe(context.Background(), subscriber, q)
+		sub, err := c.EventBus.Subscribe(context.Background(), subscriber, q)
 		if err == nil {
 			return sub
 		}
@@ -430,18 +453,32 @@ func (l *Local) resubscribe(subscriber string, q tmpubsub.Query) types.Subscript
 	}
 }
 
-func (l *Local) consensus() proxy.AppConnConsensus {
-	return l.node.ProxyApp().Consensus()
+func (c *Client) consensus() proxy.AppConnConsensus {
+	return c.node.ProxyApp().Consensus()
 }
 
-func (l *Local) mempool() proxy.AppConnMempool {
-	return l.node.ProxyApp().Mempool()
+func (c *Client) mempool() proxy.AppConnMempool {
+	return c.node.ProxyApp().Mempool()
 }
 
-func (l *Local) query() proxy.AppConnQuery {
-	return l.node.ProxyApp().Query()
+func (c *Client) query() proxy.AppConnQuery {
+	return c.node.ProxyApp().Query()
 }
 
-func (l *Local) snapshot() proxy.AppConnSnapshot {
-	return l.node.ProxyApp().Snapshot()
+func (c *Client) snapshot() proxy.AppConnSnapshot {
+	return c.node.ProxyApp().Snapshot()
+}
+
+func validatePerPage(perPagePtr *int) int {
+	if perPagePtr == nil { // no per_page parameter
+		return defaultPerPage
+	}
+
+	perPage := *perPagePtr
+	if perPage < 1 {
+		return defaultPerPage
+	} else if perPage > maxPerPage {
+		return maxPerPage
+	}
+	return perPage
 }

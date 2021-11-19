@@ -1,4 +1,4 @@
-package rpcclient
+package client
 
 import (
 	"context"
@@ -184,7 +184,7 @@ func TestBroadcastTxCommit(t *testing.T) {
 	require.NoError(err)
 }
 
-func getRPC(t *testing.T) (*mocks.Application, *Local) {
+func getRPC(t *testing.T) (*mocks.Application, *Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
@@ -194,7 +194,7 @@ func getRPC(t *testing.T) (*mocks.Application, *Local) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	rpc := NewLocal(node)
+	rpc := NewClient(node)
 	require.NotNil(rpc)
 
 	return app, rpc
@@ -244,7 +244,7 @@ func TestMempool2Nodes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	local := NewLocal(node1)
+	local := NewClient(node1)
 	require.NotNil(local)
 
 	// broadcast the bad Tx, this should not be propogated or added to the local mempool

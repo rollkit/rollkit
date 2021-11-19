@@ -2,9 +2,10 @@ package config
 
 import (
 	"encoding/hex"
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"time"
 )
 
 const (
@@ -21,6 +22,7 @@ type NodeConfig struct {
 	RootDir string
 	DBPath  string
 	P2P     P2PConfig
+	RPC     RPCConfig
 	// parameters below are optimint specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`

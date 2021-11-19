@@ -10,12 +10,14 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	cdiscovery "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
@@ -160,6 +162,41 @@ func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
 // SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
+}
+
+func (c *Client) Addrs() []multiaddr.Multiaddr {
+	return c.host.Addrs()
+}
+
+// TODO(tzdybal): move it somewhere
+type PeerConnection struct {
+	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
+	IsOutbound       bool                 `json:"is_outbound"`
+	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
+	RemoteIP         string               `json:"remote_ip"`
+}
+
+func (c *Client) Peers() []PeerConnection {
+	conns := c.host.Network().Conns()
+	res := make([]PeerConnection, 0, len(conns))
+	for _, conn := range conns {
+		pc := PeerConnection{
+			NodeInfo: p2p.DefaultNodeInfo{
+				ListenAddr:    c.conf.ListenAddress,
+				Network:       c.chainID,
+				DefaultNodeID: p2p.ID(conn.RemotePeer().String()),
+				// TODO(tzdybal): fill more fields
+			},
+			IsOutbound: conn.Stat().Direction == network.DirOutbound,
+			ConnectionStatus: p2p.ConnectionStatus{
+				Duration: time.Since(conn.Stat().Opened),
+				// TODO(tzdybal): fill more fields
+			},
+			RemoteIP: conn.RemoteMultiaddr().String(),
+		}
+		res = append(res, pc)
+	}
+	return res
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {

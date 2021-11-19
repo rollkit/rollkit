@@ -3,12 +3,12 @@ package block
 import (
 	"context"
 	"fmt"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto/merkle"
 	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
