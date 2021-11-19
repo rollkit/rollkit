@@ -331,7 +331,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 				Hash:  nil,
 			},
 		},
-		Block:  tmBlock,
+		Block: tmBlock,
 	}, nil
 }
 

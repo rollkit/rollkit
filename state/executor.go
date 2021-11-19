@@ -83,10 +83,10 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 				Block: state.Version.Consensus.Block,
 				App:   state.Version.Consensus.App,
 			},
-			NamespaceID:     e.namespaceID,
-			Height:          height,
-			Time:            uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
-			LastHeaderHash:  lastHeaderHash,
+			NamespaceID:    e.namespaceID,
+			Height:         height,
+			Time:           uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
+			LastHeaderHash: lastHeaderHash,
 			//LastCommitHash:  lastCommitHash,
 			DataHash:        [32]byte{},
 			ConsensusHash:   [32]byte{},

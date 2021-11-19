@@ -68,17 +68,17 @@ func ToABCICommit(commit *types.Commit) *tmproto.Commit {
 	tmCommit := tmproto.Commit{
 		Height: int64(commit.Height),
 		Round:  0,
-		BlockID:    tmproto.BlockID{
+		BlockID: tmproto.BlockID{
 			Hash:          commit.HeaderHash[:],
 			PartSetHeader: tmproto.PartSetHeader{},
 		},
 	}
 	for _, sig := range commit.Signatures {
 		commitSig := tmproto.CommitSig{
-			BlockIdFlag:      tmproto.BlockIDFlagCommit,
+			BlockIdFlag: tmproto.BlockIDFlagCommit,
 			//ValidatorAddress: nil,
 			//Timestamp:        nil,
-			Signature:        sig,
+			Signature: sig,
 		}
 		tmCommit.Signatures = append(tmCommit.Signatures, commitSig)
 	}
