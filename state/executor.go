@@ -76,16 +76,6 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
-	abciCommit := abciconv.ToABCICommit(lastCommit)
-	if len(abciCommit.Signatures) == 1 {
-		abciCommit.Signatures[0].ValidatorAddress = e.proposerAddress
-	}
-	tmCommit, err := tmtypes.CommitFromProto(abciCommit)
-	if err != nil {
-		return nil
-	}
-	var lastCommitHash [32]byte
-	copy(lastCommitHash[:], tmCommit.Hash().Bytes())
 
 	block := &types.Block{
 		Header: types.Header{
@@ -97,7 +87,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			Height:          height,
 			Time:            uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
 			LastHeaderHash:  lastHeaderHash,
-			LastCommitHash:  lastCommitHash,
+			//LastCommitHash:  lastCommitHash,
 			DataHash:        [32]byte{},
 			ConsensusHash:   [32]byte{},
 			AppHash:         state.AppHash,
@@ -110,6 +100,17 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
+
+	lastABCICommit := abciconv.ToABCICommit(lastCommit)
+	if len(lastCommit.Signatures) == 1 {
+		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
+		lastABCICommit.Signatures[0].Timestamp = time.UnixMilli(int64(block.Header.Time))
+	}
+	tmprotoLC, err := tmtypes.CommitFromProto(lastABCICommit)
+	if err != nil {
+		return nil
+	}
+	copy(block.Header.LastCommitHash[:], tmprotoLC.Hash())
 
 	return block
 }
