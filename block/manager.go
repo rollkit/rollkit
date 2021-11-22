@@ -72,11 +72,10 @@ func NewManager(
 		return nil, err
 	}
 
-	rawKey, err := proposerKey.GetPublic().Raw()
+	proposerAddress, err := getAddress(proposerKey)
 	if err != nil {
 		return nil, err
 	}
-	proposerAddress := tmcrypto.AddressHash(rawKey)
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
@@ -109,6 +108,14 @@ func NewManager(
 	}
 
 	return agg, nil
+}
+
+func getAddress(key crypto.PrivKey) ([]byte, error) {
+	rawKey, err := key.GetPublic().Raw()
+	if err != nil {
+		return nil, err
+	}
+	return tmcrypto.AddressHash(rawKey), nil
 }
 
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
