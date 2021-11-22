@@ -1,11 +1,11 @@
 package abci
 
 import (
-	tmtypes "github.com/tendermint/tendermint/types"
 	"time"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/types"
 )
@@ -39,6 +39,7 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
+
 // ToABCIHeader converts Optimint header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Optimint header (like ChainID).
 func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
@@ -103,16 +104,16 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 func ToABCICommit(commit *types.Commit) *tmtypes.Commit {
 	tmCommit := tmtypes.Commit{
 		Height: int64(commit.Height),
-		Round:      0,
-		BlockID:    tmtypes.BlockID{
+		Round:  0,
+		BlockID: tmtypes.BlockID{
 			Hash:          commit.HeaderHash[:],
 			PartSetHeader: tmtypes.PartSetHeader{},
 		},
 	}
 	for _, sig := range commit.Signatures {
 		commitSig := tmtypes.CommitSig{
-			BlockIDFlag:      tmtypes.BlockIDFlagCommit,
-			Signature:        sig,
+			BlockIDFlag: tmtypes.BlockIDFlagCommit,
+			Signature:   sig,
 		}
 		tmCommit.Signatures = append(tmCommit.Signatures, commitSig)
 	}

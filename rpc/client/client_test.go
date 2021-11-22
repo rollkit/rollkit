@@ -3,8 +3,6 @@ package client
 import (
 	"context"
 	crand "crypto/rand"
-	"github.com/celestiaorg/optimint/state"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"math/rand"
 	"testing"
 	"time"
@@ -18,12 +16,14 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/node"
+	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
 )
 
@@ -218,8 +218,8 @@ func TestGetBlock(t *testing.T) {
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
 		Header: types.Header{
-			Height:  height,
-			Version: types.Version{Block:state.InitStateVersion.Consensus.Block},
+			Height:          height,
+			Version:         types.Version{Block: state.InitStateVersion.Consensus.Block},
 			ProposerAddress: getRandomBytes(20),
 		},
 		Data: types.Data{
