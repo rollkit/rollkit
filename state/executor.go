@@ -100,17 +100,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
+	copy(block.Header.LastCommitHash[:], e.getLastCommitHash(lastCommit, &block.Header))
 
-	lastABCICommit := abciconv.ToABCICommit(lastCommit)
-	if len(lastCommit.Signatures) == 1 {
-		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
-		lastABCICommit.Signatures[0].Timestamp = time.UnixMilli(int64(block.Header.Time))
-	}
-	tmprotoLC, err := tmtypes.CommitFromProto(lastABCICommit)
-	if err != nil {
-		return nil
-	}
-	copy(block.Header.LastCommitHash[:], tmprotoLC.Hash())
 
 	return block
 }
@@ -238,7 +229,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	})
 
 	hash := block.Hash()
-	abciHeader, err := abciconv.ToABCIHeader(&block.Header)
+	abciHeader, err := abciconv.ToABCIHeaderPB(&block.Header)
 	abciHeader.ChainID = e.chainID
 	if err != nil {
 		return nil, err
@@ -270,6 +261,15 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 
 	return abciResponses, nil
+}
+
+func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
+	lastABCICommit := abciconv.ToABCICommit(lastCommit)
+	if len(lastCommit.Signatures) == 1 {
+		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
+		lastABCICommit.Signatures[0].Timestamp = time.UnixMilli(int64(header.Time))
+	}
+	return lastABCICommit.Hash()
 }
 
 func toOptimintTxs(txs tmtypes.Txs) types.Txs {

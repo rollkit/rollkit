@@ -10,9 +10,9 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
-// ToABCIHeader converts Optimint header to Header format defined in ABCI.
+// ToABCIHeaderPB converts Optimint header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Optimint header (like ChainID).
-func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
+func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 	hash := header.Hash()
 	return tmproto.Header{
 		Version: tmversion.Consensus{
@@ -39,52 +39,83 @@ func ToABCIHeader(header *types.Header) (tmproto.Header, error) {
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
+// ToABCIHeader converts Optimint header to Header format defined in ABCI.
+// Caller should fill all the fields that are not available in Optimint header (like ChainID).
+func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
+	hash := header.Hash()
+	return tmtypes.Header{
+		Version: tmversion.Consensus{
+			Block: header.Version.Block,
+			App:   header.Version.App,
+		},
+		Height: int64(header.Height),
+		Time:   time.Unix(int64(header.Time), 0),
+		LastBlockID: tmtypes.BlockID{
+			Hash: hash[:],
+			PartSetHeader: tmtypes.PartSetHeader{
+				Total: 0,
+				Hash:  nil,
+			},
+		},
+		LastCommitHash:     header.LastCommitHash[:],
+		DataHash:           header.DataHash[:],
+		ValidatorsHash:     nil,
+		NextValidatorsHash: nil,
+		ConsensusHash:      header.ConsensusHash[:],
+		AppHash:            header.AppHash[:],
+		LastResultsHash:    header.LastResultsHash[:],
+		EvidenceHash:       tmtypes.EvidenceList{}.Hash(),
+		ProposerAddress:    header.ProposerAddress,
+	}, nil
+}
 
-func ToABCIBlock(block *types.Block) (tmproto.Block, error) {
+// ToABCIBlock converts Optimint block into block format defined by ABCI.
+// Returned block should pass `ValidateBasic`.
+func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	abciHeader, err := ToABCIHeader(&block.Header)
 	if err != nil {
-		return tmproto.Block{}, err
+		return nil, err
 	}
 	abciCommit := ToABCICommit(&block.LastCommit)
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.Header.ProposerAddress
 	}
-	abciBlock := tmproto.Block{
+	abciBlock := tmtypes.Block{
 		Header: abciHeader,
-		Evidence: tmproto.EvidenceList{
+		Evidence: tmtypes.EvidenceData{
 			Evidence: nil,
 		},
 		LastCommit: abciCommit,
 	}
-	abciBlock.Data.Txs = make([][]byte, len(block.Data.Txs))
-	txs := tmtypes.Txs(make([]tmtypes.Tx, len(block.Data.Txs)))
+	abciBlock.Data.Txs = make([]tmtypes.Tx, len(block.Data.Txs))
 	for i := range block.Data.Txs {
-		abciBlock.Data.Txs[i] = block.Data.Txs[i]
-		txs[i] = tmtypes.Tx(block.Data.Txs[i])
+		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = txs.Hash()
+	abciBlock.Header.DataHash = abciBlock.Data.Txs.Hash()
 
-	return abciBlock, nil
+	return &abciBlock, nil
 }
 
-func ToABCICommit(commit *types.Commit) *tmproto.Commit {
-	tmCommit := tmproto.Commit{
+// ToABCICommit converts Optimint commit into commit format defined by ABCI.
+// This function only converts fields that are available in Optimint commit.
+// Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
+func ToABCICommit(commit *types.Commit) *tmtypes.Commit {
+	tmCommit := tmtypes.Commit{
 		Height: int64(commit.Height),
-		Round:  0,
-		BlockID: tmproto.BlockID{
+		Round:      0,
+		BlockID:    tmtypes.BlockID{
 			Hash:          commit.HeaderHash[:],
-			PartSetHeader: tmproto.PartSetHeader{},
+			PartSetHeader: tmtypes.PartSetHeader{},
 		},
 	}
 	for _, sig := range commit.Signatures {
-		commitSig := tmproto.CommitSig{
-			BlockIdFlag: tmproto.BlockIDFlagCommit,
-			//ValidatorAddress: nil,
-			//Timestamp:        nil,
-			Signature: sig,
+		commitSig := tmtypes.CommitSig{
+			BlockIDFlag:      tmtypes.BlockIDFlagCommit,
+			Signature:        sig,
 		}
 		tmCommit.Signatures = append(tmCommit.Signatures, commitSig)
 	}
+
 	return &tmCommit
 }

@@ -321,12 +321,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 		return nil, err
 	}
 	hash := block.Hash()
-	// TODO(tzdybal): convert directly to Tendermint type
 	abciBlock, err := abciconv.ToABCIBlock(block)
-	if err != nil {
-		return nil, err
-	}
-	tmBlock, err := types.BlockFromProto(&abciBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +333,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 				Hash:  nil,
 			},
 		},
-		Block: tmBlock,
+		Block: abciBlock,
 	}, nil
 }
 
