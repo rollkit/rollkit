@@ -1,6 +1,8 @@
 package types
 
-import "encoding"
+import (
+	"encoding"
+)
 
 // Header defines the structure of Optimint block header.
 type Header struct {

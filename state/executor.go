@@ -71,7 +71,7 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash [32]byte, state State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
@@ -83,11 +83,11 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 				Block: state.Version.Consensus.Block,
 				App:   state.Version.Consensus.App,
 			},
-			NamespaceID:     e.namespaceID,
-			Height:          height,
-			Time:            uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
-			LastHeaderHash:  [32]byte{},
-			LastCommitHash:  [32]byte{},
+			NamespaceID:    e.namespaceID,
+			Height:         height,
+			Time:           uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
+			LastHeaderHash: lastHeaderHash,
+			//LastCommitHash:  lastCommitHash,
 			DataHash:        [32]byte{},
 			ConsensusHash:   [32]byte{},
 			AppHash:         state.AppHash,
@@ -100,6 +100,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, commit *types.Commit, state S
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
+	copy(block.Header.LastCommitHash[:], e.getLastCommitHash(lastCommit, &block.Header))
 
 	return block
 }
@@ -227,7 +228,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	})
 
 	hash := block.Hash()
-	abciHeader, err := abciconv.ToABCIHeader(&block.Header)
+	abciHeader, err := abciconv.ToABCIHeaderPB(&block.Header)
 	abciHeader.ChainID = e.chainID
 	if err != nil {
 		return nil, err
@@ -259,6 +260,15 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 
 	return abciResponses, nil
+}
+
+func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
+	lastABCICommit := abciconv.ToABCICommit(lastCommit)
+	if len(lastCommit.Signatures) == 1 {
+		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
+		lastABCICommit.Signatures[0].Timestamp = time.UnixMilli(int64(header.Time))
+	}
+	return lastABCICommit.Hash()
 }
 
 func toOptimintTxs(txs tmtypes.Txs) types.Txs {

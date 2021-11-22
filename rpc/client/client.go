@@ -16,6 +16,7 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 
+	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/node"
 )
@@ -308,7 +309,32 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	// needs block store
-	panic("Block - not implemented!")
+	var h uint64
+	if height == nil {
+		h = c.node.Store.Height()
+	} else {
+		h = uint64(*height)
+	}
+
+	block, err := c.node.Store.LoadBlock(h)
+	if err != nil {
+		return nil, err
+	}
+	hash := block.Hash()
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultBlock{
+		BlockID: types.BlockID{
+			Hash: hash[:],
+			PartSetHeader: types.PartSetHeader{
+				Total: 0,
+				Hash:  nil,
+			},
+		},
+		Block: abciBlock,
+	}, nil
 }
 
 func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {

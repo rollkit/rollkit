@@ -8,6 +8,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -71,7 +72,7 @@ func NewManager(
 		return nil, err
 	}
 
-	proposerAddress, err := proposerKey.GetPublic().Raw()
+	proposerAddress, err := getAddress(proposerKey)
 	if err != nil {
 		return nil, err
 	}
@@ -109,13 +110,21 @@ func NewManager(
 	return agg, nil
 }
 
+func getAddress(key crypto.PrivKey) ([]byte, error) {
+	rawKey, err := key.GetPublic().Raw()
+	if err != nil {
+		return nil, err
+	}
+	return tmcrypto.AddressHash(rawKey), nil
+}
+
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.dalc = dalc
 	m.retriever = dalc.(da.BlockRetriever)
 }
 
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	timer := time.NewTimer(m.conf.BlockTime)
+	timer := time.NewTimer(0)
 	for {
 		select {
 		case <-ctx.Done():
@@ -237,22 +246,29 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 
 func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
+	var lastHeaderHash [32]byte
 	var err error
-	newHeight := m.store.Height() + 1
+	height := m.store.Height()
+	newHeight := height + 1
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
-		lastCommit = &types.Commit{Height: m.store.Height(), HeaderHash: [32]byte{}}
+		lastCommit = &types.Commit{Height: height, HeaderHash: [32]byte{}}
 	} else {
-		lastCommit, err = m.store.LoadCommit(m.store.Height())
+		lastCommit, err = m.store.LoadCommit(height)
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
+		lastBlock, err := m.store.LoadBlock(height)
+		if err != nil {
+			return fmt.Errorf("error while loading last block: %w", err)
+		}
+		lastHeaderHash = lastBlock.Header.Hash()
 	}
 
 	m.logger.Info("Creating and publishing block", "height", newHeight)
 
-	block := m.executor.CreateBlock(newHeight, lastCommit, m.lastState)
+	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 	newState, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
