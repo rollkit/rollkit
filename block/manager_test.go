@@ -72,7 +72,7 @@ func TestInitialState(t *testing.T) {
 			assert := assert.New(t)
 			logger := log.TestingLogger()
 			dalc := getMockDALC(logger)
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, logger)
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger)
 			assert.NoError(err)
 			assert.NotNil(agg)
 			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
