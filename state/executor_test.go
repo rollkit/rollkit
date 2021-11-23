@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -142,16 +143,28 @@ func TestApplyBlock(t *testing.T) {
 	require.NotNil(newState)
 	assert.Equal(int64(2), newState.LastBlockHeight)
 
-	txs := 0
-	for txs < 3 {
-		evt := <-txSub.Out()
-		data, ok := evt.Data().(tmtypes.EventDataTx)
-		assert.True(ok)
-		if data.Height == 2 {
-			txs++
+	// wait for at least 4 Tx events, for up to 3 second.
+	// 3 seconds is a fail-scenario only
+	timer := time.NewTimer(3 * time.Second)
+	txs := make(map[int64]int)
+	cnt := 0
+	for cnt != 4 {
+		select {
+		case evt := <-txSub.Out():
+			cnt++
+			data, ok := evt.Data().(tmtypes.EventDataTx)
+			assert.True(ok)
+			assert.NotEmpty(data.Tx)
+			txs[data.Height]++
+		case <-timer.C:
+			t.FailNow()
 		}
 	}
+	assert.Zero(len(txSub.Out())) // expected exactly 4 Txs - channel should be empty
+	assert.EqualValues(1, txs[1])
+	assert.EqualValues(3, txs[2])
 
+	require.EqualValues(2, len(headerSub.Out()))
 	for h := 1; h <= 2; h++ {
 		evt := <-headerSub.Out()
 		data, ok := evt.Data().(tmtypes.EventDataNewBlockHeader)
