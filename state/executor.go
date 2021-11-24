@@ -11,6 +11,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"go.uber.org/multierr"
 
 	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/log"
@@ -26,18 +27,21 @@ type BlockExecutor struct {
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
 
+	eventBus *tmtypes.EventBus
+
 	logger log.Logger
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		namespaceID:     namespaceID,
 		chainID:         chainID,
 		proxyApp:        proxyApp,
 		mempool:         mempool,
+		eventBus:        eventBus,
 		logger:          logger,
 	}
 }
@@ -128,6 +132,11 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 	}
 
 	copy(state.AppHash[:], appHash[:])
+
+	err = e.publishEvents(resp, block)
+	if err != nil {
+		e.logger.Error("failed to fire block events", "error", err)
+	}
 
 	return state, retainHeight, nil
 }
@@ -269,6 +278,46 @@ func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *type
 		lastABCICommit.Signatures[0].Timestamp = time.UnixMilli(int64(header.Time))
 	}
 	return lastABCICommit.Hash()
+}
+
+func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block) error {
+	if e.eventBus == nil {
+		return nil
+	}
+
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	if err != nil {
+		return err
+	}
+
+	err = multierr.Append(err, e.eventBus.PublishEventNewBlock(tmtypes.EventDataNewBlock{
+		Block:            abciBlock,
+		ResultBeginBlock: *resp.BeginBlock,
+		ResultEndBlock:   *resp.EndBlock,
+	}))
+	err = multierr.Append(err, e.eventBus.PublishEventNewBlockHeader(tmtypes.EventDataNewBlockHeader{
+		Header:           abciBlock.Header,
+		NumTxs:           int64(len(abciBlock.Txs)),
+		ResultBeginBlock: *resp.BeginBlock,
+		ResultEndBlock:   *resp.EndBlock,
+	}))
+	for _, ev := range abciBlock.Evidence.Evidence {
+		err = multierr.Append(err, e.eventBus.PublishEventNewEvidence(tmtypes.EventDataNewEvidence{
+			Evidence: ev,
+			Height:   int64(block.Header.Height),
+		}))
+	}
+	for i, dtx := range resp.DeliverTxs {
+		err = multierr.Append(err, e.eventBus.PublishEventTx(tmtypes.EventDataTx{
+			TxResult: abci.TxResult{
+				Height: int64(block.Header.Height),
+				Index:  uint32(i),
+				Tx:     abciBlock.Data.Txs[i],
+				Result: *dtx,
+			},
+		}))
+	}
+	return err
 }
 
 func toOptimintTxs(txs tmtypes.Txs) types.Txs {

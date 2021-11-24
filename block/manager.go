@@ -65,6 +65,7 @@ func NewManager(
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,
 	dalc da.DataAvailabilityLayerClient,
+ 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
@@ -77,7 +78,7 @@ func NewManager(
 		return nil, err
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, logger)
+	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
