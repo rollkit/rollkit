@@ -10,6 +10,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	tmmath "github.com/tendermint/tendermint/libs/math"
 	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/proxy"
@@ -410,10 +411,10 @@ func (c *Client) TxSearch(ctx context.Context, query string, prove bool, pagePtr
 		r := results[i]
 
 		var proof types.TxProof
-		if prove {
-			block := env.BlockStore.LoadBlock(r.Height)
+		/*if prove {
+			block := nil                               //env.BlockStore.LoadBlock(r.Height)
 			proof = block.Data.Txs.Proof(int(r.Index)) // XXX: overflow on 32-bit machines
-		}
+		}*/
 
 		apiResults = append(apiResults, &ctypes.ResultTx{
 			Hash:     types.Tx(r.Tx).Hash(),
