@@ -1,9 +1,21 @@
 # Unreleased Changes
 
-## v0.0.2
+## vX.Y.Z
 
-December, 10, 2021
+Month, DD, YYYY
+
+### BREAKING CHANGES
+
+- [go package] (Link to PR) Description @username
+
+### FEATURES
+
+- [go package] (Link to PR) Description @username
 
 ### IMPROVEMENTS
 
-- [indexer] https://github.com/celestiaorg/optimint/pull/202#issuecomment-989896685 Implement block and transaction indexing, enable TxSearch RPC endpoint @mattdf
+- [indexer] Implement block and transaction indexing, enable TxSearch RPC endpoint @mattdf
+
+### BUG FIXES
+
+- [go package] (Link to PR) Description @username
