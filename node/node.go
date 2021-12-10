@@ -316,6 +316,6 @@ func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 		dbType := dbm.BackendType("memdb")
 		return dbm.NewDB(ctx.ID, dbType, "memdb")
 	}
-	dbType := dbm.BackendType("goleveldb")
+	dbType := dbm.BackendType("badgerdb")
 	return dbm.NewDB(ctx.ID, dbType, ctx.Config.RootDir+ctx.Config.DBPath+"index")
 }
