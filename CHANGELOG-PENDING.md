@@ -14,7 +14,7 @@ Month, DD, YYYY
 
 ### IMPROVEMENTS
 
-- [indexer] Implement block and transaction indexing, enable TxSearch RPC endpoint @mattdf
+- [indexer] [Implement block and transaction indexing, enable TxSearch RPC endpoint #202](https://github.com/celestiaorg/optimint/pull/202) @mattdf
 
 ### BUG FIXES
 
