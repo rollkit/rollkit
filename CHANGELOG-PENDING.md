@@ -14,7 +14,7 @@ Month, DD, YYYY
 
 ### IMPROVEMENTS
 
-- [go package] (Link to PR) Description @username
+- [ci] (https://github.com/celestiaorg/optimint/pull/219) Add more linters @tzdybal
 
 ### BUG FIXES
 
