@@ -4,5 +4,6 @@ run:
 
 linters:
   enable:
+    - gofmt
     - goimports
     - misspell
