@@ -7,6 +7,10 @@ import (
 
 	"github.com/celestiaorg/optimint/block"
 
+	"github.com/celestiaorg/optimint/state/indexer"
+	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
+	"github.com/celestiaorg/optimint/state/txindex"
+	"github.com/celestiaorg/optimint/state/txindex/kv"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
@@ -17,6 +21,8 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
+	dbm "github.com/tendermint/tm-db"
+
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/da/registry"
@@ -25,6 +31,13 @@ import (
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
+
+type DBContext struct {
+	ID     string
+	Config *config.NodeConfig
+}
+
+type DBProvider func(*DBContext) (dbm.DB, error)
 
 // prefixes used in KV store to separate main node data from DALC data
 var (
@@ -53,6 +66,10 @@ type Node struct {
 	blockManager *block.Manager
 	dalc         da.DataAvailabilityLayerClient
 
+	TxIndexer      txindex.TxIndexer
+	BlockIndexer   indexer.BlockIndexer
+	IndexerService *txindex.IndexerService
+
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	ctx context.Context
@@ -69,6 +86,11 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
+		return nil, err
+	}
+
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(conf, DefaultDBProvider, eventBus, logger)
+	if err != nil {
 		return nil, err
 	}
 
@@ -107,18 +129,21 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	}
 
 	node := &Node{
-		proxyApp:     proxyApp,
-		eventBus:     eventBus,
-		genesis:      genesis,
-		conf:         conf,
-		P2P:          client,
-		blockManager: blockManager,
-		dalc:         dalc,
-		Mempool:      mp,
-		mempoolIDs:   mpIDs,
-		incomingTxCh: make(chan *p2p.GossipMessage),
-		Store:        s,
-		ctx:          ctx,
+		proxyApp:       proxyApp,
+		eventBus:       eventBus,
+		genesis:        genesis,
+		conf:           conf,
+		P2P:            client,
+		blockManager:   blockManager,
+		dalc:           dalc,
+		Mempool:        mp,
+		mempoolIDs:     mpIDs,
+		incomingTxCh:   make(chan *p2p.GossipMessage),
+		Store:          s,
+		TxIndexer:      txIndexer,
+		IndexerService: indexerService,
+		BlockIndexer:   blockIndexer,
+		ctx:            ctx,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -254,4 +279,43 @@ func (n *Node) newHeaderValidator() p2p.GossipValidator {
 		n.blockManager.HeaderInCh <- &header
 		return true
 	}
+}
+
+func createAndStartIndexerService(
+	conf config.NodeConfig,
+	dbProvider DBProvider,
+	eventBus *tmtypes.EventBus,
+	logger log.Logger,
+) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
+
+	var (
+		txIndexer    txindex.TxIndexer
+		blockIndexer indexer.BlockIndexer
+	)
+
+	store, err := dbProvider(&DBContext{"tx_index", &conf})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	txIndexer = kv.NewTxIndex(store)
+	blockIndexer = blockidxkv.New(dbm.NewPrefixDB(store, []byte("block_events")))
+
+	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
+	indexerService.SetLogger(logger.With("module", "txindex"))
+
+	if err := indexerService.Start(); err != nil {
+		return nil, nil, nil, err
+	}
+
+	return indexerService, txIndexer, blockIndexer, nil
+}
+
+func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
+	if ctx.Config.RootDir == "" && ctx.Config.DBPath == "" { // this is used for testing
+		dbType := dbm.BackendType("memdb")
+		return dbm.NewDB(ctx.ID, dbType, "memdb")
+	}
+	dbType := dbm.BackendType("badgerdb")
+	return dbm.NewDB(ctx.ID, dbType, ctx.Config.RootDir+ctx.Config.DBPath+"index")
 }
