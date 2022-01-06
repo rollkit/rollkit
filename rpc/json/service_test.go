@@ -44,6 +44,41 @@ func TestHandlerMapping(t *testing.T) {
 	assert.Equal(200, resp.Code)
 }
 
+func TestRESTNoParams(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	_, local := getRPC(t)
+	handler, err := GetHttpHandler(local)
+	require.NoError(err)
+
+	req := httptest.NewRequest(http.MethodPost, "/abci_info", nil)
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(resp, req)
+
+	assert.Equal(200, resp.Code)
+	s := resp.Body.String()
+	assert.NotEmpty(s)
+	t.Log(s)
+}
+
+func TestRESTWithParams(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	_, local := getRPC(t)
+	handler, err := GetHttpHandler(local)
+	require.NoError(err)
+	req := httptest.NewRequest(http.MethodPost, "/block?height=0", nil)
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(resp, req)
+
+	assert.Equal(200, resp.Code)
+	s := resp.Body.String()
+	assert.NotEmpty(s)
+	t.Log(s)
+}
+
 func TestEmptyRequest(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -87,6 +122,13 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("Info", mock.Anything).Return(abci.ResponseInfo{
+		Data:             "mock",
+		Version:          "mock",
+		AppVersion:       123,
+		LastBlockHeight:  345,
+		LastBlockAppHash: nil,
+	})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
