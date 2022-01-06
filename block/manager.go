@@ -65,7 +65,7 @@ func NewManager(
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,
 	dalc da.DataAvailabilityLayerClient,
- 	eventBus *tmtypes.EventBus,
+	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
@@ -206,7 +206,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 }
 
 func (m *Manager) mustRetrieveBlock(ctx context.Context, height uint64) {
-	// TOOD(tzdybal): extract configuration option
+	// TODO(tzdybal): extract configuration option
 	maxRetries := 10
 
 	for r := 0; r < maxRetries; r++ {
