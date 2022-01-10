@@ -26,7 +26,7 @@ require (
 	github.com/tendermint/tm-db v0.6.4
 	go.uber.org/multierr v1.7.0
 	golang.org/x/net v0.0.0-20211005001312-d4b1ae081e3b
-	google.golang.org/grpc v1.42.0
+	google.golang.org/grpc v1.43.0
 )
 
 require (
