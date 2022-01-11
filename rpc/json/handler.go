@@ -152,12 +152,7 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	w.Header().Set("x-content-type-options", "nosniff")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	resp := struct {
-		Version string          `json:"jsonrpc"`
-		Result  interface{}     `json:"result,omitempty"`
-		Error   *json2.Error    `json:"error,omitempty"`
-		Id      json.RawMessage `json:"id"`
-	}{
+	resp := response{
 		Version: "2.0",
 		Id:      []byte("-1"),
 	}

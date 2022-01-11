@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -44,39 +46,62 @@ func TestHandlerMapping(t *testing.T) {
 	assert.Equal(200, resp.Code)
 }
 
-func TestRESTNoParams(t *testing.T) {
+func TestREST(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
+
+	txSearchParams := url.Values{}
+	txSearchParams.Set("query", "message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'")
+	txSearchParams.Set("prove", "true")
+	txSearchParams.Set("page", "1")
+	txSearchParams.Set("per_page", "10")
+	txSearchParams.Set("order_by", "asc")
+
+	cases := []struct {
+		name         string
+		uri          string
+		httpCode     int
+		jsonrpcCode  int
+		bodyContains string
+	}{
+		{"valid/no params", "/abci_info", 200, -1, `"last_block_height":345`},
+		// to keep test simple, allow returning application error in following case
+		{"valid/int param", "/block?height=321", 200, 400, `"key not found"`},
+		{"invalid/int param", "/block?height=foo", 200, 400, "failed to parse param 'height'"},
+		{"valid/bool int string params",
+			"/tx_search?" + txSearchParams.Encode(),
+			200, -1, `"total_count":0`},
+		{"invalid/bool int string params",
+			"/tx_search?" + strings.Replace(txSearchParams.Encode(), "true", "blue", 1),
+			200, 400, "failed to parse param 'prove'"},
+		// TODO(tzdybal): implement GenesisChunked
+		// {"valid/uint param", "/genesis_chunked?chunk=123", 200, -1, `"key not found"`},
+	}
 
 	_, local := getRPC(t)
 	handler, err := GetHttpHandler(local)
 	require.NoError(err)
 
-	req := httptest.NewRequest(http.MethodPost, "/abci_info", nil)
-	resp := httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
+	for _, c := range cases {
+		t.Run(c.uri, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, c.uri, nil)
+			resp := httptest.NewRecorder()
+			handler.ServeHTTP(resp, req)
 
-	assert.Equal(200, resp.Code)
-	s := resp.Body.String()
-	assert.NotEmpty(s)
-	t.Log(s)
-}
+			assert.Equal(c.httpCode, resp.Code)
+			s := resp.Body.String()
+			assert.NotEmpty(s)
+			assert.Contains(s, c.bodyContains)
+			var jsonResp response
+			assert.NoError(json.Unmarshal([]byte(s), &jsonResp))
+			if c.jsonrpcCode != -1 {
+				assert.NotNil(jsonResp.Error)
+				assert.EqualValues(c.jsonrpcCode, jsonResp.Error.Code)
+			}
+			t.Log(s)
+		})
+	}
 
-func TestRESTWithParams(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	_, local := getRPC(t)
-	handler, err := GetHttpHandler(local)
-	require.NoError(err)
-	req := httptest.NewRequest(http.MethodPost, "/block?height=0", nil)
-	resp := httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-
-	assert.Equal(200, resp.Code)
-	s := resp.Body.String()
-	assert.NotEmpty(s)
-	t.Log(s)
 }
 
 func TestEmptyRequest(t *testing.T) {

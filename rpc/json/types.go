@@ -2,6 +2,7 @@ package json
 
 import (
 	"encoding/json"
+	"github.com/gorilla/rpc/v2/json2"
 	"reflect"
 	"strconv"
 
@@ -164,4 +165,11 @@ func unmarshalStrInt64(b []byte, s *StrInt64) error {
 		}
 	}
 	return nil
+}
+
+type response struct {
+	Version string          `json:"jsonrpc"`
+	Result  interface{}     `json:"result,omitempty"`
+	Error   *json2.Error    `json:"error,omitempty"`
+	Id      json.RawMessage `json:"id"`
 }
