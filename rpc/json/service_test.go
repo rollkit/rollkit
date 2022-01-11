@@ -76,6 +76,8 @@ func TestREST(t *testing.T) {
 		{"invalid/bool int string params",
 			"/tx_search?" + strings.Replace(txSearchParams.Encode(), "true", "blue", 1),
 			200, int(json2.E_PARSE), "failed to parse param 'prove'"},
+		{"valid/hex param", "/check_tx?tx=DEADBEEF", 200, -1, `"gas_used":"1000"`},
+		{"invalid/hex param", "/check_tx?tx=QWERTY", 200, int(json2.E_PARSE), "failed to parse param 'tx'"},
 		// TODO(tzdybal): implement GenesisChunked
 		// {"valid/uint param", "/genesis_chunked?chunk=123", 200, -1, `"key not found"`},
 	}
@@ -149,6 +151,10 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{
+		GasWanted: 1000,
+		GasUsed:   1000,
+	})
 	app.On("Info", mock.Anything).Return(abci.ResponseInfo{
 		Data:             "mock",
 		Version:          "mock",

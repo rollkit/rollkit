@@ -1,6 +1,7 @@
 package json
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
-	"github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/optimint/log"
 )
@@ -138,15 +138,14 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 		})
 
 		// Extract the result to error if needed.
-		var errResult error
 		statusCode := http.StatusOK
 		errInter := rets[1].Interface()
 		if errInter != nil {
 			statusCode = int(json2.E_INTERNAL)
-			errResult = errInter.(error)
+			err = errInter.(error)
 		}
 
-		h.encodeAndWriteResponse(w, rets[0].Interface(), errResult, statusCode)
+		h.encodeAndWriteResponse(w, rets[0].Interface(), err, statusCode)
 	}
 }
 
@@ -171,7 +170,6 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	err := encoder.Encode(resp)
 	if err != nil {
 		h.l.Error("failed to encode RPC response", "error", err)
-		// TODO(tzdybal): log error
 	}
 }
 
@@ -203,8 +201,7 @@ func setUintParam(rawVal string, args *reflect.Value, i int) error {
 }
 
 func setByteSliceParam(rawVal string, args *reflect.Value, i int) error {
-	var b bytes.HexBytes
-	err := b.Unmarshal([]byte(rawVal))
+	b, err := hex.DecodeString(rawVal)
 	if err != nil {
 		return err
 	}
