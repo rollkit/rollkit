@@ -76,7 +76,7 @@ func (s *Server) startRPC() error {
 		listener = netutil.LimitListener(listener, s.config.MaxOpenConnections)
 	}
 
-	handler, err := json.GetHttpHandler(s.client)
+	handler, err := json.GetHttpHandler(s.client, s.Logger)
 	if err != nil {
 		return err
 	}

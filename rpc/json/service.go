@@ -9,11 +9,12 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
+	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/rpc/client"
 )
 
-func GetHttpHandler(l *client.Client) (http.Handler, error) {
-	return newHandler(newService(l), json2.NewCodec()), nil
+func GetHttpHandler(l *client.Client, logger log.Logger) (http.Handler, error) {
+	return newHandler(newService(l), json2.NewCodec(), logger), nil
 }
 
 type method struct {

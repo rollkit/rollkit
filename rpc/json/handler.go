@@ -12,23 +12,28 @@ import (
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/tendermint/tendermint/libs/bytes"
+
+	"github.com/celestiaorg/optimint/log"
 )
 
 type handler struct {
 	s *service
 	m *http.ServeMux
 	c rpc.Codec
+	l log.Logger
 }
 
-func newHandler(s *service, codec rpc.Codec) *handler {
+func newHandler(s *service, codec rpc.Codec, logger log.Logger) *handler {
 	mux := http.NewServeMux()
 	h := &handler{
 		m: mux,
 		s: s,
 		c: codec,
+		l: logger,
 	}
 	mux.HandleFunc("/", h.serveJSONRPC)
 	for name, method := range s.methods {
+		logger.Debug("registering method", "name", name)
 		mux.HandleFunc("/"+name, h.newHandler(method))
 	}
 	return h
@@ -165,6 +170,7 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	encoder := json.NewEncoder(w)
 	err := encoder.Encode(resp)
 	if err != nil {
+		h.l.Error("failed to encode RPC response", "error", err)
 		// TODO(tzdybal): log error
 	}
 }
