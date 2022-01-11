@@ -3,7 +3,7 @@ package json
 import (
 	"encoding/json"
 	"errors"
-	"github.com/gorilla/rpc/v2/json2"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,6 +11,8 @@ import (
 	"strconv"
 
 	"github.com/gorilla/rpc/v2"
+	"github.com/gorilla/rpc/v2/json2"
+	"github.com/tendermint/tendermint/libs/bytes"
 )
 
 type handler struct {
@@ -95,21 +97,35 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 		args := reflect.New(methodSpec.argsType)
 		values, err := url.ParseQuery(r.URL.RawQuery)
 		if err != nil {
-			// TODO(tzdybal): handle error
+			h.encodeAndWriteResponse(w, nil, err, http.StatusBadRequest)
+			return
 		}
 		for i := 0; i < methodSpec.argsType.NumField(); i++ {
 			field := methodSpec.argsType.Field(i)
 			name := field.Tag.Get("json")
 			rawVal := values.Get(name)
+			var err error
 			switch field.Type.Kind() {
-			case reflect.Int64:
-				v, err := strconv.ParseInt(rawVal, 10, 64)
-				if err != nil {
-					// TODO(tzdybal): handle error
-				}
-				args.Elem().Field(i).SetInt(v)
+			case reflect.Bool:
+				err = setBoolParam(rawVal, &args, i)
+			case reflect.Uint:
+				err = setUintParam(rawVal, &args, i)
+			case reflect.Int, reflect.Int64:
+				err = setIntParam(rawVal, &args, i)
 			case reflect.String:
 				args.Elem().Field(i).SetString(rawVal)
+			case reflect.Slice:
+				// []byte is a reflect.Slice of reflect.Uint8's
+				if field.Type.Elem().Kind() == reflect.Uint8 {
+					err = setByteSliceParam(rawVal, &args, i)
+				}
+			default:
+				err = errors.New("unknown type")
+			}
+			if err != nil {
+				err = fmt.Errorf("failed to parse param '%s': %w", name, err)
+				h.encodeAndWriteResponse(w, nil, err, http.StatusBadRequest)
+				return
 			}
 		}
 		rets := methodSpec.m.Call([]reflect.Value{
@@ -126,31 +142,72 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 			errResult = errInter.(error)
 		}
 
-		// Prevents Internet Explorer from MIME-sniffing a response away
-		// from the declared content-type
-		w.Header().Set("x-content-type-options", "nosniff")
-
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		resp := struct {
-			Version string          `json:"jsonrpc"`
-			Result  interface{}     `json:"result,omitempty"`
-			Error   *json2.Error    `json:"error,omitempty"`
-			Id      json.RawMessage `json:"id"`
-		}{
-			Version: "2.0",
-			Result:  rets[0].Interface(),
-			Id:      []byte("-1"),
-		}
-
-		if errResult != nil {
-			resp.Error = &json2.Error{Code: json2.ErrorCode(statusCode), Data: errResult.Error()}
-		}
-
-		encoder := json.NewEncoder(w)
-		err = encoder.Encode(resp)
-		if err != nil {
-			// TODO(tzdybal): handle error
-		}
+		h.encodeAndWriteResponse(w, rets[0].Interface(), errResult, statusCode)
 	}
+}
+
+func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface{}, errResult error, statusCode int) {
+	// Prevents Internet Explorer from MIME-sniffing a response away
+	// from the declared content-type
+	w.Header().Set("x-content-type-options", "nosniff")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	resp := struct {
+		Version string          `json:"jsonrpc"`
+		Result  interface{}     `json:"result,omitempty"`
+		Error   *json2.Error    `json:"error,omitempty"`
+		Id      json.RawMessage `json:"id"`
+	}{
+		Version: "2.0",
+		Id:      []byte("-1"),
+	}
+
+	if errResult != nil {
+		resp.Error = &json2.Error{Code: json2.ErrorCode(statusCode), Data: errResult.Error()}
+	} else {
+		resp.Result = result
+	}
+
+	encoder := json.NewEncoder(w)
+	err := encoder.Encode(resp)
+	if err != nil {
+		// TODO(tzdybal): log error
+	}
+}
+
+func setBoolParam(rawVal string, args *reflect.Value, i int) error {
+	v, err := strconv.ParseBool(rawVal)
+	if err != nil {
+		return err
+	}
+	args.Elem().Field(i).SetBool(v)
+	return nil
+}
+
+func setIntParam(rawVal string, args *reflect.Value, i int) error {
+	v, err := strconv.ParseInt(rawVal, 10, 64)
+	if err != nil {
+		return err
+	}
+	args.Elem().Field(i).SetInt(v)
+	return nil
+}
+
+func setUintParam(rawVal string, args *reflect.Value, i int) error {
+	v, err := strconv.ParseUint(rawVal, 10, 64)
+	if err != nil {
+		return err
+	}
+	args.Elem().Field(i).SetUint(v)
+	return nil
+}
+
+func setByteSliceParam(rawVal string, args *reflect.Value, i int) error {
+	var b bytes.HexBytes
+	err := b.Unmarshal([]byte(rawVal))
+	if err != nil {
+		return err
+	}
+	args.Elem().Field(i).SetBytes(b)
+	return nil
 }
