@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -44,18 +43,18 @@ func (h *handler) serveJSONRPC(w http.ResponseWriter, r *http.Request) {
 	// Create a new c request.
 	codecReq := h.c.NewRequest(r)
 	// Get service method to be called.
-	method, errMethod := codecReq.Method()
-	if errMethod != nil {
-		if errors.Is(errMethod, io.EOF) && method == "" {
+	method, err := codecReq.Method()
+	if err != nil {
+		if e, ok := err.(*json2.Error); method == "" && ok && e.Message == "EOF" {
 			// just serve empty page if request is empty
 			return
 		}
-		codecReq.WriteError(w, http.StatusBadRequest, errMethod)
+		codecReq.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
 	methodSpec, ok := h.s.methods[method]
 	if !ok {
-		codecReq.WriteError(w, http.StatusBadRequest, errMethod)
+		codecReq.WriteError(w, int(json2.E_NO_METHOD), err)
 		return
 	}
 
@@ -97,7 +96,7 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 		args := reflect.New(methodSpec.argsType)
 		values, err := url.ParseQuery(r.URL.RawQuery)
 		if err != nil {
-			h.encodeAndWriteResponse(w, nil, err, http.StatusBadRequest)
+			h.encodeAndWriteResponse(w, nil, err, int(json2.E_PARSE))
 			return
 		}
 		for i := 0; i < methodSpec.argsType.NumField(); i++ {
@@ -124,7 +123,7 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 			}
 			if err != nil {
 				err = fmt.Errorf("failed to parse param '%s': %w", name, err)
-				h.encodeAndWriteResponse(w, nil, err, http.StatusBadRequest)
+				h.encodeAndWriteResponse(w, nil, err, int(json2.E_PARSE))
 				return
 			}
 		}
@@ -138,7 +137,7 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 		statusCode := http.StatusOK
 		errInter := rets[1].Interface()
 		if errInter != nil {
-			statusCode = http.StatusBadRequest
+			statusCode = int(json2.E_INTERNAL)
 			errResult = errInter.(error)
 		}
 

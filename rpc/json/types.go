@@ -2,10 +2,10 @@ package json
 
 import (
 	"encoding/json"
-	"github.com/gorilla/rpc/v2/json2"
 	"reflect"
 	"strconv"
 
+	"github.com/gorilla/rpc/v2/json2"
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
 )

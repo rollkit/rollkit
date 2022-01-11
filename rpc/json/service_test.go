@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	gorillajson "github.com/gorilla/rpc/v2/json"
+	"github.com/gorilla/rpc/v2/json2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -36,7 +36,7 @@ func TestHandlerMapping(t *testing.T) {
 	handler, err := GetHttpHandler(local)
 	require.NoError(err)
 
-	jsonReq, err := gorillajson.EncodeClientRequest("health", &HealthArgs{})
+	jsonReq, err := json2.EncodeClientRequest("health", &HealthArgs{})
 	require.NoError(err)
 
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(jsonReq))
@@ -64,16 +64,18 @@ func TestREST(t *testing.T) {
 		jsonrpcCode  int
 		bodyContains string
 	}{
+
+		{"invalid/malformed request", "/block?so{}wrong!", 200, int(json2.E_PARSE), ``},
 		{"valid/no params", "/abci_info", 200, -1, `"last_block_height":345`},
 		// to keep test simple, allow returning application error in following case
-		{"valid/int param", "/block?height=321", 200, 400, `"key not found"`},
-		{"invalid/int param", "/block?height=foo", 200, 400, "failed to parse param 'height'"},
+		{"valid/int param", "/block?height=321", 200, int(json2.E_INTERNAL), `"key not found"`},
+		{"invalid/int param", "/block?height=foo", 200, int(json2.E_PARSE), "failed to parse param 'height'"},
 		{"valid/bool int string params",
 			"/tx_search?" + txSearchParams.Encode(),
 			200, -1, `"total_count":0`},
 		{"invalid/bool int string params",
 			"/tx_search?" + strings.Replace(txSearchParams.Encode(), "true", "blue", 1),
-			200, 400, "failed to parse param 'prove'"},
+			200, int(json2.E_PARSE), "failed to parse param 'prove'"},
 		// TODO(tzdybal): implement GenesisChunked
 		// {"valid/uint param", "/genesis_chunked?chunk=123", 200, -1, `"key not found"`},
 	}
@@ -83,7 +85,7 @@ func TestREST(t *testing.T) {
 	require.NoError(err)
 
 	for _, c := range cases {
-		t.Run(c.uri, func(t *testing.T) {
+		t.Run(c.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, c.uri, nil)
 			resp := httptest.NewRecorder()
 			handler.ServeHTTP(resp, req)
@@ -95,7 +97,7 @@ func TestREST(t *testing.T) {
 			var jsonResp response
 			assert.NoError(json.Unmarshal([]byte(s), &jsonResp))
 			if c.jsonrpcCode != -1 {
-				assert.NotNil(jsonResp.Error)
+				require.NotNil(jsonResp.Error)
 				assert.EqualValues(c.jsonrpcCode, jsonResp.Error.Code)
 			}
 			t.Log(s)
