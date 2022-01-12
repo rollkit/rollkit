@@ -65,7 +65,8 @@ func TestREST(t *testing.T) {
 		bodyContains string
 	}{
 
-		{"invalid/malformed request", "/block?so{}wrong!", 200, int(json2.E_PARSE), ``},
+		{"invalid/malformed request", "/block?so{}wrong!", 200, int(json2.E_INVALID_REQ), ``},
+		{"invalid/missing param", "/block", 200, int(json2.E_INVALID_REQ), `missing param 'height'`},
 		{"valid/no params", "/abci_info", 200, -1, `"last_block_height":345`},
 		// to keep test simple, allow returning application error in following case
 		{"valid/int param", "/block?height=321", 200, int(json2.E_INTERNAL), `"key not found"`},

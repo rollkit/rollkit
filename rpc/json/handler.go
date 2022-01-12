@@ -107,6 +107,10 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 		for i := 0; i < methodSpec.argsType.NumField(); i++ {
 			field := methodSpec.argsType.Field(i)
 			name := field.Tag.Get("json")
+			if !values.Has(name) {
+				h.encodeAndWriteResponse(w, nil, fmt.Errorf("missing param '%s'", name), int(json2.E_INVALID_REQ))
+				return
+			}
 			rawVal := values.Get(name)
 			var err error
 			switch field.Type.Kind() {
