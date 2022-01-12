@@ -10,11 +10,11 @@ Month, DD, YYYY
 
 ### FEATURES
 
-- [go package] (Link to PR) Description @username
+- [indexer] [Implement block and transaction indexing, enable TxSearch RPC endpoint #202](https://github.com/celestiaorg/optimint/pull/202) [@mattdf](https://github.com/mattdf)
 
 ### IMPROVEMENTS
 
-- [indexer] [Implement block and transaction indexing, enable TxSearch RPC endpoint #202](https://github.com/celestiaorg/optimint/pull/202) [@mattdf](https://github.com/mattdf)
+- [deps] [Update dependencies: grpc, cors, cobra, viper, tm-db](https://github.com/celestiaorg/optimint/pull/245)  [@tzdybal](https://github.com/tzdybal/)
 - [ci] [Add more linters #219](https://github.com/celestiaorg/optimint/pull/219)  [@tzdybal](https://github.com/tzdybal/)
 
 ### BUG FIXES
