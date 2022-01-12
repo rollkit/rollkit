@@ -112,8 +112,6 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 			switch field.Type.Kind() {
 			case reflect.Bool:
 				err = setBoolParam(rawVal, &args, i)
-			case reflect.Uint:
-				err = setUintParam(rawVal, &args, i)
 			case reflect.Int, reflect.Int64:
 				err = setIntParam(rawVal, &args, i)
 			case reflect.String:
@@ -188,15 +186,6 @@ func setIntParam(rawVal string, args *reflect.Value, i int) error {
 		return err
 	}
 	args.Elem().Field(i).SetInt(v)
-	return nil
-}
-
-func setUintParam(rawVal string, args *reflect.Value, i int) error {
-	v, err := strconv.ParseUint(rawVal, 10, 64)
-	if err != nil {
-		return err
-	}
-	args.Elem().Field(i).SetUint(v)
 	return nil
 }
 

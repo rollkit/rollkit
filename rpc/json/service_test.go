@@ -78,8 +78,6 @@ func TestREST(t *testing.T) {
 			200, int(json2.E_PARSE), "failed to parse param 'prove'"},
 		{"valid/hex param", "/check_tx?tx=DEADBEEF", 200, -1, `"gas_used":"1000"`},
 		{"invalid/hex param", "/check_tx?tx=QWERTY", 200, int(json2.E_PARSE), "failed to parse param 'tx'"},
-		// TODO(tzdybal): implement GenesisChunked
-		// {"valid/uint param", "/genesis_chunked?chunk=123", 200, -1, `"key not found"`},
 	}
 
 	_, local := getRPC(t)
