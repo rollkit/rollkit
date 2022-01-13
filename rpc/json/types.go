@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/gorilla/rpc/v2/json2"
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/types"
 )
@@ -30,7 +31,7 @@ type BlockchainInfoArgs struct {
 type GenesisArgs struct {
 }
 type GenesisChunkedArgs struct {
-	Id StrUint `json:"chunk"`
+	Id StrInt `json:"chunk"`
 }
 type BlockArgs struct {
 	Height StrInt64 `json:"height"`
@@ -115,9 +116,6 @@ type EmptyResult struct{}
 // StrInt is an proper int or quoted "int"
 type StrInt int
 
-// StrUint is an proper uint or quoted "uint"
-type StrUint uint
-
 // StrInt64 is an proper int64 or quoted "int64"
 type StrInt64 int64
 
@@ -129,13 +127,6 @@ func (s *StrInt) UnmarshalJSON(b []byte) error {
 	var val StrInt64
 	err := unmarshalStrInt64(b, &val)
 	*s = StrInt(val)
-	return err
-}
-
-func (s *StrUint) UnmarshalJSON(b []byte) error {
-	var val StrInt64
-	err := unmarshalStrInt64(b, &val)
-	*s = StrUint(val)
 	return err
 }
 
@@ -164,4 +155,11 @@ func unmarshalStrInt64(b []byte, s *StrInt64) error {
 		}
 	}
 	return nil
+}
+
+type response struct {
+	Version string          `json:"jsonrpc"`
+	Result  interface{}     `json:"result,omitempty"`
+	Error   *json2.Error    `json:"error,omitempty"`
+	Id      json.RawMessage `json:"id"`
 }
