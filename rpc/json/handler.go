@@ -42,7 +42,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.m.ServeHTTP(w, r)
 }
 
-// serveJSONRPC servces HTTP request
+// serveJSONRPC serves HTTP request
 // implementation is highly inspired by Gorilla RPC v2 (but simplified a lot)
 func (h *handler) serveJSONRPC(w http.ResponseWriter, r *http.Request) {
 	// Create a new c request.
