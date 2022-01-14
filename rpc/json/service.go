@@ -1,11 +1,15 @@
 package json
 
 import (
-	"errors"
+	"context"
+	"fmt"
 	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/gorilla/rpc/v2/json2"
+	"github.com/tendermint/tendermint/libs/pubsub"
+	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
@@ -14,7 +18,7 @@ import (
 )
 
 func GetHttpHandler(l *client.Client, logger log.Logger) (http.Handler, error) {
-	return newHandler(newService(l), json2.NewCodec(), logger), nil
+	return newHandler(newService(l, logger), json2.NewCodec(), logger), nil
 }
 
 type method struct {
@@ -36,11 +40,13 @@ func newMethod(m interface{}) *method {
 type service struct {
 	client  *client.Client
 	methods map[string]*method
+	logger  log.Logger
 }
 
-func newService(c *client.Client) *service {
+func newService(c *client.Client, l log.Logger) *service {
 	s := service{
 		client: c,
+		logger: l,
 	}
 	s.methods = map[string]*method{
 		"subscribe":            newMethod(s.Subscribe),
@@ -77,15 +83,70 @@ func newService(c *client.Client) *service {
 }
 
 func (s *service) Subscribe(req *http.Request, args *SubscribeArgs) (*ctypes.ResultSubscribe, error) {
-	return nil, errors.New("not implemented")
+	addr := req.RemoteAddr
+
+	// TODO(tzdybal): pass config and check subscriptions limits
+
+	q, err := tmquery.New(args.Query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query: %w", err)
+	}
+
+	s.logger.Debug("subscribe to query", "remote", addr, "query", args.Query)
+
+	// TODO(tzdybal): extract consts or configs
+	const SubscribeTimeout = 5 * time.Second
+	const subBufferSize = 100
+	ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
+	defer cancel()
+
+	sub, err := s.client.EventBus.Subscribe(ctx, addr, q, subBufferSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe: %w", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case msg := <-sub.Out():
+				_ = msg
+				// TODO(tzdybal): write WS response
+			case <-sub.Cancelled():
+				if sub.Err() != pubsub.ErrUnsubscribed {
+					var reason string
+					if sub.Err() == nil {
+						reason = "unknown failure"
+					} else {
+						reason = sub.Err().Error()
+					}
+					err := fmt.Errorf("subscription was cancelled: %s", reason)
+					_ = err
+					// TODO(tzdybal): write WS response
+				}
+				return
+			}
+		}
+	}()
+
+	return &ctypes.ResultSubscribe{}, nil
 }
 
 func (s *service) Unsubscribe(req *http.Request, args *UnsubscribeArgs) (*EmptyResult, error) {
-	return nil, errors.New("not implemented")
+	s.logger.Debug("unsubscribe from query", "remote", req.RemoteAddr, "query", args.Query)
+	err := s.client.Unsubscribe(context.Background(), req.RemoteAddr, args.Query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unsubscribe: %w", err)
+	}
+	return &EmptyResult{}, nil
 }
 
 func (s *service) UnsubscribeAll(req *http.Request, args *UnsubscribeAllArgs) (*EmptyResult, error) {
-	return nil, errors.New("not implemented")
+	s.logger.Debug("unsubscribe from all queries", "remote", req.RemoteAddr)
+	err := s.client.UnsubscribeAll(context.Background(), req.RemoteAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unsubscribe all: %w", err)
+	}
+	return &EmptyResult{}, nil
 }
 
 // info API
