@@ -215,6 +215,63 @@ func TestGetBlock(t *testing.T) {
 }
 
 func TestUnconfirmedTxs(t *testing.T) {
+	tx1 := tmtypes.Tx("tx1")
+	tx2 := tmtypes.Tx("another tx")
+
+	cases := []struct {
+		name               string
+		txs                []tmtypes.Tx
+		expectedCount      int
+		expectedTotal      int
+		expectedTotalBytes int
+	}{
+		{"no txs", nil, 0, 0, 0},
+		{"one tx", []tmtypes.Tx{tx1}, 1, 1, len(tx1)},
+		{"two txs", []tmtypes.Tx{tx1, tx2}, 2, 2, len(tx1) + len(tx2)},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert := assert.New(t)
+			require := require.New(t)
+
+			mockApp, rpc := getRPC(t)
+			mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+			mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+
+			err := rpc.node.Start()
+			require.NoError(err)
+
+			for _, tx := range c.txs {
+				res, err := rpc.BroadcastTxAsync(context.Background(), tx)
+				assert.NoError(err)
+				assert.NotNil(res)
+			}
+
+			numRes, err := rpc.NumUnconfirmedTxs(context.Background())
+			assert.NoError(err)
+			assert.NotNil(numRes)
+			assert.EqualValues(c.expectedCount, numRes.Count)
+			assert.EqualValues(c.expectedTotal, numRes.Total)
+			assert.EqualValues(c.expectedTotalBytes, numRes.TotalBytes)
+
+			limit := -1
+			txRes, err := rpc.UnconfirmedTxs(context.Background(), &limit)
+			assert.NoError(err)
+			assert.NotNil(txRes)
+			assert.EqualValues(c.expectedCount, txRes.Count)
+			assert.EqualValues(c.expectedTotal, txRes.Total)
+			assert.EqualValues(c.expectedTotalBytes, txRes.TotalBytes)
+			assert.Len(txRes.Txs, c.expectedCount)
+		})
+	}
+}
+
+func TestUnconfirmedTxsLimit(t *testing.T) {
+	t.Skip("Test disabled because of known bug")
+	// there's a bug in mempool implementation - count should be 1
+	// TODO(tzdybal): uncomment after resolving https://github.com/celestiaorg/optimint/issues/191
+
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -225,80 +282,27 @@ func TestUnconfirmedTxs(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 
-	numRes, err := rpc.NumUnconfirmedTxs(context.Background())
-	assert.NoError(err)
-	assert.NotNil(numRes)
-	assert.EqualValues(0, numRes.Count)
-	assert.EqualValues(0, numRes.Total)
-	assert.EqualValues(0, numRes.TotalBytes)
-
-	limit := -1
-	txRes, err := rpc.UnconfirmedTxs(context.Background(), &limit)
-	assert.NoError(err)
-	assert.NotNil(txRes)
-	assert.EqualValues(0, txRes.Count)
-	assert.EqualValues(0, txRes.Total)
-	assert.EqualValues(0, txRes.TotalBytes)
-	assert.Empty(txRes.Txs)
-
 	tx1 := tmtypes.Tx("tx1")
-	tx2 := tmtypes.Tx("tx 2")
+	tx2 := tmtypes.Tx("another tx")
 
 	res, err := rpc.BroadcastTxAsync(context.Background(), tx1)
 	assert.NoError(err)
 	assert.NotNil(res)
 
-	numRes, err = rpc.NumUnconfirmedTxs(context.Background())
-	assert.NoError(err)
-	assert.NotNil(numRes)
-	assert.EqualValues(1, numRes.Count)
-	assert.EqualValues(1, numRes.Total)
-	assert.EqualValues(len(tx1), numRes.TotalBytes)
-
-	txRes, err = rpc.UnconfirmedTxs(context.Background(), &limit)
-	assert.NoError(err)
-	assert.NotNil(txRes)
-	assert.EqualValues(1, txRes.Count)
-	assert.EqualValues(1, txRes.Total)
-	assert.EqualValues(len(tx1), txRes.TotalBytes)
-	assert.Len(txRes.Txs, 1)
-	assert.Contains(txRes.Txs, tx1)
-
 	res, err = rpc.BroadcastTxAsync(context.Background(), tx2)
 	assert.NoError(err)
 	assert.NotNil(res)
 
-	numRes, err = rpc.NumUnconfirmedTxs(context.Background())
-	assert.NoError(err)
-	assert.NotNil(numRes)
-	assert.EqualValues(2, numRes.Count)
-	assert.EqualValues(2, numRes.Total)
-	assert.EqualValues(len(tx1)+len(tx2), numRes.TotalBytes)
-
-	txRes, err = rpc.UnconfirmedTxs(context.Background(), &limit)
+	limit := 1
+	txRes, err := rpc.UnconfirmedTxs(context.Background(), &limit)
 	assert.NoError(err)
 	assert.NotNil(txRes)
-	assert.EqualValues(2, txRes.Count)
+	assert.EqualValues(1, txRes.Count)
 	assert.EqualValues(2, txRes.Total)
 	assert.EqualValues(len(tx1)+len(tx2), txRes.TotalBytes)
-	assert.Len(txRes.Txs, 2)
+	assert.Len(txRes.Txs, limit)
 	assert.Contains(txRes.Txs, tx1)
-	assert.Contains(txRes.Txs, tx2)
-
-	// there's a bug in mempool implementation - count should be 1
-	// TODO(tzdybal): uncomment after resolving https://github.com/celestiaorg/optimint/issues/191
-	/*
-		limit = 1
-		txRes, err = rpc.UnconfirmedTxs(context.Background(), &limit)
-		assert.NoError(err)
-		assert.NotNil(txRes)
-		assert.EqualValues(1, txRes.Count)
-		assert.EqualValues(2, txRes.Total)
-		assert.EqualValues(len(tx1)+len(tx2), txRes.TotalBytes)
-		assert.Len(txRes.Txs, limit)
-		assert.Contains(txRes.Txs, tx1)
-		assert.NotContains(txRes.Txs, tx2)
-	*/
+	assert.NotContains(txRes.Txs, tx2)
 }
 
 // copy-pasted from store/store_test.go
@@ -330,7 +334,6 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 	}
 
 	tmprotoLC, err := tmtypes.CommitFromProto(&tmproto.Commit{})
-
 	if err != nil {
 		return nil
 	}
