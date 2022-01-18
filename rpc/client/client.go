@@ -471,7 +471,12 @@ func (c *Client) BroadcastEvidence(ctx context.Context, evidence types.Evidence)
 }
 
 func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
-	panic("NumUnconfiredTxs - not implemented!")
+	return &ctypes.ResultUnconfirmedTxs{
+		Count:      c.node.Mempool.Size(),
+		Total:      c.node.Mempool.Size(),
+		TotalBytes: c.node.Mempool.TxsBytes(),
+	}, nil
+
 }
 
 func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.ResultUnconfirmedTxs, error) {
