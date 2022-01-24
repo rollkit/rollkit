@@ -292,7 +292,8 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	node.Start()
+	err = node.Start()
+	require.NoError(err)
 
 	local := client.NewClient(node)
 	require.NotNil(local)

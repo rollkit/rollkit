@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
+	"github.com/gorilla/websocket"
 
 	"github.com/celestiaorg/optimint/log"
 )
@@ -44,6 +44,7 @@ func newHandler(s *service, codec rpc.Codec, logger log.Logger) *handler {
 		conns:  make(map[string]*websocket.Conn),
 	}
 	s.publishFunc = h.publishEvent
+	s.closeFunc = h.close
 
 	mux.HandleFunc("/", h.serveJSONRPC)
 	mux.HandleFunc("/websocket", h.wsHandler)

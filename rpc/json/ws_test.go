@@ -3,13 +3,13 @@ package json
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/gorilla/rpc/v2/json2"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gorilla/rpc/v2/json2"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -12,6 +12,17 @@ func (h *handler) publishEvent(remoteAddr string, data []byte) {
 	h.queue <- wsMsg{remoteAddr, data}
 }
 
+func (h *handler) close(remoteAddr string) {
+	h.logger.Debug("closing WebSocket", "addr", remoteAddr)
+	if conn, ok := h.conns[remoteAddr]; ok {
+		err := conn.Close()
+		if err != nil {
+			h.logger.Error("failed to close WebSocket", "addr", remoteAddr, "error", err)
+		}
+		delete(h.conns, remoteAddr)
+	}
+}
+
 func (h *handler) publishLoop() {
 	for msg := range h.queue {
 		conn, ok := h.conns[msg.remoteAddr]
@@ -31,12 +42,6 @@ func (h *handler) publishLoop() {
 		if err = writer.Close(); err != nil {
 			h.logger.Error("failed to close writer", "error", err)
 		}
-	}
-}
-
-func (h *handler) getWsHandler() func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		h.wsHandler(w, r)
 	}
 }
 

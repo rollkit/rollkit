@@ -42,6 +42,7 @@ type service struct {
 	client      *client.Client
 	methods     map[string]*method
 	publishFunc wsCallback
+	closeFunc   func(string)
 	logger      log.Logger
 }
 
@@ -115,7 +116,8 @@ func (s *service) Subscribe(req *http.Request, args *SubscribeArgs) (*ctypes.Res
 			case msg := <-sub.Out():
 				data, err := json.Marshal(msg.Data())
 				if err != nil {
-					// TODO(tzdybal)
+					s.logger.Error("failed to marshal response data", "error", err)
+					continue
 				}
 				s.publishFunc(addr, data)
 			case <-sub.Cancelled():
@@ -126,10 +128,9 @@ func (s *service) Subscribe(req *http.Request, args *SubscribeArgs) (*ctypes.Res
 					} else {
 						reason = sub.Err().Error()
 					}
-					err := fmt.Errorf("subscription was cancelled: %s", reason)
-					_ = err
-					// TODO(tzdybal): write WS response
+					s.logger.Error("subscription was cancelled", "reason", reason)
 				}
+				s.closeFunc(addr)
 				return
 			}
 		}
