@@ -341,7 +341,32 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 
 func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
 	// needs block store
-	panic("BlockByHash - not implemented!")
+	var h [32]byte
+	if hash == nil {
+		// how should this be handled?
+	} else {
+		copy(h[:], hash)
+	}
+
+	block, err := c.node.Store.LoadBlockByHash(h)
+	if err != nil {
+		return nil, err
+	}
+	blockHash := block.Hash()
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultBlock{
+		BlockID: types.BlockID{
+			Hash: blockHash[:],
+			PartSetHeader: types.PartSetHeader{
+				Total: 0,
+				Hash:  nil,
+			},
+		},
+		Block: abciBlock,
+	}, nil
 }
 
 func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
