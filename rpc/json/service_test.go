@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -272,6 +273,9 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{
 		GasWanted: 1000,
 		GasUsed:   1000,
@@ -284,9 +288,11 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 		LastBlockAppHash: nil,
 	})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
+
+	node.Start()
 
 	local := client.NewClient(node)
 	require.NotNil(local)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -17,36 +18,52 @@ import (
 )
 
 type handler struct {
-	s *service
-	m *http.ServeMux
-	c rpc.Codec
-	l log.Logger
+	srv    *service
+	mux    *http.ServeMux
+	codec  rpc.Codec
+	logger log.Logger
+
+	// WebSockets
+	queue chan wsMsg
+	conns map[string]*websocket.Conn
+}
+
+type wsMsg struct {
+	remoteAddr string
+	data       []byte
 }
 
 func newHandler(s *service, codec rpc.Codec, logger log.Logger) *handler {
 	mux := http.NewServeMux()
 	h := &handler{
-		m: mux,
-		s: s,
-		c: codec,
-		l: logger,
+		srv:    s,
+		mux:    mux,
+		codec:  codec,
+		logger: logger,
+		queue:  make(chan wsMsg),
+		conns:  make(map[string]*websocket.Conn),
 	}
+	s.publishFunc = h.publishEvent
+
 	mux.HandleFunc("/", h.serveJSONRPC)
+	mux.HandleFunc("/websocket", h.wsHandler)
 	for name, method := range s.methods {
 		logger.Debug("registering method", "name", name)
 		mux.HandleFunc("/"+name, h.newHandler(method))
 	}
+
+	go h.publishLoop()
 	return h
 }
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.m.ServeHTTP(w, r)
+	h.mux.ServeHTTP(w, r)
 }
 
 // serveJSONRPC serves HTTP request
 // implementation is highly inspired by Gorilla RPC v2 (but simplified a lot)
 func (h *handler) serveJSONRPC(w http.ResponseWriter, r *http.Request) {
-	// Create a new c request.
-	codecReq := h.c.NewRequest(r)
+	// Create a new codec request.
+	codecReq := h.codec.NewRequest(r)
 	// Get service method to be called.
 	method, err := codecReq.Method()
 	if err != nil {
@@ -57,7 +74,7 @@ func (h *handler) serveJSONRPC(w http.ResponseWriter, r *http.Request) {
 		codecReq.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
-	methodSpec, ok := h.s.methods[method]
+	methodSpec, ok := h.srv.methods[method]
 	if !ok {
 		codecReq.WriteError(w, int(json2.E_NO_METHOD), err)
 		return
@@ -171,7 +188,7 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	encoder := json.NewEncoder(w)
 	err := encoder.Encode(resp)
 	if err != nil {
-		h.l.Error("failed to encode RPC response", "error", err)
+		h.logger.Error("failed to encode RPC response", "error", err)
 	}
 }
 

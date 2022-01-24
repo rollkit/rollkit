@@ -2,6 +2,7 @@ package json
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -38,10 +39,13 @@ func newMethod(m interface{}) *method {
 }
 
 type service struct {
-	client  *client.Client
-	methods map[string]*method
-	logger  log.Logger
+	client      *client.Client
+	methods     map[string]*method
+	publishFunc wsCallback
+	logger      log.Logger
 }
+
+type wsCallback func(remoteAddr string, data []byte)
 
 func newService(c *client.Client, l log.Logger) *service {
 	s := service{
@@ -109,8 +113,11 @@ func (s *service) Subscribe(req *http.Request, args *SubscribeArgs) (*ctypes.Res
 		for {
 			select {
 			case msg := <-sub.Out():
-				_ = msg
-				// TODO(tzdybal): write WS response
+				data, err := json.Marshal(msg.Data())
+				if err != nil {
+					// TODO(tzdybal)
+				}
+				s.publishFunc(addr, data)
 			case <-sub.Cancelled():
 				if sub.Err() != pubsub.ErrUnsubscribed {
 					var reason string
