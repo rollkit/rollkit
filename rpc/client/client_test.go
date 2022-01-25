@@ -214,6 +214,34 @@ func TestGetBlock(t *testing.T) {
 	require.NoError(err)
 }
 
+func TestGetBlockByHash(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	err := rpc.node.Start()
+	require.NoError(err)
+
+	block := getRandomBlock(1, 10)
+	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
+	require.NoError(err)
+
+	blockHash := block.Hash()
+	blockResp, err := rpc.BlockByHash(context.Background(), blockHash[:])
+	require.NoError(err)
+	require.NotNil(blockResp)
+
+	assert.NotNil(blockResp.Block)
+
+	err = rpc.node.Stop()
+	require.NoError(err)
+}
+
 func TestUnconfirmedTxs(t *testing.T) {
 	tx1 := tmtypes.Tx("tx1")
 	tx2 := tmtypes.Tx("another tx")
