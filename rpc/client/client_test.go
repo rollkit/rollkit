@@ -214,6 +214,26 @@ func TestGetBlock(t *testing.T) {
 	require.NoError(err)
 }
 
+func TestGetCommit(t *testing.T) {
+	require := require.New(t)
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	block := getRandomBlock(1, 5)
+
+	err := rpc.node.Start()
+	require.NoError(err)
+
+	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
+	require.NoError(err)
+
+	commit, err := rpc.Commit(context.Background(), nil)
+	require.NoError(err)
+	require.NotNil(commit)
+
+}
+
 func TestUnconfirmedTxs(t *testing.T) {
 	tx1 := tmtypes.Tx("tx1")
 	tx2 := tmtypes.Tx("another tx")
