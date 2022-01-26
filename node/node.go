@@ -313,9 +313,9 @@ func createAndStartIndexerService(
 
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	if ctx.Config.RootDir == "" && ctx.Config.DBPath == "" { // this is used for testing
-		dbType := dbm.BackendType("memdb")
+		dbType := dbm.MemDBBackend
 		return dbm.NewDB(ctx.ID, dbType, "memdb")
 	}
-	dbType := dbm.BackendType("badgerdb")
+	dbType := dbm.BadgerDBBackend
 	return dbm.NewDB(ctx.ID, dbType, ctx.Config.RootDir+ctx.Config.DBPath+"index")
 }
