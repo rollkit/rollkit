@@ -167,7 +167,7 @@ func (n *Node) headerPublishLoop(ctx context.Context) {
 				n.Logger.Error("failed to gossip block header", "error", err)
 			}
 		case <-ctx.Done():
-			break
+			return
 		}
 	}
 }
