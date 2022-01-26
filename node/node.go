@@ -155,7 +155,8 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 }
 
 func (n *Node) headerPublishLoop(ctx context.Context) {
-	for {
+	cont := true
+	for cont {
 		select {
 		case header := <-n.blockManager.HeaderOutCh:
 			headerBytes, err := header.MarshalBinary()
@@ -167,7 +168,7 @@ func (n *Node) headerPublishLoop(ctx context.Context) {
 				n.Logger.Error("failed to gossip block header", "error", err)
 			}
 		case <-ctx.Done():
-			break
+			cont = false
 		}
 	}
 }
