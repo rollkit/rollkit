@@ -231,7 +231,7 @@ func TestGetBlockByHash(t *testing.T) {
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	require.NoError(err)
 
-	blockHash := block.Hash()
+	blockHash := block.Header.Hash()
 	blockResp, err := rpc.BlockByHash(context.Background(), blockHash[:])
 	require.NoError(err)
 	require.NotNil(blockResp)
