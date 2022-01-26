@@ -5,11 +5,13 @@ import (
 	"os"
 	"testing"
 
+	abcitypes "github.com/tendermint/tendermint/abci/types"
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+
 	"github.com/celestiaorg/optimint/state"
+	"github.com/celestiaorg/optimint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/optimint/types"
 )
 
 func TestStoreHeight(t *testing.T) {
@@ -132,6 +134,49 @@ func TestRestart(t *testing.T) {
 	assert.NoError(err)
 
 	assert.Equal(expectedHeight, s2.Height())
+}
+
+func TestBlockResponses(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	kv := NewDefaultInMemoryKVStore()
+	s := New(kv)
+
+	expected := &tmstate.ABCIResponses{
+		BeginBlock: &abcitypes.ResponseBeginBlock{
+			Events: []abcitypes.Event{{
+				Type: "test",
+				Attributes: []abcitypes.EventAttribute{{
+					Key:   []byte("foo"),
+					Value: []byte("bar"),
+					Index: false,
+				}},
+			}},
+		},
+		DeliverTxs: nil,
+		EndBlock: &abcitypes.ResponseEndBlock{
+			ValidatorUpdates: nil,
+			ConsensusParamUpdates: &abcitypes.ConsensusParams{
+				Block: &abcitypes.BlockParams{
+					MaxBytes: 12345,
+					MaxGas:   678909876,
+				},
+			},
+		},
+	}
+
+	err := s.SaveBlockResponses(1, expected)
+	assert.NoError(err)
+
+	resp, err := s.LoadBlockResponses(123)
+	assert.Error(err)
+	assert.Nil(resp)
+
+	resp, err = s.LoadBlockResponses(1)
+	assert.NoError(err)
+	assert.NotNil(resp)
+	assert.Equal(expected, resp)
 }
 
 func getRandomBlock(height uint64, nTxs int) *types.Block {

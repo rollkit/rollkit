@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync"
 
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/state"
@@ -13,10 +14,11 @@ import (
 )
 
 var (
-	blockPrefix  = [1]byte{1}
-	indexPrefix  = [1]byte{2}
-	commitPrefix = [1]byte{3}
-	statePreffix = [1]byte{4}
+	blockPrefix     = [1]byte{1}
+	indexPrefix     = [1]byte{2}
+	commitPrefix    = [1]byte{3}
+	statePrefix     = [1]byte{4}
+	responsesPrefix = [1]byte{5}
 )
 
 // DefaultStore is a default store implmementation.
@@ -109,6 +111,26 @@ func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	return block, err
 }
 
+// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
+func (s *DefaultStore) SaveBlockResponses(height uint64, responses *tmstate.ABCIResponses) error {
+	data, err := responses.Marshal()
+	if err != nil {
+		return err
+	}
+	return s.db.Set(getResponsesKey(height), data)
+}
+
+// LoadBlockResponses returns block results at given height, or error if it's not found in Store.
+func (s *DefaultStore) LoadBlockResponses(height uint64) (*tmstate.ABCIResponses, error) {
+	data, err := s.db.Get(getResponsesKey(height))
+	if err != nil {
+		return nil, err
+	}
+	var responses tmstate.ABCIResponses
+	err = responses.Unmarshal(data)
+	return &responses, err
+}
+
 // LoadCommit returns commit for a block at given height, or error if it's not found in Store.
 func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 	hash, err := s.loadHashFromIndex(height)
@@ -184,5 +206,11 @@ func getIndexKey(height uint64) []byte {
 }
 
 func getStateKey() []byte {
-	return statePreffix[:]
+	return statePrefix[:]
+}
+
+func getResponsesKey(height uint64) []byte {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, height)
+	return append(responsesPrefix[:], buf[:]...)
 }
