@@ -253,6 +253,8 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 
 	results := make([]*abci.TxResult, 0, len(filteredHashes))
 	for _, h := range filteredHashes {
+		cont := true
+
 		res, err := txi.Get(h)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get Tx{%X}: %w", h, err)
@@ -262,8 +264,12 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 		// Potentially exit early.
 		select {
 		case <-ctx.Done():
-			break
+			cont = false
 		default:
+		}
+
+		if !cont {
+			break
 		}
 	}
 
@@ -319,13 +325,19 @@ func (txi *TxIndex) match(
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
+			cont := true
+
 			tmpHashes[string(it.Value())] = it.Value()
 
 			// Potentially exit early.
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 			default:
+			}
+
+			if !cont {
+				break
 			}
 		}
 		if err := it.Error(); err != nil {
@@ -342,13 +354,19 @@ func (txi *TxIndex) match(
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
+			cont := true
+
 			tmpHashes[string(it.Value())] = it.Value()
 
 			// Potentially exit early.
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 			default:
+			}
+
+			if !cont {
+				break
 			}
 		}
 		if err := it.Error(); err != nil {
@@ -366,6 +384,8 @@ func (txi *TxIndex) match(
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
+			cont := true
+
 			if !isTagKey(it.Key()) {
 				continue
 			}
@@ -377,8 +397,12 @@ func (txi *TxIndex) match(
 			// Potentially exit early.
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 			default:
+			}
+
+			if !cont {
+				break
 			}
 		}
 		if err := it.Error(); err != nil {
@@ -447,6 +471,8 @@ func (txi *TxIndex) matchRange(
 
 LOOP:
 	for ; it.Valid(); it.Next() {
+		cont := true
+
 		if !isTagKey(it.Key()) {
 			continue
 		}
@@ -481,8 +507,12 @@ LOOP:
 		// Potentially exit early.
 		select {
 		case <-ctx.Done():
-			break
+			cont = false
 		default:
+		}
+
+		if !cont {
+			break
 		}
 	}
 	if err := it.Error(); err != nil {

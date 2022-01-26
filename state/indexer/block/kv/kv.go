@@ -187,6 +187,8 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 	// fetch matching heights
 	results = make([]int64, 0, len(filteredHeights))
 	for _, hBz := range filteredHeights {
+		cont := true
+
 		h := int64FromBytes(hBz)
 
 		ok, err := idx.Has(h)
@@ -199,9 +201,12 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 
 		select {
 		case <-ctx.Done():
-			break
+			cont = false
 
 		default:
+		}
+		if !cont {
+			break
 		}
 	}
 
@@ -242,6 +247,8 @@ func (idx *BlockerIndexer) matchRange(
 
 LOOP:
 	for ; it.Valid(); it.Next() {
+		cont := true
+
 		var (
 			eventValue string
 			err        error
@@ -279,9 +286,13 @@ LOOP:
 
 		select {
 		case <-ctx.Done():
-			break
+			cont = false
 
 		default:
+		}
+
+		if !cont {
+			break
 		}
 	}
 
@@ -373,13 +384,19 @@ func (idx *BlockerIndexer) match(
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
+			cont := true
+
 			tmpHeights[string(it.Value())] = it.Value()
 
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 
 			default:
+			}
+
+			if !cont {
+				break
 			}
 		}
 
@@ -400,6 +417,8 @@ func (idx *BlockerIndexer) match(
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
+			cont := true
+
 			eventValue, err := parseValueFromEventKey(it.Key())
 			if err != nil {
 				continue
@@ -411,9 +430,13 @@ func (idx *BlockerIndexer) match(
 
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 
 			default:
+			}
+
+			if !cont {
+				break
 			}
 		}
 		if err := it.Error(); err != nil {
