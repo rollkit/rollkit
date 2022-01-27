@@ -1,6 +1,8 @@
 package store
 
 import (
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
 )
@@ -17,6 +19,12 @@ type Store interface {
 	LoadBlock(height uint64) (*types.Block, error)
 	// LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
 	LoadBlockByHash(hash [32]byte) (*types.Block, error)
+
+	// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
+	SaveBlockResponses(height uint64, responses *tmstate.ABCIResponses) error
+
+	// LoadBlockResponses returns block results at given height, or error if it's not found in Store.
+	LoadBlockResponses(height uint64) (*tmstate.ABCIResponses, error)
 
 	// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
 	LoadCommit(height uint64) (*types.Commit, error)
