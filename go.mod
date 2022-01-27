@@ -16,7 +16,7 @@ require (
 	github.com/libp2p/go-libp2p-kad-dht v0.15.0
 	github.com/libp2p/go-libp2p-pubsub v0.5.6
 	github.com/minio/sha256-simd v1.0.0
-	github.com/multiformats/go-multiaddr v0.4.1
+	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.8.2
 	github.com/spf13/cobra v1.3.0
@@ -55,7 +55,6 @@ require (
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
@@ -165,7 +164,6 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/mod v0.5.0 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
 	golang.org/x/text v0.3.7 // indirect
