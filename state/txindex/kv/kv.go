@@ -426,15 +426,21 @@ func (txi *TxIndex) match(
 	// Remove/reduce matches in filteredHashes that were not found in this
 	// match (tmpHashes).
 	for k := range filteredHashes {
+		cont := true
+
 		if tmpHashes[k] == nil {
 			delete(filteredHashes, k)
 
 			// Potentially exit early.
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 			default:
 			}
+		}
+
+		if !cont {
+			break
 		}
 	}
 
@@ -533,15 +539,21 @@ LOOP:
 	// Remove/reduce matches in filteredHashes that were not found in this
 	// match (tmpHashes).
 	for k := range filteredHashes {
+		cont := true
+
 		if tmpHashes[k] == nil {
 			delete(filteredHashes, k)
 
 			// Potentially exit early.
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 			default:
 			}
+		}
+
+		if !cont {
+			break
 		}
 	}
 

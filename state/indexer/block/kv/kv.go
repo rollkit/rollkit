@@ -314,15 +314,21 @@ LOOP:
 	// Remove/reduce matches in filteredHashes that were not found in this
 	// match (tmpHashes).
 	for k := range filteredHeights {
+		cont := true
+
 		if tmpHeights[k] == nil {
 			delete(filteredHeights, k)
 
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 
 			default:
 			}
+		}
+
+		if !cont {
+			break
 		}
 	}
 
@@ -461,15 +467,21 @@ func (idx *BlockerIndexer) match(
 	// Remove/reduce matches in filteredHeights that were not found in this
 	// match (tmpHeights).
 	for k := range filteredHeights {
+		cont := true
+
 		if tmpHeights[k] == nil {
 			delete(filteredHeights, k)
 
 			select {
 			case <-ctx.Done():
-				break
+				cont = false
 
 			default:
 			}
+		}
+
+		if !cont {
+			break
 		}
 	}
 
