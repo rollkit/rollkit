@@ -334,13 +334,50 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 }
 
 func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
-	// needs block store
-	panic("BlockByHash - not implemented!")
+	var h [32]byte
+	copy(h[:], hash)
+
+	block, err := c.node.Store.LoadBlockByHash(h)
+	if err != nil {
+		return nil, err
+	}
+
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultBlock{
+		BlockID: types.BlockID{
+			Hash: h[:],
+			PartSetHeader: types.PartSetHeader{
+				Total: 0,
+				Hash:  nil,
+			},
+		},
+		Block: abciBlock,
+	}, nil
 }
 
 func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
-	// needs block store
-	panic("BlockResults - not implemented!")
+	var h uint64
+	if height == nil {
+		h = c.node.Store.Height()
+	} else {
+		h = uint64(*height)
+	}
+	resp, err := c.node.Store.LoadBlockResponses(h)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ctypes.ResultBlockResults{
+		Height:                int64(h),
+		TxsResults:            resp.DeliverTxs,
+		BeginBlockEvents:      resp.BeginBlock.Events,
+		EndBlockEvents:        resp.EndBlock.Events,
+		ValidatorUpdates:      resp.EndBlock.ValidatorUpdates,
+		ConsensusParamUpdates: resp.EndBlock.ConsensusParamUpdates,
+	}, nil
 }
 
 func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
