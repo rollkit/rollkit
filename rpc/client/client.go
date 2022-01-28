@@ -21,7 +21,6 @@ import (
 	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/node"
-	optimint "github.com/celestiaorg/optimint/types"
 )
 
 const (
@@ -312,7 +311,7 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	// needs block store
-	heightValue := c.getHeight(height)
+	heightValue := c.normalizeHeight(height)
 	block, err := c.node.Store.LoadBlock(heightValue)
 	if err != nil {
 		return nil, err
@@ -346,7 +345,7 @@ func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.Resul
 
 func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	// needs block store
-	heightValue := c.getHeight(height)
+	heightValue := c.normalizeHeight(height)
 	block, err := c.node.Store.LoadBlock(heightValue)
 	if err != nil {
 		return nil, err
@@ -463,16 +462,6 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 		return nil, errors.New("expected order_by to be either `asc` or `desc` or empty")
 	}
 
-	// Fetch the blocks
-	var blocks []*optimint.Block
-	for _, h := range results {
-		block, err := c.node.Store.LoadBlock(uint64(h))
-		if err != nil {
-			return nil, err
-		}
-		blocks = append(blocks, block)
-	}
-
 	// Paginate
 	totalCount := len(results)
 	perPageVal := validatePerPage(perPage)
@@ -485,18 +474,26 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 	skipCount := validateSkipCount(pageVal, perPageVal)
 	pageSize := tmmath.MinInt(perPageVal, totalCount-skipCount)
 
-	apiResults := make([]*ctypes.ResultBlock, 0, pageSize)
-	for i := skipCount; i < skipCount+pageSize; i++ {
-		block, err := abciconv.ToABCIBlock(blocks[i])
+	pageResults := make([]int64, 0, pageSize)
+	copy(pageResults, results[skipCount:skipCount+pageSize])
+
+	// Fetch the blocks
+	blocks := make([]*ctypes.ResultBlock, 0, len(pageResults))
+	for _, h := range pageResults {
+		b, err := c.node.Store.LoadBlock(uint64(h))
 		if err != nil {
 			return nil, err
 		}
-		apiResults = append(apiResults, &ctypes.ResultBlock{
+		block, err := abciconv.ToABCIBlock(b)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, &ctypes.ResultBlock{
 			Block: block,
 		})
 	}
 
-	return &ctypes.ResultBlockSearch{Blocks: apiResults, TotalCount: totalCount}, nil
+	return &ctypes.ResultBlockSearch{Blocks: blocks, TotalCount: totalCount}, nil
 }
 
 func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
@@ -627,7 +624,7 @@ func (c *Client) snapshot() proxy.AppConnSnapshot {
 	return c.node.ProxyApp().Snapshot()
 }
 
-func (c *Client) getHeight(height *int64) uint64 {
+func (c *Client) normalizeHeight(height *int64) uint64 {
 	var heightValue uint64
 	if height == nil {
 		heightValue = c.node.Store.Height()

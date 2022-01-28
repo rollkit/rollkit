@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	crand "crypto/rand"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -234,6 +235,58 @@ func TestGetCommit(t *testing.T) {
 
 }
 
+func TestBlockSearch(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	indexBlocks(t, rpc, heights)
+
+	tests := map[string]struct {
+		query      string
+		page       int
+		perPage    int
+		totalCount int
+		orderBy    string
+	}{
+		"block.height >= 1 AND end_event.foo <= 5": {
+			query:      "block.height >= 1 AND end_event.foo <= 5",
+			page:       1,
+			perPage:    5,
+			totalCount: 5,
+			orderBy:    "asc",
+		},
+		"block.height >= 2 AND end_event.foo <= 10": {
+			query:      "block.height >= 2 AND end_event.foo <= 10",
+			page:       1,
+			perPage:    3,
+			totalCount: 9,
+			orderBy:    "desc",
+		},
+		"begin_event.proposer = 'FCAA001' AND end_event.foo <= 5": {
+			query:      "begin_event.proposer = 'FCAA001' AND end_event.foo <= 5",
+			page:       1,
+			perPage:    5,
+			totalCount: 5,
+			orderBy:    "asc",
+		},
+	}
+
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			result, err := rpc.BlockSearch(context.Background(), test.query, &test.page, &test.perPage, test.orderBy)
+			require.NoError(err)
+			assert.Equal(test.totalCount, result.TotalCount)
+		})
+
+	}
+
+}
+
 func TestUnconfirmedTxs(t *testing.T) {
 	tx1 := tmtypes.Tx("tx1")
 	tx2 := tmtypes.Tx("another tx")
@@ -389,6 +442,45 @@ func getRPC(t *testing.T) (*mocks.Application, *Client) {
 	return app, rpc
 }
 
+// From state/indexer/block/kv/kv_test
+func indexBlocks(t *testing.T, rpc *Client, heights []int64) {
+	t.Helper()
+
+	for _, h := range heights {
+		require.NoError(t, rpc.node.BlockIndexer.Index(tmtypes.EventDataNewBlockHeader{
+			Header: tmtypes.Header{Height: h},
+			ResultBeginBlock: abci.ResponseBeginBlock{
+				Events: []abci.Event{
+					{
+						Type: "begin_event",
+						Attributes: []abci.EventAttribute{
+							{
+								Key:   []byte("proposer"),
+								Value: []byte("FCAA001"),
+								Index: true,
+							},
+						},
+					},
+				},
+			},
+			ResultEndBlock: abci.ResponseEndBlock{
+				Events: []abci.Event{
+					{
+						Type: "end_event",
+						Attributes: []abci.EventAttribute{
+							{
+								Key:   []byte("foo"),
+								Value: []byte(fmt.Sprintf("%d", h)),
+								Index: true,
+							},
+						},
+					},
+				},
+			},
+		}))
+	}
+
+}
 func TestMempool2Nodes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
