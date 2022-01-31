@@ -3,14 +3,15 @@ package kv_test
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/optimint/store"
 	"testing"
 
-	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
+
+	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
+	"github.com/celestiaorg/optimint/store"
 )
 
 func TestBlockIndexer(t *testing.T) {

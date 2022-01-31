@@ -4,13 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"github.com/celestiaorg/optimint/store"
 	"io/ioutil"
 	"testing"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/optimint/store"
 )
 
 func BenchmarkTxSearch(b *testing.B) {

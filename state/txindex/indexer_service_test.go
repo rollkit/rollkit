@@ -1,17 +1,18 @@
 package txindex_test
 
 import (
-	"github.com/celestiaorg/optimint/store"
 	"testing"
 	"time"
 
-	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
-	"github.com/celestiaorg/optimint/state/txindex"
-	"github.com/celestiaorg/optimint/state/txindex/kv"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
+
+	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
+	"github.com/celestiaorg/optimint/state/txindex"
+	"github.com/celestiaorg/optimint/state/txindex/kv"
+	"github.com/celestiaorg/optimint/store"
 )
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {

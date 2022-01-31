@@ -3,7 +3,6 @@ package kv
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/optimint/store"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -12,11 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/optimint/state/txindex"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/optimint/state/txindex"
+	"github.com/celestiaorg/optimint/store"
 )
 
 func TestTxIndex(t *testing.T) {
