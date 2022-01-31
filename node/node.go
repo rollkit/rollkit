@@ -5,13 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/optimint/block"
-
-	"github.com/celestiaorg/optimint/state/indexer"
-	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
-	"github.com/celestiaorg/optimint/state/txindex"
-	"github.com/celestiaorg/optimint/state/txindex/kv"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"go.uber.org/multierr"
+
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
@@ -19,30 +15,26 @@ import (
 	corep2p "github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"go.uber.org/multierr"
 
-	dbm "github.com/tendermint/tm-db"
-
+	"github.com/celestiaorg/optimint/block"
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/p2p"
+	"github.com/celestiaorg/optimint/state/indexer"
+	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
+	"github.com/celestiaorg/optimint/state/txindex"
+	"github.com/celestiaorg/optimint/state/txindex/kv"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
 
-type DBContext struct {
-	ID     string
-	Config *config.NodeConfig
-}
-
-type DBProvider func(*DBContext) (dbm.DB, error)
-
 // prefixes used in KV store to separate main node data from DALC data
 var (
-	mainPrefix = []byte{0}
-	dalcPrefix = []byte{1}
+	mainPrefix    = []byte{0}
+	dalcPrefix    = []byte{1}
+	indexerPrefix = []byte{2}
 )
 
 // Node represents a client node in Optimint network.
@@ -89,11 +81,6 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 		return nil, err
 	}
 
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(conf, DefaultDBProvider, eventBus, logger)
-	if err != nil {
-		return nil, err
-	}
-
 	client, err := p2p.NewClient(conf.P2P, nodeKey, genesis.ChainID, logger.With("module", "p2p"))
 	if err != nil {
 		return nil, err
@@ -108,6 +95,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	}
 	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
 	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
+	indexerKV := store.NewPrefixKV(baseKV, indexerPrefix)
 
 	s := store.New(mainKV)
 
@@ -118,6 +106,11 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	err = dalc.Init([]byte(conf.DAConfig), dalcKV, logger.With("module", "da_client"))
 	if err != nil {
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
+	}
+
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(conf, indexerKV, eventBus, logger)
+	if err != nil {
+		return nil, err
 	}
 
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
@@ -283,7 +276,7 @@ func (n *Node) newHeaderValidator() p2p.GossipValidator {
 
 func createAndStartIndexerService(
 	conf config.NodeConfig,
-	dbProvider DBProvider,
+	kvStore store.KVStore,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
@@ -293,13 +286,8 @@ func createAndStartIndexerService(
 		blockIndexer indexer.BlockIndexer
 	)
 
-	store, err := dbProvider(&DBContext{"tx_index", &conf})
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	txIndexer = kv.NewTxIndex(store)
-	blockIndexer = blockidxkv.New(dbm.NewPrefixDB(store, []byte("block_events")))
+	txIndexer = kv.NewTxIndex(kvStore)
+	blockIndexer = blockidxkv.New(store.NewPrefixKV(kvStore, []byte("block_events")))
 
 	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))
@@ -309,13 +297,4 @@ func createAndStartIndexerService(
 	}
 
 	return indexerService, txIndexer, blockIndexer, nil
-}
-
-func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
-	if ctx.Config.RootDir == "" && ctx.Config.DBPath == "" { // this is used for testing
-		dbType := dbm.MemDBBackend
-		return dbm.NewDB(ctx.ID, dbType, "memdb")
-	}
-	dbType := dbm.BadgerDBBackend
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.RootDir+ctx.Config.DBPath+"index")
 }
