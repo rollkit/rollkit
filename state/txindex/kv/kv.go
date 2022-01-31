@@ -16,7 +16,7 @@ import (
 
 	"github.com/celestiaorg/optimint/state/indexer"
 	"github.com/celestiaorg/optimint/state/txindex"
-	dbm "github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/store"
 )
 
 const (
@@ -27,11 +27,11 @@ var _ txindex.TxIndexer = (*TxIndex)(nil)
 
 // TxIndex is the simplest possible indexer, backed by key-value storage (levelDB).
 type TxIndex struct {
-	store dbm.KVStore
+	store store.KVStore
 }
 
 // NewTxIndex creates new KV indexer.
-func NewTxIndex(store dbm.KVStore) *TxIndex {
+func NewTxIndex(store store.KVStore) *TxIndex {
 	return &TxIndex{
 		store: store,
 	}
@@ -133,7 +133,7 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 	return b.Commit()
 }
 
-func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store dbm.Batch) error {
+func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store store.Batch) error {
 	for _, event := range result.Result.Events {
 		// only index events with a non-empty type
 		if len(event.Type) == 0 {
@@ -319,11 +319,8 @@ func (txi *TxIndex) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		it, err := dbm.IteratePrefix(txi.store, startKeyBz)
-		if err != nil {
-			panic(err)
-		}
-		defer it.Close()
+		it := txi.store.PrefixIterator(startKeyBz)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -348,11 +345,8 @@ func (txi *TxIndex) match(
 	case c.Op == query.OpExists:
 		// XXX: can't use startKeyBz here because c.Operand is nil
 		// (e.g. "account.owner/<nil>/" won't match w/ a single row)
-		it, err := dbm.IteratePrefix(txi.store, startKey(c.CompositeKey))
-		if err != nil {
-			panic(err)
-		}
-		defer it.Close()
+		it := txi.store.PrefixIterator(startKey(c.CompositeKey))
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -378,11 +372,8 @@ func (txi *TxIndex) match(
 		// XXX: startKey does not apply here.
 		// For example, if startKey = "account.owner/an/" and search query = "account.owner CONTAINS an"
 		// we can't iterate with prefix "account.owner/an/" because we might miss keys like "account.owner/Ulan/"
-		it, err := dbm.IteratePrefix(txi.store, startKey(c.CompositeKey))
-		if err != nil {
-			panic(err)
-		}
-		defer it.Close()
+		it := txi.store.PrefixIterator(startKey(c.CompositeKey))
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -470,11 +461,8 @@ func (txi *TxIndex) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	it, err := dbm.IteratePrefix(txi.store, startKey)
-	if err != nil {
-		panic(err)
-	}
-	defer it.Close()
+	it := txi.store.PrefixIterator(startKey)
+	defer it.Discard()
 
 LOOP:
 	for ; it.Valid(); it.Next() {

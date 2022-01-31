@@ -3,6 +3,7 @@ package kv_test
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/optimint/store"
 	"testing"
 
 	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
@@ -10,12 +11,11 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
-	db "github.com/tendermint/tm-db"
 )
 
 func TestBlockIndexer(t *testing.T) {
-	store := db.NewPrefixDB(db.NewMemDB(), []byte("block_events"))
-	indexer := blockidxkv.New(store)
+	prefixStore := store.NewPrefixKV(store.NewDefaultInMemoryKVStore(), []byte("block_events"))
+	indexer := blockidxkv.New(prefixStore)
 
 	require.NoError(t, indexer.Index(types.EventDataNewBlockHeader{
 		Header: types.Header{Height: 1},

@@ -4,10 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/celestiaorg/optimint/store"
 	"io/ioutil"
 	"testing"
-
-	dbm "github.com/tendermint/tm-db"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
@@ -20,7 +19,7 @@ func BenchmarkTxSearch(b *testing.B) {
 		b.Errorf("failed to create temporary directory: %s", err)
 	}
 
-	db, err := dbm.NewGoLevelDB("benchmark_tx_search_test", dbDir)
+	db := store.NewDefaultKVStore(dbDir, "db", "benchmark_tx_search_test")
 	if err != nil {
 		b.Errorf("failed to create database: %s", err)
 	}

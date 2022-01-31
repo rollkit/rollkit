@@ -15,7 +15,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/state/indexer"
-	dbm "github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/store"
 )
 
 var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
@@ -24,10 +24,10 @@ var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
 // events with an underlying KV store. Block events are indexed by their height,
 // such that matching search criteria returns the respective block height(s).
 type BlockerIndexer struct {
-	store dbm.KVStore
+	store store.KVStore
 }
 
-func New(store dbm.KVStore) *BlockerIndexer {
+func New(store store.KVStore) *BlockerIndexer {
 	return &BlockerIndexer{
 		store: store,
 	}
@@ -42,7 +42,7 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 	}
 
 	_, err = idx.store.Get(key)
-	if err == dbm.ErrKeyNotFound {
+	if err == store.ErrKeyNotFound {
 		return false, nil
 	}
 	return err == nil, err
@@ -244,11 +244,8 @@ func (idx *BlockerIndexer) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	it, err := dbm.IteratePrefix(idx.store, startKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-	}
-	defer it.Close()
+	it := idx.store.PrefixIterator(startKey)
+	defer it.Discard()
 
 LOOP:
 	for ; it.Valid(); it.Next() {
@@ -364,11 +361,8 @@ func (idx *BlockerIndexer) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		it, err := dbm.IteratePrefix(idx.store, startKeyBz)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-		}
-		defer it.Close()
+		it := idx.store.PrefixIterator(startKeyBz)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			tmpHeights[string(it.Value())] = it.Value()
@@ -388,11 +382,8 @@ func (idx *BlockerIndexer) match(
 			return nil, err
 		}
 
-		it, err := dbm.IteratePrefix(idx.store, prefix)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-		}
-		defer it.Close()
+		it := idx.store.PrefixIterator(prefix)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -421,11 +412,8 @@ func (idx *BlockerIndexer) match(
 			return nil, err
 		}
 
-		it, err := dbm.IteratePrefix(idx.store, prefix)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-		}
-		defer it.Close()
+		it := idx.store.PrefixIterator(prefix)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -493,7 +481,7 @@ func (idx *BlockerIndexer) match(
 	return filteredHeights, nil
 }
 
-func (idx *BlockerIndexer) indexEvents(batch dbm.Batch, events []abci.Event, typ string, height int64) error {
+func (idx *BlockerIndexer) indexEvents(batch store.Batch, events []abci.Event, typ string, height int64) error {
 	heightBz := int64ToBytes(height)
 
 	for _, event := range events {
