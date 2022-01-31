@@ -1,46 +1,34 @@
 package json
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/celestiaorg/optimint/log"
 )
 
-func (h *handler) publishEvent(remoteAddr string, data []byte) {
-	h.logger.Debug("publish:", "addr", remoteAddr, "data", string(data))
-	h.queue <- wsMsg{remoteAddr, data}
+type wsConn struct {
+	conn   *websocket.Conn
+	queue  chan []byte
+	logger log.Logger
 }
 
-func (h *handler) close(remoteAddr string) {
-	h.logger.Debug("closing WebSocket", "addr", remoteAddr)
-	if conn, ok := h.conns[remoteAddr]; ok {
-		err := conn.Close()
+func (wsc *wsConn) sendLoop() {
+	for msg := range wsc.queue {
+		writer, err := wsc.conn.NextWriter(websocket.TextMessage)
 		if err != nil {
-			h.logger.Error("failed to close WebSocket", "addr", remoteAddr, "error", err)
-		}
-		delete(h.conns, remoteAddr)
-	}
-}
-
-func (h *handler) publishLoop() {
-	for msg := range h.queue {
-		conn, ok := h.conns[msg.remoteAddr]
-		if !ok {
-			h.logger.Error("ignoring message: no such connection", "remoteAddr", msg.remoteAddr)
+			wsc.logger.Error("failed to create writer", "error", err)
 			continue
 		}
-		writer, err := conn.NextWriter(websocket.TextMessage)
+		_, err = writer.Write(msg)
 		if err != nil {
-			h.logger.Error("failed to create writer", "error", err)
-			continue
-		}
-		_, err = writer.Write(msg.data)
-		if err != nil {
-			h.logger.Error("failed to write message", "error", err)
+			wsc.logger.Error("failed to write message", "error", err)
 		}
 		if err = writer.Close(); err != nil {
-			h.logger.Error("failed to close writer", "error", err)
+			wsc.logger.Error("failed to close writer", "error", err)
 		}
 	}
 }
@@ -52,28 +40,26 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 		WriteBufferSize: 1024,
 	}
 
-	wsConn, err := upgrader.Upgrade(w, r, nil)
-	remoteAddr := wsConn.RemoteAddr().String()
+	wsc, err := upgrader.Upgrade(w, r, nil)
+	remoteAddr := wsc.RemoteAddr().String()
 	if err != nil {
 		h.logger.Error("failed to update to WebSocket connection", "error", err, "address", remoteAddr)
 	}
 	defer func() {
-		err := wsConn.Close()
+		err := wsc.Close()
 		if err != nil {
 			h.logger.Error("failed to close WebSocket connection", "err")
 		}
 	}()
 
-	h.conns[remoteAddr] = wsConn
-
-	wsConn.SetCloseHandler(func(code int, text string) error {
-		h.logger.Debug("WebSocket connection closed", code, text)
-		delete(h.conns, remoteAddr)
-		return nil
-	})
+	ws := &wsConn{
+		conn:  wsc,
+		queue: make(chan []byte),
+	}
+	go ws.sendLoop()
 
 	for {
-		mt, r, err := wsConn.NextReader()
+		mt, r, err := wsc.NextReader()
 		if err != nil {
 			h.logger.Debug("failed to read next WebSocket message", "error", err)
 		}
@@ -89,17 +75,9 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		writer, err := wsConn.NextWriter(websocket.TextMessage)
-		if err != nil {
-			h.logger.Error("failed to create writer", "error", err)
-			continue
-		}
-
-		h.serveJSONRPC(newResponseWriter(writer), req)
-		err = writer.Close()
-		if err != nil {
-			h.logger.Error("failed to close WebSocket writer", "error", err)
-		}
+		writer := new(bytes.Buffer)
+		h.serveJSONRPCforWS(newResponseWriter(writer), req, ws)
+		ws.queue <- writer.Bytes()
 	}
 
 }

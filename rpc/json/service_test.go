@@ -264,7 +264,6 @@ func TestSubscription(t *testing.T) {
 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
 	require.NotNil(jsonResp.Error)
 	assert.Contains(jsonResp.Error.Message, "subscription not found")
-
 }
 
 // copied from rpc

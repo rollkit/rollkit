@@ -26,6 +26,7 @@ type method struct {
 	m          reflect.Value
 	argsType   reflect.Type
 	returnType reflect.Type
+	ws         bool
 }
 
 func newMethod(m interface{}) *method {
@@ -35,18 +36,15 @@ func newMethod(m interface{}) *method {
 		m:          reflect.ValueOf(m),
 		argsType:   mType.In(1).Elem(),
 		returnType: mType.Out(0).Elem(),
+		ws:         mType.NumIn() == 3,
 	}
 }
 
 type service struct {
-	client      *client.Client
-	methods     map[string]*method
-	publishFunc wsCallback
-	closeFunc   func(string)
-	logger      log.Logger
+	client  *client.Client
+	methods map[string]*method
+	logger  log.Logger
 }
-
-type wsCallback func(remoteAddr string, data []byte)
 
 func newService(c *client.Client, l log.Logger) *service {
 	s := service{
@@ -87,7 +85,7 @@ func newService(c *client.Client, l log.Logger) *service {
 	return &s
 }
 
-func (s *service) Subscribe(req *http.Request, args *SubscribeArgs) (*ctypes.ResultSubscribe, error) {
+func (s *service) Subscribe(req *http.Request, args *SubscribeArgs, wsConn *wsConn) (*ctypes.ResultSubscribe, error) {
 	addr := req.RemoteAddr
 
 	// TODO(tzdybal): pass config and check subscriptions limits
@@ -119,7 +117,9 @@ func (s *service) Subscribe(req *http.Request, args *SubscribeArgs) (*ctypes.Res
 					s.logger.Error("failed to marshal response data", "error", err)
 					continue
 				}
-				s.publishFunc(addr, data)
+				if wsConn != nil {
+					wsConn.queue <- data
+				}
 			case <-sub.Cancelled():
 				if sub.Err() != pubsub.ErrUnsubscribed {
 					var reason string
@@ -130,7 +130,9 @@ func (s *service) Subscribe(req *http.Request, args *SubscribeArgs) (*ctypes.Res
 					}
 					s.logger.Error("subscription was cancelled", "reason", reason)
 				}
-				s.closeFunc(addr)
+				if wsConn != nil {
+					close(wsConn.queue)
+				}
 				return
 			}
 		}
