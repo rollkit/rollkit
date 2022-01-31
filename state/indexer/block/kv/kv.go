@@ -9,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/google/orderedcode"
-	dbm "github.com/tendermint/tm-db"
 
-	"github.com/celestiaorg/optimint/state/indexer"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/optimint/state/indexer"
+	"github.com/celestiaorg/optimint/store"
 )
 
 var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
@@ -23,10 +24,10 @@ var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
 // events with an underlying KV store. Block events are indexed by their height,
 // such that matching search criteria returns the respective block height(s).
 type BlockerIndexer struct {
-	store dbm.DB
+	store store.KVStore
 }
 
-func New(store dbm.DB) *BlockerIndexer {
+func New(store store.KVStore) *BlockerIndexer {
 	return &BlockerIndexer{
 		store: store,
 	}
@@ -40,7 +41,11 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 		return false, fmt.Errorf("failed to create block height index key: %w", err)
 	}
 
-	return idx.store.Has(key)
+	_, err = idx.store.Get(key)
+	if err == store.ErrKeyNotFound {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // Index indexes BeginBlock and EndBlock events for a given block by its height.
@@ -51,7 +56,7 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 // EndBlock events: encode(eventType.eventAttr|eventValue|height|end_block) => encode(height)
 func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 	batch := idx.store.NewBatch()
-	defer batch.Close()
+	defer batch.Discard()
 
 	height := bh.Header.Height
 
@@ -74,7 +79,7 @@ func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 		return fmt.Errorf("failed to index EndBlock events: %w", err)
 	}
 
-	return batch.WriteSync()
+	return batch.Commit()
 }
 
 // Search performs a query for block heights that match a given BeginBlock
@@ -239,11 +244,8 @@ func (idx *BlockerIndexer) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	it, err := dbm.IteratePrefix(idx.store, startKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-	}
-	defer it.Close()
+	it := idx.store.PrefixIterator(startKey)
+	defer it.Discard()
 
 LOOP:
 	for ; it.Valid(); it.Next() {
@@ -359,11 +361,8 @@ func (idx *BlockerIndexer) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		it, err := dbm.IteratePrefix(idx.store, startKeyBz)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-		}
-		defer it.Close()
+		it := idx.store.PrefixIterator(startKeyBz)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			tmpHeights[string(it.Value())] = it.Value()
@@ -383,11 +382,8 @@ func (idx *BlockerIndexer) match(
 			return nil, err
 		}
 
-		it, err := dbm.IteratePrefix(idx.store, prefix)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-		}
-		defer it.Close()
+		it := idx.store.PrefixIterator(prefix)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -416,11 +412,8 @@ func (idx *BlockerIndexer) match(
 			return nil, err
 		}
 
-		it, err := dbm.IteratePrefix(idx.store, prefix)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create prefix iterator: %w", err)
-		}
-		defer it.Close()
+		it := idx.store.PrefixIterator(prefix)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -488,7 +481,7 @@ func (idx *BlockerIndexer) match(
 	return filteredHeights, nil
 }
 
-func (idx *BlockerIndexer) indexEvents(batch dbm.Batch, events []abci.Event, typ string, height int64) error {
+func (idx *BlockerIndexer) indexEvents(batch store.Batch, events []abci.Event, typ string, height int64) error {
 	heightBz := int64ToBytes(height)
 
 	for _, event := range events {

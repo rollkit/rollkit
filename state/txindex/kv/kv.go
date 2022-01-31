@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	dbm "github.com/tendermint/tm-db"
 
-	"github.com/celestiaorg/optimint/state/indexer"
-	"github.com/celestiaorg/optimint/state/txindex"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/optimint/state/indexer"
+	"github.com/celestiaorg/optimint/state/txindex"
+	"github.com/celestiaorg/optimint/store"
 )
 
 const (
@@ -26,11 +27,11 @@ var _ txindex.TxIndexer = (*TxIndex)(nil)
 
 // TxIndex is the simplest possible indexer, backed by key-value storage (levelDB).
 type TxIndex struct {
-	store dbm.DB
+	store store.KVStore
 }
 
 // NewTxIndex creates new KV indexer.
-func NewTxIndex(store dbm.DB) *TxIndex {
+func NewTxIndex(store store.KVStore) *TxIndex {
 	return &TxIndex{
 		store: store,
 	}
@@ -66,7 +67,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 // Any event with an empty type is not indexed.
 func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 	storeBatch := txi.store.NewBatch()
-	defer storeBatch.Close()
+	defer storeBatch.Discard()
 
 	for _, result := range b.Ops {
 		hash := types.Tx(result.Tx).Hash()
@@ -94,7 +95,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 		}
 	}
 
-	return storeBatch.WriteSync()
+	return storeBatch.Commit()
 }
 
 // Index indexes a single transaction using the given list of events. Each key
@@ -103,7 +104,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 // Any event with an empty type is not indexed.
 func (txi *TxIndex) Index(result *abci.TxResult) error {
 	b := txi.store.NewBatch()
-	defer b.Close()
+	defer b.Discard()
 
 	hash := types.Tx(result.Tx).Hash()
 
@@ -129,10 +130,10 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 		return err
 	}
 
-	return b.WriteSync()
+	return b.Commit()
 }
 
-func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store dbm.Batch) error {
+func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store store.Batch) error {
 	for _, event := range result.Result.Events {
 		// only index events with a non-empty type
 		if len(event.Type) == 0 {
@@ -318,11 +319,8 @@ func (txi *TxIndex) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		it, err := dbm.IteratePrefix(txi.store, startKeyBz)
-		if err != nil {
-			panic(err)
-		}
-		defer it.Close()
+		it := txi.store.PrefixIterator(startKeyBz)
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -347,11 +345,8 @@ func (txi *TxIndex) match(
 	case c.Op == query.OpExists:
 		// XXX: can't use startKeyBz here because c.Operand is nil
 		// (e.g. "account.owner/<nil>/" won't match w/ a single row)
-		it, err := dbm.IteratePrefix(txi.store, startKey(c.CompositeKey))
-		if err != nil {
-			panic(err)
-		}
-		defer it.Close()
+		it := txi.store.PrefixIterator(startKey(c.CompositeKey))
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -377,11 +372,8 @@ func (txi *TxIndex) match(
 		// XXX: startKey does not apply here.
 		// For example, if startKey = "account.owner/an/" and search query = "account.owner CONTAINS an"
 		// we can't iterate with prefix "account.owner/an/" because we might miss keys like "account.owner/Ulan/"
-		it, err := dbm.IteratePrefix(txi.store, startKey(c.CompositeKey))
-		if err != nil {
-			panic(err)
-		}
-		defer it.Close()
+		it := txi.store.PrefixIterator(startKey(c.CompositeKey))
+		defer it.Discard()
 
 		for ; it.Valid(); it.Next() {
 			cont := true
@@ -469,11 +461,8 @@ func (txi *TxIndex) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	it, err := dbm.IteratePrefix(txi.store, startKey)
-	if err != nil {
-		panic(err)
-	}
-	defer it.Close()
+	it := txi.store.PrefixIterator(startKey)
+	defer it.Discard()
 
 LOOP:
 	for ; it.Valid(); it.Next() {

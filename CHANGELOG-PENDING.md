@@ -20,6 +20,7 @@ Month, DD, YYYY
 - [rpc] [Implement NumUnconfirmedTxs #255](https://github.com/celestiaorg/optimint/pull/255) [@tzdybal](https://github.com/tzdybal/)
 - [rpc] [Implement BlockByHash #256](https://github.com/celestiaorg/optimint/pull/256) [@mauriceLC92](https://github.com/mauriceLC92)
 - [rpc] [Implement BlockResults #263](https://github.com/celestiaorg/optimint/pull/263) [@tzdybal](https://github.com/tzdybal/)
+- [store,indexer] [Replace tm-db dependency with store package #268](https://github.com/celestiaorg/optimint/pull/268) [@tzdybal](https://github.com/tzdybal/)
 
 ### BUG FIXES
 
