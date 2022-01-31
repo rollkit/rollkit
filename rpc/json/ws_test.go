@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func TestWebSockets(t *testing.T) {
@@ -38,7 +39,7 @@ func TestWebSockets(t *testing.T) {
 {
     "jsonrpc": "2.0",
     "method": "subscribe",
-    "id": 0,
+    "id": 7,
     "params": {
         "query": "tm.event='NewBlock'"
     }
@@ -60,8 +61,13 @@ func TestWebSockets(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(websocket.TextMessage, typ)
 	assert.NotEmpty(msg)
-	t.Log(string(msg))
-	// TODO(tzdybal): add proper deserialization to test that data is in correct format
+	var payload tmtypes.EventDataNewBlock
+	err = json.Unmarshal(msg, &payload)
+	assert.NoError(err)
+	assert.NotNil(payload.ResultBeginBlock)
+	assert.NotNil(payload.Block)
+	assert.GreaterOrEqual(payload.Block.Height, int64(1))
+	assert.NotNil(payload.ResultEndBlock)
 
 	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &UnsubscribeAllArgs{})
 	require.NoError(err)
