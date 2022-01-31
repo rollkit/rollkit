@@ -7,3 +7,27 @@ linters:
     - gofmt
     - goimports
     - misspell
+    - revive
+    - deadcode
+    - errcheck
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    # mempool and indexer code is borrowed from Tendermint
+    - path: mempool
+      linters: all
+    - path: state/indexer
+      linters: all
