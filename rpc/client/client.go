@@ -409,10 +409,15 @@ func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.Resul
 	index := res.Index
 
 	var proof types.TxProof
-	// if prove {
-	// 	block, _ := c.node.Store.LoadBlock(uint64(height))
-	// 	proof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
-	// }
+	if prove {
+		block, _ := c.node.Store.LoadBlock(uint64(height))
+		blockProof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
+		proof = types.TxProof{
+			RootHash: blockProof.RootHash,
+			Data:     types.Tx(blockProof.Data),
+			Proof:    blockProof.Proof,
+		}
+	}
 
 	return &ctypes.ResultTx{
 		Hash:     hash,

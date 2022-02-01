@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	crand "crypto/rand"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -240,6 +241,10 @@ func TestGetBlockByHash(t *testing.T) {
 
 	err = rpc.node.Stop()
 	require.NoError(err)
+}
+
+func TestTx(t *testing.T) {
+	fmt.Print("Test should go here")
 }
 
 func TestUnconfirmedTxs(t *testing.T) {
