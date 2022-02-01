@@ -91,3 +91,54 @@ func (bb *BadgerBatch) Commit() error {
 func (bb *BadgerBatch) Discard() {
 	bb.txn.Discard()
 }
+
+var _ Iterator = &BadgerIterator{}
+
+func (b *BadgerKV) PrefixIterator(prefix []byte) Iterator {
+	txn := b.db.NewTransaction(false)
+	iter := txn.NewIterator(badger.DefaultIteratorOptions)
+	iter.Seek(prefix)
+	return &BadgerIterator{
+		txn:       txn,
+		iter:      iter,
+		prefix:    prefix,
+		lastError: nil,
+	}
+}
+
+// BadgerIterator encapsulates prefix iterator for badger kv store.
+type BadgerIterator struct {
+	txn       *badger.Txn
+	iter      *badger.Iterator
+	prefix    []byte
+	lastError error
+}
+
+func (i *BadgerIterator) Valid() bool {
+	return i.iter.ValidForPrefix(i.prefix)
+}
+
+func (i *BadgerIterator) Next() {
+	i.iter.Next()
+}
+
+func (i *BadgerIterator) Key() []byte {
+	return i.iter.Item().Key()
+}
+
+func (i *BadgerIterator) Value() []byte {
+	val, err := i.iter.Item().ValueCopy(nil)
+	if err != nil {
+		i.lastError = err
+	}
+	return val
+}
+
+func (i *BadgerIterator) Error() error {
+	return i.lastError
+}
+
+func (i *BadgerIterator) Discard() {
+	i.iter.Close()
+	i.txn.Discard()
+}

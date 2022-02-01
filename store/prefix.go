@@ -33,6 +33,10 @@ func (p *PrefixKV) NewBatch() Batch {
 	}
 }
 
+func (p *PrefixKV) PrefixIterator(prefix []byte) Iterator {
+	return p.kv.PrefixIterator(append(p.prefix, prefix...))
+}
+
 type PrefixKVBatch struct {
 	b      Batch
 	prefix []byte

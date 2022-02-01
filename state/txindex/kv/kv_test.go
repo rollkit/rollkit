@@ -11,17 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	db "github.com/tendermint/tm-db"
-
-	"github.com/celestiaorg/optimint/state/txindex"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/optimint/state/txindex"
+	"github.com/celestiaorg/optimint/store"
 )
 
 func TestTxIndex(t *testing.T) {
-	indexer := NewTxIndex(db.NewMemDB())
+	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	tx := types.Tx("HELLO WORLD")
 	txResult := &abci.TxResult{
@@ -67,7 +67,7 @@ func TestTxIndex(t *testing.T) {
 }
 
 func TestTxSearch(t *testing.T) {
-	indexer := NewTxIndex(db.NewMemDB())
+	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	txResult := txResultWithEvents([]abci.Event{
 		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
@@ -141,7 +141,7 @@ func TestTxSearch(t *testing.T) {
 }
 
 func TestTxSearchWithCancelation(t *testing.T) {
-	indexer := NewTxIndex(db.NewMemDB())
+	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	txResult := txResultWithEvents([]abci.Event{
 		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
@@ -159,7 +159,7 @@ func TestTxSearchWithCancelation(t *testing.T) {
 }
 
 func TestTxSearchDeprecatedIndexing(t *testing.T) {
-	indexer := NewTxIndex(db.NewMemDB())
+	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	// index tx using events indexing (composite key)
 	txResult1 := txResultWithEvents([]abci.Event{
@@ -193,7 +193,7 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 	require.NoError(t, err)
 	err = b.Set(hash2, rawBytes)
 	require.NoError(t, err)
-	err = b.Write()
+	err = b.Commit()
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -238,7 +238,7 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 }
 
 func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
-	indexer := NewTxIndex(db.NewMemDB())
+	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	txResult := txResultWithEvents([]abci.Event{
 		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
@@ -260,7 +260,7 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 }
 
 func TestTxSearchMultipleTxs(t *testing.T) {
-	indexer := NewTxIndex(db.NewMemDB())
+	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	// indexed first, but bigger height (to test the order of transactions)
 	txResult := txResultWithEvents([]abci.Event{
@@ -333,7 +333,7 @@ func benchmarkTxIndex(txsCount int64, b *testing.B) {
 	require.NoError(b, err)
 	defer os.RemoveAll(dir)
 
-	store, err := db.NewDB("tx_index", "goleveldb", dir)
+	store := store.NewDefaultKVStore(dir, "db", "tx_index")
 	require.NoError(b, err)
 	indexer := NewTxIndex(store)
 

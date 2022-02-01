@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	db "github.com/tendermint/tm-db"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/types"
 
 	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
 	"github.com/celestiaorg/optimint/state/txindex"
 	"github.com/celestiaorg/optimint/state/txindex/kv"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/types"
+	"github.com/celestiaorg/optimint/store"
 )
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {
@@ -28,9 +28,9 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	})
 
 	// tx indexer
-	store := db.NewMemDB()
-	txIndexer := kv.NewTxIndex(store)
-	blockIndexer := blockidxkv.New(db.NewPrefixDB(store, []byte("block_events")))
+	kvStore := store.NewDefaultInMemoryKVStore()
+	txIndexer := kv.NewTxIndex(kvStore)
+	blockIndexer := blockidxkv.New(store.NewPrefixKV(kvStore, []byte("block_events")))
 
 	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	service.SetLogger(log.TestingLogger())

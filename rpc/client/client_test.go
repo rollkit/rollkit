@@ -217,22 +217,22 @@ func TestGetBlock(t *testing.T) {
 
 func TestGetCommit(t *testing.T) {
 	require := require.New(t)
+	assert := assert.New(t)
 	mockApp, rpc := getRPC(t)
 	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 
 	block := getRandomBlock(1, 5)
-
 	err := rpc.node.Start()
 	require.NoError(err)
 
-	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
+	err = rpc.node.Store.SaveBlock(block, &types.Commit{Height: block.Header.Height})
 	require.NoError(err)
 
 	commit, err := rpc.Commit(context.Background(), nil)
 	require.NoError(err)
 	require.NotNil(commit)
-
+	assert.Equal(block.Header.Height, uint64(commit.Height))
 }
 
 func TestBlockSearch(t *testing.T) {
