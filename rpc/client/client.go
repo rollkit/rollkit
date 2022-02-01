@@ -396,8 +396,32 @@ func (c *Client) Validators(ctx context.Context, height *int64, page, perPage *i
 }
 
 func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
-	// needs block store, tx index (?)
-	panic("Tx - not implemented!")
+	res, err := c.node.TxIndexer.Get(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	if res == nil {
+		return nil, fmt.Errorf("tx (%X) not found", hash)
+	}
+
+	height := res.Height
+	index := res.Index
+
+	var proof types.TxProof
+	// if prove {
+	// 	block, _ := c.node.Store.LoadBlock(uint64(height))
+	// 	proof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
+	// }
+
+	return &ctypes.ResultTx{
+		Hash:     hash,
+		Height:   height,
+		Index:    index,
+		TxResult: res.Result,
+		Tx:       res.Tx,
+		Proof:    proof,
+	}, nil
 }
 
 func (c *Client) TxSearch(ctx context.Context, query string, prove bool, pagePtr, perPagePtr *int, orderBy string) (*ctypes.ResultTxSearch, error) {
