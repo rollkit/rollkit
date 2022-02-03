@@ -381,19 +381,22 @@ func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.Resul
 }
 
 func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
-	// needs block store
 	heightValue := c.normalizeHeight(height)
-	block, err := c.node.Store.LoadBlock(heightValue)
+	com, err := c.node.Store.LoadCommit(heightValue)
 	if err != nil {
 		return nil, err
 	}
-	commit := abciconv.ToABCICommit(&block.LastCommit)
-	header, err := abciconv.ToABCIHeader(&block.Header)
+	b, err := c.node.Store.LoadBlock(heightValue)
+	if err != nil {
+		return nil, err
+	}
+	commit := abciconv.ToABCICommit(com)
+	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
 		return nil, err
 	}
 
-	return ctypes.NewResultCommit(&header, commit, true), nil
+	return ctypes.NewResultCommit(&block.Header, commit, true), nil
 }
 
 func (c *Client) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {

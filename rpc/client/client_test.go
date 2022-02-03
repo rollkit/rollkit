@@ -222,17 +222,34 @@ func TestGetCommit(t *testing.T) {
 	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 
-	block := getRandomBlock(1, 5)
+	blocks := []*types.Block{getRandomBlock(1, 5), getRandomBlock(2, 6), getRandomBlock(3, 8), getRandomBlock(4, 10)}
+
 	err := rpc.node.Start()
 	require.NoError(err)
 
-	err = rpc.node.Store.SaveBlock(block, &types.Commit{Height: block.Header.Height})
-	require.NoError(err)
+	for _, b := range blocks {
+		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: b.Header.Height})
+		require.NoError(err)
+	}
+	t.Run("Fetch all commits", func(t *testing.T) {
+		for _, b := range blocks {
+			h := int64(b.Header.Height)
+			commit, err := rpc.Commit(context.Background(), &h)
+			require.NoError(err)
+			require.NotNil(commit)
+			assert.Equal(b.Header.Height, uint64(commit.Height))
+		}
+	})
 
-	commit, err := rpc.Commit(context.Background(), nil)
+	t.Run("Fetch commit for nil height", func(t *testing.T) {
+		commit, err := rpc.Commit(context.Background(), nil)
+		require.NoError(err)
+		require.NotNil(commit)
+		assert.Equal(blocks[3].Header.Height, uint64(commit.Height))
+	})
+
+	err = rpc.node.Stop()
 	require.NoError(err)
-	require.NotNil(commit)
-	assert.Equal(block.Header.Height, uint64(commit.Height))
 }
 
 func TestBlockSearch(t *testing.T) {
@@ -245,28 +262,28 @@ func TestBlockSearch(t *testing.T) {
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	indexBlocks(t, rpc, heights)
 
-	tests := map[string]struct {
+	tests := []struct {
 		query      string
 		page       int
 		perPage    int
 		totalCount int
 		orderBy    string
 	}{
-		"block.height >= 1 AND end_event.foo <= 5": {
+		{
 			query:      "block.height >= 1 AND end_event.foo <= 5",
 			page:       1,
 			perPage:    5,
 			totalCount: 5,
 			orderBy:    "asc",
 		},
-		"block.height >= 2 AND end_event.foo <= 10": {
+		{
 			query:      "block.height >= 2 AND end_event.foo <= 10",
 			page:       1,
 			perPage:    3,
 			totalCount: 9,
 			orderBy:    "desc",
 		},
-		"begin_event.proposer = 'FCAA001' AND end_event.foo <= 5": {
+		{
 			query:      "begin_event.proposer = 'FCAA001' AND end_event.foo <= 5",
 			page:       1,
 			perPage:    5,
@@ -275,9 +292,9 @@ func TestBlockSearch(t *testing.T) {
 		},
 	}
 
-	for name, test := range tests {
+	for _, test := range tests {
 		test := test
-		t.Run(name, func(t *testing.T) {
+		t.Run(test.query, func(t *testing.T) {
 			result, err := rpc.BlockSearch(context.Background(), test.query, &test.page, &test.perPage, test.orderBy)
 			require.NoError(err)
 			assert.Equal(test.totalCount, result.TotalCount)
