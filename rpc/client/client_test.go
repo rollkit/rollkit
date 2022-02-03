@@ -549,7 +549,7 @@ func TestEventIndexing(t *testing.T) {
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second,
+			BlockTime: 200 * time.Millisecond,
 		}},
 		p2pKey, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test"},
@@ -582,7 +582,7 @@ func TestEventIndexing(t *testing.T) {
 
 	tx1 := tmtypes.Tx("tx1")
 
-	res, err := rpc.BroadcastTxCommit(context.Background(), tx1)
+	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
 	assert.NoError(err)
 	assert.NotNil(res)
 
