@@ -24,5 +24,6 @@ Month, DD, YYYY
 - [store,indexer] [Replace tm-db dependency with store package #268](https://github.com/celestiaorg/optimint/pull/268) [@tzdybal](https://github.com/tzdybal/)
 
 ### BUG FIXES
+- [store] [Use KeyCopy instead of Key in BadgerIterator #274](https://github.com/celestiaorg/optimint/pull/274) [@tzdybal](https://github.com/tzdybal/)
 
 - [go package] (Link to PR) Description @username
