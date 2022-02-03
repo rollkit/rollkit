@@ -123,7 +123,7 @@ func (i *BadgerIterator) Next() {
 }
 
 func (i *BadgerIterator) Key() []byte {
-	return i.iter.Item().Key()
+	return i.iter.Item().KeyCopy(nil)
 }
 
 func (i *BadgerIterator) Value() []byte {
