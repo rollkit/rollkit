@@ -168,7 +168,16 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
+	genesisTime := m.genesis.GenesisTime
+	height := m.store.Height()
+	if height == 0 && time.Until(genesisTime) > 0 {
+		time.Sleep(time.Until(genesisTime))
+	} else if height > 0 && time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime)) > 0 {
+		time.Sleep(time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime)))
+	}
+
 	timer := time.NewTimer(0)
+
 	for {
 		select {
 		case <-ctx.Done():
