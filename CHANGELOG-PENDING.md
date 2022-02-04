@@ -25,5 +25,6 @@ Month, DD, YYYY
 - [rpc] [Implement ConsensusState/DumpConsensusState #273](https://github.com/celestiaorg/optimint/pull/273) [@tzdybal](https://github.com/tzdybal/)
 
 ### BUG FIXES
+- [store] [Use KeyCopy instead of Key in BadgerIterator #274](https://github.com/celestiaorg/optimint/pull/274) [@tzdybal](https://github.com/tzdybal/)
 
 - [go package] (Link to PR) Description @username
