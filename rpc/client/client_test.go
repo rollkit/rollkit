@@ -294,7 +294,8 @@ func TestTx(t *testing.T) {
 	resTx, errTx := rpc.Tx(context.Background(), res.Hash, true)
 	assert.NoError(errTx)
 	assert.NotNil(resTx)
-	// What else make sense to assert for here?
+	assert.EqualValues(tx1, resTx.Tx)
+	assert.EqualValues(res.Hash, resTx.Hash)
 }
 
 func TestUnconfirmedTxs(t *testing.T) {
