@@ -17,7 +17,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.5.6
 	github.com/minio/sha256-simd v1.0.0
 	github.com/multiformats/go-multiaddr v0.5.0
-	github.com/prometheus/client_golang v1.12.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/rs/cors v1.8.2
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/viper v1.10.1
@@ -25,7 +25,7 @@ require (
 	github.com/tendermint/tendermint v0.34.14
 	go.uber.org/multierr v1.7.0
 	golang.org/x/net v0.0.0-20211005001312-d4b1ae081e3b
-	google.golang.org/grpc v1.43.0
+	google.golang.org/grpc v1.44.0
 )
 
 require (

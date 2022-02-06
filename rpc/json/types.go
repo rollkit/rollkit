@@ -11,8 +11,10 @@ import (
 )
 
 type SubscribeArgs struct {
+	Query string `json:"query"`
 }
 type UnsubscribeArgs struct {
+	Query string `json:"query"`
 }
 type UnsubscribeAllArgs struct {
 }

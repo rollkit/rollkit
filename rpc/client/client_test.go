@@ -338,6 +338,22 @@ func TestUnconfirmedTxsLimit(t *testing.T) {
 	assert.NotContains(txRes.Txs, tx2)
 }
 
+func TestConsensusState(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	_, rpc := getRPC(t)
+	require.NotNil(rpc)
+
+	resp1, err := rpc.ConsensusState(context.Background())
+	assert.Nil(resp1)
+	assert.ErrorIs(err, ErrConsensusStateNotAvailable)
+
+	resp2, err := rpc.DumpConsensusState(context.Background())
+	assert.Nil(resp2)
+	assert.ErrorIs(err, ErrConsensusStateNotAvailable)
+}
+
 // copy-pasted from store/store_test.go
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{

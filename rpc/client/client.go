@@ -31,6 +31,10 @@ const (
 	subscribeTimeout = 5 * time.Second
 )
 
+var (
+	ErrConsensusStateNotAvailable = errors.New("consensus state not available in Optimint")
+)
+
 var _ rpcclient.Client = &Client{}
 
 type Client struct {
@@ -291,13 +295,11 @@ func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
 }
 
 func (c *Client) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
-	// need consensus state
-	panic("DumpConsensusState - not implemented!")
+	return nil, ErrConsensusStateNotAvailable
 }
 
 func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
-	// need consensus state
-	panic("ConsensusState - not implemented!")
+	return nil, ErrConsensusStateNotAvailable
 }
 
 func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
