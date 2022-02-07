@@ -298,6 +298,7 @@ func TestBlockSearch(t *testing.T) {
 			result, err := rpc.BlockSearch(context.Background(), test.query, &test.page, &test.perPage, test.orderBy)
 			require.NoError(err)
 			assert.Equal(test.totalCount, result.TotalCount)
+			assert.Len(result.Blocks, test.perPage)
 		})
 
 	}
