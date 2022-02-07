@@ -266,19 +266,7 @@ func TestTx(t *testing.T) {
 	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	const evType = "ethereum_tx"
-	const evKey = "ethereumTxHash"
-	const evValue = "RLP encoded Keccak hash"
-	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{
-		Events: []abci.Event{{
-			Type: evType,
-			Attributes: []abci.EventAttribute{{
-				Key:   []byte(evKey),
-				Value: []byte(evValue),
-				Index: true,
-			}},
-		}},
-	})
+	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 
 	err = rpc.node.Start()
@@ -296,6 +284,9 @@ func TestTx(t *testing.T) {
 	assert.NotNil(resTx)
 	assert.EqualValues(tx1, resTx.Tx)
 	assert.EqualValues(res.Hash, resTx.Hash)
+
+	tx2 := tmtypes.Tx("tx2")
+	assert.Panics(func() { rpc.Tx(context.Background(), tx2.Hash(), true) })
 }
 
 func TestUnconfirmedTxs(t *testing.T) {
