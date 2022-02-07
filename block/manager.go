@@ -168,12 +168,19 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	genesisTime := m.genesis.GenesisTime
+	initialHeight := uint64(m.genesis.InitialHeight)
 	height := m.store.Height()
-	if height == 0 && time.Until(genesisTime) > 0 {
-		time.Sleep(time.Until(genesisTime))
-	} else if height > 0 && time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime)) > 0 {
-		time.Sleep(time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime)))
+	var delay time.Duration
+
+	if height == initialHeight && time.Until(m.genesis.GenesisTime) > 0 {
+		delay = time.Until(m.genesis.GenesisTime)
+	} else if height > initialHeight && time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime)) > 0 {
+		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
+	}
+
+	if delay > 0 {
+		m.logger.Info("Waiting to produce block", "delay", delay)
+		time.Sleep(delay)
 	}
 
 	timer := time.NewTimer(0)
