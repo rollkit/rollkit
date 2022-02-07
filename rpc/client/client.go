@@ -561,6 +561,9 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 		}
 		blocks = append(blocks, &ctypes.ResultBlock{
 			Block: block,
+			BlockID: types.BlockID{
+				Hash: block.Hash(),
+			},
 		})
 	}
 
