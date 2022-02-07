@@ -313,14 +313,8 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	// needs block store
-	var h uint64
-	if height == nil {
-		h = c.node.Store.Height()
-	} else {
-		h = uint64(*height)
-	}
-
-	block, err := c.node.Store.LoadBlock(h)
+	heightValue := c.normalizeHeight(height)
+	block, err := c.node.Store.LoadBlock(heightValue)
 	if err != nil {
 		return nil, err
 	}
@@ -389,8 +383,22 @@ func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.Resul
 }
 
 func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
-	// needs block store
-	panic("Commit - not implemented!")
+	heightValue := c.normalizeHeight(height)
+	com, err := c.node.Store.LoadCommit(heightValue)
+	if err != nil {
+		return nil, err
+	}
+	b, err := c.node.Store.LoadBlock(heightValue)
+	if err != nil {
+		return nil, err
+	}
+	commit := abciconv.ToABCICommit(com)
+	block, err := abciconv.ToABCIBlock(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctypes.NewResultCommit(&block.Header, commit, true), nil
 }
 
 func (c *Client) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {
@@ -500,7 +508,66 @@ func (c *Client) TxSearch(ctx context.Context, query string, prove bool, pagePtr
 // BlockSearch defines a method to search for a paginated set of blocks by
 // BeginBlock and EndBlock event search criteria.
 func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *int, orderBy string) (*ctypes.ResultBlockSearch, error) {
-	panic("BlockSearch - not implemented!")
+	q, err := tmquery.New(query)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := c.node.BlockIndexer.Search(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort the results
+	switch orderBy {
+	case "desc":
+		sort.Slice(results, func(i, j int) bool {
+			return results[i] > results[j]
+		})
+
+	case "asc", "":
+		sort.Slice(results, func(i, j int) bool {
+			return results[i] < results[j]
+		})
+	default:
+		return nil, errors.New("expected order_by to be either `asc` or `desc` or empty")
+	}
+
+	// Paginate
+	totalCount := len(results)
+	perPageVal := validatePerPage(perPage)
+
+	pageVal, err := validatePage(page, perPageVal, totalCount)
+	if err != nil {
+		return nil, err
+	}
+
+	skipCount := validateSkipCount(pageVal, perPageVal)
+	pageSize := tmmath.MinInt(perPageVal, totalCount-skipCount)
+
+	pageResults := make([]int64, pageSize)
+	copy(pageResults, results[skipCount:skipCount+pageSize])
+
+	// Fetch the blocks
+	blocks := make([]*ctypes.ResultBlock, 0, len(pageResults))
+	for _, h := range pageResults {
+		b, err := c.node.Store.LoadBlock(uint64(h))
+		if err != nil {
+			return nil, err
+		}
+		block, err := abciconv.ToABCIBlock(b)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, &ctypes.ResultBlock{
+			Block: block,
+			BlockID: types.BlockID{
+				Hash: block.Hash(),
+			},
+		})
+	}
+
+	return &ctypes.ResultBlockSearch{Blocks: blocks, TotalCount: totalCount}, nil
 }
 
 func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
@@ -629,6 +696,17 @@ func (c *Client) query() proxy.AppConnQuery {
 
 func (c *Client) snapshot() proxy.AppConnSnapshot {
 	return c.node.ProxyApp().Snapshot()
+}
+
+func (c *Client) normalizeHeight(height *int64) uint64 {
+	var heightValue uint64
+	if height == nil {
+		heightValue = c.node.Store.Height()
+	} else {
+		heightValue = uint64(*height)
+	}
+
+	return heightValue
 }
 
 func validatePerPage(perPagePtr *int) int {

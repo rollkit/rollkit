@@ -24,6 +24,7 @@ Month, DD, YYYY
 - [store,indexer] [Replace tm-db dependency with store package #268](https://github.com/celestiaorg/optimint/pull/268) [@tzdybal](https://github.com/tzdybal/)
 - [rpc] [Implement ConsensusState/DumpConsensusState #273](https://github.com/celestiaorg/optimint/pull/273) [@tzdybal](https://github.com/tzdybal/)
 - [rpc] [Implement Tx Method #272](https://github.com/celestiaorg/optimint/pull/272) [@mauriceLC92](https://github.com/mauriceLC92)
+- [rpc] [Implement Commit and BlockSearch method #258](https://github.com/celestiaorg/optimint/pull/258) [@raneet10](https://github.com/Raneet10/)
 
 ### BUG FIXES
 

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	crand "crypto/rand"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -212,6 +213,103 @@ func TestGetBlock(t *testing.T) {
 
 	err = rpc.node.Stop()
 	require.NoError(err)
+}
+
+func TestGetCommit(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	blocks := []*types.Block{getRandomBlock(1, 5), getRandomBlock(2, 6), getRandomBlock(3, 8), getRandomBlock(4, 10)}
+
+	err := rpc.node.Start()
+	require.NoError(err)
+
+	for _, b := range blocks {
+		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: b.Header.Height})
+		require.NoError(err)
+	}
+	t.Run("Fetch all commits", func(t *testing.T) {
+		for _, b := range blocks {
+			h := int64(b.Header.Height)
+			commit, err := rpc.Commit(context.Background(), &h)
+			require.NoError(err)
+			require.NotNil(commit)
+			assert.Equal(b.Header.Height, uint64(commit.Height))
+		}
+	})
+
+	t.Run("Fetch commit for nil height", func(t *testing.T) {
+		commit, err := rpc.Commit(context.Background(), nil)
+		require.NoError(err)
+		require.NotNil(commit)
+		assert.Equal(blocks[3].Header.Height, uint64(commit.Height))
+	})
+
+	err = rpc.node.Stop()
+	require.NoError(err)
+}
+
+func TestBlockSearch(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	for _, h := range heights {
+		block := getRandomBlock(uint64(h), 5)
+		err := rpc.node.Store.SaveBlock(block, &types.Commit{
+			Height:     uint64(h),
+			HeaderHash: block.Header.Hash(),
+		})
+		require.NoError(err)
+	}
+	indexBlocks(t, rpc, heights)
+
+	tests := []struct {
+		query      string
+		page       int
+		perPage    int
+		totalCount int
+		orderBy    string
+	}{
+		{
+			query:      "block.height >= 1 AND end_event.foo <= 5",
+			page:       1,
+			perPage:    5,
+			totalCount: 5,
+			orderBy:    "asc",
+		},
+		{
+			query:      "block.height >= 2 AND end_event.foo <= 10",
+			page:       1,
+			perPage:    3,
+			totalCount: 9,
+			orderBy:    "desc",
+		},
+		{
+			query:      "begin_event.proposer = 'FCAA001' AND end_event.foo <= 5",
+			page:       1,
+			perPage:    5,
+			totalCount: 5,
+			orderBy:    "asc",
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.query, func(t *testing.T) {
+			result, err := rpc.BlockSearch(context.Background(), test.query, &test.page, &test.perPage, test.orderBy)
+			require.NoError(err)
+			assert.Equal(test.totalCount, result.TotalCount)
+			assert.Len(result.Blocks, test.perPage)
+		})
+
+	}
 }
 
 func TestGetBlockByHash(t *testing.T) {
@@ -464,6 +562,45 @@ func getRPC(t *testing.T) (*mocks.Application, *Client) {
 	return app, rpc
 }
 
+// From state/indexer/block/kv/kv_test
+func indexBlocks(t *testing.T, rpc *Client, heights []int64) {
+	t.Helper()
+
+	for _, h := range heights {
+		require.NoError(t, rpc.node.BlockIndexer.Index(tmtypes.EventDataNewBlockHeader{
+			Header: tmtypes.Header{Height: h},
+			ResultBeginBlock: abci.ResponseBeginBlock{
+				Events: []abci.Event{
+					{
+						Type: "begin_event",
+						Attributes: []abci.EventAttribute{
+							{
+								Key:   []byte("proposer"),
+								Value: []byte("FCAA001"),
+								Index: true,
+							},
+						},
+					},
+				},
+			},
+			ResultEndBlock: abci.ResponseEndBlock{
+				Events: []abci.Event{
+					{
+						Type: "end_event",
+						Attributes: []abci.EventAttribute{
+							{
+								Key:   []byte("foo"),
+								Value: []byte(fmt.Sprintf("%d", h)),
+								Index: true,
+							},
+						},
+					},
+				},
+			},
+		}))
+	}
+
+}
 func TestMempool2Nodes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
