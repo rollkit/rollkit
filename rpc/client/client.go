@@ -545,7 +545,7 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 	skipCount := validateSkipCount(pageVal, perPageVal)
 	pageSize := tmmath.MinInt(perPageVal, totalCount-skipCount)
 
-	pageResults := make([]int64, 0, pageSize)
+	pageResults := make([]int64, pageSize)
 	copy(pageResults, results[skipCount:skipCount+pageSize])
 
 	// Fetch the blocks

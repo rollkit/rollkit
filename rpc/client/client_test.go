@@ -260,6 +260,14 @@ func TestBlockSearch(t *testing.T) {
 	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	for _, h := range heights {
+		block := getRandomBlock(uint64(h), 5)
+		err := rpc.node.Store.SaveBlock(block, &types.Commit{
+			Height:     uint64(h),
+			HeaderHash: block.Header.Hash(),
+		})
+		require.NoError(err)
+	}
 	indexBlocks(t, rpc, heights)
 
 	tests := []struct {
