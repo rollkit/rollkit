@@ -17,7 +17,6 @@ Month, DD, YYYY
 ### IMPROVEMENTS
 
 - [ci] [Add more linters #219](https://github.com/celestiaorg/optimint/pull/219) [@tzdybal](https://github.com/tzdybal/)
-- [rpc] [Implement Commit and BlockSearch method #236, #239](https://github.com/celestiaorg/optimint/pull/258)  [@raneet10](https://github.com/Raneet10/)
 - [deps] [Update dependencies: grpc, cors, cobra, viper, tm-db #245](https://github.com/celestiaorg/optimint/pull/245) [@tzdybal](https://github.com/tzdybal/)
 - [rpc] [Implement NumUnconfirmedTxs #255](https://github.com/celestiaorg/optimint/pull/255) [@tzdybal](https://github.com/tzdybal/)
 - [rpc] [Implement BlockByHash #256](https://github.com/celestiaorg/optimint/pull/256) [@mauriceLC92](https://github.com/mauriceLC92)
