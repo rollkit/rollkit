@@ -545,13 +545,10 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 	skipCount := validateSkipCount(pageVal, perPageVal)
 	pageSize := tmmath.MinInt(perPageVal, totalCount-skipCount)
 
-	pageResults := make([]int64, pageSize)
-	copy(pageResults, results[skipCount:skipCount+pageSize])
-
 	// Fetch the blocks
-	blocks := make([]*ctypes.ResultBlock, 0, len(pageResults))
-	for _, h := range pageResults {
-		b, err := c.node.Store.LoadBlock(uint64(h))
+	blocks := make([]*ctypes.ResultBlock, 0, pageSize)
+	for i := skipCount; i < skipCount+pageSize; i++ {
+		b, err := c.node.Store.LoadBlock(uint64(results[i]))
 		if err != nil {
 			return nil, err
 		}
