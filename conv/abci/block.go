@@ -98,6 +98,21 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	return &abciBlock, nil
 }
 
+func ToABCIBlockMeta(block *types.Block) (*tmtypes.BlockMeta, error) {
+	tmblock, err := ToABCIBlock(block)
+	if err != nil {
+		return nil, err
+	}
+	blockId := tmtypes.BlockID{Hash: tmblock.Hash()}
+
+	return &tmtypes.BlockMeta{
+		BlockID:   blockId,
+		BlockSize: tmblock.Size(),
+		Header:    tmblock.Header,
+		NumTxs:    len(tmblock.Txs),
+	}, nil
+}
+
 // ToABCICommit converts Optimint commit into commit format defined by ABCI.
 // This function only converts fields that are available in Optimint commit.
 // Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.

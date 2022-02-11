@@ -267,8 +267,38 @@ func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.Resul
 }
 
 func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-	// needs block store
-	panic("BlockchainInfo - not implemented!")
+	const limit int64 = 20
+	minHeight, maxHeight, err := filterMinMax(
+		0,
+		int64(c.node.Store.Height()),
+		minHeight,
+		maxHeight,
+		limit)
+	if err != nil {
+		return nil, err
+	}
+	c.Logger.Debug("BlockchainInfo", "maxHeight", maxHeight, "minHeight", minHeight)
+
+	blocks := make([]*types.BlockMeta, 0, maxHeight-minHeight+1)
+	for height := maxHeight; height >= minHeight; height-- {
+		block, err := c.node.Store.LoadBlock(uint64(height))
+		if err != nil {
+			return nil, err
+		}
+		if block != nil {
+			tmblockmeta, err := abciconv.ToABCIBlockMeta(block)
+			if err != nil {
+				return nil, err
+			}
+			blocks = append(blocks, tmblockmeta)
+		}
+	}
+
+	return &ctypes.ResultBlockchainInfo{
+		LastHeight: int64(c.node.Store.Height()),
+		BlockMetas: blocks,
+	}, nil
+
 }
 
 func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
@@ -748,4 +778,35 @@ func validateSkipCount(page, perPage int) int {
 	}
 
 	return skipCount
+}
+
+func filterMinMax(base, height, min, max, limit int64) (int64, int64, error) {
+	// filter negatives
+	if min < 0 || max < 0 {
+		return min, max, errors.New("height must be greater than zero")
+	}
+
+	// adjust for default values
+	if min == 0 {
+		min = 1
+	}
+	if max == 0 {
+		max = height
+	}
+
+	// limit max to the height
+	max = tmmath.MinInt64(height, max)
+
+	// limit min to the base
+	min = tmmath.MaxInt64(base, min)
+
+	// limit min to within `limit` of max
+	// so the total number of blocks returned will be `limit`
+	min = tmmath.MaxInt64(min, max-limit+1)
+
+	if min > max {
+		return min, max, fmt.Errorf("%w: min height %d can't be greater than max height %d",
+			errors.New("invalid request"), min, max)
+	}
+	return min, max, nil
 }

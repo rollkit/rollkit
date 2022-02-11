@@ -498,6 +498,10 @@ func TestConsensusState(t *testing.T) {
 	assert.ErrorIs(err, ErrConsensusStateNotAvailable)
 }
 
+func TestBlockchainInfo(t *testing.T) {
+	panic("todo")
+}
+
 // copy-pasted from store/store_test.go
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
