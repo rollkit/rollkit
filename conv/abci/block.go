@@ -98,6 +98,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	return &abciBlock, nil
 }
 
+// ToABCIBlockMeta converts Optimint block into BlockMeta format defined by ABCI
 func ToABCIBlockMeta(block *types.Block) (*tmtypes.BlockMeta, error) {
 	tmblock, err := ToABCIBlock(block)
 	if err != nil {
