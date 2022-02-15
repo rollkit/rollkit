@@ -22,6 +22,7 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
+	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/node"
 	"github.com/celestiaorg/optimint/state"
@@ -498,6 +499,79 @@ func TestConsensusState(t *testing.T) {
 	assert.ErrorIs(err, ErrConsensusStateNotAvailable)
 }
 
+func TestBlockchainInfo(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	for _, h := range heights {
+		block := getRandomBlock(uint64(h), 5)
+		err := rpc.node.Store.SaveBlock(block, &types.Commit{
+			Height:     uint64(h),
+			HeaderHash: block.Header.Hash(),
+		})
+		require.NoError(err)
+	}
+
+	tests := []struct {
+		desc string
+		min  int64
+		max  int64
+		exp  []*tmtypes.BlockMeta
+		err  bool
+	}{
+		{
+			desc: "min = 1 and max = 5",
+			min:  1,
+			max:  5,
+			exp:  []*tmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 5)},
+			err:  false,
+		}, {
+			desc: "min height is 0",
+			min:  0,
+			max:  10,
+			exp:  []*tmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 10)},
+			err:  false,
+		}, {
+			desc: "max height is out of range",
+			min:  0,
+			max:  15,
+			exp:  []*tmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 10)},
+			err:  false,
+		}, {
+			desc: "negative min height",
+			min:  -1,
+			max:  11,
+			exp:  nil,
+			err:  true,
+		}, {
+			desc: "negative max height",
+			min:  1,
+			max:  -1,
+			exp:  nil,
+			err:  true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			result, err := rpc.BlockchainInfo(context.Background(), test.min, test.max)
+			if test.err {
+				require.Error(err)
+			} else {
+				require.NoError(err)
+				assert.Equal(result.LastHeight, heights[9])
+				assert.Contains(result.BlockMetas, test.exp[0])
+				assert.Contains(result.BlockMetas, test.exp[1])
+			}
+
+		})
+	}
+}
+
 // copy-pasted from store/store_test.go
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
@@ -544,6 +618,19 @@ func getRandomBytes(n int) []byte {
 	data := make([]byte, n)
 	_, _ = rand.Read(data)
 	return data
+}
+
+func getBlockMeta(rpc *Client, n int64) *tmtypes.BlockMeta {
+	b, err := rpc.node.Store.LoadBlock(uint64(n))
+	if err != nil {
+		return nil
+	}
+	bmeta, err := abciconv.ToABCIBlockMeta(b)
+	if err != nil {
+		return nil
+	}
+
+	return bmeta
 }
 
 func getRPC(t *testing.T) (*mocks.Application, *Client) {
