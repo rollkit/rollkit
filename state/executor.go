@@ -110,25 +110,25 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 }
 
 // ApplyBlock validates, executes and commits the block.
-func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *types.Block) (State, uint64, error) {
+func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *types.Block) (State, *tmstate.ABCIResponses, uint64, error) {
 	err := e.validate(state, block)
 	if err != nil {
-		return State{}, 0, err
+		return State{}, nil, 0, err
 	}
 
 	resp, err := e.execute(ctx, state, block)
 	if err != nil {
-		return State{}, 0, err
+		return State{}, nil, 0, err
 	}
 
 	state, err = e.updateState(state, block, resp)
 	if err != nil {
-		return State{}, 0, err
+		return State{}, nil, 0, err
 	}
 
 	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
 	if err != nil {
-		return State{}, 0, err
+		return State{}, nil, 0, err
 	}
 
 	copy(state.AppHash[:], appHash[:])
@@ -138,7 +138,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 		e.logger.Error("failed to fire block events", "error", err)
 	}
 
-	return state, retainHeight, nil
+	return state, resp, retainHeight, nil
 }
 
 func (e *BlockExecutor) updateState(state State, block *types.Block, abciResponses *tmstate.ABCIResponses) (State, error) {
