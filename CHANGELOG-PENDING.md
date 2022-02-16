@@ -31,5 +31,6 @@ Month, DD, YYYY
 ### BUG FIXES
 
 - [store] [Use KeyCopy instead of Key in BadgerIterator #274](https://github.com/celestiaorg/optimint/pull/274) [@tzdybal](https://github.com/tzdybal/)
+- [state/block] [Do save ABCI responses for blocks #285r](https://github.com/celestiaorg/optimint/pull/285) [@tzdybal](https://github.com/tzdybal/)
 
 - [go package] (Link to PR) Description @username
