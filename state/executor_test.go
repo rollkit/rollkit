@@ -123,9 +123,10 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(uint64(1), block.Header.Height)
 	assert.Len(block.Data.Txs, 1)
 
-	newState, _, err := executor.ApplyBlock(context.TODO(), state, block)
+	newState, resp, _, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
 	require.NotNil(newState)
+	require.NotNil(resp)
 	assert.Equal(int64(1), newState.LastBlockHeight)
 	assert.Equal(mockAppHash, newState.AppHash)
 
@@ -138,9 +139,10 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(uint64(2), block.Header.Height)
 	assert.Len(block.Data.Txs, 3)
 
-	newState, _, err = executor.ApplyBlock(context.TODO(), newState, block)
+	newState, resp, _, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)
 	require.NotNil(newState)
+	require.NotNil(resp)
 	assert.Equal(int64(2), newState.LastBlockHeight)
 
 	// wait for at least 4 Tx events, for up to 3 second.
