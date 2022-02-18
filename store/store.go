@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"sync"
 
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
@@ -14,11 +16,12 @@ import (
 )
 
 var (
-	blockPrefix     = [1]byte{1}
-	indexPrefix     = [1]byte{2}
-	commitPrefix    = [1]byte{3}
-	statePrefix     = [1]byte{4}
-	responsesPrefix = [1]byte{5}
+	blockPrefix      = [1]byte{1}
+	indexPrefix      = [1]byte{2}
+	commitPrefix     = [1]byte{3}
+	statePrefix      = [1]byte{4}
+	responsesPrefix  = [1]byte{5}
+	validatorsPrefix = [1]byte{6}
 )
 
 // DefaultStore is a default store implmementation.
@@ -177,6 +180,33 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 	return state, err
 }
 
+func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {
+	pbValSet, err := validatorSet.ToProto()
+	if err != nil {
+		return err
+	}
+	blob, err := pbValSet.Marshal()
+	if err != nil {
+		return err
+	}
+
+	return s.db.Set(getValidatorsKey(height), blob)
+}
+
+func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, error) {
+	blob, err := s.db.Get(getValidatorsKey(height))
+	if err != nil {
+		return nil, err
+	}
+	var pbValSet tmproto.ValidatorSet
+	err = pbValSet.Unmarshal(blob)
+	if err != nil {
+		return nil, err
+	}
+
+	return tmtypes.ValidatorSetFromProto(&pbValSet)
+}
+
 func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
 	blob, err := s.db.Get(getIndexKey(height))
 
@@ -213,4 +243,10 @@ func getResponsesKey(height uint64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, height)
 	return append(responsesPrefix[:], buf[:]...)
+}
+
+func getValidatorsKey(height uint64) []byte {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, height)
+	return append(validatorsPrefix[:], buf[:]...)
 }

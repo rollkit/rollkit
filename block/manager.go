@@ -311,6 +311,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	if err != nil {
+		return err
+	}
+
 	return m.broadcastBlock(ctx, block)
 }
 
