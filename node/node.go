@@ -45,6 +45,8 @@ type Node struct {
 	proxyApp proxy.AppConns
 
 	genesis *tmtypes.GenesisDoc
+	// cache of chunked genesis data.
+	genChunks []string
 
 	conf config.NodeConfig
 	P2P  *p2p.Client
@@ -189,6 +191,10 @@ func (n *Node) OnStart() error {
 
 func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 	return n.genesis
+}
+
+func (n *Node) GetGenisisChunk() []string {
+	return n.genChunks
 }
 
 // OnStop is a part of Service interface.

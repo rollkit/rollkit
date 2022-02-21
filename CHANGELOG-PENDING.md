@@ -26,7 +26,7 @@ Month, DD, YYYY
 - [rpc] [Implement Tx Method #272](https://github.com/celestiaorg/optimint/pull/272) [@mauriceLC92](https://github.com/mauriceLC92)
 - [rpc] [Implement Commit and BlockSearch method #258](https://github.com/celestiaorg/optimint/pull/258) [@raneet10](https://github.com/Raneet10/)
 - [rpc] [Remove extra variable #280](https://github.com/celestiaorg/optimint/pull/280) [@raneet10](https://github.com/Raneet10/)
-- [rpc] [Implement BlockChainInfo RPC method #282](https://github.com/celestiaorg/optimint/pull/282) [@raneet10](https://github.com/Raneet10/)
+- [rpc] [Implement GenesisChunked method #287](https://github.com/celestiaorg/optimint/pull/287) [@mauriceLC92](https://github.com/mauriceLC92)
 
 ### BUG FIXES
 
