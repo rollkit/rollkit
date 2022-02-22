@@ -2,6 +2,8 @@ package node
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -35,6 +37,12 @@ var (
 	mainPrefix    = []byte{0}
 	dalcPrefix    = []byte{1}
 	indexerPrefix = []byte{2}
+)
+
+const (
+	// genesisChunkSize is the maximum size, in bytes, of each
+	// chunk in the genesis structure for the chunked API
+	genesisChunkSize = 16 * 1024 * 1024 // 16
 )
 
 // Node represents a client node in Optimint network.
@@ -149,6 +157,33 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	return node, nil
 }
 
+func (n *Node) InitGenesisChunks() error {
+	if n.genChunks != nil {
+		return nil
+	}
+
+	if n.genesis == nil {
+		return nil
+	}
+
+	data, err := json.Marshal(n.genesis)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(data); i += genesisChunkSize {
+		end := i + genesisChunkSize
+
+		if end > len(data) {
+			end = len(data)
+		}
+
+		n.genChunks = append(n.genChunks, base64.StdEncoding.EncodeToString(data[i:end]))
+	}
+
+	return nil
+}
+
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
@@ -193,7 +228,7 @@ func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 	return n.genesis
 }
 
-func (n *Node) GetGenisisChunk() []string {
+func (n *Node) GetGenisisChunks() []string {
 	return n.genChunks
 }
 

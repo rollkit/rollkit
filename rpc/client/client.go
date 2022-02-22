@@ -263,7 +263,7 @@ func (c *Client) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
 
 // InitGenesisChunks - Tendermint: See file internal/rpc/core/env.go
 func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
-	genChunks := c.node.GetGenisisChunk()
+	genChunks := c.node.GetGenisisChunks()
 	if genChunks == nil {
 		return nil, fmt.Errorf("service configuration error, genesis chunks are not initialized")
 	}
