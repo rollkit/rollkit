@@ -437,7 +437,7 @@ func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perP
 	height := c.normalizeHeight(heightPtr)
 	validators, err := c.node.Store.LoadValidators(height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load validators for height %d: %w", height, err)
 	}
 
 	totalCount := len(validators.Validators)
