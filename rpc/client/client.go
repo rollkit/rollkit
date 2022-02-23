@@ -433,8 +433,28 @@ func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommi
 	return ctypes.NewResultCommit(&block.Header, commit, true), nil
 }
 
-func (c *Client) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {
-	panic("Validators - not implemented!")
+func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perPagePtr *int) (*ctypes.ResultValidators, error) {
+	height := c.normalizeHeight(heightPtr)
+	validators, err := c.node.Store.LoadValidators(height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load validators for height %d: %w", height, err)
+	}
+
+	totalCount := len(validators.Validators)
+	perPage := validatePerPage(perPagePtr)
+	page, err := validatePage(pagePtr, perPage, totalCount)
+	if err != nil {
+		return nil, err
+	}
+
+	skipCount := validateSkipCount(page, perPage)
+	v := validators.Validators[skipCount : skipCount+tmmath.MinInt(perPage, totalCount-skipCount)]
+	return &ctypes.ResultValidators{
+		BlockHeight: int64(height),
+		Validators:  v,
+		Count:       len(v),
+		Total:       totalCount,
+	}, nil
 }
 
 func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {

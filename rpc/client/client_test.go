@@ -15,6 +15,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/crypto/encoding"
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -569,6 +572,78 @@ func TestBlockchainInfo(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestValidatorSetHandling(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+
+	vKeys := make([]tmcrypto.PrivKey, 4)
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+	}
+
+	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
+	require.NoError(err)
+
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node)
+
+	rpc := NewClient(node)
+	require.NotNil(rpc)
+
+	err = node.Start()
+	require.NoError(err)
+
+	// test latest block a few times - ensure that validator set from genesis is handled correctly
+	lastHeight := int64(-1)
+	for i := 0; i < 3; i++ {
+		time.Sleep(10 * time.Millisecond)
+		vals, err := rpc.Validators(context.Background(), nil, nil, nil)
+		assert.NoError(err)
+		assert.NotNil(vals)
+		assert.EqualValues(len(genesisValidators), vals.Total)
+		assert.Len(vals.Validators, len(genesisValidators))
+		assert.Greater(vals.BlockHeight, lastHeight)
+		lastHeight = vals.BlockHeight
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	// 6th EndBlock removes first validator from the list
+	for h := int64(7); h <= 8; h++ {
+		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
+		assert.NoError(err)
+		assert.NotNil(vals)
+		assert.EqualValues(len(genesisValidators)-1, vals.Total)
+		assert.Len(vals.Validators, len(genesisValidators)-1)
+		assert.EqualValues(vals.BlockHeight, h)
+	}
+
+	// 8th EndBlock adds validator back
+	for h := int64(9); h < 12; h++ {
+		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
+		assert.NoError(err)
+		assert.NotNil(vals)
+		assert.EqualValues(len(genesisValidators), vals.Total)
+		assert.Len(vals.Validators, len(genesisValidators))
+		assert.EqualValues(vals.BlockHeight, h)
 	}
 }
 
