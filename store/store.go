@@ -113,16 +113,7 @@ func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 		return nil, fmt.Errorf("failed to unmarshal block data: %w", err)
 	}
 
-	commitData, err := s.db.Get(getCommitKey(hash))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load commit data: %w", err)
-	}
-	err = block.LastCommit.UnmarshalBinary(commitData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal commit data: %w", err)
-	}
-
-	return block, err
+	return block, nil
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
