@@ -336,7 +336,7 @@ func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusSta
 }
 
 func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// TODO(tzdybal):
+	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/optimint/issues/291
 	params := c.node.GetGenesis().ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),
@@ -672,9 +672,9 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 }
 
 func (c *Client) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
-	// needs evidence pool?
-	panic("BroadcastEvidence - not implemented!")
-	return &ctypes.ResultBroadcastEvidence{}, nil
+	return &ctypes.ResultBroadcastEvidence{
+		Hash: evidence.Hash(),
+	}, nil
 }
 
 func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
