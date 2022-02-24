@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
@@ -103,13 +104,23 @@ func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
 // LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
 func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 	blockData, err := s.db.Get(getBlockKey(hash))
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load block data: %w", err)
 	}
-
 	block := new(types.Block)
 	err = block.UnmarshalBinary(blockData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal block data: %w", err)
+	}
+
+	commitData, err := s.db.Get(getCommitKey(hash))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load commit data: %w", err)
+	}
+	err = block.LastCommit.UnmarshalBinary(commitData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal commit data: %w", err)
+	}
 
 	return block, err
 }
