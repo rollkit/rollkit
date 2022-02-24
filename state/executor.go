@@ -282,10 +282,11 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 
 	hash := block.Hash()
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.Header)
-	abciHeader.ChainID = e.chainID
 	if err != nil {
 		return nil, err
 	}
+	abciHeader.ChainID = e.chainID
+	abciHeader.ValidatorsHash = state.Validators.Hash()
 	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
