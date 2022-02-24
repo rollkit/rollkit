@@ -13,6 +13,7 @@ import (
 	tmmath "github.com/tendermint/tendermint/libs/math"
 	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -335,8 +336,29 @@ func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusSta
 }
 
 func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// needs state storage
-	panic("ConsensusParams - not implemented!")
+	// TODO(tzdybal):
+	params := c.node.GetGenesis().ConsensusParams
+	return &ctypes.ResultConsensusParams{
+		BlockHeight: int64(c.normalizeHeight(height)),
+		ConsensusParams: tmproto.ConsensusParams{
+			Block: tmproto.BlockParams{
+				MaxBytes:   params.Block.MaxBytes,
+				MaxGas:     params.Block.MaxGas,
+				TimeIotaMs: params.Block.TimeIotaMs,
+			},
+			Evidence: tmproto.EvidenceParams{
+				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
+				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
+				MaxBytes:        params.Evidence.MaxBytes,
+			},
+			Validator: tmproto.ValidatorParams{
+				PubKeyTypes: params.Validator.PubKeyTypes,
+			},
+			Version: tmproto.VersionParams{
+				AppVersion: params.Version.AppVersion,
+			},
+		},
+	}, nil
 }
 
 func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
@@ -652,6 +674,7 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 func (c *Client) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
 	// needs evidence pool?
 	panic("BroadcastEvidence - not implemented!")
+	return &ctypes.ResultBroadcastEvidence{}, nil
 }
 
 func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
