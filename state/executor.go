@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
+	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
@@ -48,6 +50,12 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 
 func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseInitChain, error) {
 	params := genesis.ConsensusParams
+
+	validators := make([]*tmtypes.Validator, len(genesis.Validators))
+	for i, v := range genesis.Validators {
+		validators[i] = tmtypes.NewValidator(v.PubKey, v.Power)
+	}
+
 	return e.proxyApp.InitChainSync(abci.RequestInitChain{
 		Time:    genesis.GenesisTime,
 		ChainId: genesis.ChainID,
@@ -68,7 +76,7 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 				AppVersion: params.Version.AppVersion,
 			},
 		},
-		Validators:    nil,
+		Validators:    tmtypes.TM2PB.ValidatorUpdates(tmtypes.NewValidatorSet(validators)),
 		AppStateBytes: genesis.AppState,
 		InitialHeight: genesis.InitialHeight,
 	})
@@ -121,7 +129,21 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 		return State{}, nil, 0, err
 	}
 
-	state, err = e.updateState(state, block, resp)
+	abciValUpdates := resp.EndBlock.ValidatorUpdates
+	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
+	if err != nil {
+		return state, nil, 0, fmt.Errorf("error in validator updates: %v", err)
+	}
+
+	validatorUpdates, err := tmtypes.PB2TM.ValidatorUpdates(abciValUpdates)
+	if err != nil {
+		return state, nil, 0, err
+	}
+	if len(validatorUpdates) > 0 {
+		e.logger.Debug("updates to validators", "updates", tmtypes.ValidatorListString(validatorUpdates))
+	}
+
+	state, err = e.updateState(state, block, resp, validatorUpdates)
 	if err != nil {
 		return State{}, nil, 0, err
 	}
@@ -141,7 +163,24 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 	return state, resp, retainHeight, nil
 }
 
-func (e *BlockExecutor) updateState(state State, block *types.Block, abciResponses *tmstate.ABCIResponses) (State, error) {
+func (e *BlockExecutor) updateState(state State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (State, error) {
+	nValSet := state.NextValidators.Copy()
+	lastHeightValSetChanged := state.LastHeightValidatorsChanged
+	// Optimint can work without validators
+	if len(nValSet.Validators) > 0 {
+		if len(validatorUpdates) > 0 {
+			err := nValSet.UpdateWithChangeSet(validatorUpdates)
+			if err != nil {
+				return state, nil
+			}
+			// Change results from this height but only applies to the next next height.
+			lastHeightValSetChanged = int64(block.Header.Height + 1 + 1)
+		}
+
+		// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
+		nValSet.IncrementProposerPriority(1)
+	}
+
 	hash := block.Header.Hash()
 	s := State{
 		Version:         state.Version,
@@ -153,9 +192,13 @@ func (e *BlockExecutor) updateState(state State, block *types.Block, abciRespons
 			Hash: hash[:],
 			// for now, we don't care about part set headers
 		},
-		// skipped all "Validators" fields
+		NextValidators:                   nValSet,
+		Validators:                       state.NextValidators.Copy(),
+		LastValidators:                   state.Validators.Copy(),
+		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
+		AppHash:                          [32]byte{},
 	}
 	copy(s.LastResultsHash[:], tmtypes.NewResults(abciResponses.DeliverTxs).Hash())
 
@@ -334,4 +377,29 @@ func fromOptimintTxs(optiTxs types.Txs) tmtypes.Txs {
 		txs[i] = []byte(optiTxs[i])
 	}
 	return txs
+}
+
+func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
+	params tmproto.ValidatorParams) error {
+	for _, valUpdate := range abciUpdates {
+		if valUpdate.GetPower() < 0 {
+			return fmt.Errorf("voting power can't be negative %v", valUpdate)
+		} else if valUpdate.GetPower() == 0 {
+			// continue, since this is deleting the validator, and thus there is no
+			// pubkey to check
+			continue
+		}
+
+		// Check if validator's pubkey matches an ABCI type in the consensus params
+		pk, err := cryptoenc.PubKeyFromProto(valUpdate.PubKey)
+		if err != nil {
+			return err
+		}
+
+		if !tmtypes.IsValidPubkeyType(params, pk.Type()) {
+			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
+				valUpdate, pk.Type())
+		}
+	}
+	return nil
 }

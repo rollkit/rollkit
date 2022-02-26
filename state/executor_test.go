@@ -110,7 +110,11 @@ func TestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(headerSub)
 
-	state := State{}
+	state := State{
+		NextValidators: tmtypes.NewValidatorSet(nil),
+		Validators:     tmtypes.NewValidatorSet(nil),
+		LastValidators: tmtypes.NewValidatorSet(nil),
+	}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
 	state.ConsensusParams.Block.MaxBytes = 100

@@ -13,6 +13,7 @@ import (
 	tmmath "github.com/tendermint/tendermint/libs/math"
 	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -353,8 +354,29 @@ func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusSta
 }
 
 func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// needs state storage
-	panic("ConsensusParams - not implemented!")
+	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/optimint/issues/291
+	params := c.node.GetGenesis().ConsensusParams
+	return &ctypes.ResultConsensusParams{
+		BlockHeight: int64(c.normalizeHeight(height)),
+		ConsensusParams: tmproto.ConsensusParams{
+			Block: tmproto.BlockParams{
+				MaxBytes:   params.Block.MaxBytes,
+				MaxGas:     params.Block.MaxGas,
+				TimeIotaMs: params.Block.TimeIotaMs,
+			},
+			Evidence: tmproto.EvidenceParams{
+				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
+				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
+				MaxBytes:        params.Evidence.MaxBytes,
+			},
+			Validator: tmproto.ValidatorParams{
+				PubKeyTypes: params.Validator.PubKeyTypes,
+			},
+			Version: tmproto.VersionParams{
+				AppVersion: params.Version.AppVersion,
+			},
+		},
+	}, nil
 }
 
 func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
@@ -451,8 +473,28 @@ func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommi
 	return ctypes.NewResultCommit(&block.Header, commit, true), nil
 }
 
-func (c *Client) Validators(ctx context.Context, height *int64, page, perPage *int) (*ctypes.ResultValidators, error) {
-	panic("Validators - not implemented!")
+func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perPagePtr *int) (*ctypes.ResultValidators, error) {
+	height := c.normalizeHeight(heightPtr)
+	validators, err := c.node.Store.LoadValidators(height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load validators for height %d: %w", height, err)
+	}
+
+	totalCount := len(validators.Validators)
+	perPage := validatePerPage(perPagePtr)
+	page, err := validatePage(pagePtr, perPage, totalCount)
+	if err != nil {
+		return nil, err
+	}
+
+	skipCount := validateSkipCount(page, perPage)
+	v := validators.Validators[skipCount : skipCount+tmmath.MinInt(perPage, totalCount-skipCount)]
+	return &ctypes.ResultValidators{
+		BlockHeight: int64(height),
+		Validators:  v,
+		Count:       len(v),
+		Total:       totalCount,
+	}, nil
 }
 
 func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
@@ -648,8 +690,9 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 }
 
 func (c *Client) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
-	// needs evidence pool?
-	panic("BroadcastEvidence - not implemented!")
+	return &ctypes.ResultBroadcastEvidence{
+		Hash: evidence.Hash(),
+	}, nil
 }
 
 func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
