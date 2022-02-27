@@ -157,6 +157,9 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	return node, nil
 }
 
+// Creates a chunked format of the genesis document to make it easier to
+// iterate through larger genesis structures.
+// Default chunk size should be genesisChunkSize (16 * 1024 * 1024)
 func (n *Node) InitGenesisChunks(chunkSize int64) error {
 	if n.genChunks != nil {
 		return nil
