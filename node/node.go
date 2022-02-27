@@ -157,7 +157,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	return node, nil
 }
 
-func (n *Node) InitGenesisChunks() error {
+func (n *Node) InitGenesisChunks(chunkSize int64) error {
 	if n.genChunks != nil {
 		return nil
 	}

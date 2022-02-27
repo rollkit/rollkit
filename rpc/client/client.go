@@ -262,7 +262,6 @@ func (c *Client) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
 	return &ctypes.ResultGenesis{Genesis: c.node.GetGenesis()}, nil
 }
 
-// InitGenesisChunks - Tendermint: See file internal/rpc/core/env.go
 func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
 	genChunks := c.node.GetGenisisChunks()
 	if genChunks == nil {

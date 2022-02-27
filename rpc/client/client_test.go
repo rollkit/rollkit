@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	crand "crypto/rand"
+	cryptorand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -73,6 +74,51 @@ func TestCheckTx(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(res)
 	mockApp.AssertExpectations(t)
+}
+
+func TestGenesisChunked(t *testing.T) {
+	assert := assert.New(t)
+
+	genDoc := &tmtypes.GenesisDoc{
+		ChainID:       "test",
+		InitialHeight: int64(1),
+		AppHash:       []byte("test hash"),
+		Validators: []tmtypes.GenesisValidator{
+			{Address: bytes.HexBytes{}, Name: "test", Power: 1, PubKey: ed25519.GenPrivKey().PubKey()},
+		},
+	}
+
+	mockApp := &mocks.Application{}
+	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
+	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+
+	err := n.InitGenesisChunks(16)
+	if err != nil {
+		t.Errorf("error creating genesis chunk: %v", err)
+	}
+
+	rpc := NewClient(n)
+	var wantId uint = 0
+	gc, err := rpc.GenesisChunked(context.Background(), wantId)
+	assert.NoError(err)
+	assert.NotNil(gc)
+
+	gotId := gc.ChunkNumber
+	if wantId != uint(gotId) {
+		t.Errorf("wanted chunk with id: %d but instead got %d", wantId, gotId)
+	}
+
+	wantId = 2
+	gc2, err := rpc.GenesisChunked(context.Background(), wantId)
+	assert.Error(err)
+	assert.Nil(gc2)
+
+	n2, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, proxy.NewLocalClientCreator(mockApp), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	rpc2 := NewClient(n2)
+	gc2, err2 := rpc2.GenesisChunked(context.Background(), 0)
+	assert.Error(err2)
+	assert.Nil(gc2)
 }
 
 func TestBroadcastTxAsync(t *testing.T) {
