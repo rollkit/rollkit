@@ -156,7 +156,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 
 	copy(state.AppHash[:], appHash[:])
 
-	err = e.publishEvents(resp, block)
+	err = e.publishEvents(resp, block, state)
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
 	}
@@ -325,12 +325,13 @@ func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *type
 	return lastABCICommit.Hash()
 }
 
-func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block) error {
+func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block, state State) error {
 	if e.eventBus == nil {
 		return nil
 	}
 
 	abciBlock, err := abciconv.ToABCIBlock(block)
+	abciBlock.Header.ValidatorsHash = state.Validators.Hash()
 	if err != nil {
 		return err
 	}

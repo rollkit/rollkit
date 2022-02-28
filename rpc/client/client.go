@@ -383,7 +383,6 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 }
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-	// needs block store
 	heightValue := c.normalizeHeight(height)
 	block, err := c.node.Store.LoadBlock(heightValue)
 	if err != nil {
@@ -394,6 +393,11 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	if err != nil {
 		return nil, err
 	}
+	validators, err := c.node.Store.LoadValidators(block.Header.Height)
+	if err != nil {
+		return nil, err
+	}
+	abciBlock.Header.ValidatorsHash = validators.Hash()
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
 			Hash: hash[:],
@@ -419,6 +423,11 @@ func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBl
 	if err != nil {
 		return nil, err
 	}
+	validators, err := c.node.Store.LoadValidators(block.Header.Height)
+	if err != nil {
+		return nil, err
+	}
+	abciBlock.Header.ValidatorsHash = validators.Hash()
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
 			Hash: h[:],
