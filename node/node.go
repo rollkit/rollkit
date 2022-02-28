@@ -42,7 +42,7 @@ var (
 const (
 	// genesisChunkSize is the maximum size, in bytes, of each
 	// chunk in the genesis structure for the chunked API
-	genesisChunkSize = 16 * 1024 * 1024 // 16
+	genesisChunkSize = 16 * 1024 * 1024 // 16 MiB
 )
 
 // Node represents a client node in Optimint network.
@@ -157,10 +157,9 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	return node, nil
 }
 
-// Creates a chunked format of the genesis document to make it easier to
+// initGenesisChunks creates a chunked format of the genesis document to make it easier to
 // iterate through larger genesis structures.
-// Default chunk size should be genesisChunkSize (16 * 1024 * 1024)
-func (n *Node) InitGenesisChunks(chunkSize int64) error {
+func (n *Node) initGenesisChunks() error {
 	if n.genChunks != nil {
 		return nil
 	}
@@ -215,6 +214,10 @@ func (n *Node) OnStart() error {
 	err = n.dalc.Start()
 	if err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
+	}
+	err = n.initGenesisChunks()
+	if err != nil {
+		return fmt.Errorf("error while creating chunks of the genesis document: %w", err)
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)

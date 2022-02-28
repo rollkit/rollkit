@@ -93,32 +93,26 @@ func TestGenesisChunked(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
 	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
 
-	err := n.InitGenesisChunks(16)
-	if err != nil {
-		t.Errorf("error creating genesis chunk: %v", err)
-	}
-
 	rpc := NewClient(n)
-	var wantId uint = 0
+
+	var wantId uint = 2
 	gc, err := rpc.GenesisChunked(context.Background(), wantId)
-	assert.NoError(err)
-	assert.NotNil(gc)
-
-	gotId := gc.ChunkNumber
-	if wantId != uint(gotId) {
-		t.Errorf("wanted chunk with id: %d but instead got %d", wantId, gotId)
-	}
-
-	wantId = 2
-	gc2, err := rpc.GenesisChunked(context.Background(), wantId)
 	assert.Error(err)
-	assert.Nil(gc2)
+	assert.Nil(gc)
 
-	n2, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, proxy.NewLocalClientCreator(mockApp), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-	rpc2 := NewClient(n2)
-	gc2, err2 := rpc2.GenesisChunked(context.Background(), 0)
-	assert.Error(err2)
-	assert.Nil(gc2)
+	err = rpc.node.Start()
+	require.NoError(t, err)
+
+	wantId = 0
+	gc2, err := rpc.GenesisChunked(context.Background(), wantId)
+	gotId := gc2.ChunkNumber
+	assert.NoError(err)
+	assert.NotNil(gc2)
+	assert.Equal(int(wantId), gotId)
+
+	gc3, err := rpc.GenesisChunked(context.Background(), 5)
+	assert.Error(err)
+	assert.Nil(gc3)
 }
 
 func TestBroadcastTxAsync(t *testing.T) {
