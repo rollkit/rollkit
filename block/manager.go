@@ -165,7 +165,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			b1, ok1 := m.syncCache[currentHeight+1]
 			b2, ok2 := m.syncCache[currentHeight+2]
 			if ok1 && ok2 {
-				newState, _, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+				newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 				if err != nil {
 					m.logger.Error("failed to ApplyBlock", "error", err)
 					continue
@@ -173,6 +173,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				err = m.store.SaveBlock(b1, &b2.LastCommit)
 				if err != nil {
 					m.logger.Error("failed to save block", "error", err)
+					continue
+				}
+				err = m.store.SaveBlockResponses(block.Header.Height, responses)
+				if err != nil {
+					m.logger.Error("failed to save block responses", "error", err)
 					continue
 				}
 
@@ -271,7 +276,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-	newState, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
 	}
@@ -295,8 +300,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	err = m.store.SaveBlockResponses(block.Header.Height, responses)
+	if err != nil {
+		return err
+	}
+
 	m.lastState = newState
 	err = m.store.UpdateState(m.lastState)
+	if err != nil {
+		return err
+	}
+
+	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
 	if err != nil {
 		return err
 	}

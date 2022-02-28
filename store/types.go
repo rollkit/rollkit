@@ -2,6 +2,7 @@ package store
 
 import (
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
@@ -36,4 +37,8 @@ type Store interface {
 	UpdateState(state state.State) error
 	// LoadState returns last state saved with UpdateState.
 	LoadState() (state.State, error)
+
+	SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error
+
+	LoadValidators(height uint64) (*tmtypes.ValidatorSet, error)
 }
