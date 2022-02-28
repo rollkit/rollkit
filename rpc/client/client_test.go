@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	crand "crypto/rand"
+	cryptorand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -73,6 +74,45 @@ func TestCheckTx(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(res)
 	mockApp.AssertExpectations(t)
+}
+
+func TestGenesisChunked(t *testing.T) {
+	assert := assert.New(t)
+
+	genDoc := &tmtypes.GenesisDoc{
+		ChainID:       "test",
+		InitialHeight: int64(1),
+		AppHash:       []byte("test hash"),
+		Validators: []tmtypes.GenesisValidator{
+			{Address: bytes.HexBytes{}, Name: "test", Power: 1, PubKey: ed25519.GenPrivKey().PubKey()},
+		},
+	}
+
+	mockApp := &mocks.Application{}
+	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
+	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+
+	rpc := NewClient(n)
+
+	var wantId uint = 2
+	gc, err := rpc.GenesisChunked(context.Background(), wantId)
+	assert.Error(err)
+	assert.Nil(gc)
+
+	err = rpc.node.Start()
+	require.NoError(t, err)
+
+	wantId = 0
+	gc2, err := rpc.GenesisChunked(context.Background(), wantId)
+	gotId := gc2.ChunkNumber
+	assert.NoError(err)
+	assert.NotNil(gc2)
+	assert.Equal(int(wantId), gotId)
+
+	gc3, err := rpc.GenesisChunked(context.Background(), 5)
+	assert.Error(err)
+	assert.Nil(gc3)
 }
 
 func TestBroadcastTxAsync(t *testing.T) {

@@ -263,8 +263,25 @@ func (c *Client) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
 }
 
 func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
-	// needs genesis provider
-	panic("GenesisChunked - not implemented!")
+	genChunks := c.node.GetGenisisChunks()
+	if genChunks == nil {
+		return nil, fmt.Errorf("service configuration error, genesis chunks are not initialized")
+	}
+
+	chunkLen := len(genChunks)
+	if chunkLen == 0 {
+		return nil, fmt.Errorf("service configuration error, there are no chunks")
+	}
+
+	if int(id) > chunkLen-1 {
+		return nil, fmt.Errorf("there are %d chunks, %d is invalid", chunkLen-1, id)
+	}
+
+	return &ctypes.ResultGenesisChunk{
+		TotalChunks: chunkLen,
+		ChunkNumber: int(id),
+		Data:        genChunks[id],
+	}, nil
 }
 
 func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
