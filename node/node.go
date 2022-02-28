@@ -2,6 +2,8 @@ package node
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -37,6 +39,12 @@ var (
 	indexerPrefix = []byte{2}
 )
 
+const (
+	// genesisChunkSize is the maximum size, in bytes, of each
+	// chunk in the genesis structure for the chunked API
+	genesisChunkSize = 16 * 1024 * 1024 // 16 MiB
+)
+
 // Node represents a client node in Optimint network.
 // It connects all the components and orchestrates their work.
 type Node struct {
@@ -45,6 +53,8 @@ type Node struct {
 	proxyApp proxy.AppConns
 
 	genesis *tmtypes.GenesisDoc
+	// cache of chunked genesis data.
+	genChunks []string
 
 	conf config.NodeConfig
 	P2P  *p2p.Client
@@ -147,6 +157,35 @@ func NewNode(ctx context.Context, conf config.NodeConfig, nodeKey crypto.PrivKey
 	return node, nil
 }
 
+// initGenesisChunks creates a chunked format of the genesis document to make it easier to
+// iterate through larger genesis structures.
+func (n *Node) initGenesisChunks() error {
+	if n.genChunks != nil {
+		return nil
+	}
+
+	if n.genesis == nil {
+		return nil
+	}
+
+	data, err := json.Marshal(n.genesis)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(data); i += genesisChunkSize {
+		end := i + genesisChunkSize
+
+		if end > len(data) {
+			end = len(data)
+		}
+
+		n.genChunks = append(n.genChunks, base64.StdEncoding.EncodeToString(data[i:end]))
+	}
+
+	return nil
+}
+
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
@@ -176,6 +215,10 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
+	err = n.initGenesisChunks()
+	if err != nil {
+		return fmt.Errorf("error while creating chunks of the genesis document: %w", err)
+	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx)
@@ -189,6 +232,10 @@ func (n *Node) OnStart() error {
 
 func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 	return n.genesis
+}
+
+func (n *Node) GetGenisisChunks() []string {
+	return n.genChunks
 }
 
 // OnStop is a part of Service interface.
