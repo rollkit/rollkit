@@ -395,9 +395,11 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	}
 	validators, err := c.node.Store.LoadValidators(block.Header.Height)
 	if err != nil {
-		return nil, err
+		c.Logger.Error("validators not found - ignoring", "height", block.Header.Height)
+		abciBlock.Header.ValidatorsHash = nil
+	} else {
+		abciBlock.Header.ValidatorsHash = validators.Hash()
 	}
-	abciBlock.Header.ValidatorsHash = validators.Hash()
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
 			Hash: hash[:],
@@ -425,9 +427,11 @@ func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBl
 	}
 	validators, err := c.node.Store.LoadValidators(block.Header.Height)
 	if err != nil {
-		return nil, err
+		c.Logger.Error("validators not found - ignoring", "height", block.Header.Height)
+		abciBlock.Header.ValidatorsHash = nil
+	} else {
+		abciBlock.Header.ValidatorsHash = validators.Hash()
 	}
-	abciBlock.Header.ValidatorsHash = validators.Hash()
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
 			Hash: h[:],
