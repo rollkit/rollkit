@@ -380,6 +380,7 @@ func TestGetBlockByHash(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(retrievedBlock)
 	assert.Equal(abciBlock, retrievedBlock.Block)
+	assert.Equal(abciBlock.Hash(), retrievedBlock.Block.Header.Hash())
 
 	blockHash := block.Header.Hash()
 	blockResp, err := rpc.BlockByHash(context.Background(), blockHash[:])

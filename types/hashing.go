@@ -31,7 +31,7 @@ func (header *Header) Hash() [32]byte {
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
 		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       tmtypes.EvidenceList{}.Hash(),
+		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 	}
 	var hash [32]byte
@@ -40,7 +40,7 @@ func (header *Header) Hash() [32]byte {
 }
 
 func (b *Block) Hash() [32]byte {
-	return hash(b)
+	return b.Header.Hash()
 }
 
 func hash(obj encoding.BinaryMarshaler) [32]byte {
