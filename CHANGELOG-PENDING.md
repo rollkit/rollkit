@@ -36,5 +36,6 @@ Month, DD, YYYY
 - [store] [Use KeyCopy instead of Key in BadgerIterator #274](https://github.com/celestiaorg/optimint/pull/274) [@tzdybal](https://github.com/tzdybal/)
 - [state,block] [Do save ABCI responses for blocks #285](https://github.com/celestiaorg/optimint/pull/285) [@tzdybal](https://github.com/tzdybal/)
 - [conv/abci] [Map LastBlockID.Hash to LastHeaderHash in conversion #303](https://github.com/celestiaorg/optimint/pull/303) [@tzdybal](https://github.com/tzdybal/)
+- [chore] [Fix multiple bugs for Ethermint #305](https://github.com/celestiaorg/optimint/pull/305) [@tzdybal](https://github.com/tzdybal/)
 
 - [go package] (Link to PR) Description @username
