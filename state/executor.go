@@ -114,6 +114,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 		LastCommit: *lastCommit,
 	}
 	copy(block.Header.LastCommitHash[:], e.getLastCommitHash(lastCommit, &block.Header))
+	copy(block.Header.AggregatorsHash[:], state.Validators.Hash())
 
 	return block
 }
