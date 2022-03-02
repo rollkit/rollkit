@@ -13,7 +13,6 @@ import (
 // ToABCIHeaderPB converts Optimint header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Optimint header (like ChainID).
 func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
-	hash := header.Hash()
 	return tmproto.Header{
 		Version: tmversion.Consensus{
 			Block: header.Version.Block,
@@ -22,7 +21,7 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 		Height: int64(header.Height),
 		Time:   time.Unix(int64(header.Time), 0),
 		LastBlockId: tmproto.BlockID{
-			Hash: hash[:],
+			Hash: header.LastHeaderHash[:],
 			PartSetHeader: tmproto.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
@@ -43,7 +42,6 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 // ToABCIHeader converts Optimint header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Optimint header (like ChainID).
 func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
-	hash := header.Hash()
 	return tmtypes.Header{
 		Version: tmversion.Consensus{
 			Block: header.Version.Block,
@@ -52,7 +50,7 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		Height: int64(header.Height),
 		Time:   time.Unix(int64(header.Time), 0),
 		LastBlockID: tmtypes.BlockID{
-			Hash: hash[:],
+			Hash: header.LastHeaderHash[:],
 			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
