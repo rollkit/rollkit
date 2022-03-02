@@ -109,7 +109,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 		return errors.New("invalid length of 'LastResultsHash'")
 	}
 	if !safeCopy(h.AggregatorsHash[:], other.AggregatorsHash) {
-		errors.New("invalid length of 'AggregatorsHash'")
+		return errors.New("invalid length of 'AggregatorsHash'")
 	}
 	if len(other.ProposerAddress) > 0 {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))

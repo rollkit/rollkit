@@ -1,12 +1,10 @@
 package types
 
 import (
-	"encoding"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmtypes "github.com/tendermint/tendermint/types"
 	"time"
 
-	"github.com/minio/sha256-simd"
+	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func (header *Header) Hash() [32]byte {
@@ -41,13 +39,4 @@ func (header *Header) Hash() [32]byte {
 
 func (b *Block) Hash() [32]byte {
 	return b.Header.Hash()
-}
-
-func hash(obj encoding.BinaryMarshaler) [32]byte {
-	blob, err := obj.MarshalBinary()
-	if err != nil {
-		return [32]byte{}
-	}
-	return sha256.Sum256(blob)
-
 }
