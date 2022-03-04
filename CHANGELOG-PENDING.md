@@ -37,5 +37,6 @@ Month, DD, YYYY
 - [state,block] [Do save ABCI responses for blocks #285](https://github.com/celestiaorg/optimint/pull/285) [@tzdybal](https://github.com/tzdybal/)
 - [conv/abci] [Map LastBlockID.Hash to LastHeaderHash in conversion #303](https://github.com/celestiaorg/optimint/pull/303) [@tzdybal](https://github.com/tzdybal/)
 - [chore] [Fix multiple bugs for Ethermint #305](https://github.com/celestiaorg/optimint/pull/305) [@tzdybal](https://github.com/tzdybal/)
+- [lint] [Fix linter on main #308](https://github.com/celestiaorg/optimint/pull/308) [@tzdybal](https://github.com/tzdybal/)
 
 - [go package] (Link to PR) Description @username
