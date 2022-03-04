@@ -372,6 +372,15 @@ func TestGetBlockByHash(t *testing.T) {
 	block := getRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	require.NoError(err)
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	require.NoError(err)
+
+	height := int64(block.Header.Height)
+	retrievedBlock, err := rpc.Block(context.Background(), &height)
+	require.NoError(err)
+	require.NotNil(retrievedBlock)
+	assert.Equal(abciBlock, retrievedBlock.Block)
+	assert.Equal(abciBlock.Hash(), retrievedBlock.Block.Header.Hash())
 
 	blockHash := block.Header.Hash()
 	blockResp, err := rpc.BlockByHash(context.Background(), blockHash[:])

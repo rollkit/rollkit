@@ -29,12 +29,12 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 		},
 		LastCommitHash:     header.LastCommitHash[:],
 		DataHash:           header.DataHash[:],
-		ValidatorsHash:     nil,
+		ValidatorsHash:     header.AggregatorsHash[:],
 		NextValidatorsHash: nil,
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
 		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       tmtypes.EvidenceList{}.Hash(),
+		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
@@ -58,12 +58,12 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		},
 		LastCommitHash:     header.LastCommitHash[:],
 		DataHash:           header.DataHash[:],
-		ValidatorsHash:     nil,
+		ValidatorsHash:     header.AggregatorsHash[:],
 		NextValidatorsHash: nil,
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
 		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       tmtypes.EvidenceList{}.Hash(),
+		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
@@ -91,7 +91,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = abciBlock.Data.Txs.Hash()
+	abciBlock.Header.DataHash = block.Header.DataHash[:]
 
 	return &abciBlock, nil
 }

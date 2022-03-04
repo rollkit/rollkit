@@ -50,6 +50,10 @@ message Header {
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	bytes proposer_address = 11;
+
+
+	// Hash of block aggregator set, at a time of block creation
+	bytes aggregators_hash = 12;
 }
 
 message Commit {

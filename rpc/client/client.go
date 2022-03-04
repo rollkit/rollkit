@@ -383,7 +383,6 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 }
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-	// needs block store
 	heightValue := c.normalizeHeight(height)
 	block, err := c.node.Store.LoadBlock(heightValue)
 	if err != nil {

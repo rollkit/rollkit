@@ -361,4 +361,14 @@ func updateState(s *state.State, res *abci.ResponseInitChain) {
 	}
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
 	copy(s.LastResultsHash[:], merkle.HashFromByteSlices(nil))
+
+	if len(res.Validators) > 0 {
+		vals, err := tmtypes.PB2TM.ValidatorUpdates(res.Validators)
+		if err != nil {
+			// TODO(tzdybal): handle error properly
+			panic(err)
+		}
+		s.Validators = tmtypes.NewValidatorSet(vals)
+		s.NextValidators = tmtypes.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
+	}
 }

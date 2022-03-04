@@ -111,8 +111,10 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
+		LastCommit: *lastCommit,
 	}
 	copy(block.Header.LastCommitHash[:], e.getLastCommitHash(lastCommit, &block.Header))
+	copy(block.Header.AggregatorsHash[:], state.Validators.Hash())
 
 	return block
 }
@@ -155,7 +157,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 
 	copy(state.AppHash[:], appHash[:])
 
-	err = e.publishEvents(resp, block)
+	err = e.publishEvents(resp, block, state)
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
 	}
@@ -281,10 +283,11 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 
 	hash := block.Hash()
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.Header)
-	abciHeader.ChainID = e.chainID
 	if err != nil {
 		return nil, err
 	}
+	abciHeader.ChainID = e.chainID
+	abciHeader.ValidatorsHash = state.Validators.Hash()
 	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
@@ -323,12 +326,13 @@ func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *type
 	return lastABCICommit.Hash()
 }
 
-func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block) error {
+func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block, state State) error {
 	if e.eventBus == nil {
 		return nil
 	}
 
 	abciBlock, err := abciconv.ToABCIBlock(block)
+	abciBlock.Header.ValidatorsHash = state.Validators.Hash()
 	if err != nil {
 		return err
 	}

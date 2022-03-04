@@ -77,6 +77,7 @@ func (h *Header) ToProto() *pb.Header {
 		AppHash:         h.AppHash[:],
 		LastResultsHash: h.LastResultsHash[:],
 		ProposerAddress: h.ProposerAddress[:],
+		AggregatorsHash: h.AggregatorsHash[:],
 	}
 }
 
@@ -90,22 +91,25 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.Height = other.Height
 	h.Time = other.Time
 	if !safeCopy(h.LastHeaderHash[:], other.LastHeaderHash) {
-		return errors.New("invalid length of 'InvalidLastHeaderHash'")
+		return errors.New("invalid length of 'LastHeaderHash'")
 	}
 	if !safeCopy(h.LastCommitHash[:], other.LastCommitHash) {
-		return errors.New("invalid length of 'InvalidLastCommitHash'")
+		return errors.New("invalid length of 'LastCommitHash'")
 	}
 	if !safeCopy(h.DataHash[:], other.DataHash) {
-		return errors.New("invalid length of 'InvalidDataHash'")
+		return errors.New("invalid length of 'DataHash'")
 	}
 	if !safeCopy(h.ConsensusHash[:], other.ConsensusHash) {
-		return errors.New("invalid length of 'InvalidConsensusHash'")
+		return errors.New("invalid length of 'ConsensusHash'")
 	}
 	if !safeCopy(h.AppHash[:], other.AppHash) {
-		return errors.New("invalid length of 'InvalidAppHash'")
+		return errors.New("invalid length of 'AppHash'")
 	}
 	if !safeCopy(h.LastResultsHash[:], other.LastResultsHash) {
-		return errors.New("invalid length of 'InvalidLastResultsHash'")
+		return errors.New("invalid length of 'LastResultsHash'")
+	}
+	if !safeCopy(h.AggregatorsHash[:], other.AggregatorsHash) {
+		return errors.New("invalid length of 'AggregatorsHash'")
 	}
 	if len(other.ProposerAddress) > 0 {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
