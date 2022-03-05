@@ -172,9 +172,9 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	height := m.store.Height()
 	var delay time.Duration
 
-	if height == initialHeight {
+	if height < initialHeight {
 		delay = time.Until(m.genesis.GenesisTime)
-	} else if height > initialHeight {
+	} else if height >= initialHeight {
 		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
 	}
 
