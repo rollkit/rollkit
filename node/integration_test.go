@@ -42,13 +42,14 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	managerKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, managerKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -180,6 +181,7 @@ func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.A
 	return nodes, apps
 }
 
+// TODO - come back to this and check out the keys slice
 func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
@@ -214,6 +216,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 		wg.Done()
 	})
 
+	managerKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	node, err := NewNode(
 		context.Background(),
 		config.NodeConfig{
@@ -223,6 +226,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 			BlockManagerConfig: bmConfig,
 		},
 		keys[n],
+		managerKey,
 		proxy.NewLocalClientCreator(app),
 		&types.GenesisDoc{ChainID: "test"},
 		log.TestingLogger().With("node", n))
