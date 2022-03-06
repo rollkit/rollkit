@@ -30,6 +30,7 @@ Month, DD, YYYY
 - [state,block,store,rpc] [Minimalistic validator set handling](https://github.com/celestiaorg/optimint/pull/286) [@tzdybal](https://github.com/tzdybal/)
 - [rpc] [Implement ConsensusParams #292](https://github.com/celestiaorg/optimint/pull/292) [@tzdybal](https://github.com/tzdybal/)
 - [rpc] [Implement GenesisChunked method #287](https://github.com/celestiaorg/optimint/pull/287) [@mauriceLC92](https://github.com/mauriceLC92)
+- [rpc] [Adds separate key for aggregator signatures #309](https://github.com/celestiaorg/optimint/pull/309) [@mauriceLC92](https://github.com/mauriceLC92)
 
 ### BUG FIXES
 
