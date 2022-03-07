@@ -38,5 +38,6 @@ Month, DD, YYYY
 - [conv/abci] [Map LastBlockID.Hash to LastHeaderHash in conversion #303](https://github.com/celestiaorg/optimint/pull/303) [@tzdybal](https://github.com/tzdybal/)
 - [chore] [Fix multiple bugs for Ethermint #305](https://github.com/celestiaorg/optimint/pull/305) [@tzdybal](https://github.com/tzdybal/)
 - [lint] [Fix linter on main #308](https://github.com/celestiaorg/optimint/pull/308) [@tzdybal](https://github.com/tzdybal/)
+- [rpc/client] [Make TestValidatorSetHandling stable](https://github.com/celestiaorg/optimint/pull/313) [@tzdybal](https://github.com/tzdybal/)
 
 - [go package] (Link to PR) Description @username
