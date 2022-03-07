@@ -1023,7 +1023,7 @@ func TestStatus(t *testing.T) {
 	}
 }
 
-func TestAggregationLoop(t *testing.T) {
+func TestFutureGenesisTime(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
