@@ -181,7 +181,6 @@ func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.A
 	return nodes, apps
 }
 
-// TODO - come back to this and check out the keys slice
 func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
@@ -216,7 +215,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 		wg.Done()
 	})
 
-	managerKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	node, err := NewNode(
 		context.Background(),
 		config.NodeConfig{
@@ -226,7 +225,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 			BlockManagerConfig: bmConfig,
 		},
 		keys[n],
-		managerKey,
+		signingKey,
 		proxy.NewLocalClientCreator(app),
 		&types.GenesisDoc{ChainID: "test"},
 		log.TestingLogger().With("node", n))
