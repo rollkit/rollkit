@@ -645,11 +645,15 @@ func TestValidatorSetHandling(t *testing.T) {
 	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
 	require.NoError(err)
 
+	waitCh := make(chan interface{})
+
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
+		waitCh <- nil
+	})
 
 	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
@@ -673,7 +677,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		assert.Greater(vals.BlockHeight, lastHeight)
 		lastHeight = vals.BlockHeight
 	}
-	time.Sleep(100 * time.Millisecond)
+	<-waitCh
 
 	// 6th EndBlock removes first validator from the list
 	for h := int64(7); h <= 8; h++ {
@@ -687,6 +691,7 @@ func TestValidatorSetHandling(t *testing.T) {
 
 	// 8th EndBlock adds validator back
 	for h := int64(9); h < 12; h++ {
+		<-waitCh
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
