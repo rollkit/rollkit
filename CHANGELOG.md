@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.1.1 | 08.03.2022
+
+Minor bugfix release, to ensure that Optimint uses the same version of gRPC as Cosmos SDK.
+
+### BUG FIXES
+- Use google.golang.org/grpc v1.33.2 to be compatible with cosmos-sdk ([#315](https://github.com/celestiaorg/optimint/pull/315)) [@jbowen93](https://github.com/jbowen93/)
+- Make TestValidatorSetHandling even more stable ([#314](https://github.com/celestiaorg/optimint/pull/314)) [@tzdybal](https://github.com/tzdybal/)
+
 ## v0.1.0 | 07.03.2022
 
 This is the first Optimint release.
