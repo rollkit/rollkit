@@ -668,19 +668,17 @@ func TestValidatorSetHandling(t *testing.T) {
 	err = node.Start()
 	require.NoError(err)
 
-	// test latest block a few times - ensure that validator set from genesis is handled correctly
-	lastHeight := int64(-1)
-	for i := 0; i < 3; i++ {
-		time.Sleep(10 * time.Millisecond)
-		vals, err := rpc.Validators(context.Background(), nil, nil, nil)
+	<-waitCh
+
+	// test first blocks
+	for h := int64(1); h <= 6; h++ {
+		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
 		assert.EqualValues(len(genesisValidators), vals.Total)
 		assert.Len(vals.Validators, len(genesisValidators))
-		assert.Greater(vals.BlockHeight, lastHeight)
-		lastHeight = vals.BlockHeight
+		assert.EqualValues(vals.BlockHeight, h)
 	}
-	<-waitCh
 
 	// 6th EndBlock removes first validator from the list
 	for h := int64(7); h <= 8; h++ {
@@ -693,7 +691,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	}
 
 	// 8th EndBlock adds validator back
-	for h := int64(9); h < 12; h++ {
+	for h := int64(9); h <= 12; h++ {
 		<-waitCh
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
@@ -702,6 +700,14 @@ func TestValidatorSetHandling(t *testing.T) {
 		assert.Len(vals.Validators, len(genesisValidators))
 		assert.EqualValues(vals.BlockHeight, h)
 	}
+
+	// check for "latest block"
+	vals, err := rpc.Validators(context.Background(), nil, nil, nil)
+	assert.NoError(err)
+	assert.NotNil(vals)
+	assert.EqualValues(len(genesisValidators), vals.Total)
+	assert.Len(vals.Validators, len(genesisValidators))
+	assert.GreaterOrEqual(vals.BlockHeight, int64(12))
 }
 
 // copy-pasted from store/store_test.go
