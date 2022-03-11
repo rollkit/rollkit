@@ -683,6 +683,9 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			//EarliestBlockTime:   time.Unix(0, earliestBlockTimeNano),
 			//CatchingUp:          env.ConsensusReactor.WaitSync(),
 		},
+		ValidatorInfo: ctypes.ValidatorInfo{
+			Address: latest.Header.ProposerAddress,
+		},
 	}
 	return result, nil
 }
