@@ -91,7 +91,8 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
-	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+	signingKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
+	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
 
 	rpc := NewClient(n)
 
@@ -400,13 +401,14 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	node, err := node.NewNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
 		}},
-		key, proxy.NewLocalClientCreator(mockApp),
+		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test"},
 		log.TestingLogger())
 	require.NoError(err)
@@ -634,6 +636,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	vKeys := make([]tmcrypto.PrivKey, 4)
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
@@ -655,7 +658,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		waitCh <- nil
 	})
 
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -774,7 +777,8 @@ func getRPC(t *testing.T) (*mocks.Application, *Client) {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -833,6 +837,8 @@ func TestMempool2Nodes(t *testing.T) {
 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	id1, err := peer.IDFromPrivateKey(key1)
 	require.NoError(err)
@@ -842,7 +848,7 @@ func TestMempool2Nodes(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
-	}, key1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -852,7 +858,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
