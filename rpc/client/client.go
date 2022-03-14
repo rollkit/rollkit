@@ -670,7 +670,7 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	latestBlockTimeNano := latest.Header.Time
 
 	result := &ctypes.ResultStatus{
-		// TODO(tzdybal): NodeInfo, ValidatorInfo
+		// TODO(tzdybal): NodeInfo
 		SyncInfo: ctypes.SyncInfo{
 			LatestBlockHash:   latestBlockHash[:],
 			LatestAppHash:     latestAppHash[:],
