@@ -43,6 +43,7 @@ func TestCreateBlock(t *testing.T) {
 	state := State{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
+	state.Validators = tmtypes.NewValidatorSet(nil)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, [32]byte{}, state)

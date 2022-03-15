@@ -15,7 +15,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 	// create random hashes
 	h := [][32]byte{}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 8; i++ {
 		var h1 [32]byte
 		n, err := rand.Read(h1[:])
 		require.Equal(32, n)
@@ -44,6 +44,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				AppHash:         h[4],
 				LastResultsHash: h[5],
 				ProposerAddress: []byte{4, 3, 2, 1},
+				AggregatorsHash: h[6],
 			},
 			Data: Data{
 				Txs:                    nil,
@@ -53,7 +54,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			},
 			LastCommit: Commit{
 				Height:     8,
-				HeaderHash: h[6],
+				HeaderHash: h[7],
 				Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 			},
 		}},

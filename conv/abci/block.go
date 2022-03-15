@@ -13,7 +13,6 @@ import (
 // ToABCIHeaderPB converts Optimint header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Optimint header (like ChainID).
 func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
-	hash := header.Hash()
 	return tmproto.Header{
 		Version: tmversion.Consensus{
 			Block: header.Version.Block,
@@ -22,7 +21,7 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 		Height: int64(header.Height),
 		Time:   time.Unix(int64(header.Time), 0),
 		LastBlockId: tmproto.BlockID{
-			Hash: hash[:],
+			Hash: header.LastHeaderHash[:],
 			PartSetHeader: tmproto.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
@@ -30,12 +29,12 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 		},
 		LastCommitHash:     header.LastCommitHash[:],
 		DataHash:           header.DataHash[:],
-		ValidatorsHash:     nil,
+		ValidatorsHash:     header.AggregatorsHash[:],
 		NextValidatorsHash: nil,
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
 		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       tmtypes.EvidenceList{}.Hash(),
+		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
@@ -43,7 +42,6 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 // ToABCIHeader converts Optimint header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Optimint header (like ChainID).
 func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
-	hash := header.Hash()
 	return tmtypes.Header{
 		Version: tmversion.Consensus{
 			Block: header.Version.Block,
@@ -52,7 +50,7 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		Height: int64(header.Height),
 		Time:   time.Unix(int64(header.Time), 0),
 		LastBlockID: tmtypes.BlockID{
-			Hash: hash[:],
+			Hash: header.LastHeaderHash[:],
 			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
@@ -60,12 +58,12 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		},
 		LastCommitHash:     header.LastCommitHash[:],
 		DataHash:           header.DataHash[:],
-		ValidatorsHash:     nil,
+		ValidatorsHash:     header.AggregatorsHash[:],
 		NextValidatorsHash: nil,
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
 		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       tmtypes.EvidenceList{}.Hash(),
+		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 	}, nil
 }
@@ -93,7 +91,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = abciBlock.Data.Txs.Hash()
+	abciBlock.Header.DataHash = block.Header.DataHash[:]
 
 	return &abciBlock, nil
 }

@@ -383,7 +383,6 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 }
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-	// needs block store
 	heightValue := c.normalizeHeight(height)
 	block, err := c.node.Store.LoadBlock(heightValue)
 	if err != nil {
@@ -671,7 +670,7 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	latestBlockTimeNano := latest.Header.Time
 
 	result := &ctypes.ResultStatus{
-		// TODO(tzdybal): NodeInfo, ValidatorInfo
+		// TODO(tzdybal): NodeInfo
 		SyncInfo: ctypes.SyncInfo{
 			LatestBlockHash:   latestBlockHash[:],
 			LatestAppHash:     latestAppHash[:],
@@ -683,6 +682,9 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			//EarliestBlockHeight: earliestBlockHeight,
 			//EarliestBlockTime:   time.Unix(0, earliestBlockTimeNano),
 			//CatchingUp:          env.ConsensusReactor.WaitSync(),
+		},
+		ValidatorInfo: ctypes.ValidatorInfo{
+			Address: latest.Header.ProposerAddress,
 		},
 	}
 	return result, nil

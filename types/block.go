@@ -35,6 +35,9 @@ type Header struct {
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	ProposerAddress []byte // original proposer of the block
+
+	// Hash of block aggregator set, at a time of block creation
+	AggregatorsHash [32]byte
 }
 
 var _ encoding.BinaryMarshaler = &Header{}

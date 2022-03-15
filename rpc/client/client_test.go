@@ -91,7 +91,8 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
-	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+	signingKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
+	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
 
 	rpc := NewClient(n)
 
@@ -372,6 +373,15 @@ func TestGetBlockByHash(t *testing.T) {
 	block := getRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	require.NoError(err)
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	require.NoError(err)
+
+	height := int64(block.Header.Height)
+	retrievedBlock, err := rpc.Block(context.Background(), &height)
+	require.NoError(err)
+	require.NotNil(retrievedBlock)
+	assert.Equal(abciBlock, retrievedBlock.Block)
+	assert.Equal(abciBlock.Hash(), retrievedBlock.Block.Header.Hash())
 
 	blockHash := block.Header.Hash()
 	blockResp, err := rpc.BlockByHash(context.Background(), blockHash[:])
@@ -391,13 +401,14 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	node, err := node.NewNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
 		}},
-		key, proxy.NewLocalClientCreator(mockApp),
+		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test"},
 		log.TestingLogger())
 	require.NoError(err)
@@ -625,6 +636,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	vKeys := make([]tmcrypto.PrivKey, 4)
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
@@ -636,13 +648,17 @@ func TestValidatorSetHandling(t *testing.T) {
 	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
 	require.NoError(err)
 
+	waitCh := make(chan interface{})
+
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
+		waitCh <- nil
+	})
 
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -652,19 +668,17 @@ func TestValidatorSetHandling(t *testing.T) {
 	err = node.Start()
 	require.NoError(err)
 
-	// test latest block a few times - ensure that validator set from genesis is handled correctly
-	lastHeight := int64(-1)
-	for i := 0; i < 3; i++ {
-		time.Sleep(10 * time.Millisecond)
-		vals, err := rpc.Validators(context.Background(), nil, nil, nil)
+	<-waitCh
+
+	// test first blocks
+	for h := int64(1); h <= 6; h++ {
+		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
 		assert.EqualValues(len(genesisValidators), vals.Total)
 		assert.Len(vals.Validators, len(genesisValidators))
-		assert.Greater(vals.BlockHeight, lastHeight)
-		lastHeight = vals.BlockHeight
+		assert.EqualValues(vals.BlockHeight, h)
 	}
-	time.Sleep(100 * time.Millisecond)
 
 	// 6th EndBlock removes first validator from the list
 	for h := int64(7); h <= 8; h++ {
@@ -677,7 +691,8 @@ func TestValidatorSetHandling(t *testing.T) {
 	}
 
 	// 8th EndBlock adds validator back
-	for h := int64(9); h < 12; h++ {
+	for h := int64(9); h <= 12; h++ {
+		<-waitCh
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
@@ -685,6 +700,14 @@ func TestValidatorSetHandling(t *testing.T) {
 		assert.Len(vals.Validators, len(genesisValidators))
 		assert.EqualValues(vals.BlockHeight, h)
 	}
+
+	// check for "latest block"
+	vals, err := rpc.Validators(context.Background(), nil, nil, nil)
+	assert.NoError(err)
+	assert.NotNil(vals)
+	assert.EqualValues(len(genesisValidators), vals.Total)
+	assert.Len(vals.Validators, len(genesisValidators))
+	assert.GreaterOrEqual(vals.BlockHeight, int64(12))
 }
 
 // copy-pasted from store/store_test.go
@@ -754,7 +777,8 @@ func getRPC(t *testing.T) (*mocks.Application, *Client) {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -813,6 +837,8 @@ func TestMempool2Nodes(t *testing.T) {
 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	id1, err := peer.IDFromPrivateKey(key1)
 	require.NoError(err)
@@ -822,7 +848,7 @@ func TestMempool2Nodes(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
-	}, key1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -832,7 +858,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
