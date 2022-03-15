@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.1.2 | 15.03.2022
+
+Special cherry-pick release to resolve [#323](https://github.com/celestiaorg/optimint/issues/323).
+
+### IMPROVEMENTS
+- Add ProposerAddress as ValidatorInfo.Adress in Status rpc ([#319](https://github.com/celestiaorg/optimint/pull/319)) [@jbowen93](https://github.com/jbowen93)
+
 ## v0.1.1 | 08.03.2022
 
 Minor bugfix release, to ensure that Optimint uses the same version of gRPC as Cosmos SDK.
