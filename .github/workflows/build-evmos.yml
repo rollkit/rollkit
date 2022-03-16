@@ -44,9 +44,14 @@ jobs:
           ref: jbowen93/evmos
       - name: Move Stuff and Tidy
         run: |
+          pwd
+          ls
           mv evmos ..
           mv ethermint ..
           mv ephemeral-cluster ..
+          cd ..
+          pwd
+          ls
           cp -R optimint ethermint
           cd ethermint
           rm -rf .git
