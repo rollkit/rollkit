@@ -1,0 +1,78 @@
+name: docker-build
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - 'main'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: jbowen93/evmos
+
+jobs:
+  build:
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: write 
+      packages: write 
+    steps:
+      - name: "Checkout source code"
+        uses: "actions/checkout@v2"
+      - name: up a level
+        run: cd .. && pwd
+      - name: Clone evmos repo
+        uses: actions/checkout@v2
+        with:
+          repository: jbowen93/evmos
+          path: evmos
+      - name: Clone ethermint repo
+        uses: actions/checkout@v2
+        with:
+          repository: celestiaorg/ethermint
+          path: ethermint
+      - name: Clone ephemeral-cluster repo
+        uses: actions/checkout@v2
+        with:
+          repository: celestiaorg/ephemeral-cluster
+          path: ephemeral-cluster
+          ref: jbowen93/evmos
+      - name: Move Stuff and Tidy
+        run: |
+          mv evmos ..
+          mv ethermint ..
+          mv ephemeral-cluster ..
+          cp -R optimint ethermint
+          cd ethermint
+          rm -rf .git
+          go mod edit -replace=github.com/celestiaorg/optimint=./optimint
+          go mod tidy -compat=1.17 -e
+          cd ..
+          cp -R ethermint evmos
+          cd evmos
+          go mod edit -replace=github.com/tharsis/ethermint=./ethermint
+          go mod tidy -compat=1.17 -e 
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=optimint-
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to GHCR
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: |
+          pwd
+          ./build-image.sh ${{ steps.meta.outputs.tags }}
