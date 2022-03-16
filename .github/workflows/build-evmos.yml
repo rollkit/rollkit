@@ -81,7 +81,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build
-        run: |
-          pwd
-          ./build-image.sh ${{ steps.meta.outputs.tags }}
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: ../evmos
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          file: docker/Dockerfile
+      # - name: Build
+      #   run: |
+      #     pwd
+      #     ./build-image.sh ${{ steps.meta.outputs.tags }}
