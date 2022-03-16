@@ -17,12 +17,13 @@ import (
 )
 
 var (
-	blockPrefix      = [1]byte{1}
-	indexPrefix      = [1]byte{2}
-	commitPrefix     = [1]byte{3}
-	statePrefix      = [1]byte{4}
-	responsesPrefix  = [1]byte{5}
-	validatorsPrefix = [1]byte{6}
+	blockPrefix           = [1]byte{1}
+	indexPrefix           = [1]byte{2}
+	commitPrefix          = [1]byte{3}
+	statePrefix           = [1]byte{4}
+	responsesPrefix       = [1]byte{5}
+	validatorsPrefix      = [1]byte{6}
+	consensusParamsPrefix = [1]byte{7}
 )
 
 // DefaultStore is a default store implmementation.
@@ -209,6 +210,29 @@ func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, err
 	return tmtypes.ValidatorSetFromProto(&pbValSet)
 }
 
+func (s *DefaultStore) SaveConsensusParams(height uint64, params *tmproto.ConsensusParams) error {
+	blob, err := params.Marshal()
+	if err != nil {
+		return err
+	}
+
+	return s.db.Set(getConsesusParamsKey(height), blob)
+}
+
+func (s *DefaultStore) LoadConsensusParams(height uint64) (*tmproto.ConsensusParams, error) {
+	blob, err := s.db.Get(getConsesusParamsKey(height))
+	if err != nil {
+		return nil, err
+	}
+	var consensusParams *tmproto.ConsensusParams
+
+	err = consensusParams.Unmarshal(blob)
+	if err != nil {
+		return nil, err
+	}
+	return consensusParams, nil
+}
+
 func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
 	blob, err := s.db.Get(getIndexKey(height))
 
@@ -251,4 +275,10 @@ func getValidatorsKey(height uint64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, height)
 	return append(validatorsPrefix[:], buf[:]...)
+}
+
+func getConsesusParamsKey(height uint64) []byte {
+	buf := make([]byte, 0, 8)
+	binary.BigEndian.PutUint64(buf, height)
+	return append(consensusParamsPrefix[:], buf[:]...)
 }

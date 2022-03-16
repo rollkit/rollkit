@@ -353,10 +353,15 @@ func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusSta
 }
 
 func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/optimint/issues/291
-	params := c.node.GetGenesis().ConsensusParams
+
+	h := c.normalizeHeight(height)
+	params, err := c.node.Store.LoadConsensusParams(h)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ctypes.ResultConsensusParams{
-		BlockHeight: int64(c.normalizeHeight(height)),
+		BlockHeight: int64(h),
 		ConsensusParams: tmproto.ConsensusParams{
 			Block: tmproto.BlockParams{
 				MaxBytes:   params.Block.MaxBytes,
@@ -376,6 +381,7 @@ func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.Re
 			},
 		},
 	}, nil
+
 }
 
 func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {

@@ -553,6 +553,27 @@ func TestConsensusState(t *testing.T) {
 	assert.ErrorIs(err, ErrConsensusStateNotAvailable)
 }
 
+func TestConsensusParams(t *testing.T) {
+	/*require := require.New(t)
+	//assert := assert.New(t)
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(3)
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ConsensusParamUpdates: &abci.ConsensusParams{
+		Block:     &abci.BlockParams{},
+		Evidence:  &tmproto.EvidenceParams{},
+		Validator: &tmproto.ValidatorParams{},
+		Version:   &tmproto.VersionParams{},
+	}}).Once()
+
+	err := rpc.node.Start()
+	require.NoError(err)*/
+
+	panic("todo")
+}
+
 func TestBlockchainInfo(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)

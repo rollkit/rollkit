@@ -2,6 +2,7 @@ package store
 
 import (
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/state"
@@ -41,4 +42,8 @@ type Store interface {
 	SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error
 
 	LoadValidators(height uint64) (*tmtypes.ValidatorSet, error)
+
+	SaveConsensusParams(height uint64, params *tmproto.ConsensusParams) error
+
+	LoadConsensusParams(height uint64) (*tmproto.ConsensusParams, error)
 }
