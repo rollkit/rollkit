@@ -87,7 +87,7 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          file: docker/Dockerfile
+          file: evmos/docker/Dockerfile
       # - name: Build
       #   run: |
       #     pwd
