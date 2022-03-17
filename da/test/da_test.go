@@ -66,24 +66,25 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	// only blocks b1 and b2 will be submitted to DA
 	b1 := getRandomBlock(1, 10)
 	b2 := getRandomBlock(2, 10)
-	b3 := getRandomBlock(1, 10)
 
 	resp := dalc.SubmitBlock(b1)
+	h1 := resp.DataLayerHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	resp = dalc.SubmitBlock(b2)
+	h2 := resp.DataLayerHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
-	check := dalc.CheckBlockAvailability(&b1.Header)
+	check := dalc.CheckBlockAvailability(h1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	check = dalc.CheckBlockAvailability(&b2.Header)
+	check = dalc.CheckBlockAvailability(h2)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	// this block was never submitted to DA
-	check = dalc.CheckBlockAvailability(&b3.Header)
+	// this height should not be used by DALC
+	check = dalc.CheckBlockAvailability(42)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.False(check.DataAvailable)
 }
@@ -132,9 +133,10 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		resp := dalc.SubmitBlock(b)
 		assert.Equal(da.StatusSuccess, resp.Code)
 
-		ret := retriever.RetrieveBlock(i)
+		ret := retriever.RetrieveBlocks(resp.DataLayerHeight)
 		assert.Equal(da.StatusSuccess, ret.Code)
-		assert.Equal(b, ret.Block)
+		require.NotEmpty(ret.Blocks)
+		assert.Equal(b, ret.Blocks[0])
 	}
 }
 

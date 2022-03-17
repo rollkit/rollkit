@@ -25,6 +25,8 @@ type DAResult struct {
 	Code StatusCode
 	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
 	Message string
+	// DataLayerHeight informs about a height on Data Availability Layer for given result.
+	DataLayerHeight uint64
 }
 
 // ResultSubmitBlock contains information returned from DA layer after block submission.
@@ -47,7 +49,7 @@ type ResultRetrieveBlock struct {
 	DAResult
 	// Block is the full block retrieved from Data Availability Layer.
 	// If Code is not equal to StatusSuccess, it has to be nil.
-	Block *types.Block
+	Blocks []*types.Block
 }
 
 // DataAvailabilityLayerClient defines generic interface for DA layer block submission.
@@ -65,12 +67,12 @@ type DataAvailabilityLayerClient interface {
 	SubmitBlock(block *types.Block) ResultSubmitBlock
 
 	// CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-	CheckBlockAvailability(header *types.Header) ResultCheckBlock
+	CheckBlockAvailability(dataLayerHeight uint64) ResultCheckBlock
 }
 
 // BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
 // block data from DA layer. This gives the ability to use it for block synchronization.
 type BlockRetriever interface {
-	// RetrieveBlock returns block at given height from data availability layer.
-	RetrieveBlock(height uint64) ResultRetrieveBlock
+	// RetrieveBlocks returns blocks at given data layer height from data availability layer.
+	RetrieveBlocks(dataLayerHeight uint64) ResultRetrieveBlock
 }
