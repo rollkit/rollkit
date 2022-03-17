@@ -229,10 +229,12 @@ func (m *Manager) mustRetrieveBlock(ctx context.Context, height uint64) {
 
 func (m *Manager) fetchBlock(ctx context.Context, height uint64) error {
 	var err error
-	blockRes := m.retriever.RetrieveBlock(height)
+	blockRes := m.retriever.RetrieveBlocks(height)
 	switch blockRes.Code {
 	case da.StatusSuccess:
-		m.blockInCh <- blockRes.Block
+		for _, block := range blockRes.Blocks {
+			m.blockInCh <- block
+		}
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
 	case da.StatusTimeout:

@@ -75,12 +75,16 @@ func (d *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 		}
 	}
 	return da.ResultSubmitBlock{
-		DAResult: da.DAResult{Code: da.StatusCode(resp.Result.Code), Message: resp.Result.Message},
+		DAResult: da.DAResult{
+			Code:            da.StatusCode(resp.Result.Code),
+			Message:         resp.Result.Message,
+			DataLayerHeight: resp.Result.DataLayerHeight,
+		},
 	}
 }
 
-func (d *DataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
-	resp, err := d.client.CheckBlockAvailability(context.TODO(), &dalc.CheckBlockAvailabilityRequest{Header: header.ToProto()})
+func (d *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
+	resp, err := d.client.CheckBlockAvailability(context.TODO(), &dalc.CheckBlockAvailabilityRequest{DataLayerHeight: dataLayerHeight})
 	if err != nil {
 		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -90,19 +94,23 @@ func (d *DataAvailabilityLayerClient) CheckBlockAvailability(header *types.Heade
 	}
 }
 
-func (d *DataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
-	resp, err := d.client.RetrieveBlock(context.TODO(), &dalc.RetrieveBlockRequest{Height: height})
+func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlock {
+	resp, err := d.client.RetrieveBlocks(context.TODO(), &dalc.RetrieveBlocksRequest{DataLayerHeight: dataLayerHeight})
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	var b types.Block
-	err = b.FromProto(resp.Block)
-	if err != nil {
-		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+	blocks := make([]*types.Block, len(resp.Blocks))
+	for i, block := range resp.Blocks {
+		var b types.Block
+		err = b.FromProto(block)
+		if err != nil {
+			return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+		}
+		blocks[i] = &b
 	}
 	return da.ResultRetrieveBlock{
 		DAResult: da.DAResult{Code: da.StatusCode(resp.Result.Code), Message: resp.Result.Message},
-		Block:    &b,
+		Blocks:   blocks,
 	}
 }

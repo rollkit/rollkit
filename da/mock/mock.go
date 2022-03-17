@@ -3,6 +3,7 @@ package mock
 import (
 	"encoding/binary"
 	"errors"
+	"sync/atomic"
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
@@ -13,8 +14,9 @@ import (
 // MockDataAvailabilityLayerClient is intended only for usage in tests.
 // It does actually ensures DA - it stores data in-memory.
 type MockDataAvailabilityLayerClient struct {
-	logger log.Logger
-	dalcKV store.KVStore
+	logger   log.Logger
+	dalcKV   store.KVStore
+	daHeight uint64
 }
 
 var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
@@ -43,7 +45,8 @@ func (m *MockDataAvailabilityLayerClient) Stop() error {
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
 func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
-	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height)
+	height := atomic.AddUint64(&m.daHeight, 1)
+	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height, "dataLayerHeight", height)
 
 	hash := block.Header.Hash()
 	blob, err := block.MarshalBinary()
@@ -51,7 +54,8 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	err = m.dalcKV.Set(getKey(block.Header.Height), hash[:])
+	// TODO(tzdybal): more than one optimint block per "mock" DA height
+	err = m.dalcKV.Set(getKey(height), hash[:])
 	if err != nil {
 		return da.ResultSubmitBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -62,16 +66,23 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 
 	return da.ResultSubmitBlock{
 		DAResult: da.DAResult{
-			Code:    da.StatusSuccess,
-			Message: "OK",
+			Code:            da.StatusSuccess,
+			Message:         "OK",
+			DataLayerHeight: height,
 		},
 	}
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.Header) da.ResultCheckBlock {
-	hash := header.Hash()
-	_, err := m.dalcKV.Get(hash[:])
+func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
+	hash, err := m.dalcKV.Get(getKey(dataLayerHeight))
+	if errors.Is(err, store.ErrKeyNotFound) {
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
+	}
+	if err != nil {
+		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}, DataAvailable: false}
+	}
+	_, err = m.dalcKV.Get(hash[:])
 	if errors.Is(err, store.ErrKeyNotFound) {
 		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: false}
 	}
@@ -81,9 +92,9 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(header *types.H
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, DataAvailable: true}
 }
 
-// RetrieveBlock returns block at given height from data availability layer.
-func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.ResultRetrieveBlock {
-	hash, err := m.dalcKV.Get(getKey(height))
+// RetrieveBlocks returns block at given height from data availability layer.
+func (m *MockDataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlock {
+	hash, err := m.dalcKV.Get(getKey(dataLayerHeight))
 	if err != nil {
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -98,7 +109,7 @@ func (m *MockDataAvailabilityLayerClient) RetrieveBlock(height uint64) da.Result
 		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Block: block}
+	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Blocks: []*types.Block{block}}
 }
 
 func getKey(height uint64) []byte {
