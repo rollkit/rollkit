@@ -46,7 +46,6 @@ jobs:
           ls
           mv evmos ..
           mv ethermint ..
-          mv ephemeral-cluster ..
           cd ..
           cp -R optimint ethermint
           cd ethermint
