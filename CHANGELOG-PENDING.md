@@ -9,6 +9,8 @@
 
 ### FEATURES
 
+- Add GH action to create commit sha tagged evmos docker image using pushed version of optimint ([#331](https://github.com/celestiaorg/optimint/pull/331)) [@jbowen93](https://github.com/jbowen93)
+
 ### IMPROVEMENTS
 
 ### BUG FIXES
