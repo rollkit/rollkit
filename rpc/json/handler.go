@@ -32,7 +32,7 @@ func newHandler(s *service, codec rpc.Codec, logger log.Logger) *handler {
 	}
 
 	mux.HandleFunc("/", h.serveJSONRPC)
-	// mux.HandleFunc("/websocket", h.wsHandler)
+	mux.HandleFunc("/websocket", h.wsHandler)
 	for name, method := range s.methods {
 		logger.Debug("registering method", "name", name)
 		mux.HandleFunc("/"+name, h.newHandler(method))
