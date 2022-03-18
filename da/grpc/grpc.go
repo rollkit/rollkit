@@ -110,7 +110,11 @@ func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 		blocks[i] = &b
 	}
 	return da.ResultRetrieveBlock{
-		DAResult: da.DAResult{Code: da.StatusCode(resp.Result.Code), Message: resp.Result.Message},
-		Blocks:   blocks,
+		DAResult: da.DAResult{
+			Code:            da.StatusCode(resp.Result.Code),
+			Message:         resp.Result.Message,
+			DataLayerHeight: dataLayerHeight,
+		},
+		Blocks: blocks,
 	}
 }
