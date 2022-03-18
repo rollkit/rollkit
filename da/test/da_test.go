@@ -136,7 +136,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		ret := retriever.RetrieveBlocks(resp.DataLayerHeight)
 		assert.Equal(da.StatusSuccess, ret.Code)
 		require.NotEmpty(ret.Blocks)
-		assert.Equal(b, ret.Blocks[0])
+		assert.Contains(ret.Blocks, b)
 	}
 }
 
