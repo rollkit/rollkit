@@ -11,4 +11,6 @@
 
 ### IMPROVEMENTS
 
+- docs: Create contributing guide ([#140](https://github.com/celestiaorg/optimint/pull/333)) [@mauriceLC92](https://github.com/mauriceLC92)
+
 ### BUG FIXES
