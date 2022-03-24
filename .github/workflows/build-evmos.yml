@@ -24,7 +24,7 @@ jobs:
       packages: write 
     steps:
       - name: "Checkout source code"
-        uses: "actions/checkout@v2"
+        uses: "actions/checkout@v3"
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
@@ -32,12 +32,12 @@ jobs:
       - name: up a level
         run: cd .. && pwd
       - name: Clone evmos repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: jbowen93/evmos
           path: evmos
       - name: Clone ethermint repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: celestiaorg/ethermint
           path: ethermint
