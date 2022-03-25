@@ -3,7 +3,6 @@ package block
 import (
 	"context"
 	"fmt"
-	"go.uber.org/multierr"
 	"sync/atomic"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"

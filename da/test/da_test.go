@@ -1,11 +1,6 @@
 package test
 
 import (
-	grpcda "github.com/celestiaorg/optimint/da/grpc"
-	"github.com/celestiaorg/optimint/da/grpc/mockserv"
-	"github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/store"
-	"google.golang.org/grpc"
 	"math/rand"
 	"net"
 	"strconv"
@@ -14,10 +9,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/optimint/da"
+	grpcda "github.com/celestiaorg/optimint/da/grpc"
+	"github.com/celestiaorg/optimint/da/grpc/mockserv"
+	"github.com/celestiaorg/optimint/da/mock"
 	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/log/test"
+	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
 
