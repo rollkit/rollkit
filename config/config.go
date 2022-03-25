@@ -33,6 +33,7 @@ type NodeConfig struct {
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
 type BlockManagerConfig struct {
 	BlockTime   time.Duration `mapstructure:"block_time"`
+	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	NamespaceID [8]byte       `mapstructure:"namespace_id"`
 }
 
