@@ -45,7 +45,7 @@ type ResultCheckBlock struct {
 	DataAvailable bool
 }
 
-type ResultRetrieveBlock struct {
+type ResultRetrieveBlocks struct {
 	DAResult
 	// Block is the full block retrieved from Data Availability Layer.
 	// If Code is not equal to StatusSuccess, it has to be nil.
@@ -74,5 +74,5 @@ type DataAvailabilityLayerClient interface {
 // block data from DA layer. This gives the ability to use it for block synchronization.
 type BlockRetriever interface {
 	// RetrieveBlocks returns blocks at given data layer height from data availability layer.
-	RetrieveBlocks(dataLayerHeight uint64) ResultRetrieveBlock
+	RetrieveBlocks(dataLayerHeight uint64) ResultRetrieveBlocks
 }
