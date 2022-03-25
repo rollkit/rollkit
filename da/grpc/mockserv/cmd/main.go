@@ -24,7 +24,7 @@ func main() {
 		log.Panic(err)
 	}
 	log.Println("Listening on:", lis.Addr())
-	srv := mockserv.GetServer(kv, conf)
+	srv := mockserv.GetServer(kv, conf, nil)
 	if err := srv.Serve(lis); err != nil {
 		log.Println("error while serving:", err)
 	}

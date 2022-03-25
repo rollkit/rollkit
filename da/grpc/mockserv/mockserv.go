@@ -15,14 +15,19 @@ import (
 	"github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
-func GetServer(kv store.KVStore, conf grpcda.Config) *grpc.Server {
+func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Server {
 	logger := tmlog.NewTMLogger(os.Stdout)
 
 	srv := grpc.NewServer()
 	mockImpl := &mockImpl{}
-	err := mockImpl.mock.Init(nil, kv, logger)
+	err := mockImpl.mock.Init(mockConfig, kv, logger)
 	if err != nil {
 		logger.Error("failed to initialize mock DALC", "error", err)
+		panic(err)
+	}
+	err = mockImpl.mock.Start()
+	if err != nil {
+		logger.Error("failed to start mock DALC", "error", err)
 		panic(err)
 	}
 	dalc.RegisterDALCServiceServer(srv, mockImpl)
