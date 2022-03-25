@@ -94,10 +94,10 @@ func (d *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 	}
 }
 
-func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlock {
+func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	resp, err := d.client.RetrieveBlocks(context.TODO(), &dalc.RetrieveBlocksRequest{DataLayerHeight: dataLayerHeight})
 	if err != nil {
-		return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
 	blocks := make([]*types.Block, len(resp.Blocks))
@@ -105,11 +105,11 @@ func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 		var b types.Block
 		err = b.FromProto(block)
 		if err != nil {
-			return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+			return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 		}
 		blocks[i] = &b
 	}
-	return da.ResultRetrieveBlock{
+	return da.ResultRetrieveBlocks{
 		DAResult: da.DAResult{
 			Code:            da.StatusCode(resp.Result.Code),
 			Message:         resp.Result.Message,
