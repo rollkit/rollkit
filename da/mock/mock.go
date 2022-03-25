@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"sync/atomic"
+	"time"
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/log"
@@ -17,6 +18,13 @@ type MockDataAvailabilityLayerClient struct {
 	logger   log.Logger
 	dalcKV   store.KVStore
 	daHeight uint64
+	config   Config
+}
+
+const DefaultBlockTime = 3 * time.Second
+
+type Config struct {
+	BlockTime time.Duration
 }
 
 var _ da.DataAvailabilityLayerClient = &MockDataAvailabilityLayerClient{}
@@ -27,12 +35,27 @@ func (m *MockDataAvailabilityLayerClient) Init(config []byte, dalcKV store.KVSto
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1
+	if len(config) > 0 {
+		var err error
+		m.config.BlockTime, err = time.ParseDuration(string(config))
+		if err != nil {
+			return err
+		}
+	} else {
+		m.config.BlockTime = DefaultBlockTime
+	}
 	return nil
 }
 
 // Start implements DataAvailabilityLayerClient interface.
 func (m *MockDataAvailabilityLayerClient) Start() error {
 	m.logger.Debug("Mock Data Availability Layer Client starting")
+	go func() {
+		for {
+			time.Sleep(m.config.BlockTime)
+			m.updateDAHeight()
+		}
+	}()
 	return nil
 }
 
@@ -46,7 +69,7 @@ func (m *MockDataAvailabilityLayerClient) Stop() error {
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
 func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
-	daHeight := m.updateDAHeight()
+	daHeight := atomic.LoadUint64(&m.daHeight)
 	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height, "dataLayerHeight", daHeight)
 
 	hash := block.Header.Hash()
@@ -80,7 +103,11 @@ func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight
 }
 
 // RetrieveBlocks returns block at given height from data availability layer.
-func (m *MockDataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlock {
+func (m *MockDataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
+	if dataLayerHeight >= atomic.LoadUint64(&m.daHeight) {
+		return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: "block not found"}}
+	}
+
 	iter := m.dalcKV.PrefixIterator(getPrefix(dataLayerHeight))
 	defer iter.Discard()
 
@@ -90,20 +117,20 @@ func (m *MockDataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64)
 
 		blob, err := m.dalcKV.Get(hash)
 		if err != nil {
-			return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+			return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 		}
 
 		block := &types.Block{}
 		err = block.UnmarshalBinary(blob)
 		if err != nil {
-			return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+			return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
 		}
 		blocks = append(blocks, block)
 
 		iter.Next()
 	}
 
-	return da.ResultRetrieveBlock{DAResult: da.DAResult{Code: da.StatusSuccess}, Blocks: blocks}
+	return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusSuccess}, Blocks: blocks}
 }
 
 func getPrefix(daHeight uint64) []byte {
@@ -119,13 +146,7 @@ func getKey(daHeight uint64, height uint64) []byte {
 	return b
 }
 
-func (m *MockDataAvailabilityLayerClient) updateDAHeight() uint64 {
-	// add between 1 and 10 "DA blocks", every 4 optimint blocks (on average)
-	// this is mock. numbers are arbitrary
-	blockStep := uint64(0)
-	if rand.Uint64()%4 == 0 {
-		blockStep = rand.Uint64()%10 + 1
-	}
-	height := atomic.AddUint64(&m.daHeight, blockStep)
-	return height
+func (m *MockDataAvailabilityLayerClient) updateDAHeight() {
+	blockStep := rand.Uint64()%10 + 1
+	atomic.AddUint64(&m.daHeight, blockStep)
 }
