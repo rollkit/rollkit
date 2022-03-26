@@ -57,12 +57,12 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	hash := block.Header.Hash()
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
-		return err
+		return fmt.Errorf("error encoding Block into binary form: %w", err)
 	}
 
 	commitBlob, err := commit.MarshalBinary()
 	if err != nil {
-		return err
+		return fmt.Errorf("error encoding Commit into binary form: %w", err)
 	}
 
 	s.mtx.Lock()
@@ -79,7 +79,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	}
 
 	if err = bb.Commit(); err != nil {
-		return err
+		return fmt.Errorf("error committing a transaction: %w", err)
 	}
 
 	if block.Header.Height > s.height {
@@ -96,7 +96,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
 	h, err := s.loadHashFromIndex(height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error loading hash from index: %w", err)
 	}
 	return s.LoadBlockByHash(h)
 }
@@ -120,7 +120,7 @@ func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
 func (s *DefaultStore) SaveBlockResponses(height uint64, responses *tmstate.ABCIResponses) error {
 	data, err := responses.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling response: %w", err)
 	}
 	return s.db.Set(getResponsesKey(height), data)
 }
@@ -129,18 +129,18 @@ func (s *DefaultStore) SaveBlockResponses(height uint64, responses *tmstate.ABCI
 func (s *DefaultStore) LoadBlockResponses(height uint64) (*tmstate.ABCIResponses, error) {
 	data, err := s.db.Get(getResponsesKey(height))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving block results from height %v: %w", height, err)
 	}
 	var responses tmstate.ABCIResponses
 	err = responses.Unmarshal(data)
-	return &responses, err
+	return &responses, fmt.Errorf("error unmarshalling data: %w", err)
 }
 
 // LoadCommit returns commit for a block at given height, or error if it's not found in Store.
 func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 	hash, err := s.loadHashFromIndex(height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error loading hash from index: %w", err)
 	}
 	return s.LoadCommitByHash(hash)
 }
@@ -149,11 +149,11 @@ func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 	commitData, err := s.db.Get(getCommitKey(hash))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving commit from hash %v: %w", hash, err)
 	}
 	commit := new(types.Commit)
 	err = commit.UnmarshalBinary(commitData)
-	return commit, err
+	return commit, fmt.Errorf("error decoding binary data of Commit into object: %w", err)
 }
 
 // UpdateState updates state saved in Store. Only one State is stored.
@@ -161,7 +161,7 @@ func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 func (s *DefaultStore) UpdateState(state state.State) error {
 	blob, err := json.Marshal(state)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling state into JSON encoding: %w", err)
 	}
 	return s.db.Set(getStateKey(), blob)
 }
@@ -172,24 +172,24 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 
 	blob, err := s.db.Get(getStateKey())
 	if err != nil {
-		return state, err
+		return state, fmt.Errorf("error marshalling state into JSON encoding: %w", err)
 	}
 
 	err = json.Unmarshal(blob, &state)
 	s.mtx.Lock()
 	s.height = uint64(state.LastBlockHeight)
 	s.mtx.Unlock()
-	return state, err
+	return state, fmt.Errorf("error unmarshalling state from JSON encoding: %w", err)
 }
 
 func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {
 	pbValSet, err := validatorSet.ToProto()
 	if err != nil {
-		return err
+		return fmt.Errorf("error converting ValidatorSet to protobuf: %w", err)
 	}
 	blob, err := pbValSet.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling ValidatorSet: %w", err)
 	}
 
 	return s.db.Set(getValidatorsKey(height), blob)
@@ -198,12 +198,12 @@ func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.Valid
 func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, error) {
 	blob, err := s.db.Get(getValidatorsKey(height))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error loading Validators by height %v: %w", height, err)
 	}
 	var pbValSet tmproto.ValidatorSet
 	err = pbValSet.Unmarshal(blob)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshalling protobuf ValidatorSet: %w", err)
 	}
 
 	return tmtypes.ValidatorSetFromProto(&pbValSet)
@@ -214,7 +214,7 @@ func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
 
 	var hash [32]byte
 	if err != nil {
-		return hash, err
+		return hash, fmt.Errorf("error loading hash by height %v: %w", height, err)
 	}
 	if len(blob) != len(hash) {
 		return hash, errors.New("invalid hash length")
