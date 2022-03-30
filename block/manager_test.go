@@ -29,10 +29,21 @@ func TestInitialState(t *testing.T) {
 		LastBlockHeight: 128,
 	}
 
+	anotherState := state.State{
+		ChainID:         "state id",
+		InitialHeight:   150,
+		LastBlockHeight: 159,
+		ConsensusParams: *types.DefaultConsensusParams(),
+	}
+
 	emptyStore := store.New(store.NewDefaultInMemoryKVStore())
 
 	fullStore := store.New(store.NewDefaultInMemoryKVStore())
 	err := fullStore.UpdateState(sampleState)
+	require.NoError(t, err)
+
+	anotherStore := store.New(store.NewDefaultInMemoryKVStore())
+	err = anotherStore.UpdateState(anotherState)
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -58,6 +69,14 @@ func TestInitialState(t *testing.T) {
 			expectedInitialHeight:   sampleState.InitialHeight,
 			expectedLastBlockHeight: sampleState.LastBlockHeight,
 			expectedChainID:         sampleState.ChainID,
+		},
+		{
+			name:                    "consensus params in store",
+			store:                   anotherStore,
+			genesis:                 genesis,
+			expectedInitialHeight:   anotherState.InitialHeight,
+			expectedLastBlockHeight: anotherState.LastBlockHeight,
+			expectedChainID:         anotherState.ChainID,
 		},
 	}
 

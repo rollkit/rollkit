@@ -188,6 +188,13 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 					continue
 				}
 				delete(m.syncCache, currentHeight+1)
+
+				cparams := m.lastState.ConsensusParams
+				err = m.store.SaveConsensusParams(block.Header.Height, &cparams)
+				if err != nil {
+					m.logger.Error("failed to save updated consensus params", "error", err)
+					continue
+				}
 			}
 		case <-ctx.Done():
 			return
@@ -312,6 +319,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	if err != nil {
+		return err
+	}
+
+	cparams := m.lastState.ConsensusParams
+	err = m.store.SaveConsensusParams(block.Header.Height, &cparams)
 	if err != nil {
 		return err
 	}
