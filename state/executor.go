@@ -87,7 +87,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
-	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
+	mempoolTxs := e.mempool.ReapOneTx(maxBytes, maxGas)
 
 	block := &types.Block{
 		Header: types.Header{

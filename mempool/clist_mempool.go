@@ -549,6 +549,38 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 }
 
 // Safe for concurrent use by multiple goroutines.
+// Used in Microblocks implementation
+func (mem *CListMempool) ReapOneTx(maxBytes, maxGas int64) types.Txs {
+	mem.updateMtx.RLock()
+	defer mem.updateMtx.RUnlock()
+
+	var totalGas int64
+
+	txs := make([]types.Tx, 0, mem.txs.Len())
+	e := mem.txs.Front()
+	if e != nil {
+		memTx := e.Value.(*MempoolTx)
+
+		dataSize := types.ComputeProtoSizeForTxs(append(txs, memTx.Tx))
+
+		// Check total size requirement
+		if maxBytes > -1 && dataSize > maxBytes {
+			return txs
+		}
+		// Check total gas requirement.
+		// If maxGas is negative, skip this check.
+		// Since newTotalGas < masGas, which
+		// must be non-negative, it follows that this won't overflow.
+		newTotalGas := totalGas + memTx.gasWanted
+		if maxGas > -1 && newTotalGas > maxGas {
+			return txs
+		}
+		txs = append(txs, memTx.Tx)
+	}
+	return txs
+}
+
+// Safe for concurrent use by multiple goroutines.
 func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 	mem.updateMtx.RLock()
 	defer mem.updateMtx.RUnlock()
