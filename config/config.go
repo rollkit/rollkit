@@ -32,7 +32,9 @@ type NodeConfig struct {
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
 type BlockManagerConfig struct {
-	BlockTime   time.Duration `mapstructure:"block_time"`
+	// BlockTime defines how often new blocks are produced
+	BlockTime time.Duration `mapstructure:"block_time"`
+	// DABlockTime informs about block time of underlying data availability layer
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	NamespaceID [8]byte       `mapstructure:"namespace_id"`
 }

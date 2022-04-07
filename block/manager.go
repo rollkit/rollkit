@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
+// defaultDABlockTime is used only if DABlockTime is not configured for manager
 const defaultDABlockTime = 30 * time.Second
 
 // Manager is responsible for aggregating transactions into blocks.
@@ -212,7 +213,6 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				delete(m.syncCache, currentHeight+1)
 			}
 		case <-ctx.Done():
-			m.logger.Debug("exiting SyncLoop")
 			return
 		}
 	}
