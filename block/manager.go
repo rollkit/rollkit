@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -46,8 +47,12 @@ type Manager struct {
 
 	syncTarget uint64
 	blockInCh  chan *types.Block
-	retrieveCh chan interface{}
 	syncCache  map[uint64]*types.Block
+
+	// retrieveMtx is used by retrieveCond
+	retrieveMtx *sync.Mutex
+	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
+	retrieveCond *sync.Cond
 
 	logger log.Logger
 }
@@ -110,13 +115,15 @@ func NewManager(
 		dalc:        dalc,
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
-		HeaderOutCh: make(chan *types.Header, 10),
+		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
+		HeaderOutCh: make(chan *types.Header, 100),
 		HeaderInCh:  make(chan *types.Header, 100),
 		blockInCh:   make(chan *types.Block, 100),
-		retrieveCh:  make(chan interface{}, 1000),
+		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
 		logger:      logger,
 	}
+	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
 	return agg, nil
 }
@@ -156,7 +163,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 	for {
 		select {
 		case <-daTicker.C:
-			m.retrieveCh <- nil
+			m.retrieveCond.Signal()
 		case header := <-m.HeaderInCh:
 			m.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
 			newHeight := header.Height
@@ -166,7 +173,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			// it's handled gently in RetrieveLoop
 			if newHeight > currentHeight {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
-				m.retrieveCh <- nil
+				m.retrieveCond.Signal()
 			}
 		case block := <-m.blockInCh:
 			m.logger.Debug("block body retrieved from DALC",
@@ -174,7 +181,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"hash", block.Hash(),
 			)
 			m.syncCache[block.Header.Height] = block
-			m.retrieveCh <- nil
+			m.retrieveCond.Signal()
 			currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
 			b1, ok1 := m.syncCache[currentHeight+1]
 			b2, ok2 := m.syncCache[currentHeight+2]
@@ -204,7 +211,6 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				}
 				delete(m.syncCache, currentHeight+1)
 			}
-			m.logger.Debug("tzdybal", "len", len(m.blockInCh))
 		case <-ctx.Done():
 			m.logger.Debug("exiting SyncLoop")
 			return
@@ -214,9 +220,25 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
+	// waitCh is used to signal the retrieve loop, that it should process next blocks
+	// retrieveCond can be signalled in completely async manner, and goroutine below
+	// works as some kind of "buffer" for those signals
+	waitCh := make(chan interface{})
+	go func() {
+		for {
+			m.retrieveMtx.Lock()
+			m.retrieveCond.Wait()
+			waitCh <- nil
+			m.retrieveMtx.Unlock()
+			if ctx.Err() != nil {
+				return
+			}
+		}
+	}()
+
 	for {
 		select {
-		case <-m.retrieveCh:
+		case <-waitCh:
 			for {
 				daHeight := atomic.LoadUint64(&m.daHeight)
 				m.logger.Debug("retrieve", "daHeight", daHeight)
