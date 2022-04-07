@@ -36,7 +36,7 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, nil, test.NewTestLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -65,7 +65,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
-	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), &test.TestLogger{T: t})
+	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -139,7 +139,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
-	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), &test.TestLogger{T: t})
+	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
