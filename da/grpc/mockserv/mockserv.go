@@ -2,7 +2,6 @@ package mockserv
 
 import (
 	"context"
-	"os"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
@@ -16,7 +15,8 @@ import (
 )
 
 func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Server {
-	logger := tmlog.NewTMLogger(os.Stdout)
+	// TODO(tzdybal): pass log logger config (level, format, trace)
+	logger := tmlog.MustNewDefaultLogger(tmlog.LogFormatText, "DEBUG", false)
 
 	srv := grpc.NewServer()
 	mockImpl := &mockImpl{}

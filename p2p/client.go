@@ -3,10 +3,12 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p"
+	"github.com/multiformats/go-multiaddr"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"strings"
 	"time"
 
-	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	cdiscovery "github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -16,8 +18,6 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
@@ -170,10 +170,14 @@ func (c *Client) Addrs() []multiaddr.Multiaddr {
 
 // TODO(tzdybal): move it somewhere
 type PeerConnection struct {
-	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
-	IsOutbound       bool                 `json:"is_outbound"`
-	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
-	RemoteIP         string               `json:"remote_ip"`
+	NodeInfo         tmtypes.NodeInfo `json:"node_info"`
+	IsOutbound       bool             `json:"is_outbound"`
+	ConnectionStatus ConnectionStatus `json:"connection_status"`
+	RemoteIP         string           `json:"remote_ip"`
+}
+
+type ConnectionStatus struct {
+	Duration time.Duration
 }
 
 func (c *Client) Peers() []PeerConnection {
@@ -181,14 +185,14 @@ func (c *Client) Peers() []PeerConnection {
 	res := make([]PeerConnection, 0, len(conns))
 	for _, conn := range conns {
 		pc := PeerConnection{
-			NodeInfo: p2p.DefaultNodeInfo{
-				ListenAddr:    c.conf.ListenAddress,
-				Network:       c.chainID,
-				DefaultNodeID: p2p.ID(conn.RemotePeer().String()),
+			NodeInfo: tmtypes.NodeInfo{
+				ListenAddr: c.conf.ListenAddress,
+				Network:    c.chainID,
+				NodeID:     tmtypes.NodeID(conn.RemotePeer().String()),
 				// TODO(tzdybal): fill more fields
 			},
 			IsOutbound: conn.Stat().Direction == network.DirOutbound,
-			ConnectionStatus: p2p.ConnectionStatus{
+			ConnectionStatus: ConnectionStatus{
 				Duration: time.Since(conn.Stat().Opened),
 				// TODO(tzdybal): fill more fields
 			},

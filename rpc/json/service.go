@@ -12,7 +12,7 @@ import (
 	"github.com/tendermint/tendermint/libs/pubsub"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ctypes "github.com/tendermint/tendermint/rpc/coretypes"
 
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/rpc/client"
@@ -120,7 +120,7 @@ func (s *service) Subscribe(req *http.Request, args *SubscribeArgs, wsConn *wsCo
 				if wsConn != nil {
 					wsConn.queue <- data
 				}
-			case <-sub.Cancelled():
+			case <-sub.Canceled():
 				if sub.Err() != pubsub.ErrUnsubscribed {
 					var reason string
 					if sub.Err() == nil {

@@ -5,8 +5,7 @@ import (
 	"fmt"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-
-	"github.com/tendermint/tendermint/p2p"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 var (
@@ -15,7 +14,7 @@ var (
 )
 
 // GetNodeKey creates libp2p private key from Tendermints NodeKey.
-func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
+func GetNodeKey(nodeKey *tmtypes.NodeKey) (crypto.PrivKey, error) {
 	if nodeKey == nil || nodeKey.PrivKey == nil {
 		return nil, errNilKey
 	}

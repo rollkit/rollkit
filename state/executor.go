@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
@@ -26,7 +26,7 @@ type BlockExecutor struct {
 	proposerAddress []byte
 	namespaceID     [8]byte
 	chainID         string
-	proxyApp        proxy.AppConnConsensus
+	proxyApp        abciclient.Client
 	mempool         mempool.Mempool
 
 	eventBus *tmtypes.EventBus
@@ -36,12 +36,12 @@ type BlockExecutor struct {
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, appClient abciclient.Client, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		namespaceID:     namespaceID,
 		chainID:         chainID,
-		proxyApp:        proxyApp,
+		proxyApp:        appClient,
 		mempool:         mempool,
 		eventBus:        eventBus,
 		logger:          logger,
@@ -56,11 +56,11 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 		validators[i] = tmtypes.NewValidator(v.PubKey, v.Power)
 	}
 
-	return e.proxyApp.InitChainSync(abci.RequestInitChain{
+	return e.proxyApp.InitChainSync(context.TODO(), abci.RequestInitChain{
 		Time:    genesis.GenesisTime,
 		ChainId: genesis.ChainID,
-		ConsensusParams: &abci.ConsensusParams{
-			Block: &abci.BlockParams{
+		ConsensusParams: &tmproto.ConsensusParams{
+			Block: &tmproto.BlockParams{
 				MaxBytes: params.Block.MaxBytes,
 				MaxGas:   params.Block.MaxGas,
 			},
@@ -216,7 +216,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state State, block *types.Bl
 		return nil, 0, err
 	}
 
-	resp, err := e.proxyApp.CommitSync()
+	resp, err := e.proxyApp.CommitSync(context.TODO())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -288,7 +288,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 	abciHeader.ChainID = e.chainID
 	abciHeader.ValidatorsHash = state.Validators.Hash()
-	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
+	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(context.TODO(),
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
 			Header: abciHeader,
@@ -303,13 +303,13 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 
 	for _, tx := range block.Data.Txs {
-		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
-		if res.GetException() != nil {
+		res, err := e.proxyApp.DeliverTxAsync(context.TODO(), abci.RequestDeliverTx{Tx: tx})
+		if err != nil || res.GetException() != nil {
 			return nil, errors.New(res.GetException().GetError())
 		}
 	}
 
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height)})
+	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(context.TODO(), abci.RequestEndBlock{Height: int64(block.Header.Height)})
 	if err != nil {
 		return nil, err
 	}
@@ -383,8 +383,7 @@ func fromOptimintTxs(optiTxs types.Txs) tmtypes.Txs {
 	return txs
 }
 
-func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
-	params tmproto.ValidatorParams) error {
+func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate, params *tmproto.ValidatorParams) error {
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.GetPower() < 0 {
 			return fmt.Errorf("voting power can't be negative %v", valUpdate)
@@ -400,7 +399,9 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 			return err
 		}
 
-		if !tmtypes.IsValidPubkeyType(params, pk.Type()) {
+		p := tmtypes.ValidatorParams{PubKeyTypes: params.PubKeyTypes}
+
+		if !p.IsValidPubkeyType(pk.Type()) {
 			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
 				valUpdate, pk.Type())
 		}

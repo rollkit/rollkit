@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	mrand "math/rand"
 	"strconv"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
@@ -49,7 +49,8 @@ func TestAggregatorMode(t *testing.T) {
 		BlockTime:   1 * time.Second,
 		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -226,7 +227,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 		},
 		keys[n],
 		signingKey,
-		proxy.NewLocalClientCreator(app),
+		abciclient.NewLocalClient(nil, app),
 		&types.GenesisDoc{ChainID: "test"},
 		log.TestingLogger().With("node", n))
 	require.NoError(err)

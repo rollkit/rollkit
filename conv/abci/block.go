@@ -6,6 +6,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/version"
 
 	"github.com/celestiaorg/optimint/types"
 )
@@ -43,7 +44,7 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 // Caller should fill all the fields that are not available in Optimint header (like ChainID).
 func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 	return tmtypes.Header{
-		Version: tmversion.Consensus{
+		Version: version.Consensus{
 			Block: header.Version.Block,
 			App:   header.Version.App,
 		},

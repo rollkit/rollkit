@@ -21,7 +21,7 @@ var InitStateVersion = tmstate.Version{
 		Block: version.BlockProtocol,
 		App:   0,
 	},
-	Software: version.TMCoreSemVer,
+	Software: version.TMVersion,
 }
 
 // State contains information about current state of the blockchain.
@@ -93,7 +93,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		LastValidators:              types.NewValidatorSet(nil),
 		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
-		ConsensusParams:                  *genDoc.ConsensusParams,
+		ConsensusParams:                  genDoc.ConsensusParams.ToProto(),
 		LastHeightConsensusParamsChanged: genDoc.InitialHeight,
 	}
 	copy(s.AppHash[:], genDoc.AppHash)

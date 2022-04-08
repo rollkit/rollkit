@@ -6,16 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/libp2p/go-libp2p-core/crypto"
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	"go.uber.org/multierr"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
-	corep2p "github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/block"
@@ -23,6 +21,7 @@ import (
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/mempool"
+	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
 	"github.com/celestiaorg/optimint/p2p"
 	"github.com/celestiaorg/optimint/state/indexer"
 	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
@@ -49,8 +48,8 @@ const (
 // It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
-	eventBus *tmtypes.EventBus
-	proxyApp proxy.AppConns
+	eventBus  *tmtypes.EventBus
+	appClient abciclient.Client
 
 	genesis *tmtypes.GenesisDoc
 	// cache of chunked genesis data.
@@ -78,13 +77,7 @@ type Node struct {
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey, signingKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
-	}
-
+func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey, signingKey crypto.PrivKey, appClient abciclient.Client, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
 	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
@@ -123,16 +116,16 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 		return nil, err
 	}
 
-	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient.(types.AppConnMempool), int64(s.Height()))
 	mpIDs := newMempoolIDs()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"))
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	node := &Node{
-		proxyApp:       proxyApp,
+		appClient:      appClient,
 		eventBus:       eventBus,
 		genesis:        genesis,
 		conf:           conf,
@@ -238,6 +231,10 @@ func (n *Node) GetGenisisChunks() []string {
 	return n.genChunks
 }
 
+func (n *Node) AppClient() abciclient.Client {
+	return n.appClient
+}
+
 // OnStop is a part of Service interface.
 func (n *Node) OnStop() {
 	err := n.dalc.Stop()
@@ -265,31 +262,26 @@ func (n *Node) EventBus() *tmtypes.EventBus {
 	return n.eventBus
 }
 
-// ProxyApp returns ABCI proxy connections to communicate with application.
-func (n *Node) ProxyApp() proxy.AppConns {
-	return n.proxyApp
-}
-
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
 // transaction. If the transaction is valid, then it is added to the mempool
 func (n *Node) newTxValidator() p2p.GossipValidator {
 	return func(m *p2p.GossipMessage) bool {
 		n.Logger.Debug("transaction received", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
-		err := n.Mempool.CheckTx(m.Data, func(resp *abci.Response) {
+		err := n.Mempool.CheckTx(context.TODO(), m.Data, func(resp *abci.Response) {
 			checkTxResCh <- resp
 		}, mempool.TxInfo{
-			SenderID:    n.mempoolIDs.GetForPeer(m.From),
-			SenderP2PID: corep2p.ID(m.From),
+			SenderID:     n.mempoolIDs.GetForPeer(m.From),
+			SenderNodeID: tmtypes.NodeID(m.From),
 		})
 		switch {
-		case errors.Is(err, mempool.ErrTxInCache):
+		case errors.Is(err, tmtypes.ErrTxInCache):
 			return true
-		case errors.Is(err, mempool.ErrMempoolIsFull{}):
+		case errors.Is(err, tmtypes.ErrMempoolIsFull{}):
 			return true
-		case errors.Is(err, mempool.ErrTxTooLarge{}):
+		case errors.Is(err, tmtypes.ErrTxTooLarge{}):
 			return false
-		case errors.Is(err, mempool.ErrPreCheck{}):
+		case errors.Is(err, tmtypes.ErrPreCheck{}):
 			return false
 		default:
 		}

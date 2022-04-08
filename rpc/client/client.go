@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/optimint/mempool"
+	abciclient "github.com/tendermint/tendermint/abci/client"
+	"github.com/tendermint/tendermint/version"
 	"sort"
 	"time"
 
@@ -13,14 +16,11 @@ import (
 	tmmath "github.com/tendermint/tendermint/libs/math"
 	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ctypes "github.com/tendermint/tendermint/rpc/coretypes"
 	"github.com/tendermint/tendermint/types"
 
 	abciconv "github.com/celestiaorg/optimint/conv/abci"
-	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/node"
 )
 
@@ -54,7 +54,13 @@ func NewClient(node *node.Node) *Client {
 }
 
 func (c *Client) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := c.query().InfoSync(proxy.RequestInfo)
+	var requestInfo = abci.RequestInfo{
+		Version:      version.TMVersion,
+		BlockVersion: version.BlockProtocol,
+		P2PVersion:   version.P2PProtocol,
+		AbciVersion:  version.ABCIVersion,
+	}
+	resInfo, err := c.query().InfoSync(ctx, requestInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +72,7 @@ func (c *Client) ABCIQuery(ctx context.Context, path string, data tmbytes.HexByt
 }
 
 func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.query().QuerySync(abci.RequestQuery{
+	resQuery, err := c.query().QuerySync(ctx, abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -104,14 +110,18 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Re
 		return nil, err
 	}
 	defer func() {
-		if err := c.EventBus.Unsubscribe(context.Background(), subscriber, q); err != nil {
+		if err := c.EventBus.Unsubscribe(context.Background(), tmpubsub.UnsubscribeArgs{
+			ID:         deliverTxSub.ID(),
+			Subscriber: subscriber,
+			Query:      q,
+		}); err != nil {
 			c.Logger.Error("Error unsubscribing from eventBus", "err", err)
 		}
 	}()
 
 	// add to mempool and wait for CheckTx result
 	checkTxResCh := make(chan *abci.Response, 1)
-	err = c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+	err = c.node.Mempool.CheckTx(ctx, tx, func(res *abci.Response) {
 		checkTxResCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
@@ -144,7 +154,7 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Re
 			Hash:      tx.Hash(),
 			Height:    deliverTxRes.Height,
 		}, nil
-	case <-deliverTxSub.Cancelled():
+	case <-deliverTxSub.Canceled():
 		var reason string
 		if deliverTxSub.Err() == nil {
 			reason = "Tendermint exited"
@@ -173,7 +183,7 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Re
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (c *Client) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	err := c.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
+	err := c.node.Mempool.CheckTx(ctx, tx, nil, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +200,7 @@ func (c *Client) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.Res
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
 func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	resCh := make(chan *abci.Response, 1)
-	err := c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+	err := c.node.Mempool.CheckTx(ctx, tx, func(res *abci.Response) {
 		resCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
@@ -209,7 +219,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resu
 			// if this does not occur, then the user will not be able to try again using
 			// this node, as the CheckTx call above will return an error indicating that
 			// the tx is already in the mempool
-			c.node.Mempool.RemoveTxByKey(mempool.TxKey(tx), true)
+			c.node.Mempool.RemoveTxByKey(tx.Key())
 			return nil, fmt.Errorf("valid tra: %w", err)
 		}
 	}
@@ -255,7 +265,10 @@ func (c *Client) Unsubscribe(ctx context.Context, subscriber, query string) erro
 	if err != nil {
 		return fmt.Errorf("failed to parse query: %w", err)
 	}
-	return c.EventBus.Unsubscribe(ctx, subscriber, q)
+	return c.EventBus.Unsubscribe(ctx, tmpubsub.UnsubscribeArgs{
+		Subscriber: subscriber,
+		Query:      q,
+	})
 }
 
 func (c *Client) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
@@ -334,10 +347,8 @@ func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
 	res.NPeers = len(peers)
 	for _, peer := range peers {
 		res.Peers = append(res.Peers, ctypes.Peer{
-			NodeInfo:         peer.NodeInfo,
-			IsOutbound:       peer.IsOutbound,
-			ConnectionStatus: peer.ConnectionStatus,
-			RemoteIP:         peer.RemoteIP,
+			ID:  peer.NodeInfo.NodeID,
+			URL: peer.RemoteIP,
 		})
 	}
 
@@ -357,21 +368,20 @@ func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.Re
 	params := c.node.GetGenesis().ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),
-		ConsensusParams: tmproto.ConsensusParams{
-			Block: tmproto.BlockParams{
-				MaxBytes:   params.Block.MaxBytes,
-				MaxGas:     params.Block.MaxGas,
-				TimeIotaMs: params.Block.TimeIotaMs,
+		ConsensusParams: types.ConsensusParams{
+			Block: types.BlockParams{
+				MaxBytes: params.Block.MaxBytes,
+				MaxGas:   params.Block.MaxGas,
 			},
-			Evidence: tmproto.EvidenceParams{
+			Evidence: types.EvidenceParams{
 				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
 				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
 				MaxBytes:        params.Evidence.MaxBytes,
 			},
-			Validator: tmproto.ValidatorParams{
+			Validator: types.ValidatorParams{
 				PubKeyTypes: params.Validator.PubKeyTypes,
 			},
-			Version: tmproto.VersionParams{
+			Version: types.VersionParams{
 				AppVersion: params.Version.AppVersion,
 			},
 		},
@@ -380,6 +390,16 @@ func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.Re
 
 func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 	return &ctypes.ResultHealth{}, nil
+}
+
+func (c *Client) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *Client) HeaderByHash(ctx context.Context, hash tmbytes.HexBytes) (*ctypes.ResultHeader, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
@@ -405,7 +425,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	}, nil
 }
 
-func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
+func (c *Client) BlockByHash(ctx context.Context, hash tmbytes.HexBytes) (*ctypes.ResultBlock, error) {
 	var h [32]byte
 	copy(h[:], hash)
 
@@ -495,7 +515,7 @@ func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perP
 	}, nil
 }
 
-func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
+func (c *Client) Tx(ctx context.Context, hash tmbytes.HexBytes, prove bool) (*ctypes.ResultTx, error) {
 	res, err := c.node.TxIndexer.Get(hash)
 	if err != nil {
 		return nil, err
@@ -527,6 +547,11 @@ func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.Resul
 		Tx:       res.Tx,
 		Proof:    proof,
 	}, nil
+}
+
+func (c *Client) RemoveTx(ctx context.Context, key types.TxKey) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (c *Client) TxSearch(ctx context.Context, query string, prove bool, pagePtr, perPagePtr *int, orderBy string) (*ctypes.ResultTxSearch, error) {
@@ -700,7 +725,7 @@ func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirm
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      c.node.Mempool.Size(),
 		Total:      c.node.Mempool.Size(),
-		TotalBytes: c.node.Mempool.TxsBytes(),
+		TotalBytes: c.node.Mempool.SizeBytes(),
 	}, nil
 
 }
@@ -713,12 +738,12 @@ func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.Res
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      len(txs),
 		Total:      c.node.Mempool.Size(),
-		TotalBytes: c.node.Mempool.TxsBytes(),
+		TotalBytes: c.node.Mempool.SizeBytes(),
 		Txs:        txs}, nil
 }
 
 func (c *Client) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := c.mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
+	res, err := c.mempool().CheckTxSync(ctx, abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
@@ -739,7 +764,7 @@ func (c *Client) eventsRoutine(sub types.Subscription, subscriber string, q tmpu
 					c.Logger.Error("wanted to publish ResultEvent, but out channel is full", "result", result, "query", result.Query)
 				}
 			}
-		case <-sub.Cancelled():
+		case <-sub.Canceled():
 			if sub.Err() == tmpubsub.ErrUnsubscribed {
 				return
 			}
@@ -773,20 +798,19 @@ func (c *Client) resubscribe(subscriber string, q tmpubsub.Query) types.Subscrip
 	}
 }
 
-func (c *Client) consensus() proxy.AppConnConsensus {
-	return c.node.ProxyApp().Consensus()
+func (c *Client) consensus() abciclient.Client {
+	return c.node.AppClient()
 }
 
-func (c *Client) mempool() proxy.AppConnMempool {
-	return c.node.ProxyApp().Mempool()
+func (c *Client) mempool() abciclient.Client {
+	return c.node.AppClient()
+}
+func (c *Client) query() abciclient.Client {
+	return c.node.AppClient()
 }
 
-func (c *Client) query() proxy.AppConnQuery {
-	return c.node.ProxyApp().Query()
-}
-
-func (c *Client) snapshot() proxy.AppConnSnapshot {
-	return c.node.ProxyApp().Snapshot()
+func (c *Client) snapshot() abciclient.Client {
+	return c.node.AppClient()
 }
 
 func (c *Client) normalizeHeight(height *int64) uint64 {

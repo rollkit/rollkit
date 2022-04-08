@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	"testing"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
@@ -31,7 +31,7 @@ func TestStartup(t *testing.T) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -57,7 +57,7 @@ func TestMempoolDirectly(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -66,25 +66,25 @@ func TestMempoolDirectly(t *testing.T) {
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx1"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx(context.TODO(), []byte("tx1"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx2"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx(context.TODO(), []byte("tx2"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
 	time.Sleep(100 * time.Millisecond)
-	err = node.Mempool.CheckTx([]byte("tx3"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx(context.TODO(), []byte("tx3"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx4"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx(context.TODO(), []byte("tx4"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
 
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(int64(4*len("tx*")), node.Mempool.TxsBytes())
+	assert.Equal(int64(4*len("tx*")), node.Mempool.SizeBytes())
 }
