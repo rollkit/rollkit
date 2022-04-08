@@ -36,7 +36,9 @@ type BlockManagerConfig struct {
 	BlockTime time.Duration `mapstructure:"block_time"`
 	// DABlockTime informs about block time of underlying data availability layer
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
-	NamespaceID [8]byte       `mapstructure:"namespace_id"`
+	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
+	DAStartHeight uint64  `mapstructure:"da_start_height"`
+	NamespaceID   [8]byte `mapstructure:"namespace_id"`
 }
 
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {

@@ -83,6 +83,9 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
+	if s.DAHeight < conf.DAStartHeight {
+		s.DAHeight = conf.DAStartHeight
+	}
 
 	proposerAddress, err := getAddress(proposerKey)
 	if err != nil {
