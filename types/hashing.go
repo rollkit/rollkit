@@ -3,8 +3,8 @@ package types
 import (
 	"time"
 
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
+	tmversion "github.com/tendermint/tendermint/version"
 )
 
 func (header *Header) Hash() [32]byte {
