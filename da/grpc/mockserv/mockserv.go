@@ -49,7 +49,7 @@ func (m *mockImpl) SubmitBlock(_ context.Context, request *dalc.SubmitBlockReque
 		Result: &dalc.DAResponse{
 			Code:            dalc.StatusCode(resp.Code),
 			Message:         resp.Message,
-			DataLayerHeight: resp.DataLayerHeight,
+			DataLayerHeight: resp.DAHeight,
 		},
 	}, nil
 }

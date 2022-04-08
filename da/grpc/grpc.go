@@ -76,9 +76,9 @@ func (d *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 	}
 	return da.ResultSubmitBlock{
 		DAResult: da.DAResult{
-			Code:            da.StatusCode(resp.Result.Code),
-			Message:         resp.Result.Message,
-			DataLayerHeight: resp.Result.DataLayerHeight,
+			Code:     da.StatusCode(resp.Result.Code),
+			Message:  resp.Result.Message,
+			DAHeight: resp.Result.DataLayerHeight,
 		},
 	}
 }
@@ -111,9 +111,9 @@ func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 	}
 	return da.ResultRetrieveBlocks{
 		DAResult: da.DAResult{
-			Code:            da.StatusCode(resp.Result.Code),
-			Message:         resp.Result.Message,
-			DataLayerHeight: dataLayerHeight,
+			Code:     da.StatusCode(resp.Result.Code),
+			Message:  resp.Result.Message,
+			DAHeight: dataLayerHeight,
 		},
 		Blocks: blocks,
 	}

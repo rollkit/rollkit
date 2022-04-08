@@ -89,9 +89,9 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 
 	return da.ResultSubmitBlock{
 		DAResult: da.DAResult{
-			Code:            da.StatusSuccess,
-			Message:         "OK",
-			DataLayerHeight: daHeight,
+			Code:     da.StatusSuccess,
+			Message:  "OK",
+			DAHeight: daHeight,
 		},
 	}
 }

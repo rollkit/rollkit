@@ -79,11 +79,11 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	b2 := getRandomBlock(2, 10)
 
 	resp := dalc.SubmitBlock(b1)
-	h1 := resp.DataLayerHeight
+	h1 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	resp = dalc.SubmitBlock(b2)
-	h2 := resp.DataLayerHeight
+	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	// wait a bit more than mockDaBlockTime, so optimint blocks can be "included" in mock block
@@ -158,8 +158,8 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		assert.Equal(da.StatusSuccess, resp.Code)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds()))
 
-		countAtHeight[resp.DataLayerHeight]++
-		blocks[b] = resp.DataLayerHeight
+		countAtHeight[resp.DAHeight]++
+		blocks[b] = resp.DAHeight
 	}
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" last blocks

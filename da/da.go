@@ -25,8 +25,8 @@ type DAResult struct {
 	Code StatusCode
 	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
 	Message string
-	// DataLayerHeight informs about a height on Data Availability Layer for given result.
-	DataLayerHeight uint64
+	// DAHeight informs about a height on Data Availability Layer for given result.
+	DAHeight uint64
 }
 
 // ResultSubmitBlock contains information returned from DA layer after block submission.

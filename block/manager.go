@@ -41,7 +41,8 @@ type Manager struct {
 
 	dalc      da.DataAvailabilityLayerClient
 	retriever da.BlockRetriever
-	daHeight  uint64 // height of the latest processed DA block
+	// daHeight is the height of the latest processed DA block
+	daHeight uint64
 
 	HeaderOutCh chan *types.Header
 	HeaderInCh  chan *types.Header
