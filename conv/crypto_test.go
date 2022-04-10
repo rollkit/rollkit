@@ -1,7 +1,6 @@
 package conv
 
 import (
-	tmtypes "github.com/tendermint/tendermint/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +9,7 @@ import (
 	pb "github.com/libp2p/go-libp2p-core/crypto/pb"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func TestGetNodeKey(t *testing.T) {

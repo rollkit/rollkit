@@ -5,7 +5,6 @@ import (
 	crand "crypto/rand"
 	cryptorand "crypto/rand"
 	"fmt"
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	"math/rand"
 	"testing"
 	"time"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"

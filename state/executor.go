@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	"time"
 
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"

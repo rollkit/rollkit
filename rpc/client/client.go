@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/optimint/mempool"
-	abciclient "github.com/tendermint/tendermint/abci/client"
-	"github.com/tendermint/tendermint/version"
 	"sort"
 	"time"
 
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -19,8 +17,10 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/coretypes"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/version"
 
 	abciconv "github.com/celestiaorg/optimint/conv/abci"
+	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/node"
 )
 
@@ -219,8 +219,10 @@ func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resu
 			// if this does not occur, then the user will not be able to try again using
 			// this node, as the CheckTx call above will return an error indicating that
 			// the tx is already in the mempool
-			c.node.Mempool.RemoveTxByKey(tx.Key())
-			return nil, fmt.Errorf("valid tra: %w", err)
+			if err := c.node.Mempool.RemoveTxByKey(tx.Key()); err != nil {
+				return nil, fmt.Errorf("failed to remove transaction from mempool: %w", err)
+			}
+			return nil, fmt.Errorf("failed to gossip transaction: %w", err)
 		}
 	}
 

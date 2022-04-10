@@ -3,9 +3,6 @@ package state
 import (
 	"context"
 	"crypto/rand"
-	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
-	abciclient "github.com/tendermint/tendermint/abci/client"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"testing"
 	"time"
 
@@ -13,13 +10,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/mempool"
+	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/types"
 )

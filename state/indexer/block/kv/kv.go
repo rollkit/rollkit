@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/tendermint/tendermint/libs/pubsub/query/syntax"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
+	"github.com/tendermint/tendermint/libs/pubsub/query/syntax"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/state/indexer"

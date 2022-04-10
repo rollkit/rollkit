@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/google/orderedcode"
-	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"strconv"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/google/orderedcode"
 
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/libs/pubsub/query/syntax"
 	"github.com/tendermint/tendermint/types"
 

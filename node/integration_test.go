@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"crypto/rand"
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	mrand "math/rand"
 	"strconv"
 	"strings"
@@ -11,22 +10,24 @@ import (
 	"testing"
 	"time"
 
-	mockda "github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/p2p"
-	"github.com/celestiaorg/optimint/store"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
+	mockda "github.com/celestiaorg/optimint/da/mock"
 	"github.com/celestiaorg/optimint/mocks"
+	"github.com/celestiaorg/optimint/p2p"
+	"github.com/celestiaorg/optimint/store"
 )
 
 func TestAggregatorMode(t *testing.T) {

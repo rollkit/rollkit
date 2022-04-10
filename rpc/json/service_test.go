@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,6 +18,8 @@ import (
 
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/libp2p/go-libp2p-core/crypto"
+
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"

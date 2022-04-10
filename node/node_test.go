@@ -3,22 +3,23 @@ package node
 import (
 	"context"
 	"crypto/rand"
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/optimint/mempool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/mocks"
 )
 

@@ -16,7 +16,7 @@ func GetNodeConfig(nodeConf *config.NodeConfig, tmConf *tmcfg.Config) {
 		nodeConf.DBPath = tmConf.DBPath
 		if tmConf.P2P != nil {
 			nodeConf.P2P.ListenAddress = tmConf.P2P.ListenAddress
-			nodeConf.P2P.Seeds = tmConf.P2P.Seeds
+			nodeConf.P2P.Seeds = tmConf.P2P.BootstrapPeers
 		}
 		if tmConf.RPC != nil {
 			nodeConf.RPC.ListenAddress = tmConf.RPC.ListenAddress

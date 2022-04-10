@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	abci "github.com/tendermint/tendermint/abci/types"
+	"go.uber.org/multierr"
+
 	abciclient "github.com/tendermint/tendermint/abci/client"
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"

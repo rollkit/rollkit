@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/libp2p/go-libp2p-core/crypto"
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	"go.uber.org/multierr"
 
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"

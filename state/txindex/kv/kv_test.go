@@ -3,7 +3,6 @@ package kv
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/optimint/state/txindex"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -17,6 +16,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/optimint/state/txindex"
 	"github.com/celestiaorg/optimint/store"
 )
 

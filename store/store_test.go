@@ -1,13 +1,13 @@
 package store
 
 import (
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"math/rand"
 	"os"
 	"testing"
 
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
