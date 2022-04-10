@@ -24,27 +24,28 @@ All the details are implementation-specific.
 ## Detailed Design
 
 Definition of interface:
+
 ```go
 type DataAvailabilityLayerClient interface {
-	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(config []byte, kvStore store.KVStore, logger log.Logger) error
+ // Init is called once to allow DA client to read configuration and initialize resources.
+ Init(config []byte, kvStore store.KVStore, logger log.Logger) error
 
-	Start() error
-	Stop() error
+ Start() error
+ Stop() error
 
-	// SubmitBlock submits the passed in block to the DA layer.
-	// This should create a transaction which (potentially)
-	// triggers a state transition in the DA layer.
-	SubmitBlock(block *types.Block) ResultSubmitBlock
+ // SubmitBlock submits the passed in block to the DA layer.
+ // This should create a transaction which (potentially)
+ // triggers a state transition in the DA layer.
+ SubmitBlock(block *types.Block) ResultSubmitBlock
 
-	// CheckBlockAvailability queries DA layer to check block's data availability.
-	CheckBlockAvailability(block *types.Block) ResultCheckBlock
+ // CheckBlockAvailability queries DA layer to check block's data availability.
+ CheckBlockAvailability(block *types.Block) ResultCheckBlock
 }
 
 // BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
 // block data from DA layer. This gives the ability to use it for block synchronization.
 type BlockRetriever interface {
-	RetrieveBlock(height uint64) ResultRetrieveBlock
+ RetrieveBlock(height uint64) ResultRetrieveBlock
 }
 
 // TODO define an enum of different non-happy-path cases
@@ -54,40 +55,40 @@ type StatusCode uint64
 
 // Data Availability return codes.
 const (
-	StatusUnknown StatusCode = iota
-	StatusSuccess
-	StatusTimeout
-	StatusError
+ StatusUnknown StatusCode = iota
+ StatusSuccess
+ StatusTimeout
+ StatusError
 )
 
 type DAResult struct {
-	// Code is to determine if the action succeeded.
-	Code StatusCode
-	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
-	Message string
+ // Code is to determine if the action succeeded.
+ Code StatusCode
+ // Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
+ Message string
 }
 
 // ResultSubmitBlock contains information returned from DA layer after block submission.
 type ResultSubmitBlock struct {
-	DAResult
-	// Not sure if this needs to be bubbled up to other
-	// parts of Optimint.
-	// Hash hash.Hash
+ DAResult
+ // Not sure if this needs to be bubbled up to other
+ // parts of Optimint.
+ // Hash hash.Hash
 }
 
 // ResultCheckBlock contains information about block availability, returned from DA layer client.
 type ResultCheckBlock struct {
-	DAResult
-	// DataAvailable is the actual answer whether the block is available or not.
-	// It can be true if and only if Code is equal to StatusSuccess.
-	DataAvailable bool
+ DAResult
+ // DataAvailable is the actual answer whether the block is available or not.
+ // It can be true if and only if Code is equal to StatusSuccess.
+ DataAvailable bool
 }
 
 type ResultRetrieveBlock struct {
-	DAResult
-	// Block is the full block retrieved from Data Availability Layer.
-	// If Code is not equal to StatusSuccess, it has to be nil.
-	Block *types.Block
+ DAResult
+ // Block is the full block retrieved from Data Availability Layer.
+ // If Code is not equal to StatusSuccess, it has to be nil.
+ Block *types.Block
 }
 ```
 >
@@ -109,4 +110,3 @@ Implemented
 ## References
 
 > Are there any relevant PR comments, issues that led up to this, or articles referenced for why we made the given design choice? If so link them here!
-

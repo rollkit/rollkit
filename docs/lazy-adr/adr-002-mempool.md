@@ -3,6 +3,7 @@
 For now, mempool implementation from lazyledger-core/Tendermint will be used.
 
 ## Pros
+
 * good integration with other re-used code (see ADR-001)
 * well tested
 * glue code is not required
@@ -11,12 +12,14 @@ For now, mempool implementation from lazyledger-core/Tendermint will be used.
 * mempool does not require any knowledge about the internal structure of the Txs and is already "abci-ready"
 
 ## Cons
+
 * inherit all limitations of the tendermint mempool
   * no prioritization of Txs
   * many [open issues](https://github.com/tendermint/tendermint/issues?q=is%3Aissue+is%3Aopen+mempool+label%3AC%3Amempool)
 * legacy code base (the tendermint mempool exists for a while now)
 
 ## Alternatives
+
 * Implementation from scratch
   * time consuming
   * error prone
