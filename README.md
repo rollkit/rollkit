@@ -2,7 +2,7 @@
 
 ABCI-client implementation for Optimistic Rollups.
 
-Design document: https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyxVLSyDd7Fbxo5UnA8/edit?usp=sharing
+Design document: <https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyxVLSyDd7Fbxo5UnA8/edit?usp=sharing>
 
 [![build-and-test](https://github.com/celestiaorg/optimint/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/optimint/actions/workflows/test.yml)
 [![golangci-lint](https://github.com/celestiaorg/optimint/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/optimint/actions/workflows/lint.yml)
