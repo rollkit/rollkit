@@ -16,7 +16,7 @@ import (
 
 func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Server {
 	// TODO(tzdybal): pass log logger config (level, format, trace)
-	logger := tmlog.MustNewDefaultLogger(tmlog.LogFormatText, "DEBUG", false)
+	logger := tmlog.MustNewDefaultLogger(tmlog.LogFormatText, "debug", false)
 
 	srv := grpc.NewServer()
 	mockImpl := &mockImpl{}
