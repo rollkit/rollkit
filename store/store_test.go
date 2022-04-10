@@ -1,6 +1,7 @@
 package store
 
 import (
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"math/rand"
 	"os"
 	"testing"
@@ -156,8 +157,8 @@ func TestBlockResponses(t *testing.T) {
 			Events: []abcitypes.Event{{
 				Type: "test",
 				Attributes: []abcitypes.EventAttribute{{
-					Key:   []byte("foo"),
-					Value: []byte("bar"),
+					Key:   "foo",
+					Value: "bar",
 					Index: false,
 				}},
 			}},
@@ -165,8 +166,8 @@ func TestBlockResponses(t *testing.T) {
 		DeliverTxs: nil,
 		EndBlock: &abcitypes.ResponseEndBlock{
 			ValidatorUpdates: nil,
-			ConsensusParamUpdates: &abcitypes.ConsensusParams{
-				Block: &abcitypes.BlockParams{
+			ConsensusParamUpdates: &tmproto.ConsensusParams{
+				Block: &tmproto.BlockParams{
 					MaxBytes: 12345,
 					MaxGas:   678909876,
 				},

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,7 +20,6 @@ import (
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/internal/proxy"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
@@ -150,7 +150,7 @@ func TestSubscription(t *testing.T) {
 
 	const (
 		query        = "message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
-		query2       = "message.sender!='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
+		query2       = "message.sender='cosmos1njr26e02000000000000000000000000000000'"
 		invalidQuery = "message.sender='broken"
 	)
 	subscribeReq, err := json2.EncodeClientRequest("subscribe", &SubscribeArgs{
@@ -288,7 +288,7 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
