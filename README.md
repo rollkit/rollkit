@@ -18,7 +18,7 @@ Requires Go version >= 1.17.
 To build:
 
 ```sh
-git clone git@github.com:celestiaorg/optimint.git
+git clone https://github.com/celestiaorg/optimint.git
 cd optimint
 go build -v ./...
 ```
