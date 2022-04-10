@@ -11,6 +11,24 @@ Design document: https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyx
 [![GoDoc](https://godoc.org/github.com/celestiaorg/optimint?status.svg)](https://godoc.org/github.com/celestiaorg/optimint)
 [![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
 
+## Building From Source
+
+Requires Go version >= 1.17.
+
+To build:
+
+```sh
+git clone git@github.com:celestiaorg/optimint.git
+cd optimint
+go build -v ./...
+```
+
+To test:
+
+```sh
+go test ./...
+```
+
 ## Contributing
 
 We welcome your contributions! Everyone is welcome to contribute, whether it's in the form of code,
