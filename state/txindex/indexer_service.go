@@ -2,6 +2,7 @@ package txindex
 
 import (
 	"context"
+	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/celestiaorg/optimint/state/indexer"
 	"github.com/tendermint/tendermint/libs/service"
@@ -60,20 +61,12 @@ func (is *IndexerService) OnStart() error {
 			msg := <-blockHeadersSub.Out()
 			eventDataHeader := msg.Data().(types.EventDataNewBlockHeader)
 			height := eventDataHeader.Header.Height
-			batch := NewBatch(eventDataHeader.NumTxs)
 
+			results := make([]*abci.TxResult, eventDataHeader.NumTxs)
 			for i := int64(0); i < eventDataHeader.NumTxs; i++ {
 				msg2 := <-txsSub.Out()
-				txResult := msg2.Data().(types.EventDataTx).TxResult
-
-				if err = batch.Add(&txResult); err != nil {
-					is.Logger.Error(
-						"failed to add tx to batch",
-						"height", height,
-						"index", txResult.Index,
-						"err", err,
-					)
-				}
+				res := msg2.Data().(types.EventDataTx).TxResult
+				results[i] = &res
 			}
 
 			if err := is.blockIdxr.Index(eventDataHeader); err != nil {
@@ -82,7 +75,7 @@ func (is *IndexerService) OnStart() error {
 				is.Logger.Info("indexed block", "height", height)
 			}
 
-			if err = is.txIdxr.AddBatch(batch); err != nil {
+			if err = is.txIdxr.Index(results); err != nil {
 				is.Logger.Error("failed to index block txs", "height", height, "err", err)
 			} else {
 				is.Logger.Debug("indexed block txs", "height", height, "num_txs", eventDataHeader.NumTxs)

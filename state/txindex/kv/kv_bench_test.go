@@ -32,8 +32,8 @@ func BenchmarkTxSearch(b *testing.B) {
 			{
 				Type: "transfer",
 				Attributes: []abci.EventAttribute{
-					{Key: []byte("address"), Value: []byte(fmt.Sprintf("address_%d", i%100)), Index: true},
-					{Key: []byte("amount"), Value: []byte("50"), Index: true},
+					{Key: "address", Value: fmt.Sprintf("address_%d", i%100), Index: true},
+					{Key: "amount", Value: "50", Index: true},
 				},
 			},
 		}
@@ -55,12 +55,12 @@ func BenchmarkTxSearch(b *testing.B) {
 			},
 		}
 
-		if err := indexer.Index(txResult); err != nil {
+		if err := indexer.Index([]*abci.TxResult{txResult}); err != nil {
 			b.Errorf("failed to index tx: %s", err)
 		}
 	}
 
-	txQuery := query.MustParse("transfer.address = 'address_43' AND transfer.amount = 50")
+	txQuery := query.MustCompile("transfer.address = 'address_43' AND transfer.amount = 50")
 
 	b.ResetTimer()
 

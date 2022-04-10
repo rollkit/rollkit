@@ -3,6 +3,7 @@ package kv
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/optimint/state/txindex"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -16,12 +17,11 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/state/txindex"
 	"github.com/celestiaorg/optimint/store"
 )
 
 func TestTxIndex(t *testing.T) {
-	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
+	txIndexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	tx := types.Tx("HELLO WORLD")
 	txResult := &abci.TxResult{
@@ -39,10 +39,10 @@ func TestTxIndex(t *testing.T) {
 	if err := batch.Add(txResult); err != nil {
 		t.Error(err)
 	}
-	err := indexer.AddBatch(batch)
+	err := txIndexer.Index(batch.Ops)
 	require.NoError(t, err)
 
-	loadedTxResult, err := indexer.Get(hash)
+	loadedTxResult, err := txIndexer.Get(hash)
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(txResult, loadedTxResult))
 
@@ -58,10 +58,10 @@ func TestTxIndex(t *testing.T) {
 	}
 	hash2 := tx2.Hash()
 
-	err = indexer.Index(txResult2)
+	err = txIndexer.Index([]*abci.TxResult{txResult2})
 	require.NoError(t, err)
 
-	loadedTxResult2, err := indexer.Get(hash2)
+	loadedTxResult2, err := txIndexer.Get(hash2)
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(txResult2, loadedTxResult2))
 }
@@ -70,13 +70,13 @@ func TestTxSearch(t *testing.T) {
 	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("owner"), Value: []byte("Ivan"), Index: true}}},
-		{Type: "", Attributes: []abci.EventAttribute{{Key: []byte("not_allowed"), Value: []byte("Vlad"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "Ivan", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Vlad", Index: true}}},
 	})
 	hash := types.Tx(txResult.Tx).Hash()
 
-	err := indexer.Index(txResult)
+	err := indexer.Index([]*abci.TxResult{txResult})
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -120,6 +120,12 @@ func TestTxSearch(t *testing.T) {
 		{"account.number EXISTS", 1},
 		// search using EXISTS for non existing key
 		{"account.date EXISTS", 0},
+		// search using height
+		{"account.number = 1 AND tx.height = 1", 1},
+		// search using incorrect height
+		{"account.number = 1 AND tx.height = 3", 0},
+		// search using height only
+		{"tx.height = 1", 1},
 	}
 
 	ctx := context.Background()
@@ -127,7 +133,7 @@ func TestTxSearch(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.q, func(t *testing.T) {
-			results, err := indexer.Search(ctx, query.MustParse(tc.q))
+			results, err := indexer.Search(ctx, query.MustCompile(tc.q))
 			assert.NoError(t, err)
 
 			assert.Len(t, results, tc.resultsLength)
@@ -144,16 +150,16 @@ func TestTxSearchWithCancelation(t *testing.T) {
 	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("owner"), Value: []byte("Ivan"), Index: true}}},
-		{Type: "", Attributes: []abci.EventAttribute{{Key: []byte("not_allowed"), Value: []byte("Vlad"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "Ivan", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Vlad", Index: true}}},
 	})
-	err := indexer.Index(txResult)
+	err := indexer.Index([]*abci.TxResult{txResult})
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	results, err := indexer.Search(ctx, query.MustParse("account.number = 1"))
+	results, err := indexer.Search(ctx, query.MustCompile(`account.number = 1`))
 	assert.NoError(t, err)
 	assert.Empty(t, results)
 }
@@ -163,11 +169,11 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 
 	// index tx using events indexing (composite key)
 	txResult1 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
 	})
 	hash1 := types.Tx(txResult1.Tx).Hash()
 
-	err := indexer.Index(txResult1)
+	err := indexer.Index([]*abci.TxResult{txResult1})
 	require.NoError(t, err)
 
 	// index tx also using deprecated indexing (event as key)
@@ -189,9 +195,9 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 
 	err = b.Set(depKey, hash2)
 	require.NoError(t, err)
-	err = b.Set(keyForHeight(txResult2), hash2)
+	err = b.Set(KeyFromHeight(txResult2), hash2)
 	require.NoError(t, err)
-	err = b.Set(hash2, rawBytes)
+	err = b.Set(primaryKey(hash2), rawBytes)
 	require.NoError(t, err)
 	err = b.Commit()
 	require.NoError(t, err)
@@ -226,7 +232,7 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.q, func(t *testing.T) {
-			results, err := indexer.Search(ctx, query.MustParse(tc.q))
+			results, err := indexer.Search(ctx, query.MustCompile(tc.q))
 			require.NoError(t, err)
 			for _, txr := range results {
 				for _, tr := range tc.results {
@@ -241,16 +247,16 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
 
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("2"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "2", Index: true}}},
 	})
 
-	err := indexer.Index(txResult)
+	err := indexer.Index([]*abci.TxResult{txResult})
 	require.NoError(t, err)
 
 	ctx := context.Background()
 
-	results, err := indexer.Search(ctx, query.MustParse("account.number >= 1"))
+	results, err := indexer.Search(ctx, query.MustCompile(`account.number >= 1`))
 	assert.NoError(t, err)
 
 	assert.Len(t, results, 1)
@@ -264,50 +270,50 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 
 	// indexed first, but bigger height (to test the order of transactions)
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
 	})
 
 	txResult.Tx = types.Tx("Bob's account")
 	txResult.Height = 2
 	txResult.Index = 1
-	err := indexer.Index(txResult)
+	err := indexer.Index([]*abci.TxResult{txResult})
 	require.NoError(t, err)
 
 	// indexed second, but smaller height (to test the order of transactions)
 	txResult2 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("2"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "2", Index: true}}},
 	})
 	txResult2.Tx = types.Tx("Alice's account")
 	txResult2.Height = 1
 	txResult2.Index = 2
 
-	err = indexer.Index(txResult2)
+	err = indexer.Index([]*abci.TxResult{txResult2})
 	require.NoError(t, err)
 
 	// indexed third (to test the order of transactions)
 	txResult3 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("3"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "3", Index: true}}},
 	})
 	txResult3.Tx = types.Tx("Jack's account")
 	txResult3.Height = 1
 	txResult3.Index = 1
-	err = indexer.Index(txResult3)
+	err = indexer.Index([]*abci.TxResult{txResult3})
 	require.NoError(t, err)
 
 	// indexed fourth (to test we don't include txs with similar events)
 	// https://github.com/tendermint/tendermint/issues/2908
 	txResult4 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number.id"), Value: []byte("1"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number.id", Value: "1", Index: true}}},
 	})
 	txResult4.Tx = types.Tx("Mike's account")
 	txResult4.Height = 2
 	txResult4.Index = 2
-	err = indexer.Index(txResult4)
+	err = indexer.Index([]*abci.TxResult{txResult4})
 	require.NoError(t, err)
 
 	ctx := context.Background()
 
-	results, err := indexer.Search(ctx, query.MustParse("account.number >= 1"))
+	results, err := indexer.Search(ctx, query.MustCompile(`account.number >= 1`))
 	assert.NoError(t, err)
 
 	require.Len(t, results, 3)
@@ -335,7 +341,7 @@ func benchmarkTxIndex(txsCount int64, b *testing.B) {
 
 	store := store.NewDefaultKVStore(dir, "db", "tx_index")
 	require.NoError(b, err)
-	indexer := NewTxIndex(store)
+	txIndexer := NewTxIndex(store)
 
 	batch := txindex.NewBatch(txsCount)
 	txIndex := uint32(0)
@@ -361,7 +367,7 @@ func benchmarkTxIndex(txsCount int64, b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		err = indexer.AddBatch(batch)
+		err = txIndexer.Index(batch.Ops)
 	}
 	if err != nil {
 		b.Fatal(err)

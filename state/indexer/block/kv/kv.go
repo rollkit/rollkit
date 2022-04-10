@@ -161,7 +161,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 			continue
 		}
 
-		startKey, err := orderedcode.Append(nil, c.Tag, fmt.Sprintf("%v", c.Arg))
+		startKey, err := orderedcode.Append(nil, c.Tag, c.Arg.Value())
 		if err != nil {
 			return nil, err
 		}
@@ -189,9 +189,8 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 
 	// fetch matching heights
 	results = make([]int64, 0, len(filteredHeights))
+heights:
 	for _, hBz := range filteredHeights {
-		cont := true
-
 		h := int64FromBytes(hBz)
 
 		ok, err := idx.Has(h)
@@ -204,12 +203,9 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 
 		select {
 		case <-ctx.Done():
-			cont = false
+			break heights
 
 		default:
-		}
-		if !cont {
-			break
 		}
 	}
 
@@ -245,10 +241,8 @@ func (idx *BlockerIndexer) matchRange(
 	it := idx.store.PrefixIterator(startKey)
 	defer it.Discard()
 
-LOOP:
+iter:
 	for ; it.Valid(); it.Next() {
-		cont := true
-
 		var (
 			eventValue string
 			err        error
@@ -267,7 +261,7 @@ LOOP:
 		if _, ok := qr.AnyBound().(int64); ok {
 			v, err := strconv.ParseInt(eventValue, 10, 64)
 			if err != nil {
-				continue LOOP
+				continue iter
 			}
 
 			include := true
@@ -286,13 +280,9 @@ LOOP:
 
 		select {
 		case <-ctx.Done():
-			cont = false
+			break iter
 
 		default:
-		}
-
-		if !cont {
-			break
 		}
 	}
 
@@ -314,21 +304,15 @@ LOOP:
 	// Remove/reduce matches in filteredHashes that were not found in this
 	// match (tmpHashes).
 	for k := range filteredHeights {
-		cont := true
-
 		if tmpHeights[k] == nil {
 			delete(filteredHeights, k)
 
 			select {
 			case <-ctx.Done():
-				cont = false
+				break
 
 			default:
 			}
-		}
-
-		if !cont {
-			break
 		}
 	}
 
@@ -383,20 +367,15 @@ func (idx *BlockerIndexer) match(
 		it := idx.store.PrefixIterator(prefix)
 		defer it.Discard()
 
+	iterExists:
 		for ; it.Valid(); it.Next() {
-			cont := true
-
 			tmpHeights[string(it.Value())] = it.Value()
 
 			select {
 			case <-ctx.Done():
-				cont = false
+				break iterExists
 
 			default:
-			}
-
-			if !cont {
-				break
 			}
 		}
 
@@ -413,9 +392,8 @@ func (idx *BlockerIndexer) match(
 		it := idx.store.PrefixIterator(prefix)
 		defer it.Discard()
 
+	iterContains:
 		for ; it.Valid(); it.Next() {
-			cont := true
-
 			eventValue, err := parseValueFromEventKey(it.Key())
 			if err != nil {
 				continue
@@ -427,13 +405,9 @@ func (idx *BlockerIndexer) match(
 
 			select {
 			case <-ctx.Done():
-				cont = false
+				break iterContains
 
 			default:
-			}
-
-			if !cont {
-				break
 			}
 		}
 		if err := it.Error(); err != nil {
@@ -458,21 +432,15 @@ func (idx *BlockerIndexer) match(
 	// Remove/reduce matches in filteredHeights that were not found in this
 	// match (tmpHeights).
 	for k := range filteredHeights {
-		cont := true
-
 		if tmpHeights[k] == nil {
 			delete(filteredHeights, k)
 
 			select {
 			case <-ctx.Done():
-				cont = false
+				break
 
 			default:
 			}
-		}
-
-		if !cont {
-			break
 		}
 	}
 
@@ -494,13 +462,13 @@ func (idx *BlockerIndexer) indexEvents(batch store.Batch, events []abci.Event, t
 			}
 
 			// index iff the event specified index:true and it's not a reserved event
-			compositeKey := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
+			compositeKey := fmt.Sprintf("%s.%s", event.Type, attr.Key)
 			if compositeKey == types.BlockHeightKey {
 				return fmt.Errorf("event type and attribute key \"%s\" is reserved; please use a different key", compositeKey)
 			}
 
 			if attr.GetIndex() {
-				key, err := eventKey(compositeKey, typ, string(attr.Value), height)
+				key, err := eventKey(compositeKey, typ, attr.Value, height)
 				if err != nil {
 					return fmt.Errorf("failed to create block index key: %w", err)
 				}

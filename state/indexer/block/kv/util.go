@@ -3,10 +3,10 @@ package kv
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/tendermint/tendermint/libs/pubsub/query/syntax"
 	"strconv"
 
 	"github.com/google/orderedcode"
+	"github.com/tendermint/tendermint/libs/pubsub/query/syntax"
 	"github.com/tendermint/tendermint/types"
 )
 

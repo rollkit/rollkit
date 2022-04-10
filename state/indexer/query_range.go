@@ -88,18 +88,18 @@ func LookForRanges(conditions []syntax.Condition) (ranges QueryRanges, indexes [
 
 			switch c.Op {
 			case syntax.TGt:
-				r.LowerBound = c.Op
+				r.LowerBound = conditionArg(c)
 
 			case syntax.TGeq:
 				r.IncludeLowerBound = true
-				r.LowerBound = c.Op
+				r.LowerBound = conditionArg(c)
 
 			case syntax.TLt:
-				r.UpperBound = c.Op
+				r.UpperBound = conditionArg(c)
 
 			case syntax.TLeq:
 				r.IncludeUpperBound = true
-				r.UpperBound = c.Op
+				r.UpperBound = conditionArg(c)
 			}
 
 			ranges[c.Tag] = r
@@ -119,5 +119,19 @@ func IsRangeOperation(op syntax.Token) bool {
 
 	default:
 		return false
+	}
+}
+
+func conditionArg(c syntax.Condition) interface{} {
+	if c.Arg == nil {
+		return nil
+	}
+	switch c.Arg.Type {
+	case syntax.TNumber:
+		return int64(c.Arg.Number())
+	case syntax.TTime, syntax.TDate:
+		return c.Arg.Time()
+	default:
+		return c.Arg.Value() // string
 	}
 }
