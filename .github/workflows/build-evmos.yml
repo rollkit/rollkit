@@ -3,12 +3,10 @@ name: build-evmos
 on:
   push:
     branches:
-      - '**'
-    tags:
-      - 'v*.*.*'
+      - master
   pull_request:
-    branches:
-      - 'main'
+  release:
+    types: [published]
   workflow_dispatch:
 
 env:
