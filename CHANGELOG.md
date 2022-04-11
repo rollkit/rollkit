@@ -5,6 +5,7 @@
 Minor bugfix release, to ensure that Optimint uses the same version of gRPC as Cosmos SDK.
 
 ### BUG FIXES
+
 - Use google.golang.org/grpc v1.33.2 to be compatible with cosmos-sdk ([#315](https://github.com/celestiaorg/optimint/pull/315)) [@jbowen93](https://github.com/jbowen93/)
 - Make TestValidatorSetHandling even more stable ([#314](https://github.com/celestiaorg/optimint/pull/314)) [@tzdybal](https://github.com/tzdybal/)
 
@@ -14,6 +15,7 @@ This is the first Optimint release.
 Optimint supports all ABCI methods and all Tendermint RPCs.
 
 ### FEATURES
+
 - Minimal implementation of ConsensusParams method  ([#292](https://github.com/celestiaorg/optimint/pull/292)) [@tzdybal](https://github.com/tzdybal/)
 - Implement GenesisChunked method  ([#287](https://github.com/celestiaorg/optimint/pull/287)) [@mauriceLC92](https://github.com/mauriceLC92/)
 - Minimalistic validator set handling  ([#286](https://github.com/celestiaorg/optimint/pull/286)) [@tzdybal](https://github.com/tzdybal/)
@@ -61,6 +63,7 @@ Optimint supports all ABCI methods and all Tendermint RPCs.
 - Add design doc to readme  ([#9](https://github.com/celestiaorg/optimint/pull/9)) [@musalbas](https://github.com/musalbas/)
 
 ### IMPROVEMENTS
+
 - Remove extra variable  ([#280](https://github.com/celestiaorg/optimint/pull/280)) [@Raneet10](https://github.com/Raneet10/)
 - Replace tm-db dependency with store package  ([#268](https://github.com/celestiaorg/optimint/pull/268)) [@tzdybal](https://github.com/tzdybal/)
 - Use enum instead of strings for DB type  ([#259](https://github.com/celestiaorg/optimint/pull/259)) [@adlerjohn](https://github.com/adlerjohn/)
@@ -87,6 +90,7 @@ Optimint supports all ABCI methods and all Tendermint RPCs.
 - Use addresses in multiaddr format.  ([#19](https://github.com/celestiaorg/optimint/pull/19)) [@tzdybal](https://github.com/tzdybal/)
 
 ### BUG FIXES
+
 - fix: make `TestValidatorSetHandling` stable ([#313](https://github.com/celestiaorg/optimint/pull/313)) [@tzdybal](https://github.com/tzdybal/)
 - Fix linter on `main`  ([#308](https://github.com/celestiaorg/optimint/pull/308)) [@tzdybal](https://github.com/tzdybal/)
 - Fix multiple bugs for Ethermint  ([#305](https://github.com/celestiaorg/optimint/pull/305)) [@tzdybal](https://github.com/tzdybal/)

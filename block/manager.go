@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
@@ -21,6 +23,9 @@ import (
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
+
+// defaultDABlockTime is used only if DABlockTime is not configured for manager
+const defaultDABlockTime = 30 * time.Second
 
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
@@ -36,14 +41,20 @@ type Manager struct {
 
 	dalc      da.DataAvailabilityLayerClient
 	retriever da.BlockRetriever
+	// daHeight is the height of the latest processed DA block
+	daHeight uint64
 
 	HeaderOutCh chan *types.Header
 	HeaderInCh  chan *types.Header
 
 	syncTarget uint64
 	blockInCh  chan *types.Block
-	retrieveCh chan uint64
 	syncCache  map[uint64]*types.Block
+
+	// retrieveMtx is used by retrieveCond
+	retrieveMtx *sync.Mutex
+	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
+	retrieveCond *sync.Cond
 
 	logger log.Logger
 }
@@ -72,10 +83,18 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
+	if s.DAHeight < conf.DAStartHeight {
+		s.DAHeight = conf.DAStartHeight
+	}
 
 	proposerAddress, err := getAddress(proposerKey)
 	if err != nil {
 		return nil, err
+	}
+
+	if conf.DABlockTime == 0 {
+		logger.Info("WARNING: using default DA block time", "DABlockTime", defaultDABlockTime)
+		conf.DABlockTime = defaultDABlockTime
 	}
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
@@ -100,13 +119,16 @@ func NewManager(
 		executor:    exec,
 		dalc:        dalc,
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
-		HeaderOutCh: make(chan *types.Header),
-		HeaderInCh:  make(chan *types.Header),
-		blockInCh:   make(chan *types.Block),
-		retrieveCh:  make(chan uint64),
+		daHeight:    s.DAHeight,
+		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
+		HeaderOutCh: make(chan *types.Header, 100),
+		HeaderInCh:  make(chan *types.Header, 100),
+		blockInCh:   make(chan *types.Block, 100),
+		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
 		logger:      logger,
 	}
+	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
 	return agg, nil
 }
@@ -142,8 +164,11 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 }
 
 func (m *Manager) SyncLoop(ctx context.Context) {
+	daTicker := time.NewTicker(m.conf.DABlockTime)
 	for {
 		select {
+		case <-daTicker.C:
+			m.retrieveCond.Signal()
 		case header := <-m.HeaderInCh:
 			m.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
 			newHeight := header.Height
@@ -153,7 +178,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			// it's handled gently in RetrieveLoop
 			if newHeight > currentHeight {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
-				m.retrieveCh <- newHeight
+				m.retrieveCond.Signal()
 			}
 		case block := <-m.blockInCh:
 			m.logger.Debug("block body retrieved from DALC",
@@ -161,6 +186,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"hash", block.Hash(),
 			)
 			m.syncCache[block.Header.Height] = block
+			m.retrieveCond.Signal()
 			currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
 			b1, ok1 := m.syncCache[currentHeight+1]
 			b2, ok2 := m.syncCache[currentHeight+2]
@@ -181,6 +207,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 					continue
 				}
 
+				newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 				m.lastState = newState
 				err = m.store.UpdateState(m.lastState)
 				if err != nil {
@@ -195,14 +222,36 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 	}
 }
 
+// RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
+	// waitCh is used to signal the retrieve loop, that it should process next blocks
+	// retrieveCond can be signalled in completely async manner, and goroutine below
+	// works as some kind of "buffer" for those signals
+	waitCh := make(chan interface{})
+	go func() {
+		for {
+			m.retrieveMtx.Lock()
+			m.retrieveCond.Wait()
+			waitCh <- nil
+			m.retrieveMtx.Unlock()
+			if ctx.Err() != nil {
+				return
+			}
+		}
+	}()
+
 	for {
 		select {
-		case <-m.retrieveCh:
-			target := atomic.LoadUint64(&m.syncTarget)
-			for h := m.store.Height() + 1; h <= target; h++ {
-				m.logger.Debug("trying to retrieve block from DALC", "height", h)
-				m.mustRetrieveBlock(ctx, h)
+		case <-waitCh:
+			for {
+				daHeight := atomic.LoadUint64(&m.daHeight)
+				m.logger.Debug("retrieve", "daHeight", daHeight)
+				err := m.processNextDABlock()
+				if err != nil {
+					m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+					break
+				}
+				atomic.AddUint64(&m.daHeight, 1)
 			}
 		case <-ctx.Done():
 			return
@@ -210,35 +259,38 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) mustRetrieveBlock(ctx context.Context, height uint64) {
+func (m *Manager) processNextDABlock() error {
 	// TODO(tzdybal): extract configuration option
 	maxRetries := 10
+	daHeight := atomic.LoadUint64(&m.daHeight)
 
+	var err error
+	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
-		err := m.fetchBlock(ctx, height)
-		if err == nil {
-			return
+		blockResp, fetchErr := m.fetchBlock(daHeight)
+		if fetchErr != nil {
+			err = multierr.Append(err, fetchErr)
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			for _, block := range blockResp.Blocks {
+				m.blockInCh <- block
+			}
+			return nil
 		}
-		// TODO(tzdybal): configuration option
-		// TODO(tzdybal): exponential backoff
-		time.Sleep(100 * time.Millisecond)
 	}
-	// TODO(tzdybal): this is only temporary solution, for MVP
-	panic("failed to retrieve block with DALC")
+	return err
 }
 
-func (m *Manager) fetchBlock(ctx context.Context, height uint64) error {
+func (m *Manager) fetchBlock(daHeight uint64) (da.ResultRetrieveBlocks, error) {
 	var err error
-	blockRes := m.retriever.RetrieveBlock(height)
+	blockRes := m.retriever.RetrieveBlocks(daHeight)
 	switch blockRes.Code {
-	case da.StatusSuccess:
-		m.blockInCh <- blockRes.Block
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
 	case da.StatusTimeout:
 		err = fmt.Errorf("timeout during retrieve block: %s", blockRes.Message)
 	}
-	return err
+	return blockRes, err
 }
 
 func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
@@ -305,6 +357,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	m.lastState = newState
 	err = m.store.UpdateState(m.lastState)
 	if err != nil {
@@ -320,6 +373,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) broadcastBlock(ctx context.Context, block *types.Block) error {
+	m.logger.Debug("submitting block to DA layer", "height", block.Header.Height)
 	res := m.dalc.SubmitBlock(block)
 	if res.Code != da.StatusSuccess {
 		return fmt.Errorf("DA layer submission failed: %s", res.Message)

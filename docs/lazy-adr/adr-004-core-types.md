@@ -11,14 +11,15 @@ This document describes the core data structures of any Optimint-powered blockch
 ## Alternative Approaches
 
 Alternatives for ChainID:
- - an integer type like unit64
- - a string that fulfills some basic rules like the ChainID for Cosmos chains
+
+- an integer type like unit64
+- a string that fulfills some basic rules like the ChainID for Cosmos chains
 
 ## Decision
 
-We design the core data types as minimalistic as possible, i.e. they only contain the absolute necessary 
-data for an optimistic rollup to function properly. 
-If there are any additional fields that conflict with above's claimed minimalism, then they are necessarily inherited 
+We design the core data types as minimalistic as possible, i.e. they only contain the absolute necessary
+data for an optimistic rollup to function properly.
+If there are any additional fields that conflict with above's claimed minimalism, then they are necessarily inherited
 by the ABCI imposed separation between application state machine and consensus/networking (often also referred to as ABCI-server and -client).
 Where such tradeoffs are made, we explicitly comment on them.
 
@@ -104,10 +105,10 @@ type EvidenceData struct {
 The details for this will be defined in a separated adr/PR.
 
 Here is an incomplete list of potenial evidence types:
+
 - Same Aggregator signed two different blocks at the same height
   - figure out if this is actually malicious / slashable behaviour - e.g. clients could simply accept the last block included in a LL block
 - State Transition Fraud Proofs (for previous blocks)
-
 
 #### Commit
 
@@ -122,14 +123,13 @@ type Commit struct {
 #### ConsensusParams
 
 [ConsensusParams](https://docs.tendermint.com/master/spec/core/state.html#consensusparams) can be updated by the application through ABCI.
-This could be seen as a state transition and the ConsensusHash in the header would then require a dedicated state fraud proof. 
+This could be seen as a state transition and the ConsensusHash in the header would then require a dedicated state fraud proof.
 That said, none of the existing default Cosmos-SDK modules actually make use of this functionality though.
-Hence, we can treat the ConsensusParams as constants (for the same app version). 
-We clearly need to communicate this to optimistic rollup chain developers. 
+Hence, we can treat the ConsensusParams as constants (for the same app version).
+We clearly need to communicate this to optimistic rollup chain developers.
 Ideally, we should ensure this programmatically to guarantee that this assumption always holds inside optimint.
 
 The ConsensusParams have the exact same structure as in Tendermint. For the sake of self-containedness we still list them here:
-
 
 ```go
 // ConsensusParams contains consensus critical parameters that determine the
@@ -196,7 +196,6 @@ For finishing the implementation these items need to be tackled at least:
 - [ ] equivalent types for serialization purposes (probably protobuf)
 - [ ] conversion from and to protobuf
 
-
 ## Consequences
 
 ### Positive
@@ -211,6 +210,4 @@ For finishing the implementation these items need to be tackled at least:
 
 ## References
 
-- https://github.com/celestiaorg/optimint/pull/41
-
-
+- <https://github.com/celestiaorg/optimint/pull/41>

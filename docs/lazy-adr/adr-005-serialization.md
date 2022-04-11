@@ -14,7 +14,7 @@ There are countless alternatives to `protobuf`, including `flatbuffers`, `avro`,
 
 ## Decision
 
-`protobuf` is used for data serialization both for storing and network communication. 
+`protobuf` is used for data serialization both for storing and network communication.
 `protobuf` is used widely in entire Cosmos ecosystem, and we would need to use it anyways.
 
 ## Status
@@ -24,12 +24,14 @@ There are countless alternatives to `protobuf`, including `flatbuffers`, `avro`,
 ## Consequences
 
 ### Positive
- * well known serialization method
- * language independent
+
+- well known serialization method
+- language independent
 
 ### Negative
- * there are known issues with `protobuf`
+
+- there are known issues with `protobuf`
 
 ### Neutral
- * it's de-facto standard in Cosmos ecosystem
 
+- it's de-facto standard in Cosmos ecosystem

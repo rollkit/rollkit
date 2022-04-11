@@ -3,6 +3,7 @@
 Libp2p provides multiple ways to discover peers (DHT, mDNS, PubSub peer exchange). Currently there are no plans to support mDNS (as it's limited to local networks).
 
 ## Proposed network architecture
+
 1. There will be a set of well-known, application-agnostic seed nodes. Every optimint client will be able to connect to such node, addresses will be saved in configuration.
     * This does not limit applications as they can still create independent networks with separate set of seed nodes.
 2. Nodes in the network will serve DHT. It will be used for active peer discovery. Client of each ORU network will be able to find other peers in this particular network.
@@ -12,13 +13,16 @@ Libp2p provides multiple ways to discover peers (DHT, mDNS, PubSub peer exchange
 4. After connecting to nodes found in DHT, GossipSub will handle peer lists for clients.
 
 ### Pros
+
 * Shared DHT should make it easier to find peers.
 * Use of existing libraries.
 
 ### Cons
+
 * There may be some overhead for clients to handle DHT requests from other ORU networks.
 
 ## Alternatives
+
 1. Joining public IPFS DHT for peer discovery.
     * pros: large network - finding peers should be very easy
     * cons: we may affect public IPFS network stability in case of misconfiguration, possibly lot of unrelated traffic

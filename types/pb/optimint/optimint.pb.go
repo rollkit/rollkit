@@ -16,12 +16,17 @@
 */
 package optimint
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import tendermint_abci "github.com/tendermint/tendermint/abci/types"
+import (
+	fmt "fmt"
 
-import io "io"
+	proto "github.com/golang/protobuf/proto"
+
+	math "math"
+
+	tendermint_abci "github.com/tendermint/tendermint/abci/types"
+
+	io "io"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -91,7 +96,7 @@ type Header struct {
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	ProposerAddress []byte `protobuf:"bytes,11,opt,name=proposer_address,json=proposerAddress,proto3" json:"proposer_address,omitempty"`
-	// Hash of block aggregator set, at a time of block creation.
+	// Hash of block aggregator set, at a time of block creation
 	AggregatorsHash []byte `protobuf:"bytes,12,opt,name=aggregators_hash,json=aggregatorsHash,proto3" json:"aggregators_hash,omitempty"`
 }
 

@@ -37,6 +37,8 @@ type State struct {
 	LastBlockID     types.BlockID
 	LastBlockTime   time.Time
 
+	DAHeight uint64
+
 	// In the MVP implementation, there will be only one Validator
 	NextValidators              *types.ValidatorSet
 	Validators                  *types.ValidatorSet
@@ -79,6 +81,8 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
 		InitialHeight: genDoc.InitialHeight,
+
+		DAHeight: 1,
 
 		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},

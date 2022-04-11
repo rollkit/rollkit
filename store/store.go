@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -30,9 +30,6 @@ type DefaultStore struct {
 	db KVStore
 
 	height uint64
-
-	// mtx ensures that db is in sync with height
-	mtx sync.RWMutex
 }
 
 var _ Store = &DefaultStore{}
@@ -46,9 +43,7 @@ func New(kv KVStore) Store {
 
 // Height returns height of the highest block saved in the Store.
 func (s *DefaultStore) Height() uint64 {
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-	return s.height
+	return atomic.LoadUint64(&s.height)
 }
 
 // SaveBlock adds block to the store along with corresponding commit.
@@ -65,9 +60,6 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 		return err
 	}
 
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	bb := s.db.NewBatch()
 	err = multierr.Append(err, bb.Set(getBlockKey(hash), blockBlob))
 	err = multierr.Append(err, bb.Set(getCommitKey(hash), commitBlob))
@@ -82,8 +74,8 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 		return err
 	}
 
-	if block.Header.Height > s.height {
-		s.height = block.Header.Height
+	if block.Header.Height > atomic.LoadUint64(&s.height) {
+		atomic.StoreUint64(&s.height, block.Header.Height)
 	}
 
 	return nil
@@ -176,9 +168,7 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 	}
 
 	err = json.Unmarshal(blob, &state)
-	s.mtx.Lock()
-	s.height = uint64(state.LastBlockHeight)
-	s.mtx.Unlock()
+	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
 	return state, err
 }
 
