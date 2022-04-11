@@ -67,20 +67,21 @@ func TestMempoolDirectly(t *testing.T) {
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
-	err = node.Mempool.CheckTx(context.TODO(), []byte("tx1"), func(r *abci.Response) {}, mempool.TxInfo{
+	ctx := context.Background()
+	err = node.Mempool.CheckTx(ctx, []byte("tx1"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
-	err = node.Mempool.CheckTx(context.TODO(), []byte("tx2"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx(ctx, []byte("tx2"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
 	time.Sleep(100 * time.Millisecond)
-	err = node.Mempool.CheckTx(context.TODO(), []byte("tx3"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx(ctx, []byte("tx3"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
-	err = node.Mempool.CheckTx(context.TODO(), []byte("tx4"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx(ctx, []byte("tx4"), func(r *abci.Response) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)

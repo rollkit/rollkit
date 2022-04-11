@@ -216,7 +216,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state State, block *types.Bl
 		return nil, 0, err
 	}
 
-	resp, err := e.proxyApp.CommitSync(context.TODO())
+	resp, err := e.proxyApp.CommitSync(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -288,7 +288,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 	abciHeader.ChainID = e.chainID
 	abciHeader.ValidatorsHash = state.Validators.Hash()
-	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(context.TODO(),
+	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(ctx,
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
 			Header: abciHeader,
@@ -303,13 +303,13 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 
 	for _, tx := range block.Data.Txs {
-		res, err := e.proxyApp.DeliverTxAsync(context.TODO(), abci.RequestDeliverTx{Tx: tx})
+		res, err := e.proxyApp.DeliverTxAsync(ctx, abci.RequestDeliverTx{Tx: tx})
 		if err != nil || res.GetException() != nil {
 			return nil, errors.New(res.GetException().GetError())
 		}
 	}
 
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(context.TODO(), abci.RequestEndBlock{Height: int64(block.Header.Height)})
+	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(ctx, abci.RequestEndBlock{Height: int64(block.Header.Height)})
 	if err != nil {
 		return nil, err
 	}

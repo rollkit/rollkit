@@ -54,8 +54,9 @@ func TestCreateBlock(t *testing.T) {
 	assert.Empty(block.Data.Txs)
 	assert.Equal(uint64(1), block.Header.Height)
 
+	ctx := context.Background()
 	// one small Tx
-	err := mpool.CheckTx(context.TODO(), []byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	err := mpool.CheckTx(ctx, []byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block = executor.CreateBlock(2, &types.Commit{}, [32]byte{}, state)
 	require.NotNil(block)
@@ -63,9 +64,9 @@ func TestCreateBlock(t *testing.T) {
 	assert.Len(block.Data.Txs, 1)
 
 	// now there are 3 Txs, and only two can fit into single block
-	err = mpool.CheckTx(context.TODO(), []byte{4, 5, 6, 7}, func(r *abci.Response) {}, mempool.TxInfo{})
+	err = mpool.CheckTx(ctx, []byte{4, 5, 6, 7}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
-	err = mpool.CheckTx(context.TODO(), make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
+	err = mpool.CheckTx(ctx, make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block = executor.CreateBlock(3, &types.Commit{}, [32]byte{}, state)
 	require.NotNil(block)
@@ -124,7 +125,9 @@ func TestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 
-	_ = mpool.CheckTx(context.TODO(), []byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	ctx := context.Background()
+
+	_ = mpool.CheckTx(ctx, []byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block := executor.CreateBlock(1, &types.Commit{}, [32]byte{}, state)
 	require.NotNil(block)
@@ -138,10 +141,10 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(int64(1), newState.LastBlockHeight)
 	assert.Equal(mockAppHash, newState.AppHash)
 
-	require.NoError(mpool.CheckTx(context.TODO(), []byte{0, 1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx(context.TODO(), []byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx(context.TODO(), []byte{1, 2, 3, 4, 5}, func(r *abci.Response) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx(context.TODO(), make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(ctx, []byte{0, 1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(ctx, []byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(ctx, []byte{1, 2, 3, 4, 5}, func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(ctx, make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
 	block = executor.CreateBlock(2, &types.Commit{}, [32]byte{}, newState)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Header.Height)

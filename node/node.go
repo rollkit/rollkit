@@ -269,7 +269,7 @@ func (n *Node) newTxValidator() p2p.GossipValidator {
 	return func(m *p2p.GossipMessage) bool {
 		n.Logger.Debug("transaction received", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
-		err := n.Mempool.CheckTx(context.TODO(), m.Data, func(resp *abci.Response) {
+		err := n.Mempool.CheckTx(n.ctx, m.Data, func(resp *abci.Response) {
 			checkTxResCh <- resp
 		}, mempool.TxInfo{
 			SenderID:     n.mempoolIDs.GetForPeer(m.From),

@@ -67,7 +67,7 @@ func TestAggregatorMode(t *testing.T) {
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		for {
 			select {
@@ -102,7 +102,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
-		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
+		require.NoError(nodes[i].P2P.GossipTx(context.Background(), []byte(data)))
 	}
 
 	timeout := time.NewTimer(time.Second * 30)
