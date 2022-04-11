@@ -3,7 +3,7 @@ name: build-evmos
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
   release:
     types: [published]
