@@ -60,7 +60,7 @@ func (c *Client) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
 		P2PVersion:   version.P2PProtocol,
 		AbciVersion:  version.ABCIVersion,
 	}
-	resInfo, err := c.query().InfoSync(ctx, requestInfo)
+	resInfo, err := c.appClient().InfoSync(ctx, requestInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (c *Client) ABCIQuery(ctx context.Context, path string, data tmbytes.HexByt
 }
 
 func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.query().QuerySync(ctx, abci.RequestQuery{
+	resQuery, err := c.appClient().QuerySync(ctx, abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -745,7 +745,7 @@ func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.Res
 }
 
 func (c *Client) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := c.mempool().CheckTxSync(ctx, abci.RequestCheckTx{Tx: tx})
+	res, err := c.appClient().CheckTxSync(ctx, abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
@@ -800,18 +800,7 @@ func (c *Client) resubscribe(subscriber string, q tmpubsub.Query) types.Subscrip
 	}
 }
 
-func (c *Client) consensus() abciclient.Client {
-	return c.node.AppClient()
-}
-
-func (c *Client) mempool() abciclient.Client {
-	return c.node.AppClient()
-}
-func (c *Client) query() abciclient.Client {
-	return c.node.AppClient()
-}
-
-func (c *Client) snapshot() abciclient.Client {
+func (c *Client) appClient() abciclient.Client {
 	return c.node.AppClient()
 }
 
