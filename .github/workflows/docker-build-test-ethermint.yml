@@ -1,0 +1,112 @@
+name: build-evmos
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: celestiaorg/ethermint
+  TAG_PREFIX: optimint-
+
+jobs:
+  build:
+    if: ! github.event.pull_request.head.repo.fork
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: write 
+      packages: write 
+    steps:
+      - name: "Checkout source code"
+        uses: "actions/checkout@v3"
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.17
+      - name: up a level
+        run: cd .. && pwd
+      - name: Clone ethermint repo
+        uses: actions/checkout@v3
+        with:
+          repository: celestiaorg/ethermint
+          path: ethermint
+          ref: v0.11.0+0.1.0
+      - name: Move Stuff and Tidy
+        run: |
+          ls
+          mv ethermint ..
+          cd ..
+          cp -R optimint ethermint
+          cd ethermint
+          rm -rf .git
+          go mod edit -replace=github.com/celestiaorg/optimint=./optimint
+          go mod tidy -compat=1.17 -e
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=${{ env.TAG_PREFIX }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to GHCR
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: ../ethermint
+          platforms: linux/amd64, linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          file: ../ethermint/docker/Dockerfile
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clone repo
+      uses: actions/checkout@v2
+    - name: Clone ephemeral-cluster repo
+      uses: actions/checkout@v2
+      with:
+        repository: celestiaorg/ephemeral-cluster
+        path: ephemeral-cluster
+        ref: ethermint
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+    - name: "Setup Cluster"
+      run: |
+        export EVMOS_IMAGE_TAG=ethermint-$(git rev-parse --short "$GITHUB_SHA")
+        echo $EVMOS_IMAGE_TAG
+        cd ephemeral-cluster
+        scripts/minimal-cevmos.sh
+    - name: "Test Cluster"
+      run: | 
+        docker ps -a
+        echo "------------- docker logs core0 -------------"
+        docker logs core0
+        echo "------------- docker logs bridge0 -------------"
+        docker logs bridge0
+        echo "------------- docker logs light0 -------------"
+        docker logs light0
+        echo "------------- docker logs dalc0 -------------"
+        docker logs dalc0
+        echo "------------- docker logs evmos0 -------------"
+        docker logs evmos0
+        cd /home/runner/work/ethermint/ethermint
+        echo "------------- go test ./tests/rpc/... -------------"
+        MODE=rpc HOST=http://127.0.0.1:8545 go test ./tests/rpc/... -v
