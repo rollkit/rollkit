@@ -6,3 +6,5 @@ plugins:
   - name: gogofaster
      # The the relative output directory.
     out: proto/pb
+    # Any options to provide to the plugin.
+    opt: plugins=grpc,paths=source_relative
