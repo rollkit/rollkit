@@ -29,6 +29,12 @@ To test:
 go test ./...
 ```
 
+To regenerate protobuf types:
+
+```sh
+./proto/gen.sh
+```
+
 ## Contributing
 
 We welcome your contributions! Everyone is welcome to contribute, whether it's in the form of code,
