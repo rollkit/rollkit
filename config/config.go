@@ -9,11 +9,13 @@ import (
 )
 
 const (
-	flagAggregator  = "optimint.aggregator"
-	flagDALayer     = "optimint.da_layer"
-	flagDAConfig    = "optimint.da_config"
-	flagBlockTime   = "optimint.block_time"
-	flagNamespaceID = "optimint.namespace_id"
+	flagAggregator    = "optimint.aggregator"
+	flagDALayer       = "optimint.da_layer"
+	flagDAConfig      = "optimint.da_config"
+	flagBlockTime     = "optimint.block_time"
+	flagDABlockTime   = "optimint.da_block_time"
+	flagDAStartHeight = "optimint.da_start_height"
+	flagNamespaceID   = "optimint.namespace_id"
 )
 
 // NodeConfig stores Optimint node configuration.
@@ -45,6 +47,8 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
 	nc.DALayer = v.GetString(flagDALayer)
 	nc.DAConfig = v.GetString(flagDAConfig)
+	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
+	nc.DABlockTime = v.GetDuration(flagDABlockTime)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nsID := v.GetString(flagNamespaceID)
 	bytes, err := hex.DecodeString(nsID)
@@ -61,5 +65,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
 	cmd.Flags().String(flagDAConfig, def.DAConfig, "Data Availability Layer Client config")
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
+	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
 }
