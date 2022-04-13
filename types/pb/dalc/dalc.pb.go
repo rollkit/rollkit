@@ -4,9 +4,13 @@
 package dalc
 
 import (
+	context "context"
 	fmt "fmt"
 	optimint "github.com/celestiaorg/optimint/types/pb/optimint"
 	proto "github.com/gogo/protobuf/proto"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -442,6 +446,158 @@ var fileDescriptor_45d7d8eda2693dc1 = []byte{
 	0x23, 0x26, 0xc6, 0x73, 0xa7, 0xee, 0xfa, 0xd3, 0x86, 0x8b, 0x1e, 0x72, 0xc1, 0x6c, 0x3f, 0x18,
 	0x6d, 0x57, 0x45, 0x43, 0x2c, 0x67, 0xc8, 0x1b, 0x33, 0x47, 0xee, 0x15, 0x27, 0x27, 0x37, 0xc7,
 	0xeb, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x72, 0xc7, 0x7f, 0x66, 0x6b, 0x04, 0x00, 0x00,
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// DALCServiceClient is the client API for DALCService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type DALCServiceClient interface {
+	SubmitBlock(ctx context.Context, in *SubmitBlockRequest, opts ...grpc.CallOption) (*SubmitBlockResponse, error)
+	CheckBlockAvailability(ctx context.Context, in *CheckBlockAvailabilityRequest, opts ...grpc.CallOption) (*CheckBlockAvailabilityResponse, error)
+	RetrieveBlocks(ctx context.Context, in *RetrieveBlocksRequest, opts ...grpc.CallOption) (*RetrieveBlocksResponse, error)
+}
+
+type dALCServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewDALCServiceClient(cc *grpc.ClientConn) DALCServiceClient {
+	return &dALCServiceClient{cc}
+}
+
+func (c *dALCServiceClient) SubmitBlock(ctx context.Context, in *SubmitBlockRequest, opts ...grpc.CallOption) (*SubmitBlockResponse, error) {
+	out := new(SubmitBlockResponse)
+	err := c.cc.Invoke(ctx, "/dalc.DALCService/SubmitBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dALCServiceClient) CheckBlockAvailability(ctx context.Context, in *CheckBlockAvailabilityRequest, opts ...grpc.CallOption) (*CheckBlockAvailabilityResponse, error) {
+	out := new(CheckBlockAvailabilityResponse)
+	err := c.cc.Invoke(ctx, "/dalc.DALCService/CheckBlockAvailability", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dALCServiceClient) RetrieveBlocks(ctx context.Context, in *RetrieveBlocksRequest, opts ...grpc.CallOption) (*RetrieveBlocksResponse, error) {
+	out := new(RetrieveBlocksResponse)
+	err := c.cc.Invoke(ctx, "/dalc.DALCService/RetrieveBlocks", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DALCServiceServer is the server API for DALCService service.
+type DALCServiceServer interface {
+	SubmitBlock(context.Context, *SubmitBlockRequest) (*SubmitBlockResponse, error)
+	CheckBlockAvailability(context.Context, *CheckBlockAvailabilityRequest) (*CheckBlockAvailabilityResponse, error)
+	RetrieveBlocks(context.Context, *RetrieveBlocksRequest) (*RetrieveBlocksResponse, error)
+}
+
+// UnimplementedDALCServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedDALCServiceServer struct {
+}
+
+func (*UnimplementedDALCServiceServer) SubmitBlock(ctx context.Context, req *SubmitBlockRequest) (*SubmitBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitBlock not implemented")
+}
+func (*UnimplementedDALCServiceServer) CheckBlockAvailability(ctx context.Context, req *CheckBlockAvailabilityRequest) (*CheckBlockAvailabilityResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckBlockAvailability not implemented")
+}
+func (*UnimplementedDALCServiceServer) RetrieveBlocks(ctx context.Context, req *RetrieveBlocksRequest) (*RetrieveBlocksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RetrieveBlocks not implemented")
+}
+
+func RegisterDALCServiceServer(s *grpc.Server, srv DALCServiceServer) {
+	s.RegisterService(&_DALCService_serviceDesc, srv)
+}
+
+func _DALCService_SubmitBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DALCServiceServer).SubmitBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/dalc.DALCService/SubmitBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DALCServiceServer).SubmitBlock(ctx, req.(*SubmitBlockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DALCService_CheckBlockAvailability_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckBlockAvailabilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DALCServiceServer).CheckBlockAvailability(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/dalc.DALCService/CheckBlockAvailability",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DALCServiceServer).CheckBlockAvailability(ctx, req.(*CheckBlockAvailabilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DALCService_RetrieveBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetrieveBlocksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DALCServiceServer).RetrieveBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/dalc.DALCService/RetrieveBlocks",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DALCServiceServer).RetrieveBlocks(ctx, req.(*RetrieveBlocksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _DALCService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "dalc.DALCService",
+	HandlerType: (*DALCServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SubmitBlock",
+			Handler:    _DALCService_SubmitBlock_Handler,
+		},
+		{
+			MethodName: "CheckBlockAvailability",
+			Handler:    _DALCService_CheckBlockAvailability_Handler,
+		},
+		{
+			MethodName: "RetrieveBlocks",
+			Handler:    _DALCService_RetrieveBlocks_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "dalc/dalc.proto",
 }
 
 func (m *DAResponse) Marshal() (dAtA []byte, err error) {
