@@ -1,0 +1,9 @@
+version: v1beta1
+
+# The plugins to run.
+plugins:
+  # The name of the plugin.
+  - name: gogofaster
+    # The the relative output directory.
+    out: proto
+
