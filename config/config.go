@@ -47,6 +47,8 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
 	nc.DALayer = v.GetString(flagDALayer)
 	nc.DAConfig = v.GetString(flagDAConfig)
+	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
+	nc.DABlockTime = v.GetDuration(flagDABlockTime)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nsID := v.GetString(flagNamespaceID)
 	bytes, err := hex.DecodeString(nsID)
