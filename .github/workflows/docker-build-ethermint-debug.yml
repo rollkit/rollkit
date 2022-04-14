@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    if: ! github.event.pull_request.head.repo.fork
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: "ubuntu-latest"
     permissions:
       contents: write 
@@ -35,7 +35,7 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
-          # ref: v0.11.0+0.1.0
+          ref: v0.11.0+0.1.0
       - name: Move Stuff and Tidy
         run: |
           ls
