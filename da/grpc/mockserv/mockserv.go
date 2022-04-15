@@ -7,7 +7,6 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
 
-	grpcda "github.com/celestiaorg/optimint/da/grpc"
 	"github.com/celestiaorg/optimint/da/mock"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
@@ -15,7 +14,7 @@ import (
 	"github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
-func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Server {
+func GetServer(kv store.KVStore, mockConfig []byte) *grpc.Server {
 	logger := tmlog.NewTMLogger(os.Stdout)
 
 	srv := grpc.NewServer()
