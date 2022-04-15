@@ -12,9 +12,10 @@ import (
 	"github.com/celestiaorg/optimint/types"
 	"github.com/celestiaorg/optimint/types/pb/dalc"
 	"github.com/celestiaorg/optimint/types/pb/optimint"
+	grpcda "github.com/celestiaorg/optimint/da/grpc"
 )
 
-func GetServer(kv store.KVStore, mockConfig []byte) *grpc.Server {
+func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Server {
 	logger := tmlog.NewTMLogger(os.Stdout)
 
 	srv := grpc.NewServer()

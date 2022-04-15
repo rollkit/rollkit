@@ -5,10 +5,9 @@ WORKDIR /src
 
 COPY . .
 
-RUN cd cmd && go mod download 
-
-# Make the binary
-RUN go build /src/cmd/main.go
+RUN cd cmd && \
+    go mod tidy -compat=1.17 && \ 
+    go build main.go
 
 # Final image
 FROM alpine
@@ -16,7 +15,7 @@ FROM alpine
 WORKDIR /root
 
 # Copy over binaries from the build-env
-COPY --from=build-env /src/main /usr/bin/mock-da
+COPY --from=build-env /src/cmd/main /usr/bin/mock-da
 
 EXPOSE 7980
 
