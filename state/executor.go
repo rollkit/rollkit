@@ -119,6 +119,29 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	return block
 }
 
+func (e *BlockExecutor) generateISRs(resp *tmstate.ABCIResponses) [][]byte {
+	var isrs [][]byte
+
+	// Add Begin Block isr
+	beginBlockISR := extractIsr(resp.BeginBlock.Events)
+	e.logger.Info("Begin Block ISR: ", "beginISR", beginBlockISR)
+	isrs = append(isrs, beginBlockISR)
+
+	// Add Deliver Tx isrs
+	for i, deliverTx := range resp.DeliverTxs {
+		deliverTxISR := extractIsr(deliverTx.Events)
+		e.logger.Info("Deliver Tx ISR: ", "index", i, "deliver_tx_isr", deliverTxISR)
+		isrs = append(isrs, deliverTxISR)
+	}
+
+	// Add End Block isrs
+	endBlockISR := extractIsr(resp.EndBlock.Events)
+	e.logger.Info("End Block ISR: ", "end_isr", endBlockISR)
+	isrs = append(isrs, endBlockISR)
+
+	return isrs
+}
+
 // ApplyBlock validates, executes and commits the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *types.Block) (State, *tmstate.ABCIResponses, uint64, error) {
 	err := e.validate(state, block)
@@ -148,6 +171,11 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 	state, err = e.updateState(state, block, resp, validatorUpdates)
 	if err != nil {
 		return State{}, nil, 0, err
+	}
+
+	if block.Data.IntermediateStateRoots.RawRootsList == nil {
+		// Block producer: Initial ISRs generated here
+		block.Data.IntermediateStateRoots.RawRootsList = e.generateISRs(resp)
 	}
 
 	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
@@ -265,11 +293,33 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	validTxs := 0
 	invalidTxs := 0
 
+	currentIsrs := block.Data.IntermediateStateRoots.RawRootsList
+	currentIsrIndex := 0
+
+	if currentIsrs != nil {
+		expectedLength := len(block.Data.Txs) + 2
+		// BeginBlock + DeliverTxs + EndBlock
+		if len(currentIsrs) != expectedLength {
+			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
+		}
+	}
+
 	var err error
 
 	e.proxyApp.SetResponseCallback(func(req *abci.Request, res *abci.Response) {
 		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
 			txRes := r.DeliverTx
+
+			if currentIsrs != nil {
+				generatedIsr := extractIsr(r.DeliverTx.Events)
+				deliverTxIsr := currentIsrs[currentIsrIndex]
+				currentIsrIndex++
+				if !bytes.Equal(deliverTxIsr, generatedIsr) {
+					tx := req.Value.(*abci.Request_DeliverTx).DeliverTx.Tx
+					go e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{Tx: tx})
+				}
+			}
+
 			if txRes.Code == abci.CodeTypeOK {
 				validTxs++
 			} else {
@@ -288,6 +338,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 	}
 	abciHeader.ChainID = e.chainID
 	abciHeader.ValidatorsHash = state.Validators.Hash()
+
 	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
 		abci.RequestBeginBlock{
 			Hash:   hash[:],
@@ -297,23 +348,23 @@ func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.B
 				Votes: nil,
 			},
 			ByzantineValidators: nil,
+			Isr:                 nil,
 		})
+
 	if err != nil {
 		return nil, err
 	}
-
 	for _, tx := range block.Data.Txs {
-		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
+		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx, Isr: nil})
 		if res.GetException() != nil {
 			return nil, errors.New(res.GetException().GetError())
 		}
 	}
 
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height)})
+	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height), Isr: nil})
 	if err != nil {
 		return nil, err
 	}
-
 	return abciResponses, nil
 }
 
@@ -365,6 +416,13 @@ func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.
 		}))
 	}
 	return err
+}
+
+func extractIsr(events []abci.Event) []byte {
+	if len(events) > 0 {
+		return events[len(events)-1].Attributes[0].Value
+	}
+	return nil
 }
 
 func toOptimintTxs(txs tmtypes.Txs) types.Txs {
