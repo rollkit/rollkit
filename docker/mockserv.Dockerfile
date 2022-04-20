@@ -5,9 +5,8 @@ WORKDIR /src
 
 COPY . .
 
-RUN cd cmd && \
-    go mod tidy -compat=1.17 && \ 
-    go build main.go
+RUN go mod tidy -compat=1.17 && \ 
+    go build /src/da/grpc/mockserv/cmd/main.go
 
 # Final image
 FROM alpine
@@ -15,7 +14,7 @@ FROM alpine
 WORKDIR /root
 
 # Copy over binaries from the build-env
-COPY --from=build-env /src/cmd/main /usr/bin/mock-da
+COPY --from=build-env /src/main /usr/bin/mock-da
 
 EXPOSE 7980
 
