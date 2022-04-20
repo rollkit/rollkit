@@ -44,8 +44,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: da/grpc/mockserv
+          context: .
           platforms: linux/amd64, linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          file: da/grpc/mockserv/Dockerfile
+          file: docker/Dockerfile
