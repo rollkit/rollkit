@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: celestiaorg/ethermint
+  IMAGE_NAME: celestiaorg/ethermint-debug
   TAG_PREFIX: optimint-
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix=${{ env.TAG_PREFIX }},suffix=-debug
+            type=sha,prefix=${{ env.TAG_PREFIX }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
