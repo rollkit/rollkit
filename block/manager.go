@@ -27,6 +27,11 @@ import (
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
 const defaultDABlockTime = 30 * time.Second
 
+type newBlockEvent struct {
+	block    *types.Block
+	daHeight uint64
+}
+
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
 	lastState state.State
@@ -48,7 +53,7 @@ type Manager struct {
 	HeaderInCh  chan *types.Header
 
 	syncTarget uint64
-	blockInCh  chan *types.Block
+	blockInCh  chan newBlockEvent
 	syncCache  map[uint64]*types.Block
 
 	// retrieveMtx is used by retrieveCond
@@ -123,7 +128,7 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderOutCh: make(chan *types.Header, 100),
 		HeaderInCh:  make(chan *types.Header, 100),
-		blockInCh:   make(chan *types.Block, 100),
+		blockInCh:   make(chan newBlockEvent, 100),
 		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
 		logger:      logger,
@@ -180,7 +185,9 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCond.Signal()
 			}
-		case block := <-m.blockInCh:
+		case blockEvent := <-m.blockInCh:
+			block := blockEvent.block
+			daHeight := blockEvent.daHeight
 			m.logger.Debug("block body retrieved from DALC",
 				"height", block.Header.Height,
 				"hash", block.Hash(),
@@ -207,7 +214,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 					continue
 				}
 
-				newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+				newState.DAHeight = daHeight
 				m.lastState = newState
 				err = m.store.UpdateState(m.lastState)
 				if err != nil {
@@ -273,7 +280,7 @@ func (m *Manager) processNextDABlock() error {
 			time.Sleep(100 * time.Millisecond)
 		} else {
 			for _, block := range blockResp.Blocks {
-				m.blockInCh <- block
+				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
 			return nil
 		}
