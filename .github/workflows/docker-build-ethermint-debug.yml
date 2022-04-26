@@ -1,4 +1,4 @@
-name: build-evmos
+name: docker-build-ethermint-debug
 
 on:
   push:
