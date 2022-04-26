@@ -35,7 +35,6 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
-          # ref: v0.11.0+0.1.0
       - name: Move Stuff and Tidy
         run: |
           ls
@@ -83,7 +82,6 @@ jobs:
       with:
         repository: celestiaorg/ephemeral-cluster
         path: ephemeral-cluster
-        ref: ethermint
     - name: Set up Go
       uses: actions/setup-go@v2
       with:

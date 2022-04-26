@@ -35,7 +35,6 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
-          # ref: v0.11.0+0.1.0
       - name: Move Stuff and Tidy
         run: |
           ls
