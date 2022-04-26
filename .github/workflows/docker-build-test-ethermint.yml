@@ -104,7 +104,7 @@ jobs:
         echo "------------- docker logs dalc0 -------------"
         docker logs dalc0
         echo "------------- docker logs evmos0 -------------"
-        docker logs evmos0
+        docker logs ethermint0
         cd /home/runner/work/ethermint/ethermint
         echo "------------- go test ./tests/rpc/... -------------"
         MODE=rpc HOST=http://127.0.0.1:8545 go test ./tests/rpc/... -v
