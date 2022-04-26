@@ -91,7 +91,7 @@ jobs:
         export EVMOS_IMAGE_TAG=ethermint-$(git rev-parse --short "$GITHUB_SHA")
         echo $EVMOS_IMAGE_TAG
         cd ephemeral-cluster
-        scripts/minimal-cevmos.sh
+        scripts/minimal-ethermint.sh
     - name: "Test Cluster"
       run: | 
         docker ps -a
