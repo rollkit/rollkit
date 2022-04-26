@@ -37,6 +37,7 @@ type State struct {
 	LastBlockID     types.BlockID
 	LastBlockTime   time.Time
 
+	// DAHeight identifies DA block containing the latest applied Optimint block.
 	DAHeight uint64
 
 	// In the MVP implementation, there will be only one Validator
