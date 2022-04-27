@@ -206,7 +206,7 @@ func (c *Client) listen(ctx context.Context) (host.Host, error) {
 		return nil, err
 	}
 
-	host, err := libp2p.New(ctx, libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
+	host, err := libp2p.New(libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
 	if err != nil {
 		return nil, err
 	}
