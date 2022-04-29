@@ -29,7 +29,9 @@ jobs:
         with:
           go-version: 1.17
       - name: up a level
-        run: cd .. && pwd
+        run: | 
+          cd .. 
+          pwd
       - name: Clone ethermint repo
         uses: actions/checkout@v3
         with:
