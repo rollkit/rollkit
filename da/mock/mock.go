@@ -70,7 +70,7 @@ func (m *MockDataAvailabilityLayerClient) Stop() error {
 // triggers a state transition in the DA layer.
 func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	daHeight := atomic.LoadUint64(&m.daHeight)
-	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height, "dataLayerHeight", daHeight)
+	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height, "daHeight", daHeight)
 
 	hash := block.Header.Hash()
 	blob, err := block.MarshalBinary()
@@ -97,18 +97,18 @@ func (m *MockDataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.Res
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
-	blocksRes := m.RetrieveBlocks(dataLayerHeight)
+func (m *MockDataAvailabilityLayerClient) CheckBlockAvailability(daHeight uint64) da.ResultCheckBlock {
+	blocksRes := m.RetrieveBlocks(daHeight)
 	return da.ResultCheckBlock{DAResult: da.DAResult{Code: blocksRes.Code}, DataAvailable: len(blocksRes.Blocks) > 0}
 }
 
 // RetrieveBlocks returns block at given height from data availability layer.
-func (m *MockDataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	if dataLayerHeight >= atomic.LoadUint64(&m.daHeight) {
+func (m *MockDataAvailabilityLayerClient) RetrieveBlocks(daHeight uint64) da.ResultRetrieveBlocks {
+	if daHeight >= atomic.LoadUint64(&m.daHeight) {
 		return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: "block not found"}}
 	}
 
-	iter := m.dalcKV.PrefixIterator(getPrefix(dataLayerHeight))
+	iter := m.dalcKV.PrefixIterator(getPrefix(daHeight))
 	defer iter.Discard()
 
 	var blocks []*types.Block

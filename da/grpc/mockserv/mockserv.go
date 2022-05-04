@@ -49,13 +49,13 @@ func (m *mockImpl) SubmitBlock(_ context.Context, request *dalc.SubmitBlockReque
 		Result: &dalc.DAResponse{
 			Code:            dalc.StatusCode(resp.Code),
 			Message:         resp.Message,
-			DataLayerHeight: resp.DAHeight,
+			DaHeight: resp.DaHeight,
 		},
 	}, nil
 }
 
 func (m *mockImpl) CheckBlockAvailability(_ context.Context, request *dalc.CheckBlockAvailabilityRequest) (*dalc.CheckBlockAvailabilityResponse, error) {
-	resp := m.mock.CheckBlockAvailability(request.DataLayerHeight)
+	resp := m.mock.CheckBlockAvailability(request.DaHeight)
 	return &dalc.CheckBlockAvailabilityResponse{
 		Result: &dalc.DAResponse{
 			Code:    dalc.StatusCode(resp.Code),
@@ -66,7 +66,7 @@ func (m *mockImpl) CheckBlockAvailability(_ context.Context, request *dalc.Check
 }
 
 func (m *mockImpl) RetrieveBlocks(context context.Context, request *dalc.RetrieveBlocksRequest) (*dalc.RetrieveBlocksResponse, error) {
-	resp := m.mock.RetrieveBlocks(request.DataLayerHeight)
+	resp := m.mock.RetrieveBlocks(request.DaHeight)
 	blocks := make([]*optimint.Block, len(resp.Blocks))
 	for i := range resp.Blocks {
 		blocks[i] = resp.Blocks[i].ToProto()
