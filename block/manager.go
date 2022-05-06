@@ -27,6 +27,10 @@ import (
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
 const defaultDABlockTime = 30 * time.Second
 
+// maxSubmitAttempts defines how many times Optimint will re-try to publish block to DA layer.
+// This is temporary solution. It will be removed in future versions.
+const maxSubmitAttempts = 10
+
 type newBlockEvent struct {
 	block    *types.Block
 	daHeight uint64
@@ -279,6 +283,7 @@ func (m *Manager) processNextDABlock() error {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
 		} else {
+			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
@@ -364,6 +369,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	err = m.submitBlockToDA(ctx, block)
+	if err != nil {
+		return err
+	}
+
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	m.lastState = newState
 	err = m.store.UpdateState(m.lastState)
@@ -376,19 +386,37 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	return m.broadcastBlock(ctx, block)
+	m.publishHeader(block)
+
+	return nil
 }
 
-func (m *Manager) broadcastBlock(ctx context.Context, block *types.Block) error {
+func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
 	m.logger.Debug("submitting block to DA layer", "height", block.Header.Height)
-	res := m.dalc.SubmitBlock(block)
-	if res.Code != da.StatusSuccess {
-		return fmt.Errorf("DA layer submission failed: %s", res.Message)
+
+	submitted := false
+	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
+		res := m.dalc.SubmitBlock(block)
+		if res.Code == da.StatusSuccess {
+			m.logger.Info("successfully submitted optimint block to DA layer", "optimintHeight", block.Header.Height, "daHeight", res.DAHeight)
+			submitted = true
+		} else {
+			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+		}
+	}
+
+	if !submitted {
+		// TODO(tzdybal): probably this could be handled better
+		panic("Failed to submit block to DA layer!")
 	}
 
 	m.HeaderOutCh <- &block.Header
 
 	return nil
+}
+
+func (m *Manager) publishHeader(block *types.Block) {
+	m.HeaderOutCh <- &block.Header
 }
 
 func updateState(s *state.State, res *abci.ResponseInitChain) {
