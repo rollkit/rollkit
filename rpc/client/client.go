@@ -552,8 +552,10 @@ func (c *Client) Tx(ctx context.Context, hash tmbytes.HexBytes, prove bool) (*ct
 }
 
 func (c *Client) RemoveTx(ctx context.Context, key types.TxKey) error {
-	//TODO implement me
-	panic("implement me")
+	if err := c.node.Mempool.RemoveTxByKey(key); err != nil {
+		fmt.Errorf("failed to remove transaction from mempool: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) TxSearch(ctx context.Context, query string, prove bool, pagePtr, perPagePtr *int, orderBy string) (*ctypes.ResultTxSearch, error) {
