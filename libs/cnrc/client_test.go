@@ -37,8 +37,9 @@ func TestNamespacedShares(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
 
-	err = client.NamespacedShares([8]byte{0, 0, 0, 0, 0, 0, 0, 1}, 2)
+	shares, err := client.NamespacedShares([8]byte{0, 0, 0, 0, 0, 0, 0, 1}, 357889)
 	assert.NoError(t, err)
+	assert.NotNil(t, shares)
 }
 
 var pool *dockertest.Pool

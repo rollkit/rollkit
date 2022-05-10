@@ -51,21 +51,21 @@ func (c *Client) SubmitPFD(namespaceID [8]byte, data []byte, gasLimit uint64) /*
 	return nil
 }
 
-func (c *Client) NamespacedShares(namespaceID [8]byte, height uint64) error {
+func (c *Client) NamespacedShares(namespaceID [8]byte, height uint64) ([][]byte, error) {
 	req := SharesByNamespaceRequest{
 		NamespaceID: hex.EncodeToString(namespaceID[:]),
 		Height:      height,
 	}
-	resp, err := c.c.R().
+	var res [][]byte
+	_, err := c.c.R().
 		SetBody(req).
+		SetResult(&res).
 		Get(namespacedSharesEndpoint)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	fmt.Println(resp.Body())
-
-	return nil
+	return res, nil
 }
 
 func headerPath() string {
