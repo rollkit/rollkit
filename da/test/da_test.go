@@ -1,6 +1,8 @@
 package test
 
 import (
+	"encoding/json"
+	"github.com/celestiaorg/optimint/da/celestia"
 	"math/rand"
 	"net"
 	"strconv"
@@ -64,6 +66,15 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	conf := []byte{}
 	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
+	}
+	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
+		config := celestia.Config{
+			BaseURL:     "http://localhost:26658",
+			Timeout:     1 * time.Second,
+			GasLimit:    3000000,
+			NamespaceID: [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
+		}
+		conf, _ = json.Marshal(config)
 	}
 	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
