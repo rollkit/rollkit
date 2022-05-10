@@ -553,7 +553,7 @@ func (c *Client) Tx(ctx context.Context, hash tmbytes.HexBytes, prove bool) (*ct
 
 func (c *Client) RemoveTx(ctx context.Context, key types.TxKey) error {
 	if err := c.node.Mempool.RemoveTxByKey(key); err != nil {
-		fmt.Errorf("failed to remove transaction from mempool: %w", err)
+		return fmt.Errorf("failed to remove transaction from mempool: %w", err)
 	}
 	return nil
 }
