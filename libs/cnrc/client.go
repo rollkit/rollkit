@@ -1,6 +1,7 @@
 package cnrc
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"github.com/go-resty/resty/v2"
@@ -28,36 +29,38 @@ func NewClient(baseURL string, options ...Option) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) Header(height uint64) /* Header */ error {
+func (c *Client) Header(ctx context.Context, height uint64) /* Header */ error {
 	resp, err := c.c.R().
+		SetContext(ctx).
 		SetPathParam(heightKey, strconv.FormatUint(height, 10)).
 		Get(headerPath())
 	fmt.Println(resp, err)
 	return err
 }
 
-func (c *Client) Balance() error {
+func (c *Client) Balance(ctx context.Context) error {
 	panic("Balance not implemented")
 	return nil
 }
 
-func (c *Client) SubmitTx(tx []byte) /* TxResponse */ error {
+func (c *Client) SubmitTx(ctx context.Context, tx []byte) /* TxResponse */ error {
 	panic("SubmitTx not implemented")
 	return nil
 }
 
-func (c *Client) SubmitPFD(namespaceID [8]byte, data []byte, gasLimit uint64) /* TxResponse */ error {
+func (c *Client) SubmitPFD(ctx context.Context, namespaceID [8]byte, data []byte, gasLimit uint64) /* TxResponse */ error {
 	panic("SubmitPFD not implemented")
 	return nil
 }
 
-func (c *Client) NamespacedShares(namespaceID [8]byte, height uint64) ([][]byte, error) {
+func (c *Client) NamespacedShares(ctx context.Context, namespaceID [8]byte, height uint64) ([][]byte, error) {
 	req := SharesByNamespaceRequest{
 		NamespaceID: hex.EncodeToString(namespaceID[:]),
 		Height:      height,
 	}
 	var res [][]byte
 	_, err := c.c.R().
+		SetContext(ctx).
 		SetBody(req).
 		SetResult(&res).
 		Get(namespacedSharesEndpoint)
