@@ -98,7 +98,7 @@ jobs:
         export ETHERMINT_IMAGE_TAG=optimint-$(git rev-parse --short "$GITHUB_SHA")
         echo $ETHERMINT_IMAGE_TAG
         cd ephemeral-cluster
-        scripts/minimal-ethermint.sh
+        scripts/old-minimal-ethermint.sh
         cd ..
     - name: "Test Cluster"
       run: | 
