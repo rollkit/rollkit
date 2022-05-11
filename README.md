@@ -45,3 +45,7 @@ If you're looking for issues to work on, try looking at the [good first issue li
 See [the contributing guide](./CONTRIBUTING.md) for more details.
 
 Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to ask questions, discuss your ideas, and connect with other contributors.
+
+## Code of Conduct
+
+See our Code of Conduct [here](https://docs.celestia.org/community/coc).
