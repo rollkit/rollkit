@@ -169,7 +169,7 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 
 	err = json.Unmarshal(blob, &state)
 	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
-	return state, err
+	return state, fmt.Errorf("error unmarshalling state from JSON encoding: %w", err)
 }
 
 func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {
