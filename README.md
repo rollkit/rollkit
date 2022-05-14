@@ -2,7 +2,7 @@
 
 ABCI-client implementation for Optimistic Rollups.
 
-Design document: https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyxVLSyDd7Fbxo5UnA8/edit?usp=sharing
+Design document: <https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyxVLSyDd7Fbxo5UnA8/edit?usp=sharing>
 
 [![build-and-test](https://github.com/celestiaorg/optimint/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/optimint/actions/workflows/test.yml)
 [![golangci-lint](https://github.com/celestiaorg/optimint/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/optimint/actions/workflows/lint.yml)
@@ -10,6 +10,30 @@ Design document: https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyx
 [![codecov](https://codecov.io/gh/celestiaorg/optimint/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/optimint)
 [![GoDoc](https://godoc.org/github.com/celestiaorg/optimint?status.svg)](https://godoc.org/github.com/celestiaorg/optimint)
 [![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
+
+## Building From Source
+
+Requires Go version >= 1.17.
+
+To build:
+
+```sh
+git clone https://github.com/celestiaorg/optimint.git
+cd optimint
+go build -v ./...
+```
+
+To test:
+
+```sh
+go test ./...
+```
+
+To regenerate protobuf types:
+
+```sh
+./proto/gen.sh
+```
 
 ## Contributing
 
@@ -21,3 +45,7 @@ If you're looking for issues to work on, try looking at the [good first issue li
 See [the contributing guide](./CONTRIBUTING.md) for more details.
 
 Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to ask questions, discuss your ideas, and connect with other contributors.
+
+## Code of Conduct
+
+See our Code of Conduct [here](https://docs.celestia.org/community/coc).

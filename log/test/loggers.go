@@ -8,8 +8,15 @@ import (
 
 // TODO(tzdybal): move to some common place
 type TestLogger struct {
-	mtx sync.Mutex
+	mtx *sync.Mutex
 	T   *testing.T
+}
+
+func NewTestLogger(t *testing.T) *TestLogger {
+	return &TestLogger{
+		mtx: new(sync.Mutex),
+		T:   t,
+	}
 }
 
 func (t *TestLogger) Debug(msg string, keyvals ...interface{}) {

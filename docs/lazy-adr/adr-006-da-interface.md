@@ -24,6 +24,7 @@ All the details are implementation-specific.
 ## Detailed Design
 
 Definition of interface:
+
 ```go
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
@@ -109,4 +110,3 @@ Implemented
 ## References
 
 > Are there any relevant PR comments, issues that led up to this, or articles referenced for why we made the given design choice? If so link them here!
-

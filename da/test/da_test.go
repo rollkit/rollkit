@@ -5,20 +5,23 @@ import (
 	"net"
 	"strconv"
 	"testing"
-
-	grpcda "github.com/celestiaorg/optimint/da/grpc"
-	"github.com/celestiaorg/optimint/da/grpc/mockserv"
-	"github.com/celestiaorg/optimint/store"
-	"google.golang.org/grpc"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/optimint/da"
+	grpcda "github.com/celestiaorg/optimint/da/grpc"
+	"github.com/celestiaorg/optimint/da/grpc/mockserv"
+	"github.com/celestiaorg/optimint/da/mock"
 	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/log/test"
+	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 )
+
+const mockDaBlockTime = 100 * time.Millisecond
 
 func TestLifecycle(t *testing.T) {
 	srv := startMockServ(t)
@@ -33,7 +36,7 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init([]byte{}, nil, &test.TestLogger{T: t})
+	err := dalc.Init([]byte{}, nil, test.NewTestLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -57,33 +60,45 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, store.NewDefaultInMemoryKVStore(), &test.TestLogger{T: t})
+	// mock DALC will advance block height every 100ms
+	conf := []byte{}
+	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
+		conf = []byte(mockDaBlockTime.String())
+	}
+	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
 	require.NoError(err)
 
+	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
+	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
+
 	// only blocks b1 and b2 will be submitted to DA
 	b1 := getRandomBlock(1, 10)
 	b2 := getRandomBlock(2, 10)
-	b3 := getRandomBlock(1, 10)
 
 	resp := dalc.SubmitBlock(b1)
+	h1 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	resp = dalc.SubmitBlock(b2)
+	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
-	check := dalc.CheckBlockAvailability(&b1.Header)
+	// wait a bit more than mockDaBlockTime, so optimint blocks can be "included" in mock block
+	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
+
+	check := dalc.CheckBlockAvailability(h1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	check = dalc.CheckBlockAvailability(&b2.Header)
+	check = dalc.CheckBlockAvailability(h2)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	// this block was never submitted to DA
-	check = dalc.CheckBlockAvailability(&b3.Header)
+	// this height should not be used by DALC
+	check = dalc.CheckBlockAvailability(h1 - 1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.False(check.DataAvailable)
 }
@@ -104,7 +119,7 @@ func TestRetrieve(t *testing.T) {
 
 func startMockServ(t *testing.T) *grpc.Server {
 	conf := grpcda.DefaultConfig
-	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf)
+	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()))
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
 		t.Fatal(err)
@@ -119,22 +134,49 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	err := dalc.Init([]byte{}, store.NewDefaultInMemoryKVStore(), &test.TestLogger{T: t})
+	// mock DALC will advance block height every 100ms
+	conf := []byte{}
+	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
+		conf = []byte(mockDaBlockTime.String())
+	}
+	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
 	require.NoError(err)
 
+	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
+	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
+
 	retriever := dalc.(da.BlockRetriever)
+	countAtHeight := make(map[uint64]int)
+	blocks := make(map[*types.Block]uint64)
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
 		resp := dalc.SubmitBlock(b)
 		assert.Equal(da.StatusSuccess, resp.Code)
+		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds()))
 
-		ret := retriever.RetrieveBlock(i)
+		countAtHeight[resp.DAHeight]++
+		blocks[b] = resp.DAHeight
+	}
+
+	// wait a bit more than mockDaBlockTime, so mock can "produce" last blocks
+	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
+
+	for h, cnt := range countAtHeight {
+		ret := retriever.RetrieveBlocks(h)
 		assert.Equal(da.StatusSuccess, ret.Code)
-		assert.Equal(b, ret.Block)
+		require.NotEmpty(ret.Blocks)
+		assert.Len(ret.Blocks, cnt)
+	}
+
+	for b, h := range blocks {
+		ret := retriever.RetrieveBlocks(h)
+		assert.Equal(da.StatusSuccess, ret.Code)
+		require.NotEmpty(ret.Blocks)
+		assert.Contains(ret.Blocks, b)
 	}
 }
 

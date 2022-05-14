@@ -66,7 +66,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	t.Helper()
 	require := require.New(t)
 
-	mnet := mocknet.New(ctx)
+	mnet := mocknet.New()
 	for i := 0; i < n; i++ {
 		var descr hostDescr
 		if d, ok := conf[i]; ok {

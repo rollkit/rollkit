@@ -103,7 +103,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
 	}
 
-	timeout := time.NewTimer(time.Second * 5)
+	timeout := time.NewTimer(time.Second * 30)
 	doneChan := make(chan struct{})
 	go func() {
 		defer close(doneChan)
