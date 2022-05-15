@@ -125,7 +125,10 @@ func (s *DefaultStore) LoadBlockResponses(height uint64) (*tmstate.ABCIResponses
 	}
 	var responses tmstate.ABCIResponses
 	err = responses.Unmarshal(data)
-	return &responses, fmt.Errorf("error unmarshalling data: %w", err)
+	if err != nil {
+		return &responses, fmt.Errorf("error unmarshalling data: %w", err)
+	}
+	return &responses, nil
 }
 
 // LoadCommit returns commit for a block at given height, or error if it's not found in Store.
@@ -145,7 +148,10 @@ func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 	}
 	commit := new(types.Commit)
 	err = commit.UnmarshalBinary(commitData)
-	return commit, fmt.Errorf("error decoding binary data of Commit into object: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding binary data of Commit into object: %w", err)
+	}
+	return commit, nil
 }
 
 // UpdateState updates state saved in Store. Only one State is stored.
@@ -168,8 +174,11 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 	}
 
 	err = json.Unmarshal(blob, &state)
+	if err != nil {
+		return state, fmt.Errorf("error unmarshalling state from JSON encoding: %w", err)
+	}
 	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
-	return state, fmt.Errorf("error unmarshalling state from JSON encoding: %w", err)
+	return state, nil
 }
 
 func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {
