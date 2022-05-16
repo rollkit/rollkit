@@ -4,6 +4,7 @@ import (
 	"context"
 	crand "crypto/rand"
 	cryptorand "crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -72,6 +73,27 @@ func TestCheckTx(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(res)
 	mockApp.AssertExpectations(t)
+}
+
+func TestRemoveTx(t *testing.T) {
+	assert := assert.New(t)
+
+	expectedTx := []byte("tx data")
+	unexpectedTx := []byte("not tx data")
+	unexpectedTxKey := sha256.Sum256(unexpectedTx)
+
+	mockApp, rpc := getRPC(t)
+	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Once().Return(abci.ResponseCheckTx{})
+
+	res, err := rpc.CheckTx(context.Background(), expectedTx)
+	assert.NoError(err)
+	assert.NotNil(res)
+	mockApp.AssertExpectations((t))
+
+	res2 := rpc.RemoveTx(context.Background(), unexpectedTxKey)
+	assert.Error(res2)
+	assert.NotNil(res2)
+	mockApp.AssertExpectations((t))
 }
 
 func TestGenesisChunked(t *testing.T) {
