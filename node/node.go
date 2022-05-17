@@ -30,6 +30,8 @@ import (
 	"github.com/celestiaorg/optimint/state/txindex/kv"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
+
+	sdktypes "github.com/cosmos/cosmos-sdk/server/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -75,10 +77,12 @@ type Node struct {
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	ctx context.Context
+
+	appCreator sdktypes.AppCreator
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey, signingKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
+func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey, signingKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *tmtypes.GenesisDoc, logger log.Logger, appCreator sdktypes.AppCreator) (*Node, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -147,6 +151,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
 		ctx:            ctx,
+		appCreator:     appCreator,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
