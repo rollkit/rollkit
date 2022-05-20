@@ -74,3 +74,15 @@ message Block {
 	Data data = 2;
 	Commit last_commit = 3;
 }
+
+message FraudProof {
+  bytes pre_isr = 1;
+  bytes post_isr = 2;
+  repeated StateWitness state_witnesses = 3;
+}
+
+message StateWitness {
+  bytes key = 1;
+  bytes value = 2;
+  // tendermint.crypto.ProofOps proof_ops = 3;
+}

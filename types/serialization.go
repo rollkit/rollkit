@@ -39,6 +39,22 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+// MarshalBinary encodes Header into binary form and returns it.
+func (fp *FraudProof) MarshalBinary() ([]byte, error) {
+	return fp.ToProto().Marshal()
+}
+
+// UnmarshalBinary decodes binary form of Header into object.
+func (fp *FraudProof) UnmarshalBinary(data []byte) error {
+	var pFraudProof pb.FraudProof
+	err := pFraudProof.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	err = fp.FromProto(&pFraudProof)
+	return err
+}
+
 // MarshalBinary encodes Data into binary form and returns it.
 func (d *Data) MarshalBinary() ([]byte, error) {
 	return d.ToProto().Marshal()
@@ -136,6 +152,59 @@ func (b *Block) ToProto() *pb.Block {
 		Data:       b.Data.ToProto(),
 		LastCommit: b.LastCommit.ToProto(),
 	}
+}
+
+// ToProto converts Fraud Proof into protobuf representation and returns it.
+func (fp *FraudProof) ToProto() *pb.FraudProof {
+	return &pb.FraudProof{
+		PreIsr:         fp.PreIsr[:],
+		PostIsr:        fp.PostIsr[:],
+		StateWitnesses: stateWitnessesToProto(fp.StateWitnesses),
+	}
+}
+
+// FromProto fills Block with data from its protobuf representation.
+func (fp *FraudProof) FromProto(other *pb.FraudProof) error {
+	var err error
+	fp.PreIsr = other.PreIsr
+	fp.PostIsr = other.PostIsr
+	fp.StateWitnesses, err = stateWitnessesFromProto(other.StateWitnesses)
+
+	return err
+}
+
+func stateWitnessesToProto(sws []*StateWitness) []*pb.StateWitness {
+	var stateWitnesses = make([]*pb.StateWitness, len(sws))
+	for i := range stateWitnesses {
+		stateWitnesses[i] = sws[i].ToProto()
+	}
+	return stateWitnesses
+}
+
+func stateWitnessesFromProto(stateWitnesses []*pb.StateWitness) ([]*StateWitness, error) {
+	var sws = make([]*StateWitness, len(stateWitnesses))
+	for i := range sws {
+		err := sws[i].FromProto(stateWitnesses[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return sws, nil
+}
+
+// ToProto converts State Witness into protobuf representation and returns it.
+func (sw *StateWitness) ToProto() *pb.StateWitness {
+	return &pb.StateWitness{
+		Key:   sw.Key[:],
+		Value: sw.Value[:],
+	}
+}
+
+// FromProto fills State Witness Data from its protobuf representation and returns it.
+func (stateWitness *StateWitness) FromProto(other *pb.StateWitness) error {
+	stateWitness.Key = other.Key[:]
+	stateWitness.Value = other.Value[:]
+	return nil
 }
 
 // ToProto converts Data into protobuf representation and returns it.

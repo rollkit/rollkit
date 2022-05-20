@@ -37,6 +37,12 @@ func (d *Data) ValidateBasic() error {
 	return nil
 }
 
+// ValidateBasic performs basic validation of fraud proof.
+// Actually it's a placeholder, because nothing is checked.
+func (fp *FraudProof) ValidateBasic() error {
+	return nil
+}
+
 // ValidateBasic performs basic validation of a commit.
 func (c *Commit) ValidateBasic() error {
 	if c.Height > 0 {
