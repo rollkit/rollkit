@@ -70,7 +70,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
 		config := celestia.Config{
 			BaseURL:     "http://localhost:26658",
-			Timeout:     1 * time.Second,
+			Timeout:     30 * time.Second,
 			GasLimit:    3000000,
 			NamespaceID: [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
 		}
@@ -150,6 +150,15 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
+	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
+		config := celestia.Config{
+			BaseURL:     "http://localhost:26658",
+			Timeout:     30 * time.Second,
+			GasLimit:    3000000,
+			NamespaceID: [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
+		}
+		conf, _ = json.Marshal(config)
+	}
 	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
 
@@ -163,7 +172,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	countAtHeight := make(map[uint64]int)
 	blocks := make(map[*types.Block]uint64)
 
-	for i := uint64(0); i < 100; i++ {
+	for i := uint64(0); i < 5; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
 		resp := dalc.SubmitBlock(b)
 		assert.Equal(da.StatusSuccess, resp.Code)
@@ -178,16 +187,16 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	for h, cnt := range countAtHeight {
 		ret := retriever.RetrieveBlocks(h)
-		assert.Equal(da.StatusSuccess, ret.Code)
-		require.NotEmpty(ret.Blocks)
-		assert.Len(ret.Blocks, cnt)
+		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
+		require.NotEmpty(ret.Blocks, h)
+		assert.Len(ret.Blocks, cnt, h)
 	}
 
 	for b, h := range blocks {
 		ret := retriever.RetrieveBlocks(h)
-		assert.Equal(da.StatusSuccess, ret.Code)
-		require.NotEmpty(ret.Blocks)
-		assert.Contains(ret.Blocks, b)
+		assert.Equal(da.StatusSuccess, ret.Code, h)
+		require.NotEmpty(ret.Blocks, h)
+		assert.Contains(ret.Blocks, b, h)
 	}
 }
 

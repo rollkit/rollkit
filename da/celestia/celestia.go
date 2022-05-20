@@ -85,14 +85,32 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 }
 
 func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
-	//TODO implement me
+	shares, err := c.client.NamespacedShares(context.TODO(), c.config.NamespaceID, dataLayerHeight)
+	if err != nil {
+		return da.ResultCheckBlock{
+			DAResult: da.DAResult{
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+		}
+	}
+
+	msgs, err := parseMsgs(shares)
+	if err != nil {
+		return da.ResultCheckBlock{
+			DAResult: da.DAResult{
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+		}
+	}
+
 	return da.ResultCheckBlock{
 		DAResult: da.DAResult{
-			Code:     da.StatusError,
-			Message:  "not implemented!",
-			DAHeight: 0,
+			Code:     da.StatusSuccess,
+			DAHeight: dataLayerHeight,
 		},
-		DataAvailable: false,
+		DataAvailable: len(msgs.MessagesList) != 0,
 	}
 }
 
