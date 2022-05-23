@@ -2,7 +2,7 @@ package test
 
 import (
 	"encoding/json"
-	"github.com/celestiaorg/optimint/da/celestia"
+	cmock "github.com/celestiaorg/optimint/da/celestia/mock"
 	"math/rand"
 	"net"
 	"strconv"
@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/da/celestia"
 	grpcda "github.com/celestiaorg/optimint/da/grpc"
 	"github.com/celestiaorg/optimint/da/grpc/mockserv"
 	"github.com/celestiaorg/optimint/da/mock"
@@ -28,6 +29,7 @@ const mockDaBlockTime = 100 * time.Millisecond
 func TestLifecycle(t *testing.T) {
 	srv := startMockServ(t)
 	defer srv.GracefulStop()
+
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestLifecycle(t, registry.GetClient(dalc))
@@ -117,6 +119,12 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 func TestRetrieve(t *testing.T) {
 	srv := startMockServ(t)
 	defer srv.GracefulStop()
+
+	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewTestLogger(t))
+	l, _ := net.Listen("tcp4", ":26658")
+	t.Log(l.Addr().String())
+	httpSrv.Start(l)
+
 	for _, client := range registry.RegisteredClients() {
 		t.Run(client, func(t *testing.T) {
 			dalc := registry.GetClient(client)
@@ -175,7 +183,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	for i := uint64(0); i < 5; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
 		resp := dalc.SubmitBlock(b)
-		assert.Equal(da.StatusSuccess, resp.Code)
+		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds()))
 
 		countAtHeight[resp.DAHeight]++

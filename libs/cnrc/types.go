@@ -2,8 +2,8 @@ package cnrc
 
 import "github.com/gogo/protobuf/types"
 
-// submitPFDRequest represents a request to submit a PayForData transaction.
-type submitPFDRequest struct {
+// SubmitPFDRequest represents a request to submit a PayForData transaction.
+type SubmitPFDRequest struct {
 	NamespaceID string `json:"namespace_id"`
 	Data        string `json:"data"`
 	GasLimit    uint64 `json:"gas_limit"`

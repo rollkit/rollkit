@@ -8,7 +8,7 @@ import (
 
 // This file contains logic copied from DALC, used to reconstruct messages from shares.
 
-// parseMsgs collects all messages from the shares provided
+// ParseMsgs collects all messages from the shares provided
 func parseMsgs(shares [][]byte) (Messages, error) {
 	msgList, err := parseMsgShares(shares)
 	if err != nil {
@@ -31,7 +31,7 @@ func parseMsgShares(shares [][]byte) ([]Message, error) {
 	nid := shares[0][:NamespaceSize]
 	currentShare := shares[0][NamespaceSize:]
 	// find and remove the msg len delimiter
-	currentShare, msgLen, err := parseDelimiter(currentShare)
+	currentShare, msgLen, err := ParseDelimiter(currentShare)
 	if err != nil {
 		return nil, err
 	}
@@ -84,16 +84,16 @@ func nextMsg(
 		}
 
 		nextNid := shares[cursor][:NamespaceSize]
-		next, msgLen, err := parseDelimiter(shares[cursor][NamespaceSize:])
+		next, msgLen, err := ParseDelimiter(shares[cursor][NamespaceSize:])
 		return next, nextNid, cursor, msgLen, msg, err
 	}
 	// this code is unreachable but the compiler doesn't know that
 	return nil, nil, 0, 0, Message{}, nil
 }
 
-// parseDelimiter finds and returns the length delimiter of the message provided
+// ParseDelimiter finds and returns the length delimiter of the message provided
 // while also removing the delimiter bytes from the input
-func parseDelimiter(input []byte) ([]byte, uint64, error) {
+func ParseDelimiter(input []byte) ([]byte, uint64, error) {
 	if len(input) == 0 {
 		return input, 0, nil
 	}

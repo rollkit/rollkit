@@ -135,7 +135,7 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 		}
 	}
 
-	var blocks []*types.Block
+	blocks := make([]*types.Block, len(msgs.MessagesList))
 	for i, msg := range msgs.MessagesList {
 		var block pb.Block
 		err = proto.Unmarshal(msg.Data, &block)
@@ -147,6 +147,7 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 				},
 			}
 		}
+		blocks[i] = new(types.Block)
 		err := blocks[i].FromProto(&block)
 		if err != nil {
 			return da.ResultRetrieveBlocks{
@@ -160,9 +161,9 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 
 	return da.ResultRetrieveBlocks{
 		DAResult: da.DAResult{
-			Code:     0,
-			Message:  "",
-			DAHeight: 0,
+			Code:     da.StatusSuccess,
+			Message:  "HELL YEAH!",
+			DAHeight: dataLayerHeight,
 		},
 		Blocks: blocks,
 	}
