@@ -3,14 +3,16 @@ package celestia
 import (
 	"context"
 	"encoding/json"
+	"time"
+
+	"github.com/gogo/protobuf/proto"
+
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/libs/cnrc"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
 	pb "github.com/celestiaorg/optimint/types/pb/optimint"
-	"github.com/gogo/protobuf/proto"
-	"time"
 )
 
 // DataAvailabilityLayerClient use celestia-node public API.

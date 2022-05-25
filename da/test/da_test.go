@@ -2,7 +2,6 @@ package test
 
 import (
 	"encoding/json"
-	cmock "github.com/celestiaorg/optimint/da/celestia/mock"
 	"math/rand"
 	"net"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/da/celestia"
+	cmock "github.com/celestiaorg/optimint/da/celestia/mock"
 	grpcda "github.com/celestiaorg/optimint/da/grpc"
 	"github.com/celestiaorg/optimint/da/grpc/mockserv"
 	"github.com/celestiaorg/optimint/da/mock"

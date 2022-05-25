@@ -5,18 +5,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
-	mux2 "github.com/gorilla/mux"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
 
+	mux2 "github.com/gorilla/mux"
+
+	"github.com/celestiaorg/optimint/da"
 	mockda "github.com/celestiaorg/optimint/da/mock"
 	"github.com/celestiaorg/optimint/libs/cnrc"
 	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 type Server struct {

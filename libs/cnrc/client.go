@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/go-resty/resty/v2"
-	"strconv"
 )
 
 type Client struct {
@@ -30,19 +30,17 @@ func NewClient(baseURL string, options ...Option) (*Client, error) {
 }
 
 func (c *Client) Header(ctx context.Context, height uint64) /* Header */ error {
-	resp, err := c.c.R().
-		SetContext(ctx).
-		SetPathParam(heightKey, strconv.FormatUint(height, 10)).
-		Get(headerPath())
-	fmt.Println(resp, err)
-	return err
+	_ = headerPath()
+	return errors.New("method Header not implemented")
 }
 
 func (c *Client) Balance(ctx context.Context) error {
+	_ = balanceEndpoint
 	return errors.New("method Balance not implemented")
 }
 
 func (c *Client) SubmitTx(ctx context.Context, tx []byte) /* TxResponse */ error {
+	_ = submitTxEndpoint
 	return errors.New("method SubmitTx not implemented")
 }
 
