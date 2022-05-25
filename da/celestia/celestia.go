@@ -95,27 +95,17 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 		}
 	}
 
-	msgs, err := parseMsgs(shares)
-	if err != nil {
-		return da.ResultCheckBlock{
-			DAResult: da.DAResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
-	}
-
 	return da.ResultCheckBlock{
 		DAResult: da.DAResult{
 			Code:     da.StatusSuccess,
 			DAHeight: dataLayerHeight,
 		},
-		DataAvailable: len(msgs.MessagesList) != 0,
+		DataAvailable: len(shares) > 0,
 	}
 }
 
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	shares, err := c.client.NamespacedShares(context.TODO(), c.config.NamespaceID, dataLayerHeight)
+	data, err := c.client.NamespacedData(context.TODO(), c.config.NamespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
 			DAResult: da.DAResult{
@@ -125,27 +115,13 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 		}
 	}
 
-	msgs, err := parseMsgs(shares)
-	if err != nil {
-		return da.ResultRetrieveBlocks{
-			DAResult: da.DAResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
-	}
-
-	blocks := make([]*types.Block, len(msgs.MessagesList))
-	for i, msg := range msgs.MessagesList {
+	blocks := make([]*types.Block, len(data))
+	for i, msg := range data {
 		var block pb.Block
-		err = proto.Unmarshal(msg.Data, &block)
+		err = proto.Unmarshal(msg, &block)
 		if err != nil {
-			return da.ResultRetrieveBlocks{
-				DAResult: da.DAResult{
-					Code:    da.StatusError,
-					Message: err.Error(),
-				},
-			}
+			c.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
+			continue
 		}
 		blocks[i] = new(types.Block)
 		err := blocks[i].FromProto(&block)
@@ -162,7 +138,6 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 	return da.ResultRetrieveBlocks{
 		DAResult: da.DAResult{
 			Code:     da.StatusSuccess,
-			Message:  "HELL YEAH!",
 			DAHeight: dataLayerHeight,
 		},
 		Blocks: blocks,

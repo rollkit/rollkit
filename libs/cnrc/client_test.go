@@ -37,6 +37,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestNamespacedShares(t *testing.T) {
+	t.Skip()
 	client, err := NewClient("http://localhost:26658")
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
@@ -48,14 +49,7 @@ func TestNamespacedShares(t *testing.T) {
 }
 
 func TestSubmitPDF(t *testing.T) {
-	/*	res, err := setupDockerNode()
-		require.NoError(t, err)
-		defer func() {
-			res.Close()
-			pool.RemoveContainerByName(res.Container.Name)
-		}()
-		port := res.GetPort("26658/tcp")
-	*/
+	t.Skip()
 	client, err := NewClient("http://localhost:26658", WithTimeout(30*time.Second))
 	assert.NoError(t, err)
 	assert.NotNil(t, client)

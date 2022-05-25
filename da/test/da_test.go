@@ -27,7 +27,7 @@ import (
 const mockDaBlockTime = 100 * time.Millisecond
 
 func TestLifecycle(t *testing.T) {
-	srv := startMockServ(t)
+	srv := startMockGRPCServ(t)
 	defer srv.GracefulStop()
 
 	for _, dalc := range registry.RegisteredClients() {
@@ -51,8 +51,12 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestDALC(t *testing.T) {
-	srv := startMockServ(t)
-	defer srv.GracefulStop()
+	grpcServer := startMockGRPCServ(t)
+	defer grpcServer.GracefulStop()
+
+	httpServer := startMockCelestiaNodeServer(t)
+	defer httpServer.Stop()
+
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestDALC(t, registry.GetClient(dalc))
@@ -117,13 +121,11 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestRetrieve(t *testing.T) {
-	srv := startMockServ(t)
-	defer srv.GracefulStop()
+	grpcServer := startMockGRPCServ(t)
+	defer grpcServer.GracefulStop()
 
-	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewTestLogger(t))
-	l, _ := net.Listen("tcp4", ":26658")
-	t.Log(l.Addr().String())
-	httpSrv.Start(l)
+	httpServer := startMockCelestiaNodeServer(t)
+	defer httpServer.Stop()
 
 	for _, client := range registry.RegisteredClients() {
 		t.Run(client, func(t *testing.T) {
@@ -136,7 +138,8 @@ func TestRetrieve(t *testing.T) {
 	}
 }
 
-func startMockServ(t *testing.T) *grpc.Server {
+func startMockGRPCServ(t *testing.T) *grpc.Server {
+	t.Helper()
 	conf := grpcda.DefaultConfig
 	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()))
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
@@ -147,6 +150,20 @@ func startMockServ(t *testing.T) *grpc.Server {
 		_ = srv.Serve(lis)
 	}()
 	return srv
+}
+
+func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
+	t.Helper()
+	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewTestLogger(t))
+	l, err := net.Listen("tcp4", ":26658")
+	if err != nil {
+		t.Fatal("failed to create listener for mock celestia-node RPC server", "error", err)
+	}
+	err = httpSrv.Start(l)
+	if err != nil {
+		t.Fatal("can't start mock celestia-node RPC server")
+	}
+	return httpSrv
 }
 
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
@@ -180,7 +197,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	countAtHeight := make(map[uint64]int)
 	blocks := make(map[*types.Block]uint64)
 
-	for i := uint64(0); i < 5; i++ {
+	for i := uint64(0); i < 10; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
 		resp := dalc.SubmitBlock(b)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
@@ -194,6 +211,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
 	for h, cnt := range countAtHeight {
+		t.Log("Retrieving block, DA Height", h)
 		ret := retriever.RetrieveBlocks(h)
 		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Blocks, h)

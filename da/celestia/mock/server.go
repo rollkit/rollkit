@@ -1,8 +1,7 @@
 package mock
 
 import (
-	"bytes"
-	"encoding/binary"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -23,6 +22,7 @@ import (
 type Server struct {
 	mock      *mockda.MockDataAvailabilityLayerClient
 	blockTime time.Duration
+	server    *http.Server
 	logger    log.Logger
 }
 
@@ -35,22 +35,34 @@ func NewServer(blockTime time.Duration, logger log.Logger) *Server {
 }
 
 func (s *Server) Start(listener net.Listener) error {
-	s.mock.Init([]byte(s.blockTime.String()), store.NewDefaultInMemoryKVStore(), s.logger)
-	err := s.mock.Start()
+	err := s.mock.Init([]byte(s.blockTime.String()), store.NewDefaultInMemoryKVStore(), s.logger)
+	if err != nil {
+		return err
+	}
+	err = s.mock.Start()
 	if err != nil {
 		return err
 	}
 	go func() {
-		err := http.Serve(listener, s.getHandler())
-		s.logger.Error("listener", "error", err)
+		s.server = new(http.Server)
+		s.server.Handler = s.getHandler()
+		err := s.server.Serve(listener)
+		s.logger.Debug("http server exited with", "error", err)
 	}()
 	return nil
+}
+
+func (s *Server) Stop() {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_ = s.server.Shutdown(ctx)
 }
 
 func (s *Server) getHandler() http.Handler {
 	mux := mux2.NewRouter()
 	mux.HandleFunc("/submit_pfd", s.submit).Methods(http.MethodPost)
 	mux.HandleFunc("/namespaced_shares/{namespace}/height/{height}", s.shares).Methods(http.MethodGet)
+	mux.HandleFunc("/namespaced_data/{namespace}/height/{height}", s.data).Methods(http.MethodGet)
 
 	return mux
 }
@@ -91,9 +103,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
-	vars := mux2.Vars(r)
-
-	height, err := strconv.ParseUint(vars["height"], 10, 64)
+	height, err := parseHeight(r)
 	if err != nil {
 		s.writeError(w, err)
 		return
@@ -112,18 +122,18 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, err)
 			return
 		}
-		delimited, err := MarshalDelimited(blob)
+		delimited, err := marshalDelimited(blob)
 		if err != nil {
 			s.writeError(w, err)
 		}
-		nShares = AppendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
+		nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
 	}
 	shares := make([]Share, len(nShares))
 	for i := range nShares {
 		shares[i] = nShares[i].Share
 	}
 
-	resp, err := json.Marshal(NamespacedSharesResponse{
+	resp, err := json.Marshal(namespacedSharesResponse{
 		Shares: shares,
 		Height: res.DAHeight,
 	})
@@ -133,6 +143,50 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.writeResponse(w, resp)
+}
+
+func (s *Server) data(w http.ResponseWriter, r *http.Request) {
+	height, err := parseHeight(r)
+	if err != nil {
+		s.writeError(w, err)
+		return
+	}
+
+	res := s.mock.RetrieveBlocks(height)
+	if res.Code != da.StatusSuccess {
+		s.writeError(w, errors.New(res.Message))
+		return
+	}
+
+	data := make([][]byte, len(res.Blocks))
+	for i := range res.Blocks {
+		data[i], err = res.Blocks[i].MarshalBinary()
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+	}
+
+	resp, err := json.Marshal(namespacedDataResponse{
+		Data:   data,
+		Height: res.DAHeight,
+	})
+	if err != nil {
+		s.writeError(w, err)
+		return
+	}
+
+	s.writeResponse(w, resp)
+}
+
+func parseHeight(r *http.Request) (uint64, error) {
+	vars := mux2.Vars(r)
+
+	height, err := strconv.ParseUint(vars["height"], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }
 
 func (s *Server) writeResponse(w http.ResponseWriter, payload []byte) {
@@ -155,98 +209,4 @@ func (s *Server) writeError(w http.ResponseWriter, err error) {
 	if werr != nil {
 		s.logger.Error("failed to write response", "error", werr)
 	}
-}
-
-const (
-	ShareSize     = 256
-	NamespaceSize = 8
-	MsgShareSize  = ShareSize - NamespaceSize
-)
-
-// splitMessage breaks the data in a message into the minimum number of
-// namespaced shares
-func splitMessage(rawData []byte, nid []byte) []NamespacedShare {
-	shares := make([]NamespacedShare, 0)
-	firstRawShare := append(append(
-		make([]byte, 0, ShareSize),
-		nid...),
-		rawData[:MsgShareSize]...,
-	)
-	shares = append(shares, NamespacedShare{firstRawShare, nid})
-	rawData = rawData[MsgShareSize:]
-	for len(rawData) > 0 {
-		shareSizeOrLen := min(MsgShareSize, len(rawData))
-		rawShare := append(append(
-			make([]byte, 0, ShareSize),
-			nid...),
-			rawData[:shareSizeOrLen]...,
-		)
-		paddedShare := zeroPadIfNecessary(rawShare, ShareSize)
-		share := NamespacedShare{paddedShare, nid}
-		shares = append(shares, share)
-		rawData = rawData[shareSizeOrLen:]
-	}
-	return shares
-}
-
-// Share contains the raw share data without the corresponding namespace.
-type Share []byte
-
-// NamespacedShare extends a Share with the corresponding namespace.
-type NamespacedShare struct {
-	Share
-	ID []byte
-}
-
-func min(a, b int) int {
-	if a <= b {
-		return a
-	}
-	return b
-}
-
-func zeroPadIfNecessary(share []byte, width int) []byte {
-	oldLen := len(share)
-	if oldLen < width {
-		missingBytes := width - oldLen
-		padByte := []byte{0}
-		padding := bytes.Repeat(padByte, missingBytes)
-		share = append(share, padding...)
-		return share
-	}
-	return share
-}
-
-// MarshalDelimited marshals the raw data (excluding the namespace) of this
-// message and prefixes it with the length of that encoding.
-func MarshalDelimited(data []byte) ([]byte, error) {
-	lenBuf := make([]byte, binary.MaxVarintLen64)
-	length := uint64(len(data))
-	n := binary.PutUvarint(lenBuf, length)
-	return append(lenBuf[:n], data...), nil
-}
-
-// appendToShares appends raw data as shares.
-// Used for messages.
-func AppendToShares(shares []NamespacedShare, nid []byte, rawData []byte) []NamespacedShare {
-	if len(rawData) <= MsgShareSize {
-		rawShare := append(append(
-			make([]byte, 0, len(nid)+len(rawData)),
-			nid...),
-			rawData...,
-		)
-		paddedShare := zeroPadIfNecessary(rawShare, ShareSize)
-		share := NamespacedShare{paddedShare, nid}
-		shares = append(shares, share)
-	} else { // len(rawData) > MsgShareSize
-		shares = append(shares, splitMessage(rawData, nid)...)
-	}
-	return shares
-}
-
-// NamespacedSharesResponse represents the response to a
-// SharesByNamespace request.
-type NamespacedSharesResponse struct {
-	Shares []Share `json:"shares"`
-	Height uint64  `json:"height"`
 }
