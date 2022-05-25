@@ -1,6 +1,7 @@
 package test
 
 import (
+	"encoding/json"
 	"math/rand"
 	"net"
 	"strconv"
@@ -12,6 +13,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/optimint/da"
+	"github.com/celestiaorg/optimint/da/celestia"
+	cmock "github.com/celestiaorg/optimint/da/celestia/mock"
 	grpcda "github.com/celestiaorg/optimint/da/grpc"
 	"github.com/celestiaorg/optimint/da/grpc/mockserv"
 	"github.com/celestiaorg/optimint/da/mock"
@@ -24,8 +27,9 @@ import (
 const mockDaBlockTime = 100 * time.Millisecond
 
 func TestLifecycle(t *testing.T) {
-	srv := startMockServ(t)
+	srv := startMockGRPCServ(t)
 	defer srv.GracefulStop()
+
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestLifecycle(t, registry.GetClient(dalc))
@@ -47,8 +51,12 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestDALC(t *testing.T) {
-	srv := startMockServ(t)
-	defer srv.GracefulStop()
+	grpcServer := startMockGRPCServ(t)
+	defer grpcServer.GracefulStop()
+
+	httpServer := startMockCelestiaNodeServer(t)
+	defer httpServer.Stop()
+
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestDALC(t, registry.GetClient(dalc))
@@ -64,6 +72,15 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	conf := []byte{}
 	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
+	}
+	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
+		config := celestia.Config{
+			BaseURL:     "http://localhost:26658",
+			Timeout:     30 * time.Second,
+			GasLimit:    3000000,
+			NamespaceID: [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
+		}
+		conf, _ = json.Marshal(config)
 	}
 	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
@@ -104,8 +121,12 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestRetrieve(t *testing.T) {
-	srv := startMockServ(t)
-	defer srv.GracefulStop()
+	grpcServer := startMockGRPCServ(t)
+	defer grpcServer.GracefulStop()
+
+	httpServer := startMockCelestiaNodeServer(t)
+	defer httpServer.Stop()
+
 	for _, client := range registry.RegisteredClients() {
 		t.Run(client, func(t *testing.T) {
 			dalc := registry.GetClient(client)
@@ -117,7 +138,8 @@ func TestRetrieve(t *testing.T) {
 	}
 }
 
-func startMockServ(t *testing.T) *grpc.Server {
+func startMockGRPCServ(t *testing.T) *grpc.Server {
+	t.Helper()
 	conf := grpcda.DefaultConfig
 	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()))
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
@@ -130,6 +152,20 @@ func startMockServ(t *testing.T) *grpc.Server {
 	return srv
 }
 
+func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
+	t.Helper()
+	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewTestLogger(t))
+	l, err := net.Listen("tcp4", ":26658")
+	if err != nil {
+		t.Fatal("failed to create listener for mock celestia-node RPC server", "error", err)
+	}
+	err = httpSrv.Start(l)
+	if err != nil {
+		t.Fatal("can't start mock celestia-node RPC server")
+	}
+	return httpSrv
+}
+
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
@@ -138,6 +174,15 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	conf := []byte{}
 	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
+	}
+	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
+		config := celestia.Config{
+			BaseURL:     "http://localhost:26658",
+			Timeout:     30 * time.Second,
+			GasLimit:    3000000,
+			NamespaceID: [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
+		}
+		conf, _ = json.Marshal(config)
 	}
 	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
 	require.NoError(err)
@@ -155,7 +200,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
 		resp := dalc.SubmitBlock(b)
-		assert.Equal(da.StatusSuccess, resp.Code)
+		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds()))
 
 		countAtHeight[resp.DAHeight]++
@@ -166,17 +211,18 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
 	for h, cnt := range countAtHeight {
+		t.Log("Retrieving block, DA Height", h)
 		ret := retriever.RetrieveBlocks(h)
-		assert.Equal(da.StatusSuccess, ret.Code)
-		require.NotEmpty(ret.Blocks)
-		assert.Len(ret.Blocks, cnt)
+		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
+		require.NotEmpty(ret.Blocks, h)
+		assert.Len(ret.Blocks, cnt, h)
 	}
 
 	for b, h := range blocks {
 		ret := retriever.RetrieveBlocks(h)
-		assert.Equal(da.StatusSuccess, ret.Code)
-		require.NotEmpty(ret.Blocks)
-		assert.Contains(ret.Blocks, b)
+		assert.Equal(da.StatusSuccess, ret.Code, h)
+		require.NotEmpty(ret.Blocks, h)
+		assert.Contains(ret.Blocks, b, h)
 	}
 }
 
