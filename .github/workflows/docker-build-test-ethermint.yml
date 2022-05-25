@@ -74,7 +74,7 @@ jobs:
           file: ../ethermint/docker/Dockerfile
 
   test:
-    needs: build
+    needs: docker-build
     runs-on: ubuntu-latest
     steps:
     - name: Clone repo
