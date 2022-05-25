@@ -10,7 +10,7 @@ type SubmitPFDRequest struct {
 }
 
 // Types below are copied from celestia-node (or cosmos-sdk dependency of celestia node, to be precise)
-// They are needed because for proper deserialization.
+// They are needed for proper deserialization.
 // It's probably far from the best approach to those types, but it's simple and works.
 // Some alternatives:
 // 1. Generate types from protobuf definitions (and automate updating of protobuf files)
