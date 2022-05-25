@@ -197,7 +197,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	countAtHeight := make(map[uint64]int)
 	blocks := make(map[*types.Block]uint64)
 
-	for i := uint64(0); i < 10; i++ {
+	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
 		resp := dalc.SubmitBlock(b)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
