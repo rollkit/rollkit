@@ -12,9 +12,9 @@ import (
 
 	mux2 "github.com/gorilla/mux"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/celestiaorg/optimint/da"
 	mockda "github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/libs/cnrc"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
@@ -69,7 +69,7 @@ func (s *Server) getHandler() http.Handler {
 }
 
 func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
-	req := cnrc.SubmitPFDRequest{}
+	req := cnc.SubmitPFDRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		s.writeError(w, err)
@@ -90,7 +90,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
 
 	res := s.mock.SubmitBlock(&block)
 
-	resp, err := json.Marshal(cnrc.TxResponse{
+	resp, err := json.Marshal(cnc.TxResponse{
 		Height: int64(res.DAHeight),
 		Code:   uint32(res.Code),
 		RawLog: res.Message,
