@@ -7,8 +7,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/libs/cnrc"
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
@@ -17,7 +17,7 @@ import (
 
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
-	client *cnrc.Client
+	client *cnc.Client
 
 	config Config
 	logger log.Logger
@@ -46,7 +46,7 @@ func (c *DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore,
 func (c *DataAvailabilityLayerClient) Start() error {
 	c.logger.Info("starting Celestia Data Availability Layer Client", "baseURL", c.config.BaseURL)
 	var err error
-	c.client, err = cnrc.NewClient(c.config.BaseURL, cnrc.WithTimeout(c.config.Timeout))
+	c.client, err = cnc.NewClient(c.config.BaseURL, cnc.WithTimeout(c.config.Timeout))
 	return err
 }
 
