@@ -99,4 +99,13 @@ type FraudProof struct {
 type StateWitness struct {
 	Key   []byte
 	Value []byte
+	Proof SparseMerkleProof
+}
+
+type SparseMerkleProof struct {
+	SideNodes [][]byte
+
+	NonMembershipLeafData []byte
+
+	SiblingData []byte
 }

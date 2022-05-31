@@ -338,7 +338,7 @@ func (n *Node) newFraudProofValidator() p2p.GossipValidator {
 			n.Logger.Error("failed to deserialize fraud proof", "error", err)
 			return false
 		}
-		err = fraudProof.ValidateBasic()
+		err = fraudProof.ValidateMerkleProofs()
 		if err != nil {
 			n.Logger.Error("failed to validate fraud proof", "error", err)
 			return false

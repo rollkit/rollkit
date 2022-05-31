@@ -197,6 +197,7 @@ func (sw *StateWitness) ToProto() *pb.StateWitness {
 	return &pb.StateWitness{
 		Key:   sw.Key[:],
 		Value: sw.Value[:],
+		Proof: sw.Proof.ToProto(),
 	}
 }
 
@@ -204,7 +205,16 @@ func (sw *StateWitness) ToProto() *pb.StateWitness {
 func (stateWitness *StateWitness) FromProto(other *pb.StateWitness) error {
 	stateWitness.Key = other.Key[:]
 	stateWitness.Value = other.Value[:]
+	stateWitness.Proof = SparseMerkleProof(*other.GetProof())
 	return nil
+}
+
+func (sparseMerkleProof *SparseMerkleProof) ToProto() *pb.SparseMerkleProof {
+	return &pb.SparseMerkleProof{
+		SideNodes:             sparseMerkleProof.SideNodes,
+		NonMembershipLeafData: sparseMerkleProof.NonMembershipLeafData,
+		SiblingData:           sparseMerkleProof.SiblingData,
+	}
 }
 
 // ToProto converts Data into protobuf representation and returns it.

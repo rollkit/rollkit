@@ -84,5 +84,11 @@ message FraudProof {
 message StateWitness {
   bytes key = 1;
   bytes value = 2;
-  // tendermint.crypto.ProofOps proof_ops = 3;
+  SparseMerkleProof proof = 3;
+}
+
+message SparseMerkleProof {
+	repeated bytes sideNodes = 1;
+	bytes NonMembershipLeafData = 2;
+	bytes siblingData = 3;
 }
