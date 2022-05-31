@@ -89,10 +89,14 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := s.mock.SubmitBlock(&block)
+	code := 0
+	if res.Code != da.StatusSuccess {
+		code = 3
+	}
 
 	resp, err := json.Marshal(cnc.TxResponse{
 		Height: int64(res.DAHeight),
-		Code:   uint32(res.Code),
+		Code:   uint32(code),
 		RawLog: res.Message,
 	})
 	if err != nil {
