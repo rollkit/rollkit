@@ -77,6 +77,15 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 		}
 	}
 
+	if txResponse.Code != 0 {
+		return da.ResultSubmitBlock{
+			DAResult: da.DAResult{
+				Code:    da.StatusError,
+				Message: txResponse.RawLog,
+			},
+		}
+	}
+
 	return da.ResultSubmitBlock{
 		DAResult: da.DAResult{
 			Code:     da.StatusSuccess,
