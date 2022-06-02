@@ -1,6 +1,8 @@
 package store
 
 import (
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"math/rand"
 	"os"
 	"testing"
@@ -130,10 +132,13 @@ func TestRestart(t *testing.T) {
 	kv := NewDefaultInMemoryKVStore()
 	s1 := New(kv)
 	expectedHeight := uint64(10)
-	//block := getRandomBlock(expectedHeight, 10)
-	//err := s1.SaveBlock(block, &types.Commit{Height: block.Header.Height, HeaderHash: block.Header.Hash()})
 	err := s1.UpdateState(state.State{
 		LastBlockHeight: int64(expectedHeight),
+		NextValidators: &tmtypes.ValidatorSet{
+			Validators: []*tmtypes.Validator{
+				{PubKey: ed25519.GenPrivKey().PubKey()},
+			},
+		},
 	})
 	assert.NoError(err)
 
