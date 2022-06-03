@@ -1,12 +1,14 @@
 package store
 
 import (
+	"bytes"
 	"encoding/binary"
-	"encoding/json"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"sync/atomic"
 
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -151,11 +153,13 @@ func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 // UpdateState updates state saved in Store. Only one State is stored.
 // If there is no State in Store, state will be saved.
 func (s *DefaultStore) UpdateState(state state.State) error {
-	blob, err := json.Marshal(state)
+	buf := bytes.NewBuffer(nil)
+	gob.Register(ed25519.PubKey{})
+	err := gob.NewEncoder(buf).Encode(state)
 	if err != nil {
 		return err
 	}
-	return s.db.Set(getStateKey(), blob)
+	return s.db.Set(getStateKey(), buf.Bytes())
 }
 
 // LoadState returns last state saved with UpdateState.
@@ -167,7 +171,7 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 		return state, err
 	}
 
-	err = json.Unmarshal(blob, &state)
+	err = gob.NewDecoder(bytes.NewReader(blob)).Decode(&state)
 	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
 	return state, err
 }
