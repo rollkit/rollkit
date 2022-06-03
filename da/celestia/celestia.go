@@ -3,6 +3,7 @@ package celestia
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -81,7 +82,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 		return da.ResultSubmitBlock{
 			DAResult: da.DAResult{
 				Code:    da.StatusError,
-				Message: txResponse.RawLog,
+				Message: fmt.Sprintf("Codespace: '%s', Code: %d, Message: %s", txResponse.Codespace, txResponse.Code, txResponse.RawLog),
 			},
 		}
 	}
