@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/rs/zerolog"
+	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/merkle"
@@ -22,6 +24,9 @@ import (
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
+	logger "github.com/cosmos/cosmos-sdk/server/logger"
+	sdkservertypes "github.com/cosmos/cosmos-sdk/server/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
@@ -64,6 +69,8 @@ type Manager struct {
 	retrieveCond *sync.Cond
 
 	logger log.Logger
+
+	appCreator sdkservertypes.AppCreator
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -85,6 +92,7 @@ func NewManager(
 	dalc da.DataAvailabilityLayerClient,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
+	appCreator sdkservertypes.AppCreator,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -134,6 +142,7 @@ func NewManager(
 		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
 		logger:      logger,
+		appCreator:  appCreator,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -227,7 +236,19 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			}
 		case fraudProof := <-m.FraudProofCh:
 			m.logger.Debug("fraud proof received", "PreIsr", fraudProof.PreIsr, "PostIsr", fraudProof.PostIsr)
-			// TODO(manav): Set up a new cosmos app here and run a state transition here
+			// What is the merkle root
+			fraudProof.ValidateMerkleProofs() //Add root here
+			// TODO(manav): Set up a new cosmos app here
+			db, err := sdk.NewLevelDB("application/data")
+			if err != nil {
+				m.logger.Error("failed to open DB", "error", err.Error())
+				return
+			}
+
+			newCosmosApp := m.appCreator(logger.ZeroLogWrapper{zerolog.Logger}, db, nil, viper.New())
+			// Load data inside the cosmos-sdk app from fraud proof
+
+			// Run a state transition here
 		case <-ctx.Done():
 			return
 		}

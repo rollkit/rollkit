@@ -77,8 +77,6 @@ type Node struct {
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	ctx context.Context
-
-	appCreator sdktypes.AppCreator
 }
 
 // NewNode creates new Optimint node.
@@ -130,7 +128,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 	mpIDs := newMempoolIDs()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"))
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), appCreator)
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -151,7 +149,6 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
 		ctx:            ctx,
-		appCreator:     appCreator,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
