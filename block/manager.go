@@ -29,7 +29,10 @@ const defaultDABlockTime = 30 * time.Second
 
 // maxSubmitAttempts defines how many times Optimint will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 10
+const maxSubmitAttempts = 30
+
+// initialBackoff defines initial value for block submission backoff
+var initialBackoff = 100 * time.Millisecond
 
 type newBlockEvent struct {
 	block    *types.Block
@@ -395,6 +398,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	m.logger.Debug("submitting block to DA layer", "height", block.Header.Height)
 
 	submitted := false
+	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
 		res := m.dalc.SubmitBlock(block)
 		if res.Code == da.StatusSuccess {
@@ -402,6 +406,8 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 			submitted = true
 		} else {
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			time.Sleep(backoff)
+			backoff = m.exponentialBackoff(backoff)
 		}
 	}
 
@@ -413,6 +419,14 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	m.HeaderOutCh <- &block.Header
 
 	return nil
+}
+
+func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
+	backoff *= 2
+	if backoff > m.conf.DABlockTime {
+		backoff = m.conf.DABlockTime
+	}
+	return backoff
 }
 
 func (m *Manager) publishHeader(block *types.Block) {
