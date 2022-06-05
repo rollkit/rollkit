@@ -372,11 +372,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	err = m.submitBlockToDA(ctx, block)
-	if err != nil {
-		return err
-	}
-
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	m.lastState = newState
 	err = m.store.UpdateState(m.lastState)
@@ -385,6 +380,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	if err != nil {
+		return err
+	}
+
+	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}

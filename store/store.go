@@ -171,6 +171,7 @@ func (s *DefaultStore) LoadState() (state.State, error) {
 		return state, err
 	}
 
+	gob.Register(ed25519.PubKey{})
 	err = gob.NewDecoder(bytes.NewReader(blob)).Decode(&state)
 	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
 	return state, err
