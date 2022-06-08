@@ -10,7 +10,6 @@ import (
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -129,16 +128,16 @@ func TestRestart(t *testing.T) {
 
 	assert := assert.New(t)
 
+	validatorSet := getRandomValidatorSet()
+
 	kv := NewDefaultInMemoryKVStore()
 	s1 := New(kv)
 	expectedHeight := uint64(10)
-	err := s1.UpdateState(state.State{
+	err := s1.UpdateState(types.State{
 		LastBlockHeight: int64(expectedHeight),
-		NextValidators: &tmtypes.ValidatorSet{
-			Validators: []*tmtypes.Validator{
-				{PubKey: ed25519.GenPrivKey().PubKey()},
-			},
-		},
+		NextValidators:  validatorSet,
+		Validators:      validatorSet,
+		LastValidators:  validatorSet,
 	})
 	assert.NoError(err)
 
@@ -222,4 +221,15 @@ func getRandomBytes(n int) []byte {
 	data := make([]byte, n)
 	_, _ = rand.Read(data)
 	return data
+}
+
+// TODO(tzdybal): extract to some common place
+func getRandomValidatorSet() *tmtypes.ValidatorSet {
+	pubKey := ed25519.GenPrivKey().PubKey()
+	return &tmtypes.ValidatorSet{
+		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*tmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address()},
+		},
+	}
 }

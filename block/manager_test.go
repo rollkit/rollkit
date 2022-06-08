@@ -8,25 +8,29 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
 	"github.com/celestiaorg/optimint/da"
 	mockda "github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/optimint/types"
 )
 
 func TestInitialState(t *testing.T) {
-	genesis := &types.GenesisDoc{
+	genesis := &tmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
 	}
-	sampleState := state.State{
+	sampleState := types.State{
 		ChainID:         "state id",
 		InitialHeight:   123,
 		LastBlockHeight: 128,
+		LastValidators:  getRandomValidatorSet(),
+		Validators:      getRandomValidatorSet(),
+		NextValidators:  getRandomValidatorSet(),
 	}
 
 	emptyStore := store.New(store.NewDefaultInMemoryKVStore())
@@ -38,7 +42,7 @@ func TestInitialState(t *testing.T) {
 	cases := []struct {
 		name                    string
 		store                   store.Store
-		genesis                 *types.GenesisDoc
+		genesis                 *tmtypes.GenesisDoc
 		expectedInitialHeight   int64
 		expectedLastBlockHeight int64
 		expectedChainID         string
@@ -87,4 +91,15 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 	_ = dalc.Init(nil, nil, logger)
 	_ = dalc.Start()
 	return dalc
+}
+
+// copied from store_test.go
+func getRandomValidatorSet() *tmtypes.ValidatorSet {
+	pubKey := ed25519.GenPrivKey().PubKey()
+	return &tmtypes.ValidatorSet{
+		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*tmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address()},
+		},
+	}
 }
