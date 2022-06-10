@@ -41,10 +41,11 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wsc, err := upgrader.Upgrade(w, r, nil)
-	remoteAddr := wsc.RemoteAddr().String()
 	if err != nil {
-		h.logger.Error("failed to update to WebSocket connection", "error", err, "address", remoteAddr)
+		h.logger.Error("failed to update to WebSocket connection", "error", err)
+		return
 	}
+	remoteAddr := wsc.RemoteAddr().String()
 	defer func() {
 		err := wsc.Close()
 		if err != nil {
@@ -53,15 +54,17 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	ws := &wsConn{
-		conn:  wsc,
-		queue: make(chan []byte),
+		conn:   wsc,
+		queue:  make(chan []byte),
+		logger: h.logger,
 	}
 	go ws.sendLoop()
 
 	for {
 		mt, r, err := wsc.NextReader()
 		if err != nil {
-			h.logger.Debug("failed to read next WebSocket message", "error", err)
+			h.logger.Error("failed to read next WebSocket message", "error", err)
+			break
 		}
 
 		if mt != websocket.TextMessage {
