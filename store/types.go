@@ -4,7 +4,6 @@ import (
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
 )
 
@@ -34,9 +33,9 @@ type Store interface {
 
 	// UpdateState updates state saved in Store. Only one State is stored.
 	// If there is no State in Store, state will be saved.
-	UpdateState(state state.State) error
+	UpdateState(state types.State) error
 	// LoadState returns last state saved with UpdateState.
-	LoadState() (state.State, error)
+	LoadState() (types.State, error)
 
 	SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error
 

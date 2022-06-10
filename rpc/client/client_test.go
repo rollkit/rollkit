@@ -29,7 +29,6 @@ import (
 	abciconv "github.com/celestiaorg/optimint/conv/abci"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/node"
-	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
 )
 
@@ -715,7 +714,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
 		Header: types.Header{
 			Height:          height,
-			Version:         types.Version{Block: state.InitStateVersion.Consensus.Block},
+			Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
 			ProposerAddress: getRandomBytes(20),
 		},
 		Data: types.Data{

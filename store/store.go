@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -12,8 +11,8 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
+	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
 var (
@@ -150,24 +149,32 @@ func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 
 // UpdateState updates state saved in Store. Only one State is stored.
 // If there is no State in Store, state will be saved.
-func (s *DefaultStore) UpdateState(state state.State) error {
-	blob, err := json.Marshal(state)
+func (s *DefaultStore) UpdateState(state types.State) error {
+	pbState, err := state.ToProto()
 	if err != nil {
 		return err
 	}
-	return s.db.Set(getStateKey(), blob)
+	data, err := pbState.Marshal()
+	if err != nil {
+		return err
+	}
+	return s.db.Set(getStateKey(), data)
 }
 
 // LoadState returns last state saved with UpdateState.
-func (s *DefaultStore) LoadState() (state.State, error) {
-	var state state.State
-
+func (s *DefaultStore) LoadState() (types.State, error) {
 	blob, err := s.db.Get(getStateKey())
 	if err != nil {
-		return state, err
+		return types.State{}, err
+	}
+	var pbState pb.State
+	err = pbState.Unmarshal(blob)
+	if err != nil {
+		return types.State{}, err
 	}
 
-	err = json.Unmarshal(blob, &state)
+	var state types.State
+	err = state.FromProto(&pbState)
 	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
 	return state, err
 }

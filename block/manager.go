@@ -41,7 +41,7 @@ type newBlockEvent struct {
 
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
-	lastState state.State
+	lastState types.State
 
 	conf    config.BlockManagerConfig
 	genesis *tmtypes.GenesisDoc
@@ -72,10 +72,10 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (state.State, error) {
+func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (types.State, error) {
 	s, err := store.LoadState()
 	if err != nil {
-		s, err = state.NewFromGenesisDoc(genesis)
+		s, err = types.NewFromGenesisDoc(genesis)
 	}
 	return s, err
 }
@@ -372,11 +372,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	err = m.submitBlockToDA(ctx, block)
-	if err != nil {
-		return err
-	}
-
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	m.lastState = newState
 	err = m.store.UpdateState(m.lastState)
@@ -385,6 +380,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	if err != nil {
+		return err
+	}
+
+	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}
@@ -433,7 +433,7 @@ func (m *Manager) publishHeader(block *types.Block) {
 	m.HeaderOutCh <- &block.Header
 }
 
-func updateState(s *state.State, res *abci.ResponseInitChain) {
+func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
 	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.
