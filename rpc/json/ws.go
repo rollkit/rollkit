@@ -54,8 +54,9 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	ws := &wsConn{
-		conn:  wsc,
-		queue: make(chan []byte),
+		conn:   wsc,
+		queue:  make(chan []byte),
+		logger: h.logger,
 	}
 	go ws.sendLoop()
 
