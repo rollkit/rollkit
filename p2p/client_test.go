@@ -125,6 +125,58 @@ func TestGossiping(t *testing.T) {
 	wg.Wait()
 }
 
+func TestFraudProofGossip(t *testing.T) {
+	assert := assert.New(t)
+	logger := test.NewTestLogger(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var expectedMsg = []byte("foobar")
+	var wg sync.WaitGroup
+
+	wg.Add(3)
+
+	// ensure that Tx is delivered to client
+	assertRecv := func(fraudProof *GossipMessage) bool {
+		logger.Debug("received fraudProof", "body", string(fraudProof.Data), "from", fraudProof.From)
+		assert.Equal(expectedMsg, fraudProof.Data)
+		wg.Done()
+		return true
+	}
+
+	// ensure that Tx is not delivered to client
+	assertNotRecv := func(*GossipMessage) bool {
+		t.Fatal("unexpected fraud proof received")
+		return false
+	}
+
+	validators := []GossipValidator{assertRecv, assertNotRecv, assertNotRecv, assertRecv, assertRecv}
+
+	// network connections topology: 3<->1<->0<->2<->4
+	clients := startTestNetwork(ctx, t, 5, map[int]hostDescr{
+		0: {conns: []int{}, chainID: "2"},
+		1: {conns: []int{0}, chainID: "1", realKey: true},
+		2: {conns: []int{0}, chainID: "1", realKey: true},
+		3: {conns: []int{1}, chainID: "2", realKey: true},
+		4: {conns: []int{2}, chainID: "2", realKey: true},
+	}, validators, logger)
+
+	// wait for clients to finish refreshing routing tables
+	clients.WaitForDHT()
+
+	// this sleep is required for pubsub to "propagate" subscription information
+	// TODO(tzdybal): is there a better way to wait for readiness?
+	time.Sleep(1 * time.Second)
+
+	// gossip from client 4
+	err := clients[4].GossipFraudProof(ctx, expectedMsg)
+	assert.NoError(err)
+
+	// wait for clients that should receive fraud proof
+	wg.Wait()
+}
+
 func TestSeedStringParsing(t *testing.T) {
 	t.Parallel()
 

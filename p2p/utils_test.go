@@ -110,6 +110,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 		require.NotNil(client)
 
 		client.SetTxValidator(validators[i])
+		client.SetFraudProofValidator(validators[i])
 		clients[i] = client
 	}
 

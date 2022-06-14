@@ -246,6 +246,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			}
 
 			newCosmosApp := m.appCreator(logger.ZeroLogWrapper{zerolog.Logger}, db, nil, viper.New())
+			_ = newCosmosApp // filler
 			// Load data inside the cosmos-sdk app from fraud proof
 
 			// Run a state transition here
