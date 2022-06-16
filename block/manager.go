@@ -352,16 +352,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-	err = m.submitBlockToDA(ctx, block)
+	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
 	}
 
 	// Perform ApplyBlock, SaveBlock, SaveBlockResponses, UpdateState, and SaveValidators after successfully writing to DA
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
-	if err != nil {
-		return err
-	}
 
 	headerBytes, err := block.Header.MarshalBinary()
 	if err != nil {
@@ -402,6 +398,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// SaveValidators commits the DB tx
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	if err != nil {
+		return err
+	}
+
+	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}
