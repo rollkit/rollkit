@@ -29,7 +29,7 @@ const defaultDABlockTime = 30 * time.Second
 
 // maxSubmitAttempts defines how many times Optimint will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 30
+const maxSubmitAttempts = 20
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
@@ -357,19 +357,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// ApplyBlock calls `e.commit` which instructs the ProxyApp to persist state to disk
-	// validate
-	// execute
-	// updateState
-	// commit
-	// Is it possible to split everything before `commit` into a separate method?
-
-	// What if we just don't update the state separately and rely on the retrieve+sync loop(s)?
-	// The sync loop does
-	// ApplyBlock
-	// SaveBlock
-	// SaveBlockResponses
-	// UpdateState
+	// Perform ApplyBlock, SaveBlock, SaveBlockResponses, UpdateState, and SaveValidators after successfully writing to DA
+	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	if err != nil {
+		return err
+	}
 
 	headerBytes, err := block.Header.MarshalBinary()
 	if err != nil {
@@ -386,11 +378,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		Signatures: []types.Signature{sign},
 	}
 
-	// TODO(jbowen93): Perform ApplyBlock, SaveBlock, SaveBlockResponses, and UpdateState after writing to DA
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
-	if err != nil {
-		return err
-	}
+	// TODO(jbowen93): Can we bundle the SaveBlock, SaveBlockResponses, and UpdateState DB Txs into one?
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlock(block, commit)
