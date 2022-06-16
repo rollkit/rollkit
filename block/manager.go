@@ -339,6 +339,15 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderHash = lastBlock.Header.Hash()
 	}
 
+	// Issue #437
+	// DA block submission sometimes takes a long time.
+	// If
+	// 1. A block hasn't been successfully submitted to DA layer
+	// 2. The sequencer crashes
+	// 3. The sequncer restarts and the block still hasn't been committed
+	// then the block is never submitted to the DA Layer
+	// this prevents *ALL* other nodes from properly syncing the chain
+
 	m.logger.Info("Creating and publishing block", "height", newHeight)
 
 	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
