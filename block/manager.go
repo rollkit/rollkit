@@ -347,15 +347,28 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// 3. The sequncer restarts and the block still hasn't been committed
 	// then the block is never submitted to the DA Layer
 	// this prevents *ALL* other nodes from properly syncing the chain
-
 	m.logger.Info("Creating and publishing block", "height", newHeight)
-
 	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+
+	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}
+
+	// ApplyBlock calls `e.commit` which instructs the ProxyApp to persist state to disk
+	// validate
+	// execute
+	// updateState
+	// commit
+	// Is it possible to split everything before `commit` into a separate method?
+
+	// What if we just don't update the state separately and rely on the retrieve+sync loop(s)?
+	// The sync loop does
+	// ApplyBlock
+	// SaveBlock
+	// SaveBlockResponses
+	// UpdateState
 
 	headerBytes, err := block.Header.MarshalBinary()
 	if err != nil {
@@ -371,11 +384,20 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		HeaderHash: block.Header.Hash(),
 		Signatures: []types.Signature{sign},
 	}
+
+	// TODO(jbowen93): Perform ApplyBlock, SaveBlock, SaveBlockResponses, and UpdateState after writing to DA
+	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	if err != nil {
+		return err
+	}
+
+	// SaveBlock commits the DB tx
 	err = m.store.SaveBlock(block, commit)
 	if err != nil {
 		return err
 	}
 
+	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(block.Header.Height, responses)
 	if err != nil {
 		return err
@@ -383,17 +405,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	m.lastState = newState
+	// UpdateState commits the DB tx
 	err = m.store.UpdateState(m.lastState)
 	if err != nil {
 		return err
 	}
 
+	// SaveValidators commits the DB tx
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
-	if err != nil {
-		return err
-	}
-
-	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}
