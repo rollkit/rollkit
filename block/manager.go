@@ -287,7 +287,7 @@ func (m *Manager) processNextDABlock() error {
 			time.Sleep(100 * time.Millisecond)
 		} else {
 			// TODO(jbowen93): Set back to Debug
-			m.logger.Info("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
+			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
@@ -349,10 +349,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// then the block is never submitted to the DA Layer
 	// this prevents *ALL* other nodes from properly syncing the chain
 	m.logger.Info("Creating and publishing block", "height", newHeight)
+
 	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}
@@ -382,6 +383,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	if err != nil {
+		return err
+	}
+
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(block.Header.Height, responses)
 	if err != nil {
@@ -398,11 +404,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// SaveValidators commits the DB tx
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
-	if err != nil {
-		return err
-	}
-
-	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}
