@@ -352,10 +352,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
-	if err != nil {
-		return err
-	}
 
 	// Perform ApplyBlock, SaveBlock, SaveBlockResponses, UpdateState, and SaveValidators after successfully writing to DA
 
@@ -367,18 +363,49 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	commit := &types.Commit{
 		Height:     block.Header.Height,
 		HeaderHash: block.Header.Hash(),
 		Signatures: []types.Signature{sign},
 	}
 
-	// TODO(jbowen93): Can we bundle the SaveBlock, SaveBlockResponses, and UpdateState DB Txs into one?
+	// Check if there's an already stored block at a newer height
+	pendingCommit, err := m.store.LoadCommit(newHeight)
+	if err == nil {
+		// Pending Block
+		m.logger.Info("Pending Commit", "newHeight", newHeight)
+		// if pendingCommit.HeaderHash == commit.HeaderHash {
+		pendingBlock, err := m.store.LoadBlock(newHeight)
+		if err != nil {
+			return fmt.Errorf("error while loading pending block: %w", err)
+		}
+		// overwrite the block
+		commit = pendingCommit
+		block = pendingBlock
+		// }
+	} else {
+		// SaveBlock commits the DB tx
+		err = m.store.SaveBlock(block, commit)
+		if err != nil {
+			return err
+		}
+	}
 
-	// SaveBlock commits the DB tx
-	err = m.store.SaveBlock(block, commit)
+	// SaveBlockResponses and UpdateState DB must occur after executor.ApplyBlock
+	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
+		return err
+	}
+	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+
+	// We should submit the block to the DA layer after running ApplyBlock
+	// to ensure the Txs from the mempool are valid
+	// submitBlockToDA MUST be a synchronous blocking call
+	// if the node crashes while this call is in progress then it must be retried or validated
+	err = m.submitBlockToDA(ctx, block)
+	if err != nil {
+		// We should consider if there is a more appropriate way to handle failures here
+		// Is there cleanup that needs to be done if this fails?
 		return err
 	}
 
@@ -388,8 +415,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+	// After this call m.lastState is the NEW state
 	m.lastState = newState
+
 	// UpdateState commits the DB tx
 	err = m.store.UpdateState(m.lastState)
 	if err != nil {
@@ -398,10 +426,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// SaveValidators commits the DB tx
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
-	if err != nil {
-		return err
-	}
-	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}

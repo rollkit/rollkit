@@ -126,6 +126,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return types.State{}, nil, 0, err
 	}
 
+	// This makes calls to the ProxyApp
 	resp, err := e.execute(ctx, state, block)
 	if err != nil {
 		return types.State{}, nil, 0, err
