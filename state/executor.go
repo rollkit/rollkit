@@ -144,6 +144,9 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 	if len(validatorUpdates) > 0 {
 		e.logger.Debug("updates to validators", "updates", tmtypes.ValidatorListString(validatorUpdates))
 	}
+	if state.ConsensusParams.Block.MaxBytes == 0 {
+		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
+	}
 
 	state, err = e.updateState(state, block, resp, validatorUpdates)
 	if err != nil {
