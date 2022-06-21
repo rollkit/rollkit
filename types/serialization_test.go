@@ -2,6 +2,10 @@ package types
 
 import (
 	"crypto/rand"
+	"github.com/celestiaorg/optimint/types/pb/optimint"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,5 +77,63 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 			assert.Equal(c.input, deserialized)
 		})
+	}
+}
+
+func TestStateRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	valSet := getRandomValidatorSet()
+
+	cases := []struct {
+		name  string
+		state State
+	}{
+		{"with max bytes", State{
+			LastValidators: valSet,
+			Validators:     valSet,
+			NextValidators: valSet,
+			ConsensusParams: tmproto.ConsensusParams{
+				Block: tmproto.BlockParams{
+					MaxBytes:   123,
+					MaxGas:     456,
+					TimeIotaMs: 789,
+				},
+			}}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require := require.New(t)
+			assert := assert.New(t)
+			pState, err := c.state.ToProto()
+			require.NoError(err)
+			require.NotNil(pState)
+
+			bytes, err := pState.Marshal()
+			require.NoError(err)
+			require.NotEmpty(bytes)
+
+			var newProtoState optimint.State
+			var newState State
+			err = newProtoState.Unmarshal(bytes)
+			require.NoError(err)
+
+			err = newState.FromProto(&newProtoState)
+			require.NoError(err)
+
+			assert.Equal(c.state, newState)
+		})
+	}
+}
+
+// copied from store_test.go
+func getRandomValidatorSet() *tmtypes.ValidatorSet {
+	pubKey := ed25519.GenPrivKey().PubKey()
+	return &tmtypes.ValidatorSet{
+		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*tmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address()},
+		},
 	}
 }
