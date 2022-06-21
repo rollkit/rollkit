@@ -2,14 +2,16 @@ package types
 
 import (
 	"crypto/rand"
-	"github.com/celestiaorg/optimint/types/pb/optimint"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
+
+	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
 func TestBlockSerializationRoundTrip(t *testing.T) {
@@ -114,7 +116,7 @@ func TestStateRoundTrip(t *testing.T) {
 			require.NoError(err)
 			require.NotEmpty(bytes)
 
-			var newProtoState optimint.State
+			var newProtoState pb.State
 			var newState State
 			err = newProtoState.Unmarshal(bytes)
 			require.NoError(err)

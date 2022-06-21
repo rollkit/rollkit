@@ -3,9 +3,10 @@ package types
 import (
 	"errors"
 
-	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/types"
+
+	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
 // MarshalBinary encodes Block into binary form and returns it.
@@ -246,6 +247,8 @@ func (s *State) FromProto(other *pb.State) error {
 		return err
 	}
 	s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
+	s.ConsensusParams = other.ConsensusParams
+	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
 	copy(s.LastResultsHash[:], other.LastResultsHash)
 	copy(s.AppHash[:], other.AppHash)
 
