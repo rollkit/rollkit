@@ -351,11 +351,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	pendingBlock, err := m.store.LoadBlock(newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
-		m.logger.Info("Pending Block", "pendingBlock", pendingBlock)
 
 		// if there's a pending block we use that instead of creating a new one
 		block = pendingBlock
-		// bump the stored height
+		// update the stored height
 		m.store.SetHeight(block.Header.Height)
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
