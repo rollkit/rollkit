@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -205,6 +206,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			b1, ok1 := m.syncCache[currentHeight+1]
 			b2, ok2 := m.syncCache[currentHeight+2]
 			if ok1 && ok2 {
+				m.logger.Info("Syncing block", "height", b1.Header.Height)
 				newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 				if err != nil {
 					m.logger.Error("failed to ApplyBlock", "error", err)
@@ -391,14 +393,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// We should submit the block to the DA layer after running ApplyBlock
-	// to ensure the Txs from the mempool are valid
-	// submitBlockToDA MUST be a synchronous blocking call
-	// if the node crashes while this call is in progress then it must be retried or validated
 	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
-		// We should consider if there is a more appropriate way to handle failures here
-		// Is there cleanup that needs to be done if this fails?
+		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
 
@@ -453,8 +450,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	}
 
 	if !submitted {
-		// TODO(tzdybal): probably this could be handled better
-		panic("Failed to submit block to DA layer!")
+		return errors.New(fmt.Sprintf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts))
 	}
 
 	m.HeaderOutCh <- &block.Header
