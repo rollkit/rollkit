@@ -80,10 +80,6 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 		return err
 	}
 
-	// if block.Header.Height > atomic.LoadUint64(&s.height) {
-	// 	atomic.StoreUint64(&s.height, block.Header.Height)
-	// }
-
 	return nil
 }
 

@@ -196,7 +196,6 @@ require (
 )
 
 replace (
-	// github.com/dgraph-io/badger/v3 => github.com/outcaste-io/badger/v3 v3.2202.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )

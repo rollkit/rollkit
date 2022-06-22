@@ -2,7 +2,6 @@ package block
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -30,7 +29,7 @@ const defaultDABlockTime = 30 * time.Second
 
 // maxSubmitAttempts defines how many times Optimint will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 20
+const maxSubmitAttempts = 30
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
@@ -293,7 +292,6 @@ func (m *Manager) processNextDABlock() error {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			// TODO(jbowen93): Set back to Debug
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
@@ -350,15 +348,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	var block *types.Block
 
 	// Check if there's an already stored block at a newer height
+	// If there is use that instead of creating a new block
 	pendingBlock, err := m.store.LoadBlock(newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
-
-		// if there's a pending block we use that instead of creating a new one
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
@@ -383,7 +379,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 	}
 
-	// Apply the block to the proxy app but DONT commit
+	// Apply the block but DONT commit
 	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
@@ -394,10 +390,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
-	// update the stored height
+
+	// Only update the stored height after successfully submitting to DA layer
 	m.store.SetHeight(block.Header.Height)
 
-	// Commit the new state and block to the proxy app
+	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
 		return err
@@ -410,7 +407,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
-	// After this call m.lastState is the NEW state
+	// After this call m.lastState is the NEW state returned from ApplyBlock
 	m.lastState = newState
 
 	// UpdateState commits the DB tx
@@ -448,7 +445,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	}
 
 	if !submitted {
-		return errors.New(fmt.Sprintf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts))
+		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
 	m.HeaderOutCh <- &block.Header
