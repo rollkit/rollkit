@@ -42,8 +42,9 @@ func New(kv KVStore) Store {
 
 // SetHeight sets the height saved in the Store if it is higher than the existing height
 func (s *DefaultStore) SetHeight(height uint64) {
-	if height > atomic.LoadUint64(&s.height) {
-		atomic.StoreUint64(&s.height, height)
+	storeHeight := atomic.LoadUint64(&s.height)
+	if height > storeHeight {
+		_ = atomic.CompareAndSwapUint64(&s.height, storeHeight, height)
 	}
 }
 

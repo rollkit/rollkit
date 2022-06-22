@@ -151,7 +151,7 @@ func TestApplyBlock(t *testing.T) {
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(int64(2), newState.LastBlockHeight)
-	appHash, _, err = executor.Commit(context.Background(), newState, block, resp)
+	_, _, err = executor.Commit(context.Background(), newState, block, resp)
 	require.NoError(err)
 
 	// wait for at least 4 Tx events, for up to 3 second.
