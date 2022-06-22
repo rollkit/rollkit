@@ -30,7 +30,7 @@ const defaultDABlockTime = 30 * time.Second
 
 // maxSubmitAttempts defines how many times Optimint will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 10
+const maxSubmitAttempts = 20
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
