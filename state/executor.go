@@ -11,6 +11,7 @@ import (
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
@@ -120,27 +121,27 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 }
 
 // ApplyBlock validates, executes and commits the block.
-func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *tmstate.ABCIResponses, uint64, error) {
+func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *tmstate.ABCIResponses, error) {
 	err := e.validate(state, block)
 	if err != nil {
-		return types.State{}, nil, 0, err
+		return types.State{}, nil, err
 	}
 
 	// This makes calls to the ProxyApp
 	resp, err := e.execute(ctx, state, block)
 	if err != nil {
-		return types.State{}, nil, 0, err
+		return types.State{}, nil, err
 	}
 
 	abciValUpdates := resp.EndBlock.ValidatorUpdates
 	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
 	if err != nil {
-		return state, nil, 0, fmt.Errorf("error in validator updates: %v", err)
+		return state, nil, fmt.Errorf("error in validator updates: %v", err)
 	}
 
 	validatorUpdates, err := tmtypes.PB2TM.ValidatorUpdates(abciValUpdates)
 	if err != nil {
-		return state, nil, 0, err
+		return state, nil, err
 	}
 	if len(validatorUpdates) > 0 {
 		e.logger.Debug("updates to validators", "updates", tmtypes.ValidatorListString(validatorUpdates))
@@ -151,12 +152,29 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 
 	state, err = e.updateState(state, block, resp, validatorUpdates)
 	if err != nil {
-		return types.State{}, nil, 0, err
+		return types.State{}, nil, err
 	}
 
+	// appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
+	// if err != nil {
+	// 	return types.State{}, nil, 0, err
+	// }
+
+	// copy(state.AppHash[:], appHash[:])
+
+	// err = e.publishEvents(resp, block, state)
+	// if err != nil {
+	// 	e.logger.Error("failed to fire block events", "error", err)
+	// }
+
+	return state, resp, nil
+	// return state, resp, retainHeight, nil
+}
+
+func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *tmstate.ABCIResponses) ([]byte, uint64, error) {
 	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
 	if err != nil {
-		return types.State{}, nil, 0, err
+		return []byte{}, 0, err
 	}
 
 	copy(state.AppHash[:], appHash[:])
@@ -165,8 +183,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
 	}
-
-	return state, resp, retainHeight, nil
+	return appHash, retainHeight, nil
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {

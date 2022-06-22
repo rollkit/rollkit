@@ -205,9 +205,14 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			b1, ok1 := m.syncCache[currentHeight+1]
 			b2, ok2 := m.syncCache[currentHeight+2]
 			if ok1 && ok2 {
-				newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+				newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 				if err != nil {
 					m.logger.Error("failed to ApplyBlock", "error", err)
+					continue
+				}
+				_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+				if err != nil {
+					m.logger.Error("failed to Commit", "error", err)
 					continue
 				}
 				err = m.store.SaveBlock(b1, &b2.LastCommit)
@@ -340,50 +345,40 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderHash = lastBlock.Header.Hash()
 	}
 
-	// Issue #437
-	// DA block submission sometimes takes a long time.
-	// If
-	// 1. A block hasn't been successfully submitted to DA layer
-	// 2. The sequencer crashes
-	// 3. The sequncer restarts and the block still hasn't been committed
-	// then the block is never submitted to the DA Layer
-	// this prevents *ALL* other nodes from properly syncing the chain
-	m.logger.Info("Creating and publishing block", "height", newHeight)
-
-	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
-	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-
-	// Perform ApplyBlock, SaveBlock, SaveBlockResponses, UpdateState, and SaveValidators after successfully writing to DA
-
-	headerBytes, err := block.Header.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	sign, err := m.proposerKey.Sign(headerBytes)
-	if err != nil {
-		return err
-	}
-	commit := &types.Commit{
-		Height:     block.Header.Height,
-		HeaderHash: block.Header.Hash(),
-		Signatures: []types.Signature{sign},
-	}
+	var block *types.Block
 
 	// Check if there's an already stored block at a newer height
-	pendingCommit, err := m.store.LoadCommit(newHeight)
+	pendingBlock, err := m.store.LoadBlock(newHeight)
 	if err == nil {
-		// Pending Block
-		m.logger.Info("Pending Commit", "newHeight", newHeight)
-		// if pendingCommit.HeaderHash == commit.HeaderHash {
-		pendingBlock, err := m.store.LoadBlock(newHeight)
-		if err != nil {
-			return fmt.Errorf("error while loading pending block: %w", err)
-		}
-		// overwrite the block
-		commit = pendingCommit
+		m.logger.Info("Using pending block", "height", newHeight)
+		m.logger.Info("Pending Block", "pendingBlock", pendingBlock)
+
+		// if there's a pending block we use that instead of creating a new one
 		block = pendingBlock
-		// }
+		// bump the stored height
+		m.store.SetHeight(block.Header.Height)
 	} else {
+		m.logger.Info("Creating and publishing block", "height", newHeight)
+
+		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
+
+		// Perform ApplyBlock, SaveBlock, SaveBlockResponses, UpdateState, and SaveValidators after successfully writing to DA
+
+		headerBytes, err := block.Header.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		sign, err := m.proposerKey.Sign(headerBytes)
+		if err != nil {
+			return err
+		}
+		commit := &types.Commit{
+			Height:     block.Header.Height,
+			HeaderHash: block.Header.Hash(),
+			Signatures: []types.Signature{sign},
+		}
+
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
 		if err != nil {
@@ -391,12 +386,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 	}
 
-	// SaveBlockResponses and UpdateState DB must occur after executor.ApplyBlock
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	// Apply the block to the proxy app but DONT commit
+	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
 	}
-	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 
 	// We should submit the block to the DA layer after running ApplyBlock
 	// to ensure the Txs from the mempool are valid
@@ -409,12 +403,19 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	// Commit the new state and block to the proxy app
+	_, _, err = m.executor.Commit(ctx, newState, block, responses)
+	if err != nil {
+		return err
+	}
+
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(block.Header.Height, responses)
 	if err != nil {
 		return err
 	}
 
+	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state
 	m.lastState = newState
 

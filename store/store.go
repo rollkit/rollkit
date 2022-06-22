@@ -40,6 +40,13 @@ func New(kv KVStore) Store {
 	}
 }
 
+// SetHeight sets the height saved in the Store if it is higher than the existing height
+func (s *DefaultStore) SetHeight(height uint64) {
+	if height > atomic.LoadUint64(&s.height) {
+		atomic.StoreUint64(&s.height, height)
+	}
+}
+
 // Height returns height of the highest block saved in the Store.
 func (s *DefaultStore) Height() uint64 {
 	return atomic.LoadUint64(&s.height)
