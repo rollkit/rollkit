@@ -197,6 +197,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			daHeight := blockEvent.daHeight
 			m.logger.Debug("block body retrieved from DALC",
 				"height", block.Header.Height,
+				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
 			m.syncCache[block.Header.Height] = block
@@ -211,17 +212,19 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 					m.logger.Error("failed to ApplyBlock", "error", err)
 					continue
 				}
-				_, _, err = m.executor.Commit(ctx, newState, b1, responses)
-				if err != nil {
-					m.logger.Error("failed to Commit", "error", err)
-					continue
-				}
 				err = m.store.SaveBlock(b1, &b2.LastCommit)
 				if err != nil {
 					m.logger.Error("failed to save block", "error", err)
 					continue
 				}
-				err = m.store.SaveBlockResponses(block.Header.Height, responses)
+				_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+				if err != nil {
+					m.logger.Error("failed to Commit", "error", err)
+					continue
+				}
+				m.store.SetHeight(b1.Header.Height)
+
+				err = m.store.SaveBlockResponses(b1.Header.Height, responses)
 				if err != nil {
 					m.logger.Error("failed to save block responses", "error", err)
 					continue

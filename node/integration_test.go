@@ -96,14 +96,14 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		require.NoError(n.Start())
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
 		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
 	}
 
-	timeout := time.NewTimer(time.Second * 10)
+	timeout := time.NewTimer(time.Second * 30)
 	doneChan := make(chan struct{})
 	go func() {
 		defer close(doneChan)
@@ -112,7 +112,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	select {
 	case <-doneChan:
 	case <-timeout.C:
-		t.FailNow()
+		t.Fatal("failing after timeout")
 	}
 
 	for _, n := range nodes {
@@ -173,6 +173,7 @@ func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.A
 	dalc := &mockda.MockDataAvailabilityLayerClient{}
 	_ = dalc.Init(nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
+
 	nodes[0], apps[0] = createNode(0, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {
 		nodes[i], apps[i] = createNode(i, false, dalc, keys, wg, t)
