@@ -119,9 +119,19 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	return block
 }
 
+// Generates a fraud proof using ABCI methods in the cosmos sdk
+func (e *BlockExecutor) GenerateFraudProof() error {
+	// TODO: Generate a fraud proof
+	return nil
+}
+
 // ApplyBlock validates, executes and commits the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *tmstate.ABCIResponses, uint64, error) {
 	err := e.validate(state, block)
+	if err.Error() == "AppHash mismatch" {
+		e.GenerateFraudProof()
+		// gossip fraud proof around the network
+	}
 	if err != nil {
 		return types.State{}, nil, 0, err
 	}
