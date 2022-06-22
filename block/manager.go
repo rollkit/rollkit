@@ -30,7 +30,7 @@ const defaultDABlockTime = 30 * time.Second
 
 // maxSubmitAttempts defines how many times Optimint will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 20
+const maxSubmitAttempts = 10
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
@@ -356,15 +356,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// if there's a pending block we use that instead of creating a new one
 		block = pendingBlock
-		// update the stored height
-		m.store.SetHeight(block.Header.Height)
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-
-		// Perform ApplyBlock, SaveBlock, SaveBlockResponses, UpdateState, and SaveValidators after successfully writing to DA
 
 		headerBytes, err := block.Header.MarshalBinary()
 		if err != nil {
@@ -398,6 +394,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
+	// update the stored height
+	m.store.SetHeight(block.Header.Height)
 
 	// Commit the new state and block to the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
