@@ -85,7 +85,7 @@ jobs:
       with:
         repository: celestiaorg/ephemeral-cluster
         path: ephemeral-cluster
-        ref: jbowen93/mess-test       
+        ref: jbowen93/mess
     - name: Clone ethermint repo
       uses: actions/checkout@v3
       with:
