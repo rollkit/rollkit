@@ -37,6 +37,7 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
+          ref: optimint-v0.3.0-rebase
       - name: Move Stuff and Tidy
         run: |
           ls
