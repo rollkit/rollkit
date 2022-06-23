@@ -431,7 +431,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
-	m.logger.Debug("submitting block to DA layer", "height", block.Header.Height)
+	m.logger.Info("submitting block to DA layer", "height", block.Header.Height)
 
 	submitted := false
 	backoff := initialBackoff
