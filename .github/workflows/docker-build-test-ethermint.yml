@@ -37,6 +37,7 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
+          ref: optimint-v0.3.0-rebase
       - name: Move Stuff and Tidy
         run: |
           ls
@@ -84,11 +85,13 @@ jobs:
       with:
         repository: celestiaorg/ephemeral-cluster
         path: ephemeral-cluster
+        ref: jbowen93/mess-test       
     - name: Clone ethermint repo
       uses: actions/checkout@v3
       with:
         repository: celestiaorg/ethermint
         path: ethermint
+        ref: optimint-v0.3.0-rebase
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
@@ -105,13 +108,9 @@ jobs:
         docker ps -a
         echo "------------- docker logs core0 -------------"
         docker logs core0
-        echo "------------- docker logs bridge0 -------------"
-        docker logs bridge0
-        echo "------------- docker logs light0 -------------"
-        docker logs light0
         echo "------------- docker logs dalc0 -------------"
         docker logs dalc0
-        echo "------------- docker logs evmos0 -------------"
+        echo "------------- docker logs ethermint0 -------------"
         docker logs ethermint0
         cd ethermint
         echo "------------- go test ./tests/rpc/... -------------"
