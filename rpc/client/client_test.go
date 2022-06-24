@@ -246,7 +246,9 @@ func TestGetBlock(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 
-	err = rpc.node.Store.SaveBlock(getRandomBlock(1, 10), &types.Commit{})
+	block := getRandomBlock(1, 10)
+	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
+	rpc.node.Store.SetHeight(block.Header.Height)
 	require.NoError(err)
 
 	blockResp, err := rpc.Block(context.Background(), nil)
@@ -273,6 +275,7 @@ func TestGetCommit(t *testing.T) {
 
 	for _, b := range blocks {
 		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: b.Header.Height})
+		rpc.node.Store.SetHeight(b.Header.Height)
 		require.NoError(err)
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
@@ -566,6 +569,7 @@ func TestBlockchainInfo(t *testing.T) {
 			Height:     uint64(h),
 			HeaderHash: block.Header.Hash(),
 		})
+		rpc.node.Store.SetHeight(block.Header.Height)
 		require.NoError(err)
 	}
 

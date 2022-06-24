@@ -197,6 +197,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			daHeight := blockEvent.daHeight
 			m.logger.Debug("block body retrieved from DALC",
 				"height", block.Header.Height,
+				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
 			m.syncCache[block.Header.Height] = block
@@ -205,7 +206,8 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			b1, ok1 := m.syncCache[currentHeight+1]
 			b2, ok2 := m.syncCache[currentHeight+2]
 			if ok1 && ok2 {
-				newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+				m.logger.Info("Syncing block", "height", b1.Header.Height)
+				newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 				if err != nil {
 					m.logger.Error("failed to ApplyBlock", "error", err)
 					continue
@@ -215,7 +217,14 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 					m.logger.Error("failed to save block", "error", err)
 					continue
 				}
-				err = m.store.SaveBlockResponses(block.Header.Height, responses)
+				_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+				if err != nil {
+					m.logger.Error("failed to Commit", "error", err)
+					continue
+				}
+				m.store.SetHeight(b1.Header.Height)
+
+				err = m.store.SaveBlockResponses(b1.Header.Height, responses)
 				if err != nil {
 					m.logger.Error("failed to save block responses", "error", err)
 					continue
@@ -339,52 +348,79 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderHash = lastBlock.Header.Hash()
 	}
 
-	m.logger.Info("Creating and publishing block", "height", newHeight)
+	var block *types.Block
 
-	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
-	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	// Check if there's an already stored block at a newer height
+	// If there is use that instead of creating a new block
+	pendingBlock, err := m.store.LoadBlock(newHeight)
+	if err == nil {
+		m.logger.Info("Using pending block", "height", newHeight)
+		block = pendingBlock
+	} else {
+		m.logger.Info("Creating and publishing block", "height", newHeight)
+		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
+
+		headerBytes, err := block.Header.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		sign, err := m.proposerKey.Sign(headerBytes)
+		if err != nil {
+			return err
+		}
+		commit := &types.Commit{
+			Height:     block.Header.Height,
+			HeaderHash: block.Header.Hash(),
+			Signatures: []types.Signature{sign},
+		}
+
+		// SaveBlock commits the DB tx
+		err = m.store.SaveBlock(block, commit)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Apply the block but DONT commit
+	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
 	}
 
-	headerBytes, err := block.Header.MarshalBinary()
+	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
+		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
-	sign, err := m.proposerKey.Sign(headerBytes)
+
+	// Only update the stored height after successfully submitting to DA layer
+	m.store.SetHeight(block.Header.Height)
+
+	// Commit the new state and block which writes to disk on the proxy app
+	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
 		return err
 	}
 
-	commit := &types.Commit{
-		Height:     block.Header.Height,
-		HeaderHash: block.Header.Hash(),
-		Signatures: []types.Signature{sign},
-	}
-	err = m.store.SaveBlock(block, commit)
-	if err != nil {
-		return err
-	}
-
+	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(block.Header.Height, responses)
 	if err != nil {
 		return err
 	}
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+	// After this call m.lastState is the NEW state returned from ApplyBlock
 	m.lastState = newState
+
+	// UpdateState commits the DB tx
 	err = m.store.UpdateState(m.lastState)
 	if err != nil {
 		return err
 	}
 
+	// SaveValidators commits the DB tx
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
-	if err != nil {
-		return err
-	}
-
-	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		return err
 	}
@@ -395,7 +431,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
-	m.logger.Debug("submitting block to DA layer", "height", block.Header.Height)
+	m.logger.Info("submitting block to DA layer", "height", block.Header.Height)
 
 	submitted := false
 	backoff := initialBackoff
@@ -412,8 +448,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	}
 
 	if !submitted {
-		// TODO(tzdybal): probably this could be handled better
-		panic("Failed to submit block to DA layer!")
+		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
 	m.HeaderOutCh <- &block.Header

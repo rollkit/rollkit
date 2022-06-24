@@ -47,6 +47,7 @@ func TestStoreHeight(t *testing.T) {
 
 			for _, block := range c.blocks {
 				err := bstore.SaveBlock(block, &types.Commit{})
+				bstore.SetHeight(block.Header.Height)
 				assert.NoError(err)
 			}
 

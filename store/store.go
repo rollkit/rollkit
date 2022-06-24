@@ -40,6 +40,14 @@ func New(kv KVStore) Store {
 	}
 }
 
+// SetHeight sets the height saved in the Store if it is higher than the existing height
+func (s *DefaultStore) SetHeight(height uint64) {
+	storeHeight := atomic.LoadUint64(&s.height)
+	if height > storeHeight {
+		_ = atomic.CompareAndSwapUint64(&s.height, storeHeight, height)
+	}
+}
+
 // Height returns height of the highest block saved in the Store.
 func (s *DefaultStore) Height() uint64 {
 	return atomic.LoadUint64(&s.height)
@@ -71,10 +79,6 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	if err = bb.Commit(); err != nil {
 		return err
-	}
-
-	if block.Header.Height > atomic.LoadUint64(&s.height) {
-		atomic.StoreUint64(&s.height, block.Header.Height)
 	}
 
 	return nil
