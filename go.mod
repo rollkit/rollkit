@@ -21,7 +21,7 @@ require (
 	github.com/rs/cors v1.8.2
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.12.0
-	github.com/stretchr/testify v1.7.4
+	github.com/stretchr/testify v1.7.5
 	github.com/tendermint/tendermint v0.34.14
 	go.uber.org/multierr v1.8.0
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
