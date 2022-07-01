@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strconv"
 
+	tmjson "github.com/tendermint/tendermint/libs/json"
+
 	"github.com/celestiaorg/optimint/log"
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
@@ -176,7 +178,12 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	if errResult != nil {
 		resp.Error = &json2.Error{Code: json2.ErrorCode(statusCode), Data: errResult.Error()}
 	} else {
-		resp.Result = result
+		bytes, err := tmjson.Marshal(result)
+		if err != nil {
+			resp.Error = &json2.Error{Code: json2.ErrorCode(json2.E_INTERNAL), Data: err.Error()}
+		} else {
+			resp.Result = bytes
+		}
 	}
 
 	encoder := json.NewEncoder(w)

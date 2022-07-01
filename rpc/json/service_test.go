@@ -68,13 +68,13 @@ func TestREST(t *testing.T) {
 
 		{"invalid/malformed request", "/block?so{}wrong!", http.StatusOK, int(json2.E_INVALID_REQ), ``},
 		{"invalid/missing param", "/block", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'height'`},
-		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":345`},
+		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
 		// to keep test simple, allow returning application error in following case
 		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), `"key not found"`},
 		{"invalid/int param", "/block?height=foo", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'height'"},
 		{"valid/bool int string params",
 			"/tx_search?" + txSearchParams.Encode(),
-			http.StatusOK, -1, `"total_count":0`},
+			http.StatusOK, -1, `"total_count":"0"`},
 		{"invalid/bool int string params",
 			"/tx_search?" + strings.Replace(txSearchParams.Encode(), "true", "blue", 1),
 			http.StatusOK, int(json2.E_PARSE), "failed to parse param 'prove'"},
