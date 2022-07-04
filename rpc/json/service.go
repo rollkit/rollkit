@@ -130,9 +130,6 @@ func (s *service) Subscribe(req *http.Request, args *SubscribeArgs, wsConn *wsCo
 					}
 					s.logger.Error("subscription was cancelled", "reason", reason)
 				}
-				// if wsConn != nil {
-				// 	close(wsConn.queue)
-				// }
 				return
 			}
 		}
