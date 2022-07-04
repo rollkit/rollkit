@@ -68,13 +68,13 @@ func TestREST(t *testing.T) {
 
 		{"invalid/malformed request", "/block?so{}wrong!", http.StatusOK, int(json2.E_INVALID_REQ), ``},
 		{"invalid/missing param", "/block", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'height'`},
-		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":345`},
+		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
 		// to keep test simple, allow returning application error in following case
 		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), `"key not found"`},
 		{"invalid/int param", "/block?height=foo", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'height'"},
 		{"valid/bool int string params",
 			"/tx_search?" + txSearchParams.Encode(),
-			http.StatusOK, -1, `"total_count":0`},
+			http.StatusOK, -1, `"total_count":"0"`},
 		{"invalid/bool int string params",
 			"/tx_search?" + strings.Replace(txSearchParams.Encode(), "true", "blue", 1),
 			http.StatusOK, int(json2.E_PARSE), "failed to parse param 'prove'"},
@@ -134,7 +134,7 @@ func TestStringyRequest(t *testing.T) {
 	// `starport chain faucet ...` generates broken JSON (ints are "quoted" as strings)
 	brokenJSON := `{"jsonrpc":"2.0","id":0,"method":"tx_search","params":{"order_by":"","page":"1","per_page":"1000","prove":true,"query":"message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh' AND transfer.recipient='cosmos1e0ajth0s847kqcu2ssnhut32fsrptf94fqnfzx'"}}`
 
-	respJson := `{"jsonrpc":"2.0","result":{"txs":[],"total_count":0},"id":0}` + "\n"
+	respJson := `{"jsonrpc":"2.0","result":{"txs":[],"total_count":"0"},"id":0}` + "\n"
 
 	req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(brokenJSON))
 	resp := httptest.NewRecorder()
