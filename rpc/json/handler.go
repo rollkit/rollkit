@@ -103,7 +103,13 @@ func (h *handler) serveJSONRPCforWS(w http.ResponseWriter, r *http.Request, wsCo
 
 	// Encode the response.
 	if errResult == nil {
-		codecReq.WriteResponse(w, rets[0].Interface())
+		var raw json.RawMessage
+		raw, err = tmjson.Marshal(rets[0].Interface())
+		if err != nil {
+			codecReq.WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
+		codecReq.WriteResponse(w, raw)
 	} else {
 		codecReq.WriteError(w, statusCode, errResult)
 	}

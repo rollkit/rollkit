@@ -134,7 +134,7 @@ func TestStringyRequest(t *testing.T) {
 	// `starport chain faucet ...` generates broken JSON (ints are "quoted" as strings)
 	brokenJSON := `{"jsonrpc":"2.0","id":0,"method":"tx_search","params":{"order_by":"","page":"1","per_page":"1000","prove":true,"query":"message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh' AND transfer.recipient='cosmos1e0ajth0s847kqcu2ssnhut32fsrptf94fqnfzx'"}}`
 
-	respJson := `{"jsonrpc":"2.0","result":{"txs":[],"total_count":0},"id":0}` + "\n"
+	respJson := `{"jsonrpc":"2.0","result":{"txs":[],"total_count":"0"},"id":0}` + "\n"
 
 	req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(brokenJSON))
 	resp := httptest.NewRecorder()
