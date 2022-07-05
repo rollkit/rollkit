@@ -15,7 +15,7 @@ require (
 	github.com/libp2p/go-libp2p v0.19.0
 	github.com/libp2p/go-libp2p-core v0.15.1
 	github.com/libp2p/go-libp2p-kad-dht v0.16.0
-	github.com/libp2p/go-libp2p-pubsub v0.7.0
+	github.com/libp2p/go-libp2p-pubsub v0.7.1
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/prometheus/client_golang v1.12.2
 	github.com/rs/cors v1.8.2
