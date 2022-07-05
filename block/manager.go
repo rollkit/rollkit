@@ -59,6 +59,8 @@ type Manager struct {
 	HeaderOutCh chan *types.Header
 	HeaderInCh  chan *types.Header
 
+	FraudProofCh chan *types.FraudProof
+
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
 	syncCache  map[uint64]*types.Block
@@ -230,6 +232,9 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				}
 				delete(m.syncCache, currentHeight+1)
 			}
+		case fraudProof := <-m.FraudProofCh:
+			m.logger.Debug("fraud proof received", "Block Height", fraudProof.BlockHeight)
+			// TODO(manav): Set up a new cosmos app here
 		case <-ctx.Done():
 			return
 		}
