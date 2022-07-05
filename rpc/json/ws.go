@@ -68,7 +68,8 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if mt != websocket.TextMessage {
-			h.logger.Error("expected text message")
+			// TODO(tzdybal): https://github.com/celestiaorg/optimint/issues/465
+			h.logger.Debug("expected text message")
 			continue
 		}
 		req, err := http.NewRequest(http.MethodGet, "", r)
