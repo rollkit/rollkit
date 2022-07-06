@@ -95,20 +95,20 @@ func TestGenesisChunked(t *testing.T) {
 
 	rpc := NewClient(n)
 
-	var wantId uint = 2
-	gc, err := rpc.GenesisChunked(context.Background(), wantId)
+	var expectedID uint = 2
+	gc, err := rpc.GenesisChunked(context.Background(), expectedID)
 	assert.Error(err)
 	assert.Nil(gc)
 
 	err = rpc.node.Start()
 	require.NoError(t, err)
 
-	wantId = 0
-	gc2, err := rpc.GenesisChunked(context.Background(), wantId)
-	gotId := gc2.ChunkNumber
+	expectedID = 0
+	gc2, err := rpc.GenesisChunked(context.Background(), expectedID)
+	gotID := gc2.ChunkNumber
 	assert.NoError(err)
 	assert.NotNil(gc2)
-	assert.Equal(int(wantId), gotId)
+	assert.Equal(int(expectedID), gotID)
 
 	gc3, err := rpc.GenesisChunked(context.Background(), 5)
 	assert.Error(err)

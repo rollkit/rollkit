@@ -31,7 +31,9 @@ func TestWebSockets(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(resp)
 	require.NotNil(conn)
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	assert.Equal(http.StatusSwitchingProtocols, resp.StatusCode)
 
