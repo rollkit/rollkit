@@ -112,7 +112,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	select {
 	case <-doneChan:
 	case <-timeout.C:
-		t.FailNow()
+		t.Fatal("failing after timeout")
 	}
 
 	for _, n := range nodes {
@@ -173,6 +173,7 @@ func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.A
 	dalc := &mockda.MockDataAvailabilityLayerClient{}
 	_ = dalc.Init(nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
+
 	nodes[0], apps[0] = createNode(0, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {
 		nodes[i], apps[i] = createNode(i, false, dalc, keys, wg, t)

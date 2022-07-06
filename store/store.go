@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -12,8 +11,8 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/types"
+	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
 var (
@@ -38,6 +37,14 @@ var _ Store = &DefaultStore{}
 func New(kv KVStore) Store {
 	return &DefaultStore{
 		db: kv,
+	}
+}
+
+// SetHeight sets the height saved in the Store if it is higher than the existing height
+func (s *DefaultStore) SetHeight(height uint64) {
+	storeHeight := atomic.LoadUint64(&s.height)
+	if height > storeHeight {
+		_ = atomic.CompareAndSwapUint64(&s.height, storeHeight, height)
 	}
 }
 
@@ -72,10 +79,6 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	if err = bb.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	if block.Header.Height > atomic.LoadUint64(&s.height) {
-		atomic.StoreUint64(&s.height, block.Header.Height)
 	}
 
 	return nil
@@ -156,29 +159,34 @@ func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
 
 // UpdateState updates state saved in Store. Only one State is stored.
 // If there is no State in Store, state will be saved.
-func (s *DefaultStore) UpdateState(state state.State) error {
-	blob, err := json.Marshal(state)
+func (s *DefaultStore) UpdateState(state types.State) error {
+	pbState, err := state.ToProto()
 	if err != nil {
 		return fmt.Errorf("failed to marshal state to JSON: %w", err)
 	}
-	return s.db.Set(getStateKey(), blob)
+	data, err := pbState.Marshal()
+	if err != nil {
+		return err
+	}
+	return s.db.Set(getStateKey(), data)
 }
 
 // LoadState returns last state saved with UpdateState.
-func (s *DefaultStore) LoadState() (state.State, error) {
-	var state state.State
-
+func (s *DefaultStore) LoadState() (types.State, error) {
 	blob, err := s.db.Get(getStateKey())
 	if err != nil {
-		return state, fmt.Errorf("failed to retrieve key: %w", err)
+		return types.State{}, err
+	}
+	var pbState pb.State
+	err = pbState.Unmarshal(blob)
+	if err != nil {
+		return types.State{}, err
 	}
 
-	err = json.Unmarshal(blob, &state)
-	if err != nil {
-		return state, fmt.Errorf("failed to unmarshal state from JSON: %w", err)
-	}
+	var state types.State
+	err = state.FromProto(&pbState)
 	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
-	return state, nil
+	return state, err
 }
 
 func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {

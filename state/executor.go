@@ -83,7 +83,7 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash [32]byte, state State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash [32]byte, state types.State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
@@ -119,40 +119,49 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	return block
 }
 
-// ApplyBlock validates, executes and commits the block.
-func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *types.Block) (State, *tmstate.ABCIResponses, uint64, error) {
+// ApplyBlock validates and executes the block.
+func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *tmstate.ABCIResponses, error) {
 	err := e.validate(state, block)
 	if err != nil {
-		return State{}, nil, 0, err
+		return types.State{}, nil, err
 	}
 
+	// This makes calls to the ProxyApp
 	resp, err := e.execute(ctx, state, block)
 	if err != nil {
-		return State{}, nil, 0, err
+		return types.State{}, nil, err
 	}
 
 	abciValUpdates := resp.EndBlock.ValidatorUpdates
 	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
 	if err != nil {
-		return state, nil, 0, fmt.Errorf("error in validator updates: %v", err)
+		return state, nil, fmt.Errorf("error in validator updates: %v", err)
 	}
 
 	validatorUpdates, err := tmtypes.PB2TM.ValidatorUpdates(abciValUpdates)
 	if err != nil {
-		return state, nil, 0, err
+		return state, nil, err
 	}
 	if len(validatorUpdates) > 0 {
 		e.logger.Debug("updates to validators", "updates", tmtypes.ValidatorListString(validatorUpdates))
 	}
+	if state.ConsensusParams.Block.MaxBytes == 0 {
+		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
+	}
 
 	state, err = e.updateState(state, block, resp, validatorUpdates)
 	if err != nil {
-		return State{}, nil, 0, err
+		return types.State{}, nil, err
 	}
 
+	return state, resp, nil
+}
+
+// Commit commits the block
+func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *tmstate.ABCIResponses) ([]byte, uint64, error) {
 	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
 	if err != nil {
-		return State{}, nil, 0, err
+		return []byte{}, 0, err
 	}
 
 	copy(state.AppHash[:], appHash[:])
@@ -161,11 +170,10 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state State, block *type
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
 	}
-
-	return state, resp, retainHeight, nil
+	return appHash, retainHeight, nil
 }
 
-func (e *BlockExecutor) updateState(state State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (State, error) {
+func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
 	// Optimint can work without validators
@@ -184,7 +192,7 @@ func (e *BlockExecutor) updateState(state State, block *types.Block, abciRespons
 	}
 
 	hash := block.Header.Hash()
-	s := State{
+	s := types.State{
 		Version:         state.Version,
 		ChainID:         state.ChainID,
 		InitialHeight:   state.InitialHeight,
@@ -207,7 +215,7 @@ func (e *BlockExecutor) updateState(state State, block *types.Block, abciRespons
 	return s, nil
 }
 
-func (e *BlockExecutor) commit(ctx context.Context, state State, block *types.Block, deliverTxs []*abci.ResponseDeliverTx) ([]byte, uint64, error) {
+func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *types.Block, deliverTxs []*abci.ResponseDeliverTx) ([]byte, uint64, error) {
 	e.mempool.Lock()
 	defer e.mempool.Unlock()
 
@@ -231,7 +239,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state State, block *types.Bl
 	return resp.Data, uint64(resp.RetainHeight), err
 }
 
-func (e *BlockExecutor) validate(state State, block *types.Block) error {
+func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 	err := block.ValidateBasic()
 	if err != nil {
 		return err
@@ -257,7 +265,7 @@ func (e *BlockExecutor) validate(state State, block *types.Block) error {
 	return nil
 }
 
-func (e *BlockExecutor) execute(ctx context.Context, state State, block *types.Block) (*tmstate.ABCIResponses, error) {
+func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *types.Block) (*tmstate.ABCIResponses, error) {
 	abciResponses := new(tmstate.ABCIResponses)
 	abciResponses.DeliverTxs = make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
 
@@ -326,7 +334,7 @@ func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *type
 	return lastABCICommit.Hash()
 }
 
-func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block, state State) error {
+func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block, state types.State) error {
 	if e.eventBus == nil {
 		return nil
 	}

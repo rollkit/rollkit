@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: celestiaorg/optimint-mockserv
 
 jobs:
-  build:
+  docker-build:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: "ubuntu-latest"
     permissions:

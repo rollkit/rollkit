@@ -40,7 +40,7 @@ func TestCreateBlock(t *testing.T) {
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), nil, logger)
 
-	state := State{}
+	state := types.State{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 	state.Validators = tmtypes.NewValidatorSet(nil)
@@ -80,7 +80,7 @@ func TestApplyBlock(t *testing.T) {
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	var mockAppHash [32]byte
+	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
@@ -111,7 +111,7 @@ func TestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(headerSub)
 
-	state := State{
+	state := types.State{
 		NextValidators: tmtypes.NewValidatorSet(nil),
 		Validators:     tmtypes.NewValidatorSet(nil),
 		LastValidators: tmtypes.NewValidatorSet(nil),
@@ -128,12 +128,14 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(uint64(1), block.Header.Height)
 	assert.Len(block.Data.Txs, 1)
 
-	newState, resp, _, err := executor.ApplyBlock(context.Background(), state, block)
+	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(int64(1), newState.LastBlockHeight)
-	assert.Equal(mockAppHash, newState.AppHash)
+	appHash, _, err := executor.Commit(context.Background(), newState, block, resp)
+	require.NoError(err)
+	assert.Equal(mockAppHash, appHash)
 
 	require.NoError(mpool.CheckTx([]byte{0, 1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{}))
@@ -144,11 +146,13 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(uint64(2), block.Header.Height)
 	assert.Len(block.Data.Txs, 3)
 
-	newState, resp, _, err = executor.ApplyBlock(context.Background(), newState, block)
+	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(int64(2), newState.LastBlockHeight)
+	_, _, err = executor.Commit(context.Background(), newState, block, resp)
+	require.NoError(err)
 
 	// wait for at least 4 Tx events, for up to 3 second.
 	// 3 seconds is a fail-scenario only

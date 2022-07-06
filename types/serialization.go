@@ -3,8 +3,10 @@ package types
 import (
 	"errors"
 
-	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/types"
+
+	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
 // MarshalBinary encodes Block into binary form and returns it.
@@ -182,6 +184,73 @@ func (c *Commit) FromProto(other *pb.Commit) error {
 		return errors.New("invalid length of HeaderHash")
 	}
 	c.Signatures = byteSlicesToSignatures(other.Signatures)
+
+	return nil
+}
+
+func (s *State) ToProto() (*pb.State, error) {
+	nextValidators, err := s.NextValidators.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	validators, err := s.Validators.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	lastValidators, err := s.LastValidators.ToProto()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.State{
+		Version:                          &s.Version,
+		ChainId:                          s.ChainID,
+		InitialHeight:                    s.InitialHeight,
+		LastBlockHeight:                  s.LastBlockHeight,
+		LastBlockID:                      s.LastBlockID.ToProto(),
+		LastBlockTime:                    s.LastBlockTime,
+		DAHeight:                         s.DAHeight,
+		NextValidators:                   nextValidators,
+		Validators:                       validators,
+		LastValidators:                   lastValidators,
+		LastHeightValidatorsChanged:      s.LastHeightValidatorsChanged,
+		ConsensusParams:                  s.ConsensusParams,
+		LastHeightConsensusParamsChanged: s.LastHeightConsensusParamsChanged,
+		LastResultsHash:                  s.LastResultsHash[:],
+		AppHash:                          s.AppHash[:],
+	}, nil
+}
+
+func (s *State) FromProto(other *pb.State) error {
+	var err error
+	s.Version = *other.Version
+	s.ChainID = other.ChainId
+	s.InitialHeight = other.InitialHeight
+	s.LastBlockHeight = other.LastBlockHeight
+	lastBlockID, err := types.BlockIDFromProto(&other.LastBlockID)
+	if err != nil {
+		return err
+	}
+	s.LastBlockID = *lastBlockID
+	s.LastBlockTime = other.LastBlockTime
+	s.DAHeight = other.DAHeight
+	s.NextValidators, err = types.ValidatorSetFromProto(other.NextValidators)
+	if err != nil {
+		return err
+	}
+	s.Validators, err = types.ValidatorSetFromProto(other.Validators)
+	if err != nil {
+		return err
+	}
+	s.LastValidators, err = types.ValidatorSetFromProto(other.LastValidators)
+	if err != nil {
+		return err
+	}
+	s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
+	s.ConsensusParams = other.ConsensusParams
+	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
+	copy(s.LastResultsHash[:], other.LastResultsHash)
+	copy(s.AppHash[:], other.AppHash)
 
 	return nil
 }

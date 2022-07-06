@@ -27,6 +27,13 @@ import (
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
 const defaultDABlockTime = 30 * time.Second
 
+// maxSubmitAttempts defines how many times Optimint will re-try to publish block to DA layer.
+// This is temporary solution. It will be removed in future versions.
+const maxSubmitAttempts = 30
+
+// initialBackoff defines initial value for block submission backoff
+var initialBackoff = 100 * time.Millisecond
+
 type newBlockEvent struct {
 	block    *types.Block
 	daHeight uint64
@@ -34,7 +41,7 @@ type newBlockEvent struct {
 
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
-	lastState state.State
+	lastState types.State
 
 	conf    config.BlockManagerConfig
 	genesis *tmtypes.GenesisDoc
@@ -65,10 +72,10 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (state.State, error) {
+func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (types.State, error) {
 	s, err := store.LoadState()
 	if err != nil {
-		s, err = state.NewFromGenesisDoc(genesis)
+		s, err = types.NewFromGenesisDoc(genesis)
 	}
 	return s, err
 }
@@ -190,6 +197,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			daHeight := blockEvent.daHeight
 			m.logger.Debug("block body retrieved from DALC",
 				"height", block.Header.Height,
+				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
 			m.syncCache[block.Header.Height] = block
@@ -198,7 +206,8 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			b1, ok1 := m.syncCache[currentHeight+1]
 			b2, ok2 := m.syncCache[currentHeight+2]
 			if ok1 && ok2 {
-				newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+				m.logger.Info("Syncing block", "height", b1.Header.Height)
+				newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 				if err != nil {
 					m.logger.Error("failed to ApplyBlock", "error", err)
 					continue
@@ -208,7 +217,14 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 					m.logger.Error("failed to save block", "error", err)
 					continue
 				}
-				err = m.store.SaveBlockResponses(block.Header.Height, responses)
+				_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+				if err != nil {
+					m.logger.Error("failed to Commit", "error", err)
+					continue
+				}
+				m.store.SetHeight(b1.Header.Height)
+
+				err = m.store.SaveBlockResponses(b1.Header.Height, responses)
 				if err != nil {
 					m.logger.Error("failed to save block responses", "error", err)
 					continue
@@ -279,6 +295,7 @@ func (m *Manager) processNextDABlock() error {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
 		} else {
+			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
@@ -331,59 +348,107 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderHash = lastBlock.Header.Hash()
 	}
 
-	m.logger.Info("Creating and publishing block", "height", newHeight)
+	var block *types.Block
 
-	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
-	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	// Check if there's an already stored block at a newer height
+	// If there is use that instead of creating a new block
+	pendingBlock, err := m.store.LoadBlock(newHeight)
+	if err == nil {
+		m.logger.Info("Using pending block", "height", newHeight)
+		block = pendingBlock
+	} else {
+		m.logger.Info("Creating and publishing block", "height", newHeight)
+		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
+
+		headerBytes, err := block.Header.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		sign, err := m.proposerKey.Sign(headerBytes)
+		if err != nil {
+			return err
+		}
+		commit := &types.Commit{
+			Height:     block.Header.Height,
+			HeaderHash: block.Header.Hash(),
+			Signatures: []types.Signature{sign},
+		}
+
+		// SaveBlock commits the DB tx
+		err = m.store.SaveBlock(block, commit)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Apply the block but DONT commit
+	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
 	}
 
-	headerBytes, err := block.Header.MarshalBinary()
+	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
+		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
-	sign, err := m.proposerKey.Sign(headerBytes)
+
+	// Only update the stored height after successfully submitting to DA layer
+	m.store.SetHeight(block.Header.Height)
+
+	// Commit the new state and block which writes to disk on the proxy app
+	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
 		return err
 	}
 
-	commit := &types.Commit{
-		Height:     block.Header.Height,
-		HeaderHash: block.Header.Hash(),
-		Signatures: []types.Signature{sign},
-	}
-	err = m.store.SaveBlock(block, commit)
-	if err != nil {
-		return err
-	}
-
+	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(block.Header.Height, responses)
 	if err != nil {
 		return err
 	}
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+	// After this call m.lastState is the NEW state returned from ApplyBlock
 	m.lastState = newState
+
+	// UpdateState commits the DB tx
 	err = m.store.UpdateState(m.lastState)
 	if err != nil {
 		return err
 	}
 
+	// SaveValidators commits the DB tx
 	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
 	if err != nil {
 		return err
 	}
 
-	return m.broadcastBlock(ctx, block)
+	m.publishHeader(block)
+
+	return nil
 }
 
-func (m *Manager) broadcastBlock(ctx context.Context, block *types.Block) error {
-	m.logger.Debug("submitting block to DA layer", "height", block.Header.Height)
-	res := m.dalc.SubmitBlock(block)
-	if res.Code != da.StatusSuccess {
-		return fmt.Errorf("DA layer submission failed: %s", res.Message)
+func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
+	m.logger.Info("submitting block to DA layer", "height", block.Header.Height)
+
+	submitted := false
+	backoff := initialBackoff
+	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
+		res := m.dalc.SubmitBlock(block)
+		if res.Code == da.StatusSuccess {
+			m.logger.Info("successfully submitted optimint block to DA layer", "optimintHeight", block.Header.Height, "daHeight", res.DAHeight)
+			submitted = true
+		} else {
+			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			time.Sleep(backoff)
+			backoff = m.exponentialBackoff(backoff)
+		}
+	}
+
+	if !submitted {
+		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
 	m.HeaderOutCh <- &block.Header
@@ -391,7 +456,19 @@ func (m *Manager) broadcastBlock(ctx context.Context, block *types.Block) error 
 	return nil
 }
 
-func updateState(s *state.State, res *abci.ResponseInitChain) {
+func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
+	backoff *= 2
+	if backoff > m.conf.DABlockTime {
+		backoff = m.conf.DABlockTime
+	}
+	return backoff
+}
+
+func (m *Manager) publishHeader(block *types.Block) {
+	m.HeaderOutCh <- &block.Header
+}
+
+func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
 	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.

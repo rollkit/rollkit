@@ -161,7 +161,7 @@ func unmarshalStrInt64(b []byte, s *StrInt64) error {
 
 type response struct {
 	Version string          `json:"jsonrpc"`
-	Result  interface{}     `json:"result,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
 	Error   *json2.Error    `json:"error,omitempty"`
 	Id      json.RawMessage `json:"id"`
 }
