@@ -175,12 +175,12 @@ func (s *DefaultStore) UpdateState(state types.State) error {
 func (s *DefaultStore) LoadState() (types.State, error) {
 	blob, err := s.db.Get(getStateKey())
 	if err != nil {
-		return types.State{}, err
+		return types.State{}, fmt.Errorf("failed to retrieve key: %w", err)
 	}
 	var pbState pb.State
 	err = pbState.Unmarshal(blob)
 	if err != nil {
-		return types.State{}, err
+		return types.State{}, fmt.Errorf("failed to unmarshal state from JSON: %w", err)
 	}
 
 	var state types.State
