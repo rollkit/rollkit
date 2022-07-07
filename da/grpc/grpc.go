@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/optimint/types/pb/dalc"
 )
 
+// DataAvailabilityLayerClient is a generic client that proxies all DA requests via gRPC.
 type DataAvailabilityLayerClient struct {
 	config Config
 
@@ -23,12 +24,14 @@ type DataAvailabilityLayerClient struct {
 	logger log.Logger
 }
 
+// Config contains configuration options for DataAvailabilityLayerClient.
 type Config struct {
 	// TODO(tzdybal): add more options!
 	Host string `json:"host"`
 	Port int    `json:"port"`
 }
 
+// DefaultConfig defines default values for DataAvailabilityLayerClient configuration.
 var DefaultConfig = Config{
 	Host: "127.0.0.1",
 	Port: 7980,
@@ -37,6 +40,7 @@ var DefaultConfig = Config{
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
+// Init sets the configuration options.
 func (d *DataAvailabilityLayerClient) Init(config []byte, _ store.KVStore, logger log.Logger) error {
 	d.logger = logger
 	if len(config) == 0 {
@@ -46,6 +50,7 @@ func (d *DataAvailabilityLayerClient) Init(config []byte, _ store.KVStore, logge
 	return json.Unmarshal(config, &d.config)
 }
 
+// Start creates connection to gRPC server and instantiates gRPC client.
 func (d *DataAvailabilityLayerClient) Start() error {
 	d.logger.Info("starting GRPC DALC", "host", d.config.Host, "port", d.config.Port)
 	var err error
@@ -62,20 +67,22 @@ func (d *DataAvailabilityLayerClient) Start() error {
 	return nil
 }
 
+// Stop closes connection to gRPC server.
 func (d *DataAvailabilityLayerClient) Stop() error {
 	d.logger.Info("stopoing GRPC DALC")
 	return d.conn.Close()
 }
 
+// SubmitBlock proxies SubmitBlock request to gRPC server.
 func (d *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	resp, err := d.client.SubmitBlock(context.TODO(), &dalc.SubmitBlockRequest{Block: block.ToProto()})
 	if err != nil {
 		return da.ResultSubmitBlock{
-			DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()},
+			BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()},
 		}
 	}
 	return da.ResultSubmitBlock{
-		DAResult: da.DAResult{
+		BaseResult: da.BaseResult{
 			Code:     da.StatusCode(resp.Result.Code),
 			Message:  resp.Result.Message,
 			DAHeight: resp.Result.DataLayerHeight,
@@ -83,21 +90,23 @@ func (d *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 	}
 }
 
+// CheckBlockAvailability proxies CheckBlockAvailability request to gRPC server.
 func (d *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
 	resp, err := d.client.CheckBlockAvailability(context.TODO(), &dalc.CheckBlockAvailabilityRequest{DataLayerHeight: dataLayerHeight})
 	if err != nil {
-		return da.ResultCheckBlock{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 	return da.ResultCheckBlock{
-		DAResult:      da.DAResult{Code: da.StatusCode(resp.Result.Code), Message: resp.Result.Message},
+		BaseResult:    da.BaseResult{Code: da.StatusCode(resp.Result.Code), Message: resp.Result.Message},
 		DataAvailable: resp.DataAvailable,
 	}
 }
 
+// RetrieveBlocks proxies RetrieveBlocks request to gRPC server.
 func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	resp, err := d.client.RetrieveBlocks(context.TODO(), &dalc.RetrieveBlocksRequest{DataLayerHeight: dataLayerHeight})
 	if err != nil {
-		return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
 	blocks := make([]*types.Block, len(resp.Blocks))
@@ -105,12 +114,12 @@ func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 		var b types.Block
 		err = b.FromProto(block)
 		if err != nil {
-			return da.ResultRetrieveBlocks{DAResult: da.DAResult{Code: da.StatusError, Message: err.Error()}}
+			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
 		blocks[i] = &b
 	}
 	return da.ResultRetrieveBlocks{
-		DAResult: da.DAResult{
+		BaseResult: da.BaseResult{
 			Code:     da.StatusCode(resp.Result.Code),
 			Message:  resp.Result.Message,
 			DAHeight: dataLayerHeight,

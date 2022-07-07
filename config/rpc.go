@@ -1,5 +1,6 @@
 package config
 
+// RPCConfig holds RPC configuration params.
 type RPCConfig struct {
 	ListenAddress string
 

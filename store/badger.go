@@ -94,6 +94,7 @@ func (bb *BadgerBatch) Discard() {
 
 var _ Iterator = &BadgerIterator{}
 
+// PrefixIterator returns instance of prefix Iterator for BadgerKV.
 func (b *BadgerKV) PrefixIterator(prefix []byte) Iterator {
 	txn := b.db.NewTransaction(false)
 	iter := txn.NewIterator(badger.DefaultIteratorOptions)
@@ -114,18 +115,22 @@ type BadgerIterator struct {
 	lastError error
 }
 
+// Valid returns true if iterator is inside its prefix, false otherwise.
 func (i *BadgerIterator) Valid() bool {
 	return i.iter.ValidForPrefix(i.prefix)
 }
 
+// Next progresses iterator to the next key-value pair.
 func (i *BadgerIterator) Next() {
 	i.iter.Next()
 }
 
+// Key returns key pointed by iterator.
 func (i *BadgerIterator) Key() []byte {
 	return i.iter.Item().KeyCopy(nil)
 }
 
+// Value returns value pointer by iterator.
 func (i *BadgerIterator) Value() []byte {
 	val, err := i.iter.Item().ValueCopy(nil)
 	if err != nil {
@@ -134,10 +139,12 @@ func (i *BadgerIterator) Value() []byte {
 	return val
 }
 
+// Error returns last error that occurred during iteration.
 func (i *BadgerIterator) Error() error {
 	return i.lastError
 }
 
+// Discard has to be called to free iterator resources.
 func (i *BadgerIterator) Discard() {
 	i.iter.Close()
 	i.txn.Discard()

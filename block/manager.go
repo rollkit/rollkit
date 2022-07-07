@@ -80,6 +80,7 @@ func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (types.Stat
 	return s, err
 }
 
+// NewManager creates new block Manager.
 func NewManager(
 	proposerKey crypto.PrivKey,
 	conf config.BlockManagerConfig,
@@ -153,11 +154,13 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 	return tmcrypto.AddressHash(rawKey), nil
 }
 
+// SetDALC is used to set DataAvailabilityLayerClient used by Manager.
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.dalc = dalc
 	m.retriever = dalc.(da.BlockRetriever)
 }
 
+// AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
 	timer := time.NewTimer(0)
 	for {
@@ -175,6 +178,10 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	}
 }
 
+// SyncLoop is responsible for syncing blocks.
+//
+// SyncLoop processes headers gossiped in P2p network to know what's the latest block height,
+// block data is retrieved from DA layer.
 func (m *Manager) SyncLoop(ctx context.Context) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
 	for {

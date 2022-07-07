@@ -230,11 +230,13 @@ func (n *Node) OnStart() error {
 	return nil
 }
 
+// GetGenesis returns entire genesis doc.
 func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 	return n.genesis
 }
 
-func (n *Node) GetGenisisChunks() []string {
+// GetGenesisChunks returns chunked version of genesis.
+func (n *Node) GetGenesisChunks() []string {
 	return n.genChunks
 }
 

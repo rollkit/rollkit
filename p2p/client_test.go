@@ -20,7 +20,7 @@ import (
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", test.NewTestLogger(t))
+	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", test.NewLogger(t))
 	assert := assert.New(t)
 	assert.NoError(err)
 	assert.NotNil(client)
@@ -37,7 +37,7 @@ func TestBootstrapping(t *testing.T) {
 	//log.SetDebugLogging()
 
 	assert := assert.New(t)
-	logger := test.NewTestLogger(t)
+	logger := test.NewLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -57,7 +57,7 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewTestLogger(t)
+	logger := test.NewLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -77,7 +77,7 @@ func TestDiscovery(t *testing.T) {
 
 func TestGossiping(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewTestLogger(t)
+	logger := test.NewLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

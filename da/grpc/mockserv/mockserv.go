@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
+// GetServer creates and returns gRPC server instance.
 func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Server {
 	logger := tmlog.NewTMLogger(os.Stdout)
 
@@ -35,7 +36,7 @@ func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Se
 }
 
 type mockImpl struct {
-	mock mock.MockDataAvailabilityLayerClient
+	mock mock.DataAvailabilityLayerClient
 }
 
 func (m *mockImpl) SubmitBlock(_ context.Context, request *dalc.SubmitBlockRequest) (*dalc.SubmitBlockResponse, error) {

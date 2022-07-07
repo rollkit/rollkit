@@ -48,6 +48,7 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 	}
 }
 
+// InitChain calls InitChainSync using consensus connection to app.
 func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseInitChain, error) {
 	params := genesis.ConsensusParams
 

@@ -20,21 +20,24 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
+// Server mocks celestia-node HTTP API.
 type Server struct {
-	mock      *mockda.MockDataAvailabilityLayerClient
+	mock      *mockda.DataAvailabilityLayerClient
 	blockTime time.Duration
 	server    *http.Server
 	logger    log.Logger
 }
 
+// NewServer creates new instance of Server.
 func NewServer(blockTime time.Duration, logger log.Logger) *Server {
 	return &Server{
-		mock:      new(mockda.MockDataAvailabilityLayerClient),
+		mock:      new(mockda.DataAvailabilityLayerClient),
 		blockTime: blockTime,
 		logger:    logger,
 	}
 }
 
+// Start starts HTTP server with given listener.
 func (s *Server) Start(listener net.Listener) error {
 	err := s.mock.Init([]byte(s.blockTime.String()), store.NewDefaultInMemoryKVStore(), s.logger)
 	if err != nil {
@@ -53,6 +56,7 @@ func (s *Server) Start(listener net.Listener) error {
 	return nil
 }
 
+// Stop shuts down the Server.
 func (s *Server) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()

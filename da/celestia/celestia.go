@@ -27,6 +27,7 @@ type DataAvailabilityLayerClient struct {
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
+// Config stores Celestia DALC configuration parameters.
 type Config struct {
 	BaseURL     string        `json:"base_url"`
 	Timeout     time.Duration `json:"timeout"`
@@ -34,6 +35,7 @@ type Config struct {
 	NamespaceID [8]byte       `json:"namespace_id"`
 }
 
+// Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
 	c.logger = logger
 
@@ -44,6 +46,7 @@ func (c *DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore,
 	return nil
 }
 
+// Start prepares DataAvailabilityLayerClient to work.
 func (c *DataAvailabilityLayerClient) Start() error {
 	c.logger.Info("starting Celestia Data Availability Layer Client", "baseURL", c.config.BaseURL)
 	var err error
@@ -51,16 +54,18 @@ func (c *DataAvailabilityLayerClient) Start() error {
 	return err
 }
 
+// Stop stops DataAvailabilityLayerClient.
 func (c *DataAvailabilityLayerClient) Stop() error {
 	c.logger.Info("stopping Celestia Data Availability Layer Client")
 	return nil
 }
 
+// SubmitBlock submits a block to DA layer.
 func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
 	blob, err := block.MarshalBinary()
 	if err != nil {
 		return da.ResultSubmitBlock{
-			DAResult: da.DAResult{
+			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
 				Message: err.Error(),
 			},
@@ -71,7 +76,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 
 	if err != nil {
 		return da.ResultSubmitBlock{
-			DAResult: da.DAResult{
+			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
 				Message: err.Error(),
 			},
@@ -80,7 +85,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 
 	if txResponse.Code != 0 {
 		return da.ResultSubmitBlock{
-			DAResult: da.DAResult{
+			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
 				Message: fmt.Sprintf("Codespace: '%s', Code: %d, Message: %s", txResponse.Codespace, txResponse.Code, txResponse.RawLog),
 			},
@@ -88,7 +93,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 	}
 
 	return da.ResultSubmitBlock{
-		DAResult: da.DAResult{
+		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			Message:  "tx hash: " + txResponse.TxHash,
 			DAHeight: uint64(txResponse.Height),
@@ -96,11 +101,12 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 	}
 }
 
+// CheckBlockAvailability queries DA layer to check data availability of block at given height.
 func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
 	shares, err := c.client.NamespacedShares(context.TODO(), c.config.NamespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultCheckBlock{
-			DAResult: da.DAResult{
+			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
 				Message: err.Error(),
 			},
@@ -108,7 +114,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 	}
 
 	return da.ResultCheckBlock{
-		DAResult: da.DAResult{
+		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			DAHeight: dataLayerHeight,
 		},
@@ -116,11 +122,12 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 	}
 }
 
+// RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	data, err := c.client.NamespacedData(context.TODO(), c.config.NamespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
-			DAResult: da.DAResult{
+			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
 				Message: err.Error(),
 			},
@@ -139,7 +146,7 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 		err := blocks[i].FromProto(&block)
 		if err != nil {
 			return da.ResultRetrieveBlocks{
-				DAResult: da.DAResult{
+				BaseResult: da.BaseResult{
 					Code:    da.StatusError,
 					Message: err.Error(),
 				},
@@ -148,7 +155,7 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 	}
 
 	return da.ResultRetrieveBlocks{
-		DAResult: da.DAResult{
+		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			DAHeight: dataLayerHeight,
 		},

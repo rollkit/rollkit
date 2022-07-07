@@ -87,7 +87,7 @@ func TestInitialState(t *testing.T) {
 }
 
 func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
-	dalc := &mockda.MockDataAvailabilityLayerClient{}
+	dalc := &mockda.DataAvailabilityLayerClient{}
 	_ = dalc.Init(nil, nil, logger)
 	_ = dalc.Start()
 	return dalc

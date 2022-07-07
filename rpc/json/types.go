@@ -10,108 +10,113 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type SubscribeArgs struct {
+type subscribeArgs struct {
 	Query string `json:"query"`
 }
-type UnsubscribeArgs struct {
+type unsubscribeArgs struct {
 	Query string `json:"query"`
 }
-type UnsubscribeAllArgs struct {
+type unsubscribeAllArgs struct {
 }
 
 // info API
-type HealthArgs struct {
+type healthArgs struct {
 }
-type StatusArgs struct {
+type statusArgs struct {
 }
-type NetInfoArgs struct {
+type netInfoArgs struct {
 }
-type BlockchainInfoArgs struct {
+type blockchainInfoArgs struct {
 	MinHeight StrInt64
 	MaxHeight StrInt64
 }
-type GenesisArgs struct {
+type genesisArgs struct {
 }
-type GenesisChunkedArgs struct {
-	Id StrInt `json:"chunk"`
+type genesisChunkedArgs struct {
+	ID StrInt `json:"chunk"`
 }
-type BlockArgs struct {
+type blockArgs struct {
 	Height StrInt64 `json:"height"`
 }
-type BlockByHashArgs struct {
+type blockByHashArgs struct {
 	Hash []byte `json:"hash"`
 }
-type BlockResultsArgs struct {
+type blockResultsArgs struct {
 	Height StrInt64 `json:"height"`
 }
-type CommitArgs struct {
+type commitArgs struct {
 	Height StrInt64 `json:"height"`
 }
-type CheckTxArgs struct {
+type checkTxArgs struct {
 	Tx types.Tx `json:"tx"`
 }
-type TxArgs struct {
+type txArgs struct {
 	Hash  []byte `json:"hash"`
 	Prove bool   `json:"prove"`
 }
-type TxSearchArgs struct {
+type txSearchArgs struct {
 	Query   string `json:"query"`
 	Prove   bool   `json:"prove"`
 	Page    StrInt `json:"page"`
 	PerPage StrInt `json:"per_page"`
 	OrderBy string `json:"order_by"`
 }
-type BlockSearchArgs struct {
+type blockSearchArgs struct {
 	Query   string `json:"query"`
 	Page    StrInt `json:"page"`
 	PerPage StrInt `json:"per_page"`
 	OrderBy string `json:"order_by"`
 }
-type ValidatorsArgs struct {
+type validatorsArgs struct {
 	Height  StrInt64 `json:"height"`
 	Page    StrInt   `json:"page"`
 	PerPage StrInt   `json:"per_page"`
 }
-type DumpConsensusStateArgs struct {
+type dumpConsensusStateArgs struct {
 }
-type GetConsensusStateArgs struct {
+type getConsensusStateArgs struct {
 }
-type ConsensusParamsArgs struct {
+type consensusParamsArgs struct {
 	Height StrInt64 `json:"height"`
 }
-type UnconfirmedTxsArgs struct {
+type unconfirmedTxsArgs struct {
 	Limit StrInt `json:"limit"`
 }
-type NumUnconfirmedTxsArgs struct {
+type numUnconfirmedTxsArgs struct {
 }
 
 // tx broadcast API
-type BroadcastTxCommitArgs struct {
+type broadcastTxCommitArgs struct {
 	Tx types.Tx `json:"tx"`
 }
-type BroadcastTxSyncArgs struct {
+type broadcastTxSyncArgs struct {
 	Tx types.Tx `json:"tx"`
 }
-type BroadcastTxAsyncArgs struct {
+type broadcastTxAsyncArgs struct {
 	Tx types.Tx `json:"tx"`
 }
 
 // abci API
+
+// ABCIQueryArgs defines args for ABCI Query method.
 type ABCIQueryArgs struct {
 	Path   string         `json:"path"`
 	Data   bytes.HexBytes `json:"data"`
 	Height StrInt64       `json:"height"`
 	Prove  bool           `json:"prove"`
 }
+
+// ABCIInfoArgs defines args for ABCI Info method.
 type ABCIInfoArgs struct {
 }
 
 // evidence API
-type BroadcastEvidenceArgs struct {
+
+type broadcastEvidenceArgs struct {
 	Evidence types.Evidence `json:"evidence"`
 }
 
-type EmptyResult struct{}
+type emptyResult struct{}
 
 // JSON-deserialization specific types
 
@@ -121,10 +126,12 @@ type StrInt int
 // StrInt64 is an proper int64 or quoted "int64"
 type StrInt64 int64
 
+// UnmarshalJSON parses JSON (int or int qouted as string) into StrInt64
 func (s *StrInt64) UnmarshalJSON(b []byte) error {
 	return unmarshalStrInt64(b, s)
 }
 
+// UnmarshalJSON parses JSON (int or int qouted as string) into StrInt
 func (s *StrInt) UnmarshalJSON(b []byte) error {
 	var val StrInt64
 	err := unmarshalStrInt64(b, &val)
@@ -163,5 +170,5 @@ type response struct {
 	Version string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result,omitempty"`
 	Error   *json2.Error    `json:"error,omitempty"`
-	Id      json.RawMessage `json:"id"`
+	ID      json.RawMessage `json:"id"`
 }
