@@ -33,7 +33,7 @@ func WithValidator(validator GossipValidator) GossiperOption {
 
 // Gossiper is an abstraction of P2P publish subscribe mechanism.
 type Gossiper struct {
-	ownId peer.ID
+	ownID peer.ID
 
 	ps    *pubsub.PubSub
 	topic *pubsub.Topic
@@ -56,7 +56,7 @@ func NewGossiper(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.
 		return nil, err
 	}
 	g := &Gossiper{
-		ownId:  host.ID(),
+		ownID:  host.ID(),
 		ps:     ps,
 		topic:  topic,
 		sub:    subscription,
@@ -73,6 +73,7 @@ func NewGossiper(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.
 	return g, nil
 }
 
+// Close is used to disconnect from topic and free resources used by Gossiper.
 func (g *Gossiper) Close() error {
 	err := g.ps.UnregisterTopicValidator(g.topic.String())
 	g.sub.Cancel()

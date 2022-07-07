@@ -22,7 +22,7 @@ func TestWebSockets(t *testing.T) {
 	require := require.New(t)
 
 	_, local := getRPC(t)
-	handler, err := GetHttpHandler(local, log.TestingLogger())
+	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
 	srv := httptest.NewServer(handler)
@@ -31,7 +31,9 @@ func TestWebSockets(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(resp)
 	require.NotNil(conn)
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	assert.Equal(http.StatusSwitchingProtocols, resp.StatusCode)
 
@@ -69,7 +71,7 @@ func TestWebSockets(t *testing.T) {
 	assert.GreaterOrEqual(payload.Block.Height, int64(1))
 	assert.NotNil(payload.ResultEndBlock)
 
-	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &UnsubscribeAllArgs{})
+	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &unsubscribeAllArgs{})
 	require.NoError(err)
 	require.NotEmpty(unsubscribeAllReq)
 	req := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeAllReq))

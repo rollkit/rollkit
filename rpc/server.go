@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/optimint/rpc/json"
 )
 
+// Server handles HTTP and JSON-RPC requests, exposing Tendermint-compatible API.
 type Server struct {
 	*service.BaseService
 
@@ -29,6 +30,7 @@ type Server struct {
 	server http.Server
 }
 
+// NewServer creates new instance of Server with given configuration.
 func NewServer(node *node.Node, config *config.RPCConfig, logger log.Logger) *Server {
 	srv := &Server{
 		config: config,
@@ -38,14 +40,19 @@ func NewServer(node *node.Node, config *config.RPCConfig, logger log.Logger) *Se
 	return srv
 }
 
+// Client returns a Tendermint-compatible rpc Client instance.
+//
+// This method is called in cosmos-sdk.
 func (s *Server) Client() rpcclient.Client {
 	return s.client
 }
 
+// OnStart is called when Server is started (see service.BaseService for details).
 func (s *Server) OnStart() error {
 	return s.startRPC()
 }
 
+// OnStop is called when Server is stopped (see service.BaseService for details).
 func (s *Server) OnStop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -76,7 +83,7 @@ func (s *Server) startRPC() error {
 		listener = netutil.LimitListener(listener, s.config.MaxOpenConnections)
 	}
 
-	handler, err := json.GetHttpHandler(s.client, s.Logger)
+	handler, err := json.GetHTTPHandler(s.client, s.Logger)
 	if err != nil {
 		return err
 	}

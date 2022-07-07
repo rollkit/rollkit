@@ -40,7 +40,7 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init([]byte{}, nil, test.NewTestLogger(t))
+	err := dalc.Init([]byte{}, nil, test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -70,7 +70,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
-	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
+	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
@@ -82,7 +82,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		}
 		conf, _ = json.Marshal(config)
 	}
-	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
+	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -154,7 +154,7 @@ func startMockGRPCServ(t *testing.T) *grpc.Server {
 
 func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
 	t.Helper()
-	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewTestLogger(t))
+	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewLogger(t))
 	l, err := net.Listen("tcp4", ":26658")
 	if err != nil {
 		t.Fatal("failed to create listener for mock celestia-node RPC server", "error", err)
@@ -172,7 +172,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
-	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
+	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
@@ -184,7 +184,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		}
 		conf, _ = json.Marshal(config)
 	}
-	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
+	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()

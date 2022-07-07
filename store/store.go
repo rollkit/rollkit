@@ -189,6 +189,7 @@ func (s *DefaultStore) LoadState() (types.State, error) {
 	return state, err
 }
 
+// SaveValidators stores validator set for given block height in store.
 func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {
 	pbValSet, err := validatorSet.ToProto()
 	if err != nil {
@@ -202,6 +203,7 @@ func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.Valid
 	return s.db.Set(getValidatorsKey(height), blob)
 }
 
+// LoadValidators loads validator set at given block height from store.
 func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, error) {
 	blob, err := s.db.Get(getValidatorsKey(height))
 	if err != nil {

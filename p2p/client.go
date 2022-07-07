@@ -165,10 +165,12 @@ func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
 }
 
+// Addrs returns listen addresses of Client.
 func (c *Client) Addrs() []multiaddr.Multiaddr {
 	return c.host.Addrs()
 }
 
+// PeerConnection describe basic information about P2P connection.
 // TODO(tzdybal): move it somewhere
 type PeerConnection struct {
 	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
@@ -177,6 +179,7 @@ type PeerConnection struct {
 	RemoteIP         string               `json:"remote_ip"`
 }
 
+// Peers returns list of peers connected to Client.
 func (c *Client) Peers() []PeerConnection {
 	conns := c.host.Network().Conns()
 	res := make([]PeerConnection, 0, len(conns))

@@ -178,7 +178,7 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 
 	resp := response{
 		Version: "2.0",
-		Id:      []byte("-1"),
+		ID:      []byte("-1"),
 	}
 
 	if errResult != nil {

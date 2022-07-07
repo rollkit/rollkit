@@ -102,10 +102,10 @@ func ToABCIBlockMeta(block *types.Block) (*tmtypes.BlockMeta, error) {
 	if err != nil {
 		return nil, err
 	}
-	blockId := tmtypes.BlockID{Hash: tmblock.Hash()}
+	blockID := tmtypes.BlockID{Hash: tmblock.Hash()}
 
 	return &tmtypes.BlockMeta{
-		BlockID:   blockId,
+		BlockID:   blockID,
 		BlockSize: tmblock.Size(),
 		Header:    tmblock.Header,
 		NumTxs:    len(tmblock.Txs),

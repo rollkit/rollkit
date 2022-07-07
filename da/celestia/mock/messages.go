@@ -9,9 +9,9 @@ import (
 // TODO(tzdybal): if we stop using `/namespaced_shares` we can get rid of this file.
 
 const (
-	ShareSize     = 256
-	NamespaceSize = 8
-	MsgShareSize  = ShareSize - NamespaceSize
+	shareSize     = 256
+	namespaceSize = 8
+	msgShareSize  = shareSize - namespaceSize
 )
 
 // splitMessage breaks the data in a message into the minimum number of
@@ -19,20 +19,20 @@ const (
 func splitMessage(rawData []byte, nid []byte) []NamespacedShare {
 	shares := make([]NamespacedShare, 0)
 	firstRawShare := append(append(
-		make([]byte, 0, ShareSize),
+		make([]byte, 0, shareSize),
 		nid...),
-		rawData[:MsgShareSize]...,
+		rawData[:msgShareSize]...,
 	)
 	shares = append(shares, NamespacedShare{firstRawShare, nid})
-	rawData = rawData[MsgShareSize:]
+	rawData = rawData[msgShareSize:]
 	for len(rawData) > 0 {
-		shareSizeOrLen := min(MsgShareSize, len(rawData))
+		shareSizeOrLen := min(msgShareSize, len(rawData))
 		rawShare := append(append(
-			make([]byte, 0, ShareSize),
+			make([]byte, 0, shareSize),
 			nid...),
 			rawData[:shareSizeOrLen]...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, ShareSize)
+		paddedShare := zeroPadIfNecessary(rawShare, shareSize)
 		share := NamespacedShare{paddedShare, nid}
 		shares = append(shares, share)
 		rawData = rawData[shareSizeOrLen:]
@@ -80,16 +80,16 @@ func marshalDelimited(data []byte) ([]byte, error) {
 // appendToShares appends raw data as shares.
 // Used to build shares from blocks/messages.
 func appendToShares(shares []NamespacedShare, nid []byte, rawData []byte) []NamespacedShare {
-	if len(rawData) <= MsgShareSize {
+	if len(rawData) <= msgShareSize {
 		rawShare := append(append(
 			make([]byte, 0, len(nid)+len(rawData)),
 			nid...),
 			rawData...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, ShareSize)
+		paddedShare := zeroPadIfNecessary(rawShare, shareSize)
 		share := NamespacedShare{paddedShare, nid}
 		shares = append(shares, share)
-	} else { // len(rawData) > MsgShareSize
+	} else { // len(rawData) > msgShareSize
 		shares = append(shares, splitMessage(rawData, nid)...)
 	}
 	return shares

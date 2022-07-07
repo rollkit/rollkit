@@ -35,10 +35,10 @@ func TestHandlerMapping(t *testing.T) {
 	require := require.New(t)
 
 	_, local := getRPC(t)
-	handler, err := GetHttpHandler(local, log.TestingLogger())
+	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
-	jsonReq, err := json2.EncodeClientRequest("health", &HealthArgs{})
+	jsonReq, err := json2.EncodeClientRequest("health", &healthArgs{})
 	require.NoError(err)
 
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(jsonReq))
@@ -84,7 +84,7 @@ func TestREST(t *testing.T) {
 	}
 
 	_, local := getRPC(t)
-	handler, err := GetHttpHandler(local, log.TestingLogger())
+	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
 	for _, c := range cases {
@@ -115,7 +115,7 @@ func TestEmptyRequest(t *testing.T) {
 	require := require.New(t)
 
 	_, local := getRPC(t)
-	handler, err := GetHttpHandler(local, log.TestingLogger())
+	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -130,20 +130,20 @@ func TestStringyRequest(t *testing.T) {
 	require := require.New(t)
 
 	_, local := getRPC(t)
-	handler, err := GetHttpHandler(local, log.TestingLogger())
+	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
 	// `starport chain faucet ...` generates broken JSON (ints are "quoted" as strings)
 	brokenJSON := `{"jsonrpc":"2.0","id":0,"method":"tx_search","params":{"order_by":"","page":"1","per_page":"1000","prove":true,"query":"message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh' AND transfer.recipient='cosmos1e0ajth0s847kqcu2ssnhut32fsrptf94fqnfzx'"}}`
 
-	respJson := `{"jsonrpc":"2.0","result":{"txs":[],"total_count":"0"},"id":0}` + "\n"
+	respJSON := `{"jsonrpc":"2.0","result":{"txs":[],"total_count":"0"},"id":0}` + "\n"
 
 	req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(brokenJSON))
 	resp := httptest.NewRecorder()
 	handler.ServeHTTP(resp, req)
 
 	assert.Equal(http.StatusOK, resp.Code)
-	assert.Equal(respJson, resp.Body.String())
+	assert.Equal(respJSON, resp.Body.String())
 }
 
 func TestSubscription(t *testing.T) {
@@ -155,36 +155,36 @@ func TestSubscription(t *testing.T) {
 		query2       = "message.sender!='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
 		invalidQuery = "message.sender='broken"
 	)
-	subscribeReq, err := json2.EncodeClientRequest("subscribe", &SubscribeArgs{
+	subscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
 		Query: query,
 	})
 	require.NoError(err)
 	require.NotEmpty(subscribeReq)
 
-	subscribeReq2, err := json2.EncodeClientRequest("subscribe", &SubscribeArgs{
+	subscribeReq2, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
 		Query: query2,
 	})
 	require.NoError(err)
 	require.NotEmpty(subscribeReq2)
 
-	invalidSubscribeReq, err := json2.EncodeClientRequest("subscribe", &SubscribeArgs{
+	invalidSubscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
 		Query: invalidQuery,
 	})
 	require.NoError(err)
 	require.NotEmpty(invalidSubscribeReq)
 
-	unsubscribeReq, err := json2.EncodeClientRequest("unsubscribe", &UnsubscribeArgs{
+	unsubscribeReq, err := json2.EncodeClientRequest("unsubscribe", &unsubscribeArgs{
 		Query: query,
 	})
 	require.NoError(err)
 	require.NotEmpty(unsubscribeReq)
 
-	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &UnsubscribeAllArgs{})
+	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &unsubscribeAllArgs{})
 	require.NoError(err)
 	require.NotEmpty(unsubscribeAllReq)
 
 	_, local := getRPC(t)
-	handler, err := GetHttpHandler(local, log.TestingLogger())
+	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
 	var (

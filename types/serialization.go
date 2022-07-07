@@ -188,6 +188,7 @@ func (c *Commit) FromProto(other *pb.Commit) error {
 	return nil
 }
 
+// ToProto converts State into protobuf representation and returns it.
 func (s *State) ToProto() (*pb.State, error) {
 	nextValidators, err := s.NextValidators.ToProto()
 	if err != nil {
@@ -221,6 +222,7 @@ func (s *State) ToProto() (*pb.State, error) {
 	}, nil
 }
 
+// FromProto fills State with data from its protobuf representation.
 func (s *State) FromProto(other *pb.State) error {
 	var err error
 	s.Version = *other.Version

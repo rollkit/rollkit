@@ -20,7 +20,8 @@ const (
 	StatusError
 )
 
-type DAResult struct {
+// BaseResult contains basic information returned by DA layer.
+type BaseResult struct {
 	// Code is to determine if the action succeeded.
 	Code StatusCode
 	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
@@ -31,7 +32,7 @@ type DAResult struct {
 
 // ResultSubmitBlock contains information returned from DA layer after block submission.
 type ResultSubmitBlock struct {
-	DAResult
+	BaseResult
 	// Not sure if this needs to be bubbled up to other
 	// parts of Optimint.
 	// Hash hash.Hash
@@ -39,14 +40,15 @@ type ResultSubmitBlock struct {
 
 // ResultCheckBlock contains information about block availability, returned from DA layer client.
 type ResultCheckBlock struct {
-	DAResult
+	BaseResult
 	// DataAvailable is the actual answer whether the block is available or not.
 	// It can be true if and only if Code is equal to StatusSuccess.
 	DataAvailable bool
 }
 
+// ResultRetrieveBlocks contains batch of blocks returned from DA layer client.
 type ResultRetrieveBlocks struct {
-	DAResult
+	BaseResult
 	// Block is the full block retrieved from Data Availability Layer.
 	// If Code is not equal to StatusSuccess, it has to be nil.
 	Blocks []*types.Block
@@ -58,7 +60,10 @@ type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
 	Init(config []byte, kvStore store.KVStore, logger log.Logger) error
 
+	// Start is called once, after Init. It's implementation should start operation of DataAvailabilityLayerClient.
 	Start() error
+
+	// Stop is called once, when DataAvailabilityLayerClient is no longer needed.
 	Stop() error
 
 	// SubmitBlock submits the passed in block to the DA layer.
@@ -66,7 +71,7 @@ type DataAvailabilityLayerClient interface {
 	// triggers a state transition in the DA layer.
 	SubmitBlock(block *types.Block) ResultSubmitBlock
 
-	// CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
+	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
 	CheckBlockAvailability(dataLayerHeight uint64) ResultCheckBlock
 }
 

@@ -35,7 +35,7 @@ type Iterator interface {
 	Discard()
 }
 
-// NewInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
+// NewDefaultInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
 func NewDefaultInMemoryKVStore() KVStore {
 	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true))
 	if err != nil {
@@ -46,6 +46,7 @@ func NewDefaultInMemoryKVStore() KVStore {
 	}
 }
 
+// NewDefaultKVStore creates instance of default key-value store.
 func NewDefaultKVStore(rootDir, dbPath, dbName string) KVStore {
 	path := filepath.Join(rootify(rootDir, dbPath), dbName)
 	db, err := badger.Open(badger.DefaultOptions(path))

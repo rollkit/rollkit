@@ -9,7 +9,7 @@ import (
 
 // this is a central registry for all Data Availability Layer Clients
 var clients = map[string]func() da.DataAvailabilityLayerClient{
-	"mock":     func() da.DataAvailabilityLayerClient { return &mock.MockDataAvailabilityLayerClient{} },
+	"mock":     func() da.DataAvailabilityLayerClient { return &mock.DataAvailabilityLayerClient{} },
 	"grpc":     func() da.DataAvailabilityLayerClient { return &grpc.DataAvailabilityLayerClient{} },
 	"celestia": func() da.DataAvailabilityLayerClient { return &celestia.DataAvailabilityLayerClient{} },
 }
@@ -23,6 +23,7 @@ func GetClient(name string) da.DataAvailabilityLayerClient {
 	return f()
 }
 
+// RegisteredClients returns names of all DA clients in registry.
 func RegisteredClients() []string {
 	registered := make([]string, 0, len(clients))
 	for name := range clients {
