@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -70,7 +71,7 @@ func TestREST(t *testing.T) {
 		{"invalid/missing param", "/block", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'height'`},
 		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
 		// to keep test simple, allow returning application error in following case
-		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), `"key not found"`},
+		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
 		{"invalid/int param", "/block?height=foo", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'height'"},
 		{"valid/bool int string params",
 			"/tx_search?" + txSearchParams.Encode(),
@@ -95,6 +96,7 @@ func TestREST(t *testing.T) {
 			assert.Equal(c.httpCode, resp.Code)
 			s := resp.Body.String()
 			assert.NotEmpty(s)
+			fmt.Print(s)
 			assert.Contains(s, c.bodyContains)
 			var jsonResp response
 			assert.NoError(json.Unmarshal([]byte(s), &jsonResp))
