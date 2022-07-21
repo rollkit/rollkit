@@ -401,9 +401,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// Only update the stored height after successfully submitting to DA layer
-	m.store.SetHeight(block.Header.Height)
-
 	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
@@ -431,6 +428,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Only update the stored height after successfully submitting to DA layer and committing to the DB
+	m.store.SetHeight(block.Header.Height)
 
 	m.publishHeader(block)
 
