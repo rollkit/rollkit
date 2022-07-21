@@ -215,10 +215,6 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
-	err = n.initGenesisChunks()
-	if err != nil {
-		return fmt.Errorf("error while creating chunks of the genesis document: %w", err)
-	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx)
@@ -237,6 +233,10 @@ func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 
 // GetGenesisChunks returns chunked version of genesis.
 func (n *Node) GetGenesisChunks() []string {
+	err := n.initGenesisChunks()
+	if err != nil {
+		n.Logger.Error("error while creating chunks of the genesis document: %w", err)
+	}
 	return n.genChunks
 }
 
