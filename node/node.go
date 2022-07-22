@@ -232,12 +232,9 @@ func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 }
 
 // GetGenesisChunks returns chunked version of genesis.
-func (n *Node) GetGenesisChunks() []string {
+func (n *Node) GetGenesisChunks() ([]string, error) {
 	err := n.initGenesisChunks()
-	if err != nil {
-		n.Logger.Error("error while creating chunks of the genesis document: %w", err)
-	}
-	return n.genChunks
+	return n.genChunks, err
 }
 
 // OnStop is a part of Service interface.

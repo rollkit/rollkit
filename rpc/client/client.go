@@ -275,7 +275,10 @@ func (c *Client) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
 
 // GenesisChunked returns given chunk of genesis.
 func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
-	genChunks := c.node.GetGenesisChunks()
+	genChunks, err := c.node.GetGenesisChunks()
+	if err != nil {
+		return nil, fmt.Errorf("error while creating chunks of the genesis document: %w", err)
+	}
 	if genChunks == nil {
 		return nil, fmt.Errorf("service configuration error, genesis chunks are not initialized")
 	}
