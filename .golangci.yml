@@ -9,10 +9,6 @@ run:
 
 linters:
   enable:
-    - gofmt
-    - goimports
-    - misspell
-    - revive
     - deadcode
     - errcheck
     - gofmt
@@ -21,6 +17,7 @@ linters:
     - govet
     - ineffassign
     - misspell
+    - revive
     - staticcheck
     - structcheck
     - typecheck
