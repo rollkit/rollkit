@@ -234,6 +234,9 @@ func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 // GetGenesisChunks returns chunked version of genesis.
 func (n *Node) GetGenesisChunks() ([]string, error) {
 	err := n.initGenesisChunks()
+	if err != nil {
+		return nil, err
+	}
 	return n.genChunks, err
 }
 
