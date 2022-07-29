@@ -290,7 +290,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		}
 	})
 
-	hash := block.Hash()
+	hash := block.RlpHash()
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.Header)
 	if err != nil {
 		return nil, err

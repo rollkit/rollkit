@@ -412,7 +412,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	if err != nil {
 		return nil, err
 	}
-	hash := block.Hash()
+	hash := block.RlpHash()
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	if err != nil {
 		return nil, err
@@ -676,10 +676,11 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 		if err != nil {
 			return nil, err
 		}
+		rlpHash := b.RlpHash()
 		blocks = append(blocks, &ctypes.ResultBlock{
 			Block: block,
 			BlockID: types.BlockID{
-				Hash: block.Hash(),
+				Hash: rlpHash[:],
 			},
 		})
 	}

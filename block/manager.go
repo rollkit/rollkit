@@ -205,7 +205,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			m.logger.Debug("block body retrieved from DALC",
 				"height", block.Header.Height,
 				"daHeight", daHeight,
-				"hash", block.Hash(),
+				"hash", block.RlpHash(),
 			)
 			m.syncCache[block.Header.Height] = block
 			m.retrieveCond.Signal()
