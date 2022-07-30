@@ -522,7 +522,7 @@ func TestTxMempool_ConcurrentTxs(t *testing.T) {
 
 func TestTxMempool_ExpiredTxs_Timestamp(t *testing.T) {
 	txmp := setup(t, 5000)
-	txmp.config.TTLDuration = 5 * time.Millisecond
+	txmp.config.TTLDuration = 500 * time.Millisecond
 
 	added1 := checkTxs(t, txmp, 10, 0)
 	require.Equal(t, len(added1), txmp.Size())
@@ -531,19 +531,19 @@ func TestTxMempool_ExpiredTxs_Timestamp(t *testing.T) {
 	// when the first batch TTLs out.
 	//
 	// ms: 0   1   2   3   4   5   6
-	//     ^           ^       ^   ^
-	//     |           |       |   +-- Update (triggers pruning)
-	//     |           |       +------ first batch expires
-	//     |           +-------------- second batch added
+	//     ^               ^   ^   ^
+	//     |               |   |   +-- Update (triggers pruning)
+	//     |               |   +------ first batch expires
+	//     |               +---------- second batch added
 	//     +-------------------------- first batch added
 	//
 	// The exact intervals are not important except that the delta should be
 	// large relative to the cost of CheckTx (ms vs. ns is fine here).
-	time.Sleep(3 * time.Millisecond)
+	time.Sleep(400 * time.Millisecond)
 	added2 := checkTxs(t, txmp, 10, 1)
 
 	// Wait a while longer, so that the first batch will expire.
-	time.Sleep(3 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Trigger an update so that pruning will occur.
 	txmp.Lock()
