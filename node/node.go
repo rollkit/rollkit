@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/mempool"
+	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
 	"github.com/celestiaorg/optimint/p2p"
 	"github.com/celestiaorg/optimint/state/indexer"
 	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
@@ -123,7 +124,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 		return nil, err
 	}
 
-	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 	mpIDs := newMempoolIDs()
 
 	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"))

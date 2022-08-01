@@ -899,5 +899,5 @@ func TestMempool2Nodes(t *testing.T) {
 	case <-ctx.Done():
 	}
 
-	assert.Equal(node2.Mempool.TxsBytes(), int64(len("good")))
+	assert.Equal(node2.Mempool.SizeBytes(), int64(len("good")))
 }
