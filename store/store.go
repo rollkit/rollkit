@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/optimint/types"
 	pb "github.com/celestiaorg/optimint/types/pb/optimint"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var (
@@ -56,8 +57,11 @@ func (s *DefaultStore) Height() uint64 {
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
+	tmHash := block.Header.Hash()
+	fmt.Println("tmHash: ", hexutil.Bytes(tmHash[:]))
+
 	tmRlpHash := block.Header.RlpHash()
-	fmt.Println("tmRlpHash hash: ", tmRlpHash)
+	fmt.Println("tmRlpHash: ", hexutil.Bytes(tmRlpHash[:]))
 
 	ethHeader, err := block.Header.ToEthHeaderHash()
 	if err != nil {
