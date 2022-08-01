@@ -57,6 +57,7 @@ func (s *DefaultStore) Height() uint64 {
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
 	hash := block.Header.RlpHash()
+	fmt.Println("SaveBlock hash: ", hash)
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal Block to binary: %w", err)
