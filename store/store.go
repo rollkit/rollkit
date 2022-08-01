@@ -60,7 +60,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	if err != nil {
 		return fmt.Errorf("failed to convert optimint header to eth header: %w", err)
 	}
-	fmt.Println("ethHeader: ", ethHeader)
+	fmt.Printf("ethHeader:%+v", ethHeader)
 
 	hash := ethHeader.Hash()
 	// hash := block.Header.RlpHash()
