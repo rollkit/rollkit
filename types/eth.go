@@ -14,7 +14,7 @@ func (h *Header) ToEthHeaderHash() (*ethtypes.Header, error) {
 	temp := map[string]interface{}{
 		"number":           hexutil.Uint64(h.Height),
 		"tm_hash":          hexutil.Bytes(tmHash[:]),
-		"parentHash":       h.LastHeaderHash,
+		"parentHash":       common.BytesToHash(h.LastHeaderHash[:]),
 		"nonce":            ethtypes.BlockNonce{},   // PoW specific
 		"sha3Uncles":       ethtypes.EmptyUncleHash, // No uncles in Tendermint
 		"stateRoot":        hexutil.Bytes(h.AppHash[:]),
