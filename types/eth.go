@@ -25,7 +25,7 @@ func (h *Header) ToEthHeaderHash() (*ethtypes.Header, error) {
 		"extraData":        "0x",
 		"size":             hexutil.Uint64(0),
 		"gasLimit":         hexutil.Uint64(0), // Static gas limit
-		"gasUsed":          (*hexutil.Big)(0),
+		"gasUsed":          hexutil.Uint64(0),
 		"timestamp":        hexutil.Uint64(h.Time),
 		"transactionsRoot": common.BytesToHash(h.DataHash[:]),
 		"receiptsRoot":     ethtypes.EmptyRootHash,
