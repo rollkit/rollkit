@@ -18,6 +18,7 @@ func (h *Header) ToEthHeaderHash() (*ethtypes.Header, error) {
 		"nonce":            ethtypes.BlockNonce{},   // PoW specific
 		"sha3Uncles":       ethtypes.EmptyUncleHash, // No uncles in Tendermint
 		"stateRoot":        hexutil.Bytes(h.AppHash[:]),
+		"logsBloom":        ethtypes.Bloom{},
 		"miner":            hexutil.Bytes(h.ProposerAddress),
 		"mixHash":          common.Hash{},
 		"difficulty":       (*hexutil.Big)(big.NewInt(0)),
