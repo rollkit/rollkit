@@ -23,7 +23,7 @@ func (h *Header) ToEthHeaderHash() (*ethtypes.Header, error) {
 		"difficulty":       (*hexutil.Big)(big.NewInt(0)),
 		"extraData":        "0x",
 		"timestamp":        hexutil.Uint64(h.Time),
-		"transactionsRoot": common.BytesToHash(h.DataHash),
+		"transactionsRoot": common.BytesToHash(h.DataHash[:]),
 		"receiptsRoot":     ethtypes.EmptyRootHash,
 		"uncles":           []common.Hash{},
 		"totalDifficulty":  (*hexutil.Big)(big.NewInt(0)),
