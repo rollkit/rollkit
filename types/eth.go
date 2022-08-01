@@ -18,12 +18,12 @@ func (h *Header) ToEthHeaderHash() (*ethtypes.Header, error) {
 		"nonce":            ethtypes.BlockNonce{},   // PoW specific
 		"sha3Uncles":       ethtypes.EmptyUncleHash, // No uncles in Tendermint
 		"stateRoot":        hexutil.Bytes(h.AppHash[:]),
-		"miner":            h.ProposerAddress,
+		"miner":            hexutil.Bytes(h.ProposerAddress),
 		"mixHash":          common.Hash{},
 		"difficulty":       (*hexutil.Big)(big.NewInt(0)),
 		"extraData":        "0x",
 		"timestamp":        hexutil.Uint64(h.Time),
-		"transactionsRoot": h.DataHash,
+		"transactionsRoot": common.BytesToHash(h.DataHash),
 		"receiptsRoot":     ethtypes.EmptyRootHash,
 		"uncles":           []common.Hash{},
 		"totalDifficulty":  (*hexutil.Big)(big.NewInt(0)),
