@@ -19,6 +19,8 @@ import (
 	"github.com/celestiaorg/optimint/log"
 	"github.com/celestiaorg/optimint/mempool"
 	"github.com/celestiaorg/optimint/types"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 // BlockExecutor creates and applies blocks and maintains state.
@@ -88,9 +90,13 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
+	var txHash common.Hash
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
-	var txHash [32]byte
-	copy(txHash[:], mempoolTxs.Hash())
+	if len(mempoolTxs) == 0 {
+		txHash = ethtypes.EmptyRootHash
+	} else {
+		copy(txHash[:], mempoolTxs.Hash())
+	}
 
 	block := &types.Block{
 		Header: types.Header{
