@@ -22,6 +22,7 @@ import (
 	"github.com/celestiaorg/optimint/state"
 	"github.com/celestiaorg/optimint/store"
 	"github.com/celestiaorg/optimint/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
@@ -356,8 +357,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error converint last block to ethHeader: %w", err)
 		}
-		lastHeaderHash = lastBlock.Header.RlpHash()
-		m.logger.Info("lastBlock", "Header.Hash()", lastBlock.Header.Hash(), "Header.RlpHash()", lastBlock.Header.RlpHash(), "Header.ToEthHeader().Hash", lastBlockEthHeader.Hash())
+		lastHeaderHash = lastBlock.Header.Hash()
+		lastHeaderRlpHash := lastBlock.Header.RlpHash()
+		m.logger.Info("lastBlock", "Header.Hash()", hexutil.Bytes(lastHeaderHash[:]), "Header.RlpHash()", hexutil.Bytes(lastHeaderRlpHash[:]), "Header.ToEthHeader().Hash", lastBlockEthHeader.Hash())
 	}
 
 	var block *types.Block
