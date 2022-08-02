@@ -9,7 +9,8 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
-func (h *Header) ToEthHeader() (*ethtypes.Header, error) {
+func (b *Block) ToEthHeader() (*ethtypes.Header, error) {
+	h := b.Header
 	tmHash := h.Hash()
 	temp := map[string]interface{}{
 		"number":           hexutil.Uint64(h.Height),

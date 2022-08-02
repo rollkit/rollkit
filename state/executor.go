@@ -89,6 +89,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
+	var txHash [32]byte
+	copy(txHash[:], mempoolTxs.Hash())
 
 	block := &types.Block{
 		Header: types.Header{
@@ -101,7 +103,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			Time:           uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
 			LastHeaderHash: lastHeaderHash,
 			//LastCommitHash:  lastCommitHash,
-			DataHash:        [32]byte{},
+			DataHash:        txHash,
 			ConsensusHash:   [32]byte{},
 			AppHash:         state.AppHash,
 			LastResultsHash: state.LastResultsHash,
