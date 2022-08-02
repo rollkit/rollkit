@@ -38,6 +38,9 @@ const (
 
 	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
 	headerTopicSuffix = "-header"
+
+	// commitTopicSuffix is added after namespace to create pubsub topic for block commit gossiping.
+	commitTopicSuffix = "-commit"
 )
 
 // Client is a P2P client, implemented with libp2p.
@@ -59,6 +62,9 @@ type Client struct {
 
 	headerGossiper  *Gossiper
 	headerValidator GossipValidator
+
+	commitGossiper  *Gossiper
+	commitValidator GossipValidator
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -163,6 +169,17 @@ func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
 // SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
+}
+
+// GossipCommit sends the block commit to the P2P network.
+func (c *Client) GossipCommit(ctx context.Context, commitBytes []byte) error {
+	c.logger.Debug("Gossiping block commit", "len", len(commitBytes))
+	return c.commitGossiper.Publish(ctx, commitBytes)
+}
+
+// SetCommitValidator sets the callback function, that will be invoked after block commit is received from P2P network.
+func (c *Client) SetCommitValidator(validator GossipValidator) {
+	c.commitValidator = validator
 }
 
 // Addrs returns listen addresses of Client.
@@ -312,12 +329,21 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger,
-		WithValidator(c.headerValidator))
+	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
 	if err != nil {
 		return err
 	}
 	go c.headerGossiper.ProcessMessages(ctx)
+
+	var opts []GossiperOption
+	if c.commitValidator != nil {
+		opts = append(opts, WithValidator(c.commitValidator))
+	}
+	c.commitGossiper, err = NewGossiper(c.host, ps, c.getCommitTopic(), c.logger, opts...)
+	if err != nil {
+		return err
+	}
+	go c.commitGossiper.ProcessMessages(ctx)
 
 	return nil
 }
@@ -358,4 +384,8 @@ func (c *Client) getTxTopic() string {
 
 func (c *Client) getHeaderTopic() string {
 	return c.getNamespace() + headerTopicSuffix
+}
+
+func (c *Client) getCommitTopic() string {
+	return c.getNamespace() + commitTopicSuffix
 }

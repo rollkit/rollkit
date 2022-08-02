@@ -59,6 +59,9 @@ type Manager struct {
 	HeaderOutCh chan *types.Header
 	HeaderInCh  chan *types.Header
 
+	CommitInCh  chan *types.Commit
+	CommitOutCh chan *types.Commit
+
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
 	syncCache  map[uint64]*types.Block
@@ -136,6 +139,8 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderOutCh: make(chan *types.Header, 100),
 		HeaderInCh:  make(chan *types.Header, 100),
+		CommitInCh:  make(chan *types.Commit, 100),
+		CommitOutCh: make(chan *types.Commit, 100),
 		blockInCh:   make(chan newBlockEvent, 100),
 		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
