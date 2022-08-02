@@ -353,7 +353,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
-		lastBlockEthHeader, err := lastBlock.Header.ToEthHeader()
+		lastBlockEthHeader, err := lastBlock.ToEthHeader()
 		if err != nil {
 			return fmt.Errorf("error converint last block to ethHeader: %w", err)
 		}
