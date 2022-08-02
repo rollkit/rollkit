@@ -3,6 +3,7 @@ package block
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -357,7 +358,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error converint last block to ethHeader: %w", err)
 		}
-
+		lastBlockEthHeader.BaseFee = big.NewInt(875000000)
 		lastHeaderHash = lastBlock.Header.Hash()
 		lastHeaderRlpHash := lastBlock.Header.RlpHash()
 		m.logger.Info("lastBlock", "Header.ToEthHeader()", lastBlockEthHeader, "Header.Hash()", hexutil.Bytes(lastHeaderHash[:]), "Header.RlpHash()", hexutil.Bytes(lastHeaderRlpHash[:]), "Header.ToEthHeader().Hash", lastBlockEthHeader.Hash())
