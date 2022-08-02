@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -57,7 +58,6 @@ func (s *DefaultStore) Height() uint64 {
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
-	fmt.Printf("block.Header:%+v\n", block.Header)
 	tmHash := block.Header.Hash()
 	fmt.Println("tmHash: ", hexutil.Bytes(tmHash[:]))
 
@@ -68,8 +68,11 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	if err != nil {
 		return fmt.Errorf("failed to convert optimint header to eth header: %w", err)
 	}
-	fmt.Printf("ethHeader:%+v\n", ethHeader)
-
+	ethHeaderJSON, err := json.MarshalIndent(ethHeader, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("SaveBlock header: %s\n", string(ethHeaderJSON))
 	hash := ethHeader.Hash()
 	fmt.Println("SaveBlock hash: ", hash)
 	blockBlob, err := block.MarshalBinary()
