@@ -64,7 +64,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	tmRlpHash := block.Header.RlpHash()
 	fmt.Println("tmRlpHash: ", hexutil.Bytes(tmRlpHash[:]))
 
-	ethHeader, err := block.Header.ToEthHeader()
+	ethHeader, err := block.ToEthHeader()
 	if err != nil {
 		return fmt.Errorf("failed to convert optimint header to eth header: %w", err)
 	}
