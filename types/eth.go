@@ -51,6 +51,7 @@ func (h *Header) ToEthHeader() (*ethtypes.Header, error) {
 		"receiptsRoot":     ethtypes.EmptyRootHash,
 		"uncles":           []common.Hash{},
 		"totalDifficulty":  (*hexutil.Big)(big.NewInt(0)),
+		// "baseFeePerGas":    (*hexutil.Big)(big.NewInt(875000000)),
 	}
 	blockJson, err := json.Marshal(temp)
 	if err != nil {

@@ -358,10 +358,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error converint last block to ethHeader: %w", err)
 		}
+		preBaseFeeHash := lastBlockEthHeader.Hash()
 		lastBlockEthHeader.BaseFee = big.NewInt(875000000)
+		postBaseFeeHash := lastBlockEthHeader.Hash()
 		lastHeaderHash = lastBlock.Header.Hash()
 		lastHeaderRlpHash := lastBlock.Header.RlpHash()
-		m.logger.Info("lastBlock", "Header.ToEthHeader()", lastBlockEthHeader, "Header.Hash()", hexutil.Bytes(lastHeaderHash[:]), "Header.RlpHash()", hexutil.Bytes(lastHeaderRlpHash[:]), "Header.ToEthHeader().Hash", lastBlockEthHeader.Hash())
+		m.logger.Info("lastBlock", "Header.ToEthHeader()", lastBlockEthHeader, "Header.Hash()", hexutil.Bytes(lastHeaderHash[:]), "Header.RlpHash()", hexutil.Bytes(lastHeaderRlpHash[:]), "preBaseFeeHash", preBaseFeeHash, "postBaseFeeHash", postBaseFeeHash)
 	}
 
 	var block *types.Block
