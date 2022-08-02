@@ -359,7 +359,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("error converint last block to ethHeader: %w", err)
 		}
 		preBaseFeeHash := lastBlockEthHeader.Hash()
-		lastBlockEthHeader.BaseFee = big.NewInt(875000000)
+		lastBlockEthHeader.BaseFee = big.NewInt(0)
 		postBaseFeeHash := lastBlockEthHeader.Hash()
 		lastHeaderHash = lastBlock.Header.Hash()
 		lastHeaderRlpHash := lastBlock.Header.RlpHash()
