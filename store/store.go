@@ -57,13 +57,14 @@ func (s *DefaultStore) Height() uint64 {
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
+	fmt.Printf("block.Header:%+v\n", block.Header)
 	tmHash := block.Header.Hash()
 	fmt.Println("tmHash: ", hexutil.Bytes(tmHash[:]))
 
 	tmRlpHash := block.Header.RlpHash()
 	fmt.Println("tmRlpHash: ", hexutil.Bytes(tmRlpHash[:]))
 
-	ethHeader, err := block.Header.ToEthHeaderHash()
+	ethHeader, err := block.Header.ToEthHeader()
 	if err != nil {
 		return fmt.Errorf("failed to convert optimint header to eth header: %w", err)
 	}

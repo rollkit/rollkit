@@ -352,7 +352,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
-		lastHeaderHash = lastBlock.Header.Hash()
+		lastBlockEthHeader, err := lastBlock.Header.ToEthHeader()
+		if err != nil {
+			return fmt.Errorf("error converint last block to ethHeader: %w", err)
+		}
+		lastHeaderHash = lastBlock.Header.RlpHash()
+		m.logger.Info("lastBlock", "Header.Hash()", lastBlock.Header.Hash(), "Header.RlpHash()", lastBlock.Header.RlpHash(), "Header.ToEthHeader().Hash", lastBlockEthHeader.Hash())
 	}
 
 	var block *types.Block
