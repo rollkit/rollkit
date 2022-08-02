@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -412,6 +413,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("loadblock datahash: ", common.BytesToHash(block.Header.DataHash[:]))
 	hash := block.RlpHash()
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	if err != nil {

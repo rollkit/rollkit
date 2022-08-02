@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/optimint/types"
 	pb "github.com/celestiaorg/optimint/types/pb/optimint"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -63,6 +64,8 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	tmRlpHash := block.Header.RlpHash()
 	fmt.Println("tmRlpHash: ", hexutil.Bytes(tmRlpHash[:]))
+
+	fmt.Println("SaveBlock datahash: ", common.BytesToHash(block.Header.DataHash[:]))
 
 	ethHeader, err := block.ToEthHeader()
 	if err != nil {
