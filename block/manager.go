@@ -61,6 +61,7 @@ type Manager struct {
 
 	CommitInCh  chan *types.Commit
 	CommitOutCh chan *types.Commit
+	lastCommit  *types.Commit
 
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
@@ -204,6 +205,9 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCond.Signal()
 			}
+		case commit := <-m.CommitInCh:
+			// TODO(tzdybal): check if it's from right aggregator
+			m.lastCommit = commit
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -438,6 +442,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.store.SetHeight(block.Header.Height)
 
 	m.publishHeader(block)
+	m.publishCommit(lastCommit)
 
 	return nil
 }
@@ -476,8 +481,14 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
+// TODO(tzdybal): consider inlining
 func (m *Manager) publishHeader(block *types.Block) {
 	m.HeaderOutCh <- &block.Header
+}
+
+// TODO(tzdybal): consider inlining
+func (m *Manager) publishCommit(commit *types.Commit) {
+	m.CommitOutCh <- commit
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {
