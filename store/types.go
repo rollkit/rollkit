@@ -16,7 +16,7 @@ type Store interface {
 	SetHeight(height uint64)
 
 	// SaveBlock saves block along with its seen commit (which will be included in the next block).
-	SaveBlock(block *types.Block, commit *types.Commit) error
+	SaveBlock(block *types.Block, commit *types.Commit, newState types.State, responses *tmstate.ABCIResponses) error
 
 	// LoadBlock returns block at given height, or error if it's not found in Store.
 	LoadBlock(height uint64) (*types.Block, error)

@@ -11,6 +11,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/merkle"
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
@@ -219,7 +220,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 					m.logger.Error("failed to ApplyBlock", "error", err)
 					continue
 				}
-				err = m.store.SaveBlock(b1, &b2.LastCommit)
+				err = m.store.SaveBlock(b1, &b2.LastCommit, newState, responses)
 				if err != nil {
 					m.logger.Error("failed to save block", "error", err)
 					continue
@@ -361,12 +362,19 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	var block *types.Block
 
+	var newState types.State
+	var responses *tmstate.ABCIResponses
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
 	pendingBlock, err := m.store.LoadBlock(newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
 		block = pendingBlock
+
+		newState, responses, err = m.executor.ApplyBlock(ctx, m.lastState, block)
+		if err != nil {
+			return err
+		}
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
@@ -386,18 +394,23 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			Signatures: []types.Signature{sign},
 		}
 
+		newState, responses, err = m.executor.ApplyBlock(ctx, m.lastState, block)
+		if err != nil {
+			return err
+		}
+
 		// SaveBlock commits the DB tx
-		err = m.store.SaveBlock(block, commit)
+		err = m.store.SaveBlock(block, commit, newState, responses)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Apply the block but DONT commit
-	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
-	if err != nil {
-		return err
-	}
+	// newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	// if err != nil {
+	// 	return err
+	// }
 
 	err = m.submitBlockToDA(ctx, block)
 	if err != nil {

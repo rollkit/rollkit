@@ -58,7 +58,18 @@ func (s *DefaultStore) Height() uint64 {
 
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
-func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
+func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit, newState types.State, responses *tmstate.ABCIResponses) error {
+	newStateJSON, err := json.MarshalIndent(newState, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("newStateJSON %s\n", string(newStateJSON))
+	responsesJSON, err := json.MarshalIndent(responses, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("responsesJSON %s\n", string(responsesJSON))
+
 	tmHash := block.Header.Hash()
 	fmt.Println("tmHash: ", hexutil.Bytes(tmHash[:]))
 
