@@ -61,7 +61,7 @@ type Manager struct {
 
 	CommitInCh  chan *types.Commit
 	CommitOutCh chan *types.Commit
-	lastCommit  *types.Commit
+	lastCommit  atomic.Value
 
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
@@ -207,7 +207,13 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			}
 		case commit := <-m.CommitInCh:
 			// TODO(tzdybal): check if it's from right aggregator
-			m.lastCommit = commit
+			m.lastCommit.Store(commit)
+			err := m.trySyncNextBlock(ctx, 0)
+			if err != nil {
+				m.logger.Info("failed to sync next block", "error", err)
+			} else {
+				m.logger.Debug("synced using gossiped commit", "height", commit.Height)
+			}
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -218,47 +224,79 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			)
 			m.syncCache[block.Header.Height] = block
 			m.retrieveCond.Signal()
-			currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
-			b1, ok1 := m.syncCache[currentHeight+1]
-			b2, ok2 := m.syncCache[currentHeight+2]
-			if ok1 && ok2 {
-				m.logger.Info("Syncing block", "height", b1.Header.Height)
-				newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
-				if err != nil {
-					m.logger.Error("failed to ApplyBlock", "error", err)
-					continue
-				}
-				err = m.store.SaveBlock(b1, &b2.LastCommit)
-				if err != nil {
-					m.logger.Error("failed to save block", "error", err)
-					continue
-				}
-				_, _, err = m.executor.Commit(ctx, newState, b1, responses)
-				if err != nil {
-					m.logger.Error("failed to Commit", "error", err)
-					continue
-				}
-				m.store.SetHeight(b1.Header.Height)
 
-				err = m.store.SaveBlockResponses(b1.Header.Height, responses)
-				if err != nil {
-					m.logger.Error("failed to save block responses", "error", err)
-					continue
-				}
-
-				newState.DAHeight = daHeight
-				m.lastState = newState
-				err = m.store.UpdateState(m.lastState)
-				if err != nil {
-					m.logger.Error("failed to save updated state", "error", err)
-					continue
-				}
-				delete(m.syncCache, currentHeight+1)
+			err := m.trySyncNextBlock(ctx, daHeight)
+			if err != nil {
+				m.logger.Info("failed to sync next block", "error", err)
 			}
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
+	var b1 *types.Block
+	var commit *types.Commit
+	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
+
+	b1, ok1 := m.syncCache[currentHeight+1]
+	if !ok1 {
+		return nil
+	}
+	b2, ok2 := m.syncCache[currentHeight+2]
+	if ok2 {
+		m.logger.Debug("using last commit from next block")
+		commit = &b2.LastCommit
+	} else {
+		lastCommit := m.getLastCommit()
+		if lastCommit != nil && lastCommit.Height == currentHeight+1 {
+			m.logger.Debug("using gossiped commit")
+			commit = lastCommit
+		}
+	}
+
+	if b1 != nil && commit != nil {
+		m.logger.Info("Syncing block", "height", b1.Header.Height)
+		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+		if err != nil {
+			return fmt.Errorf("failed to ApplyBlock: %w", err)
+		}
+		err = m.store.SaveBlock(b1, commit)
+		if err != nil {
+			return fmt.Errorf("failed to save block: %w", err)
+		}
+		_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+		if err != nil {
+			return fmt.Errorf("failed to Commit: %w", err)
+		}
+		m.store.SetHeight(b1.Header.Height)
+
+		err = m.store.SaveBlockResponses(b1.Header.Height, responses)
+		if err != nil {
+			return fmt.Errorf("failed to save block responses: %w", err)
+		}
+
+		if m.daHeight > newState.DAHeight {
+			newState.DAHeight = daHeight
+		}
+		m.lastState = newState
+		err = m.store.UpdateState(m.lastState)
+		if err != nil {
+			m.logger.Error("failed to save updated state", "error", err)
+		}
+		delete(m.syncCache, currentHeight+1)
+	}
+
+	return nil
+}
+
+func (m *Manager) getLastCommit() *types.Commit {
+	ptr := m.lastCommit.Load()
+	if ptr != nil {
+		return m.lastCommit.Load().(*types.Commit)
+	}
+	return nil
 }
 
 // RetrieveLoop is responsible for interacting with DA layer.
@@ -365,6 +403,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	var block *types.Block
+	var commit *types.Commit
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
@@ -385,7 +424,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		commit := &types.Commit{
+		commit = &types.Commit{
 			Height:     block.Header.Height,
 			HeaderHash: block.Header.Hash(),
 			Signatures: []types.Signature{sign},
@@ -442,7 +481,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.store.SetHeight(block.Header.Height)
 
 	m.publishHeader(block)
-	m.publishCommit(lastCommit)
+	m.publishCommit(commit)
 
 	return nil
 }

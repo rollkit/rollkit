@@ -200,6 +200,15 @@ func (n *Node) headerPublishLoop(ctx context.Context) {
 			if err != nil {
 				n.Logger.Error("failed to gossip block header", "error", err)
 			}
+		case commit := <-n.blockManager.CommitOutCh:
+			commitBytes, err := commit.MarshalBinary()
+			if err != nil {
+				n.Logger.Error("failed to serialize block commit", "error", err)
+			}
+			err = n.P2P.GossipCommit(ctx, commitBytes)
+			if err != nil {
+				n.Logger.Error("failed to gossip block commit", "error", err)
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -341,6 +350,7 @@ func (n *Node) newCommitValidator() p2p.GossipValidator {
 			n.Logger.Error("failed to validate commit", "error", err)
 			return false
 		}
+		n.Logger.Debug("commit received", "height", commit.Height)
 		n.blockManager.CommitInCh <- &commit
 		return true
 	}
