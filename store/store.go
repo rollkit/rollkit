@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -17,8 +19,6 @@ import (
 
 	"github.com/celestiaorg/optimint/types"
 	pb "github.com/celestiaorg/optimint/types/pb/optimint"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var (
@@ -62,18 +62,30 @@ func (s *DefaultStore) Height() uint64 {
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit, newState types.State, responses *tmstate.ABCIResponses) error {
-	tmHash := block.Header.Hash()
-	fmt.Println("tmHash: ", hexutil.Bytes(tmHash[:]))
-
-	tmRlpHash := block.Header.RlpHash()
-	fmt.Println("tmRlpHash: ", hexutil.Bytes(tmRlpHash[:]))
-
-	fmt.Println("SaveBlock datahash: ", common.BytesToHash(block.Header.DataHash[:]))
-
 	ethHeader, err := block.ToEthHeader()
 	if err != nil {
 		return fmt.Errorf("failed to convert optimint header to eth header: %w", err)
 	}
+	fmt.Println("SaveBlock TM ParentHash: ", hexutil.Bytes(block.Header.LastHeaderHash[:]))
+	fmt.Println("SaveBlock Eth ParentHash: ", ethHeader.ParentHash)
+
+	var txRoot common.Hash
+	for _, event := range responses.EndBlock.Events {
+		if event.Type != "tx_root" {
+			continue
+		}
+		for _, attr := range event.Attributes {
+			if bytes.Equal(attr.Key, []byte("ethTxRoot")) {
+				txRoot = common.HexToHash(string(attr.Value))
+				break
+			}
+		}
+	}
+	fmt.Println("SaveBlock txRoot: ", txRoot)
+	// copy(block.Header.LastHeaderHash[:], txRoot[:])
+	ethHeader.TxHash = txRoot
+	block.Header.DataHash = txRoot
+
 	var bloom ethtypes.Bloom
 	for _, event := range responses.EndBlock.Events {
 		if event.Type != "block_bloom" {
@@ -106,7 +118,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit, newSt
 	}
 	fmt.Printf("SaveBlock header: %s\n", string(ethHeaderJSON))
 	hash := ethHeader.Hash()
-	fmt.Println("SaveBlock hash: ", hash)
+	fmt.Printf("SaveBlock height: %d hash: %s\n", ethHeader.Number, hash)
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal Block to binary: %w", err)

@@ -61,6 +61,10 @@ func (h *Header) RlpHash() [32]byte {
 	return rlpHash(h)
 }
 
+func (txs *Txs) RlpHash() [32]byte {
+	return rlpHash(txs)
+}
+
 func rlpHash(x interface{}) (h common.Hash) {
 	sha := hasherPool.Get().(crypto.KeccakState)
 	defer hasherPool.Put(sha)

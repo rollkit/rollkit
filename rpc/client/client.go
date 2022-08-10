@@ -1,12 +1,16 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -416,6 +420,45 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	if err != nil {
 		return nil, err
 	}
+	blockResp, err := c.node.Store.LoadBlockResponses(heightValue)
+	if err != nil {
+		return nil, err
+	}
+	gasUsed := uint64(0)
+	for _, txsResult := range blockResp.DeliverTxs {
+		// workaround for cosmos-sdk bug. https://github.com/cosmos/cosmos-sdk/issues/10832
+		if txsResult.GetCode() == 11 && strings.Contains(txsResult.GetLog(), "no block gas left to run tx: out of gas") {
+			// block gas limit has exceeded, other txs must have failed with same reason.
+			break
+		}
+		gasUsed += uint64(txsResult.GetGasUsed())
+	}
+	ethBlockHeader.GasUsed = gasUsed
+
+	var bloom ethtypes.Bloom
+	for _, event := range blockResp.EndBlock.Events {
+		if event.Type != "block_bloom" {
+			continue
+		}
+
+		for _, attr := range event.Attributes {
+			if bytes.Equal(attr.Key, []byte("bloom")) {
+				bloom = ethtypes.BytesToBloom(attr.Value)
+				break
+			}
+		}
+	}
+	ethBlockHeader.Bloom = bloom
+
+	fmt.Println("loadblock parentHash: ", ethBlockHeader.ParentHash)
+	fmt.Println("loadblock txRoot: ", ethBlockHeader.TxHash)
+
+	ethHeaderJSON, err := json.MarshalIndent(ethBlockHeader, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("loadblock header: %s\n", string(ethHeaderJSON))
+
 	hash := ethBlockHeader.Hash()
 	fmt.Println("loadblock ethHash: ", hash)
 
@@ -423,6 +466,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	if err != nil {
 		return nil, err
 	}
+	abciBlock.DataHash = ethBlockHeader.TxHash.Bytes()
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
 			Hash: hash.Bytes(),
@@ -444,14 +488,60 @@ func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBl
 	if err != nil {
 		return nil, err
 	}
+	ethBlockHeader, err := block.ToEthHeader()
+	if err != nil {
+		return nil, err
+	}
+	blockResp, err := c.node.Store.LoadBlockResponses(block.Header.Height)
+	if err != nil {
+		return nil, err
+	}
+	gasUsed := uint64(0)
+	for _, txsResult := range blockResp.DeliverTxs {
+		// workaround for cosmos-sdk bug. https://github.com/cosmos/cosmos-sdk/issues/10832
+		if txsResult.GetCode() == 11 && strings.Contains(txsResult.GetLog(), "no block gas left to run tx: out of gas") {
+			// block gas limit has exceeded, other txs must have failed with same reason.
+			break
+		}
+		gasUsed += uint64(txsResult.GetGasUsed())
+	}
+	ethBlockHeader.GasUsed = gasUsed
+
+	var bloom ethtypes.Bloom
+	for _, event := range blockResp.EndBlock.Events {
+		if event.Type != "block_bloom" {
+			continue
+		}
+
+		for _, attr := range event.Attributes {
+			if bytes.Equal(attr.Key, []byte("bloom")) {
+				bloom = ethtypes.BytesToBloom(attr.Value)
+				break
+			}
+		}
+	}
+	ethBlockHeader.Bloom = bloom
+
+	fmt.Println("loadblock parentHash: ", ethBlockHeader.ParentHash)
+	fmt.Println("loadblock txRoot: ", ethBlockHeader.TxHash)
+
+	ethHeaderJSON, err := json.MarshalIndent(ethBlockHeader, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("loadblock header: %s\n", string(ethHeaderJSON))
+
+	ethHash := ethBlockHeader.Hash()
+	fmt.Println("loadblock ethHash: ", ethHash)
 
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	if err != nil {
 		return nil, err
 	}
+	abciBlock.DataHash = ethBlockHeader.TxHash.Bytes()
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
-			Hash: h[:],
+			Hash: ethHash.Bytes(),
 			PartSetHeader: types.PartSetHeader{
 				Total: 0,
 				Hash:  nil,

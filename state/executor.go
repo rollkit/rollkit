@@ -95,7 +95,9 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	if len(mempoolTxs) == 0 {
 		txHash = ethtypes.EmptyRootHash
 	} else {
-		copy(txHash[:], mempoolTxs.Hash())
+		optTxs := toOptimintTxs(mempoolTxs)
+		rlpHash := optTxs.RlpHash()
+		copy(txHash[:], rlpHash[:])
 	}
 
 	block := &types.Block{

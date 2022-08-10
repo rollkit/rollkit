@@ -1,12 +1,16 @@
 package block
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -355,9 +359,48 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		lastBlockEthHeader, err := lastBlock.ToEthHeader()
 		if err != nil {
-			return fmt.Errorf("error converint last block to ethHeader: %w", err)
+			return fmt.Errorf("error convering last block to ethHeader: %w", err)
 		}
+		blockResp, err := m.store.LoadBlockResponses(height)
+		if err != nil {
+			return fmt.Errorf("error loading last block responses: %w", err)
+		}
+		gasUsed := uint64(0)
+		for _, txsResult := range blockResp.DeliverTxs {
+			// workaround for cosmos-sdk bug. https://github.com/cosmos/cosmos-sdk/issues/10832
+			if txsResult.GetCode() == 11 && strings.Contains(txsResult.GetLog(), "no block gas left to run tx: out of gas") {
+				// block gas limit has exceeded, other txs must have failed with same reason.
+				break
+			}
+			gasUsed += uint64(txsResult.GetGasUsed())
+		}
+		lastBlockEthHeader.GasUsed = gasUsed
+
+		var bloom ethtypes.Bloom
+		for _, event := range blockResp.EndBlock.Events {
+			if event.Type != "block_bloom" {
+				continue
+			}
+
+			for _, attr := range event.Attributes {
+				if bytes.Equal(attr.Key, []byte("bloom")) {
+					bloom = ethtypes.BytesToBloom(attr.Value)
+					break
+				}
+			}
+		}
+		lastBlockEthHeader.Bloom = bloom
+
+		fmt.Println("loadblock parentHash: ", lastBlockEthHeader.ParentHash)
+		fmt.Println("loadblock txRoot: ", lastBlockEthHeader.TxHash)
+
+		ethHeaderJSON, err := json.MarshalIndent(lastBlockEthHeader, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("publishBlock header: %s\n", string(ethHeaderJSON))
 		lastHeaderHash = lastBlockEthHeader.Hash()
+		fmt.Println("publishBlock lastHeaderHash: ", lastBlockEthHeader.Hash())
 	}
 
 	var block *types.Block
