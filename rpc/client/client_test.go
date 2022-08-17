@@ -502,10 +502,6 @@ func TestUnconfirmedTxs(t *testing.T) {
 }
 
 func TestUnconfirmedTxsLimit(t *testing.T) {
-	t.Skip("Test disabled because of known bug")
-	// there's a bug in mempool implementation - count should be 1
-	// TODO(tzdybal): uncomment after resolving https://github.com/celestiaorg/optimint/issues/191
-
 	assert := assert.New(t)
 	require := require.New(t)
 
