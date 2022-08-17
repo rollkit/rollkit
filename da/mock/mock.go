@@ -31,7 +31,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *DataAvailabilityLayerClient) Init(config []byte, dalcKV store.KVStore, logger log.Logger) error {
+func (m *DataAvailabilityLayerClient) Init(_ [8]byte, config []byte, dalcKV store.KVStore, logger log.Logger) error {
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1

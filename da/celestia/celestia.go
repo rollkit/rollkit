@@ -20,8 +20,9 @@ import (
 type DataAvailabilityLayerClient struct {
 	client *cnc.Client
 
-	config Config
-	logger log.Logger
+	namespaceID [8]byte
+	config      Config
+	logger      log.Logger
 }
 
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
@@ -29,14 +30,14 @@ var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Config stores Celestia DALC configuration parameters.
 type Config struct {
-	BaseURL     string        `json:"base_url"`
-	Timeout     time.Duration `json:"timeout"`
-	GasLimit    uint64        `json:"gas_limit"`
-	NamespaceID [8]byte       `json:"namespace_id"`
+	BaseURL  string        `json:"base_url"`
+	Timeout  time.Duration `json:"timeout"`
+	GasLimit uint64        `json:"gas_limit"`
 }
 
 // Init initializes DataAvailabilityLayerClient instance.
-func (c *DataAvailabilityLayerClient) Init(config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (c *DataAvailabilityLayerClient) Init(namespaceID [8]byte, config []byte, kvStore store.KVStore, logger log.Logger) error {
+	c.namespaceID = namespaceID
 	c.logger = logger
 
 	if len(config) > 0 {
@@ -72,7 +73,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 		}
 	}
 
-	txResponse, err := c.client.SubmitPFD(context.TODO(), c.config.NamespaceID, blob, c.config.GasLimit)
+	txResponse, err := c.client.SubmitPFD(context.TODO(), c.namespaceID, blob, c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
@@ -103,7 +104,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 
 // CheckBlockAvailability queries DA layer to check data availability of block at given height.
 func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
-	shares, err := c.client.NamespacedShares(context.TODO(), c.config.NamespaceID, dataLayerHeight)
+	shares, err := c.client.NamespacedShares(context.TODO(), c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultCheckBlock{
 			BaseResult: da.BaseResult{
@@ -124,7 +125,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	data, err := c.client.NamespacedData(context.TODO(), c.config.NamespaceID, dataLayerHeight)
+	data, err := c.client.NamespacedData(context.TODO(), c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{

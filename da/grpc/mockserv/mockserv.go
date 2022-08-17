@@ -21,7 +21,7 @@ func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Se
 
 	srv := grpc.NewServer()
 	mockImpl := &mockImpl{}
-	err := mockImpl.mock.Init(mockConfig, kv, logger)
+	err := mockImpl.mock.Init([8]byte{}, mockConfig, kv, logger)
 	if err != nil {
 		logger.Error("failed to initialize mock DALC", "error", err)
 		panic(err)
