@@ -171,7 +171,7 @@ func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.A
 	nodes := make([]*Node, num)
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	_ = dalc.Init(nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
+	_ = dalc.Init([8]byte{}, nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
 
 	nodes[0], apps[0] = createNode(0, true, dalc, keys, wg, t)
