@@ -59,6 +59,10 @@ type Manager struct {
 	HeaderOutCh chan *types.Header
 	HeaderInCh  chan *types.Header
 
+	CommitInCh  chan *types.Commit
+	CommitOutCh chan *types.Commit
+	lastCommit  *types.Commit
+
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
 	syncCache  map[uint64]*types.Block
@@ -136,6 +140,8 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderOutCh: make(chan *types.Header, 100),
 		HeaderInCh:  make(chan *types.Header, 100),
+		CommitInCh:  make(chan *types.Commit, 100),
+		CommitOutCh: make(chan *types.Commit, 100),
 		blockInCh:   make(chan newBlockEvent, 100),
 		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
@@ -199,6 +205,9 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCond.Signal()
 			}
+		case commit := <-m.CommitInCh:
+			// TODO(tzdybal): check if it's from right aggregator
+			m.lastCommit = commit
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -433,6 +442,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.store.SetHeight(block.Header.Height)
 
 	m.publishHeader(block)
+	m.publishCommit(lastCommit)
 
 	return nil
 }
@@ -471,8 +481,14 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
+// TODO(tzdybal): consider inlining
 func (m *Manager) publishHeader(block *types.Block) {
 	m.HeaderOutCh <- &block.Header
+}
+
+// TODO(tzdybal): consider inlining
+func (m *Manager) publishCommit(commit *types.Commit) {
+	m.CommitOutCh <- commit
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {
