@@ -1,7 +1,9 @@
 package config
 
 import (
+	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -54,11 +56,21 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DABlockTime = v.GetDuration(flagDABlockTime)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nsID := v.GetString(flagNamespaceID)
-	bytes, err := hex.DecodeString(nsID)
-	if err != nil {
-		return err
+	// if namespace ID was not provided, we generate random one, and notify set it back to Viper instance
+	switch nsID {
+	case "":
+		n, err := rand.Read(nc.NamespaceID[:])
+		if err != nil || n != 8 {
+			return fmt.Errorf("failed to generate random namespace ID: %w", err)
+		}
+		v.Set(flagNamespaceID, hex.EncodeToString(nc.NamespaceID[:]))
+	default:
+		bytes, err := hex.DecodeString(nsID)
+		if err != nil {
+			return err
+		}
+		copy(nc.NamespaceID[:], bytes)
 	}
-	copy(nc.NamespaceID[:], bytes)
 	return nil
 }
 
@@ -73,5 +85,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
+	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:],
+		"namespace identifies (8 bytes in hex), namespace ID will be randomized if not specified")
 }
