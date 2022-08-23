@@ -74,11 +74,19 @@ type EvidenceData struct {
 	Evidence []Evidence
 }
 
-// Commit cointains evidence of block creation.
+// Commit contains evidence of block creation.
 type Commit struct {
 	Height     uint64
 	HeaderHash [32]byte
 	Signatures []Signature // most of the time this is a single signature
+}
+
+// SignedHeader combines Header and its Commit.
+//
+// Used mostly for gossiping.
+type SignedHeader struct {
+	Header Header
+	Commit Commit
 }
 
 // Signature represents signature of block creator.

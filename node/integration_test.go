@@ -115,11 +115,10 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		t.Fatal("failing after timeout")
 	}
 
-	require.NoError(nodes[0].Stop())
-	time.Sleep(300 * time.Millisecond)
-	for _, n := range nodes[1:] {
+	for _, n := range nodes {
 		require.NoError(n.Stop())
 	}
+	time.Sleep(100 * time.Millisecond)
 	aggApp := apps[0]
 	apps = apps[1:]
 
@@ -151,7 +150,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		assert.GreaterOrEqual(commitCnt, adjustedHeight)
 
 		// assert that all blocks known to node are same as produced by aggregator
-		for h := uint64(1); h <= aggregatorHeight; h++ {
+		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
 			aggBlock, err := nodes[0].Store.LoadBlock(h)
 			require.NoError(err)
 			nodeBlock, err := nodes[i].Store.LoadBlock(h)

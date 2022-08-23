@@ -1,6 +1,10 @@
 package types
 
-import "errors"
+import (
+	"encoding/hex"
+	"errors"
+	"fmt"
+)
 
 // ValidateBasic performs basic validation of a block.
 func (b *Block) ValidateBasic() error {
@@ -43,6 +47,27 @@ func (c *Commit) ValidateBasic() error {
 		if len(c.Signatures) == 0 {
 			return errors.New("no signatures")
 		}
+	}
+	return nil
+}
+
+// ValidateBasic performs basic validation of a signed header.
+func (h *SignedHeader) ValidateBasic() error {
+	err := h.Commit.ValidateBasic()
+	if err != nil {
+		return err
+	}
+	err = h.Header.ValidateBasic()
+	if err != nil {
+		return err
+	}
+
+	if h.Commit.Height != h.Header.Height {
+		return fmt.Errorf("height missmatch - header height: %d, commit height: %d", h.Header.Height, h.Commit.Height)
+	}
+	if h.Commit.HeaderHash != h.Header.Hash() {
+		hash := h.Header.Hash()
+		return fmt.Errorf("hash missmatch - header hash: %s, commit hash: %s", hex.EncodeToString(hash[:]), hex.EncodeToString(h.Commit.HeaderHash[:]))
 	}
 	return nil
 }

@@ -191,23 +191,14 @@ func (n *Node) initGenesisChunks() error {
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case header := <-n.blockManager.HeaderOutCh:
-			headerBytes, err := header.MarshalBinary()
+		case signedHeader := <-n.blockManager.HeaderOutCh:
+			headerBytes, err := signedHeader.MarshalBinary()
 			if err != nil {
-				n.Logger.Error("failed to serialize block header", "error", err)
+				n.Logger.Error("failed to serialize signed block header", "error", err)
 			}
-			err = n.P2P.GossipHeader(ctx, headerBytes)
+			err = n.P2P.GossipSignedHeader(ctx, headerBytes)
 			if err != nil {
-				n.Logger.Error("failed to gossip block header", "error", err)
-			}
-		case commit := <-n.blockManager.CommitOutCh:
-			commitBytes, err := commit.MarshalBinary()
-			if err != nil {
-				n.Logger.Error("failed to serialize block commit", "error", err)
-			}
-			err = n.P2P.GossipCommit(ctx, commitBytes)
-			if err != nil {
-				n.Logger.Error("failed to gossip block commit", "error", err)
+				n.Logger.Error("failed to gossip signed block header", "error", err)
 			}
 		case <-ctx.Done():
 			return
@@ -318,7 +309,7 @@ func (n *Node) newTxValidator() p2p.GossipValidator {
 func (n *Node) newHeaderValidator() p2p.GossipValidator {
 	return func(headerMsg *p2p.GossipMessage) bool {
 		n.Logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
-		var header types.Header
+		var header types.SignedHeader
 		err := header.UnmarshalBinary(headerMsg.Data)
 		if err != nil {
 			n.Logger.Error("failed to deserialize header", "error", err)

@@ -56,12 +56,11 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
-	HeaderOutCh chan *types.Header
-	HeaderInCh  chan *types.Header
+	HeaderOutCh chan *types.SignedHeader
+	HeaderInCh  chan *types.SignedHeader
 
-	CommitInCh  chan *types.Commit
-	CommitOutCh chan *types.Commit
-	lastCommit  atomic.Value
+	CommitInCh chan *types.Commit
+	lastCommit atomic.Value
 
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
@@ -138,10 +137,9 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh: make(chan *types.Header, 100),
-		HeaderInCh:  make(chan *types.Header, 100),
+		HeaderOutCh: make(chan *types.SignedHeader, 100),
+		HeaderInCh:  make(chan *types.SignedHeader, 100),
 		CommitInCh:  make(chan *types.Commit, 100),
-		CommitOutCh: make(chan *types.Commit, 100),
 		blockInCh:   make(chan newBlockEvent, 100),
 		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
@@ -195,8 +193,8 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 		case <-daTicker.C:
 			m.retrieveCond.Signal()
 		case header := <-m.HeaderInCh:
-			m.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
-			newHeight := header.Height
+			m.logger.Debug("block header received", "height", header.Header.Height, "hash", header.Header.Hash())
+			newHeight := header.Header.Height
 			currentHeight := m.store.Height()
 			// in case of client reconnecting after being offline
 			// newHeight may be significantly larger than currentHeight
@@ -205,6 +203,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCond.Signal()
 			}
+			m.CommitInCh <- &header.Commit
 		case commit := <-m.CommitInCh:
 			// TODO(tzdybal): check if it's from right aggregator
 			m.lastCommit.Store(commit)
@@ -235,6 +234,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 	}
 }
 
+// trySyncNextBlock tries to progress one step (one block) in sync process.
+//
+// To be able to apply block and height h, we need to have its Commit. It is contained in block at height h+1.
+// If block at height h+1 is not available, value of last gossiped commit is checked.
+// If commit for block h is available, we proceed with sync process, and remove synced block from sync cache.
 func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	var b1 *types.Block
 	var commit *types.Commit
@@ -277,7 +281,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
-		if m.daHeight > newState.DAHeight {
+		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
 		m.lastState = newState
@@ -293,10 +297,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 func (m *Manager) getLastCommit() *types.Commit {
 	ptr := m.lastCommit.Load()
-	if ptr != nil {
-		return m.lastCommit.Load().(*types.Commit)
+	if ptr == nil {
+		return nil
 	}
-	return nil
+	return ptr.(*types.Commit)
 }
 
 // RetrieveLoop is responsible for interacting with DA layer.
@@ -480,8 +484,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Only update the stored height after successfully submitting to DA layer and committing to the DB
 	m.store.SetHeight(block.Header.Height)
 
-	m.publishHeader(block)
-	m.publishCommit(commit)
+	m.publishSignedHeader(block, commit)
 
 	return nil
 }
@@ -507,8 +510,6 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
-	m.HeaderOutCh <- &block.Header
-
 	return nil
 }
 
@@ -521,13 +522,8 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 }
 
 // TODO(tzdybal): consider inlining
-func (m *Manager) publishHeader(block *types.Block) {
-	m.HeaderOutCh <- &block.Header
-}
-
-// TODO(tzdybal): consider inlining
-func (m *Manager) publishCommit(commit *types.Commit) {
-	m.CommitOutCh <- commit
+func (m *Manager) publishSignedHeader(block *types.Block, commit *types.Commit) {
+	m.HeaderOutCh <- &types.SignedHeader{Header: block.Header, Commit: *commit}
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {
