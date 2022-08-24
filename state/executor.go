@@ -368,7 +368,7 @@ func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs 
 		stateIsr := currentIsrs[index]
 		if !bytes.Equal(stateIsr, generatedIsr) {
 			e.logger.Debug("ISR Mismatch", "given_isr", stateIsr, "generated_isr", generatedIsr)
-			_, err := e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+			_, err := e.proxyApp.TriggerFraudProofGenerationModeSync(abci.RequestTriggerFraudProofGenerationMode{})
 			if err != nil {
 				return err
 			}
