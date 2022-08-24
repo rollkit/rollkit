@@ -284,19 +284,19 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
 			txRes := r.DeliverTx
 
-			if currentIsrs != nil {
-				generatedIsr, err := e.getAppHash()
-				if err != nil {
-					return
-				}
-				deliverTxIsr := currentIsrs[currentIsrIndex]
-				currentIsrIndex++
-				if !bytes.Equal(deliverTxIsr, generatedIsr) {
-					e.logger.Debug("ISR Mismatch", "given_isr", deliverTxIsr, "generated_isr", generatedIsr)
-					_ = req.Value.(*abci.Request_DeliverTx).DeliverTx.Tx
-					go e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
-				}
-			}
+			// if currentIsrs != nil {
+			// 	generatedIsr, err := e.getAppHash()
+			// 	if err != nil {
+			// 		return
+			// 	}
+			// 	deliverTxIsr := currentIsrs[currentIsrIndex]
+			// 	currentIsrIndex++
+			// 	if !bytes.Equal(deliverTxIsr, generatedIsr) {
+			// 		e.logger.Debug("ISR Mismatch", "given_isr", deliverTxIsr, "generated_isr", generatedIsr)
+			// 		_ = req.Value.(*abci.Request_DeliverTx).DeliverTx.Tx
+			// 		go e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+			// 	}
+			// }
 
 			if txRes.Code == abci.CodeTypeOK {
 				validTxs++

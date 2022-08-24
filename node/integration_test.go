@@ -205,7 +205,6 @@ func TestFraudProofGenerationTrigger(t *testing.T) {
 
 	for i, app := range apps {
 		app.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
-		app.AssertNumberOfCalls(t, "GenerateFraudProof", 1)
 		app.AssertExpectations(t)
 
 		// assert that we have most of the blocks from aggregator
@@ -291,8 +290,8 @@ func createNode(n int, isMalicious bool, aggregator bool, dalc da.DataAvailabili
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{Events: generateEventsWithOneEventIsr(t)})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{Events: generateEventsWithOneEventIsr(t)})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
-	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: []byte{1, 2, 3, 4}})
+	// app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 
 	deliverTxEvents := generateEventsWithOneEventIsr(t)
 	if isMalicious {
@@ -302,9 +301,9 @@ func createNode(n int, isMalicious bool, aggregator bool, dalc da.DataAvailabili
 		wg.Done()
 	})
 
-	if isMalicious && !aggregator {
-		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
-	}
+	// if isMalicious && !aggregator {
+	// 	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+	// }
 
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	node, err := NewNode(
