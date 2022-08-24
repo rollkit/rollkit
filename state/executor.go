@@ -319,15 +319,16 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	ISRs = append(ISRs, isr)
-	isFraud, err := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-	if err != nil {
-		return nil, err
+	isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+	if isFraud {
+		fraudProof, err := e.generateFraudProof(block)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: gossip fraudProof to P2P network
+		// fraudTx: BeginBlock
 	}
 	currentIsrIndex++
-
-	if isFraud {
-		// TODO: call generate fraudproof, fraudTx: BeginBlock
-	}
 
 	for _, tx := range block.Data.Txs {
 		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
@@ -339,15 +340,16 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 			return nil, err
 		}
 		ISRs = append(ISRs, isr)
-		isFraud, err = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-		if err != nil {
-			return nil, err
-		}
-		currentIsrIndex++
+		isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 		if isFraud {
-			// TODO: fast-forward app to right before this DeliverTx, call generate fraudproof, then gossip it to P2P network
+			fraudProof, err := e.generateFraudProof(block)
+			if err != nil {
+				return nil, err
+			}
+			// TODO: gossip fraudProof to P2P network
 			// fraudTx: current DeliverTx
 		}
+		currentIsrIndex++
 	}
 
 	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height)})
@@ -359,12 +361,13 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	ISRs = append(ISRs, isr)
-	isFraud, err = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-	if err != nil {
-		return nil, err
-	}
+	isFraud = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 	if isFraud {
-		// TODO: fast-forward app to right before EndBlock, call generate fraudproof, then gossip it to P2P network
+		fraudProof, err := e.generateFraudProof(block)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: gossip fraudProof to P2P network
 		// fraudTx: EndBlock
 	}
 	if block.Data.IntermediateStateRoots.RawRootsList == nil {
@@ -375,24 +378,28 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	return abciResponses, nil
 }
 
-func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) (bool, error) {
+func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) bool {
 	if currentIsrs != nil {
 		stateIsr := currentIsrs[index]
 		if !bytes.Equal(stateIsr, generatedIsr) {
 			e.logger.Debug("ISR Mismatch", "given_isr", stateIsr, "generated_isr", generatedIsr)
-			resp, err := e.proxyApp.TriggerFraudProofGenerationModeSync(abci.RequestTriggerFraudProofGenerationMode{})
-			if err != nil {
-				return false, err
-			}
-			if resp.Success {
-				return true, nil
-
-			} else {
-				return false, fmt.Errorf("trigger fraud proof generation mode failed")
-			}
+			return true
 		}
 	}
-	return false, nil
+	return false
+}
+
+func (e *BlockExecutor) generateFraudProof(block *types.Block) (*abci.FraudProof, error) {
+	resp, err := e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+	if err != nil {
+		return nil, err
+	}
+	if resp.FraudProof != nil {
+		return resp.FraudProof, nil
+
+	} else {
+		return nil, fmt.Errorf("fraud proof generation failed")
+	}
 }
 
 func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {

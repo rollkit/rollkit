@@ -96,21 +96,6 @@ func (_m *Application) GetAppHash(_a0 types.RequestGetAppHash) types.ResponseGet
 	return r0
 }
 
-// Commit provides a mock function with given fields:
-func (_m *Application) TriggerFraudProofGenerationMode(_a0 types.RequestTriggerFraudProofGenerationMode) types.ResponseTriggerFraudProofGenerationMode {
-	ret := _m.Called(_a0)
-
-	var r0 types.ResponseTriggerFraudProofGenerationMode
-	if rf, ok := ret.Get(0).(func(types.RequestTriggerFraudProofGenerationMode) types.ResponseTriggerFraudProofGenerationMode); ok {
-		r0 = rf(_a0)
-	} else {
-		r0 = ret.Get(0).(types.ResponseTriggerFraudProofGenerationMode)
-	}
-
-	return r0
-}
-
-
 // DeliverTx provides a mock function with given fields: _a0
 func (_m *Application) DeliverTx(_a0 types.RequestDeliverTx) types.ResponseDeliverTx {
 	ret := _m.Called(_a0)

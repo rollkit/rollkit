@@ -209,7 +209,7 @@ func TestFraudProofTrigger(t *testing.T) {
 		beginCnt := 0
 		endCnt := 0
 		commitCnt := 0
-		triggerFraudProofGenerationModeCnt := 0
+		generateFraudProofCnt := 0
 		for _, call := range app.Calls {
 			switch call.Method {
 			case "BeginBlock":
@@ -218,8 +218,8 @@ func TestFraudProofTrigger(t *testing.T) {
 				endCnt++
 			case "Commit":
 				commitCnt++
-			case "TriggerFraudProofGenerationMode":
-				triggerFraudProofGenerationModeCnt++
+			case "GenerateFraudProof":
+				generateFraudProofCnt++
 			}
 		}
 		aggregatorHeight := nodes[0].Store.Height()
@@ -228,7 +228,7 @@ func TestFraudProofTrigger(t *testing.T) {
 		assert.GreaterOrEqual(endCnt, adjustedHeight)
 		assert.GreaterOrEqual(commitCnt, adjustedHeight)
 
-		assert.Equal(triggerFraudProofGenerationModeCnt, beginCnt+endCnt+clientNodes)
+		assert.Equal(generateFraudProofCnt, beginCnt+endCnt+clientNodes)
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
@@ -300,7 +300,7 @@ func createNode(n int, isMalicious bool, aggregator bool, dalc da.DataAvailabili
 	}
 
 	if isMalicious && !aggregator {
-		app.On("TriggerFraudProofGenerationMode", mock.Anything).Return(abci.ResponseTriggerFraudProofGenerationMode{})
+		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{}})
 	}
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
 		wg.Done()
