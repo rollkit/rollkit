@@ -36,6 +36,8 @@ message Request {
     RequestOfferSnapshot      offer_snapshot       = 13;
     RequestLoadSnapshotChunk  load_snapshot_chunk  = 14;
     RequestApplySnapshotChunk apply_snapshot_chunk = 15;
+    RequestGetAppHash         get_app_hash         = 16;
+    RequestGenerateFraudProof generate_fraud_proof = 17;
   }
 }
 
@@ -102,8 +104,7 @@ message RequestEndBlock {
 message RequestCommit {}
 
 // lists available snapshots
-message RequestListSnapshots {
-}
+message RequestListSnapshots {}
 
 // offers a snapshot to the application
 message RequestOfferSnapshot {
@@ -123,6 +124,16 @@ message RequestApplySnapshotChunk {
   uint32 index  = 1;
   bytes  chunk  = 2;
   string sender = 3;
+}
+
+// Gets the current appHash
+message RequestGetAppHash {}
+
+// Generates a fraud proof
+message RequestGenerateFraudProof {
+  RequestBeginBlock beginBlockRequest = 1 [(gogoproto.nullable) = false];
+  repeated RequestDeliverTx deliverTxRequests = 2;
+  RequestEndBlock endBlockRequest = 3;
 }
 
 //----------------------------------------
@@ -146,6 +157,8 @@ message Response {
     ResponseOfferSnapshot      offer_snapshot       = 14;
     ResponseLoadSnapshotChunk  load_snapshot_chunk  = 15;
     ResponseApplySnapshotChunk apply_snapshot_chunk = 16;
+    ResponseGetAppHash         get_app_hash         = 17;
+    ResponseGenerateFraudProof generate_fraud_proof = 18;
   }
 }
 
@@ -212,6 +225,12 @@ message ResponseCheckTx {
   repeated Event events     = 7
       [(gogoproto.nullable) = false, (gogoproto.jsontag) = "events,omitempty"];
   string codespace = 8;
+  string sender    = 9;
+  int64  priority  = 10;
+
+  // mempool_error is set by Tendermint.
+  // ABCI applictions creating a ResponseCheckTX should not set mempool_error.
+  string mempool_error = 11;
 }
 
 message ResponseDeliverTx {
@@ -221,16 +240,17 @@ message ResponseDeliverTx {
   string         info       = 4;  // nondeterministic
   int64          gas_wanted = 5 [json_name = "gas_wanted"];
   int64          gas_used   = 6 [json_name = "gas_used"];
-  repeated Event events     = 7
-      [(gogoproto.nullable) = false, (gogoproto.jsontag) = "events,omitempty"]; // nondeterministic
+  repeated Event events     = 7 [
+    (gogoproto.nullable) = false,
+    (gogoproto.jsontag)  = "events,omitempty"
+  ];  // nondeterministic
   string codespace = 8;
 }
 
 message ResponseEndBlock {
-  repeated ValidatorUpdate validator_updates = 1
-      [(gogoproto.nullable) = false];
-  ConsensusParams consensus_param_updates = 2;
-  repeated Event  events                  = 3
+  repeated ValidatorUpdate validator_updates       = 1 [(gogoproto.nullable) = false];
+  ConsensusParams          consensus_param_updates = 2;
+  repeated Event           events                  = 3
       [(gogoproto.nullable) = false, (gogoproto.jsontag) = "events,omitempty"];
 }
 
@@ -274,6 +294,14 @@ message ResponseApplySnapshotChunk {
     RETRY_SNAPSHOT  = 4;  // Retry snapshot (combine with refetch and reject)
     REJECT_SNAPSHOT = 5;  // Reject this snapshot, try others
   }
+}
+
+message ResponseGetAppHash {
+  bytes app_hash = 1;
+}
+
+message ResponseGenerateFraudProof {
+  FraudProof fraud_proof = 1;
 }
 
 //----------------------------------------
@@ -364,10 +392,8 @@ message Evidence {
   // The height when the offense occurred
   int64 height = 3;
   // The corresponding time where the offense occurred
-  google.protobuf.Timestamp time = 4 [
-    (gogoproto.nullable) = false,
-    (gogoproto.stdtime)  = true
-  ];
+  google.protobuf.Timestamp time = 4
+      [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
   // Total voting power of the validator set in case the ABCI application does
   // not store historical validators.
   // https://github.com/tendermint/tendermint/issues/4581
@@ -383,6 +409,30 @@ message Snapshot {
   uint32 chunks   = 3;  // Number of chunks in the snapshot
   bytes  hash     = 4;  // Arbitrary snapshot hash, equal only if identical
   bytes  metadata = 5;  // Arbitrary application metadata
+}
+
+// Represents a single-round fraudProof
+message FraudProof {
+  int64 block_height = 1;
+  bytes app_hash = 2;
+  map<string, StateWitness> state_witness = 3;
+}
+
+// State witness with a list of all witness data
+message StateWitness {
+  // store level proof
+  tendermint.crypto.ProofOp proof_op = 1;
+  // substore level hash
+  bytes root_hash = 2;
+  // List of witness data
+  repeated WitnessData witness_data = 3;
+}
+
+// Witness data containing a key/value pair and a SMT proof for said key/value pair
+message WitnessData {
+  bytes key = 1;
+  bytes value = 2;
+  tendermint.crypto.ProofOp proof = 3;
 }
 
 //----------------------------------------
@@ -402,6 +452,10 @@ service ABCIApplication {
   rpc EndBlock(RequestEndBlock) returns (ResponseEndBlock);
   rpc ListSnapshots(RequestListSnapshots) returns (ResponseListSnapshots);
   rpc OfferSnapshot(RequestOfferSnapshot) returns (ResponseOfferSnapshot);
-  rpc LoadSnapshotChunk(RequestLoadSnapshotChunk) returns (ResponseLoadSnapshotChunk);
-  rpc ApplySnapshotChunk(RequestApplySnapshotChunk) returns (ResponseApplySnapshotChunk);
+  rpc LoadSnapshotChunk(RequestLoadSnapshotChunk)
+      returns (ResponseLoadSnapshotChunk);
+  rpc ApplySnapshotChunk(RequestApplySnapshotChunk)
+      returns (ResponseApplySnapshotChunk);
+  rpc GetAppHash(RequestGetAppHash) returns (ResponseGetAppHash);
+  rpc GenerateFraudProof(RequestGenerateFraudProof) returns (ResponseGenerateFraudProof);
 }

@@ -301,16 +301,16 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	}
 	abciHeader.ChainID = e.chainID
 	abciHeader.ValidatorsHash = state.Validators.Hash()
-	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(
-		abci.RequestBeginBlock{
-			Hash:   hash[:],
-			Header: abciHeader,
-			LastCommitInfo: abci.LastCommitInfo{
-				Round: 0,
-				Votes: nil,
-			},
-			ByzantineValidators: nil,
-		})
+	beginBlockRequest := abci.RequestBeginBlock{
+		Hash:   hash[:],
+		Header: abciHeader,
+		LastCommitInfo: abci.LastCommitInfo{
+			Round: 0,
+			Votes: nil,
+		},
+		ByzantineValidators: nil,
+	}
+	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(beginBlockRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -321,17 +321,20 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	ISRs = append(ISRs, isr)
 	isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 	if isFraud {
-		fraudProof, err := e.generateFraudProof(block)
+		fraudProof, err := e.generateFraudProof(&beginBlockRequest, nil, nil)
 		if err != nil {
 			return nil, err
 		}
 		// TODO: gossip fraudProof to P2P network
 		// fraudTx: BeginBlock
+		_ = fraudProof
 	}
 	currentIsrIndex++
-
+	deliverTxRequests := make([]*abci.RequestDeliverTx, len(block.Data.Txs))
 	for _, tx := range block.Data.Txs {
-		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
+		deliverTxRequest := abci.RequestDeliverTx{Tx: tx}
+		deliverTxRequests = append(deliverTxRequests, &deliverTxRequest)
+		res := e.proxyApp.DeliverTxAsync(deliverTxRequest)
 		if res.GetException() != nil {
 			return nil, errors.New(res.GetException().GetError())
 		}
@@ -342,17 +345,18 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		ISRs = append(ISRs, isr)
 		isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 		if isFraud {
-			fraudProof, err := e.generateFraudProof(block)
+			fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, nil)
 			if err != nil {
 				return nil, err
 			}
 			// TODO: gossip fraudProof to P2P network
 			// fraudTx: current DeliverTx
+			_ = fraudProof
 		}
 		currentIsrIndex++
 	}
-
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height)})
+	endBlockRequest := abci.RequestEndBlock{Height: int64(block.Header.Height)}
+	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(endBlockRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -363,12 +367,13 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	ISRs = append(ISRs, isr)
 	isFraud = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 	if isFraud {
-		fraudProof, err := e.generateFraudProof(block)
+		fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, &endBlockRequest)
 		if err != nil {
 			return nil, err
 		}
 		// TODO: gossip fraudProof to P2P network
 		// fraudTx: EndBlock
+		_ = fraudProof
 	}
 	if block.Data.IntermediateStateRoots.RawRootsList == nil {
 		// Block producer: Initial ISRs generated here
@@ -389,8 +394,19 @@ func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs 
 	return false
 }
 
-func (e *BlockExecutor) generateFraudProof(block *types.Block) (*abci.FraudProof, error) {
-	resp, err := e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (*abci.FraudProof, error) {
+	generateFraudProofRequest := abci.RequestGenerateFraudProof{}
+	if beginBlockRequest == nil {
+		return nil, fmt.Errorf("begin block request cannot be a nil parameter")
+	}
+	generateFraudProofRequest.BeginBlockRequest = *beginBlockRequest
+	if deliverTxRequests != nil {
+		generateFraudProofRequest.DeliverTxRequests = deliverTxRequests
+		if endBlockRequest != nil {
+			generateFraudProofRequest.EndBlockRequest = endBlockRequest
+		}
+	}
+	resp, err := e.proxyApp.GenerateFraudProofSync(generateFraudProofRequest)
 	if err != nil {
 		return nil, err
 	}
