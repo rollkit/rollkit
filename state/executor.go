@@ -283,21 +283,6 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	e.proxyApp.SetResponseCallback(func(req *abci.Request, res *abci.Response) {
 		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
 			txRes := r.DeliverTx
-
-			// if currentIsrs != nil {
-			// 	generatedIsr, err := e.getAppHash()
-			// 	if err != nil {
-			// 		return
-			// 	}
-			// 	deliverTxIsr := currentIsrs[currentIsrIndex]
-			// 	currentIsrIndex++
-			// 	if !bytes.Equal(deliverTxIsr, generatedIsr) {
-			// 		e.logger.Debug("ISR Mismatch", "given_isr", deliverTxIsr, "generated_isr", generatedIsr)
-			// 		_ = req.Value.(*abci.Request_DeliverTx).DeliverTx.Tx
-			// 		go e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
-			// 	}
-			// }
-
 			if txRes.Code == abci.CodeTypeOK {
 				validTxs++
 			} else {
@@ -334,6 +319,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	ISRs = append(ISRs, isr)
+	e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 	currentIsrIndex++
 
 	for _, tx := range block.Data.Txs {
@@ -346,6 +332,8 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 			return nil, err
 		}
 		ISRs = append(ISRs, isr)
+		e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+		currentIsrIndex++
 	}
 
 	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height)})
@@ -357,12 +345,23 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	ISRs = append(ISRs, isr)
+	e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 	if block.Data.IntermediateStateRoots.RawRootsList == nil {
 		// Block producer: Initial ISRs generated here
 		block.Data.IntermediateStateRoots.RawRootsList = ISRs
 	}
 
 	return abciResponses, nil
+}
+
+func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) {
+	if currentIsrs != nil {
+		stateIsr := currentIsrs[index]
+		if !bytes.Equal(stateIsr, generatedIsr) {
+			e.logger.Debug("ISR Mismatch", "given_isr", stateIsr, "generated_isr", generatedIsr)
+			go e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+		}
+	}
 }
 
 func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
