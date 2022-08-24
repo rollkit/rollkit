@@ -80,11 +80,13 @@ func TestApplyBlock(t *testing.T) {
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 	var mockAppHash [32]byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{
+		AppHash: mockAppHash[:],
+	})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
 		Data: mockAppHash[:],
 	})
