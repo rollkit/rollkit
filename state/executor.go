@@ -326,7 +326,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrIndex++
 
 	if isFraud {
-		// TODO: catch up app and call generate fraudproof, then gossip it to P2P network
+		// TODO: call generate fraudproof, fraudTx: BeginBlock
 	}
 
 	for _, tx := range block.Data.Txs {
@@ -345,7 +345,8 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		}
 		currentIsrIndex++
 		if isFraud {
-			// TODO: catch up app and call generate fraudproof, then gossip it to P2P network
+			// TODO: fast-forward app to right before this DeliverTx, call generate fraudproof, then gossip it to P2P network
+			// fraudTx: current DeliverTx
 		}
 	}
 
@@ -363,7 +364,8 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	if isFraud {
-		// TODO: catch up app and call generate fraudproof, then gossip it to P2P network
+		// TODO: fast-forward app to right before EndBlock, call generate fraudproof, then gossip it to P2P network
+		// fraudTx: EndBlock
 	}
 	if block.Data.IntermediateStateRoots.RawRootsList == nil {
 		// Block producer: Initial ISRs generated here
