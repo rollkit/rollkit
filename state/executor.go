@@ -319,7 +319,10 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	ISRs = append(ISRs, isr)
-	e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+	err = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+	if err != nil {
+		return nil, err
+	}
 	currentIsrIndex++
 
 	for _, tx := range block.Data.Txs {
@@ -332,7 +335,10 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 			return nil, err
 		}
 		ISRs = append(ISRs, isr)
-		e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+		err = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+		if err != nil {
+			return nil, err
+		}
 		currentIsrIndex++
 	}
 
@@ -345,7 +351,10 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	ISRs = append(ISRs, isr)
-	e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+	err = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+	if err != nil {
+		return nil, err
+	}
 	if block.Data.IntermediateStateRoots.RawRootsList == nil {
 		// Block producer: Initial ISRs generated here
 		block.Data.IntermediateStateRoots.RawRootsList = ISRs
@@ -354,14 +363,18 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	return abciResponses, nil
 }
 
-func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) {
+func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) error {
 	if currentIsrs != nil {
 		stateIsr := currentIsrs[index]
 		if !bytes.Equal(stateIsr, generatedIsr) {
 			e.logger.Debug("ISR Mismatch", "given_isr", stateIsr, "generated_isr", generatedIsr)
-			e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+			_, err := e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
