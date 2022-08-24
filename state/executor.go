@@ -21,6 +21,8 @@ import (
 	"github.com/celestiaorg/optimint/types"
 )
 
+var fraudProofsEnabled = true
+
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
 	proposerAddress []byte
@@ -268,17 +270,17 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrs := block.Data.IntermediateStateRoots.RawRootsList
 	currentIsrIndex := 0
 
-	if currentIsrs != nil {
-		expectedLength := len(block.Data.Txs) + 2
-		// BeginBlock + DeliverTxs + EndBlock
-		if len(currentIsrs) != expectedLength {
-			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
+	if fraudProofsEnabled {
+		if currentIsrs != nil {
+			expectedLength := len(block.Data.Txs) + 2
+			// BeginBlock + DeliverTxs + EndBlock
+			if len(currentIsrs) != expectedLength {
+				return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
+			}
 		}
 	}
 
 	ISRs := make([][]byte, 0)
-
-	var err error
 
 	e.proxyApp.SetResponseCallback(func(req *abci.Request, res *abci.Response) {
 		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
@@ -314,22 +316,25 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	if err != nil {
 		return nil, err
 	}
-	isr, err := e.getAppHash()
-	if err != nil {
-		return nil, err
-	}
-	ISRs = append(ISRs, isr)
-	isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-	if isFraud {
-		fraudProof, err := e.generateFraudProof(&beginBlockRequest, nil, nil)
+
+	if fraudProofsEnabled {
+		isr, err := e.getAppHash()
 		if err != nil {
 			return nil, err
 		}
-		// TODO: gossip fraudProof to P2P network
-		// fraudTx: BeginBlock
-		_ = fraudProof
+		ISRs = append(ISRs, isr)
+		isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+		if isFraud {
+			fraudProof, err := e.generateFraudProof(&beginBlockRequest, nil, nil)
+			if err != nil {
+				return nil, err
+			}
+			// TODO: gossip fraudProof to P2P network
+			// fraudTx: BeginBlock
+			_ = fraudProof
+		}
+		currentIsrIndex++
 	}
-	currentIsrIndex++
 	deliverTxRequests := make([]*abci.RequestDeliverTx, len(block.Data.Txs))
 	for _, tx := range block.Data.Txs {
 		deliverTxRequest := abci.RequestDeliverTx{Tx: tx}
@@ -338,6 +343,33 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		if res.GetException() != nil {
 			return nil, errors.New(res.GetException().GetError())
 		}
+
+		if fraudProofsEnabled {
+			isr, err := e.getAppHash()
+			if err != nil {
+				return nil, err
+			}
+			ISRs = append(ISRs, isr)
+			isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+			if isFraud {
+				fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, nil)
+				if err != nil {
+					return nil, err
+				}
+				// TODO: gossip fraudProof to P2P network
+				// fraudTx: current DeliverTx
+				_ = fraudProof
+			}
+			currentIsrIndex++
+		}
+	}
+	endBlockRequest := abci.RequestEndBlock{Height: int64(block.Header.Height)}
+	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(endBlockRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if fraudProofsEnabled {
 		isr, err := e.getAppHash()
 		if err != nil {
 			return nil, err
@@ -345,39 +377,18 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		ISRs = append(ISRs, isr)
 		isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 		if isFraud {
-			fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, nil)
+			fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, &endBlockRequest)
 			if err != nil {
 				return nil, err
 			}
 			// TODO: gossip fraudProof to P2P network
-			// fraudTx: current DeliverTx
+			// fraudTx: EndBlock
 			_ = fraudProof
 		}
-		currentIsrIndex++
-	}
-	endBlockRequest := abci.RequestEndBlock{Height: int64(block.Header.Height)}
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(endBlockRequest)
-	if err != nil {
-		return nil, err
-	}
-	isr, err = e.getAppHash()
-	if err != nil {
-		return nil, err
-	}
-	ISRs = append(ISRs, isr)
-	isFraud = e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-	if isFraud {
-		fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, &endBlockRequest)
-		if err != nil {
-			return nil, err
+		if block.Data.IntermediateStateRoots.RawRootsList == nil {
+			// Block producer: Initial ISRs generated here
+			block.Data.IntermediateStateRoots.RawRootsList = ISRs
 		}
-		// TODO: gossip fraudProof to P2P network
-		// fraudTx: EndBlock
-		_ = fraudProof
-	}
-	if block.Data.IntermediateStateRoots.RawRootsList == nil {
-		// Block producer: Initial ISRs generated here
-		block.Data.IntermediateStateRoots.RawRootsList = ISRs
 	}
 
 	return abciResponses, nil
