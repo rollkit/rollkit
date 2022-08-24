@@ -41,7 +41,6 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
-	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
