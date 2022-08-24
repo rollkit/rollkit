@@ -265,11 +265,39 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	validTxs := 0
 	invalidTxs := 0
 
+	currentIsrs := block.Data.IntermediateStateRoots.RawRootsList
+	currentIsrIndex := 0
+
+	if currentIsrs != nil {
+		expectedLength := len(block.Data.Txs) + 2
+		// BeginBlock + DeliverTxs + EndBlock
+		if len(currentIsrs) != expectedLength {
+			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
+		}
+	}
+
+	ISRs := make([][]byte, 0)
+
 	var err error
 
 	e.proxyApp.SetResponseCallback(func(req *abci.Request, res *abci.Response) {
 		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
 			txRes := r.DeliverTx
+
+			if currentIsrs != nil {
+				generatedIsr, err := e.getAppHash()
+				if err != nil {
+					return
+				}
+				deliverTxIsr := currentIsrs[currentIsrIndex]
+				currentIsrIndex++
+				if !bytes.Equal(deliverTxIsr, generatedIsr) {
+					e.logger.Debug("ISR Mismatch", "given_isr", deliverTxIsr, "generated_isr", generatedIsr)
+					_ = req.Value.(*abci.Request_DeliverTx).DeliverTx.Tx
+					go e.proxyApp.GenerateFraudProofSync(abci.RequestGenerateFraudProof{})
+				}
+			}
+
 			if txRes.Code == abci.CodeTypeOK {
 				validTxs++
 			} else {
@@ -301,17 +329,37 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	if err != nil {
 		return nil, err
 	}
+	isr, err := e.getAppHash()
+	if err != nil {
+		return nil, err
+	}
+	ISRs = append(ISRs, isr)
+	currentIsrIndex++
 
 	for _, tx := range block.Data.Txs {
 		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
 		if res.GetException() != nil {
 			return nil, errors.New(res.GetException().GetError())
 		}
+		isr, err := e.getAppHash()
+		if err != nil {
+			return nil, err
+		}
+		ISRs = append(ISRs, isr)
 	}
 
 	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(abci.RequestEndBlock{Height: int64(block.Header.Height)})
 	if err != nil {
 		return nil, err
+	}
+	isr, err = e.getAppHash()
+	if err != nil {
+		return nil, err
+	}
+	ISRs = append(ISRs, isr)
+	if block.Data.IntermediateStateRoots.RawRootsList == nil {
+		// Block producer: Initial ISRs generated here
+		block.Data.IntermediateStateRoots.RawRootsList = ISRs
 	}
 
 	return abciResponses, nil
@@ -365,6 +413,14 @@ func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.
 		}))
 	}
 	return err
+}
+
+func (e *BlockExecutor) getAppHash() ([]byte, error) {
+	isrResp, err := e.proxyApp.GetAppHashSync(abci.RequestGetAppHash{})
+	if err != nil {
+		return nil, err
+	}
+	return isrResp.AppHash, nil
 }
 
 func toOptimintTxs(txs tmtypes.Txs) types.Txs {

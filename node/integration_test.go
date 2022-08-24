@@ -89,7 +89,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 
 	var wg sync.WaitGroup
 	clientNodes := 4
-	nodes, apps := createNodes(clientNodes+1, &wg, t)
+	nodes, apps := createNodes(clientNodes+1, false, &wg, t)
 
 	wg.Add((clientNodes + 1) * clientNodes)
 	for _, n := range nodes {
@@ -159,7 +159,85 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
-func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
+func TestFraudProofGenerationTrigger(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	clientNodes := 4
+
+	nodes, apps := createNodes(clientNodes+1, true, &wg, t)
+
+	wg.Add((clientNodes + 1) * clientNodes)
+	for _, n := range nodes {
+		require.NoError(n.Start())
+	}
+
+	time.Sleep(1 * time.Second)
+
+	for i := 1; i < len(nodes); i++ {
+		data := strconv.Itoa(i) + time.Now().String()
+		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
+	}
+
+	timeout := time.NewTimer(time.Second * 30)
+	doneChan := make(chan struct{})
+	go func() {
+		defer close(doneChan)
+		wg.Wait()
+	}()
+	select {
+	case <-doneChan:
+	case <-timeout.C:
+		t.FailNow()
+	}
+
+	for _, n := range nodes {
+		require.NoError(n.Stop())
+	}
+	aggApp := apps[0]
+	apps = apps[1:]
+
+	aggApp.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
+	aggApp.AssertExpectations(t)
+
+	for i, app := range apps {
+		app.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
+		app.AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+		app.AssertExpectations(t)
+
+		// assert that we have most of the blocks from aggregator
+		beginCnt := 0
+		endCnt := 0
+		commitCnt := 0
+		for _, call := range app.Calls {
+			switch call.Method {
+			case "BeginBlock":
+				beginCnt++
+			case "EndBlock":
+				endCnt++
+			case "Commit":
+				commitCnt++
+			}
+		}
+		aggregatorHeight := nodes[0].Store.Height()
+		adjustedHeight := int(aggregatorHeight - 3) // 3 is completely arbitrary
+		assert.GreaterOrEqual(beginCnt, adjustedHeight)
+		assert.GreaterOrEqual(endCnt, adjustedHeight)
+		assert.GreaterOrEqual(commitCnt, adjustedHeight)
+
+		// assert that all blocks known to node are same as produced by aggregator
+		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
+			nodeBlock, err := nodes[i].Store.LoadBlock(h)
+			require.NoError(err)
+			aggBlock, err := nodes[0].Store.LoadBlock(h)
+			require.NoError(err)
+			assert.Equal(aggBlock, nodeBlock)
+		}
+	}
+}
+
+func createNodes(num int, isAggregatorMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
 	t.Helper()
 
 	// create keys first, as they are required for P2P connections
@@ -173,15 +251,15 @@ func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.A
 	dalc := &mockda.MockDataAvailabilityLayerClient{}
 	_ = dalc.Init(nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
-	nodes[0], apps[0] = createNode(0, true, dalc, keys, wg, t)
+	nodes[0], apps[0] = createNode(0, isAggregatorMalicious, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {
-		nodes[i], apps[i] = createNode(i, false, dalc, keys, wg, t)
+		nodes[i], apps[i] = createNode(i, isAggregatorMalicious, false, dalc, keys, wg, t)
 	}
 
 	return nodes, apps
 }
 
-func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
+func createNode(n int, isMalicious bool, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -208,12 +286,21 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{Events: generateEventsWithOneEventIsr(t)})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{Events: generateEventsWithOneEventIsr(t)})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
+
+	deliverTxEvents := generateEventsWithOneEventIsr(t)
+	if isMalicious {
+		deliverTxEvents[0].Attributes[0].Value = []byte{9, 8, 7, 6}
+	}
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{Events: deliverTxEvents}).Run(func(args mock.Arguments) {
 		wg.Done()
 	})
+
+	if isMalicious && !aggregator {
+		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+	}
 
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	node, err := NewNode(
@@ -237,4 +324,15 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 	node.blockManager.SetDALC(dalc)
 
 	return node, app
+}
+
+func generateEventsWithOneEventIsr(t *testing.T) []abci.Event {
+	t.Helper()
+	return []abci.Event{{
+		Type: "isr",
+		Attributes: []abci.EventAttribute{{
+			Key:   []byte("isr"),
+			Value: []byte{1, 2, 3, 4},
+		}},
+	}}
 }
