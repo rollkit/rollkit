@@ -233,8 +233,18 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				delete(m.syncCache, currentHeight+1)
 			}
 		case fraudProof := <-m.FraudProofCh:
-			m.logger.Debug("fraud proof received", "Block Height", fraudProof.BlockHeight)
-			// TODO(manav): Set up a new cosmos app here
+			m.logger.Debug("fraud proof received", "Block Height", fraudProof.ToProto().BlockHeight)
+			// TODO(light-client): Set up a new cosmos-sdk app
+			// How to get expected appHash here?
+			success, err := m.executor.VerifyFraudProof(fraudProof, nil)
+			if err != nil {
+				m.logger.Error("failed to verify fraud proof", "error", err)
+				continue
+			}
+			if success {
+				// halt chain somehow
+			}
+
 		case <-ctx.Done():
 			return
 		}

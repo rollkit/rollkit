@@ -167,6 +167,20 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 	return state, resp, retainHeight, nil
 }
 
+func (e *BlockExecutor) VerifyFraudProof(fraudProof abci.FraudProof, expectedAppHash []byte) (bool, error) {
+	resp, err := e.proxyApp.VerifyFraudProofSync(
+		abci.RequestVerifyFraudProof{
+			FraudProof:      &fraudProof,
+			ExpectedAppHash: expectedAppHash,
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+	return resp.Success, nil
+
+}
+
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
