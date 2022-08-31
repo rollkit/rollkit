@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
 	abci "github.com/tendermint/tendermint/abci/types"
