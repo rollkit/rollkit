@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	tmsync "github.com/tendermint/tendermint/libs/sync"
 )
 
