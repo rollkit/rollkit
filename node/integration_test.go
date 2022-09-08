@@ -118,6 +118,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	for _, n := range nodes {
 		require.NoError(n.Stop())
 	}
+	time.Sleep(100 * time.Millisecond)
 	aggApp := apps[0]
 	apps = apps[1:]
 
@@ -150,9 +151,9 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
-			nodeBlock, err := nodes[i].Store.LoadBlock(h)
-			require.NoError(err)
 			aggBlock, err := nodes[0].Store.LoadBlock(h)
+			require.NoError(err)
+			nodeBlock, err := nodes[i].Store.LoadBlock(h)
 			require.NoError(err)
 			assert.Equal(aggBlock, nodeBlock)
 		}
@@ -192,7 +193,7 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
 	bmConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
+		BlockTime:   300 * time.Millisecond,
 		NamespaceID: [8]byte{8, 7, 6, 5, 4, 3, 2, 1},
 	}
 	for i := 0; i < len(keys); i++ {
