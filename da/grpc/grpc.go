@@ -85,14 +85,14 @@ func (d *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 		BaseResult: da.BaseResult{
 			Code:     da.StatusCode(resp.Result.Code),
 			Message:  resp.Result.Message,
-			DAHeight: resp.Result.DataLayerHeight,
+			DAHeight: resp.Result.DaHeight,
 		},
 	}
 }
 
 // CheckBlockAvailability proxies CheckBlockAvailability request to gRPC server.
-func (d *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
-	resp, err := d.client.CheckBlockAvailability(context.TODO(), &dalc.CheckBlockAvailabilityRequest{DataLayerHeight: dataLayerHeight})
+func (d *DataAvailabilityLayerClient) CheckBlockAvailability(daHeight uint64) da.ResultCheckBlock {
+	resp, err := d.client.CheckBlockAvailability(context.TODO(), &dalc.CheckBlockAvailabilityRequest{DaHeight: daHeight})
 	if err != nil {
 		return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -103,8 +103,8 @@ func (d *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 }
 
 // RetrieveBlocks proxies RetrieveBlocks request to gRPC server.
-func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	resp, err := d.client.RetrieveBlocks(context.TODO(), &dalc.RetrieveBlocksRequest{DataLayerHeight: dataLayerHeight})
+func (d *DataAvailabilityLayerClient) RetrieveBlocks(daHeight uint64) da.ResultRetrieveBlocks {
+	resp, err := d.client.RetrieveBlocks(context.TODO(), &dalc.RetrieveBlocksRequest{DaHeight: daHeight})
 	if err != nil {
 		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -122,7 +122,7 @@ func (d *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.
 		BaseResult: da.BaseResult{
 			Code:     da.StatusCode(resp.Result.Code),
 			Message:  resp.Result.Message,
-			DAHeight: dataLayerHeight,
+			DAHeight: daHeight,
 		},
 		Blocks: blocks,
 	}

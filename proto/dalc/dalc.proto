@@ -14,7 +14,7 @@ enum StatusCode {
 message DAResponse {
 	StatusCode code = 1;
 	string message = 2;
-	uint64 data_layer_height = 3;
+	uint64 da_height = 3;
 }
 
 message SubmitBlockRequest {
@@ -26,7 +26,7 @@ message SubmitBlockResponse {
 }
 
 message CheckBlockAvailabilityRequest {
-	uint64 data_layer_height = 1;
+	uint64 da_height = 1;
 }
 
 message CheckBlockAvailabilityResponse {
@@ -35,7 +35,7 @@ message CheckBlockAvailabilityResponse {
 }
 
 message RetrieveBlocksRequest {
-	uint64 data_layer_height = 1;
+	uint64 da_height = 1;
 }
 
 message RetrieveBlocksResponse {
