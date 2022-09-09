@@ -97,18 +97,18 @@ func (m *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-func (m *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
-	blocksRes := m.RetrieveBlocks(dataLayerHeight)
+func (m *DataAvailabilityLayerClient) CheckBlockAvailability(daHeight uint64) da.ResultCheckBlock {
+	blocksRes := m.RetrieveBlocks(daHeight)
 	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: blocksRes.Code}, DataAvailable: len(blocksRes.Blocks) > 0}
 }
 
 // RetrieveBlocks returns block at given height from data availability layer.
-func (m *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	if dataLayerHeight >= atomic.LoadUint64(&m.daHeight) {
+func (m *DataAvailabilityLayerClient) RetrieveBlocks(daHeight uint64) da.ResultRetrieveBlocks {
+	if daHeight >= atomic.LoadUint64(&m.daHeight) {
 		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: "block not found"}}
 	}
 
-	iter := m.dalcKV.PrefixIterator(getPrefix(dataLayerHeight))
+	iter := m.dalcKV.PrefixIterator(getPrefix(daHeight))
 	defer iter.Discard()
 
 	var blocks []*types.Block
