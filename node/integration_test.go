@@ -118,7 +118,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	for _, n := range nodes {
 		require.NoError(n.Stop())
 	}
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 	aggApp := apps[0]
 	apps = apps[1:]
 
