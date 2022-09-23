@@ -6,7 +6,7 @@
 
 ## Context
 
-Optimint Light Clients cannot validate transactions without state. They should therfore not gossip incomming transactions and the mempool can be disabled.  
+Rollmint Light Clients cannot validate transactions without state. They should therfore not gossip incomming transactions and the mempool can be disabled.  
 
 ### Explanation
 
@@ -53,4 +53,4 @@ Proposed
 
 ## References
 
-Issue #100 [Refereces](https://github.com/celestiaorg/optimint/issues/100#issuecomment-921848268)
+Issue #100 [Refereces](https://github.com/celestiaorg/Rollmint/issues/100#issuecomment-921848268)
