@@ -23,7 +23,7 @@ Statefull:
 
 - checks if txn and messages are valid based on a committed state
 
-Light clients cannot do statafull checks, because they don't have access to the state.
+Light clients cannot do statefull checks, because they don't have access to the state.
 Light clients can do stateless checks. Although it is easy to create invalid txn that pass the stateless checks. Light clients could therefore support a DOS-attack of the newtwork when they gossip invalid transactions.
 If light clients do not gossip transactions then they do not need the mempool.
 
