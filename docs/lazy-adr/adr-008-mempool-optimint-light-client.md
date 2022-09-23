@@ -53,4 +53,4 @@ Proposed
 
 ## References
 
-Issue #100 [Refereces](https://github.com/celestiaorg/optimint/issues/100#issuecomment-921848268)
+Issue #100 [Refereces](https://github.com/celestiaorg/Rollmint/issues/100#issuecomment-921848268)
