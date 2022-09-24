@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -60,7 +61,7 @@ func NewClient(node *node.Node) *Client {
 
 // ABCIInfo returns basic information about application state.
 func (c *Client) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := c.query().InfoSync(proxy.RequestInfo)
+	resInfo, err := c.appClient().InfoSync(proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (c *Client) ABCIQuery(ctx context.Context, path string, data tmbytes.HexByt
 
 // ABCIQueryWithOptions queries for data from application.
 func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.query().QuerySync(abci.RequestQuery{
+	resQuery, err := c.appClient().QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -755,7 +756,7 @@ func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.Res
 //
 // If valid, the tx is automatically added to the mempool.
 func (c *Client) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := c.mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
+	res, err := c.appClient().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
@@ -810,20 +811,8 @@ func (c *Client) resubscribe(subscriber string, q tmpubsub.Query) types.Subscrip
 	}
 }
 
-func (c *Client) consensus() proxy.AppConnConsensus {
-	return c.node.ProxyApp().Consensus()
-}
-
-func (c *Client) mempool() proxy.AppConnMempool {
-	return c.node.ProxyApp().Mempool()
-}
-
-func (c *Client) query() proxy.AppConnQuery {
-	return c.node.ProxyApp().Query()
-}
-
-func (c *Client) snapshot() proxy.AppConnSnapshot {
-	return c.node.ProxyApp().Snapshot()
+func (c *Client) appClient() abcicli.Client {
+	return c.node.AppClient()
 }
 
 func (c *Client) normalizeHeight(height *int64) uint64 {
