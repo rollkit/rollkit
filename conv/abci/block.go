@@ -7,7 +7,7 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 // ToABCIHeaderPB converts Optimint header to Header format defined in ABCI.

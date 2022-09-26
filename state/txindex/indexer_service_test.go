@@ -9,10 +9,10 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
-	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
-	"github.com/celestiaorg/optimint/state/txindex"
-	"github.com/celestiaorg/optimint/state/txindex/kv"
-	"github.com/celestiaorg/optimint/store"
+	blockidxkv "github.com/celestiaorg/rollmint/state/indexer/block/kv"
+	"github.com/celestiaorg/rollmint/state/txindex"
+	"github.com/celestiaorg/rollmint/state/txindex/kv"
+	"github.com/celestiaorg/rollmint/store"
 )
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {

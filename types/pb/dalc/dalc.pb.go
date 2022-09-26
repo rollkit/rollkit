@@ -6,7 +6,7 @@ package dalc
 import (
 	context "context"
 	fmt "fmt"
-	optimint "github.com/celestiaorg/optimint/types/pb/optimint"
+	optimint "github.com/celestiaorg/rollmint/types/pb/optimint"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"

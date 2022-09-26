@@ -7,7 +7,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/rollmint/config"
 )
 
 func TestTranslateAddresses(t *testing.T) {

@@ -15,10 +15,10 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	abciconv "github.com/celestiaorg/optimint/conv/abci"
-	"github.com/celestiaorg/optimint/log"
-	"github.com/celestiaorg/optimint/mempool"
-	"github.com/celestiaorg/optimint/types"
+	abciconv "github.com/celestiaorg/rollmint/conv/abci"
+	"github.com/celestiaorg/rollmint/log"
+	"github.com/celestiaorg/rollmint/mempool"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 // BlockExecutor creates and applies blocks and maintains state.

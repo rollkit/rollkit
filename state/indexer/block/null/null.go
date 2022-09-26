@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/optimint/state/indexer"
+	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 )

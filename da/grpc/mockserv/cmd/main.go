@@ -6,9 +6,9 @@ import (
 	"net"
 	"strconv"
 
-	grpcda "github.com/celestiaorg/optimint/da/grpc"
-	"github.com/celestiaorg/optimint/da/grpc/mockserv"
-	"github.com/celestiaorg/optimint/store"
+	grpcda "github.com/celestiaorg/rollmint/da/grpc"
+	"github.com/celestiaorg/rollmint/da/grpc/mockserv"
+	"github.com/celestiaorg/rollmint/store"
 )
 
 func main() {

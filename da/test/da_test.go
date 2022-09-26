@@ -12,16 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/da/celestia"
-	cmock "github.com/celestiaorg/optimint/da/celestia/mock"
-	grpcda "github.com/celestiaorg/optimint/da/grpc"
-	"github.com/celestiaorg/optimint/da/grpc/mockserv"
-	"github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/da/registry"
-	"github.com/celestiaorg/optimint/log/test"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/da"
+	"github.com/celestiaorg/rollmint/da/celestia"
+	cmock "github.com/celestiaorg/rollmint/da/celestia/mock"
+	grpcda "github.com/celestiaorg/rollmint/da/grpc"
+	"github.com/celestiaorg/rollmint/da/grpc/mockserv"
+	"github.com/celestiaorg/rollmint/da/mock"
+	"github.com/celestiaorg/rollmint/da/registry"
+	"github.com/celestiaorg/rollmint/log/test"
+	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond

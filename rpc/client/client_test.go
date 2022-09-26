@@ -25,11 +25,11 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/config"
-	abciconv "github.com/celestiaorg/optimint/conv/abci"
-	"github.com/celestiaorg/optimint/mocks"
-	"github.com/celestiaorg/optimint/node"
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/config"
+	abciconv "github.com/celestiaorg/rollmint/conv/abci"
+	"github.com/celestiaorg/rollmint/mocks"
+	"github.com/celestiaorg/rollmint/node"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 var expectedInfo = abci.ResponseInfo{

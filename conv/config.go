@@ -3,7 +3,7 @@ package conv
 import (
 	tmcfg "github.com/tendermint/tendermint/config"
 
-	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/rollmint/config"
 )
 
 // GetNodeConfig translates Tendermint's configuration into Optimint configuration.

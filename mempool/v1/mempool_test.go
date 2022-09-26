@@ -23,7 +23,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/mempool"
+	"github.com/celestiaorg/rollmint/mempool"
 )
 
 // application extends the KV store application by overriding CheckTx to provide

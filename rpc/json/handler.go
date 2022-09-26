@@ -12,7 +12,7 @@ import (
 
 	tmjson "github.com/tendermint/tendermint/libs/json"
 
-	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/rollmint/log"
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 )
