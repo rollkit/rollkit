@@ -89,7 +89,9 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 
 	var wg sync.WaitGroup
 	clientNodes := 4
-	nodes, apps := createNodes(clientNodes+1, &wg, t)
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, &wg, t)
 
 	wg.Add((clientNodes + 1) * clientNodes)
 	for _, n := range nodes {
@@ -115,10 +117,14 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		t.Fatal("failing after timeout")
 	}
 
-	for _, n := range nodes {
+	require.NoError(nodes[0].Stop())
+	aggCancel()
+	time.Sleep(100 * time.Millisecond)
+	for _, n := range nodes[1:] {
 		require.NoError(n.Stop())
 	}
-	time.Sleep(1000 * time.Millisecond)
+	cancel()
+	time.Sleep(100 * time.Millisecond)
 	aggApp := apps[0]
 	apps = apps[1:]
 
@@ -160,8 +166,15 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
-func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
 	t.Helper()
+
+	if aggCtx == nil {
+		aggCtx = context.Background()
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	// create keys first, as they are required for P2P connections
 	keys := make([]crypto.PrivKey, num)
@@ -175,15 +188,15 @@ func createNodes(num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.A
 	_ = dalc.Init([8]byte{}, nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
 
-	nodes[0], apps[0] = createNode(0, true, dalc, keys, wg, t)
+	nodes[0], apps[0] = createNode(aggCtx, 0, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {
-		nodes[i], apps[i] = createNode(i, false, dalc, keys, wg, t)
+		nodes[i], apps[i] = createNode(ctx, i, false, dalc, keys, wg, t)
 	}
 
 	return nodes, apps
 }
 
-func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -216,10 +229,13 @@ func createNode(n int, aggregator bool, dalc da.DataAvailabilityLayerClient, key
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
 		wg.Done()
 	})
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	node, err := NewNode(
-		context.Background(),
+		ctx,
 		config.NodeConfig{
 			P2P:                p2pConfig,
 			DALayer:            "mock",
