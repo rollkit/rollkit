@@ -10,7 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
-	abcicli "github.com/tendermint/tendermint/abci/client"
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
@@ -51,7 +51,7 @@ const (
 type Node struct {
 	service.BaseService
 	eventBus  *tmtypes.EventBus
-	appClient abcicli.Client
+	appClient abciclient.Client
 
 	genesis *tmtypes.GenesisDoc
 	// cache of chunked genesis data.
@@ -79,7 +79,15 @@ type Node struct {
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey, signingKey crypto.PrivKey, appClient abcicli.Client, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
+func NewNode(
+	ctx context.Context,
+	conf config.NodeConfig,
+	p2pKey crypto.PrivKey,
+	signingKey crypto.PrivKey,
+	appClient abciclient.Client,
+	genesis *tmtypes.GenesisDoc,
+	logger log.Logger,
+) (*Node, error) {
 	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
@@ -264,7 +272,7 @@ func (n *Node) EventBus() *tmtypes.EventBus {
 }
 
 // AppClient returns ABCI proxy connections to communicate with application.
-func (n *Node) AppClient() abcicli.Client {
+func (n *Node) AppClient() abciclient.Client {
 	return n.appClient
 }
 
