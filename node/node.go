@@ -10,12 +10,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
 	corep2p "github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/block"
@@ -50,8 +50,8 @@ const (
 // It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
-	eventBus *tmtypes.EventBus
-	proxyApp proxy.AppConns
+	eventBus  *tmtypes.EventBus
+	appClient abciclient.Client
 
 	genesis *tmtypes.GenesisDoc
 	// cache of chunked genesis data.
@@ -79,13 +79,15 @@ type Node struct {
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey, signingKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
-	}
-
+func NewNode(
+	ctx context.Context,
+	conf config.NodeConfig,
+	p2pKey crypto.PrivKey,
+	signingKey crypto.PrivKey,
+	appClient abciclient.Client,
+	genesis *tmtypes.GenesisDoc,
+	logger log.Logger,
+) (*Node, error) {
 	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
@@ -124,16 +126,16 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 		return nil, err
 	}
 
-	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient, 0)
 	mpIDs := newMempoolIDs()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"))
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	node := &Node{
-		proxyApp:       proxyApp,
+		appClient:      appClient,
 		eventBus:       eventBus,
 		genesis:        genesis,
 		conf:           conf,
@@ -269,9 +271,9 @@ func (n *Node) EventBus() *tmtypes.EventBus {
 	return n.eventBus
 }
 
-// ProxyApp returns ABCI proxy connections to communicate with application.
-func (n *Node) ProxyApp() proxy.AppConns {
-	return n.proxyApp
+// AppClient returns ABCI proxy connections to communicate with application.
+func (n *Node) AppClient() abciclient.Client {
+	return n.appClient
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
