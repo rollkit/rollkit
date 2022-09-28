@@ -3,9 +3,10 @@ package types
 import (
 	"errors"
 
-	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/types"
+
+	pb "github.com/celestiaorg/optimint/types/pb/optimint"
 )
 
 // MarshalBinary encodes Block into binary form and returns it.
@@ -140,6 +141,46 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+// ToProto converts SignedHeader into protobuf representation and returns it.
+func (h *SignedHeader) ToProto() *pb.SignedHeader {
+	return &pb.SignedHeader{
+		Header: h.Header.ToProto(),
+		Commit: h.Commit.ToProto(),
+	}
+}
+
+// FromProto fills SignedHeader with data from protobuf representation.
+func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
+	err := h.Header.FromProto(other.Header)
+	if err != nil {
+		return err
+	}
+	err = h.Commit.FromProto(other.Commit)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalBinary encodes SignedHeader into binary form and returns it.
+func (h *SignedHeader) MarshalBinary() ([]byte, error) {
+	return h.ToProto().Marshal()
+}
+
+// UnmarshalBinary decodes binary form of SignedHeader into object.
+func (h *SignedHeader) UnmarshalBinary(data []byte) error {
+	var pHeader pb.SignedHeader
+	err := pHeader.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	err = h.FromProto(&pHeader)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // ToProto converts Header into protobuf representation and returns it.
 func (h *Header) ToProto() *pb.Header {
 	return &pb.Header{
@@ -266,6 +307,7 @@ func (c *Commit) FromProto(other *pb.Commit) error {
 	return nil
 }
 
+// ToProto converts State into protobuf representation and returns it.
 func (s *State) ToProto() (*pb.State, error) {
 	nextValidators, err := s.NextValidators.ToProto()
 	if err != nil {
@@ -299,6 +341,7 @@ func (s *State) ToProto() (*pb.State, error) {
 	}, nil
 }
 
+// FromProto fills State with data from its protobuf representation.
 func (s *State) FromProto(other *pb.State) error {
 	var err error
 	s.Version = *other.Version
@@ -325,6 +368,8 @@ func (s *State) FromProto(other *pb.State) error {
 		return err
 	}
 	s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
+	s.ConsensusParams = other.ConsensusParams
+	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
 	copy(s.LastResultsHash[:], other.LastResultsHash)
 	copy(s.AppHash[:], other.AppHash)
 

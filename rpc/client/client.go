@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -33,11 +34,15 @@ const (
 )
 
 var (
+	// ErrConsensusStateNotAvailable is returned because Optimint doesn't use Tendermint consensus.
 	ErrConsensusStateNotAvailable = errors.New("consensus state not available in Optimint")
 )
 
 var _ rpcclient.Client = &Client{}
 
+// Client implements tendermint RPC client interface.
+//
+// This is the type that is used in communication between cosmos-sdk app and Optimint.
 type Client struct {
 	*types.EventBus
 	config *config.RPCConfig
@@ -45,6 +50,7 @@ type Client struct {
 	node *node.Node
 }
 
+// NewClient returns Client working with given node.
 func NewClient(node *node.Node) *Client {
 	return &Client{
 		EventBus: node.EventBus(),
@@ -53,20 +59,23 @@ func NewClient(node *node.Node) *Client {
 	}
 }
 
+// ABCIInfo returns basic information about application state.
 func (c *Client) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := c.query().InfoSync(proxy.RequestInfo)
+	resInfo, err := c.appClient().InfoSync(proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}
 	return &ctypes.ResultABCIInfo{Response: *resInfo}, nil
 }
 
+// ABCIQuery queries for data from application.
 func (c *Client) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
 	return c.ABCIQueryWithOptions(ctx, path, data, rpcclient.DefaultABCIQueryOptions)
 }
 
+// ABCIQueryWithOptions queries for data from application.
 func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.query().QuerySync(abci.RequestQuery{
+	resQuery, err := c.appClient().QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -75,7 +84,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data tmb
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("ABCIQuery", "path", path, "data", data, "result", resQuery)
+	c.Logger.Debug("ABCIQuery", "path", path, "data", data, "result", resQuery)
 	return &ctypes.ResultABCIQuery{Response: *resQuery}, nil
 }
 
@@ -209,8 +218,8 @@ func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resu
 			// if this does not occur, then the user will not be able to try again using
 			// this node, as the CheckTx call above will return an error indicating that
 			// the tx is already in the mempool
-			c.node.Mempool.RemoveTxByKey(mempool.TxKey(tx), true)
-			return nil, fmt.Errorf("valid tra: %w", err)
+			_ = c.node.Mempool.RemoveTxByKey(tx.Key())
+			return nil, fmt.Errorf("failed to gossip tx: %w", err)
 		}
 	}
 
@@ -223,6 +232,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resu
 	}, nil
 }
 
+// Subscribe subscribe given subscriber to a query.
 func (c *Client) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
 	q, err := tmquery.New(query)
 	if err != nil {
@@ -250,6 +260,7 @@ func (c *Client) Subscribe(ctx context.Context, subscriber, query string, outCap
 	return outc, nil
 }
 
+// Unsubscribe unsubscribes given subscriber from a query.
 func (c *Client) Unsubscribe(ctx context.Context, subscriber, query string) error {
 	q, err := tmquery.New(query)
 	if err != nil {
@@ -258,12 +269,17 @@ func (c *Client) Unsubscribe(ctx context.Context, subscriber, query string) erro
 	return c.EventBus.Unsubscribe(ctx, subscriber, q)
 }
 
+// Genesis returns entire genesis.
 func (c *Client) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
 	return &ctypes.ResultGenesis{Genesis: c.node.GetGenesis()}, nil
 }
 
+// GenesisChunked returns given chunk of genesis.
 func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
-	genChunks := c.node.GetGenisisChunks()
+	genChunks, err := c.node.GetGenesisChunks()
+	if err != nil {
+		return nil, fmt.Errorf("error while creating chunks of the genesis document: %w", err)
+	}
 	if genChunks == nil {
 		return nil, fmt.Errorf("service configuration error, genesis chunks are not initialized")
 	}
@@ -284,6 +300,7 @@ func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.Resul
 	}, nil
 }
 
+// BlockchainInfo returns ABCI block meta information for given height range.
 func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	const limit int64 = 20
 
@@ -321,9 +338,8 @@ func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64)
 
 }
 
+// NetInfo returns basic information about client P2P connections.
 func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
-	// needs P2P layer
-
 	res := ctypes.ResultNetInfo{
 		Listening: true,
 	}
@@ -344,14 +360,19 @@ func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
 	return &res, nil
 }
 
+// DumpConsensusState always returns error as there is no consensus state in Optimint.
 func (c *Client) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }
 
+// ConsensusState always returns error as there is no consensus state in Optimint.
 func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }
 
+// ConsensusParams returns consensus params at given height.
+//
+// Currently, consensus params changes are not supported and this method returns params as defined in genesis.
 func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
 	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/optimint/issues/291
 	params := c.node.GetGenesis().ConsensusParams
@@ -378,10 +399,14 @@ func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.Re
 	}, nil
 }
 
+// Health endpoint returns empty value. It can be used to monitor service availability.
 func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 	return &ctypes.ResultHealth{}, nil
 }
 
+// Block method returns BlockID and block itself for given height.
+//
+// If height is nil, it returns information about last known block.
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	heightValue := c.normalizeHeight(height)
 	block, err := c.node.Store.LoadBlock(heightValue)
@@ -405,6 +430,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 	}, nil
 }
 
+// BlockByHash returns BlockID and block itself for given hash.
 func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
 	var h [32]byte
 	copy(h[:], hash)
@@ -430,6 +456,7 @@ func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBl
 	}, nil
 }
 
+// BlockResults returns information about transactions, events and updates of validator set and consensus params.
 func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
 	var h uint64
 	if height == nil {
@@ -452,6 +479,7 @@ func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.Resul
 	}, nil
 }
 
+// Commit returns signed header (aka commit) at given height.
 func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	heightValue := c.normalizeHeight(height)
 	com, err := c.node.Store.LoadCommit(heightValue)
@@ -471,6 +499,7 @@ func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommi
 	return ctypes.NewResultCommit(&block.Header, commit, true), nil
 }
 
+// Validators returns paginated list of validators at given height.
 func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perPagePtr *int) (*ctypes.ResultValidators, error) {
 	height := c.normalizeHeight(heightPtr)
 	validators, err := c.node.Store.LoadValidators(height)
@@ -495,6 +524,7 @@ func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perP
 	}, nil
 }
 
+// Tx returns detailed information about transaction identified by its hash.
 func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
 	res, err := c.node.TxIndexer.Get(hash)
 	if err != nil {
@@ -529,6 +559,7 @@ func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.Resul
 	}, nil
 }
 
+// TxSearch returns detailed information about transactions matching query.
 func (c *Client) TxSearch(ctx context.Context, query string, prove bool, pagePtr, perPagePtr *int, orderBy string) (*ctypes.ResultTxSearch, error) {
 	q, err := tmquery.New(query)
 	if err != nil {
@@ -657,6 +688,7 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 	return &ctypes.ResultBlockSearch{Blocks: blocks, TotalCount: totalCount}, nil
 }
 
+// Status returns detailed information about current status of the node.
 func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	latest, err := c.node.Store.LoadBlock(c.node.Store.Height())
 	if err != nil {
@@ -690,21 +722,24 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	return result, nil
 }
 
+// BroadcastEvidence is not yet implemented.
 func (c *Client) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
 	return &ctypes.ResultBroadcastEvidence{
 		Hash: evidence.Hash(),
 	}, nil
 }
 
+// NumUnconfirmedTxs returns information about transactions in mempool.
 func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      c.node.Mempool.Size(),
 		Total:      c.node.Mempool.Size(),
-		TotalBytes: c.node.Mempool.TxsBytes(),
+		TotalBytes: c.node.Mempool.SizeBytes(),
 	}, nil
 
 }
 
+// UnconfirmedTxs returns transactions in mempool.
 func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.ResultUnconfirmedTxs, error) {
 	// reuse per_page validator
 	limit := validatePerPage(limitPtr)
@@ -713,12 +748,15 @@ func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.Res
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      len(txs),
 		Total:      c.node.Mempool.Size(),
-		TotalBytes: c.node.Mempool.TxsBytes(),
+		TotalBytes: c.node.Mempool.SizeBytes(),
 		Txs:        txs}, nil
 }
 
+// CheckTx executes a new transaction against the application to determine its validity.
+//
+// If valid, the tx is automatically added to the mempool.
 func (c *Client) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := c.mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
+	res, err := c.appClient().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
@@ -773,20 +811,8 @@ func (c *Client) resubscribe(subscriber string, q tmpubsub.Query) types.Subscrip
 	}
 }
 
-func (c *Client) consensus() proxy.AppConnConsensus {
-	return c.node.ProxyApp().Consensus()
-}
-
-func (c *Client) mempool() proxy.AppConnMempool {
-	return c.node.ProxyApp().Mempool()
-}
-
-func (c *Client) query() proxy.AppConnQuery {
-	return c.node.ProxyApp().Query()
-}
-
-func (c *Client) snapshot() proxy.AppConnSnapshot {
-	return c.node.ProxyApp().Snapshot()
+func (c *Client) appClient() abcicli.Client {
+	return c.node.AppClient()
 }
 
 func (c *Client) normalizeHeight(height *int64) uint64 {

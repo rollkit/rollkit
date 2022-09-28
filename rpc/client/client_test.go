@@ -13,8 +13,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
+	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -22,7 +23,6 @@ import (
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/config"
@@ -40,14 +40,11 @@ var expectedInfo = abci.ResponseInfo{
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
-func TestConnectionGetters(t *testing.T) {
+func TestConnectionGetter(t *testing.T) {
 	assert := assert.New(t)
 
 	_, rpc := getRPC(t)
-	assert.NotNil(rpc.consensus())
-	assert.NotNil(rpc.mempool())
-	assert.NotNil(rpc.snapshot())
-	assert.NotNil(rpc.query())
+	assert.NotNil(rpc.appClient())
 }
 
 func TestInfo(t *testing.T) {
@@ -91,24 +88,24 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
-	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, abcicli.NewLocalClient(nil, mockApp), genDoc, log.TestingLogger())
 
 	rpc := NewClient(n)
 
-	var wantId uint = 2
-	gc, err := rpc.GenesisChunked(context.Background(), wantId)
+	var expectedID uint = 2
+	gc, err := rpc.GenesisChunked(context.Background(), expectedID)
 	assert.Error(err)
 	assert.Nil(gc)
 
 	err = rpc.node.Start()
 	require.NoError(t, err)
 
-	wantId = 0
-	gc2, err := rpc.GenesisChunked(context.Background(), wantId)
-	gotId := gc2.ChunkNumber
+	expectedID = 0
+	gc2, err := rpc.GenesisChunked(context.Background(), expectedID)
+	gotID := gc2.ChunkNumber
 	assert.NoError(err)
 	assert.NotNil(gc2)
-	assert.Equal(int(wantId), gotId)
+	assert.Equal(int(expectedID), gotID)
 
 	gc3, err := rpc.GenesisChunked(context.Background(), 5)
 	assert.Error(err)
@@ -246,7 +243,9 @@ func TestGetBlock(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 
-	err = rpc.node.Store.SaveBlock(getRandomBlock(1, 10), &types.Commit{})
+	block := getRandomBlock(1, 10)
+	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
+	rpc.node.Store.SetHeight(block.Header.Height)
 	require.NoError(err)
 
 	blockResp, err := rpc.Block(context.Background(), nil)
@@ -273,6 +272,7 @@ func TestGetCommit(t *testing.T) {
 
 	for _, b := range blocks {
 		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: b.Header.Height})
+		rpc.node.Store.SetHeight(b.Header.Height)
 		require.NoError(err)
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
@@ -407,7 +407,7 @@ func TestTx(t *testing.T) {
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
 		}},
-		key, signingKey, proxy.NewLocalClientCreator(mockApp),
+		key, signingKey, abcicli.NewLocalClient(nil, mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test"},
 		log.TestingLogger())
 	require.NoError(err)
@@ -501,10 +501,6 @@ func TestUnconfirmedTxs(t *testing.T) {
 }
 
 func TestUnconfirmedTxsLimit(t *testing.T) {
-	t.Skip("Test disabled because of known bug")
-	// there's a bug in mempool implementation - count should be 1
-	// TODO(tzdybal): uncomment after resolving https://github.com/celestiaorg/optimint/issues/191
-
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -568,6 +564,7 @@ func TestBlockchainInfo(t *testing.T) {
 			Height:     uint64(h),
 			HeaderHash: block.Header.Hash(),
 		})
+		rpc.node.Store.SetHeight(block.Header.Height)
 		require.NoError(err)
 	}
 
@@ -661,7 +658,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		waitCh <- nil
 	})
 
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -781,7 +778,7 @@ func getRPC(t *testing.T) (*mocks.Application, *Client) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -851,7 +848,7 @@ func TestMempool2Nodes(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, signingKey1, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -861,7 +858,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, signingKey2, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -899,5 +896,5 @@ func TestMempool2Nodes(t *testing.T) {
 	case <-ctx.Done():
 	}
 
-	assert.Equal(node2.Mempool.TxsBytes(), int64(len("good")))
+	assert.Equal(node2.Mempool.SizeBytes(), int64(len("good")))
 }

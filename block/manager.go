@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/merkle"
@@ -56,8 +56,11 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
-	HeaderOutCh chan *types.Header
-	HeaderInCh  chan *types.Header
+	HeaderOutCh chan *types.SignedHeader
+	HeaderInCh  chan *types.SignedHeader
+
+	CommitInCh chan *types.Commit
+	lastCommit atomic.Value
 
 	FraudProofCh chan *types.FraudProof
 
@@ -82,6 +85,7 @@ func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (types.Stat
 	return s, err
 }
 
+// NewManager creates new block Manager.
 func NewManager(
 	proposerKey crypto.PrivKey,
 	conf config.BlockManagerConfig,
@@ -135,8 +139,9 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh: make(chan *types.Header, 100),
-		HeaderInCh:  make(chan *types.Header, 100),
+		HeaderOutCh: make(chan *types.SignedHeader, 100),
+		HeaderInCh:  make(chan *types.SignedHeader, 100),
+		CommitInCh:  make(chan *types.Commit, 100),
 		blockInCh:   make(chan newBlockEvent, 100),
 		retrieveMtx: new(sync.Mutex),
 		syncCache:   make(map[uint64]*types.Block),
@@ -155,11 +160,13 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 	return tmcrypto.AddressHash(rawKey), nil
 }
 
+// SetDALC is used to set DataAvailabilityLayerClient used by Manager.
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.dalc = dalc
 	m.retriever = dalc.(da.BlockRetriever)
 }
 
+// AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
 	timer := time.NewTimer(0)
 	for {
@@ -177,6 +184,10 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	}
 }
 
+// SyncLoop is responsible for syncing blocks.
+//
+// SyncLoop processes headers gossiped in P2p network to know what's the latest block height,
+// block data is retrieved from DA layer.
 func (m *Manager) SyncLoop(ctx context.Context) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
 	for {
@@ -184,8 +195,8 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 		case <-daTicker.C:
 			m.retrieveCond.Signal()
 		case header := <-m.HeaderInCh:
-			m.logger.Debug("block header received", "height", header.Height, "hash", header.Hash())
-			newHeight := header.Height
+			m.logger.Debug("block header received", "height", header.Header.Height, "hash", header.Header.Hash())
+			newHeight := header.Header.Height
 			currentHeight := m.store.Height()
 			// in case of client reconnecting after being offline
 			// newHeight may be significantly larger than currentHeight
@@ -194,43 +205,30 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCond.Signal()
 			}
+			m.CommitInCh <- &header.Commit
+		case commit := <-m.CommitInCh:
+			// TODO(tzdybal): check if it's from right aggregator
+			m.lastCommit.Store(commit)
+			err := m.trySyncNextBlock(ctx, 0)
+			if err != nil {
+				m.logger.Info("failed to sync next block", "error", err)
+			} else {
+				m.logger.Debug("synced using gossiped commit", "height", commit.Height)
+			}
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
 			m.logger.Debug("block body retrieved from DALC",
 				"height", block.Header.Height,
+				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
 			m.syncCache[block.Header.Height] = block
 			m.retrieveCond.Signal()
-			currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
-			b1, ok1 := m.syncCache[currentHeight+1]
-			b2, ok2 := m.syncCache[currentHeight+2]
-			if ok1 && ok2 {
-				newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
-				if err != nil {
-					m.logger.Error("failed to ApplyBlock", "error", err)
-					continue
-				}
-				err = m.store.SaveBlock(b1, &b2.LastCommit)
-				if err != nil {
-					m.logger.Error("failed to save block", "error", err)
-					continue
-				}
-				err = m.store.SaveBlockResponses(block.Header.Height, responses)
-				if err != nil {
-					m.logger.Error("failed to save block responses", "error", err)
-					continue
-				}
 
-				newState.DAHeight = daHeight
-				m.lastState = newState
-				err = m.store.UpdateState(m.lastState)
-				if err != nil {
-					m.logger.Error("failed to save updated state", "error", err)
-					continue
-				}
-				delete(m.syncCache, currentHeight+1)
+			err := m.trySyncNextBlock(ctx, daHeight)
+			if err != nil {
+				m.logger.Info("failed to sync next block", "error", err)
 			}
 		case fraudProof := <-m.FraudProofCh:
 			m.logger.Debug("fraud proof received", "Block Height", fraudProof.ToProto().BlockHeight)
@@ -249,6 +247,75 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// trySyncNextBlock tries to progress one step (one block) in sync process.
+//
+// To be able to apply block and height h, we need to have its Commit. It is contained in block at height h+1.
+// If block at height h+1 is not available, value of last gossiped commit is checked.
+// If commit for block h is available, we proceed with sync process, and remove synced block from sync cache.
+func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
+	var b1 *types.Block
+	var commit *types.Commit
+	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
+
+	b1, ok1 := m.syncCache[currentHeight+1]
+	if !ok1 {
+		return nil
+	}
+	b2, ok2 := m.syncCache[currentHeight+2]
+	if ok2 {
+		m.logger.Debug("using last commit from next block")
+		commit = &b2.LastCommit
+	} else {
+		lastCommit := m.getLastCommit()
+		if lastCommit != nil && lastCommit.Height == currentHeight+1 {
+			m.logger.Debug("using gossiped commit")
+			commit = lastCommit
+		}
+	}
+
+	if b1 != nil && commit != nil {
+		m.logger.Info("Syncing block", "height", b1.Header.Height)
+		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+		if err != nil {
+			return fmt.Errorf("failed to ApplyBlock: %w", err)
+		}
+		err = m.store.SaveBlock(b1, commit)
+		if err != nil {
+			return fmt.Errorf("failed to save block: %w", err)
+		}
+		_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+		if err != nil {
+			return fmt.Errorf("failed to Commit: %w", err)
+		}
+		m.store.SetHeight(b1.Header.Height)
+
+		err = m.store.SaveBlockResponses(b1.Header.Height, responses)
+		if err != nil {
+			return fmt.Errorf("failed to save block responses: %w", err)
+		}
+
+		if daHeight > newState.DAHeight {
+			newState.DAHeight = daHeight
+		}
+		m.lastState = newState
+		err = m.store.UpdateState(m.lastState)
+		if err != nil {
+			m.logger.Error("failed to save updated state", "error", err)
+		}
+		delete(m.syncCache, currentHeight+1)
+	}
+
+	return nil
+}
+
+func (m *Manager) getLastCommit() *types.Commit {
+	ptr := m.lastCommit.Load()
+	if ptr == nil {
+		return nil
+	}
+	return ptr.(*types.Commit)
 }
 
 // RetrieveLoop is responsible for interacting with DA layer.
@@ -354,63 +421,91 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderHash = lastBlock.Header.Hash()
 	}
 
-	m.logger.Info("Creating and publishing block", "height", newHeight)
+	var block *types.Block
+	var commit *types.Commit
 
-	block := m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
-	m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-	newState, responses, _, err := m.executor.ApplyBlock(ctx, m.lastState, block)
-	if err != nil {
-		return err
-	}
+	// Check if there's an already stored block at a newer height
+	// If there is use that instead of creating a new block
+	pendingBlock, err := m.store.LoadBlock(newHeight)
+	if err == nil {
+		m.logger.Info("Using pending block", "height", newHeight)
+		block = pendingBlock
+	} else {
+		m.logger.Info("Creating and publishing block", "height", newHeight)
+		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-	headerBytes, err := block.Header.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	sign, err := m.proposerKey.Sign(headerBytes)
-	if err != nil {
-		return err
-	}
+		headerBytes, err := block.Header.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		sign, err := m.proposerKey.Sign(headerBytes)
+		if err != nil {
+			return err
+		}
+		commit = &types.Commit{
+			Height:     block.Header.Height,
+			HeaderHash: block.Header.Hash(),
+			Signatures: []types.Signature{sign},
+		}
 
-	commit := &types.Commit{
-		Height:     block.Header.Height,
-		HeaderHash: block.Header.Hash(),
-		Signatures: []types.Signature{sign},
-	}
-	err = m.store.SaveBlock(block, commit)
-	if err != nil {
-		return err
-	}
-
-	err = m.store.SaveBlockResponses(block.Header.Height, responses)
-	if err != nil {
-		return err
-	}
-
-	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
-	m.lastState = newState
-	err = m.store.UpdateState(m.lastState)
-	if err != nil {
-		return err
+		// SaveBlock commits the DB tx
+		err = m.store.SaveBlock(block, commit)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	// Apply the block but DONT commit
+	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
 	if err != nil {
 		return err
 	}
 
 	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
+		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
 
-	m.publishHeader(block)
+	// Commit the new state and block which writes to disk on the proxy app
+	_, _, err = m.executor.Commit(ctx, newState, block, responses)
+	if err != nil {
+		return err
+	}
+
+	// SaveBlockResponses commits the DB tx
+	err = m.store.SaveBlockResponses(block.Header.Height, responses)
+	if err != nil {
+		return err
+	}
+
+	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+	// After this call m.lastState is the NEW state returned from ApplyBlock
+	m.lastState = newState
+
+	// UpdateState commits the DB tx
+	err = m.store.UpdateState(m.lastState)
+	if err != nil {
+		return err
+	}
+
+	// SaveValidators commits the DB tx
+	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	if err != nil {
+		return err
+	}
+
+	// Only update the stored height after successfully submitting to DA layer and committing to the DB
+	m.store.SetHeight(block.Header.Height)
+
+	m.publishSignedHeader(block, commit)
 
 	return nil
 }
 
 func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
-	m.logger.Debug("submitting block to DA layer", "height", block.Header.Height)
+	m.logger.Info("submitting block to DA layer", "height", block.Header.Height)
 
 	submitted := false
 	backoff := initialBackoff
@@ -427,11 +522,8 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	}
 
 	if !submitted {
-		// TODO(tzdybal): probably this could be handled better
-		panic("Failed to submit block to DA layer!")
+		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
-
-	m.HeaderOutCh <- &block.Header
 
 	return nil
 }
@@ -444,8 +536,9 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
-func (m *Manager) publishHeader(block *types.Block) {
-	m.HeaderOutCh <- &block.Header
+// TODO(tzdybal): consider inlining
+func (m *Manager) publishSignedHeader(block *types.Block, commit *types.Commit) {
+	m.HeaderOutCh <- &types.SignedHeader{Header: block.Header, Commit: *commit}
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {

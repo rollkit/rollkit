@@ -3,6 +3,7 @@ package dalc;
 option go_package = "github.com/celestiaorg/optimint/types/pb/dalc";
 
 import "optimint/optimint.proto";
+import "gogoproto/gogo.proto";
 
 enum StatusCode {
 	STATUS_CODE_UNSPECIFIED = 0;
@@ -14,7 +15,7 @@ enum StatusCode {
 message DAResponse {
 	StatusCode code = 1;
 	string message = 2;
-	uint64 data_layer_height = 3;
+	uint64 da_height = 3 [(gogoproto.customname) = "DAHeight"];
 }
 
 message SubmitBlockRequest {
@@ -26,7 +27,7 @@ message SubmitBlockResponse {
 }
 
 message CheckBlockAvailabilityRequest {
-	uint64 data_layer_height = 1;
+	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
 }
 
 message CheckBlockAvailabilityResponse {
@@ -35,7 +36,7 @@ message CheckBlockAvailabilityResponse {
 }
 
 message RetrieveBlocksRequest {
-	uint64 data_layer_height = 1;
+	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
 }
 
 message RetrieveBlocksResponse {

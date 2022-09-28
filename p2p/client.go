@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	cdiscovery "github.com/libp2p/go-libp2p-core/discovery"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	cdiscovery "github.com/libp2p/go-libp2p/core/discovery"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	discutil "github.com/libp2p/go-libp2p/p2p/discovery/util"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
@@ -38,6 +38,9 @@ const (
 
 	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
 	headerTopicSuffix = "-header"
+
+	// commitTopicSuffix is added after namespace to create pubsub topic for block commit gossiping.
+	commitTopicSuffix = "-commit"
 
 	fraudProofTopicSuffix = "-fraudProof"
 )
@@ -64,6 +67,9 @@ type Client struct {
 
 	fraudProofGossiper  *Gossiper
 	fraudProofValidator GossipValidator
+
+	commitGossiper  *Gossiper
+	commitValidator GossipValidator
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -160,8 +166,8 @@ func (c *Client) SetTxValidator(val GossipValidator) {
 	c.txValidator = val
 }
 
-// GossipHeader sends the block header to the P2P network.
-func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
+// GossipSignedHeader sends the block header to the P2P network.
+func (c *Client) GossipSignedHeader(ctx context.Context, headerBytes []byte) error {
 	c.logger.Debug("Gossiping block header", "len", len(headerBytes))
 	return c.headerGossiper.Publish(ctx, headerBytes)
 }
@@ -169,6 +175,17 @@ func (c *Client) GossipHeader(ctx context.Context, headerBytes []byte) error {
 // SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
+}
+
+// GossipCommit sends the block commit to the P2P network.
+func (c *Client) GossipCommit(ctx context.Context, commitBytes []byte) error {
+	c.logger.Debug("Gossiping block commit", "len", len(commitBytes))
+	return c.commitGossiper.Publish(ctx, commitBytes)
+}
+
+// SetCommitValidator sets the callback function, that will be invoked after block commit is received from P2P network.
+func (c *Client) SetCommitValidator(validator GossipValidator) {
+	c.commitValidator = validator
 }
 
 // GossipHeader sends a fraud proof to the P2P network.
@@ -182,10 +199,12 @@ func (c *Client) SetFraudProofValidator(validator GossipValidator) {
 	c.fraudProofValidator = validator
 }
 
+// Addrs returns listen addresses of Client.
 func (c *Client) Addrs() []multiaddr.Multiaddr {
 	return c.host.Addrs()
 }
 
+// PeerConnection describe basic information about P2P connection.
 // TODO(tzdybal): move it somewhere
 type PeerConnection struct {
 	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
@@ -194,6 +213,7 @@ type PeerConnection struct {
 	RemoteIP         string               `json:"remote_ip"`
 }
 
+// Peers returns list of peers connected to Client.
 func (c *Client) Peers() []PeerConnection {
 	conns := c.host.Network().Conns()
 	res := make([]PeerConnection, 0, len(conns))
@@ -326,12 +346,21 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger,
-		WithValidator(c.headerValidator))
+	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
 	if err != nil {
 		return err
 	}
 	go c.headerGossiper.ProcessMessages(ctx)
+
+	var opts []GossiperOption
+	if c.commitValidator != nil {
+		opts = append(opts, WithValidator(c.commitValidator))
+	}
+	c.commitGossiper, err = NewGossiper(c.host, ps, c.getCommitTopic(), c.logger, opts...)
+	if err != nil {
+		return err
+	}
+	go c.commitGossiper.ProcessMessages(ctx)
 
 	c.fraudProofGossiper, err = NewGossiper(c.host, ps, c.getFraudProofTopic(), c.logger,
 		WithValidator(c.fraudProofValidator))
@@ -379,6 +408,10 @@ func (c *Client) getTxTopic() string {
 
 func (c *Client) getHeaderTopic() string {
 	return c.getNamespace() + headerTopicSuffix
+}
+
+func (c *Client) getCommitTopic() string {
+	return c.getNamespace() + commitTopicSuffix
 }
 
 func (c *Client) getFraudProofTopic() string {

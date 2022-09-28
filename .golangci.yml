@@ -1,9 +1,34 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
+  # mempool and indexer code is borrowed from Tendermint
+  skip-dirs:
+    - mempool
+    - state/indexer
+    - state/txindex
 
 linters:
   enable:
+    - deadcode
+    - errcheck
     - gofmt
     - goimports
+    - gosimple
+    - govet
+    - ineffassign
     - misspell
+    - revive
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+
+issues:
+  exclude-use-default: false
+
+linters-settings:
+  revive:
+    rules:
+    - name: package-comments
+      disabled: true

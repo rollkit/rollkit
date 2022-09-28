@@ -63,6 +63,11 @@ message Commit {
 	repeated bytes signatures = 3;
 }
 
+message SignedHeader {
+	Header header = 1;
+	Commit commit = 2;
+}
+
 message Data {
 	repeated bytes txs = 1;
 	repeated bytes intermediate_state_roots = 2;

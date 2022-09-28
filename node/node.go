@@ -7,15 +7,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
+	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
 	corep2p "github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/block"
@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/optimint/da"
 	"github.com/celestiaorg/optimint/da/registry"
 	"github.com/celestiaorg/optimint/mempool"
+	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
 	"github.com/celestiaorg/optimint/p2p"
 	"github.com/celestiaorg/optimint/state/indexer"
 	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
@@ -49,8 +50,8 @@ const (
 // It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
-	eventBus *tmtypes.EventBus
-	proxyApp proxy.AppConns
+	eventBus  *tmtypes.EventBus
+	appClient abciclient.Client
 
 	genesis *tmtypes.GenesisDoc
 	// cache of chunked genesis data.
@@ -78,13 +79,15 @@ type Node struct {
 }
 
 // NewNode creates new Optimint node.
-func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey, signingKey crypto.PrivKey, clientCreator proxy.ClientCreator, genesis *tmtypes.GenesisDoc, logger log.Logger) (*Node, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
-	}
-
+func NewNode(
+	ctx context.Context,
+	conf config.NodeConfig,
+	p2pKey crypto.PrivKey,
+	signingKey crypto.PrivKey,
+	appClient abciclient.Client,
+	genesis *tmtypes.GenesisDoc,
+	logger log.Logger,
+) (*Node, error) {
 	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
@@ -113,7 +116,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 	if dalc == nil {
 		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
 	}
-	err = dalc.Init([]byte(conf.DAConfig), dalcKV, logger.With("module", "da_client"))
+	err = dalc.Init(conf.NamespaceID, []byte(conf.DAConfig), dalcKV, logger.With("module", "da_client"))
 	if err != nil {
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
@@ -123,16 +126,16 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 		return nil, err
 	}
 
-	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient, 0)
 	mpIDs := newMempoolIDs()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"))
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	node := &Node{
-		proxyApp:       proxyApp,
+		appClient:      appClient,
 		eventBus:       eventBus,
 		genesis:        genesis,
 		conf:           conf,
@@ -153,6 +156,7 @@ func NewNode(ctx context.Context, conf config.NodeConfig, p2pKey crypto.PrivKey,
 
 	node.P2P.SetTxValidator(node.newTxValidator())
 	node.P2P.SetHeaderValidator(node.newHeaderValidator())
+	node.P2P.SetCommitValidator(node.newCommitValidator())
 	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
@@ -190,14 +194,14 @@ func (n *Node) initGenesisChunks() error {
 func (n *Node) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case header := <-n.blockManager.HeaderOutCh:
-			headerBytes, err := header.MarshalBinary()
+		case signedHeader := <-n.blockManager.HeaderOutCh:
+			headerBytes, err := signedHeader.MarshalBinary()
 			if err != nil {
-				n.Logger.Error("failed to serialize block header", "error", err)
+				n.Logger.Error("failed to serialize signed block header", "error", err)
 			}
-			err = n.P2P.GossipHeader(ctx, headerBytes)
+			err = n.P2P.GossipSignedHeader(ctx, headerBytes)
 			if err != nil {
-				n.Logger.Error("failed to gossip block header", "error", err)
+				n.Logger.Error("failed to gossip signed block header", "error", err)
 			}
 		case <-ctx.Done():
 			return
@@ -216,10 +220,6 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
-	err = n.initGenesisChunks()
-	if err != nil {
-		return fmt.Errorf("error while creating chunks of the genesis document: %w", err)
-	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx)
@@ -231,12 +231,18 @@ func (n *Node) OnStart() error {
 	return nil
 }
 
+// GetGenesis returns entire genesis doc.
 func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
 	return n.genesis
 }
 
-func (n *Node) GetGenisisChunks() []string {
-	return n.genChunks
+// GetGenesisChunks returns chunked version of genesis.
+func (n *Node) GetGenesisChunks() ([]string, error) {
+	err := n.initGenesisChunks()
+	if err != nil {
+		return nil, err
+	}
+	return n.genChunks, err
 }
 
 // OnStop is a part of Service interface.
@@ -266,9 +272,9 @@ func (n *Node) EventBus() *tmtypes.EventBus {
 	return n.eventBus
 }
 
-// ProxyApp returns ABCI proxy connections to communicate with application.
-func (n *Node) ProxyApp() proxy.AppConns {
-	return n.proxyApp
+// AppClient returns ABCI proxy connections to communicate with application.
+func (n *Node) AppClient() abciclient.Client {
+	return n.appClient
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
@@ -306,7 +312,7 @@ func (n *Node) newTxValidator() p2p.GossipValidator {
 func (n *Node) newHeaderValidator() p2p.GossipValidator {
 	return func(headerMsg *p2p.GossipMessage) bool {
 		n.Logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
-		var header types.Header
+		var header types.SignedHeader
 		err := header.UnmarshalBinary(headerMsg.Data)
 		if err != nil {
 			n.Logger.Error("failed to deserialize header", "error", err)
@@ -318,6 +324,28 @@ func (n *Node) newHeaderValidator() p2p.GossipValidator {
 			return false
 		}
 		n.blockManager.HeaderInCh <- &header
+		return true
+	}
+}
+
+// newCommitValidator returns a pubsub validator that runs basic checks and forwards
+// the deserialized commit for further processing
+func (n *Node) newCommitValidator() p2p.GossipValidator {
+	return func(commitMsg *p2p.GossipMessage) bool {
+		n.Logger.Debug("commit received", "from", commitMsg.From, "bytes", len(commitMsg.Data))
+		var commit types.Commit
+		err := commit.UnmarshalBinary(commitMsg.Data)
+		if err != nil {
+			n.Logger.Error("failed to deserialize commit", "error", err)
+			return false
+		}
+		err = commit.ValidateBasic()
+		if err != nil {
+			n.Logger.Error("failed to validate commit", "error", err)
+			return false
+		}
+		n.Logger.Debug("commit received", "height", commit.Height)
+		n.blockManager.CommitInCh <- &commit
 		return true
 	}
 }

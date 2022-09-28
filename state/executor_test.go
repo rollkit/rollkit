@@ -18,6 +18,7 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/optimint/mempool"
+	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
 	"github.com/celestiaorg/optimint/mocks"
 	"github.com/celestiaorg/optimint/types"
 )
@@ -37,7 +38,7 @@ func TestCreateBlock(t *testing.T) {
 
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 
-	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
+	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), nil, logger)
 
 	state := types.State{}
@@ -98,7 +99,7 @@ func TestApplyBlock(t *testing.T) {
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	chainID := "test"
 
-	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
+	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	eventBus := tmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
 	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), eventBus, logger)
@@ -132,12 +133,14 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(uint64(1), block.Header.Height)
 	assert.Len(block.Data.Txs, 1)
 
-	newState, resp, _, err := executor.ApplyBlock(context.Background(), state, block)
+	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(int64(1), newState.LastBlockHeight)
-	assert.Equal(mockAppHash, newState.AppHash)
+	appHash, _, err := executor.Commit(context.Background(), newState, block, resp)
+	require.NoError(err)
+	assert.Equal(mockAppHash, appHash)
 
 	require.NoError(mpool.CheckTx([]byte{0, 1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{}))
@@ -148,11 +151,13 @@ func TestApplyBlock(t *testing.T) {
 	assert.Equal(uint64(2), block.Header.Height)
 	assert.Len(block.Data.Txs, 3)
 
-	newState, resp, _, err = executor.ApplyBlock(context.Background(), newState, block)
+	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(int64(2), newState.LastBlockHeight)
+	_, _, err = executor.Commit(context.Background(), newState, block, resp)
+	require.NoError(err)
 
 	// wait for at least 4 Tx events, for up to 3 second.
 	// 3 seconds is a fail-scenario only

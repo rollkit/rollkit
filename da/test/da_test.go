@@ -26,6 +26,8 @@ import (
 
 const mockDaBlockTime = 100 * time.Millisecond
 
+var testNamespaceID = [8]byte{0, 1, 2, 3, 4, 5, 6, 7}
+
 func TestLifecycle(t *testing.T) {
 	srv := startMockGRPCServ(t)
 	defer srv.GracefulStop()
@@ -40,7 +42,7 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init([]byte{}, nil, test.NewTestLogger(t))
+	err := dalc.Init(testNamespaceID, []byte{}, nil, test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -70,19 +72,18 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
-	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
+	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
 		config := celestia.Config{
-			BaseURL:     "http://localhost:26658",
-			Timeout:     30 * time.Second,
-			GasLimit:    3000000,
-			NamespaceID: [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
+			BaseURL:  "http://localhost:26658",
+			Timeout:  30 * time.Second,
+			GasLimit: 3000000,
 		}
 		conf, _ = json.Marshal(config)
 	}
-	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
+	err := dalc.Init(testNamespaceID, conf, store.NewDefaultInMemoryKVStore(), test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -154,7 +155,7 @@ func startMockGRPCServ(t *testing.T) *grpc.Server {
 
 func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
 	t.Helper()
-	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewTestLogger(t))
+	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewLogger(t))
 	l, err := net.Listen("tcp4", ":26658")
 	if err != nil {
 		t.Fatal("failed to create listener for mock celestia-node RPC server", "error", err)
@@ -172,19 +173,18 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
-	if _, ok := dalc.(*mock.MockDataAvailabilityLayerClient); ok {
+	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
 		config := celestia.Config{
-			BaseURL:     "http://localhost:26658",
-			Timeout:     30 * time.Second,
-			GasLimit:    3000000,
-			NamespaceID: [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
+			BaseURL:  "http://localhost:26658",
+			Timeout:  30 * time.Second,
+			GasLimit: 3000000,
 		}
 		conf, _ = json.Marshal(config)
 	}
-	err := dalc.Init(conf, store.NewDefaultInMemoryKVStore(), test.NewTestLogger(t))
+	err := dalc.Init(testNamespaceID, conf, store.NewDefaultInMemoryKVStore(), test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()

@@ -77,11 +77,19 @@ type EvidenceData struct {
 	Evidence []Evidence
 }
 
-// Commit cointains evidence of block creation.
+// Commit contains evidence of block creation.
 type Commit struct {
 	Height     uint64
 	HeaderHash [32]byte
 	Signatures []Signature // most of the time this is a single signature
+}
+
+// SignedHeader combines Header and its Commit.
+//
+// Used mostly for gossiping.
+type SignedHeader struct {
+	Header Header
+	Commit Commit
 }
 
 // Signature represents signature of block creator.
@@ -96,17 +104,17 @@ type IntermediateStateRoots struct {
 // Represents a single-round fraudProof
 type FraudProof struct {
 	// The block height to load state of
-	blockHeight int64
+	BlockHeight uint64
 
-	appHash []byte
+	AppHash []byte
 	// A map from module name to state witness
-	stateWitness map[string]StateWitness
+	StateWitness map[string]StateWitness
 
 	// Fraudulent state transition has to be one of these
 	// Only one have of these three can be non-nil
-	fraudulentBeginBlock *abci.RequestBeginBlock
-	fraudulentDeliverTx  *abci.RequestDeliverTx
-	fraudulentEndBlock   *abci.RequestEndBlock
+	FraudulentBeginBlock *abci.RequestBeginBlock
+	FraudulentDeliverTx  *abci.RequestDeliverTx
+	FraudulentEndBlock   *abci.RequestEndBlock
 }
 
 // State witness with a list of all witness data

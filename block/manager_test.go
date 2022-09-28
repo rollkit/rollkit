@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -87,8 +87,8 @@ func TestInitialState(t *testing.T) {
 }
 
 func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
-	dalc := &mockda.MockDataAvailabilityLayerClient{}
-	_ = dalc.Init(nil, nil, logger)
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	_ = dalc.Init([8]byte{}, nil, nil, logger)
 	_ = dalc.Start()
 	return dalc
 }
