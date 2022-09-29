@@ -117,7 +117,7 @@ func TestStateRoundTrip(t *testing.T) {
 						Block: 123,
 						App:   456,
 					},
-					Software: "optimint",
+					Software: "rollmint",
 				},
 				ChainID:         "testchain",
 				InitialHeight:   987,

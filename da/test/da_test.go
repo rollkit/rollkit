@@ -104,7 +104,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
-	// wait a bit more than mockDaBlockTime, so optimint blocks can be "included" in mock block
+	// wait a bit more than mockDaBlockTime, so rollmint blocks can be "included" in mock block
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
 	check := dalc.CheckBlockAvailability(h1)

@@ -34,15 +34,15 @@ const (
 )
 
 var (
-	// ErrConsensusStateNotAvailable is returned because Optimint doesn't use Tendermint consensus.
-	ErrConsensusStateNotAvailable = errors.New("consensus state not available in Optimint")
+	// ErrConsensusStateNotAvailable is returned because rollmint doesn't use Tendermint consensus.
+	ErrConsensusStateNotAvailable = errors.New("consensus state not available in rollmint")
 )
 
 var _ rpcclient.Client = &Client{}
 
 // Client implements tendermint RPC client interface.
 //
-// This is the type that is used in communication between cosmos-sdk app and Optimint.
+// This is the type that is used in communication between cosmos-sdk app and rollmint.
 type Client struct {
 	*types.EventBus
 	config *config.RPCConfig
@@ -360,12 +360,12 @@ func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
 	return &res, nil
 }
 
-// DumpConsensusState always returns error as there is no consensus state in Optimint.
+// DumpConsensusState always returns error as there is no consensus state in rollmint.
 func (c *Client) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }
 
-// ConsensusState always returns error as there is no consensus state in Optimint.
+// ConsensusState always returns error as there is no consensus state in rollmint.
 func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }

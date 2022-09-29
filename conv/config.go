@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/rollmint/config"
 )
 
-// GetNodeConfig translates Tendermint's configuration into Optimint configuration.
+// GetNodeConfig translates Tendermint's configuration into rollmint configuration.
 //
 // This method only translates configuration, and doesn't verify it. If some option is missing in Tendermint's
 // config, it's skipped during translation.

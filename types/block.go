@@ -4,7 +4,7 @@ import (
 	"encoding"
 )
 
-// Header defines the structure of Optimint block header.
+// Header defines the structure of rollmint block header.
 type Header struct {
 	// Block and App version
 	Version Version
@@ -52,7 +52,7 @@ type Version struct {
 	App   uint64
 }
 
-// Block defines the structure of Optimint block.
+// Block defines the structure of rollmint block.
 type Block struct {
 	Header     Header
 	Data       Data
@@ -62,7 +62,7 @@ type Block struct {
 var _ encoding.BinaryMarshaler = &Block{}
 var _ encoding.BinaryUnmarshaler = &Block{}
 
-// Data defines Optimint block data.
+// Data defines rollmint block data.
 type Data struct {
 	Txs                    Txs
 	IntermediateStateRoots IntermediateStateRoots

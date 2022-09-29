@@ -77,7 +77,7 @@ func TestStoreLoad(t *testing.T) {
 		//}},
 	}
 
-	tmpDir, err := os.MkdirTemp("", "optimint_test")
+	tmpDir, err := os.MkdirTemp("", "rollmint_test")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)
