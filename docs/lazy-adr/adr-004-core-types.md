@@ -2,11 +2,12 @@
 
 ## Changelog
 
-- 19-04-2021: Initial Draft
+- 19.04.2021: Initial Draft
+- 29.09.2022: Rename Optimint to rollmint
 
 ## Context
 
-This document describes the core data structures of any Optimint-powered blockchain.
+This document describes the core data structures of any rollmint-powered blockchain.
 
 ## Alternative Approaches
 
@@ -27,7 +28,7 @@ Where such tradeoffs are made, we explicitly comment on them.
 
 ### Transactions
 
-In Optimint, like in Tendermint, Transactions are just an opaque slice of bytes:
+In rollmint, like in Tendermint, Transactions are just an opaque slice of bytes:
 
 ```go
 type Tx []byte
@@ -127,7 +128,7 @@ This could be seen as a state transition and the ConsensusHash in the header wou
 That said, none of the existing default Cosmos-SDK modules actually make use of this functionality though.
 Hence, we can treat the ConsensusParams as constants (for the same app version).
 We clearly need to communicate this to optimistic rollup chain developers.
-Ideally, we should ensure this programmatically to guarantee that this assumption always holds inside optimint.
+Ideally, we should ensure this programmatically to guarantee that this assumption always holds inside rollmint.
 
 The ConsensusParams have the exact same structure as in Tendermint. For the sake of self-containedness we still list them here:
 
