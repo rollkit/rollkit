@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
-	pb "github.com/celestiaorg/rollmint/types/pb/optimint"
+	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
 )
 
 // DataAvailabilityLayerClient use celestia-node public API.

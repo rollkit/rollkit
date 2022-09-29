@@ -12,7 +12,7 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/rollmint/types"
-	pb "github.com/celestiaorg/rollmint/types/pb/optimint"
+	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
 )
 
 var (
