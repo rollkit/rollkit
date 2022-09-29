@@ -2,7 +2,6 @@ package mockserv
 
 import (
 	"context"
-	"github.com/celestiaorg/rollmint/types/pb/rollmint"
 	"os"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -13,6 +12,7 @@ import (
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
 	"github.com/celestiaorg/rollmint/types/pb/dalc"
+	"github.com/celestiaorg/rollmint/types/pb/rollmint"
 )
 
 // GetServer creates and returns gRPC server instance.
