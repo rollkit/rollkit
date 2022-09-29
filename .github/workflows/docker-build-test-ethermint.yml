@@ -12,7 +12,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: celestiaorg/ethermint
-  TAG_PREFIX: optimint-
+  TAG_PREFIX: rollmint-
 
 jobs:
   docker-build:
@@ -37,16 +37,16 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
-          ref: optimint-v0.3.0-rebase
+          ref: rollmint-v0.3.0-rebase
       - name: Move Stuff and Tidy
         run: |
           ls
           mv ethermint ..
           cd ..
-          cp -R optimint ethermint
+          cp -R rollmint ethermint
           cd ethermint
           rm -rf .git
-          go mod edit -replace=github.com/celestiaorg/optimint=./optimint
+          go mod edit -replace=github.com/celestiaorg/rollmint=./rollmint
           go mod tidy -compat=1.17 -e
       - name: Docker meta
         id: meta
@@ -91,14 +91,14 @@ jobs:
       with:
         repository: celestiaorg/ethermint
         path: ethermint
-        ref: optimint-v0.3.0-rebase
+        ref: rollmint-v0.3.0-rebase
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
         go-version: 1.17
     - name: "Setup Cluster"
       run: |
-        export ETHERMINT_IMAGE_TAG=optimint-$(git rev-parse --short "$GITHUB_SHA")
+        export ETHERMINT_IMAGE_TAG=rollmint-$(git rev-parse --short "$GITHUB_SHA")
         echo $ETHERMINT_IMAGE_TAG
         cd ephemeral-cluster
         scripts/minimal-ethermint.sh
