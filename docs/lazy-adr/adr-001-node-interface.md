@@ -17,28 +17,28 @@ We don't need to introduce common interface `Node`s, because the plan is to use 
 
 ### Interface required by cosmos-sdk
 
-* BaseService (struct):
-  * Service (interface)
-    * Start()
-    * IsRunning()
-    * Stop()
-  * Logger
-* Direct access:
-  * ConfigureRPC()
-  * EventBus()
+- BaseService (struct):
+  - Service (interface)
+    - Start()
+    - IsRunning()
+    - Stop()
+  - Logger
+- Direct access:
+  - ConfigureRPC()
+  - EventBus()
 
 ## Alternative approaches
 
 ### Create RPC from scratch
 
-* Pros:
-  * May be possible to avoid Tendermint issues
-  * Should be possible to avoid dependency on Tendermint in rollmint
-  * Changes probably limited to cosmos-sdk (not required in tendermint/lazyledger-core)
-* Cons:
-  * Reinventing the wheel
-  * Requires bigger, much more complicated changes in cosmos-sdk
-  * Probably can't upstream such changes to cosmos-sdk
+- Pros:
+  - May be possible to avoid Tendermint issues
+  - Should be possible to avoid dependency on Tendermint in rollmint
+  - Changes probably limited to cosmos-sdk (not required in tendermint/lazyledger-core)
+- Cons:
+  - Reinventing the wheel
+  - Requires bigger, much more complicated changes in cosmos-sdk
+  - Probably can't upstream such changes to cosmos-sdk
 
 ## `tendermint` vs `lazyledger-core`
 
