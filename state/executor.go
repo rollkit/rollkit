@@ -377,17 +377,17 @@ func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.
 }
 
 func toRollmintTxs(txs tmtypes.Txs) types.Txs {
-	optiTxs := make(types.Txs, len(txs))
+	rollmintTxs := make(types.Txs, len(txs))
 	for i := range txs {
-		optiTxs[i] = []byte(txs[i])
+		rollmintTxs[i] = []byte(txs[i])
 	}
-	return optiTxs
+	return rollmintTxs
 }
 
-func fromRollmintTxs(optiTxs types.Txs) tmtypes.Txs {
-	txs := make(tmtypes.Txs, len(optiTxs))
-	for i := range optiTxs {
-		txs[i] = []byte(optiTxs[i])
+func fromRollmintTxs(rollmintTxs types.Txs) tmtypes.Txs {
+	txs := make(tmtypes.Txs, len(rollmintTxs))
+	for i := range rollmintTxs {
+		txs[i] = []byte(rollmintTxs[i])
 	}
 	return txs
 }
