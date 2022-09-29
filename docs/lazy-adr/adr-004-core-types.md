@@ -210,4 +210,4 @@ For finishing the implementation these items need to be tackled at least:
 
 ## References
 
-- <https://github.com/celestiaorg/optimint/pull/41>
+- <https://github.com/celestiaorg/rollmint/pull/41>

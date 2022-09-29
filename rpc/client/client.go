@@ -374,7 +374,7 @@ func (c *Client) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusSta
 //
 // Currently, consensus params changes are not supported and this method returns params as defined in genesis.
 func (c *Client) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/optimint/issues/291
+	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/rollmint/issues/291
 	params := c.node.GetGenesis().ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),

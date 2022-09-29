@@ -246,7 +246,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
 	}
 
-	// TODO(tzdybal): see https://github.com/celestiaorg/optimint/issues/143
+	// TODO(tzdybal): see https://github.com/celestiaorg/rollmint/issues/143
 	if nTxs == 0 {
 		block.Data.Txs = nil
 		block.Data.IntermediateStateRoots.RawRootsList = nil
