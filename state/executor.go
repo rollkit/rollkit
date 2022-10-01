@@ -444,12 +444,10 @@ func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginB
 	if err != nil {
 		return nil, err
 	}
-	if resp.FraudProof != nil {
-		return resp.FraudProof, nil
-
-	} else {
+	if resp.FraudProof == nil {
 		return nil, fmt.Errorf("fraud proof generation failed")
 	}
+	return resp.FraudProof, nil
 }
 
 func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
