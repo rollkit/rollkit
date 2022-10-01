@@ -82,6 +82,19 @@ func (_m *Application) GenerateFraudProof(_a0 types.RequestGenerateFraudProof) t
 	return r0
 }
 
+func (_m *Application) VerifyFraudProof(_a0 types.RequestVerifyFraudProof) types.ResponseVerifyFraudProof {
+	ret := _m.Called(_a0)
+
+	var r0 types.ResponseVerifyFraudProof
+	if rf, ok := ret.Get(0).(func(types.RequestVerifyFraudProof) types.ResponseVerifyFraudProof); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(types.ResponseVerifyFraudProof)
+	}
+
+	return r0
+}
+
 // Commit provides a mock function with given fields:
 func (_m *Application) GetAppHash(_a0 types.RequestGetAppHash) types.ResponseGetAppHash {
 	ret := _m.Called(_a0)

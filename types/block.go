@@ -97,4 +97,3 @@ type Signature []byte
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }
-<<<<<<< HEAD

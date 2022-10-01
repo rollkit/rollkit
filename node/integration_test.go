@@ -92,7 +92,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	clientNodes := 4
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, &wg, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
 
 	wg.Add((clientNodes + 1) * clientNodes)
 	for _, n := range nodes {
@@ -173,7 +173,9 @@ func TestFraudProofTrigger(t *testing.T) {
 
 	var wg sync.WaitGroup
 	clientNodes := 4
-	nodes, apps := createNodes(true, clientNodes+1, &wg, t)
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
 
 	wg.Add((clientNodes + 1) * clientNodes)
 	for _, n := range nodes {
@@ -198,10 +200,11 @@ func TestFraudProofTrigger(t *testing.T) {
 	case <-timeout.C:
 		t.FailNow()
 	}
-
+	aggCancel()
 	for _, n := range nodes {
 		require.NoError(n.Stop())
 	}
+	cancel()
 	aggApp := apps[0]
 	apps = apps[1:]
 
@@ -266,8 +269,8 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 
 	nodes := make([]*Node, num)
 	apps := make([]*mocks.Application, num)
-	dalc := &mockda.MockDataAvailabilityLayerClient{}
-	_ = dalc.Init(nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	_ = dalc.Init([8]byte{}, nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
 	_ = dalc.Start()
 	nodes[0], apps[0] = createNode(aggCtx, 0, isMalicious, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {
