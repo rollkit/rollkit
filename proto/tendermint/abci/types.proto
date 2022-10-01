@@ -437,7 +437,7 @@ message FraudProof {
 // State witness with a list of all witness data
 message StateWitness {
   // store level proof
-  tendermint.crypto.ProofOp proof_op = 1;
+  tendermint.crypto.ProofOp proof = 1;
   // substore level hash
   bytes root_hash = 2;
   // List of witness data

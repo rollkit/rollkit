@@ -248,7 +248,7 @@ func TestFraudProofTrigger(t *testing.T) {
 	}
 }
 
-func createNodes(aggCtx, ctx context.Context, isMalicious bool, num int, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
