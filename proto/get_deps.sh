@@ -2,7 +2,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-TM_VERSION=v0.34.21
+TM_VERSION=v0.34.14
 TM_PROTO_URL=https://raw.githubusercontent.com/tendermint/tendermint/$TM_VERSION/proto/tendermint
 
 TM_PROTO_FILES=(
