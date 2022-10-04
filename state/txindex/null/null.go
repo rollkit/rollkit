@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/optimint/state/txindex"
+	"github.com/celestiaorg/rollmint/state/txindex"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 )

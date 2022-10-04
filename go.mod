@@ -1,4 +1,4 @@
-module github.com/celestiaorg/optimint
+module github.com/celestiaorg/rollmint
 
 go 1.18
 

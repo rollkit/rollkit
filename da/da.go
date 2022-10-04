@@ -1,14 +1,14 @@
 package da
 
 import (
-	"github.com/celestiaorg/optimint/log"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/log"
+	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
-// that might need to be handled by Optimint independent of
+// that might need to be handled by rollmint independent of
 // the underlying DA chain.
 type StatusCode uint64
 
@@ -34,7 +34,7 @@ type BaseResult struct {
 type ResultSubmitBlock struct {
 	BaseResult
 	// Not sure if this needs to be bubbled up to other
-	// parts of Optimint.
+	// parts of rollmint.
 	// Hash hash.Hash
 }
 

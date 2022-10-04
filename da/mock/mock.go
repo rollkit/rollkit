@@ -6,10 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/log"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/da"
+	"github.com/celestiaorg/rollmint/log"
+	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 // DataAvailabilityLayerClient is intended only for usage in tests.

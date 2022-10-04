@@ -1,4 +1,9 @@
-# Using Optimint `Node` as replacement of Tendermint `Node`
+# Using rollmint `Node` as replacement of Tendermint `Node`
+
+## Changelog
+
+- 26.02.2021: Initial Draft
+- 29.09.2022: Rename Optimint to rollmint
 
 Replacing on the `Node` level gives much flexibility. Still, significant amount of code can be reused, and there is no need to refactor lazyledger-core.
 Cosmos SDK is tigtly coupled with Tendermint with regards to node creation, RPC, app initialization, etc. De-coupling requires big refactoring of cosmos-sdk.
@@ -12,28 +17,28 @@ We don't need to introduce common interface `Node`s, because the plan is to use 
 
 ### Interface required by cosmos-sdk
 
-* BaseService (struct):
-  * Service (interface)
-    * Start()
-    * IsRunning()
-    * Stop()
-  * Logger
-* Direct access:
-  * ConfigureRPC()
-  * EventBus()
+- BaseService (struct):
+  - Service (interface)
+    - Start()
+    - IsRunning()
+    - Stop()
+  - Logger
+- Direct access:
+  - ConfigureRPC()
+  - EventBus()
 
 ## Alternative approaches
 
 ### Create RPC from scratch
 
-* Pros:
-  * May be possible to avoid Tendermint issues
-  * Should be possible to avoid dependency on Tendermint in Optimint
-  * Changes probably limited to cosmos-sdk (not required in tendermint/lazyledger-core)
-* Cons:
-  * Reinventing the wheel
-  * Requires bigger, much more complicated changes in cosmos-sdk
-  * Probably can't upstream such changes to cosmos-sdk
+- Pros:
+  - May be possible to avoid Tendermint issues
+  - Should be possible to avoid dependency on Tendermint in rollmint
+  - Changes probably limited to cosmos-sdk (not required in tendermint/lazyledger-core)
+- Cons:
+  - Reinventing the wheel
+  - Requires bigger, much more complicated changes in cosmos-sdk
+  - Probably can't upstream such changes to cosmos-sdk
 
 ## `tendermint` vs `lazyledger-core`
 
@@ -46,4 +51,4 @@ easier.
 
 ## Development
 
-For development, there is `master-optimint` branch in `cosmos-sdk` repository. Versions with `-optimint` suffix will be released from this branch for easier dependency management during development.
+`cosmos-sdk-rollmit` is a repository dedicated for maintenance of rollmint-enabled version of Cosmos SDK.

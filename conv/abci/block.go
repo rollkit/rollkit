@@ -7,11 +7,11 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/types"
 )
 
-// ToABCIHeaderPB converts Optimint header to Header format defined in ABCI.
-// Caller should fill all the fields that are not available in Optimint header (like ChainID).
+// ToABCIHeaderPB converts rollmint header to Header format defined in ABCI.
+// Caller should fill all the fields that are not available in rollmint header (like ChainID).
 func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 	return tmproto.Header{
 		Version: tmversion.Consensus{
@@ -39,8 +39,8 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 	}, nil
 }
 
-// ToABCIHeader converts Optimint header to Header format defined in ABCI.
-// Caller should fill all the fields that are not available in Optimint header (like ChainID).
+// ToABCIHeader converts rollmint header to Header format defined in ABCI.
+// Caller should fill all the fields that are not available in rollmint header (like ChainID).
 func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 	return tmtypes.Header{
 		Version: tmversion.Consensus{
@@ -68,7 +68,7 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 	}, nil
 }
 
-// ToABCIBlock converts Optimint block into block format defined by ABCI.
+// ToABCIBlock converts rollmint block into block format defined by ABCI.
 // Returned block should pass `ValidateBasic`.
 func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	abciHeader, err := ToABCIHeader(&block.Header)
@@ -96,7 +96,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	return &abciBlock, nil
 }
 
-// ToABCIBlockMeta converts Optimint block into BlockMeta format defined by ABCI
+// ToABCIBlockMeta converts rollmint block into BlockMeta format defined by ABCI
 func ToABCIBlockMeta(block *types.Block) (*tmtypes.BlockMeta, error) {
 	tmblock, err := ToABCIBlock(block)
 	if err != nil {
@@ -112,8 +112,8 @@ func ToABCIBlockMeta(block *types.Block) (*tmtypes.BlockMeta, error) {
 	}, nil
 }
 
-// ToABCICommit converts Optimint commit into commit format defined by ABCI.
-// This function only converts fields that are available in Optimint commit.
+// ToABCICommit converts rollmint commit into commit format defined by ABCI.
+// This function only converts fields that are available in rollmint commit.
 // Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
 func ToABCICommit(commit *types.Commit) *tmtypes.Commit {
 	tmCommit := tmtypes.Commit{

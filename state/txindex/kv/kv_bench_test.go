@@ -11,7 +11,7 @@ import (
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/rollmint/store"
 )
 
 func BenchmarkTxSearch(b *testing.B) {

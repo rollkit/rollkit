@@ -1,10 +1,10 @@
 package registry
 
 import (
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/da/celestia"
-	"github.com/celestiaorg/optimint/da/grpc"
-	"github.com/celestiaorg/optimint/da/mock"
+	"github.com/celestiaorg/rollmint/da"
+	"github.com/celestiaorg/rollmint/da/celestia"
+	"github.com/celestiaorg/rollmint/da/grpc"
+	"github.com/celestiaorg/rollmint/da/mock"
 )
 
 // this is a central registry for all Data Availability Layer Clients

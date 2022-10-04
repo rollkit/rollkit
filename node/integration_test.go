@@ -21,12 +21,12 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/config"
-	"github.com/celestiaorg/optimint/da"
-	mockda "github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/mocks"
-	"github.com/celestiaorg/optimint/p2p"
-	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/rollmint/config"
+	"github.com/celestiaorg/rollmint/da"
+	mockda "github.com/celestiaorg/rollmint/da/mock"
+	"github.com/celestiaorg/rollmint/mocks"
+	"github.com/celestiaorg/rollmint/p2p"
+	"github.com/celestiaorg/rollmint/store"
 )
 
 func TestAggregatorMode(t *testing.T) {

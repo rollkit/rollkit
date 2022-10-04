@@ -14,8 +14,8 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
-	"github.com/celestiaorg/optimint/log"
-	"github.com/celestiaorg/optimint/rpc/client"
+	"github.com/celestiaorg/rollmint/log"
+	"github.com/celestiaorg/rollmint/rpc/client"
 )
 
 // GetHTTPHandler returns handler configured to serve Tendermint-compatible RPC.

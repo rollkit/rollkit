@@ -12,7 +12,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: celestiaorg/ethermint-debug
-  TAG_PREFIX: optimint-
+  TAG_PREFIX: rollmint-
 
 jobs:
   docker-build:
@@ -40,10 +40,10 @@ jobs:
           ls
           mv ethermint ..
           cd ..
-          cp -R optimint ethermint
+          cp -R rollmint ethermint
           cd ethermint
           rm -rf .git
-          go mod edit -replace=github.com/celestiaorg/optimint=./optimint
+          go mod edit -replace=github.com/celestiaorg/rollmint=./rollmint
           go mod tidy -compat=1.17 -e
       - name: Docker meta
         id: meta
