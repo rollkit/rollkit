@@ -319,6 +319,28 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		}
 	})
 
+	genAndGossipFraudProofIfNeeded := func(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (err error) {
+		if fraudProofsEnabled {
+			isr, err := e.getAppHash()
+			if err != nil {
+				return err
+			}
+			ISRs = append(ISRs, isr)
+			isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+			if isFraud {
+				fraudProof, err := e.generateFraudProof(beginBlockRequest, deliverTxRequests, endBlockRequest)
+				if err != nil {
+					return err
+				}
+				// TODO: gossip fraudProof to P2P network
+				// fraudTx: current DeliverTx
+				_ = fraudProof
+			}
+			currentIsrIndex++
+		}
+		return nil
+	}
+
 	hash := block.Hash()
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.Header)
 	if err != nil {
@@ -340,24 +362,11 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	if fraudProofsEnabled {
-		isr, err := e.getAppHash()
-		if err != nil {
-			return nil, err
-		}
-		ISRs = append(ISRs, isr)
-		isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-		if isFraud {
-			fraudProof, err := e.generateFraudProof(&beginBlockRequest, nil, nil)
-			if err != nil {
-				return nil, err
-			}
-			// TODO: gossip fraudProof to P2P network
-			// fraudTx: BeginBlock
-			_ = fraudProof
-		}
-		currentIsrIndex++
+	err = genAndGossipFraudProofIfNeeded(&beginBlockRequest, nil, nil)
+	if err != nil {
+		return nil, err
 	}
+
 	deliverTxRequests := make([]*abci.RequestDeliverTx, len(block.Data.Txs))
 	for _, tx := range block.Data.Txs {
 		deliverTxRequest := abci.RequestDeliverTx{Tx: tx}
@@ -367,23 +376,9 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 			return nil, errors.New(res.GetException().GetError())
 		}
 
-		if fraudProofsEnabled {
-			isr, err := e.getAppHash()
-			if err != nil {
-				return nil, err
-			}
-			ISRs = append(ISRs, isr)
-			isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-			if isFraud {
-				fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, nil)
-				if err != nil {
-					return nil, err
-				}
-				// TODO: gossip fraudProof to P2P network
-				// fraudTx: current DeliverTx
-				_ = fraudProof
-			}
-			currentIsrIndex++
+		err = genAndGossipFraudProofIfNeeded(&beginBlockRequest, deliverTxRequests, nil)
+		if err != nil {
+			return nil, err
 		}
 	}
 	endBlockRequest := abci.RequestEndBlock{Height: int64(block.Header.Height)}
@@ -392,26 +387,14 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	if fraudProofsEnabled {
-		isr, err := e.getAppHash()
-		if err != nil {
-			return nil, err
-		}
-		ISRs = append(ISRs, isr)
-		isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-		if isFraud {
-			fraudProof, err := e.generateFraudProof(&beginBlockRequest, deliverTxRequests, &endBlockRequest)
-			if err != nil {
-				return nil, err
-			}
-			// TODO: gossip fraudProof to P2P network
-			// fraudTx: EndBlock
-			_ = fraudProof
-		}
-		if block.Data.IntermediateStateRoots.RawRootsList == nil {
-			// Block producer: Initial ISRs generated here
-			block.Data.IntermediateStateRoots.RawRootsList = ISRs
-		}
+	err = genAndGossipFraudProofIfNeeded(&beginBlockRequest, deliverTxRequests, &endBlockRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if fraudProofsEnabled && block.Data.IntermediateStateRoots.RawRootsList == nil {
+		// Block producer: Initial ISRs generated here
+		block.Data.IntermediateStateRoots.RawRootsList = ISRs
 	}
 
 	return abciResponses, nil
