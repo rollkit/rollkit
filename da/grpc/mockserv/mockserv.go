@@ -2,7 +2,6 @@ package mockserv
 
 import (
 	"context"
-	"os"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
@@ -16,9 +15,7 @@ import (
 )
 
 // GetServer creates and returns gRPC server instance.
-func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte) *grpc.Server {
-	logger := tmlog.NewTMLogger(os.Stdout)
-
+func GetServer(kv store.KVStore, conf grpcda.Config, mockConfig []byte, logger tmlog.Logger) *grpc.Server {
 	srv := grpc.NewServer()
 	mockImpl := &mockImpl{}
 	err := mockImpl.mock.Init([8]byte{}, mockConfig, kv, logger)
