@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/celestiaorg/rollmint/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -39,8 +40,8 @@ type BlockManagerConfig struct {
 	// DABlockTime informs about block time of underlying data availability layer
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
-	DAStartHeight uint64  `mapstructure:"da_start_height"`
-	NamespaceID   [8]byte `mapstructure:"namespace_id"`
+	DAStartHeight uint64            `mapstructure:"da_start_height"`
+	NamespaceID   types.NamespaceID `mapstructure:"namespace_id"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.

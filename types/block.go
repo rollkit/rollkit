@@ -4,6 +4,8 @@ import (
 	"encoding"
 )
 
+type NamespaceID [8]byte
+
 // Header defines the structure of rollmint block header.
 type Header struct {
 	// Block and App version
@@ -11,7 +13,7 @@ type Header struct {
 	// NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
 	// TODO(ismail): figure out if we want to use namespace.ID here instead (downside is that it isn't fixed size)
 	// at least extract the used constants (32, 8) as package variables though.
-	NamespaceID [8]byte
+	NamespaceID NamespaceID
 
 	Height uint64
 	Time   uint64 // time in tai64 format

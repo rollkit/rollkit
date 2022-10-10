@@ -43,7 +43,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 					Block: 1,
 					App:   2,
 				},
-				NamespaceID:     [8]byte{0, 1, 2, 3, 4, 5, 6, 7},
+				NamespaceID:     NamespaceID{0, 1, 2, 3, 4, 5, 6, 7},
 				Height:          3,
 				Time:            4567,
 				LastHeaderHash:  h[0],
