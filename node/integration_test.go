@@ -162,6 +162,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 			require.NoError(err)
 			nodeBlock, err := nodes[i].Store.LoadBlock(h)
 			require.NoError(err)
+			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparision
+			nodeBlock.Data.IntermediateStateRoots.RawRootsList = nil
 			assert.Equal(aggBlock, nodeBlock)
 		}
 	}
@@ -246,6 +248,8 @@ func TestFraudProofTrigger(t *testing.T) {
 			require.NoError(err)
 			aggBlock, err := nodes[0].Store.LoadBlock(h)
 			require.NoError(err)
+			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparision
+			nodeBlock.Data.IntermediateStateRoots.RawRootsList = nil
 			assert.Equal(aggBlock, nodeBlock)
 		}
 	}
@@ -310,10 +314,12 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	maliciousAppHash := []byte{9, 8, 7, 6}
+	nonMaliciousAppHash := []byte{1, 2, 3, 4}
 	if isMalicious && aggregator {
-		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: []byte{9, 8, 7, 6}})
+		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: maliciousAppHash})
 	} else {
-		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: []byte{1, 2, 3, 4}})
+		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: nonMaliciousAppHash})
 	}
 
 	if isMalicious && !aggregator {
