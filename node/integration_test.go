@@ -203,10 +203,12 @@ func TestFraudProofTrigger(t *testing.T) {
 		t.FailNow()
 	}
 	aggCancel()
+	time.Sleep(100 * time.Millisecond)
 	for _, n := range nodes {
 		require.NoError(n.Stop())
 	}
 	cancel()
+	time.Sleep(100 * time.Millisecond)
 	aggApp := apps[0]
 	apps = apps[1:]
 
