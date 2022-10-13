@@ -185,6 +185,7 @@ func TestFraudProofTrigger(t *testing.T) {
 		require.NoError(n.Start())
 	}
 
+	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
 	time.Sleep(1 * time.Second)
 
 	for i := 1; i < len(nodes); i++ {
