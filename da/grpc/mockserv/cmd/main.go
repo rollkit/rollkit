@@ -4,15 +4,18 @@ import (
 	"flag"
 	"log"
 	"net"
+	"os"
 	"strconv"
 
 	grpcda "github.com/celestiaorg/rollmint/da/grpc"
 	"github.com/celestiaorg/rollmint/da/grpc/mockserv"
 	"github.com/celestiaorg/rollmint/store"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 func main() {
 	conf := grpcda.DefaultConfig
+	logger := tmlog.NewTMLogger(os.Stdout)
 
 	flag.IntVar(&conf.Port, "port", conf.Port, "listening port")
 	flag.StringVar(&conf.Host, "host", "0.0.0.0", "listening address")
@@ -24,7 +27,7 @@ func main() {
 		log.Panic(err)
 	}
 	log.Println("Listening on:", lis.Addr())
-	srv := mockserv.GetServer(kv, conf, nil)
+	srv := mockserv.GetServer(kv, conf, nil, logger)
 	if err := srv.Serve(lis); err != nil {
 		log.Println("error while serving:", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/celestiaorg/rollmint/log/test"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond
@@ -142,7 +144,9 @@ func TestRetrieve(t *testing.T) {
 func startMockGRPCServ(t *testing.T) *grpc.Server {
 	t.Helper()
 	conf := grpcda.DefaultConfig
-	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()))
+	logger := tmlog.NewTMLogger(os.Stdout)
+
+	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()), logger)
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
 		t.Fatal(err)
