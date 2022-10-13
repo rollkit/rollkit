@@ -132,9 +132,9 @@ message RequestGetAppHash {}
 
 // Generates a fraud proof
 message RequestGenerateFraudProof {
-  RequestBeginBlock beginBlockRequest = 1 [(gogoproto.nullable) = false];
-  repeated RequestDeliverTx deliverTxRequests = 2;
-  RequestEndBlock endBlockRequest = 3;
+  RequestBeginBlock begin_block_request = 1 [(gogoproto.nullable) = false];
+  repeated RequestDeliverTx deliver_tx_requests = 2;
+  RequestEndBlock end_block_request = 3;
 }
 
 // Verifies a fraud proof
@@ -429,22 +429,22 @@ message FraudProof {
   bytes app_hash = 2;
   map<string, StateWitness> state_witness = 3;
 
-  RequestBeginBlock fraudulentBeginBlock = 4;
-  RequestDeliverTx fraudulentDeliverTx = 5;
-  RequestEndBlock fraudulentEndBlock = 6;
+  RequestBeginBlock fraudulent_begin_block = 4;
+  RequestDeliverTx fraudulent_deliver_tx = 5;
+  RequestEndBlock fraudulent_end_block = 6;
 }
 
 // State witness with a list of all witness data
 message StateWitness {
   // store level proof
-  tendermint.crypto.ProofOp proof_op = 1;
+  tendermint.crypto.ProofOp proof = 1;
   // substore level hash
   bytes root_hash = 2;
   // List of witness data
   repeated WitnessData witness_data = 3;
 }
 
-// Witness data containing a key/value pair and a SMT proof for said key/value pair
+// Witness data containing a key/value pair and a Merkle proof for said key/value pair
 message WitnessData {
   bytes key = 1;
   bytes value = 2;
