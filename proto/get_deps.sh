@@ -2,8 +2,8 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-TM_VERSION=v0.34.21
-TM_PROTO_URL=https://raw.githubusercontent.com/tendermint/tendermint/$TM_VERSION/proto/tendermint
+TM_VERSION=manav/abci_add_verify
+TM_PROTO_URL=https://raw.githubusercontent.com/celestiaorg/tendermint/$TM_VERSION/proto/tendermint
 
 TM_PROTO_FILES=(
   abci/types.proto
