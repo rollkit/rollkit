@@ -163,7 +163,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 			require.NoError(err)
 			nodeBlock, err := nodes[i].Store.LoadBlock(h)
 			require.NoError(err)
-			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparision
+			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparison
 			nodeBlock.Data.IntermediateStateRoots.RawRootsList = nil
 			assert.Equal(aggBlock, nodeBlock)
 		}
@@ -252,7 +252,7 @@ func TestFraudProofTrigger(t *testing.T) {
 			require.NoError(err)
 			aggBlock, err := nodes[0].Store.LoadBlock(h)
 			require.NoError(err)
-			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparision
+			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparison
 			nodeBlock.Data.IntermediateStateRoots.RawRootsList = nil
 			assert.Equal(aggBlock, nodeBlock)
 		}
