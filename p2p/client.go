@@ -21,8 +21,8 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/optimint/config"
-	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/rollmint/config"
+	"github.com/celestiaorg/rollmint/log"
 )
 
 // TODO(tzdybal): refactor to configuration parameters

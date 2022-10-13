@@ -7,11 +7,11 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/log"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
-	"github.com/celestiaorg/optimint/types/pb/dalc"
+	"github.com/celestiaorg/rollmint/da"
+	"github.com/celestiaorg/rollmint/log"
+	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/types"
+	"github.com/celestiaorg/rollmint/types/pb/dalc"
 )
 
 // DataAvailabilityLayerClient is a generic client that proxies all DA requests via gRPC.

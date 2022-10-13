@@ -468,10 +468,8 @@ service ABCIApplication {
   rpc EndBlock(RequestEndBlock) returns (ResponseEndBlock);
   rpc ListSnapshots(RequestListSnapshots) returns (ResponseListSnapshots);
   rpc OfferSnapshot(RequestOfferSnapshot) returns (ResponseOfferSnapshot);
-  rpc LoadSnapshotChunk(RequestLoadSnapshotChunk)
-      returns (ResponseLoadSnapshotChunk);
-  rpc ApplySnapshotChunk(RequestApplySnapshotChunk)
-      returns (ResponseApplySnapshotChunk);
+  rpc LoadSnapshotChunk(RequestLoadSnapshotChunk) returns (ResponseLoadSnapshotChunk);
+  rpc ApplySnapshotChunk(RequestApplySnapshotChunk) returns (ResponseApplySnapshotChunk);
   rpc GetAppHash(RequestGetAppHash) returns (ResponseGetAppHash);
   rpc GenerateFraudProof(RequestGenerateFraudProof) returns (ResponseGenerateFraudProof);
   rpc VerifyFraudProof(RequestVerifyFraudProof) returns (ResponseVerifyFraudProof);

@@ -11,8 +11,8 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/optimint/types"
-	pb "github.com/celestiaorg/optimint/types/pb/optimint"
+	"github.com/celestiaorg/rollmint/types"
+	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
 )
 
 var (

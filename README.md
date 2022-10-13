@@ -1,14 +1,14 @@
-# optimint
+# rollmint
 
 ABCI-client implementation for Optimistic Rollups.
 
 Design document: <https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyxVLSyDd7Fbxo5UnA8/edit?usp=sharing>
 
-[![build-and-test](https://github.com/celestiaorg/optimint/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/optimint/actions/workflows/test.yml)
-[![golangci-lint](https://github.com/celestiaorg/optimint/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/optimint/actions/workflows/lint.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/optimint)](https://goreportcard.com/report/github.com/celestiaorg/optimint)
-[![codecov](https://codecov.io/gh/celestiaorg/optimint/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/optimint)
-[![GoDoc](https://godoc.org/github.com/celestiaorg/optimint?status.svg)](https://godoc.org/github.com/celestiaorg/optimint)
+[![build-and-test](https://github.com/celestiaorg/rollmint/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/rollmint/actions/workflows/test.yml)
+[![golangci-lint](https://github.com/celestiaorg/rollmint/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/rollmint/actions/workflows/lint.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/rollmint)](https://goreportcard.com/report/github.com/celestiaorg/rollmint)
+[![codecov](https://codecov.io/gh/celestiaorg/rollmint/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/rollmint)
+[![GoDoc](https://godoc.org/github.com/celestiaorg/rollmint?status.svg)](https://godoc.org/github.com/celestiaorg/rollmint)
 [![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
 
 ## Building From Source
@@ -18,8 +18,8 @@ Requires Go version >= 1.17.
 To build:
 
 ```sh
-git clone https://github.com/celestiaorg/optimint.git
-cd optimint
+git clone https://github.com/celestiaorg/rollmint.git
+cd rollmint
 go build -v ./...
 ```
 
@@ -40,7 +40,7 @@ To regenerate protobuf types:
 We welcome your contributions! Everyone is welcome to contribute, whether it's in the form of code,
 documentation, bug reports, feature requests, or anything else.
 
-If you're looking for issues to work on, try looking at the [good first issue list](https://github.com/celestiaorg/optimint/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). Issues with this tag are suitable for a new external contributor and is a great way to find something you can help with!
+If you're looking for issues to work on, try looking at the [good first issue list](https://github.com/celestiaorg/rollmint/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). Issues with this tag are suitable for a new external contributor and is a great way to find something you can help with!
 
 See [the contributing guide](./CONTRIBUTING.md) for more details.
 

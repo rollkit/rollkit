@@ -9,7 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/celestiaorg/optimint/log"
+	"github.com/celestiaorg/rollmint/log"
 )
 
 // GossipMessage represents message gossiped via P2P network (e.g. transaction, Block etc).

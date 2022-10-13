@@ -16,8 +16,8 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/state/txindex"
-	"github.com/celestiaorg/optimint/store"
+	"github.com/celestiaorg/rollmint/state/txindex"
+	"github.com/celestiaorg/rollmint/store"
 )
 
 func TestTxIndex(t *testing.T) {

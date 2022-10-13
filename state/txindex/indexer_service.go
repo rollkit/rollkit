@@ -3,7 +3,7 @@ package txindex
 import (
 	"context"
 
-	"github.com/celestiaorg/optimint/state/indexer"
+	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/types"
 )

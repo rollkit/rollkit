@@ -9,11 +9,11 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/celestiaorg/go-cnc"
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/log"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
-	pb "github.com/celestiaorg/optimint/types/pb/optimint"
+	"github.com/celestiaorg/rollmint/da"
+	"github.com/celestiaorg/rollmint/log"
+	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/types"
+	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
 )
 
 // DataAvailabilityLayerClient use celestia-node public API.

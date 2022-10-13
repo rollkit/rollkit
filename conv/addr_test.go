@@ -7,7 +7,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/celestiaorg/optimint/config"
+	"github.com/celestiaorg/rollmint/config"
 )
 
 func TestTranslateAddresses(t *testing.T) {
@@ -15,7 +15,7 @@ func TestTranslateAddresses(t *testing.T) {
 
 	invalidCosmos := "foobar"
 	validCosmos := "127.0.0.1:1234"
-	validOptimint := "/ip4/127.0.0.1/tcp/1234"
+	validRollmint := "/ip4/127.0.0.1/tcp/1234"
 
 	cases := []struct {
 		name        string
@@ -27,13 +27,13 @@ func TestTranslateAddresses(t *testing.T) {
 		{
 			"valid listen address",
 			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validCosmos}},
-			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validOptimint}},
+			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validRollmint}},
 			"",
 		},
 		{
 			"valid seed address",
 			config.NodeConfig{P2P: config.P2PConfig{Seeds: validCosmos + "," + validCosmos}},
-			config.NodeConfig{P2P: config.P2PConfig{Seeds: validOptimint + "," + validOptimint}},
+			config.NodeConfig{P2P: config.P2PConfig{Seeds: validRollmint + "," + validRollmint}},
 			"",
 		},
 		{

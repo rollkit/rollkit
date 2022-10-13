@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -12,16 +13,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/da/celestia"
-	cmock "github.com/celestiaorg/optimint/da/celestia/mock"
-	grpcda "github.com/celestiaorg/optimint/da/grpc"
-	"github.com/celestiaorg/optimint/da/grpc/mockserv"
-	"github.com/celestiaorg/optimint/da/mock"
-	"github.com/celestiaorg/optimint/da/registry"
-	"github.com/celestiaorg/optimint/log/test"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/da"
+	"github.com/celestiaorg/rollmint/da/celestia"
+	cmock "github.com/celestiaorg/rollmint/da/celestia/mock"
+	grpcda "github.com/celestiaorg/rollmint/da/grpc"
+	"github.com/celestiaorg/rollmint/da/grpc/mockserv"
+	"github.com/celestiaorg/rollmint/da/mock"
+	"github.com/celestiaorg/rollmint/da/registry"
+	"github.com/celestiaorg/rollmint/log/test"
+	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/types"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond
@@ -104,7 +106,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
-	// wait a bit more than mockDaBlockTime, so optimint blocks can be "included" in mock block
+	// wait a bit more than mockDaBlockTime, so rollmint blocks can be "included" in mock block
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
 	check := dalc.CheckBlockAvailability(h1)
@@ -142,7 +144,9 @@ func TestRetrieve(t *testing.T) {
 func startMockGRPCServ(t *testing.T) *grpc.Server {
 	t.Helper()
 	conf := grpcda.DefaultConfig
-	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()))
+	logger := tmlog.NewTMLogger(os.Stdout)
+
+	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()), logger)
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
 		t.Fatal(err)
@@ -246,7 +250,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
 	}
 
-	// TODO(tzdybal): see https://github.com/celestiaorg/optimint/issues/143
+	// TODO(tzdybal): see https://github.com/celestiaorg/rollmint/issues/143
 	if nTxs == 0 {
 		block.Data.Txs = nil
 		block.Data.IntermediateStateRoots.RawRootsList = nil

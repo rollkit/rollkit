@@ -24,10 +24,10 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/config"
-	"github.com/celestiaorg/optimint/mocks"
-	"github.com/celestiaorg/optimint/node"
-	"github.com/celestiaorg/optimint/rpc/client"
+	"github.com/celestiaorg/rollmint/config"
+	"github.com/celestiaorg/rollmint/mocks"
+	"github.com/celestiaorg/rollmint/node"
+	"github.com/celestiaorg/rollmint/rpc/client"
 )
 
 func TestHandlerMapping(t *testing.T) {

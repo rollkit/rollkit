@@ -10,7 +10,7 @@ import (
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,7 +77,7 @@ func TestStoreLoad(t *testing.T) {
 		//}},
 	}
 
-	tmpDir, err := os.MkdirTemp("", "optimint_test")
+	tmpDir, err := os.MkdirTemp("", "rollmint_test")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)

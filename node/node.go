@@ -18,19 +18,19 @@ import (
 	corep2p "github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/block"
-	"github.com/celestiaorg/optimint/config"
-	"github.com/celestiaorg/optimint/da"
-	"github.com/celestiaorg/optimint/da/registry"
-	"github.com/celestiaorg/optimint/mempool"
-	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
-	"github.com/celestiaorg/optimint/p2p"
-	"github.com/celestiaorg/optimint/state/indexer"
-	blockidxkv "github.com/celestiaorg/optimint/state/indexer/block/kv"
-	"github.com/celestiaorg/optimint/state/txindex"
-	"github.com/celestiaorg/optimint/state/txindex/kv"
-	"github.com/celestiaorg/optimint/store"
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/block"
+	"github.com/celestiaorg/rollmint/config"
+	"github.com/celestiaorg/rollmint/da"
+	"github.com/celestiaorg/rollmint/da/registry"
+	"github.com/celestiaorg/rollmint/mempool"
+	mempoolv1 "github.com/celestiaorg/rollmint/mempool/v1"
+	"github.com/celestiaorg/rollmint/p2p"
+	"github.com/celestiaorg/rollmint/state/indexer"
+	blockidxkv "github.com/celestiaorg/rollmint/state/indexer/block/kv"
+	"github.com/celestiaorg/rollmint/state/txindex"
+	"github.com/celestiaorg/rollmint/state/txindex/kv"
+	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -46,7 +46,7 @@ const (
 	genesisChunkSize = 16 * 1024 * 1024 // 16 MiB
 )
 
-// Node represents a client node in Optimint network.
+// Node represents a client node in rollmint network.
 // It connects all the components and orchestrates their work.
 type Node struct {
 	service.BaseService
@@ -78,7 +78,7 @@ type Node struct {
 	ctx context.Context
 }
 
-// NewNode creates new Optimint node.
+// NewNode creates new rollmint node.
 func NewNode(
 	ctx context.Context,
 	conf config.NodeConfig,
@@ -104,7 +104,7 @@ func NewNode(
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV = store.NewDefaultInMemoryKVStore()
 	} else {
-		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "optimint")
+		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
 	}
 	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
 	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)

@@ -1,6 +1,6 @@
 syntax = "proto3";
-package optimint;
-option go_package = "github.com/celestiaorg/optimint/types/pb/optimint";
+package rollmint;
+option go_package = "github.com/celestiaorg/rollmint/types/pb/rollmint";
 import "tendermint/abci/types.proto";
 
 // Version captures the consensus rules for processing a block in the blockchain,

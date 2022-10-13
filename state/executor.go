@@ -15,10 +15,10 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	abciconv "github.com/celestiaorg/optimint/conv/abci"
-	"github.com/celestiaorg/optimint/log"
-	"github.com/celestiaorg/optimint/mempool"
-	"github.com/celestiaorg/optimint/types"
+	abciconv "github.com/celestiaorg/rollmint/conv/abci"
+	"github.com/celestiaorg/rollmint/log"
+	"github.com/celestiaorg/rollmint/mempool"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 var fraudProofsEnabled = true
@@ -110,7 +110,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			ProposerAddress: e.proposerAddress,
 		},
 		Data: types.Data{
-			Txs:                    toOptimintTxs(mempoolTxs),
+			Txs:                    toRollmintTxs(mempoolTxs),
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
@@ -193,7 +193,7 @@ func (e *BlockExecutor) VerifyFraudProof(fraudProof abci.FraudProof, expectedApp
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
-	// Optimint can work without validators
+	// rollmint can work without validators
 	if len(nValSet.Validators) > 0 {
 		if len(validatorUpdates) > 0 {
 			err := nValSet.UpdateWithChangeSet(validatorUpdates)
@@ -248,7 +248,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(int64(block.Header.Height), fromOptimintTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	err = e.mempool.Update(int64(block.Header.Height), fromRollmintTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -491,18 +491,18 @@ func (e *BlockExecutor) getAppHash() ([]byte, error) {
 	return isrResp.AppHash, nil
 }
 
-func toOptimintTxs(txs tmtypes.Txs) types.Txs {
-	optiTxs := make(types.Txs, len(txs))
+func toRollmintTxs(txs tmtypes.Txs) types.Txs {
+	rollmintTxs := make(types.Txs, len(txs))
 	for i := range txs {
-		optiTxs[i] = []byte(txs[i])
+		rollmintTxs[i] = []byte(txs[i])
 	}
-	return optiTxs
+	return rollmintTxs
 }
 
-func fromOptimintTxs(optiTxs types.Txs) tmtypes.Txs {
-	txs := make(tmtypes.Txs, len(optiTxs))
-	for i := range optiTxs {
-		txs[i] = []byte(optiTxs[i])
+func fromRollmintTxs(rollmintTxs types.Txs) tmtypes.Txs {
+	txs := make(tmtypes.Txs, len(rollmintTxs))
+	for i := range rollmintTxs {
+		txs[i] = []byte(rollmintTxs[i])
 	}
 	return txs
 }

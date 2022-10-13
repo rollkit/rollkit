@@ -17,10 +17,10 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/optimint/mempool"
-	mempoolv1 "github.com/celestiaorg/optimint/mempool/v1"
-	"github.com/celestiaorg/optimint/mocks"
-	"github.com/celestiaorg/optimint/types"
+	"github.com/celestiaorg/rollmint/mempool"
+	mempoolv1 "github.com/celestiaorg/rollmint/mempool/v1"
+	"github.com/celestiaorg/rollmint/mocks"
+	"github.com/celestiaorg/rollmint/types"
 )
 
 func TestCreateBlock(t *testing.T) {
