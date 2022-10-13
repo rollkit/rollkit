@@ -20,7 +20,7 @@ import (
 type DataAvailabilityLayerClient struct {
 	client *cnc.Client
 
-	namespaceID [8]byte
+	namespaceID types.NamespaceID
 	config      Config
 	logger      log.Logger
 }
@@ -36,7 +36,7 @@ type Config struct {
 }
 
 // Init initializes DataAvailabilityLayerClient instance.
-func (c *DataAvailabilityLayerClient) Init(namespaceID [8]byte, config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore store.KVStore, logger log.Logger) error {
 	c.namespaceID = namespaceID
 	c.logger = logger
 

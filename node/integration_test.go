@@ -27,6 +27,7 @@ import (
 	"github.com/celestiaorg/rollmint/mocks"
 	"github.com/celestiaorg/rollmint/p2p"
 	"github.com/celestiaorg/rollmint/store"
+	rmtypes "github.com/celestiaorg/rollmint/types"
 )
 
 func TestAggregatorMode(t *testing.T) {
@@ -48,7 +49,7 @@ func TestAggregatorMode(t *testing.T) {
 
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
-		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
+		NamespaceID: rmtypes.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
@@ -297,7 +298,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 	bmConfig := config.BlockManagerConfig{
 		BlockTime:   300 * time.Millisecond,
-		NamespaceID: [8]byte{8, 7, 6, 5, 4, 3, 2, 1},
+		NamespaceID: rmtypes.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {

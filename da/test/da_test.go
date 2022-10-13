@@ -28,7 +28,7 @@ import (
 
 const mockDaBlockTime = 100 * time.Millisecond
 
-var testNamespaceID = [8]byte{0, 1, 2, 3, 4, 5, 6, 7}
+var testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
 func TestLifecycle(t *testing.T) {
 	srv := startMockGRPCServ(t)
