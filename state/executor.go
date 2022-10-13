@@ -24,7 +24,7 @@ import (
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
 	proposerAddress []byte
-	namespaceID     [8]byte
+	namespaceID     types.NamespaceID
 	chainID         string
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool

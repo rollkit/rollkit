@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/rollmint/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -32,5 +33,5 @@ func TestViperAndCobra(t *testing.T) {
 	assert.Equal("foobar", nc.DALayer)
 	assert.Equal(`{"json":true}`, nc.DAConfig)
 	assert.Equal(1234*time.Second, nc.BlockTime)
-	assert.Equal([8]byte{1, 2, 3, 4, 5, 6, 7, 8}, nc.NamespaceID)
+	assert.Equal(types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8}, nc.NamespaceID)
 }

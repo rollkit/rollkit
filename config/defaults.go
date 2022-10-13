@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"github.com/celestiaorg/rollmint/types"
+)
 
 const (
 	// DefaultListenAddress is a default listen address for P2P client.
@@ -16,7 +20,7 @@ var DefaultNodeConfig = NodeConfig{
 	Aggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
 		BlockTime:   30 * time.Second,
-		NamespaceID: [8]byte{},
+		NamespaceID: types.NamespaceID{},
 	},
 	DALayer:  "mock",
 	DAConfig: "",
