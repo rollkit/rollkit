@@ -41,7 +41,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init sets the configuration options.
-func (d *DataAvailabilityLayerClient) Init(_ [8]byte, config []byte, _ store.KVStore, logger log.Logger) error {
+func (d *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, _ store.KVStore, logger log.Logger) error {
 	d.logger = logger
 	if len(config) == 0 {
 		d.config = DefaultConfig

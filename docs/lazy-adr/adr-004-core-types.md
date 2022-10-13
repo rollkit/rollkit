@@ -40,32 +40,34 @@ If necessary `Tx` could be turned into a struct. Currently, there is no need for
 ### Block Header
 
 ```go
+type NamespaceID [8]byte
+
 type Header struct {
     // Block and App version
-    Version Version 
+    Version Version
     // NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
-    NamespaceID [8]byte  
-    
-    Height  uint64               
-    Time    uint64 // time in tai64 format           
-    
+    NamespaceID NamespaceID
+
+    Height  uint64
+    Time    uint64 // time in tai64 format
+
     // prev block info
-    LastHeaderHash [32]byte 
-    
+    LastHeaderHash [32]byte
+
     // hashes of block data
     LastCommitHash     [32]byte // commit from aggregator(s) from the last block
     DataHash           [32]byte // Block.Data root aka Transactions
     ConsensusHash      [32]byte // consensus params for current block
     AppHash            [32]byte  // state after applying txs from the current block
-    
+
     // root hash of all results from the txs from the previous block
     // This is ABCI specific but smart-contract chains require some way of committing to transaction receipts/results.
     LastResultsHash [32]byte
-    
-    
-    // Note that the address can be derived from the pubkey which can be derived 
+
+
+    // Note that the address can be derived from the pubkey which can be derived
     // from the signature when using secp256k.
-    // We keep this in case users choose another signature format where the 
+    // We keep this in case users choose another signature format where the
     // pubkey can't be recovered by the signature (e.g. ed25519).
     ProposerAddress Address  // original proposer of the block
 }
@@ -74,8 +76,8 @@ type Header struct {
 // including all blockchain data structures and the rules of the application's
 // state transition machine.
 // This is equivalent to the tmversion.Consensus type in Tendermint.
-type Version struct { 
-    Block uint32 
+type Version struct {
+    Block uint32
     App   uint32
 }
 ```
@@ -136,17 +138,17 @@ The ConsensusParams have the exact same structure as in Tendermint. For the sake
 // ConsensusParams contains consensus critical parameters that determine the
 // validity of blocks.
 type ConsensusParams struct {
-    Block     BlockParams     
-    Evidence  EvidenceParams  
-    Validator ValidatorParams 
-    Version   VersionParams   
+    Block     BlockParams
+    Evidence  EvidenceParams
+    Validator ValidatorParams
+    Version   VersionParams
 }
 
 // BlockParams contains limits on the block size.
 type BlockParams struct {
     // Max block size, in bytes.
     // Note: must be greater than 0
-    MaxBytes int64 
+    MaxBytes int64
     // Max gas per block.
     // Note: must be greater or equal to -1
     MaxGas int64
@@ -163,7 +165,7 @@ type EvidenceParams struct {
     //
     // The basic formula for calculating this is: MaxAgeDuration / {average block
     // time}.
-    MaxAgeNumBlocks int64 
+    MaxAgeNumBlocks int64
     // Max age of evidence, in time.
     //
     // It should correspond with an app's "unbonding period" or other similar

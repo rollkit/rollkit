@@ -68,7 +68,7 @@ func TestInitialState(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	conf := config.BlockManagerConfig{
 		BlockTime:   10 * time.Second,
-		NamespaceID: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
+		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 
 	for _, c := range cases {
