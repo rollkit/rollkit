@@ -7,10 +7,11 @@ import (
 	"os"
 	"strconv"
 
+	tmlog "github.com/tendermint/tendermint/libs/log"
+
 	grpcda "github.com/celestiaorg/rollmint/da/grpc"
 	"github.com/celestiaorg/rollmint/da/grpc/mockserv"
 	"github.com/celestiaorg/rollmint/store"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 func main() {
