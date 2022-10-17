@@ -37,7 +37,7 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
-          ref: rollmint-v0.3.0-rebase
+          ref: optimint-v0.3.0-rebase
       - name: Move Stuff and Tidy
         run: |
           ls
@@ -91,7 +91,7 @@ jobs:
       with:
         repository: celestiaorg/ethermint
         path: ethermint
-        ref: rollmint-v0.3.0-rebase
+        ref: optimint-v0.3.0-rebase
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
