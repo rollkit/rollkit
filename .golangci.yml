@@ -32,3 +32,5 @@ linters-settings:
     rules:
     - name: package-comments
       disabled: true
+  goimports:
+    local-prefixes: github.com/celestiaorg

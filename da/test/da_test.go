@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
+	tmlog "github.com/tendermint/tendermint/libs/log"
+
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/da/celestia"
 	cmock "github.com/celestiaorg/rollmint/da/celestia/mock"
@@ -23,7 +25,6 @@ import (
 	"github.com/celestiaorg/rollmint/log/test"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond

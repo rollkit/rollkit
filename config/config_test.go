@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/rollmint/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/celestiaorg/rollmint/types"
 )
 
 func TestViperAndCobra(t *testing.T) {

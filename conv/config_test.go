@@ -5,8 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/celestiaorg/rollmint/config"
 	tmcfg "github.com/tendermint/tendermint/config"
+
+	"github.com/celestiaorg/rollmint/config"
 )
 
 func TestGetNodeConfig(t *testing.T) {
