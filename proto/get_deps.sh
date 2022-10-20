@@ -2,7 +2,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-TM_VERSION=manav/abci_add_verify
+TM_VERSION=abci_fraud_proofs
 TM_PROTO_URL=https://raw.githubusercontent.com/celestiaorg/tendermint/$TM_VERSION/proto/tendermint
 
 TM_PROTO_FILES=(
