@@ -244,7 +244,11 @@ func TestFraudProofTrigger(t *testing.T) {
 		assert.GreaterOrEqual(endCnt, adjustedHeight)
 		assert.GreaterOrEqual(commitCnt, adjustedHeight)
 
-		assert.Equal(generateFraudProofCnt, beginCnt+endCnt+clientNodes)
+		// GenerateFraudProof should have been called on each call to
+		// BeginBlock, DeliverTx, and EndBlock so the sum of their counts
+		// should be equal.
+		// Note: The value of clientNodes represents number of calls to DeliverTx
+		assert.Equal(beginCnt+clientNodes+endCnt, generateFraudProofCnt)
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
