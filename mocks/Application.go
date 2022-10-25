@@ -40,6 +40,35 @@ func (_m *Application) BeginBlock(_a0 types.RequestBeginBlock) types.ResponseBeg
 	return r0
 }
 
+
+// PrepareProposalSync provides a mock function with given fields: _a0
+func (_m *Application) PrepareProposal(_a0 types.RequestPrepareProposal) types.ResponsePrepareProposal {
+	ret := _m.Called(_a0)
+
+	var r0 types.ResponsePrepareProposal
+	if rf, ok := ret.Get(0).(func(types.RequestPrepareProposal) types.ResponsePrepareProposal); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(types.ResponsePrepareProposal)
+	}
+
+	return r0
+}
+
+// PrepareProposalSync provides a mock function with given fields: _a0
+func (_m *Application) ProcessProposal(_a0 types.RequestProcessProposal) types.ResponseProcessProposal {
+	ret := _m.Called(_a0)
+
+	var r0 types.ResponseProcessProposal
+	if rf, ok := ret.Get(0).(func(types.RequestProcessProposal) types.ResponseProcessProposal); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(types.ResponseProcessProposal)
+	}
+
+	return r0
+}
+
 // CheckTx provides a mock function with given fields: _a0
 func (_m *Application) CheckTx(_a0 types.RequestCheckTx) types.ResponseCheckTx {
 	ret := _m.Called(_a0)

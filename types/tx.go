@@ -35,6 +35,24 @@ func (txs Txs) Proof(i int) TxProof {
 	}
 }
 
+// ToSliceOfBytes converts a Txs to slice of byte slices.
+func (txs Txs) ToSliceOfBytes() [][]byte {
+	txBzs := make([][]byte, len(txs))
+	for i := 0; i < len(txs); i++ {
+		txBzs[i] = txs[i]
+	}
+	return txBzs
+}
+
+// ToTxs converts a slice of byte slices to a Txs.
+func ToTxs(txl [][]byte) Txs {
+	txs := make([]Tx, 0, len(txl))
+	for _, tx := range txl {
+		txs = append(txs, tx)
+	}
+	return txs
+}
+
 // TxProof represents a Merkle proof of the presence of a transaction in the Merkle tree.
 type TxProof struct {
 	RootHash tmbytes.HexBytes `json:"root_hash"`

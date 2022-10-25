@@ -84,12 +84,29 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash [32]byte, state types.State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash [32]byte, state types.State) (*types.Block, error) {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
 
+	rpp, err := e.proxyApp.PrepareProposalSync(
+		abci.RequestPrepareProposal{
+			Txs:        toRollmintTxs(mempoolTxs).ToSliceOfBytes(),
+			MaxTxBytes: maxBytes,
+		},
+	)
+	if err != nil {
+		// The App MUST ensure that only valid (and hence 'processable') transactions
+		// enter the mempool. Hence, at this point, we can't have any non-processable
+		// transaction causing an error.
+		//
+		// Also, the App can simply skip any transaction that could cause any kind of trouble.
+		// Either way, we cannot recover in a meaningful way, unless we skip proposing
+		// this block, repair what caused the error and try again. Hence, we return an
+		// error for now (the production code calling this function is expected to panic).
+		return nil, err
+	}
 	block := &types.Block{
 		Header: types.Header{
 			Version: types.Version{
@@ -103,12 +120,12 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			//LastCommitHash:  lastCommitHash,
 			DataHash:        [32]byte{},
 			ConsensusHash:   [32]byte{},
-			AppHash:         state.AppHash,
+			AppHash:         [32]byte{},
 			LastResultsHash: state.LastResultsHash,
 			ProposerAddress: e.proposerAddress,
 		},
 		Data: types.Data{
-			Txs:                    toRollmintTxs(mempoolTxs),
+			Txs:                    types.ToTxs(rpp.Txs),
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
@@ -117,7 +134,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	copy(block.Header.LastCommitHash[:], e.getLastCommitHash(lastCommit, &block.Header))
 	copy(block.Header.AggregatorsHash[:], state.Validators.Hash())
 
-	return block
+	return block, nil
 }
 
 // ApplyBlock validates and executes the block.
