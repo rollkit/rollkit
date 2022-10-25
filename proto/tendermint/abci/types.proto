@@ -36,6 +36,8 @@ message Request {
     RequestOfferSnapshot      offer_snapshot       = 13;
     RequestLoadSnapshotChunk  load_snapshot_chunk  = 14;
     RequestApplySnapshotChunk apply_snapshot_chunk = 15;
+    RequestPrepareProposal    prepare_proposal     = 16;
+    RequestProcessProposal    process_proposal     = 17;
   }
 }
 
@@ -124,6 +126,18 @@ message RequestApplySnapshotChunk {
   string sender = 3;
 }
 
+message RequestPrepareProposal {
+  // the modified transactions cannot exceed this size.
+  int64 max_tx_bytes = 1;
+  // txs is an array of transactions that will be included in a block,
+  // sent to the app for possible modifications.
+  repeated bytes txs = 2;
+}
+
+message RequestProcessProposal {
+  repeated bytes txs = 1;
+}
+
 //----------------------------------------
 // Response types
 
@@ -145,6 +159,8 @@ message Response {
     ResponseOfferSnapshot      offer_snapshot       = 14;
     ResponseLoadSnapshotChunk  load_snapshot_chunk  = 15;
     ResponseApplySnapshotChunk apply_snapshot_chunk = 16;
+    ResponsePrepareProposal    prepare_proposal     = 17;
+    ResponseProcessProposal    process_proposal     = 18;
   }
 }
 
@@ -282,6 +298,20 @@ message ResponseApplySnapshotChunk {
   }
 }
 
+message ResponsePrepareProposal {
+  repeated bytes txs = 1;
+}
+
+message ResponseProcessProposal {
+  ProposalStatus status = 1;
+
+  enum ProposalStatus {
+    UNKNOWN = 0;
+    ACCEPT  = 1;
+    REJECT  = 2;
+  }
+}
+
 //----------------------------------------
 // Misc.
 
@@ -410,4 +440,6 @@ service ABCIApplication {
       returns (ResponseLoadSnapshotChunk);
   rpc ApplySnapshotChunk(RequestApplySnapshotChunk)
       returns (ResponseApplySnapshotChunk);
+  rpc PrepareProposal(RequestPrepareProposal) returns (ResponsePrepareProposal);
+  rpc ProcessProposal(RequestProcessProposal) returns (ResponseProcessProposal);
 }

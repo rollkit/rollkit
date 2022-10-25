@@ -262,6 +262,13 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 	if b1 != nil && commit != nil {
 		m.logger.Info("Syncing block", "height", b1.Header.Height)
+		ok, err := m.executor.ProcessProposal(b1)
+		if err != nil {
+			return fmt.Errorf("failed to ProcessProposal: %w", err)
+		}
+		if !ok {
+			return fmt.Errorf("Block was rejected by ProcessProposal: %s", b1.Hash())
+		}
 		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -417,7 +424,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		block, err = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		if err != nil {
+			return err
+		}
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		headerBytes, err := block.Header.MarshalBinary()
@@ -434,44 +444,45 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			Signatures: []types.Signature{sign},
 		}
 
+		// Apply the block but DONT commit
+		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+		if err != nil {
+			return err
+		}
+
+		// Commit the new state and block which writes to disk on the proxy app
+		_, _, err = m.executor.Commit(ctx, newState, block, responses)
+		if err != nil {
+			return err
+		}
+
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
 		if err != nil {
 			return err
 		}
-	}
 
-	// Apply the block but DONT commit
-	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
-	if err != nil {
-		return err
+		// SaveBlockResponses commits the DB tx
+		err = m.store.SaveBlockResponses(block.Header.Height, responses)
+		if err != nil {
+			return err
+		}
+
+		newState.DAHeight = atomic.LoadUint64(&m.daHeight)
+
+		// UpdateState commits the DB tx
+		err = m.store.UpdateState(m.lastState)
+		if err != nil {
+			return err
+		}
+
+		// After this call m.lastState is the NEW state returned from ApplyBlock
+		m.lastState = newState
 	}
 
 	err = m.submitBlockToDA(ctx, block)
 	if err != nil {
 		m.logger.Error("Failed to submit block to DA Layer")
-		return err
-	}
-
-	// Commit the new state and block which writes to disk on the proxy app
-	_, _, err = m.executor.Commit(ctx, newState, block, responses)
-	if err != nil {
-		return err
-	}
-
-	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(block.Header.Height, responses)
-	if err != nil {
-		return err
-	}
-
-	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
-	// After this call m.lastState is the NEW state returned from ApplyBlock
-	m.lastState = newState
-
-	// UpdateState commits the DB tx
-	err = m.store.UpdateState(m.lastState)
-	if err != nil {
 		return err
 	}
 

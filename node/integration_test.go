@@ -41,6 +41,10 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("PrepareProposal", mock.Anything).
+		Return(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+			return abci.ResponsePrepareProposal{Txs: req.Txs}
+		})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -230,6 +234,14 @@ func createNode(ctx context.Context, n int, aggregator bool, dalc da.DataAvailab
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
 		wg.Done()
 	})
+	if aggregator {
+		app.On("PrepareProposal", mock.Anything).
+			Return(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+				return abci.ResponsePrepareProposal{Txs: req.Txs}
+			})
+	} else {
+		app.On("ProcessProposal", mock.Anything).Return(abci.ResponseProcessProposal{Result: abci.ResponseProcessProposal_ACCEPT})
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}

@@ -281,6 +281,10 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 		GasWanted: 1000,
 		GasUsed:   1000,
 	})
+	app.On("PrepareProposal", mock.Anything).
+		Return(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+			return abci.ResponsePrepareProposal{Txs: req.Txs}
+		})
 	app.On("Info", mock.Anything).Return(abci.ResponseInfo{
 		Data:             "mock",
 		Version:          "mock",
