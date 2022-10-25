@@ -420,6 +420,10 @@ func TestTx(t *testing.T) {
 	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On("PrepareProposal", mock.Anything).
+		Return(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+			return abci.ResponsePrepareProposal{Txs: req.Txs}
+		})
 
 	err = rpc.node.Start()
 	require.NoError(err)
@@ -630,6 +634,10 @@ func TestValidatorSetHandling(t *testing.T) {
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("PrepareProposal", mock.Anything).
+		Return(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+			return abci.ResponsePrepareProposal{Txs: req.Txs}
+		})
 
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
