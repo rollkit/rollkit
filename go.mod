@@ -175,6 +175,6 @@ require (
 
 replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
-	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221025142513-1b0977ff4c53
+	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221025143357-5392eaab0bff
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
