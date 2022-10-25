@@ -262,6 +262,13 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 	if b1 != nil && commit != nil {
 		m.logger.Info("Syncing block", "height", b1.Header.Height)
+		ok, err := m.executor.ProcessProposal(b1)
+		if err != nil {
+			return fmt.Errorf("failed to ProcessProposal: %w", err)
+		}
+		if !ok {
+			return fmt.Errorf("Block was rejected by ProcessProposal: %s", b1.Hash())
+		}
 		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)

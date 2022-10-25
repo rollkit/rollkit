@@ -137,6 +137,22 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	return block, nil
 }
 
+func (e *BlockExecutor) ProcessProposal(
+	block *types.Block,
+) (bool, error) {
+	pData := block.Data.ToProto()
+	req := abci.RequestProcessProposal{
+		Txs: pData.Txs,
+	}
+
+	resp, err := e.proxyApp.ProcessProposalSync(req)
+	if err != nil {
+		return false, err
+	}
+
+	return resp.IsOK(), nil
+}
+
 // ApplyBlock validates and executes the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *tmstate.ABCIResponses, error) {
 	err := e.validate(state, block)

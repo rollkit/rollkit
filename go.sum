@@ -84,8 +84,8 @@ github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46f
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
 github.com/celestiaorg/go-cnc v0.1.0 h1:u986OnTc7AtbUZ4reY+zRCiar4fDdR1KehyP78uwsXg=
 github.com/celestiaorg/go-cnc v0.1.0/go.mod h1:Zf03bWWq6aldv5cYEaWvJ+I+z34bT/exrS0tO0y/jN8=
-github.com/celestiaorg/tendermint v0.34.22-0.20221025133716-62473b9c1b6d h1:AxJu7n9aHzunsLnLKYSP/UGMtl8SpRLtI/grZaA2iVE=
-github.com/celestiaorg/tendermint v0.34.22-0.20221025133716-62473b9c1b6d/go.mod h1:XDvfg6U7grcFTDx7VkzxnhazQ/bspGJAn4DZ6DcLLjQ=
+github.com/celestiaorg/tendermint v0.34.22-0.20221025142513-1b0977ff4c53 h1:npYYlwS/czUJ1E7cntZkik4t6ElHTikXdlo4DXq4xmU=
+github.com/celestiaorg/tendermint v0.34.22-0.20221025142513-1b0977ff4c53/go.mod h1:XDvfg6U7grcFTDx7VkzxnhazQ/bspGJAn4DZ6DcLLjQ=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cespare/xxhash v1.1.0 h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
