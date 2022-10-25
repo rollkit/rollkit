@@ -31,7 +31,10 @@ func TestCreateBlock(t *testing.T) {
 
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-
+	app.On("PrepareProposal", mock.Anything).
+		Return(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+			return abci.ResponsePrepareProposal{Txs: req.Txs}
+		})
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
 	require.NoError(err)
 	require.NotNil(client)
@@ -84,6 +87,10 @@ func TestApplyBlock(t *testing.T) {
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("PrepareProposal", mock.Anything).
+		Return(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+			return abci.ResponsePrepareProposal{Txs: req.Txs}
+		})
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
