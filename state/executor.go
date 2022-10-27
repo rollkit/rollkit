@@ -320,24 +320,25 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	})
 
 	genAndGossipFraudProofIfNeeded := func(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (err error) {
-		if fraudProofsEnabled {
-			isr, err := e.getAppHash()
+		if !fraudProofsEnabled {
+			return nil
+		}
+		isr, err := e.getAppHash()
+		if err != nil {
+			return err
+		}
+		ISRs = append(ISRs, isr)
+		isFraud := e.isFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
+		if isFraud {
+			fraudProof, err := e.generateFraudProof(beginBlockRequest, deliverTxRequests, endBlockRequest)
 			if err != nil {
 				return err
 			}
-			ISRs = append(ISRs, isr)
-			isFraud := e.checkFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-			if isFraud {
-				fraudProof, err := e.generateFraudProof(beginBlockRequest, deliverTxRequests, endBlockRequest)
-				if err != nil {
-					return err
-				}
-				// TODO: gossip fraudProof to P2P network
-				// fraudTx: current DeliverTx
-				_ = fraudProof
-			}
-			currentIsrIndex++
+			// TODO: gossip fraudProof to P2P network
+			// fraudTx: current DeliverTx
+			_ = fraudProof
 		}
+		currentIsrIndex++
 		return nil
 	}
 
@@ -400,13 +401,14 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	return abciResponses, nil
 }
 
-func (e *BlockExecutor) checkFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) bool {
-	if currentIsrs != nil {
-		stateIsr := currentIsrs[index]
-		if !bytes.Equal(stateIsr, generatedIsr) {
-			e.logger.Debug("ISR Mismatch", "given_isr", stateIsr, "generated_isr", generatedIsr)
-			return true
-		}
+func (e *BlockExecutor) isFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) bool {
+	if currentIsrs == nil {
+		return false
+	}
+	stateIsr := currentIsrs[index]
+	if !bytes.Equal(stateIsr, generatedIsr) {
+		e.logger.Debug("ISR Mismatch", "given_isr", stateIsr, "generated_isr", generatedIsr)
+		return true
 	}
 	return false
 }

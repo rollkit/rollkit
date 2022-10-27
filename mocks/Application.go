@@ -68,7 +68,7 @@ func (_m *Application) Commit() types.ResponseCommit {
 	return r0
 }
 
-// Commit provides a mock function with given fields:
+// GenerateFraudProof provides a mock function with given fields: _a0
 func (_m *Application) GenerateFraudProof(_a0 types.RequestGenerateFraudProof) types.ResponseGenerateFraudProof {
 	ret := _m.Called(_a0)
 
@@ -82,6 +82,7 @@ func (_m *Application) GenerateFraudProof(_a0 types.RequestGenerateFraudProof) t
 	return r0
 }
 
+// VerifyFraudProof provides a mock function with given fields: _a0
 func (_m *Application) VerifyFraudProof(_a0 types.RequestVerifyFraudProof) types.ResponseVerifyFraudProof {
 	ret := _m.Called(_a0)
 
@@ -95,7 +96,7 @@ func (_m *Application) VerifyFraudProof(_a0 types.RequestVerifyFraudProof) types
 	return r0
 }
 
-// Commit provides a mock function with given fields:
+// GetAppHash provides a mock function with given fields: _a0
 func (_m *Application) GetAppHash(_a0 types.RequestGetAppHash) types.ResponseGetAppHash {
 	ret := _m.Called(_a0)
 

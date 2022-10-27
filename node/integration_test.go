@@ -170,6 +170,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
+// TestFraudProofTrigger setups a network of nodes, with single malicious aggregator and multiple producers.
+// Aggregator node should produce malicious blocks, nodes should detect fraud, and generate fraud proofs
 func TestFraudProofTrigger(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
