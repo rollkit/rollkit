@@ -89,44 +89,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	var wg sync.WaitGroup
 	clientNodes := 4
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(context.Background())
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
-
-	wg.Add((clientNodes + 1) * clientNodes)
-	for _, n := range nodes {
-		require.NoError(n.Start())
-	}
-
-	time.Sleep(1 * time.Second)
-
-	for i := 1; i < len(nodes); i++ {
-		data := strconv.Itoa(i) + time.Now().String()
-		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
-	}
-
-	timeout := time.NewTimer(time.Second * 30)
-	doneChan := make(chan struct{})
-	go func() {
-		defer close(doneChan)
-		wg.Wait()
-	}()
-	select {
-	case <-doneChan:
-	case <-timeout.C:
-		t.Fatal("failing after timeout")
-	}
-
-	require.NoError(nodes[0].Stop())
-	aggCancel()
-	time.Sleep(100 * time.Millisecond)
-	for _, n := range nodes[1:] {
-		require.NoError(n.Stop())
-	}
-	cancel()
-	time.Sleep(100 * time.Millisecond)
+	nodes, apps := createAndStartNodes(clientNodes, false, t)
 	aggApp := apps[0]
 	apps = apps[1:]
 
@@ -175,44 +139,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 func TestFraudProofTrigger(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-
-	var wg sync.WaitGroup
 	clientNodes := 4
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(context.Background())
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
-
-	wg.Add((clientNodes + 1) * clientNodes)
-	for _, n := range nodes {
-		require.NoError(n.Start())
-	}
-
-	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
-	time.Sleep(1 * time.Second)
-
-	for i := 1; i < len(nodes); i++ {
-		data := strconv.Itoa(i) + time.Now().String()
-		require.NoError(nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
-	}
-
-	timeout := time.NewTimer(time.Second * 30)
-	doneChan := make(chan struct{})
-	go func() {
-		defer close(doneChan)
-		wg.Wait()
-	}()
-	select {
-	case <-doneChan:
-	case <-timeout.C:
-		t.FailNow()
-	}
-	aggCancel()
-	time.Sleep(100 * time.Millisecond)
-	for _, n := range nodes {
-		require.NoError(n.Stop())
-	}
-	cancel()
-	time.Sleep(100 * time.Millisecond)
+	nodes, apps := createAndStartNodes(clientNodes, true, t)
 	aggApp := apps[0]
 	apps = apps[1:]
 
@@ -265,6 +193,54 @@ func TestFraudProofTrigger(t *testing.T) {
 	}
 }
 
+// Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
+func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Node, []*mocks.Application) {
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+	startNodes(nodes, &wg, t)
+	aggCancel()
+	time.Sleep(100 * time.Millisecond)
+	for _, n := range nodes {
+		require.NoError(t, n.Stop())
+	}
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+	return nodes, apps
+}
+
+// Starts the given nodes using the given wait group to synchronize them
+// and wait for them to gossip transactions
+func startNodes(nodes []*Node, wg *sync.WaitGroup, t *testing.T) {
+	numNodes := len(nodes)
+	wg.Add((numNodes) * (numNodes - 1))
+	for _, n := range nodes {
+		require.NoError(t, n.Start())
+	}
+
+	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
+	time.Sleep(1 * time.Second)
+
+	for i := 1; i < len(nodes); i++ {
+		data := strconv.Itoa(i) + time.Now().String()
+		require.NoError(t, nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
+	}
+
+	timeout := time.NewTimer(time.Second * 30)
+	doneChan := make(chan struct{})
+	go func() {
+		defer close(doneChan)
+		wg.Wait()
+	}()
+	select {
+	case <-doneChan:
+	case <-timeout.C:
+		t.FailNow()
+	}
+}
+
+// Creates the given number of nodes the given nodes using the given wait group to synchornize them
 func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
 	t.Helper()
 
