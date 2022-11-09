@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,8 +21,10 @@ import (
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", test.NewLogger(t))
+	gater, err := conngater.NewBasicConnectionGater(nil)
 	assert := assert.New(t)
+	assert.NoError(err)
+	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", gater, test.NewLogger(t))
 	assert.NoError(err)
 	assert.NotNil(client)
 
@@ -167,7 +170,7 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := &test.MockLogger{}
-			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork", logger)
+			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork", nil, logger)
 			require.NoError(err)
 			require.NotNil(client)
 			actual := client.getSeedAddrInfo(c.input)

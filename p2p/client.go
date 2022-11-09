@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	cdiscovery "github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -17,6 +18,7 @@ import (
 	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	discutil "github.com/libp2p/go-libp2p/p2p/discovery/util"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
@@ -55,9 +57,10 @@ type Client struct {
 	chainID string
 	privKey crypto.PrivKey
 
-	host host.Host
-	dht  *dht.IpfsDHT
-	disc *discovery.RoutingDiscovery
+	gater connmgr.ConnectionGater
+	host  host.Host
+	dht   *dht.IpfsDHT
+	disc  *discovery.RoutingDiscovery
 
 	txGossiper  *Gossiper
 	txValidator GossipValidator
@@ -82,15 +85,23 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, gater connmgr.ConnectionGater, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, errNoPrivKey
 	}
 	if conf.ListenAddress == "" {
 		conf.ListenAddress = config.DefaultListenAddress
 	}
+	if gater == nil {
+		var err error
+		gater, err = conngater.NewBasicConnectionGater(nil)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &Client{
 		conf:    conf,
+		gater:   gater,
 		privKey: privKey,
 		chainID: chainID,
 		logger:  logger,
@@ -249,7 +260,7 @@ func (c *Client) listen(ctx context.Context) (host.Host, error) {
 		return nil, err
 	}
 
-	host, err := libp2p.New(libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
+	host, err := libp2p.New(libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey), libp2p.ConnectionGater(c.gater))
 	if err != nil {
 		return nil, err
 	}

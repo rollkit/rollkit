@@ -105,6 +105,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 			Seeds: seeds[i]},
 			mnet.Hosts()[i].Peerstore().PrivKey(mnet.Hosts()[i].ID()),
 			conf[i].chainID,
+			nil,
 			logger)
 		require.NoError(err)
 		require.NotNil(client)

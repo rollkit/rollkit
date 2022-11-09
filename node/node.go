@@ -10,6 +10,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/multierr"
 
 	abciclient "github.com/tendermint/tendermint/abci/client"
@@ -40,6 +41,7 @@ var (
 	mainPrefix    = "0"
 	dalcPrefix    = "1"
 	indexerPrefix = "2" // indexPrefix uses "i", so using "0-2" to avoid clash
+	gaterPrefix   = "3"
 )
 
 const (
@@ -96,13 +98,9 @@ func NewNode(
 		return nil, err
 	}
 
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, logger.With("module", "p2p"))
-	if err != nil {
-		return nil, err
-	}
-
 	var baseKV ds.TxnDatastore
 
+	var err error
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV, err = store.NewDefaultInMemoryKVStore()
@@ -116,6 +114,16 @@ func NewNode(
 	mainKV := newPrefixKV(baseKV, mainPrefix)
 	dalcKV := newPrefixKV(baseKV, dalcPrefix)
 	indexerKV := newPrefixKV(baseKV, indexerPrefix)
+	gaterKV := newPrefixKV(baseKV, gaterPrefix)
+
+	gater, err := conngater.NewBasicConnectionGater(gaterKV)
+	if err != nil {
+		return nil, err
+	}
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, gater, logger.With("module", "p2p"))
+	if err != nil {
+		return nil, err
+	}
 
 	s := store.New(ctx, mainKV)
 
