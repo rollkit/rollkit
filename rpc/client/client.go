@@ -14,12 +14,15 @@ import (
 	tmmath "github.com/tendermint/tendermint/libs/math"
 	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	corep2p "github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/version"
 
+	rconfig "github.com/celestiaorg/rollmint/config"
 	abciconv "github.com/celestiaorg/rollmint/conv/abci"
 	"github.com/celestiaorg/rollmint/mempool"
 	"github.com/celestiaorg/rollmint/node"
@@ -692,31 +695,60 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	latest, err := c.node.Store.LoadBlock(c.node.Store.Height())
 	if err != nil {
-		// TODO(tzdybal): extract error
 		return nil, fmt.Errorf("failed to find latest block: %w", err)
 	}
 
-	latestBlockHash := latest.Header.DataHash
-	latestAppHash := latest.Header.AppHash
-	latestHeight := latest.Header.Height
-	latestBlockTimeNano := latest.Header.Time
+	initial, err := c.node.Store.LoadBlock(uint64(c.node.GetGenesis().InitialHeight))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find earliest block: %w", err)
+	}
+
+	validators, err := c.node.Store.LoadValidators(latest.Header.Height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
+	}
+	_, validator := validators.GetByAddress(latest.Header.ProposerAddress)
+
+	state, err := c.node.Store.LoadState()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the last saved state: %w", err)
+	}
+	defaultProtocolVersion := corep2p.NewProtocolVersion(
+		version.P2PProtocol,
+		state.Version.Consensus.Block,
+		state.Version.Consensus.App,
+	)
+	id, addr, network := c.node.P2P.Info()
+	txIndexerStatus := "on"
 
 	result := &ctypes.ResultStatus{
-		// TODO(tzdybal): NodeInfo
+		NodeInfo: corep2p.DefaultNodeInfo{
+			ProtocolVersion: defaultProtocolVersion,
+			DefaultNodeID:   id,
+			ListenAddr:      addr,
+			Network:         network,
+			Version:         rconfig.Version,
+			Moniker:         config.DefaultBaseConfig().Moniker,
+			Other: corep2p.DefaultNodeInfoOther{
+				TxIndex:    txIndexerStatus,
+				RPCAddress: c.config.ListenAddress,
+			},
+		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:   latestBlockHash[:],
-			LatestAppHash:     latestAppHash[:],
-			LatestBlockHeight: int64(latestHeight),
-			LatestBlockTime:   time.Unix(0, int64(latestBlockTimeNano)),
-			// TODO(tzdybal): add missing fields
-			//EarliestBlockHash:   earliestBlockHash,
-			//EarliestAppHash:     earliestAppHash,
-			//EarliestBlockHeight: earliestBlockHeight,
-			//EarliestBlockTime:   time.Unix(0, earliestBlockTimeNano),
-			//CatchingUp:          env.ConsensusReactor.WaitSync(),
+			LatestBlockHash:     latest.Header.DataHash[:],
+			LatestAppHash:       latest.Header.AppHash[:],
+			LatestBlockHeight:   int64(latest.Header.Height),
+			LatestBlockTime:     time.Unix(0, int64(latest.Header.Time)),
+			EarliestBlockHash:   initial.Header.DataHash[:],
+			EarliestAppHash:     initial.Header.AppHash[:],
+			EarliestBlockHeight: int64(initial.Header.Height),
+			EarliestBlockTime:   time.Unix(0, int64(initial.Header.Time)),
+			CatchingUp:          true, // the client is always syncing in the background to the latest height
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
-			Address: latest.Header.ProposerAddress,
+			Address:     validator.Address,
+			PubKey:      validator.PubKey,
+			VotingPower: validator.VotingPower,
 		},
 	}
 	return result, nil

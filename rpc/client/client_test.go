@@ -17,13 +17,16 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tconfig "github.com/tendermint/tendermint/config"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/encoding"
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/version"
 
 	"github.com/celestiaorg/rollmint/config"
 	abciconv "github.com/celestiaorg/rollmint/conv/abci"
@@ -712,11 +715,15 @@ func TestValidatorSetHandling(t *testing.T) {
 
 // copy-pasted from store/store_test.go
 func getRandomBlock(height uint64, nTxs int) *types.Block {
+	return getRandomBlockWithProposer(height, nTxs, getRandomBytes(20))
+}
+
+func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
 	block := &types.Block{
 		Header: types.Header{
 			Height:          height,
 			Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
-			ProposerAddress: getRandomBytes(20),
+			ProposerAddress: proposerAddr,
 		},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),
@@ -897,4 +904,118 @@ func TestMempool2Nodes(t *testing.T) {
 	}
 
 	assert.Equal(node2.Mempool.SizeBytes(), int64(len("good")))
+}
+
+func TestStatus(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+
+	vKeys := make([]tmcrypto.PrivKey, 2)
+	validators := make([]*tmtypes.Validator, len(vKeys))
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		validators[i] = &tmtypes.Validator{
+			Address:          vKeys[i].PubKey().Address(),
+			PubKey:           vKeys[i].PubKey(),
+			VotingPower:      int64(i + 100),
+			ProposerPriority: int64(i),
+		}
+		genesisValidators[i] = tmtypes.GenesisValidator{
+			Address: vKeys[i].PubKey().Address(),
+			PubKey:  vKeys[i].PubKey(),
+			Power:   int64(i + 100),
+			Name:    "one",
+		}
+	}
+
+	node, err := node.NewNode(
+		context.Background(),
+		config.NodeConfig{
+			DALayer: "mock",
+			P2P: config.P2PConfig{
+				ListenAddress: "/ip4/0.0.0.0/tcp/26656",
+			},
+			Aggregator: true,
+			BlockManagerConfig: config.BlockManagerConfig{
+				BlockTime: 10 * time.Millisecond,
+			},
+		},
+		key,
+		signingKey,
+		abcicli.NewLocalClient(nil, app),
+		&tmtypes.GenesisDoc{
+			ChainID:    "test",
+			Validators: genesisValidators,
+		},
+		log.TestingLogger(),
+	)
+	require.NoError(err)
+	require.NotNil(node)
+
+	validatorSet := tmtypes.NewValidatorSet(validators)
+	err = node.Store.SaveValidators(1, validatorSet)
+	require.NoError(err)
+	err = node.Store.SaveValidators(2, validatorSet)
+	require.NoError(err)
+	err = node.Store.UpdateState(types.State{LastValidators: validatorSet, NextValidators: validatorSet, Validators: validatorSet})
+	assert.NoError(err)
+
+	rpc := NewClient(node)
+	assert.NotNil(rpc)
+
+	earliestBlock := getRandomBlockWithProposer(1, 1, validators[0].Address.Bytes())
+	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{Height: earliestBlock.Header.Height})
+	rpc.node.Store.SetHeight(earliestBlock.Header.Height)
+	require.NoError(err)
+
+	latestBlock := getRandomBlockWithProposer(2, 1, validators[1].Address.Bytes())
+	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{Height: latestBlock.Header.Height})
+	rpc.node.Store.SetHeight(latestBlock.Header.Height)
+	require.NoError(err)
+
+	err = node.Start()
+	require.NoError(err)
+
+	resp, err := rpc.Status(context.Background())
+	assert.NoError(err)
+
+	assert.Equal(int64(1), resp.SyncInfo.EarliestBlockHeight)
+	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
+
+	assert.Equal(validators[1].Address, resp.ValidatorInfo.Address)
+	assert.Equal(validators[1].PubKey, resp.ValidatorInfo.PubKey)
+	assert.Equal(validators[1].VotingPower, resp.ValidatorInfo.VotingPower)
+
+	// specific validation
+	assert.Equal(tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
+	state, err := rpc.node.Store.LoadState()
+	assert.NoError(err)
+	defaultProtocolVersion := p2p.NewProtocolVersion(
+		version.P2PProtocol,
+		state.Version.Consensus.Block,
+		state.Version.Consensus.App,
+	)
+	assert.Equal(defaultProtocolVersion, resp.NodeInfo.ProtocolVersion)
+
+	assert.NotNil(resp.NodeInfo.Other.TxIndex)
+	cases := []struct {
+		expected bool
+		other    p2p.DefaultNodeInfoOther
+	}{
+
+		{false, p2p.DefaultNodeInfoOther{}},
+		{false, p2p.DefaultNodeInfoOther{TxIndex: "aa"}},
+		{false, p2p.DefaultNodeInfoOther{TxIndex: "off"}},
+		{true, p2p.DefaultNodeInfoOther{TxIndex: "on"}},
+	}
+	for _, tc := range cases {
+		res := resp.NodeInfo.Other.TxIndex == tc.other.TxIndex
+		assert.Equal(tc.expected, res, tc)
+	}
 }
