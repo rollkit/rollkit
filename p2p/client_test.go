@@ -24,15 +24,36 @@ func TestClientStartup(t *testing.T) {
 	gater, err := conngater.NewBasicConnectionGater(nil)
 	assert := assert.New(t)
 	assert.NoError(err)
-	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", gater, test.NewLogger(t))
-	assert.NoError(err)
-	assert.NotNil(client)
+	testCases := []config.P2PConfig{
+		{},
+		{
+			ListenAddress: "",
+			Seeds:         "",
+			BlockedPeers:  "",
+			AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+			// unblocking a not previously explicitly blocked peer shouldn't result in an error
+		},
+		{
+			ListenAddress: "",
+			Seeds:         "",
+			BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+			AllowedPeers:  "",
+		},
+	}
 
-	err = client.Start(context.Background())
-	defer func() {
-		_ = client.Close()
-	}()
-	assert.NoError(err)
+	for _, testCase := range testCases {
+		gater, err := conngater.NewBasicConnectionGater(nil)
+		assert.NoError(err)
+		client, err := NewClient(testCase, privKey, "TestChain", gater, test.NewLogger(t))
+		assert.NoError(err)
+		assert.NotNil(client)
+
+		err = client.Start(context.Background())
+		defer func() {
+			_ = client.Close()
+		}()
+		assert.NoError(err)
+	}
 }
 
 func TestBootstrapping(t *testing.T) {
