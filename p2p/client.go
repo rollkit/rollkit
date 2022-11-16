@@ -269,7 +269,7 @@ func (c *Client) listen(ctx context.Context) (host.Host, error) {
 }
 
 func (c *Client) setupDHT(ctx context.Context) error {
-	seedNodes := c.getSeedAddrInfo(c.conf.Seeds)
+	seedNodes := c.parseAddrInfoList(c.conf.Seeds)
 	if len(seedNodes) == 0 {
 		c.logger.Info("no seed nodes - only listening for connections")
 	}
@@ -388,21 +388,22 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
-	if len(seedStr) == 0 {
+// parseAddrInfoList parses a comma separated string of multiaddrs into a list of peer.AddrInfo structs
+func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
+	if len(addrInfoStr) == 0 {
 		return []peer.AddrInfo{}
 	}
-	seeds := strings.Split(seedStr, ",")
-	addrs := make([]peer.AddrInfo, 0, len(seeds))
-	for _, s := range seeds {
-		maddr, err := multiaddr.NewMultiaddr(s)
+	peers := strings.Split(addrInfoStr, ",")
+	addrs := make([]peer.AddrInfo, 0, len(peers))
+	for _, p := range peers {
+		maddr, err := multiaddr.NewMultiaddr(p)
 		if err != nil {
-			c.logger.Error("failed to parse seed node", "address", s, "error", err)
+			c.logger.Error("failed to parse node", "address", p, "error", err)
 			continue
 		}
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
-			c.logger.Error("failed to create addr info for seed", "address", maddr, "error", err)
+			c.logger.Error("failed to create addr info for", "address", maddr, "error", err)
 			continue
 		}
 		addrs = append(addrs, *addrInfo)

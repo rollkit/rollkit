@@ -173,7 +173,7 @@ func TestSeedStringParsing(t *testing.T) {
 			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork", nil, logger)
 			require.NoError(err)
 			require.NotNil(client)
-			actual := client.getSeedAddrInfo(c.input)
+			actual := client.parseAddrInfoList(c.input)
 			assert.NotNil(actual)
 			assert.Equal(c.expected, actual)
 			// ensure that errors are logged
