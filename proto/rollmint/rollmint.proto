@@ -79,3 +79,17 @@ message Block {
 	Data data = 2;
 	Commit last_commit = 3;
 }
+
+message FraudProof {
+  uint64 block_height = 1;
+  StateWitness state_witness = 2;
+}
+
+message StateWitness {
+   repeated WitnessData witness_data = 1;
+}
+
+message WitnessData {
+  bytes key = 1;
+  bytes value = 2;
+}

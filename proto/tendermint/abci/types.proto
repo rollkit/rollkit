@@ -36,6 +36,9 @@ message Request {
     RequestOfferSnapshot      offer_snapshot       = 13;
     RequestLoadSnapshotChunk  load_snapshot_chunk  = 14;
     RequestApplySnapshotChunk apply_snapshot_chunk = 15;
+    RequestGetAppHash         get_app_hash         = 16;
+    RequestGenerateFraudProof generate_fraud_proof = 17;
+    RequestVerifyFraudProof   verify_fraud_proof   = 18;
   }
 }
 
@@ -124,6 +127,22 @@ message RequestApplySnapshotChunk {
   string sender = 3;
 }
 
+// Gets the current appHash
+message RequestGetAppHash {}
+
+// Generates a fraud proof
+message RequestGenerateFraudProof {
+  RequestBeginBlock begin_block_request = 1 [(gogoproto.nullable) = false];
+  repeated RequestDeliverTx deliver_tx_requests = 2;
+  RequestEndBlock end_block_request = 3;
+}
+
+// Verifies a fraud proof
+message RequestVerifyFraudProof {
+  FraudProof fraud_proof = 1;
+  bytes expected_app_hash = 2;
+}
+
 //----------------------------------------
 // Response types
 
@@ -145,6 +164,9 @@ message Response {
     ResponseOfferSnapshot      offer_snapshot       = 14;
     ResponseLoadSnapshotChunk  load_snapshot_chunk  = 15;
     ResponseApplySnapshotChunk apply_snapshot_chunk = 16;
+    ResponseGetAppHash         get_app_hash         = 17;
+    ResponseGenerateFraudProof generate_fraud_proof = 18;
+    ResponseVerifyFraudProof   verify_fraud_proof   = 19;
   }
 }
 
@@ -282,6 +304,18 @@ message ResponseApplySnapshotChunk {
   }
 }
 
+message ResponseGetAppHash {
+  bytes app_hash = 1;
+}
+
+message ResponseGenerateFraudProof {
+  FraudProof fraud_proof = 1;
+}
+
+message ResponseVerifyFraudProof {
+  bool success = 1;
+}
+
 //----------------------------------------
 // Misc.
 
@@ -389,6 +423,34 @@ message Snapshot {
   bytes  metadata = 5;  // Arbitrary application metadata
 }
 
+// Represents a single-round fraudProof
+message FraudProof {
+  int64 block_height = 1;
+  bytes app_hash = 2;
+  map<string, StateWitness> state_witness = 3;
+
+  RequestBeginBlock fraudulent_begin_block = 4;
+  RequestDeliverTx fraudulent_deliver_tx = 5;
+  RequestEndBlock fraudulent_end_block = 6;
+}
+
+// State witness with a list of all witness data
+message StateWitness {
+  // store level proof
+  tendermint.crypto.ProofOp proof = 1;
+  // substore level hash
+  bytes root_hash = 2;
+  // List of witness data
+  repeated WitnessData witness_data = 3;
+}
+
+// Witness data containing a key/value pair and a Merkle proof for said key/value pair
+message WitnessData {
+  bytes key = 1;
+  bytes value = 2;
+  tendermint.crypto.ProofOp proof = 3;
+}
+
 //----------------------------------------
 // Service Definition
 
@@ -410,4 +472,7 @@ service ABCIApplication {
       returns (ResponseLoadSnapshotChunk);
   rpc ApplySnapshotChunk(RequestApplySnapshotChunk)
       returns (ResponseApplySnapshotChunk);
+  rpc GetAppHash(RequestGetAppHash) returns (ResponseGetAppHash);
+  rpc GenerateFraudProof(RequestGenerateFraudProof) returns (ResponseGenerateFraudProof);
+  rpc VerifyFraudProof(RequestVerifyFraudProof) returns (ResponseVerifyFraudProof);
 }

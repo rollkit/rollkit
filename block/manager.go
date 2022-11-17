@@ -62,6 +62,8 @@ type Manager struct {
 	CommitInCh chan *types.Commit
 	lastCommit atomic.Value
 
+	FraudProofCh chan *types.FraudProof
+
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
 	syncCache  map[uint64]*types.Block
@@ -228,6 +230,22 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
+		case fraudProof := <-m.FraudProofCh:
+			m.logger.Debug("fraud proof received", "Block Height", "dummy block height") // TODO: Insert real block height
+			_ = fraudProof
+			// TODO(light-client): Set up a new cosmos-sdk app
+			// How to get expected appHash here?
+
+			// success, err := m.executor.VerifyFraudProof(fraudProof, nil)
+			// if err != nil {
+			// 	m.logger.Error("failed to verify fraud proof", "error", err)
+			// 	continue
+			// }
+			// if success {
+			// 	// halt chain somehow
+			// 	defer context.WithCancel(ctx)
+			// }
+
 		case <-ctx.Done():
 			return
 		}

@@ -157,6 +157,7 @@ func NewNode(
 	node.P2P.SetTxValidator(node.newTxValidator())
 	node.P2P.SetHeaderValidator(node.newHeaderValidator())
 	node.P2P.SetCommitValidator(node.newCommitValidator())
+	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
 }
@@ -345,6 +346,23 @@ func (n *Node) newCommitValidator() p2p.GossipValidator {
 		}
 		n.Logger.Debug("commit received", "height", commit.Height)
 		n.blockManager.CommitInCh <- &commit
+		return true
+	}
+}
+
+// newFraudProofValidator returns a pubsub validator that validates a fraud proof and forwards
+// it to be verified
+func (n *Node) newFraudProofValidator() p2p.GossipValidator {
+	return func(fraudProofMsg *p2p.GossipMessage) bool {
+		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
+		var fraudProof types.FraudProof
+		err := fraudProof.UnmarshalBinary(fraudProofMsg.Data)
+		if err != nil {
+			n.Logger.Error("failed to deserialize fraud proof", "error", err)
+			return false
+		}
+		// TODO(manav): Add validation checks for fraud proof here
+		n.blockManager.FraudProofCh <- &fraudProof
 		return true
 	}
 }

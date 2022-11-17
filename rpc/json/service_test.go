@@ -277,6 +277,8 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{
 		GasWanted: 1000,
 		GasUsed:   1000,

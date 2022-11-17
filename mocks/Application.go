@@ -68,6 +68,48 @@ func (_m *Application) Commit() types.ResponseCommit {
 	return r0
 }
 
+// GenerateFraudProof provides a mock function with given fields: _a0
+func (_m *Application) GenerateFraudProof(_a0 types.RequestGenerateFraudProof) types.ResponseGenerateFraudProof {
+	ret := _m.Called(_a0)
+
+	var r0 types.ResponseGenerateFraudProof
+	if rf, ok := ret.Get(0).(func(types.RequestGenerateFraudProof) types.ResponseGenerateFraudProof); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(types.ResponseGenerateFraudProof)
+	}
+
+	return r0
+}
+
+// VerifyFraudProof provides a mock function with given fields: _a0
+func (_m *Application) VerifyFraudProof(_a0 types.RequestVerifyFraudProof) types.ResponseVerifyFraudProof {
+	ret := _m.Called(_a0)
+
+	var r0 types.ResponseVerifyFraudProof
+	if rf, ok := ret.Get(0).(func(types.RequestVerifyFraudProof) types.ResponseVerifyFraudProof); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(types.ResponseVerifyFraudProof)
+	}
+
+	return r0
+}
+
+// GetAppHash provides a mock function with given fields: _a0
+func (_m *Application) GetAppHash(_a0 types.RequestGetAppHash) types.ResponseGetAppHash {
+	ret := _m.Called(_a0)
+
+	var r0 types.ResponseGetAppHash
+	if rf, ok := ret.Get(0).(func(types.RequestGetAppHash) types.ResponseGetAppHash); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(types.ResponseGetAppHash)
+	}
+
+	return r0
+}
+
 // DeliverTx provides a mock function with given fields: _a0
 func (_m *Application) DeliverTx(_a0 types.RequestDeliverTx) types.ResponseDeliverTx {
 	ret := _m.Called(_a0)
