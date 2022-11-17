@@ -293,13 +293,11 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrs := block.Data.IntermediateStateRoots.RawRootsList
 	currentIsrIndex := 0
 
-	if fraudProofsEnabled {
-		if currentIsrs != nil {
-			expectedLength := len(block.Data.Txs) + 2
-			// BeginBlock + DeliverTxs + EndBlock
-			if len(currentIsrs) != expectedLength {
-				return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
-			}
+	if fraudProofsEnabled && currentIsrs != nil {
+		expectedLength := len(block.Data.Txs) + 2
+		// BeginBlock + DeliverTxs + EndBlock
+		if len(currentIsrs) != expectedLength {
+			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
 		}
 	}
 
