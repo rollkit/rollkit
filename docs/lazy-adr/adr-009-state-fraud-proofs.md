@@ -169,7 +169,7 @@ Go through the `WitnessData` in each `StateWitness` and verify that all the subs
 
 **Stage Four**
 
-Spin up a new Cosmos SDK app and initialize its store with Deep Subtrees constructed using merkle inclusion proofs in the `FraudProof`. After this initialization, the app hash representing the state of the app should match the `appHash` inside the `FraudProof`. This store should now contain all the key/value pairs and underlying tree structure necessary to execute the fraudulent state transition contained in the `FraudProof`. 
+Spin up a new Cosmos SDK app and initialize its store with Deep Subtrees constructed using witness data in the `FraudProof`. After this initialization, the app hash representing the state of the app should match the `appHash` inside the `FraudProof`. This store should now contain all the key/value pairs and underlying tree structure necessary to execute the fraudulent state transition contained in the `FraudProof`. 
 
 We introduce the following ABCI method to enable Fraud Proof Verification in the Cosmos SDK:
 
