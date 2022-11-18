@@ -21,38 +21,40 @@ import (
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	gater, err := conngater.NewBasicConnectionGater(nil)
 	assert := assert.New(t)
-	assert.NoError(err)
-	testCases := []config.P2PConfig{
-		{},
-		{
+	testCases := []struct {
+		desc    string
+		p2pconf config.P2PConfig
+	}{
+		{"blank config", config.P2PConfig{}},
+		{"unblocking a not previously explicitly blocked peer shouldn't error", config.P2PConfig{
 			ListenAddress: "",
 			Seeds:         "",
 			BlockedPeers:  "",
 			AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
-			// unblocking a not previously explicitly blocked peer shouldn't result in an error
-		},
-		{
+		}},
+		{"blocking a peer", config.P2PConfig{
 			ListenAddress: "",
 			Seeds:         "",
 			BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
 			AllowedPeers:  "",
-		},
+		}},
 	}
 
 	for _, testCase := range testCases {
-		gater, err := conngater.NewBasicConnectionGater(nil)
-		assert.NoError(err)
-		client, err := NewClient(testCase, privKey, "TestChain", gater, test.NewLogger(t))
-		assert.NoError(err)
-		assert.NotNil(client)
+		t.Run(testCase.desc, func(t *testing.T) {
+			gater, err := conngater.NewBasicConnectionGater(nil)
+			assert.NoError(err)
+			client, err := NewClient(testCase.p2pconf, privKey, "TestChain", gater, test.NewLogger(t))
+			assert.NoError(err)
+			assert.NotNil(client)
 
-		err = client.Start(context.Background())
-		defer func() {
-			_ = client.Close()
-		}()
-		assert.NoError(err)
+			err = client.Start(context.Background())
+			defer func() {
+				_ = client.Close()
+			}()
+			assert.NoError(err)
+		})
 	}
 }
 
