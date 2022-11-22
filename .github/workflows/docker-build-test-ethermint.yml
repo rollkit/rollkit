@@ -37,7 +37,7 @@ jobs:
         with:
           repository: celestiaorg/ethermint
           path: ethermint
-          ref: optimint-v0.3.0-rebase
+          ref: main
       - name: Move Stuff and Tidy
         run: |
           ls
@@ -46,7 +46,7 @@ jobs:
           cp -R rollmint ethermint
           cd ethermint
           rm -rf .git
-          go mod edit -replace=github.com/celestiaorg/optimint=./rollmint
+          go mod edit -replace=github.com/celestiaorg/rollmint=./rollmint
           go mod tidy -compat=1.17 -e
       - name: Docker meta
         id: meta
