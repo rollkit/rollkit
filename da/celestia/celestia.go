@@ -124,7 +124,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 }
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
-func (c *DataAvailabilityLayerClient) RetrieveBlocks(context context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
+func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	data, err := c.client.NamespacedData(context, c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
