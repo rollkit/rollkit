@@ -70,7 +70,7 @@ type DataAvailabilityLayerClient interface {
 	// SubmitBlock submits the passed in block to the DA layer.
 	// This should create a transaction which (potentially)
 	// triggers a state transition in the DA layer.
-	SubmitBlock(context context.Context, block *types.Block) ResultSubmitBlock
+	SubmitBlock(ctx context.Context, block *types.Block) ResultSubmitBlock
 
 	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
 	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
