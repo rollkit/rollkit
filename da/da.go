@@ -73,7 +73,7 @@ type DataAvailabilityLayerClient interface {
 	SubmitBlock(context context.Context, block *types.Block) ResultSubmitBlock
 
 	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
-	CheckBlockAvailability(context context.Context, dataLayerHeight uint64) ResultCheckBlock
+	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
 }
 
 // BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
