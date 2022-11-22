@@ -73,7 +73,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(context context.Context, block
 		}
 	}
 
-	txResponse, err := c.client.SubmitPFD(context.TODO(), c.namespaceID, blob, c.config.GasLimit)
+	txResponse, err := c.client.SubmitPFD(context, c.namespaceID, blob, c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
@@ -104,7 +104,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(context context.Context, block
 
 // CheckBlockAvailability queries DA layer to check data availability of block at given height.
 func (c *DataAvailabilityLayerClient) CheckBlockAvailability(context context.Context, dataLayerHeight uint64) da.ResultCheckBlock {
-	shares, err := c.client.NamespacedShares(context.TODO(), c.namespaceID, dataLayerHeight)
+	shares, err := c.client.NamespacedShares(context, c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultCheckBlock{
 			BaseResult: da.BaseResult{
@@ -125,7 +125,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(context context.Con
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(context context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	data, err := c.client.NamespacedData(context.TODO(), c.namespaceID, dataLayerHeight)
+	data, err := c.client.NamespacedData(context, c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
