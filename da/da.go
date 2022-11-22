@@ -80,5 +80,5 @@ type DataAvailabilityLayerClient interface {
 // block data from DA layer. This gives the ability to use it for block synchronization.
 type BlockRetriever interface {
 	// RetrieveBlocks returns blocks at given data layer height from data availability layer.
-	RetrieveBlocks(context context.Context, dataLayerHeight uint64) ResultRetrieveBlocks
+	RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlocks
 }
