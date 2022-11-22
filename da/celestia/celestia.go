@@ -62,7 +62,7 @@ func (c *DataAvailabilityLayerClient) Stop() error {
 }
 
 // SubmitBlock submits a block to DA layer.
-func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
+func (c *DataAvailabilityLayerClient) SubmitBlock(context context.Context, block *types.Block) da.ResultSubmitBlock {
 	blob, err := block.MarshalBinary()
 	if err != nil {
 		return da.ResultSubmitBlock{
@@ -103,7 +103,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block at given height.
-func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
+func (c *DataAvailabilityLayerClient) CheckBlockAvailability(context context.Context, dataLayerHeight uint64) da.ResultCheckBlock {
 	shares, err := c.client.NamespacedShares(context.TODO(), c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultCheckBlock{
@@ -124,7 +124,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 }
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
-func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
+func (c *DataAvailabilityLayerClient) RetrieveBlocks(context context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	data, err := c.client.NamespacedData(context.TODO(), c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
