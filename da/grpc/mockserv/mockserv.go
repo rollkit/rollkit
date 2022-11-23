@@ -36,13 +36,13 @@ type mockImpl struct {
 	mock mock.DataAvailabilityLayerClient
 }
 
-func (m *mockImpl) SubmitBlock(_ context.Context, request *dalc.SubmitBlockRequest) (*dalc.SubmitBlockResponse, error) {
+func (m *mockImpl) SubmitBlock(ctx context.Context, request *dalc.SubmitBlockRequest) (*dalc.SubmitBlockResponse, error) {
 	var b types.Block
 	err := b.FromProto(request.Block)
 	if err != nil {
 		return nil, err
 	}
-	resp := m.mock.SubmitBlock(&b)
+	resp := m.mock.SubmitBlock(ctx, &b)
 	return &dalc.SubmitBlockResponse{
 		Result: &dalc.DAResponse{
 			Code:     dalc.StatusCode(resp.Code),
@@ -52,8 +52,8 @@ func (m *mockImpl) SubmitBlock(_ context.Context, request *dalc.SubmitBlockReque
 	}, nil
 }
 
-func (m *mockImpl) CheckBlockAvailability(_ context.Context, request *dalc.CheckBlockAvailabilityRequest) (*dalc.CheckBlockAvailabilityResponse, error) {
-	resp := m.mock.CheckBlockAvailability(request.DAHeight)
+func (m *mockImpl) CheckBlockAvailability(ctx context.Context, request *dalc.CheckBlockAvailabilityRequest) (*dalc.CheckBlockAvailabilityResponse, error) {
+	resp := m.mock.CheckBlockAvailability(ctx, request.DAHeight)
 	return &dalc.CheckBlockAvailabilityResponse{
 		Result: &dalc.DAResponse{
 			Code:    dalc.StatusCode(resp.Code),
@@ -63,8 +63,8 @@ func (m *mockImpl) CheckBlockAvailability(_ context.Context, request *dalc.Check
 	}, nil
 }
 
-func (m *mockImpl) RetrieveBlocks(context context.Context, request *dalc.RetrieveBlocksRequest) (*dalc.RetrieveBlocksResponse, error) {
-	resp := m.mock.RetrieveBlocks(request.DAHeight)
+func (m *mockImpl) RetrieveBlocks(ctx context.Context, request *dalc.RetrieveBlocksRequest) (*dalc.RetrieveBlocksResponse, error) {
+	resp := m.mock.RetrieveBlocks(ctx, request.DAHeight)
 	blocks := make([]*rollmint.Block, len(resp.Blocks))
 	for i := range resp.Blocks {
 		blocks[i] = resp.Blocks[i].ToProto()

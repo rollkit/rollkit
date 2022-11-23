@@ -1,6 +1,7 @@
 package test
 
 import (
+  "context"
 	"encoding/json"
 	"math/rand"
 	"net"
@@ -62,14 +63,16 @@ func TestDALC(t *testing.T) {
 	httpServer := startMockCelestiaNodeServer(t)
 	defer httpServer.Stop()
 
+  ctx := context.Background()
+
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
-			doTestDALC(t, registry.GetClient(dalc))
+			doTestDALC(ctx, t, registry.GetClient(dalc))
 		})
 	}
 }
 
-func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
+func doTestDALC(ctx context.Context, t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -99,32 +102,33 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	b1 := getRandomBlock(1, 10)
 	b2 := getRandomBlock(2, 10)
 
-	resp := dalc.SubmitBlock(b1)
+	resp := dalc.SubmitBlock(ctx, b1)
 	h1 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
-	resp = dalc.SubmitBlock(b2)
+	resp = dalc.SubmitBlock(ctx, b2)
 	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	// wait a bit more than mockDaBlockTime, so rollmint blocks can be "included" in mock block
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
-	check := dalc.CheckBlockAvailability(h1)
+	check := dalc.CheckBlockAvailability(ctx, h1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	check = dalc.CheckBlockAvailability(h2)
+	check = dalc.CheckBlockAvailability(ctx, h2)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
 	// this height should not be used by DALC
-	check = dalc.CheckBlockAvailability(h1 - 1)
+	check = dalc.CheckBlockAvailability(ctx, h1 - 1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.False(check.DataAvailable)
 }
 
 func TestRetrieve(t *testing.T) {
+  ctx := context.Background()
 	grpcServer := startMockGRPCServ(t)
 	defer grpcServer.GracefulStop()
 
@@ -136,7 +140,7 @@ func TestRetrieve(t *testing.T) {
 			dalc := registry.GetClient(client)
 			_, ok := dalc.(da.BlockRetriever)
 			if ok {
-				doTestRetrieve(t, dalc)
+				doTestRetrieve(ctx, t, dalc)
 			}
 		})
 	}
@@ -172,7 +176,7 @@ func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
 	return httpSrv
 }
 
-func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
+func doTestRetrieve(ctx context.Context, t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -204,7 +208,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20)
-		resp := dalc.SubmitBlock(b)
+		resp := dalc.SubmitBlock(ctx, b)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds()))
 
@@ -217,14 +221,14 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	for h, cnt := range countAtHeight {
 		t.Log("Retrieving block, DA Height", h)
-		ret := retriever.RetrieveBlocks(h)
+		ret := retriever.RetrieveBlocks(ctx, h)
 		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Blocks, h)
 		assert.Len(ret.Blocks, cnt, h)
 	}
 
 	for b, h := range blocks {
-		ret := retriever.RetrieveBlocks(h)
+		ret := retriever.RetrieveBlocks(ctx, h)
 		assert.Equal(da.StatusSuccess, ret.Code, h)
 		require.NotEmpty(ret.Blocks, h)
 		assert.Contains(ret.Blocks, b, h)
