@@ -204,6 +204,11 @@ func (c *Client) Addrs() []multiaddr.Multiaddr {
 	return c.host.Addrs()
 }
 
+// Info returns client ID, ListenAddr, and Network info
+func (c *Client) Info() (p2p.ID, string, string) {
+	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
+}
+
 // PeerConnection describe basic information about P2P connection.
 // TODO(tzdybal): move it somewhere
 type PeerConnection struct {
