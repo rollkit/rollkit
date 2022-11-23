@@ -1,7 +1,7 @@
 package mock
 
 import (
-  "context"
+	"context"
 	"encoding/binary"
 	"math/rand"
 	"sync/atomic"

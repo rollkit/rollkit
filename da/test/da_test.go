@@ -1,7 +1,7 @@
 package test
 
 import (
-  "context"
+	"context"
 	"encoding/json"
 	"math/rand"
 	"net"
@@ -63,7 +63,7 @@ func TestDALC(t *testing.T) {
 	httpServer := startMockCelestiaNodeServer(t)
 	defer httpServer.Stop()
 
-  ctx := context.Background()
+	ctx := context.Background()
 
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
@@ -122,13 +122,13 @@ func doTestDALC(ctx context.Context, t *testing.T, dalc da.DataAvailabilityLayer
 	assert.True(check.DataAvailable)
 
 	// this height should not be used by DALC
-	check = dalc.CheckBlockAvailability(ctx, h1 - 1)
+	check = dalc.CheckBlockAvailability(ctx, h1-1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.False(check.DataAvailable)
 }
 
 func TestRetrieve(t *testing.T) {
-  ctx := context.Background()
+	ctx := context.Background()
 	grpcServer := startMockGRPCServ(t)
 	defer grpcServer.GracefulStop()
 
