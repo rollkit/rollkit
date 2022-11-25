@@ -46,6 +46,10 @@ See [the contributing guide](./CONTRIBUTING.md) for more details.
 
 Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to ask questions, discuss your ideas, and connect with other contributors.
 
+## Dependency Graph
+
+To see our progress and a possible future of rollmint visit our [Dependency Graph](./docs/specification/rollmint-dependency-graph.md).
+
 ## Code of Conduct
 
 See our Code of Conduct [here](https://docs.celestia.org/community/coc).
