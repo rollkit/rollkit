@@ -2,7 +2,6 @@ package da
 
 import (
 	"context"
-
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"

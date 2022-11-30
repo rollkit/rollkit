@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/rollmint/state/indexer"
 )
 
 var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
