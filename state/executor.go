@@ -21,15 +21,14 @@ import (
 	"github.com/celestiaorg/rollmint/types"
 )
 
-var fraudProofsEnabled = true
-
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
-	proposerAddress []byte
-	namespaceID     types.NamespaceID
-	chainID         string
-	proxyApp        proxy.AppConnConsensus
-	mempool         mempool.Mempool
+	proposerAddress    []byte
+	namespaceID        types.NamespaceID
+	chainID            string
+	proxyApp           proxy.AppConnConsensus
+	mempool            mempool.Mempool
+	fraudProofsEnabled bool
 
 	eventBus *tmtypes.EventBus
 
@@ -38,15 +37,16 @@ type BlockExecutor struct {
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, fraudProofsEnabled bool, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
-		proposerAddress: proposerAddress,
-		namespaceID:     namespaceID,
-		chainID:         chainID,
-		proxyApp:        proxyApp,
-		mempool:         mempool,
-		eventBus:        eventBus,
-		logger:          logger,
+		proposerAddress:    proposerAddress,
+		namespaceID:        namespaceID,
+		chainID:            chainID,
+		proxyApp:           proxyApp,
+		mempool:            mempool,
+		fraudProofsEnabled: fraudProofsEnabled,
+		eventBus:           eventBus,
+		logger:             logger,
 	}
 }
 
@@ -293,7 +293,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrs := block.Data.IntermediateStateRoots.RawRootsList
 	currentIsrIndex := 0
 
-	if fraudProofsEnabled && currentIsrs != nil {
+	if e.fraudProofsEnabled && currentIsrs != nil {
 		expectedLength := len(block.Data.Txs) + 2
 		// BeginBlock + DeliverTxs + EndBlock
 		if len(currentIsrs) != expectedLength {
@@ -318,7 +318,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	})
 
 	genAndGossipFraudProofIfNeeded := func(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (err error) {
-		if !fraudProofsEnabled {
+		if !e.fraudProofsEnabled {
 			return nil
 		}
 		isr, err := e.getAppHash()
@@ -391,7 +391,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	if fraudProofsEnabled && block.Data.IntermediateStateRoots.RawRootsList == nil {
+	if e.fraudProofsEnabled && block.Data.IntermediateStateRoots.RawRootsList == nil {
 		// Block producer: Initial ISRs generated here
 		block.Data.IntermediateStateRoots.RawRootsList = ISRs
 	}
