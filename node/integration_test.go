@@ -282,6 +282,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	bmConfig := config.BlockManagerConfig{
 		BlockTime:   300 * time.Millisecond,
 		NamespaceID: rmtypes.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		FraudProofs: true,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {
