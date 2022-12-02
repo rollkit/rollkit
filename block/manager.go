@@ -461,6 +461,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Apply the block but DONT commit
 	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+
+	if err != nil {
+		return err
+	}
+
+	// SaveBlock commits the DB tx
+	err = m.store.SaveBlock(block, commit)
 	if err != nil {
 		return err
 	}
