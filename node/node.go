@@ -90,8 +90,105 @@ type FullNode struct {
 	ctx context.Context
 }
 
-// NewNode creates new rollmint node.
+func newFullNode(
+	ctx context.Context,
+	conf config.NodeConfig,
+	p2pKey crypto.PrivKey,
+	signingKey crypto.PrivKey,
+	appClient abciclient.Client,
+	genesis *tmtypes.GenesisDoc,
+	logger log.Logger,
+) (*FullNode, error) {
+	eventBus := tmtypes.NewEventBus()
+	eventBus.SetLogger(logger.With("module", "events"))
+	if err := eventBus.Start(); err != nil {
+		return nil, err
+	}
+
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, logger.With("module", "p2p"))
+	if err != nil {
+		return nil, err
+	}
+
+	var baseKV store.KVStore
+	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+		logger.Info("WARNING: working in in-memory mode")
+		baseKV = store.NewDefaultInMemoryKVStore()
+	} else {
+		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
+	}
+	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
+	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
+	indexerKV := store.NewPrefixKV(baseKV, indexerPrefix)
+
+	s := store.New(mainKV)
+
+	dalc := registry.GetClient(conf.DALayer)
+	if dalc == nil {
+		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
+	}
+	err = dalc.Init(conf.NamespaceID, []byte(conf.DAConfig), dalcKV, logger.With("module", "da_client"))
+	if err != nil {
+		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
+	}
+
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(conf, indexerKV, eventBus, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient, 0)
+	mpIDs := newMempoolIDs()
+
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"))
+	if err != nil {
+		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
+	}
+
+	node := &FullNode{
+		appClient:      appClient,
+		eventBus:       eventBus,
+		genesis:        genesis,
+		conf:           conf,
+		P2P:            client,
+		blockManager:   blockManager,
+		dalc:           dalc,
+		Mempool:        mp,
+		mempoolIDs:     mpIDs,
+		incomingTxCh:   make(chan *p2p.GossipMessage),
+		Store:          s,
+		TxIndexer:      txIndexer,
+		IndexerService: indexerService,
+		BlockIndexer:   blockIndexer,
+		ctx:            ctx,
+	}
+
+	node.BaseService = *service.NewBaseService(logger, "Node", node)
+
+	node.P2P.SetTxValidator(node.newTxValidator())
+	node.P2P.SetHeaderValidator(node.newHeaderValidator())
+	node.P2P.SetCommitValidator(node.newCommitValidator())
+	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
+
+	return node, nil
+
+}
+
 func NewNode(
+	ctx context.Context,
+	conf config.NodeConfig,
+	p2pKey crypto.PrivKey,
+	signingKey crypto.PrivKey,
+	appClient abciclient.Client,
+	genesis *tmtypes.GenesisDoc,
+	logger log.Logger,
+) (*FullNode, error) {
+  n, err := newFullNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
+  return n, err
+}
+
+// NewNode creates new rollmint node.
+/*func NewNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
@@ -172,11 +269,11 @@ func NewNode(
 	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
-}
+}*/
 
 // initGenesisChunks creates a chunked format of the genesis document to make it easier to
 // iterate through larger genesis structures.
-func (n *Node) initGenesisChunks() error {
+func (n *FullNode) initGenesisChunks() error {
 	if n.genChunks != nil {
 		return nil
 	}
@@ -203,7 +300,7 @@ func (n *Node) initGenesisChunks() error {
 	return nil
 }
 
-func (n *Node) headerPublishLoop(ctx context.Context) {
+func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderOutCh:
@@ -222,7 +319,7 @@ func (n *Node) headerPublishLoop(ctx context.Context) {
 }
 
 // OnStart is a part of Service interface.
-func (n *Node) OnStart() error {
+func (n *FullNode) OnStart() error {
 	n.Logger.Info("starting P2P client")
 	err := n.P2P.Start(n.ctx)
 	if err != nil {
@@ -244,12 +341,12 @@ func (n *Node) OnStart() error {
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *Node) GetGenesis() *tmtypes.GenesisDoc {
+func (n *FullNode) GetGenesis() *tmtypes.GenesisDoc {
 	return n.genesis
 }
 
 // GetGenesisChunks returns chunked version of genesis.
-func (n *Node) GetGenesisChunks() ([]string, error) {
+func (n *FullNode) GetGenesisChunks() ([]string, error) {
 	err := n.initGenesisChunks()
 	if err != nil {
 		return nil, err
@@ -258,40 +355,40 @@ func (n *Node) GetGenesisChunks() ([]string, error) {
 }
 
 // OnStop is a part of Service interface.
-func (n *Node) OnStop() {
+func (n *FullNode) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
 // OnReset is a part of Service interface.
-func (n *Node) OnReset() error {
+func (n *FullNode) OnReset() error {
 	panic("OnReset - not implemented!")
 }
 
 // SetLogger sets the logger used by node.
-func (n *Node) SetLogger(logger log.Logger) {
+func (n *FullNode) SetLogger(logger log.Logger) {
 	n.Logger = logger
 }
 
 // GetLogger returns logger.
-func (n *Node) GetLogger() log.Logger {
+func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
 }
 
 // EventBus gives access to Node's event bus.
-func (n *Node) EventBus() *tmtypes.EventBus {
+func (n *FullNode) EventBus() *tmtypes.EventBus {
 	return n.eventBus
 }
 
 // AppClient returns ABCI proxy connections to communicate with application.
-func (n *Node) AppClient() abciclient.Client {
+func (n *FullNode) AppClient() abciclient.Client {
 	return n.appClient
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
 // transaction. If the transaction is valid, then it is added to the mempool
-func (n *Node) newTxValidator() p2p.GossipValidator {
+func (n *FullNode) newTxValidator() p2p.GossipValidator {
 	return func(m *p2p.GossipMessage) bool {
 		n.Logger.Debug("transaction received", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
@@ -321,7 +418,7 @@ func (n *Node) newTxValidator() p2p.GossipValidator {
 
 // newHeaderValidator returns a pubsub validator that runs basic checks and forwards
 // the deserialized header for further processing
-func (n *Node) newHeaderValidator() p2p.GossipValidator {
+func (n *FullNode) newHeaderValidator() p2p.GossipValidator {
 	return func(headerMsg *p2p.GossipMessage) bool {
 		n.Logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
 		var header types.SignedHeader
@@ -342,7 +439,7 @@ func (n *Node) newHeaderValidator() p2p.GossipValidator {
 
 // newCommitValidator returns a pubsub validator that runs basic checks and forwards
 // the deserialized commit for further processing
-func (n *Node) newCommitValidator() p2p.GossipValidator {
+func (n *FullNode) newCommitValidator() p2p.GossipValidator {
 	return func(commitMsg *p2p.GossipMessage) bool {
 		n.Logger.Debug("commit received", "from", commitMsg.From, "bytes", len(commitMsg.Data))
 		var commit types.Commit
@@ -364,7 +461,7 @@ func (n *Node) newCommitValidator() p2p.GossipValidator {
 
 // newFraudProofValidator returns a pubsub validator that validates a fraud proof and forwards
 // it to be verified
-func (n *Node) newFraudProofValidator() p2p.GossipValidator {
+func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
 	return func(fraudProofMsg *p2p.GossipMessage) bool {
 		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
 		var fraudProof types.FraudProof

@@ -50,11 +50,11 @@ type Client struct {
 	*types.EventBus
 	config *config.RPCConfig
 
-	node *node.Node
+	node *node.FullNode
 }
 
 // NewClient returns Client working with given node.
-func NewClient(node *node.Node) *Client {
+func NewClient(node *node.FullNode) *Client {
 	return &Client{
 		EventBus: node.EventBus(),
 		config:   config.DefaultRPCConfig(),
