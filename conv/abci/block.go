@@ -36,6 +36,7 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 		LastResultsHash:    header.LastResultsHash[:],
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
+		ChainID:            header.ChainID,
 	}, nil
 }
 
@@ -65,6 +66,7 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		LastResultsHash:    header.LastResultsHash[:],
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
+		ChainID:            header.ChainID,
 	}, nil
 }
 
