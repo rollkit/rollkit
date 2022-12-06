@@ -46,9 +46,21 @@ const (
 	genesisChunkSize = 16 * 1024 * 1024 // 16 MiB
 )
 
+type Node interface {
+  AppClient() abciclient.Client
+  EventBus() *tmtypes.EventBus
+  GetLogger() log.Logger
+  SetLogger()
+  OnReset() error
+  OnStop()
+  OnStart() error
+  GetGenesisChunks() ([]string, error)
+  GetGenesis() *tmtypes.GenesisDoc
+}
+
 // Node represents a client node in rollmint network.
 // It connects all the components and orchestrates their work.
-type Node struct {
+type FullNode struct {
 	service.BaseService
 	eventBus  *tmtypes.EventBus
 	appClient abciclient.Client
