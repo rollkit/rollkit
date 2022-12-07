@@ -4,9 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/version"
 )
 
 // ValidateBasic performs basic validation of a block.
@@ -31,15 +28,8 @@ func (b *Block) ValidateBasic() error {
 
 // ValidateBasic performs basic validation of a header.
 func (h *Header) ValidateBasic() error {
-	if h.Version.Block != version.BlockProtocol {
-		return fmt.Errorf("block protocol is incorrect: got: %d, want: %d ", h.Version.Block, version.BlockProtocol)
-	}
-
-	if len(h.ProposerAddress) != crypto.AddressSize {
-		return fmt.Errorf(
-			"invalid ProposerAddress length; got: %d, expected: %d",
-			len(h.ProposerAddress), crypto.AddressSize,
-		)
+	if len(h.ProposerAddress) == 0 {
+		return errors.New("no proposer address")
 	}
 
 	return nil
