@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	mrand "math/rand"
 	"strconv"
 	"strings"
@@ -127,9 +128,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 			require.NoError(err)
 			nodeBlock, err := nodes[i].Store.LoadBlock(h)
 			require.NoError(err)
-			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparison
-			nodeBlock.Data.IntermediateStateRoots.RawRootsList = nil
-			assert.Equal(aggBlock, nodeBlock)
+			assert.Equal(aggBlock, nodeBlock, fmt.Sprintf("height: %d", h))
 		}
 	}
 }
@@ -186,8 +185,6 @@ func TestFraudProofTrigger(t *testing.T) {
 			require.NoError(err)
 			aggBlock, err := nodes[0].Store.LoadBlock(h)
 			require.NoError(err)
-			// Only Intermediate state roots set by block aggregator are relevant, removed for sake of comparison
-			nodeBlock.Data.IntermediateStateRoots.RawRootsList = nil
 			assert.Equal(aggBlock, nodeBlock)
 		}
 	}
@@ -198,7 +195,7 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*No
 	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, &wg, t)
 	startNodes(nodes, &wg, t)
 	aggCancel()
 	time.Sleep(100 * time.Millisecond)
@@ -282,6 +279,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	bmConfig := config.BlockManagerConfig{
 		BlockTime:   300 * time.Millisecond,
 		NamespaceID: rmtypes.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		FraudProofs: true,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {

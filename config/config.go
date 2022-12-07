@@ -18,6 +18,7 @@ const (
 	flagDABlockTime   = "rollmint.da_block_time"
 	flagDAStartHeight = "rollmint.da_start_height"
 	flagNamespaceID   = "rollmint.namespace_id"
+	flagFraudProofs   = "rollmint.experimental_insecure_fraud_proofs"
 )
 
 // NodeConfig stores rollmint node configuration.
@@ -43,6 +44,7 @@ type BlockManagerConfig struct {
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
 	DAStartHeight uint64            `mapstructure:"da_start_height"`
 	NamespaceID   types.NamespaceID `mapstructure:"namespace_id"`
+	FraudProofs   bool              `mapstructure:"fraud_proofs"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.
@@ -56,6 +58,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DABlockTime = v.GetDuration(flagDABlockTime)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nsID := v.GetString(flagNamespaceID)
+	nc.FraudProofs = v.GetBool(flagFraudProofs)
 	bytes, err := hex.DecodeString(nsID)
 	if err != nil {
 		return err
@@ -76,4 +79,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
+	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 }

@@ -115,7 +115,7 @@ func NewManager(
 		conf.DABlockTime = defaultDABlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -461,6 +461,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Apply the block but DONT commit
 	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+
+	if err != nil {
+		return err
+	}
+
+	// SaveBlock commits the DB tx
+	err = m.store.SaveBlock(block, commit)
 	if err != nil {
 		return err
 	}

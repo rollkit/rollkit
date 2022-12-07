@@ -2,8 +2,6 @@
 
 ABCI-client implementation for Optimistic Rollups.
 
-Design document: <https://docs.google.com/document/d/12gZow_JTJjRrmaD2mNTmYniLhyxVLSyDd7Fbxo5UnA8/edit?usp=sharing>
-
 [![build-and-test](https://github.com/celestiaorg/rollmint/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/rollmint/actions/workflows/test.yml)
 [![golangci-lint](https://github.com/celestiaorg/rollmint/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/rollmint/actions/workflows/lint.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/rollmint)](https://goreportcard.com/report/github.com/celestiaorg/rollmint)
@@ -45,6 +43,10 @@ If you're looking for issues to work on, try looking at the [good first issue li
 See [the contributing guide](./CONTRIBUTING.md) for more details.
 
 Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to ask questions, discuss your ideas, and connect with other contributors.
+
+## Dependency Graph
+
+To see our progress and a possible future of rollmint visit our [Dependency Graph](./docs/specification/rollmint-dependency-graph.md).
 
 ## Code of Conduct
 
