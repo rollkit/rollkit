@@ -176,7 +176,8 @@ func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
 	return httpSrv
 }
 
-func doTestRetrieve(ctx context.Context, t *testing.T, dalc da.DataAvailabilityLayerClient) {
+func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
+  ctx := context.Background()
 	require := require.New(t)
 	assert := assert.New(t)
 
