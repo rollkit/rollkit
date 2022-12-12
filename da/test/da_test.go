@@ -128,7 +128,6 @@ func doTestDALC(ctx context.Context, t *testing.T, dalc da.DataAvailabilityLayer
 }
 
 func TestRetrieve(t *testing.T) {
-	ctx := context.Background()
 	grpcServer := startMockGRPCServ(t)
 	defer grpcServer.GracefulStop()
 
@@ -140,7 +139,7 @@ func TestRetrieve(t *testing.T) {
 			dalc := registry.GetClient(client)
 			_, ok := dalc.(da.BlockRetriever)
 			if ok {
-				doTestRetrieve(ctx, t, dalc)
+				doTestRetrieve(t, dalc)
 			}
 		})
 	}
