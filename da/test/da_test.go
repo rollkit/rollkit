@@ -63,18 +63,17 @@ func TestDALC(t *testing.T) {
 	httpServer := startMockCelestiaNodeServer(t)
 	defer httpServer.Stop()
 
-	ctx := context.Background()
-
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
-			doTestDALC(ctx, t, registry.GetClient(dalc))
+			doTestDALC(t, registry.GetClient(dalc))
 		})
 	}
 }
 
-func doTestDALC(ctx context.Context, t *testing.T, dalc da.DataAvailabilityLayerClient) {
+func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
+	ctx := context.Background()
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
