@@ -23,7 +23,7 @@ import (
 	"github.com/celestiaorg/rollmint/types"
 )
 
-func TestCreateBlock(t *testing.T) {
+func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -39,7 +39,7 @@ func TestCreateBlock(t *testing.T) {
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), nil, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
 
 	state := types.State{}
 	state.ConsensusParams.Block.MaxBytes = 100
@@ -70,7 +70,15 @@ func TestCreateBlock(t *testing.T) {
 	assert.Len(block.Data.Txs, 2)
 }
 
-func TestApplyBlock(t *testing.T) {
+func TestCreateBlockWithFraudProofsDisabled(t *testing.T) {
+	doTestCreateBlock(t, false)
+}
+
+func TestCreateBlockWithFraudProofsEnabled(t *testing.T) {
+	doTestCreateBlock(t, true)
+}
+
+func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -102,7 +110,7 @@ func TestApplyBlock(t *testing.T) {
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	eventBus := tmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -189,4 +197,12 @@ func TestApplyBlock(t *testing.T) {
 			assert.EqualValues(3, data.NumTxs)
 		}
 	}
+}
+
+func TestApplyBlockWithFraudProofsDisabled(t *testing.T) {
+	doTestApplyBlock(t, false)
+}
+
+func TestApplyBlockWithFraudProofsEnabled(t *testing.T) {
+	doTestApplyBlock(t, true)
 }

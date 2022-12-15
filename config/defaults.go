@@ -22,6 +22,7 @@ var DefaultNodeConfig = NodeConfig{
 	BlockManagerConfig: BlockManagerConfig{
 		BlockTime:   30 * time.Second,
 		NamespaceID: types.NamespaceID{},
+		FraudProofs: false,
 	},
 	DALayer:  "mock",
 	DAConfig: "",
