@@ -402,6 +402,22 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	return sleepDuration
 }
 
+func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
+	headerBytes, err := header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	sign, err := m.proposerKey.Sign(headerBytes)
+	if err != nil {
+		return nil, err
+	}
+	return &types.Commit{
+		Height:     header.Height,
+		HeaderHash: header.Hash(),
+		Signatures: []types.Signature{sign},
+	}, nil
+}
+
 func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
 	var lastHeaderHash [32]byte
@@ -438,18 +454,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-		headerBytes, err := block.Header.MarshalBinary()
+		commit, err := m.getCommit(block.Header)
 		if err != nil {
 			return err
-		}
-		sign, err := m.proposerKey.Sign(headerBytes)
-		if err != nil {
-			return err
-		}
-		commit = &types.Commit{
-			Height:     block.Header.Height,
-			HeaderHash: block.Header.Hash(),
-			Signatures: []types.Signature{sign},
 		}
 
 		// SaveBlock commits the DB tx
@@ -464,6 +471,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	if err != nil {
 		return err
+	}
+
+	if commit == nil {
+		commit, err = m.getCommit(block.Header)
+		if err != nil {
+			return err
+		}
 	}
 
 	// SaveBlock commits the DB tx
