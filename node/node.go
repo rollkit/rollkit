@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/rollmint/state/txindex"
 	"github.com/celestiaorg/rollmint/state/txindex/kv"
 	"github.com/celestiaorg/rollmint/store"
+	"github.com/celestiaorg/rollmint/p2p"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -42,6 +43,12 @@ type Node interface {
 	OnStart() error
 	GetGenesisChunks() ([]string, error)
 	GetGenesis() *tmtypes.GenesisDoc
+
+  P2P *p2p.Client
+  Mempool mempool.Mempool
+	Store store.Store
+	TxIndexer txindex.TxIndexer
+	BlockIndexer indexer.BlockIndexer
 }
 
 func NewNode(
