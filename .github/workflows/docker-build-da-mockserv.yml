@@ -13,6 +13,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: celestiaorg/rollmint-mockserv
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   docker-build:
     if: github.event.pull_request.head.repo.full_name == github.repository
@@ -42,11 +46,23 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
+      - name: Build and Push amd64 Image
+        if: |
+          github.ref != 'refs/heads/main' &&
+          !startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v3
         with:
-          context: .
-          platforms: linux/amd64, linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           file: docker/mockserv.Dockerfile
+      - name: Build and Push amd64+arm64 Images
+        if: |
+          github.ref == 'refs/heads/main' ||
+          startsWith(github.ref, 'refs/tags/v')
+        uses: docker/build-push-action@v3
+        with:
+          platforms: linux/arm64, linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          file: docker/mockserv.Dockerfile  
