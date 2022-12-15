@@ -199,7 +199,7 @@ func (h *Header) ToProto() *pb.Header {
 		LastResultsHash: h.LastResultsHash[:],
 		ProposerAddress: h.ProposerAddress[:],
 		AggregatorsHash: h.AggregatorsHash[:],
-		ChainId: h.ChainID,
+		ChainId:         h.ChainID,
 	}
 }
 
