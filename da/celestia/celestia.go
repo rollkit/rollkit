@@ -32,6 +32,7 @@ var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 type Config struct {
 	BaseURL  string        `json:"base_url"`
 	Timeout  time.Duration `json:"timeout"`
+	Fee      int64         `json:"fee"`
 	GasLimit uint64        `json:"gas_limit"`
 }
 
@@ -73,7 +74,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, blob, c.config.GasLimit)
+	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, blob, c.config.Fee, c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
