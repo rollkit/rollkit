@@ -50,11 +50,11 @@ type Client struct {
 	*types.EventBus
 	config *config.RPCConfig
 
-	node *node.Node
+	node node.Node
 }
 
 // NewClient returns Client working with given node.
-func NewClient(node *node.Node) *Client {
+func NewClient(node node.Node) *Client {
 	return &Client{
 		EventBus: node.EventBus(),
 		config:   config.DefaultRPCConfig(),
@@ -123,7 +123,8 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Re
 
 	// add to mempool and wait for CheckTx result
 	checkTxResCh := make(chan *abci.Response, 1)
-	err = c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+  mp := c.node.GetMempool()
+	err = mp.CheckTx(tx, func(res *abci.Response) {
 		checkTxResCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
@@ -141,7 +142,8 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Re
 	}
 
 	// broadcast tx
-	err = c.node.P2P.GossipTx(ctx, tx)
+  p2p := c.node.GetP2P()
+	err = p2p.GossipTx(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("tx added to local mempool but failure to broadcast: %w", err)
 	}
@@ -185,12 +187,14 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.Re
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (c *Client) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	err := c.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
+  mp := c.node.GetMempool()
+	err := mp.CheckTx(tx, nil, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
 	// gossipTx optimistically
-	err = c.node.P2P.GossipTx(ctx, tx)
+  p2p := c.node.GetP2P()
+	err = p2p.GossipTx(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
 	}
@@ -202,7 +206,8 @@ func (c *Client) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.Res
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
 func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	resCh := make(chan *abci.Response, 1)
-	err := c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+  mp := c.node.GetMempool()
+	err := mp.CheckTx(tx, func(res *abci.Response) {
 		resCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
@@ -214,14 +219,15 @@ func (c *Client) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.Resu
 	// gossip the transaction if it's in the mempool.
 	// Note: we have to do this here because, unlike the tendermint mempool reactor, there
 	// is no routine that gossips transactions after they enter the pool
+  p2p := c.node.GetP2P()
 	if r.Code == abci.CodeTypeOK {
-		err = c.node.P2P.GossipTx(ctx, tx)
+		err = p2p.GossipTx(ctx, tx)
 		if err != nil {
 			// the transaction must be removed from the mempool if it cannot be gossiped.
 			// if this does not occur, then the user will not be able to try again using
 			// this node, as the CheckTx call above will return an error indicating that
 			// the tx is already in the mempool
-			_ = c.node.Mempool.RemoveTxByKey(tx.Key())
+			_ = mp.RemoveTxByKey(tx.Key())
 			return nil, fmt.Errorf("failed to gossip tx: %w", err)
 		}
 	}
@@ -307,10 +313,11 @@ func (c *Client) GenesisChunked(context context.Context, id uint) (*ctypes.Resul
 func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	const limit int64 = 20
 
+  store := c.node.GetStore()
 	// Currently blocks are not pruned and are synced linearly so the base height is 0
 	minHeight, maxHeight, err := filterMinMax(
 		0,
-		int64(c.node.Store.Height()),
+		int64(store.Height()),
 		minHeight,
 		maxHeight,
 		limit)
@@ -321,7 +328,7 @@ func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64)
 
 	blocks := make([]*types.BlockMeta, 0, maxHeight-minHeight+1)
 	for height := maxHeight; height >= minHeight; height-- {
-		block, err := c.node.Store.LoadBlock(uint64(height))
+		block, err := store.LoadBlock(uint64(height))
 		if err != nil {
 			return nil, err
 		}
@@ -335,7 +342,7 @@ func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64)
 	}
 
 	return &ctypes.ResultBlockchainInfo{
-		LastHeight: int64(c.node.Store.Height()),
+		LastHeight: int64(store.Height()),
 		BlockMetas: blocks,
 	}, nil
 
@@ -343,13 +350,14 @@ func (c *Client) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64)
 
 // NetInfo returns basic information about client P2P connections.
 func (c *Client) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
+  p2p := c.node.GetP2P()
 	res := ctypes.ResultNetInfo{
 		Listening: true,
 	}
-	for _, ma := range c.node.P2P.Addrs() {
+	for _, ma := range p2p.Addrs() {
 		res.Listeners = append(res.Listeners, ma.String())
 	}
-	peers := c.node.P2P.Peers()
+	peers := p2p.Peers()
 	res.NPeers = len(peers)
 	for _, peer := range peers {
 		res.Peers = append(res.Peers, ctypes.Peer{
@@ -412,7 +420,8 @@ func (c *Client) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 // If height is nil, it returns information about last known block.
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	heightValue := c.normalizeHeight(height)
-	block, err := c.node.Store.LoadBlock(heightValue)
+  store := c.node.GetStore()
+	block, err := store.LoadBlock(heightValue)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +447,8 @@ func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBl
 	var h [32]byte
 	copy(h[:], hash)
 
-	block, err := c.node.Store.LoadBlockByHash(h)
+  store := c.node.GetStore()
+	block, err := store.LoadBlockByHash(h)
 	if err != nil {
 		return nil, err
 	}
@@ -461,13 +471,14 @@ func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBl
 
 // BlockResults returns information about transactions, events and updates of validator set and consensus params.
 func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
+  store := c.node.GetStore()
 	var h uint64
 	if height == nil {
-		h = c.node.Store.Height()
+		h = store.Height()
 	} else {
 		h = uint64(*height)
 	}
-	resp, err := c.node.Store.LoadBlockResponses(h)
+	resp, err := store.LoadBlockResponses(h)
 	if err != nil {
 		return nil, err
 	}
@@ -484,12 +495,13 @@ func (c *Client) BlockResults(ctx context.Context, height *int64) (*ctypes.Resul
 
 // Commit returns signed header (aka commit) at given height.
 func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
+  store := c.node.GetStore()
 	heightValue := c.normalizeHeight(height)
-	com, err := c.node.Store.LoadCommit(heightValue)
+	com, err := store.LoadCommit(heightValue)
 	if err != nil {
 		return nil, err
 	}
-	b, err := c.node.Store.LoadBlock(heightValue)
+	b, err := store.LoadBlock(heightValue)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +517,8 @@ func (c *Client) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommi
 // Validators returns paginated list of validators at given height.
 func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perPagePtr *int) (*ctypes.ResultValidators, error) {
 	height := c.normalizeHeight(heightPtr)
-	validators, err := c.node.Store.LoadValidators(height)
+  store := c.node.GetStore()
+	validators, err := store.LoadValidators(height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load validators for height %d: %w", height, err)
 	}
@@ -529,7 +542,8 @@ func (c *Client) Validators(ctx context.Context, heightPtr *int64, pagePtr, perP
 
 // Tx returns detailed information about transaction identified by its hash.
 func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
-	res, err := c.node.TxIndexer.Get(hash)
+  ti := c.node.GetTxIndexer()
+	res, err := ti.Get(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -542,8 +556,9 @@ func (c *Client) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.Resul
 	index := res.Index
 
 	var proof types.TxProof
+  store := c.node.GetStore()
 	if prove {
-		block, _ := c.node.Store.LoadBlock(uint64(height))
+		block, _ := store.LoadBlock(uint64(height))
 		blockProof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
 		proof = types.TxProof{
 			RootHash: blockProof.RootHash,
@@ -569,7 +584,8 @@ func (c *Client) TxSearch(ctx context.Context, query string, prove bool, pagePtr
 		return nil, err
 	}
 
-	results, err := c.node.TxIndexer.Search(ctx, q)
+  ti := c.node.GetTxIndexer()
+	results, err := ti.Search(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -637,7 +653,8 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 		return nil, err
 	}
 
-	results, err := c.node.BlockIndexer.Search(ctx, q)
+  bi := c.node.GetBlockIndexer()
+	results, err := bi.Search(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -671,8 +688,9 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 
 	// Fetch the blocks
 	blocks := make([]*ctypes.ResultBlock, 0, pageSize)
+  store := c.node.GetStore()
 	for i := skipCount; i < skipCount+pageSize; i++ {
-		b, err := c.node.Store.LoadBlock(uint64(results[i]))
+		b, err := store.LoadBlock(uint64(results[i]))
 		if err != nil {
 			return nil, err
 		}
@@ -693,23 +711,24 @@ func (c *Client) BlockSearch(ctx context.Context, query string, page, perPage *i
 
 // Status returns detailed information about current status of the node.
 func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
-	latest, err := c.node.Store.LoadBlock(c.node.Store.Height())
+  store := c.node.GetStore()
+	latest, err := store.LoadBlock(store.Height())
 	if err != nil {
 		return nil, fmt.Errorf("failed to find latest block: %w", err)
 	}
 
-	initial, err := c.node.Store.LoadBlock(uint64(c.node.GetGenesis().InitialHeight))
+	initial, err := store.LoadBlock(uint64(c.node.GetGenesis().InitialHeight))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
-	validators, err := c.node.Store.LoadValidators(latest.Header.Height)
+	validators, err := store.LoadValidators(latest.Header.Height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
 	}
 	_, validator := validators.GetByAddress(latest.Header.ProposerAddress)
 
-	state, err := c.node.Store.LoadState()
+	state, err := store.LoadState()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the last saved state: %w", err)
 	}
@@ -718,7 +737,8 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		state.Version.Consensus.Block,
 		state.Version.Consensus.App,
 	)
-	id, addr, network := c.node.P2P.Info()
+  p2p := c.node.GetP2P()
+	id, addr, network := p2p.Info()
 	txIndexerStatus := "on"
 
 	result := &ctypes.ResultStatus{
@@ -763,10 +783,11 @@ func (c *Client) BroadcastEvidence(ctx context.Context, evidence types.Evidence)
 
 // NumUnconfirmedTxs returns information about transactions in mempool.
 func (c *Client) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
+  mp := c.node.GetMempool()
 	return &ctypes.ResultUnconfirmedTxs{
-		Count:      c.node.Mempool.Size(),
-		Total:      c.node.Mempool.Size(),
-		TotalBytes: c.node.Mempool.SizeBytes(),
+		Count:      mp.Size(),
+		Total:      mp.Size(),
+		TotalBytes: mp.SizeBytes(),
 	}, nil
 
 }
@@ -776,11 +797,12 @@ func (c *Client) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes.Res
 	// reuse per_page validator
 	limit := validatePerPage(limitPtr)
 
-	txs := c.node.Mempool.ReapMaxTxs(limit)
+  mp := c.node.GetMempool()
+	txs := mp.ReapMaxTxs(limit)
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      len(txs),
-		Total:      c.node.Mempool.Size(),
-		TotalBytes: c.node.Mempool.SizeBytes(),
+		Total:      mp.Size(),
+		TotalBytes: mp.SizeBytes(),
 		Txs:        txs}, nil
 }
 
@@ -849,8 +871,9 @@ func (c *Client) appClient() abcicli.Client {
 
 func (c *Client) normalizeHeight(height *int64) uint64 {
 	var heightValue uint64
+  store := c.node.GetStore()
 	if height == nil {
-		heightValue = c.node.Store.Height()
+		heightValue = store.Height()
 	} else {
 		heightValue = uint64(*height)
 	}

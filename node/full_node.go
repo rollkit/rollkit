@@ -347,3 +347,19 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 		}
 	}
 }
+
+func (n *FullNode) GetP2P() (*p2p.Client) {
+  return n.P2P
+}
+func (n *FullNode) GetMempool() (mempool.Mempool) {
+  return n.Mempool
+}
+func (n *FullNode) GetStore() (store.Store) {
+  return n.Store
+}
+func (n *FullNode) GetTxIndexer() (txindex.TxIndexer) {
+  return n.TxIndexer
+}
+func (n *FullNode) GetBlockIndexer() (indexer.BlockIndexer) {
+  return n.BlockIndexer
+}
