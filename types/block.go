@@ -40,6 +40,9 @@ type Header struct {
 
 	// Hash of block aggregator set, at a time of block creation
 	AggregatorsHash [32]byte
+
+	// The Chain ID
+	ChainID string
 }
 
 var _ encoding.BinaryMarshaler = &Header{}

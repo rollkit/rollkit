@@ -199,6 +199,7 @@ func (h *Header) ToProto() *pb.Header {
 		LastResultsHash: h.LastResultsHash[:],
 		ProposerAddress: h.ProposerAddress[:],
 		AggregatorsHash: h.AggregatorsHash[:],
+		ChainId:         h.ChainID,
 	}
 }
 
@@ -206,6 +207,7 @@ func (h *Header) ToProto() *pb.Header {
 func (h *Header) FromProto(other *pb.Header) error {
 	h.Version.Block = other.Version.Block
 	h.Version.App = other.Version.App
+	h.ChainID = other.ChainId
 	if !safeCopy(h.NamespaceID[:], other.NamespaceId) {
 		return errors.New("invalid length of 'NamespaceId'")
 	}

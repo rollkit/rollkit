@@ -32,6 +32,7 @@ func (h *Header) Hash() [32]byte {
 		LastResultsHash:    h.LastResultsHash[:],
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    h.ProposerAddress,
+		ChainID:            h.ChainID,
 	}
 	var hash [32]byte
 	copy(hash[:], abciHeader.Hash())
