@@ -3,7 +3,7 @@ module github.com/celestiaorg/rollmint
 go 1.18
 
 require (
-	github.com/celestiaorg/go-cnc v0.1.1-0.20221216225622-2e6cb04251a4
+	github.com/celestiaorg/go-cnc v0.2.0
 	github.com/dgraph-io/badger/v3 v3.2103.4
 	github.com/go-kit/kit v0.12.0
 	github.com/gogo/protobuf v1.3.2
