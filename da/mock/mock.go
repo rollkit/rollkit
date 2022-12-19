@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"encoding/binary"
 	"math/rand"
 	"sync/atomic"
@@ -68,7 +69,7 @@ func (m *DataAvailabilityLayerClient) Stop() error {
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
-func (m *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
+func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
 	daHeight := atomic.LoadUint64(&m.daHeight)
 	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height, "dataLayerHeight", daHeight)
 
@@ -97,13 +98,13 @@ func (m *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-func (m *DataAvailabilityLayerClient) CheckBlockAvailability(daHeight uint64) da.ResultCheckBlock {
-	blocksRes := m.RetrieveBlocks(daHeight)
+func (m *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
+	blocksRes := m.RetrieveBlocks(ctx, daHeight)
 	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: blocksRes.Code}, DataAvailable: len(blocksRes.Blocks) > 0}
 }
 
 // RetrieveBlocks returns block at given height from data availability layer.
-func (m *DataAvailabilityLayerClient) RetrieveBlocks(daHeight uint64) da.ResultRetrieveBlocks {
+func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeight uint64) da.ResultRetrieveBlocks {
 	if daHeight >= atomic.LoadUint64(&m.daHeight) {
 		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: "block not found"}}
 	}

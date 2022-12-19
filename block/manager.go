@@ -345,7 +345,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			for {
 				daHeight := atomic.LoadUint64(&m.daHeight)
 				m.logger.Debug("retrieve", "daHeight", daHeight)
-				err := m.processNextDABlock()
+				err := m.processNextDABlock(ctx)
 				if err != nil {
 					m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 					break
@@ -358,7 +358,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) processNextDABlock() error {
+func (m *Manager) processNextDABlock(ctx context.Context) error {
 	// TODO(tzdybal): extract configuration option
 	maxRetries := 10
 	daHeight := atomic.LoadUint64(&m.daHeight)
@@ -366,7 +366,7 @@ func (m *Manager) processNextDABlock() error {
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
-		blockResp, fetchErr := m.fetchBlock(daHeight)
+		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
 		if fetchErr != nil {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
@@ -381,9 +381,9 @@ func (m *Manager) processNextDABlock() error {
 	return err
 }
 
-func (m *Manager) fetchBlock(daHeight uint64) (da.ResultRetrieveBlocks, error) {
+func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
 	var err error
-	blockRes := m.retriever.RetrieveBlocks(daHeight)
+	blockRes := m.retriever.RetrieveBlocks(ctx, daHeight)
 	switch blockRes.Code {
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
@@ -534,7 +534,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlock(block)
+		res := m.dalc.SubmitBlock(ctx, block)
 		if res.Code == da.StatusSuccess {
 			m.logger.Info("successfully submitted rollmint block to DA layer", "rollmintHeight", block.Header.Height, "daHeight", res.DAHeight)
 			submitted = true

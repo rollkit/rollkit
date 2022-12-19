@@ -1,6 +1,8 @@
 package da
 
 import (
+	"context"
+
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
@@ -69,15 +71,15 @@ type DataAvailabilityLayerClient interface {
 	// SubmitBlock submits the passed in block to the DA layer.
 	// This should create a transaction which (potentially)
 	// triggers a state transition in the DA layer.
-	SubmitBlock(block *types.Block) ResultSubmitBlock
+	SubmitBlock(ctx context.Context, block *types.Block) ResultSubmitBlock
 
 	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
-	CheckBlockAvailability(dataLayerHeight uint64) ResultCheckBlock
+	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
 }
 
 // BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
 // block data from DA layer. This gives the ability to use it for block synchronization.
 type BlockRetriever interface {
 	// RetrieveBlocks returns blocks at given data layer height from data availability layer.
-	RetrieveBlocks(dataLayerHeight uint64) ResultRetrieveBlocks
+	RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlocks
 }

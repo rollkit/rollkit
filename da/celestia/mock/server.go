@@ -92,7 +92,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := s.mock.SubmitBlock(&block)
+	res := s.mock.SubmitBlock(r.Context(), &block)
 	code := 0
 	if res.Code != da.StatusSuccess {
 		code = 3
@@ -118,7 +118,7 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := s.mock.RetrieveBlocks(height)
+	res := s.mock.RetrieveBlocks(r.Context(), height)
 	if res.Code != da.StatusSuccess {
 		s.writeError(w, errors.New(res.Message))
 		return
@@ -161,7 +161,7 @@ func (s *Server) data(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := s.mock.RetrieveBlocks(height)
+	res := s.mock.RetrieveBlocks(r.Context(), height)
 	if res.Code != da.StatusSuccess {
 		s.writeError(w, errors.New(res.Message))
 		return

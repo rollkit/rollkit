@@ -62,7 +62,7 @@ func (c *DataAvailabilityLayerClient) Stop() error {
 }
 
 // SubmitBlock submits a block to DA layer.
-func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
+func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
 	blob, err := block.MarshalBinary()
 	if err != nil {
 		return da.ResultSubmitBlock{
@@ -73,7 +73,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 		}
 	}
 
-	txResponse, err := c.client.SubmitPFD(context.TODO(), c.namespaceID, blob, c.config.GasLimit)
+	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, blob, c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
@@ -103,8 +103,8 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block at given height.
-func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uint64) da.ResultCheckBlock {
-	shares, err := c.client.NamespacedShares(context.TODO(), c.namespaceID, dataLayerHeight)
+func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) da.ResultCheckBlock {
+	shares, err := c.client.NamespacedShares(ctx, c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultCheckBlock{
 			BaseResult: da.BaseResult{
@@ -124,8 +124,8 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(dataLayerHeight uin
 }
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
-func (c *DataAvailabilityLayerClient) RetrieveBlocks(dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	data, err := c.client.NamespacedData(context.TODO(), c.namespaceID, dataLayerHeight)
+func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
+	data, err := c.client.NamespacedData(ctx, c.namespaceID, dataLayerHeight)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
