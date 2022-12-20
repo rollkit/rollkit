@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/types"
 	"github.com/celestiaorg/rollmint/types/pb/dalc"
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 )
 
 // DataAvailabilityLayerClient is a generic client that proxies all DA requests via gRPC.
@@ -41,7 +41,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init sets the configuration options.
-func (d *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, _ datastore.Datastore, logger log.Logger) error {
+func (d *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, _ ds.Datastore, logger log.Logger) error {
 	d.logger = logger
 	if len(config) == 0 {
 		d.config = DefaultConfig

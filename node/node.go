@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
@@ -37,9 +37,9 @@ import (
 
 // prefixes used in KV store to separate main node data from DALC data
 var (
-	mainPrefix    = []byte{0}
-	dalcPrefix    = []byte{1}
-	indexerPrefix = []byte{2}
+	mainPrefix    = "0"
+	dalcPrefix    = "1"
+	indexerPrefix = "2" // indexPrefix uses "i", so using "0-2" to avoid clash
 )
 
 const (
@@ -101,7 +101,7 @@ func NewNode(
 		return nil, err
 	}
 
-	var baseKV datastore.Datastore
+	var baseKV ds.Datastore
 
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
@@ -113,9 +113,9 @@ func NewNode(
 		return nil, err
 	}
 
-	mainKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: datastore.NewKey(string(mainPrefix))})
-	dalcKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: datastore.NewKey(string(dalcPrefix))})
-	indexerKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: datastore.NewKey(string(indexerPrefix))})
+	mainKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: ds.NewKey(mainPrefix)}).Children()[0]
+	dalcKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: ds.NewKey(dalcPrefix)}).Children()[0]
+	indexerKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: ds.NewKey(indexerPrefix)}).Children()[0]
 
 	s := store.New(ctx, mainKV)
 
@@ -377,7 +377,7 @@ func (n *Node) newFraudProofValidator() p2p.GossipValidator {
 func createAndStartIndexerService(
 	ctx context.Context,
 	conf config.NodeConfig,
-	kvStore datastore.Datastore,
+	kvStore ds.Datastore,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
@@ -388,7 +388,7 @@ func createAndStartIndexerService(
 	)
 
 	txIndexer = kv.NewTxIndex(ctx, kvStore)
-	blockIndexer = blockidxkv.New(ctx, ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: datastore.NewKey("block_events")}))
+	blockIndexer = blockidxkv.New(ctx, ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0])
 
 	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -17,8 +17,9 @@ import (
 )
 
 func TestBlockIndexer(t *testing.T) {
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
-	prefixStore := ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: datastore.NewKey("block_events")})
+	kvStore, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(t, err)
+	prefixStore := ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0]
 	indexer := blockidxkv.New(context.Background(), prefixStore)
 
 	require.NoError(t, indexer.Index(types.EventDataNewBlockHeader{

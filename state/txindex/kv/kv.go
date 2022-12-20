@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	badger3 "github.com/ipfs/go-ds-badger3"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -30,13 +30,13 @@ var _ txindex.TxIndexer = (*TxIndex)(nil)
 
 // TxIndex is the simplest possible indexer, backed by key-value storage (levelDB).
 type TxIndex struct {
-	store datastore.Datastore
+	store ds.Datastore
 
 	ctx context.Context
 }
 
 // NewTxIndex creates new KV indexer.
-func NewTxIndex(ctx context.Context, store datastore.Datastore) *TxIndex {
+func NewTxIndex(ctx context.Context, store ds.Datastore) *TxIndex {
 	return &TxIndex{
 		store: store,
 		ctx:   ctx,
@@ -50,7 +50,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 		return nil, txindex.ErrorEmptyHash
 	}
 
-	rawBytes, err := txi.store.Get(txi.ctx, datastore.NewKey(string(hash)))
+	rawBytes, err := txi.store.Get(txi.ctx, ds.NewKey(hex.EncodeToString(hash)))
 	if err != nil {
 		panic(err)
 	}
@@ -74,7 +74,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 	badgerDS, ok := txi.store.(*badger3.Datastore)
 	if !ok {
-		errors.New("failed to retrieve the datastore.Datastore implementation")
+		errors.New("failed to retrieve the ds.Datastore implementation")
 	}
 	storeBatch, err := badgerDS.NewTransaction(txi.ctx, false)
 	if err != nil {
@@ -92,7 +92,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 		}
 
 		// index by height (always)
-		err = storeBatch.Put(txi.ctx, datastore.NewKey(string(keyForHeight(result))), hash)
+		err = storeBatch.Put(txi.ctx, ds.NewKey(keyForHeight(result)), hash)
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 			return err
 		}
 		// index by hash (always)
-		err = storeBatch.Put(txi.ctx, datastore.NewKey(string(hash)), rawBytes)
+		err = storeBatch.Put(txi.ctx, ds.NewKey(hex.EncodeToString(hash)), rawBytes)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 func (txi *TxIndex) Index(result *abci.TxResult) error {
 	badgerDS, ok := txi.store.(*badger3.Datastore)
 	if !ok {
-		errors.New("failed to retrieve the datastore.Datastore implementation")
+		errors.New("failed to retrieve the ds.Datastore implementation")
 	}
 	b, err := badgerDS.NewTransaction(txi.ctx, false)
 	if err != nil {
@@ -135,7 +135,7 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 	}
 
 	// index by height (always)
-	err = b.Put(txi.ctx, datastore.NewKey(string(keyForHeight(result))), hash)
+	err = b.Put(txi.ctx, ds.NewKey(keyForHeight(result)), hash)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 		return err
 	}
 	// index by hash (always)
-	err = b.Put(txi.ctx, datastore.NewKey(string(hash)), rawBytes)
+	err = b.Put(txi.ctx, ds.NewKey(hex.EncodeToString(hash)), rawBytes)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 	return b.Commit(txi.ctx)
 }
 
-func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store datastore.Txn) error {
+func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store ds.Txn) error {
 	for _, event := range result.Result.Events {
 		// only index events with a non-empty type
 		if len(event.Type) == 0 {
@@ -168,7 +168,7 @@ func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store datast
 			// index if `index: true` is set
 			compositeTag := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
 			if attr.GetIndex() {
-				err := store.Put(txi.ctx, datastore.NewKey(string(keyForEvent(compositeTag, attr.Value, result))), hash)
+				err := store.Put(txi.ctx, ds.NewKey(keyForEvent(compositeTag, attr.Value, result)), hash)
 				if err != nil {
 					return err
 				}
@@ -325,7 +325,7 @@ func lookForHeight(conditions []query.Condition) (height int64) {
 func (txi *TxIndex) match(
 	ctx context.Context,
 	c query.Condition,
-	startKeyBz []byte,
+	startKeyBz string,
 	filteredHashes map[string][]byte,
 	firstRun bool,
 ) map[string][]byte {
@@ -339,7 +339,7 @@ func (txi *TxIndex) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		entries, err := store.PrefixEntries(ctx, txi.store, string(startKeyBz))
+		entries, err := store.PrefixEntries(ctx, txi.store, startKeyBz)
 		if err != nil {
 			panic(err)
 		}
@@ -364,7 +364,7 @@ func (txi *TxIndex) match(
 	case c.Op == query.OpExists:
 		// XXX: can't use startKeyBz here because c.Operand is nil
 		// (e.g. "account.owner/<nil>/" won't match w/ a single row)
-		entries, err := store.PrefixEntries(ctx, txi.store, string(startKey(c.CompositeKey)))
+		entries, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
 		if err != nil {
 			panic(err)
 		}
@@ -390,7 +390,7 @@ func (txi *TxIndex) match(
 		// XXX: startKey does not apply here.
 		// For example, if startKey = "account.owner/an/" and search query = "account.owner CONTAINS an"
 		// we can't iterate with prefix "account.owner/an/" because we might miss keys like "account.owner/Ulan/"
-		entries, err := store.PrefixEntries(ctx, txi.store, string(startKey(c.CompositeKey)))
+		entries, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
 		if err != nil {
 			panic(err)
 		}
@@ -464,7 +464,7 @@ func (txi *TxIndex) match(
 func (txi *TxIndex) matchRange(
 	ctx context.Context,
 	qr indexer.QueryRange,
-	startKey []byte,
+	startKey string,
 	filteredHashes map[string][]byte,
 	firstRun bool,
 ) map[string][]byte {
@@ -478,7 +478,7 @@ func (txi *TxIndex) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	entries, err := store.PrefixEntries(ctx, txi.store, string(startKey))
+	entries, err := store.PrefixEntries(ctx, txi.store, startKey)
 	if err != nil {
 		panic(err)
 	}
@@ -568,43 +568,44 @@ LOOP:
 // Keys
 
 func isTagKey(key []byte) bool {
-	return strings.Count(string(key), tagKeySeparator) == 3
+	return strings.Count(string(key), tagKeySeparator) == 4
 }
 
 func extractValueFromKey(key []byte) string {
-	parts := strings.SplitN(string(key), tagKeySeparator, 3)
-	return parts[1]
+	parts := strings.SplitN(string(key), tagKeySeparator, 4)
+	return parts[2]
 }
 
-func keyForEvent(key string, value []byte, result *abci.TxResult) []byte {
-	return []byte(fmt.Sprintf("%s/%s/%d/%d",
+func keyForEvent(key string, value []byte, result *abci.TxResult) string {
+	return fmt.Sprintf("%s/%s/%d/%d",
 		key,
 		value,
 		result.Height,
 		result.Index,
-	))
+	)
 }
 
-func keyForHeight(result *abci.TxResult) []byte {
-	return []byte(fmt.Sprintf("%s/%d/%d/%d",
+func keyForHeight(result *abci.TxResult) string {
+	return fmt.Sprintf("%s/%d/%d/%d",
 		types.TxHeightKey,
 		result.Height,
 		result.Height,
 		result.Index,
-	))
+	)
 }
 
-func startKeyForCondition(c query.Condition, height int64) []byte {
+func startKeyForCondition(c query.Condition, height int64) string {
 	if height > 0 {
 		return startKey(c.CompositeKey, c.Operand, height)
 	}
 	return startKey(c.CompositeKey, c.Operand)
 }
 
-func startKey(fields ...interface{}) []byte {
+func startKey(fields ...interface{}) string {
 	var b bytes.Buffer
+	b.WriteString("/")
 	for _, f := range fields {
 		b.Write([]byte(fmt.Sprintf("%v", f) + tagKeySeparator))
 	}
-	return b.Bytes()
+	return b.String()
 }

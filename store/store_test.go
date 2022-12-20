@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
@@ -92,7 +92,7 @@ func TestStoreLoad(t *testing.T) {
 
 	mKV, _ := NewDefaultInMemoryKVStore()
 	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
-	for _, kv := range []datastore.Datastore{mKV, dKV} {
+	for _, kv := range []ds.Datastore{mKV, dKV} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				assert := assert.New(t)

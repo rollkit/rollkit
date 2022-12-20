@@ -35,7 +35,7 @@ func heightKey(height int64) ([]byte, error) {
 	return orderedcode.Append(
 		nil,
 		types.BlockHeightKey,
-		height,
+		strconv.FormatInt(height, 10),
 	)
 }
 
@@ -44,7 +44,7 @@ func eventKey(compositeKey, typ, eventValue string, height int64) ([]byte, error
 		nil,
 		compositeKey,
 		eventValue,
-		height,
+		strconv.FormatInt(height, 10),
 		typ,
 	)
 }

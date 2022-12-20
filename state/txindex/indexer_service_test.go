@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -33,7 +33,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	// tx indexer
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
 	txIndexer := kv.NewTxIndex(context.Background(), kvStore)
-	prefixStore := ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: datastore.NewKey("block_events")})
+	prefixStore := ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0]
 	blockIndexer := blockidxkv.New(context.Background(), prefixStore)
 
 	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)

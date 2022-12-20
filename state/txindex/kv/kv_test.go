@@ -2,13 +2,14 @@ package kv
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	badger3 "github.com/ipfs/go-ds-badger3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,6 +132,7 @@ func TestTxSearch(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.q, func(t *testing.T) {
+			// fmt.Println(query.MustParse(tc.q))
 			results, err := indexer.Search(ctx, query.MustParse(tc.q))
 			assert.NoError(t, err)
 
@@ -190,18 +192,18 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 	rawBytes, err := proto.Marshal(txResult2)
 	require.NoError(t, err)
 
-	depKey := []byte(fmt.Sprintf("%s/%s/%d/%d",
+	depKey := fmt.Sprintf("%s/%s/%d/%d",
 		"sender",
 		"addr1",
 		txResult2.Height,
 		txResult2.Index,
-	))
+	)
 
-	err = b.Put(ctx, datastore.NewKey(string(depKey)), hash2)
+	err = b.Put(ctx, ds.NewKey(depKey), hash2)
 	require.NoError(t, err)
-	err = b.Put(ctx, datastore.NewKey(string(keyForHeight(txResult2))), hash2)
+	err = b.Put(ctx, ds.NewKey(keyForHeight(txResult2)), hash2)
 	require.NoError(t, err)
-	err = b.Put(ctx, datastore.NewKey(string(hash2)), rawBytes)
+	err = b.Put(ctx, ds.NewKey(hex.EncodeToString(hash2)), rawBytes)
 	require.NoError(t, err)
 	err = b.Commit(ctx)
 	require.NoError(t, err)

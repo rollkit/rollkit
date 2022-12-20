@@ -1,9 +1,11 @@
 package mock
 
 import (
+	"bytes"
 	"context"
-	"encoding/binary"
+	"encoding/hex"
 	"math/rand"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -11,14 +13,14 @@ import (
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 )
 
 // DataAvailabilityLayerClient is intended only for usage in tests.
 // It does actually ensures DA - it stores data in-memory.
 type DataAvailabilityLayerClient struct {
 	logger   log.Logger
-	dalcKV   datastore.Datastore
+	dalcKV   ds.Datastore
 	daHeight uint64
 	config   config
 }
@@ -33,7 +35,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV datastore.Datastore, logger log.Logger) error {
+func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV ds.Datastore, logger log.Logger) error {
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1
@@ -89,7 +91,8 @@ func (m *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultS
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
-	err = m.dalcKV.Put(ctx, datastore.NewKey(string(hash[:])), blob)
+
+	err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])), blob)
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -122,7 +125,7 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 
 	var blocks []*types.Block
 	for _, entry := range entries {
-		blob, err := m.dalcKV.Get(ctx, datastore.NewKey(entry.Key))
+		blob, err := m.dalcKV.Get(ctx, ds.NewKey(entry.Key))
 		if err != nil {
 			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
@@ -138,16 +141,18 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 }
 
 func getPrefix(daHeight uint64) string {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, daHeight)
-	return string(b)
+	var buf bytes.Buffer
+	buf.WriteString("/")
+	buf.WriteString(strconv.FormatUint(daHeight, 10))
+	return buf.String() // returns `/daHeight`
 }
 
-func getKey(daHeight uint64, height uint64) datastore.Key {
-	b := make([]byte, 16)
-	binary.BigEndian.PutUint64(b, daHeight)
-	binary.BigEndian.PutUint64(b[8:], height)
-	return datastore.NewKey(string(b))
+func getKey(daHeight uint64, height uint64) ds.Key {
+	var buf bytes.Buffer
+	buf.WriteString(strconv.FormatUint(daHeight, 10))
+	buf.WriteString("/")
+	buf.WriteString(strconv.FormatUint(height, 10))
+	return ds.NewKey(buf.String()) // returns `/daHeight/height`
 }
 
 func (m *DataAvailabilityLayerClient) updateDAHeight() {

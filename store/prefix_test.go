@@ -2,16 +2,17 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
-	"github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	badger3 "github.com/ipfs/go-ds-badger3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPrefixKV(t *testing.T) {
+func TestPrefixKV1(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
@@ -20,11 +21,14 @@ func TestPrefixKV(t *testing.T) {
 	ctx := context.Background()
 	base, _ := NewDefaultInMemoryKVStore()
 
-	p1 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: datastore.NewKey(string([]byte{1}))})
-	p2 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: datastore.NewKey(string([]byte{2}))})
+	k1 := ds.NewKey(string([]byte{1}))
+	fmt.Println(k1.String())
 
-	key1 := datastore.NewKey("key1")
-	key2 := datastore.NewKey("key2")
+	p1 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey(string([]byte{1}))}).Children()[0]
+	p2 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey(string([]byte{2}))}).Children()[0]
+
+	key1 := ds.NewKey("key1")
+	key2 := ds.NewKey("key2")
 
 	val11 := []byte("val11")
 	val21 := []byte("val21")
@@ -86,12 +90,12 @@ func TestPrefixKVBatch(t *testing.T) {
 	ctx := context.Background()
 
 	basekv, _ := NewDefaultInMemoryKVStore()
-	prefixkv := ktds.Wrap(basekv, ktds.PrefixTransform{Prefix: datastore.NewKey("prefix1")})
+	prefixkv := ktds.Wrap(basekv, ktds.PrefixTransform{Prefix: ds.NewKey("prefix1")}).Children()[0]
 
-	badgerPrefixkv, _ := prefixkv.Children()[0].(*badger3.Datastore)
+	badgerPrefixkv, _ := prefixkv.(*badger3.Datastore)
 	prefixbatchkv1, _ := badgerPrefixkv.NewTransaction(ctx, false)
 
-	keys := []datastore.Key{datastore.NewKey("key1"), datastore.NewKey("key2"), datastore.NewKey("key3"), datastore.NewKey("key4")}
+	keys := []ds.Key{ds.NewKey("key1"), ds.NewKey("key2"), ds.NewKey("key3"), ds.NewKey("key4")}
 	values := [][]byte{[]byte("value1"), []byte("value2"), []byte("value3"), []byte("value4")}
 
 	for i := 0; i < len(keys); i++ {
@@ -109,7 +113,7 @@ func TestPrefixKVBatch(t *testing.T) {
 	}
 
 	prefixbatchkv2, _ := badgerPrefixkv.NewTransaction(ctx, false)
-	err = prefixbatchkv2.Delete(ctx, datastore.NewKey("key1"))
+	err = prefixbatchkv2.Delete(ctx, ds.NewKey("key1"))
 	require.NoError(err)
 
 }
