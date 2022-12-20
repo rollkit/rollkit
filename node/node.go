@@ -10,13 +10,13 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/rollmint/config"
+	"github.com/celestiaorg/rollmint/mempool"
+	"github.com/celestiaorg/rollmint/p2p"
 	"github.com/celestiaorg/rollmint/state/indexer"
 	blockidxkv "github.com/celestiaorg/rollmint/state/indexer/block/kv"
 	"github.com/celestiaorg/rollmint/state/txindex"
 	"github.com/celestiaorg/rollmint/state/txindex/kv"
 	"github.com/celestiaorg/rollmint/store"
-	"github.com/celestiaorg/rollmint/p2p"
-	"github.com/celestiaorg/rollmint/mempool"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -45,8 +45,8 @@ type Node interface {
 	GetGenesisChunks() ([]string, error)
 	GetGenesis() *tmtypes.GenesisDoc
 
-  GetP2P() *p2p.Client
-  GetMempool() mempool.Mempool
+	GetP2P() *p2p.Client
+	GetMempool() mempool.Mempool
 	GetStore() store.Store
 	GetTxIndexer() txindex.TxIndexer
 	GetBlockIndexer() indexer.BlockIndexer
@@ -60,9 +60,14 @@ func NewNode(
 	appClient abciclient.Client,
 	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
-) (*FullNode, error) {
-	n, err := newFullNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
-	return n, err
+) (Node, error) {
+	if conf.Light {
+		n, err := newLightNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
+		return n, err
+	} else {
+		n, err := newFullNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
+		return n, err
+	}
 }
 
 func createAndStartIndexerService(

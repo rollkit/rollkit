@@ -1,16 +1,21 @@
 package node
+
 import (
 	"context"
-	"fmt"
 	"errors"
-	"github.com/libp2p/go-libp2p/core/crypto"
+	"fmt"
+
 	"github.com/celestiaorg/rollmint/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 
 	abciclient "github.com/tendermint/tendermint/abci/client"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"encoding/base64"
+	"encoding/json"
 
 	"github.com/celestiaorg/rollmint/block"
 	"github.com/celestiaorg/rollmint/config"
@@ -22,11 +27,9 @@ import (
 	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/celestiaorg/rollmint/state/txindex"
 	"github.com/celestiaorg/rollmint/store"
-	"encoding/json"
-  "encoding/base64"
-	"go.uber.org/multierr"
 	abci "github.com/tendermint/tendermint/abci/types"
 	corep2p "github.com/tendermint/tendermint/p2p"
+	"go.uber.org/multierr"
 )
 
 type FullNode struct {
@@ -348,18 +351,18 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
-func (n *FullNode) GetP2P() (*p2p.Client) {
-  return n.P2P
+func (n *FullNode) GetP2P() *p2p.Client {
+	return n.P2P
 }
-func (n *FullNode) GetMempool() (mempool.Mempool) {
-  return n.Mempool
+func (n *FullNode) GetMempool() mempool.Mempool {
+	return n.Mempool
 }
-func (n *FullNode) GetStore() (store.Store) {
-  return n.Store
+func (n *FullNode) GetStore() store.Store {
+	return n.Store
 }
-func (n *FullNode) GetTxIndexer() (txindex.TxIndexer) {
-  return n.TxIndexer
+func (n *FullNode) GetTxIndexer() txindex.TxIndexer {
+	return n.TxIndexer
 }
-func (n *FullNode) GetBlockIndexer() (indexer.BlockIndexer) {
-  return n.BlockIndexer
+func (n *FullNode) GetBlockIndexer() indexer.BlockIndexer {
+	return n.BlockIndexer
 }
