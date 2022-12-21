@@ -76,7 +76,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	badgerDS, ok := s.db.(*badger3.Datastore)
 	if !ok {
-		errors.New("failed to retrieve the ds.Datastore implementation")
+		return errors.New("failed to retrieve the ds.Datastore implementation")
 	}
 	bb, err := badgerDS.NewTransaction(s.ctx, false)
 	if err != nil {

@@ -57,7 +57,7 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 	badgerDS, ok := idx.store.(*badger3.Datastore)
 	if !ok {
-		errors.New("failed to retrieve the ds.Datastore implementation")
+		return errors.New("failed to retrieve the ds.Datastore implementation")
 	}
 
 	batch, err := badgerDS.NewTransaction(idx.ctx, false)
