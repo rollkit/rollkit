@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/orderedcode"
 	ds "github.com/ipfs/go-datastore"
 	badger3 "github.com/ipfs/go-ds-badger3"
 
@@ -41,12 +41,7 @@ func New(ctx context.Context, store ds.Datastore) *BlockerIndexer {
 // Has returns true if the given height has been indexed. An error is returned
 // upon database query failure.
 func (idx *BlockerIndexer) Has(height int64) (bool, error) {
-	key, err := heightKey(height)
-	if err != nil {
-		return false, fmt.Errorf("failed to create block height index key: %w", err)
-	}
-
-	_, err = idx.store.Get(idx.ctx, ds.NewKey(string(key)))
+	_, err := idx.store.Get(idx.ctx, ds.NewKey(heightKey(height)))
 	if err == ds.ErrNotFound {
 		return false, nil
 	}
@@ -64,9 +59,8 @@ func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 	if !ok {
 		errors.New("failed to retrieve the ds.Datastore implementation")
 	}
-	fmt.Println("so far good")
+
 	batch, err := badgerDS.NewTransaction(idx.ctx, false)
-	fmt.Println("so far not so good")
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
@@ -75,11 +69,7 @@ func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 	height := bh.Header.Height
 
 	// 1. index by height
-	key, err := heightKey(height)
-	if err != nil {
-		return fmt.Errorf("failed to create block height index key: %w", err)
-	}
-	if err := batch.Put(idx.ctx, ds.NewKey(string(key)), int64ToBytes(height)); err != nil {
+	if err := batch.Put(idx.ctx, ds.NewKey(heightKey(height)), int64ToBytes(height)); err != nil {
 		return err
 	}
 
@@ -140,17 +130,13 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 	// Extract ranges. If both upper and lower bounds exist, it's better to get
 	// them in order as to not iterate over kvs that are not within range.
 	ranges, rangeIndexes := indexer.LookForRanges(conditions)
+
 	if len(ranges) > 0 {
 		skipIndexes = append(skipIndexes, rangeIndexes...)
 
 		for _, qr := range ranges {
-			prefix, err := orderedcode.Append(nil, qr.Key)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create prefix key: %w", err)
-			}
-
 			if !heightsInitialized {
-				filteredHeights, err = idx.matchRange(ctx, qr, prefix, filteredHeights, true)
+				filteredHeights, err = idx.matchRange(ctx, qr, ds.NewKey(qr.Key).String(), filteredHeights, true)
 				if err != nil {
 					return nil, err
 				}
@@ -163,7 +149,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 					break
 				}
 			} else {
-				filteredHeights, err = idx.matchRange(ctx, qr, prefix, filteredHeights, false)
+				filteredHeights, err = idx.matchRange(ctx, qr, ds.NewKey(qr.Key).String(), filteredHeights, false)
 				if err != nil {
 					return nil, err
 				}
@@ -177,13 +163,14 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 			continue
 		}
 
-		startKey, err := orderedcode.Append(nil, c.CompositeKey, fmt.Sprintf("%v", c.Operand))
-		if err != nil {
-			return nil, err
-		}
+		var buf bytes.Buffer
+		buf.WriteString(c.CompositeKey)
+		buf.WriteString("/")
+		buf.WriteString(fmt.Sprintf("%v", c.Operand))
+		startKey := buf.String()
 
 		if !heightsInitialized {
-			filteredHeights, err = idx.match(ctx, c, startKey, filteredHeights, true)
+			filteredHeights, err = idx.match(ctx, c, ds.NewKey(startKey).String(), filteredHeights, true)
 			if err != nil {
 				return nil, err
 			}
@@ -196,7 +183,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 				break
 			}
 		} else {
-			filteredHeights, err = idx.match(ctx, c, startKey, filteredHeights, false)
+			filteredHeights, err = idx.match(ctx, c, ds.NewKey(string(startKey)).String(), filteredHeights, false)
 			if err != nil {
 				return nil, err
 			}
@@ -243,7 +230,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 func (idx *BlockerIndexer) matchRange(
 	ctx context.Context,
 	qr indexer.QueryRange,
-	startKey []byte,
+	startKey string,
 	filteredHeights map[string][]byte,
 	firstRun bool,
 ) (map[string][]byte, error) {
@@ -258,36 +245,31 @@ func (idx *BlockerIndexer) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	entries, err := store.PrefixEntries(ctx, idx.store, string(startKey))
+	entries, err := store.PrefixEntries(ctx, idx.store, startKey)
 	if err != nil {
 		return nil, err
 	}
 
-LOOP:
 	for _, entry := range entries {
 		cont := true
 
 		var (
-			eventValue string
-			err        error
+			v    int64
+			vStr string
+			err  error
 		)
 
 		if qr.Key == types.BlockHeightKey {
-			eventValue, err = parseValueFromPrimaryKey([]byte(entry.Key))
+			v, err = parseValueFromPrimaryKey(entry.Key)
 		} else {
-			eventValue, err = parseValueFromEventKey([]byte(entry.Key))
+			vStr = parseValueFromEventKey(entry.Key)
+			v, err = strconv.ParseInt(vStr, 10, 64)
 		}
-
 		if err != nil {
 			continue
 		}
 
 		if _, ok := qr.AnyBound().(int64); ok {
-			v, err := strconv.ParseInt(eventValue, 10, 64)
-			if err != nil {
-				continue LOOP
-			}
-
 			include := true
 			if lowerBound != nil && v < lowerBound.(int64) {
 				include = false
@@ -358,7 +340,7 @@ LOOP:
 func (idx *BlockerIndexer) match(
 	ctx context.Context,
 	c query.Condition,
-	startKeyBz []byte,
+	startKeyBz string,
 	filteredHeights map[string][]byte,
 	firstRun bool,
 ) (map[string][]byte, error) {
@@ -373,7 +355,7 @@ func (idx *BlockerIndexer) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		entries, err := store.PrefixEntries(ctx, idx.store, string(startKeyBz))
+		entries, err := store.PrefixEntries(ctx, idx.store, startKeyBz)
 		if err != nil {
 			return nil, err
 		}
@@ -387,12 +369,8 @@ func (idx *BlockerIndexer) match(
 		}
 
 	case c.Op == query.OpExists:
-		prefix, err := orderedcode.Append(nil, c.CompositeKey)
-		if err != nil {
-			return nil, err
-		}
 
-		entries, err := store.PrefixEntries(ctx, idx.store, string(prefix))
+		entries, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
 		if err != nil {
 			return nil, err
 		}
@@ -415,12 +393,8 @@ func (idx *BlockerIndexer) match(
 		}
 
 	case c.Op == query.OpContains:
-		prefix, err := orderedcode.Append(nil, c.CompositeKey)
-		if err != nil {
-			return nil, err
-		}
 
-		entries, err := store.PrefixEntries(ctx, idx.store, string(prefix))
+		entries, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
 		if err != nil {
 			return nil, err
 		}
@@ -428,10 +402,7 @@ func (idx *BlockerIndexer) match(
 		for _, entry := range entries {
 			cont := true
 
-			eventValue, err := parseValueFromEventKey([]byte(entry.Key))
-			if err != nil {
-				continue
-			}
+			eventValue := parseValueFromEventKey(entry.Key)
 
 			if strings.Contains(eventValue, c.Operand.(string)) {
 				tmpHeights[string(entry.Value)] = entry.Value
@@ -509,12 +480,9 @@ func (idx *BlockerIndexer) indexEvents(batch ds.Txn, events []abci.Event, typ st
 			}
 
 			if attr.GetIndex() {
-				key, err := eventKey(compositeKey, typ, string(attr.Value), height)
-				if err != nil {
-					return fmt.Errorf("failed to create block index key: %w", err)
-				}
+				key := eventKey(compositeKey, typ, string(attr.Value), height)
 
-				if err := batch.Put(idx.ctx, ds.NewKey(string(key)), heightBz); err != nil {
+				if err := batch.Put(idx.ctx, ds.NewKey(key), heightBz); err != nil {
 					return err
 				}
 			}

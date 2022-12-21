@@ -1,11 +1,12 @@
 package kv
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
+	"strings"
 
-	"github.com/google/orderedcode"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 )
@@ -31,58 +32,38 @@ func int64ToBytes(i int64) []byte {
 	return buf[:n]
 }
 
-func heightKey(height int64) ([]byte, error) {
-	return orderedcode.Append(
-		nil,
-		types.BlockHeightKey,
-		strconv.FormatInt(height, 10),
-	)
+func heightKey(height int64) string {
+	var buf bytes.Buffer
+	buf.WriteString(types.BlockHeightKey)
+	buf.WriteString("/")
+	buf.WriteString(strconv.FormatInt(height, 10))
+	return buf.String()
 }
 
-func eventKey(compositeKey, typ, eventValue string, height int64) ([]byte, error) {
-	return orderedcode.Append(
-		nil,
-		compositeKey,
-		eventValue,
-		strconv.FormatInt(height, 10),
-		typ,
-	)
+func eventKey(compositeKey, typ, eventValue string, height int64) string {
+	var buf bytes.Buffer
+	buf.WriteString(compositeKey)
+	buf.WriteString("/")
+	buf.WriteString(eventValue)
+	buf.WriteString("/")
+	buf.WriteString(strconv.FormatInt(height, 10))
+	buf.WriteString("/")
+	buf.WriteString(typ)
+	return buf.String()
 }
 
-func parseValueFromPrimaryKey(key []byte) (string, error) {
-	var (
-		compositeKey string
-		height       int64
-	)
-
-	remaining, err := orderedcode.Parse(string(key), &compositeKey, &height)
+func parseValueFromPrimaryKey(key string) (int64, error) {
+	parts := strings.SplitN(key, "/", 3)
+	height, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse event key: %w", err)
+		return 0, fmt.Errorf("failed to parse event key: %w", err)
 	}
-
-	if len(remaining) != 0 {
-		return "", fmt.Errorf("unexpected remainder in key: %s", remaining)
-	}
-
-	return strconv.FormatInt(height, 10), nil
+	return height, nil
 }
 
-func parseValueFromEventKey(key []byte) (string, error) {
-	var (
-		compositeKey, typ, eventValue string
-		height                        int64
-	)
-
-	remaining, err := orderedcode.Parse(string(key), &compositeKey, &eventValue, &height, &typ)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse event key: %w", err)
-	}
-
-	if len(remaining) != 0 {
-		return "", fmt.Errorf("unexpected remainder in key: %s", remaining)
-	}
-
-	return eventValue, nil
+func parseValueFromEventKey(key string) string {
+	parts := strings.SplitN(key, "/", 5)
+	return parts[2]
 }
 
 func lookForHeight(conditions []query.Condition) (int64, bool) {

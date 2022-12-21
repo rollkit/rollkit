@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	ds "github.com/ipfs/go-datastore"
@@ -21,11 +20,8 @@ func TestPrefixKV1(t *testing.T) {
 	ctx := context.Background()
 	base, _ := NewDefaultInMemoryKVStore()
 
-	k1 := ds.NewKey(string([]byte{1}))
-	fmt.Println(k1.String())
-
-	p1 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey(string([]byte{1}))}).Children()[0]
-	p2 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey(string([]byte{2}))}).Children()[0]
+	p1 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey("1")})
+	p2 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey("2")})
 
 	key1 := ds.NewKey("key1")
 	key2 := ds.NewKey("key2")

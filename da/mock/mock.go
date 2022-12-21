@@ -125,10 +125,16 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 
 	var blocks []*types.Block
 	for _, entry := range entries {
-		blob, err := m.dalcKV.Get(ctx, ds.NewKey(entry.Key))
+		hash, err := m.dalcKV.Get(ctx, ds.NewKey(entry.Key))
 		if err != nil {
 			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
+
+		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(hash)))
+		if err != nil {
+			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		}
+
 		block := &types.Block{}
 		err = block.UnmarshalBinary(blob)
 		if err != nil {
