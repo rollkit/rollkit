@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/ipfs/go-datastore"
+	badger3 "github.com/ipfs/go-ds-badger3"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
@@ -27,13 +30,16 @@ var _ txindex.TxIndexer = (*TxIndex)(nil)
 
 // TxIndex is the simplest possible indexer, backed by key-value storage (levelDB).
 type TxIndex struct {
-	store store.KVStore
+	store datastore.Datastore
+
+	ctx context.Context
 }
 
 // NewTxIndex creates new KV indexer.
-func NewTxIndex(store store.KVStore) *TxIndex {
+func NewTxIndex(ctx context.Context, store datastore.Datastore) *TxIndex {
 	return &TxIndex{
 		store: store,
+		ctx:   ctx,
 	}
 }
 
@@ -44,7 +50,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 		return nil, txindex.ErrorEmptyHash
 	}
 
-	rawBytes, err := txi.store.Get(hash)
+	rawBytes, err := txi.store.Get(txi.ctx, datastore.NewKey(string(hash)))
 	if err != nil {
 		panic(err)
 	}
@@ -66,8 +72,15 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 // the respective attribute's key delimited by a "." (eg. "account.number").
 // Any event with an empty type is not indexed.
 func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
-	storeBatch := txi.store.NewBatch()
-	defer storeBatch.Discard()
+	badgerDS, ok := txi.store.(*badger3.Datastore)
+	if !ok {
+		errors.New("failed to retrieve the datastore.Datastore implementation")
+	}
+	storeBatch, err := badgerDS.NewTransaction(txi.ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
+	}
+	defer storeBatch.Discard(txi.ctx)
 
 	for _, result := range b.Ops {
 		hash := types.Tx(result.Tx).Hash()
@@ -79,7 +92,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 		}
 
 		// index by height (always)
-		err = storeBatch.Set(keyForHeight(result), hash)
+		err = storeBatch.Put(txi.ctx, datastore.NewKey(string(keyForHeight(result))), hash)
 		if err != nil {
 			return err
 		}
@@ -89,13 +102,13 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 			return err
 		}
 		// index by hash (always)
-		err = storeBatch.Set(hash, rawBytes)
+		err = storeBatch.Put(txi.ctx, datastore.NewKey(string(hash)), rawBytes)
 		if err != nil {
 			return err
 		}
 	}
 
-	return storeBatch.Commit()
+	return storeBatch.Commit(txi.ctx)
 }
 
 // Index indexes a single transaction using the given list of events. Each key
@@ -103,19 +116,26 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 // respective attribute's key delimited by a "." (eg. "account.number").
 // Any event with an empty type is not indexed.
 func (txi *TxIndex) Index(result *abci.TxResult) error {
-	b := txi.store.NewBatch()
-	defer b.Discard()
+	badgerDS, ok := txi.store.(*badger3.Datastore)
+	if !ok {
+		errors.New("failed to retrieve the datastore.Datastore implementation")
+	}
+	b, err := badgerDS.NewTransaction(txi.ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
+	}
+	defer b.Discard(txi.ctx)
 
 	hash := types.Tx(result.Tx).Hash()
 
 	// index tx by events
-	err := txi.indexEvents(result, hash, b)
+	err = txi.indexEvents(result, hash, b)
 	if err != nil {
 		return err
 	}
 
 	// index by height (always)
-	err = b.Set(keyForHeight(result), hash)
+	err = b.Put(txi.ctx, datastore.NewKey(string(keyForHeight(result))), hash)
 	if err != nil {
 		return err
 	}
@@ -125,15 +145,15 @@ func (txi *TxIndex) Index(result *abci.TxResult) error {
 		return err
 	}
 	// index by hash (always)
-	err = b.Set(hash, rawBytes)
+	err = b.Put(txi.ctx, datastore.NewKey(string(hash)), rawBytes)
 	if err != nil {
 		return err
 	}
 
-	return b.Commit()
+	return b.Commit(txi.ctx)
 }
 
-func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store store.Batch) error {
+func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store datastore.Txn) error {
 	for _, event := range result.Result.Events {
 		// only index events with a non-empty type
 		if len(event.Type) == 0 {
@@ -148,7 +168,7 @@ func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store store.
 			// index if `index: true` is set
 			compositeTag := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
 			if attr.GetIndex() {
-				err := store.Set(keyForEvent(compositeTag, attr.Value, result), hash)
+				err := store.Put(txi.ctx, datastore.NewKey(string(keyForEvent(compositeTag, attr.Value, result))), hash)
 				if err != nil {
 					return err
 				}
@@ -319,13 +339,15 @@ func (txi *TxIndex) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		it := txi.store.PrefixIterator(startKeyBz)
-		defer it.Discard()
+		entries, err := store.PrefixEntries(ctx, txi.store, string(startKeyBz))
+		if err != nil {
+			panic(err)
+		}
 
-		for ; it.Valid(); it.Next() {
+		for _, entry := range entries {
 			cont := true
 
-			tmpHashes[string(it.Value())] = it.Value()
+			tmpHashes[string(entry.Value)] = entry.Value
 
 			// Potentially exit early.
 			select {
@@ -337,21 +359,20 @@ func (txi *TxIndex) match(
 			if !cont {
 				break
 			}
-		}
-		if err := it.Error(); err != nil {
-			panic(err)
 		}
 
 	case c.Op == query.OpExists:
 		// XXX: can't use startKeyBz here because c.Operand is nil
 		// (e.g. "account.owner/<nil>/" won't match w/ a single row)
-		it := txi.store.PrefixIterator(startKey(c.CompositeKey))
-		defer it.Discard()
+		entries, err := store.PrefixEntries(ctx, txi.store, string(startKey(c.CompositeKey)))
+		if err != nil {
+			panic(err)
+		}
 
-		for ; it.Valid(); it.Next() {
+		for _, entry := range entries {
 			cont := true
 
-			tmpHashes[string(it.Value())] = it.Value()
+			tmpHashes[string(entry.Value)] = entry.Value
 
 			// Potentially exit early.
 			select {
@@ -363,27 +384,26 @@ func (txi *TxIndex) match(
 			if !cont {
 				break
 			}
-		}
-		if err := it.Error(); err != nil {
-			panic(err)
 		}
 
 	case c.Op == query.OpContains:
 		// XXX: startKey does not apply here.
 		// For example, if startKey = "account.owner/an/" and search query = "account.owner CONTAINS an"
 		// we can't iterate with prefix "account.owner/an/" because we might miss keys like "account.owner/Ulan/"
-		it := txi.store.PrefixIterator(startKey(c.CompositeKey))
-		defer it.Discard()
+		entries, err := store.PrefixEntries(ctx, txi.store, string(startKey(c.CompositeKey)))
+		if err != nil {
+			panic(err)
+		}
 
-		for ; it.Valid(); it.Next() {
+		for _, entry := range entries {
 			cont := true
 
-			if !isTagKey(it.Key()) {
+			if !isTagKey([]byte(entry.Key)) {
 				continue
 			}
 
-			if strings.Contains(extractValueFromKey(it.Key()), c.Operand.(string)) {
-				tmpHashes[string(it.Value())] = it.Value()
+			if strings.Contains(extractValueFromKey([]byte(entry.Key)), c.Operand.(string)) {
+				tmpHashes[string(entry.Value)] = entry.Value
 			}
 
 			// Potentially exit early.
@@ -396,9 +416,6 @@ func (txi *TxIndex) match(
 			if !cont {
 				break
 			}
-		}
-		if err := it.Error(); err != nil {
-			panic(err)
 		}
 	default:
 		panic("other operators should be handled already")
@@ -461,19 +478,21 @@ func (txi *TxIndex) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	it := txi.store.PrefixIterator(startKey)
-	defer it.Discard()
+	entries, err := store.PrefixEntries(ctx, txi.store, string(startKey))
+	if err != nil {
+		panic(err)
+	}
 
 LOOP:
-	for ; it.Valid(); it.Next() {
+	for _, entry := range entries {
 		cont := true
 
-		if !isTagKey(it.Key()) {
+		if !isTagKey([]byte(entry.Key)) {
 			continue
 		}
 
 		if _, ok := qr.AnyBound().(int64); ok {
-			v, err := strconv.ParseInt(extractValueFromKey(it.Key()), 10, 64)
+			v, err := strconv.ParseInt(extractValueFromKey([]byte(entry.Key)), 10, 64)
 			if err != nil {
 				continue LOOP
 			}
@@ -488,7 +507,7 @@ LOOP:
 			}
 
 			if include {
-				tmpHashes[string(it.Value())] = it.Value()
+				tmpHashes[string(entry.Value)] = entry.Value
 			}
 
 			// XXX: passing time in a ABCI Events is not yet implemented
@@ -509,9 +528,6 @@ LOOP:
 		if !cont {
 			break
 		}
-	}
-	if err := it.Error(); err != nil {
-		panic(err)
 	}
 
 	if len(tmpHashes) == 0 || firstRun {

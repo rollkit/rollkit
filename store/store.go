@@ -1,11 +1,14 @@
 package store
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync/atomic"
 
+	"github.com/ipfs/go-datastore"
+	badger3 "github.com/ipfs/go-ds-badger3"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -26,17 +29,19 @@ var (
 
 // DefaultStore is a default store implmementation.
 type DefaultStore struct {
-	db KVStore
+	db datastore.Datastore
 
 	height uint64
+	ctx    context.Context
 }
 
 var _ Store = &DefaultStore{}
 
 // New returns new, default store.
-func New(kv KVStore) Store {
+func New(ctx context.Context, ds datastore.Datastore) Store {
 	return &DefaultStore{
-		db: kv,
+		db:  ds,
+		ctx: ctx,
 	}
 }
 
@@ -67,17 +72,25 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 		return fmt.Errorf("failed to marshal Commit to binary: %w", err)
 	}
 
-	bb := s.db.NewBatch()
-	err = multierr.Append(err, bb.Set(getBlockKey(hash), blockBlob))
-	err = multierr.Append(err, bb.Set(getCommitKey(hash), commitBlob))
-	err = multierr.Append(err, bb.Set(getIndexKey(block.Header.Height), hash[:]))
+	badgerDS, ok := s.db.(*badger3.Datastore)
+	if !ok {
+		errors.New("failed to retrieve the datastore.Datastore implementation")
+	}
+	bb, err := badgerDS.NewTransaction(s.ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
+	}
+
+	err = multierr.Append(err, bb.Put(s.ctx, datastore.NewKey(string(getBlockKey(hash))), blockBlob))
+	err = multierr.Append(err, bb.Put(s.ctx, datastore.NewKey(string(getCommitKey(hash))), commitBlob))
+	err = multierr.Append(err, bb.Put(s.ctx, datastore.NewKey(string(getIndexKey(block.Header.Height))), hash[:]))
 
 	if err != nil {
-		bb.Discard()
+		bb.Discard(s.ctx)
 		return err
 	}
 
-	if err = bb.Commit(); err != nil {
+	if err = bb.Commit(s.ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -98,7 +111,7 @@ func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
 
 // LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
 func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
-	blockData, err := s.db.Get(getBlockKey(hash))
+	blockData, err := s.db.Get(s.ctx, datastore.NewKey(string(getBlockKey(hash))))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load block data: %w", err)
 	}
@@ -117,12 +130,12 @@ func (s *DefaultStore) SaveBlockResponses(height uint64, responses *tmstate.ABCI
 	if err != nil {
 		return fmt.Errorf("failed to marshal response: %w", err)
 	}
-	return s.db.Set(getResponsesKey(height), data)
+	return s.db.Put(s.ctx, datastore.NewKey(string(getResponsesKey(height))), data)
 }
 
 // LoadBlockResponses returns block results at given height, or error if it's not found in Store.
 func (s *DefaultStore) LoadBlockResponses(height uint64) (*tmstate.ABCIResponses, error) {
-	data, err := s.db.Get(getResponsesKey(height))
+	data, err := s.db.Get(s.ctx, datastore.NewKey(string(getResponsesKey(height))))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve block results from height %v: %w", height, err)
 	}
@@ -145,7 +158,7 @@ func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 
 // LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
 func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
-	commitData, err := s.db.Get(getCommitKey(hash))
+	commitData, err := s.db.Get(s.ctx, datastore.NewKey(string(getCommitKey(hash))))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve commit from hash %v: %w", hash, err)
 	}
@@ -168,12 +181,12 @@ func (s *DefaultStore) UpdateState(state types.State) error {
 	if err != nil {
 		return err
 	}
-	return s.db.Set(getStateKey(), data)
+	return s.db.Put(s.ctx, datastore.NewKey(string(getStateKey())), data)
 }
 
 // LoadState returns last state saved with UpdateState.
 func (s *DefaultStore) LoadState() (types.State, error) {
-	blob, err := s.db.Get(getStateKey())
+	blob, err := s.db.Get(s.ctx, datastore.NewKey(string(getStateKey())))
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to retrieve state: %w", err)
 	}
@@ -200,12 +213,12 @@ func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.Valid
 		return fmt.Errorf("failed to marshal ValidatorSet: %w", err)
 	}
 
-	return s.db.Set(getValidatorsKey(height), blob)
+	return s.db.Put(s.ctx, datastore.NewKey(string(getValidatorsKey(height))), blob)
 }
 
 // LoadValidators loads validator set at given block height from store.
 func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, error) {
-	blob, err := s.db.Get(getValidatorsKey(height))
+	blob, err := s.db.Get(s.ctx, datastore.NewKey(string(getValidatorsKey(height))))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Validators for height %v: %w", height, err)
 	}
@@ -219,7 +232,7 @@ func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, err
 }
 
 func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
-	blob, err := s.db.Get(getIndexKey(height))
+	blob, err := s.db.Get(s.ctx, datastore.NewKey(string(getIndexKey(height))))
 
 	var hash [32]byte
 	if err != nil {

@@ -1,9 +1,12 @@
 package txindex_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -28,9 +31,10 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	})
 
 	// tx indexer
-	kvStore := store.NewDefaultInMemoryKVStore()
-	txIndexer := kv.NewTxIndex(kvStore)
-	blockIndexer := blockidxkv.New(store.NewPrefixKV(kvStore, []byte("block_events")))
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	txIndexer := kv.NewTxIndex(context.Background(), kvStore)
+	prefixStore := ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: datastore.NewKey("block_events")})
+	blockIndexer := blockidxkv.New(context.Background(), prefixStore)
 
 	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	service.SetLogger(log.TestingLogger())

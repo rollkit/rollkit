@@ -1,9 +1,14 @@
 package store
 
 import (
+	"context"
 	"path/filepath"
+	"time"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
+	badger3 "github.com/ipfs/go-ds-badger3"
 )
 
 // KVStore encapsulates key-value store abstraction, in minimalistic interface.
@@ -36,26 +41,35 @@ type Iterator interface {
 }
 
 // NewDefaultInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
-func NewDefaultInMemoryKVStore() KVStore {
-	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true))
-	if err != nil {
-		panic(err)
+func NewDefaultInMemoryKVStore() (datastore.Datastore, error) {
+	inMemoryOptions := &badger3.Options{
+		GcDiscardRatio: 0.2,
+		GcInterval:     15 * time.Minute,
+		GcSleep:        10 * time.Second,
+		Options:        badger.DefaultOptions("").WithInMemory(true),
 	}
-	return &BadgerKV{
-		db: db,
-	}
+	return badger3.NewDatastore("", inMemoryOptions)
 }
 
 // NewDefaultKVStore creates instance of default key-value store.
-func NewDefaultKVStore(rootDir, dbPath, dbName string) KVStore {
+func NewDefaultKVStore(rootDir, dbPath, dbName string) (datastore.Datastore, error) {
 	path := filepath.Join(rootify(rootDir, dbPath), dbName)
-	db, err := badger.Open(badger.DefaultOptions(path))
+	return badger3.NewDatastore(path, nil)
+}
+
+func PrefixEntries(ctx context.Context, store datastore.Datastore, prefix string) ([]query.Entry, error) {
+	results, err := store.Query(ctx, query.Query{Prefix: string(prefix)})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &BadgerKV{
-		db: db,
+	defer results.Close()
+
+	entries, err := results.Rest()
+	if err != nil {
+		return nil, err
 	}
+
+	return entries, nil
 }
 
 // rootify works just like in cosmos-sdk

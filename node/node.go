@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ipfs/go-datastore"
+	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
@@ -99,18 +101,23 @@ func NewNode(
 		return nil, err
 	}
 
-	var baseKV store.KVStore
+	var baseKV datastore.Datastore
+
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
-		baseKV = store.NewDefaultInMemoryKVStore()
+		baseKV, err = store.NewDefaultInMemoryKVStore()
 	} else {
-		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
+		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
 	}
-	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
-	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
-	indexerKV := store.NewPrefixKV(baseKV, indexerPrefix)
+	if err != nil {
+		return nil, err
+	}
 
-	s := store.New(mainKV)
+	mainKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: datastore.NewKey(string(mainPrefix))})
+	dalcKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: datastore.NewKey(string(dalcPrefix))})
+	indexerKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: datastore.NewKey(string(indexerPrefix))})
+
+	s := store.New(ctx, mainKV)
 
 	dalc := registry.GetClient(conf.DALayer)
 	if dalc == nil {
@@ -121,7 +128,7 @@ func NewNode(
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
 
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(conf, indexerKV, eventBus, logger)
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, conf, indexerKV, eventBus, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -368,8 +375,9 @@ func (n *Node) newFraudProofValidator() p2p.GossipValidator {
 }
 
 func createAndStartIndexerService(
+	ctx context.Context,
 	conf config.NodeConfig,
-	kvStore store.KVStore,
+	kvStore datastore.Datastore,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
@@ -379,8 +387,8 @@ func createAndStartIndexerService(
 		blockIndexer indexer.BlockIndexer
 	)
 
-	txIndexer = kv.NewTxIndex(kvStore)
-	blockIndexer = blockidxkv.New(store.NewPrefixKV(kvStore, []byte("block_events")))
+	txIndexer = kv.NewTxIndex(ctx, kvStore)
+	blockIndexer = blockidxkv.New(ctx, ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: datastore.NewKey("block_events")}))
 
 	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))

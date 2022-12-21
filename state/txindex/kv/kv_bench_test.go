@@ -20,12 +20,12 @@ func BenchmarkTxSearch(b *testing.B) {
 		b.Errorf("failed to create temporary directory: %s", err)
 	}
 
-	db := store.NewDefaultKVStore(dbDir, "db", "benchmark_tx_search_test")
+	db, _ := store.NewDefaultKVStore(dbDir, "db", "benchmark_tx_search_test")
 	if err != nil {
 		b.Errorf("failed to create database: %s", err)
 	}
 
-	indexer := NewTxIndex(db)
+	indexer := NewTxIndex(context.Background(), db)
 
 	for i := 0; i < 35000; i++ {
 		events := []abci.Event{

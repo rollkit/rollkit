@@ -11,13 +11,14 @@ import (
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
+	"github.com/ipfs/go-datastore"
 )
 
 // DataAvailabilityLayerClient is intended only for usage in tests.
 // It does actually ensures DA - it stores data in-memory.
 type DataAvailabilityLayerClient struct {
 	logger   log.Logger
-	dalcKV   store.KVStore
+	dalcKV   datastore.Datastore
 	daHeight uint64
 	config   config
 }
@@ -32,7 +33,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV store.KVStore, logger log.Logger) error {
+func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV datastore.Datastore, logger log.Logger) error {
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1
@@ -69,7 +70,12 @@ func (m *DataAvailabilityLayerClient) Stop() error {
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
+<<<<<<< HEAD
 func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
+=======
+func (m *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
+	ctx := context.Background()
+>>>>>>> 038dd5a (migrate datasource from store.KVStore to datastore.Datastore in go-datastore)
 	daHeight := atomic.LoadUint64(&m.daHeight)
 	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height, "dataLayerHeight", daHeight)
 
@@ -79,11 +85,11 @@ func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	err = m.dalcKV.Set(getKey(daHeight, block.Header.Height), hash[:])
+	err = m.dalcKV.Put(ctx, getKey(daHeight, block.Header.Height), hash[:])
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
-	err = m.dalcKV.Set(hash[:], blob)
+	err = m.dalcKV.Put(ctx, datastore.NewKey(string(hash[:])), blob)
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -109,42 +115,39 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: "block not found"}}
 	}
 
-	iter := m.dalcKV.PrefixIterator(getPrefix(daHeight))
-	defer iter.Discard()
+	entries, err := store.PrefixEntries(ctx, m.dalcKV, getPrefix(daHeight))
+	if err != nil {
+		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+	}
 
 	var blocks []*types.Block
-	for iter.Valid() {
-		hash := iter.Value()
-
-		blob, err := m.dalcKV.Get(hash)
+	for _, entry := range entries {
+		blob, err := m.dalcKV.Get(ctx, datastore.NewKey(entry.Key))
 		if err != nil {
 			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
-
 		block := &types.Block{}
 		err = block.UnmarshalBinary(blob)
 		if err != nil {
 			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
 		blocks = append(blocks, block)
-
-		iter.Next()
 	}
 
 	return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusSuccess}, Blocks: blocks}
 }
 
-func getPrefix(daHeight uint64) []byte {
+func getPrefix(daHeight uint64) string {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, daHeight)
-	return b
+	return string(b)
 }
 
-func getKey(daHeight uint64, height uint64) []byte {
+func getKey(daHeight uint64, height uint64) datastore.Key {
 	b := make([]byte, 16)
 	binary.BigEndian.PutUint64(b, daHeight)
 	binary.BigEndian.PutUint64(b[8:], height)
-	return b
+	return datastore.NewKey(string(b))
 }
 
 func (m *DataAvailabilityLayerClient) updateDAHeight() {

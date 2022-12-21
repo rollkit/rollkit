@@ -22,7 +22,10 @@ func main() {
 	flag.StringVar(&conf.Host, "host", "0.0.0.0", "listening address")
 	flag.Parse()
 
-	kv := store.NewDefaultKVStore(".", "db", "rollmint")
+	kv, err := store.NewDefaultKVStore(".", "db", "rollmint")
+	if err != nil {
+		log.Panic(err)
+	}
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
 		log.Panic(err)

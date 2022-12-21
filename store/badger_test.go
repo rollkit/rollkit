@@ -1,14 +1,16 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/ipfs/go-datastore"
 )
 
 func TestGetErrors(t *testing.T) {
-	dalcKV := NewDefaultInMemoryKVStore()
+	dalcKV, _ := NewDefaultInMemoryKVStore()
 
 	tc := []struct {
 		name string
@@ -21,7 +23,7 @@ func TestGetErrors(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := dalcKV.Get(tt.key)
+			_, err := dalcKV.Get(context.Background(), datastore.NewKey(string(tt.key)))
 			if !errors.Is(err, tt.err) {
 				t.Errorf("Invalid err, got: %v expected %v", err, tt.err)
 			}
@@ -30,7 +32,7 @@ func TestGetErrors(t *testing.T) {
 }
 
 func TestSetErrors(t *testing.T) {
-	dalcKV := NewDefaultInMemoryKVStore()
+	dalcKV, _ := NewDefaultInMemoryKVStore()
 
 	tc := []struct {
 		name  string
@@ -44,7 +46,7 @@ func TestSetErrors(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			err := dalcKV.Set(tt.key, tt.value)
+			err := dalcKV.Put(context.Background(), datastore.NewKey(string(tt.key)), tt.value)
 			if !errors.Is(tt.err, err) {
 				t.Errorf("Invalid err, got: %v expected %v", err, tt.err)
 			}
@@ -53,7 +55,7 @@ func TestSetErrors(t *testing.T) {
 }
 
 func TestDeleteErrors(t *testing.T) {
-	dalcKV := NewDefaultInMemoryKVStore()
+	dalcKV, _ := NewDefaultInMemoryKVStore()
 
 	tc := []struct {
 		name string
@@ -66,7 +68,7 @@ func TestDeleteErrors(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			err := dalcKV.Delete(tt.key)
+			err := dalcKV.Delete(context.Background(), datastore.NewKey(string(tt.key)))
 			if !errors.Is(err, tt.err) {
 				t.Errorf("Invalid err, got: %v expected %v", err, tt.err)
 			}

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/google/orderedcode"
+	"github.com/ipfs/go-datastore"
+	badger3 "github.com/ipfs/go-ds-badger3"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
@@ -24,12 +26,15 @@ var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
 // events with an underlying KV store. Block events are indexed by their height,
 // such that matching search criteria returns the respective block height(s).
 type BlockerIndexer struct {
-	store store.KVStore
+	store datastore.Datastore
+
+	ctx context.Context
 }
 
-func New(store store.KVStore) *BlockerIndexer {
+func New(ctx context.Context, store datastore.Datastore) *BlockerIndexer {
 	return &BlockerIndexer{
 		store: store,
+		ctx:   ctx,
 	}
 }
 
@@ -41,7 +46,7 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 		return false, fmt.Errorf("failed to create block height index key: %w", err)
 	}
 
-	_, err = idx.store.Get(key)
+	_, err = idx.store.Get(idx.ctx, datastore.NewKey(string(key)))
 	if err == store.ErrKeyNotFound {
 		return false, nil
 	}
@@ -55,8 +60,15 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 // BeginBlock events: encode(eventType.eventAttr|eventValue|height|begin_block) => encode(height)
 // EndBlock events: encode(eventType.eventAttr|eventValue|height|end_block) => encode(height)
 func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
-	batch := idx.store.NewBatch()
-	defer batch.Discard()
+	badgerDS, ok := idx.store.(*badger3.Datastore)
+	if !ok {
+		errors.New("failed to retrieve the datastore.Datastore implementation")
+	}
+	batch, err := badgerDS.NewTransaction(idx.ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
+	}
+	defer batch.Discard(idx.ctx)
 
 	height := bh.Header.Height
 
@@ -65,7 +77,7 @@ func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 	if err != nil {
 		return fmt.Errorf("failed to create block height index key: %w", err)
 	}
-	if err := batch.Set(key, int64ToBytes(height)); err != nil {
+	if err := batch.Put(idx.ctx, datastore.NewKey(string(key)), int64ToBytes(height)); err != nil {
 		return err
 	}
 
@@ -79,7 +91,7 @@ func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 		return fmt.Errorf("failed to index EndBlock events: %w", err)
 	}
 
-	return batch.Commit()
+	return batch.Commit(idx.ctx)
 }
 
 // Search performs a query for block heights that match a given BeginBlock
@@ -244,11 +256,13 @@ func (idx *BlockerIndexer) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	it := idx.store.PrefixIterator(startKey)
-	defer it.Discard()
+	entries, err := store.PrefixEntries(ctx, idx.store, string(startKey))
+	if err != nil {
+		return nil, err
+	}
 
 LOOP:
-	for ; it.Valid(); it.Next() {
+	for _, entry := range entries {
 		cont := true
 
 		var (
@@ -257,9 +271,9 @@ LOOP:
 		)
 
 		if qr.Key == types.BlockHeightKey {
-			eventValue, err = parseValueFromPrimaryKey(it.Key())
+			eventValue, err = parseValueFromPrimaryKey([]byte(entry.Key))
 		} else {
-			eventValue, err = parseValueFromEventKey(it.Key())
+			eventValue, err = parseValueFromEventKey([]byte(entry.Key))
 		}
 
 		if err != nil {
@@ -282,7 +296,7 @@ LOOP:
 			}
 
 			if include {
-				tmpHeights[string(it.Value())] = it.Value()
+				tmpHeights[string(entry.Value)] = entry.Value
 			}
 		}
 
@@ -296,10 +310,6 @@ LOOP:
 		if !cont {
 			break
 		}
-	}
-
-	if err := it.Error(); err != nil {
-		return nil, err
 	}
 
 	if len(tmpHeights) == 0 || firstRun {
@@ -361,19 +371,17 @@ func (idx *BlockerIndexer) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		it := idx.store.PrefixIterator(startKeyBz)
-		defer it.Discard()
+		entries, err := store.PrefixEntries(ctx, idx.store, string(startKeyBz))
+		if err != nil {
+			return nil, err
+		}
 
-		for ; it.Valid(); it.Next() {
-			tmpHeights[string(it.Value())] = it.Value()
+		for _, entry := range entries {
+			tmpHeights[string(entry.Value)] = entry.Value
 
 			if err := ctx.Err(); err != nil {
 				break
 			}
-		}
-
-		if err := it.Error(); err != nil {
-			return nil, err
 		}
 
 	case c.Op == query.OpExists:
@@ -382,13 +390,15 @@ func (idx *BlockerIndexer) match(
 			return nil, err
 		}
 
-		it := idx.store.PrefixIterator(prefix)
-		defer it.Discard()
+		entries, err := store.PrefixEntries(ctx, idx.store, string(prefix))
+		if err != nil {
+			return nil, err
+		}
 
-		for ; it.Valid(); it.Next() {
+		for _, entry := range entries {
 			cont := true
 
-			tmpHeights[string(it.Value())] = it.Value()
+			tmpHeights[string(entry.Value)] = entry.Value
 
 			select {
 			case <-ctx.Done():
@@ -400,10 +410,6 @@ func (idx *BlockerIndexer) match(
 			if !cont {
 				break
 			}
-		}
-
-		if err := it.Error(); err != nil {
-			return nil, err
 		}
 
 	case c.Op == query.OpContains:
@@ -412,19 +418,21 @@ func (idx *BlockerIndexer) match(
 			return nil, err
 		}
 
-		it := idx.store.PrefixIterator(prefix)
-		defer it.Discard()
+		entries, err := store.PrefixEntries(ctx, idx.store, string(prefix))
+		if err != nil {
+			return nil, err
+		}
 
-		for ; it.Valid(); it.Next() {
+		for _, entry := range entries {
 			cont := true
 
-			eventValue, err := parseValueFromEventKey(it.Key())
+			eventValue, err := parseValueFromEventKey([]byte(entry.Key))
 			if err != nil {
 				continue
 			}
 
 			if strings.Contains(eventValue, c.Operand.(string)) {
-				tmpHeights[string(it.Value())] = it.Value()
+				tmpHeights[string(entry.Value)] = entry.Value
 			}
 
 			select {
@@ -437,9 +445,6 @@ func (idx *BlockerIndexer) match(
 			if !cont {
 				break
 			}
-		}
-		if err := it.Error(); err != nil {
-			return nil, err
 		}
 
 	default:
@@ -481,7 +486,7 @@ func (idx *BlockerIndexer) match(
 	return filteredHeights, nil
 }
 
-func (idx *BlockerIndexer) indexEvents(batch store.Batch, events []abci.Event, typ string, height int64) error {
+func (idx *BlockerIndexer) indexEvents(batch datastore.Txn, events []abci.Event, typ string, height int64) error {
 	heightBz := int64ToBytes(height)
 
 	for _, event := range events {
@@ -507,7 +512,7 @@ func (idx *BlockerIndexer) indexEvents(batch store.Batch, events []abci.Event, t
 					return fmt.Errorf("failed to create block index key: %w", err)
 				}
 
-				if err := batch.Set(key, heightBz); err != nil {
+				if err := batch.Put(idx.ctx, datastore.NewKey(string(key)), heightBz); err != nil {
 					return err
 				}
 			}

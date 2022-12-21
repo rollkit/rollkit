@@ -39,7 +39,11 @@ func NewServer(blockTime time.Duration, logger log.Logger) *Server {
 
 // Start starts HTTP server with given listener.
 func (s *Server) Start(listener net.Listener) error {
-	err := s.mock.Init([8]byte{}, []byte(s.blockTime.String()), store.NewDefaultInMemoryKVStore(), s.logger)
+	kvStore, err := store.NewDefaultInMemoryKVStore()
+	if err != nil {
+		return err
+	}
+	err = s.mock.Init([8]byte{}, []byte(s.blockTime.String()), kvStore, s.logger)
 	if err != nil {
 		return err
 	}
