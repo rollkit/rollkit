@@ -33,7 +33,9 @@ func PrefixEntries(ctx context.Context, store ds.Datastore, prefix string) ([]ds
 	if err != nil {
 		return nil, err
 	}
-	defer results.Close()
+	defer func() {
+		err = results.Close()
+	}()
 
 	entries, err := results.Rest()
 	if err != nil {

@@ -74,7 +74,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 	badgerDS, ok := txi.store.(*badger3.Datastore)
 	if !ok {
-		errors.New("failed to retrieve the ds.Datastore implementation")
+		return errors.New("failed to retrieve the ds.Datastore implementation")
 	}
 	storeBatch, err := badgerDS.NewTransaction(txi.ctx, false)
 	if err != nil {
@@ -118,7 +118,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 func (txi *TxIndex) Index(result *abci.TxResult) error {
 	badgerDS, ok := txi.store.(*badger3.Datastore)
 	if !ok {
-		errors.New("failed to retrieve the ds.Datastore implementation")
+		return errors.New("failed to retrieve the ds.Datastore implementation")
 	}
 	b, err := badgerDS.NewTransaction(txi.ctx, false)
 	if err != nil {
