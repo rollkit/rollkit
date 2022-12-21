@@ -72,12 +72,7 @@ func (m *DataAvailabilityLayerClient) Stop() error {
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
-<<<<<<< HEAD
 func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
-=======
-func (m *DataAvailabilityLayerClient) SubmitBlock(block *types.Block) da.ResultSubmitBlock {
-	ctx := context.Background()
->>>>>>> 038dd5a (migrate datasource from store.KVStore to datastore.Datastore in go-datastore)
 	daHeight := atomic.LoadUint64(&m.daHeight)
 	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height, "dataLayerHeight", daHeight)
 
