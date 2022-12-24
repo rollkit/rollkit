@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/celestiaorg/rollmint/state/txindex"
 	"github.com/celestiaorg/rollmint/store"
+	"github.com/tendermint/tendermint/libs/service"
 )
 
 func newLightNode(
@@ -29,7 +30,9 @@ func newLightNode(
 	panic("Todo")
 }
 
-type LightNode struct{}
+type LightNode struct {
+	service.BaseService
+}
 
 func (n *LightNode) AppClient() abciclient.Client {
 	panic("Todo")

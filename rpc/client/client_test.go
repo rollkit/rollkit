@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	crand "crypto/rand"
-	cryptorand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -89,8 +88,8 @@ func TestGenesisChunked(t *testing.T) {
 
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
+	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	//n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, abcicli.NewLocalClient(nil, mockApp), genDoc, log.TestingLogger())
 	n, _ := node.NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, abcicli.NewLocalClient(nil, mockApp), genDoc, log.TestingLogger())
 
@@ -248,8 +247,8 @@ func TestGetBlock(t *testing.T) {
 	require.NoError(err)
 
 	block := getRandomBlock(1, 10)
-	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
-	rpc.node.Store.SetHeight(block.Header.Height)
+	err = rpc.node.GetStore().SaveBlock(block, &types.Commit{})
+	rpc.node.GetStore().SetHeight(block.Header.Height)
 	require.NoError(err)
 
 	blockResp, err := rpc.Block(context.Background(), nil)
@@ -275,8 +274,8 @@ func TestGetCommit(t *testing.T) {
 	require.NoError(err)
 
 	for _, b := range blocks {
-		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: b.Header.Height})
-		rpc.node.Store.SetHeight(b.Header.Height)
+		err = rpc.node.GetStore().SaveBlock(b, &types.Commit{Height: b.Header.Height})
+		rpc.node.GetStore().SetHeight(b.Header.Height)
 		require.NoError(err)
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
@@ -310,7 +309,7 @@ func TestBlockSearch(t *testing.T) {
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
 		block := getRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(block, &types.Commit{
+		err := rpc.node.GetStore().SaveBlock(block, &types.Commit{
 			Height:     uint64(h),
 			HeaderHash: block.Header.Hash(),
 		})
@@ -374,7 +373,7 @@ func TestGetBlockByHash(t *testing.T) {
 	require.NoError(err)
 
 	block := getRandomBlock(1, 10)
-	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
+	err = rpc.node.GetStore().SaveBlock(block, &types.Commit{})
 	require.NoError(err)
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	require.NoError(err)
@@ -564,11 +563,11 @@ func TestBlockchainInfo(t *testing.T) {
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
 		block := getRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(block, &types.Commit{
+		err := rpc.node.GetStore().SaveBlock(block, &types.Commit{
 			Height:     uint64(h),
 			HeaderHash: block.Header.Hash(),
 		})
-		rpc.node.Store.SetHeight(block.Header.Height)
+		rpc.node.GetStore().SetHeight(block.Header.Height)
 		require.NoError(err)
 	}
 
@@ -767,7 +766,7 @@ func getRandomBytes(n int) []byte {
 }
 
 func getBlockMeta(rpc *Client, n int64) *tmtypes.BlockMeta {
-	b, err := rpc.node.Store.LoadBlock(uint64(n))
+	b, err := rpc.node.GetStore().LoadBlock(uint64(n))
 	if err != nil {
 		return nil
 	}
@@ -801,7 +800,7 @@ func indexBlocks(t *testing.T, rpc *Client, heights []int64) {
 	t.Helper()
 
 	for _, h := range heights {
-		require.NoError(t, rpc.node.BlockIndexer.Index(tmtypes.EventDataNewBlockHeader{
+		require.NoError(t, rpc.node.GetBlockIndexer().Index(tmtypes.EventDataNewBlockHeader{
 			Header: tmtypes.Header{Height: h},
 			ResultBeginBlock: abci.ResponseBeginBlock{
 				Events: []abci.Event{
@@ -898,13 +897,13 @@ func TestMempool2Nodes(t *testing.T) {
 	assert.Error(err)
 	assert.Nil(resp)
 
-	txAvailable := node2.Mempool.TxsAvailable()
+	txAvailable := node2.GetMempool().TxsAvailable()
 	select {
 	case <-txAvailable:
 	case <-ctx.Done():
 	}
 
-	assert.Equal(node2.Mempool.SizeBytes(), int64(len("good")))
+	assert.Equal(node2.GetMempool().SizeBytes(), int64(len("good")))
 }
 
 func TestStatus(t *testing.T) {
@@ -960,24 +959,24 @@ func TestStatus(t *testing.T) {
 	require.NotNil(node)
 
 	validatorSet := tmtypes.NewValidatorSet(validators)
-	err = node.Store.SaveValidators(1, validatorSet)
+	err = node.GetStore().SaveValidators(1, validatorSet)
 	require.NoError(err)
-	err = node.Store.SaveValidators(2, validatorSet)
+	err = node.GetStore().SaveValidators(2, validatorSet)
 	require.NoError(err)
-	err = node.Store.UpdateState(types.State{LastValidators: validatorSet, NextValidators: validatorSet, Validators: validatorSet})
+	err = node.GetStore().UpdateState(types.State{LastValidators: validatorSet, NextValidators: validatorSet, Validators: validatorSet})
 	assert.NoError(err)
 
 	rpc := NewClient(node)
 	assert.NotNil(rpc)
 
 	earliestBlock := getRandomBlockWithProposer(1, 1, validators[0].Address.Bytes())
-	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{Height: earliestBlock.Header.Height})
-	rpc.node.Store.SetHeight(earliestBlock.Header.Height)
+	err = rpc.node.GetStore().SaveBlock(earliestBlock, &types.Commit{Height: earliestBlock.Header.Height})
+	rpc.node.GetStore().SetHeight(earliestBlock.Header.Height)
 	require.NoError(err)
 
 	latestBlock := getRandomBlockWithProposer(2, 1, validators[1].Address.Bytes())
-	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{Height: latestBlock.Header.Height})
-	rpc.node.Store.SetHeight(latestBlock.Header.Height)
+	err = rpc.node.GetStore().SaveBlock(latestBlock, &types.Commit{Height: latestBlock.Header.Height})
+	rpc.node.GetStore().SetHeight(latestBlock.Header.Height)
 	require.NoError(err)
 
 	err = node.Start()
@@ -995,7 +994,7 @@ func TestStatus(t *testing.T) {
 
 	// specific validation
 	assert.Equal(tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
-	state, err := rpc.node.Store.LoadState()
+	state, err := rpc.node.GetStore().LoadState()
 	assert.NoError(err)
 	defaultProtocolVersion := p2p.NewProtocolVersion(
 		version.P2PProtocol,

@@ -50,6 +50,8 @@ type Node interface {
 	GetStore() store.Store
 	GetTxIndexer() txindex.TxIndexer
 	GetBlockIndexer() indexer.BlockIndexer
+	Start() error
+	Stop() error
 }
 
 func NewNode(
