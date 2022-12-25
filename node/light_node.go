@@ -9,13 +9,14 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 
+	"github.com/tendermint/tendermint/libs/service"
+
 	"github.com/celestiaorg/rollmint/config"
 	"github.com/celestiaorg/rollmint/mempool"
 	"github.com/celestiaorg/rollmint/p2p"
 	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/celestiaorg/rollmint/state/txindex"
 	"github.com/celestiaorg/rollmint/store"
-	"github.com/tendermint/tendermint/libs/service"
 )
 
 func newLightNode(

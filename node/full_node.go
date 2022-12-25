@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/rollmint/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+
+	"github.com/celestiaorg/rollmint/types"
 
 	abciclient "github.com/tendermint/tendermint/abci/client"
 	llcfg "github.com/tendermint/tendermint/config"
@@ -16,6 +17,10 @@ import (
 
 	"encoding/base64"
 	"encoding/json"
+
+	abci "github.com/tendermint/tendermint/abci/types"
+	corep2p "github.com/tendermint/tendermint/p2p"
+	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/rollmint/block"
 	"github.com/celestiaorg/rollmint/config"
@@ -27,9 +32,6 @@ import (
 	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/celestiaorg/rollmint/state/txindex"
 	"github.com/celestiaorg/rollmint/store"
-	abci "github.com/tendermint/tendermint/abci/types"
-	corep2p "github.com/tendermint/tendermint/p2p"
-	"go.uber.org/multierr"
 )
 
 type FullNode struct {
