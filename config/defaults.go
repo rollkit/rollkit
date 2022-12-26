@@ -26,5 +26,5 @@ var DefaultNodeConfig = NodeConfig{
 	},
 	DALayer:  "mock",
 	DAConfig: "",
-  Light: false,
+	Light:    false,
 }
