@@ -54,6 +54,7 @@ type Node interface {
 	Stop() error
 }
 
+// NewNode creates new rollmint node.
 func NewNode(
 	ctx context.Context,
 	conf config.NodeConfig,
