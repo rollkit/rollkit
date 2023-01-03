@@ -65,11 +65,9 @@ func NewNode(
 	logger log.Logger,
 ) (Node, error) {
 	if conf.Light {
-		n, err := newLightNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
-		return n, err
+		return newLightNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
 	} else {
-		n, err := newFullNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
-		return n, err
+		return newFullNode(ctx, conf, p2pKey, signingKey, appClient, genesis, logger)
 	}
 }
 
