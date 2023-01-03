@@ -52,6 +52,7 @@ type Node interface {
 	GetBlockIndexer() indexer.BlockIndexer
 	Start() error
 	Stop() error
+	IsRunning() bool
 }
 
 // NewNode creates new rollmint node.

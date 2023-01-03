@@ -31,7 +31,7 @@ func TestStartup(t *testing.T) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Light: false}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -57,7 +57,8 @@ func TestMempoolDirectly(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	newNode, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Light: false}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node := newNode.(*FullNode)
 	require.NoError(err)
 	require.NotNil(node)
 
