@@ -9,11 +9,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	ds "github.com/ipfs/go-datastore"
+
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
-	ds "github.com/ipfs/go-datastore"
 )
 
 // DataAvailabilityLayerClient is intended only for usage in tests.
