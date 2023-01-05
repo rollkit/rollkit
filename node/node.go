@@ -101,7 +101,7 @@ func NewNode(
 		return nil, err
 	}
 
-	var baseKV ds.Datastore
+	var baseKV ds.TxnDatastore
 
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
@@ -113,9 +113,9 @@ func NewNode(
 		return nil, err
 	}
 
-	mainKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: ds.NewKey(mainPrefix)}).Children()[0]
-	dalcKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: ds.NewKey(dalcPrefix)}).Children()[0]
-	indexerKV := ktds.Wrap(baseKV, ktds.PrefixTransform{Prefix: ds.NewKey(indexerPrefix)}).Children()[0]
+	mainKV := newPrefixKV(baseKV, mainPrefix)
+	dalcKV := newPrefixKV(baseKV, dalcPrefix)
+	indexerKV := newPrefixKV(baseKV, indexerPrefix)
 
 	s := store.New(ctx, mainKV)
 
@@ -374,10 +374,14 @@ func (n *Node) newFraudProofValidator() p2p.GossipValidator {
 	}
 }
 
+func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
+	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
+}
+
 func createAndStartIndexerService(
 	ctx context.Context,
 	conf config.NodeConfig,
-	kvStore ds.Datastore,
+	kvStore ds.TxnDatastore,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
@@ -388,7 +392,7 @@ func createAndStartIndexerService(
 	)
 
 	txIndexer = kv.NewTxIndex(ctx, kvStore)
-	blockIndexer = blockidxkv.New(ctx, ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0])
+	blockIndexer = blockidxkv.New(ctx, newPrefixKV(kvStore, "block_events"))
 
 	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))

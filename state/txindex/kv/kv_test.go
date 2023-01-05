@@ -10,7 +10,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
-	badger3 "github.com/ipfs/go-ds-badger3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -184,8 +183,7 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 
 	hash2 := types.Tx(txResult2.Tx).Hash()
 
-	badgerDS, _ := indexer.store.(*badger3.Datastore)
-	b, _ := badgerDS.NewTransaction(ctx, false)
+	b, _ := indexer.store.NewTransaction(ctx, false)
 	defer b.Discard(ctx)
 
 	rawBytes, err := proto.Marshal(txResult2)

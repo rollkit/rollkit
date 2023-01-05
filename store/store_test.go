@@ -92,7 +92,7 @@ func TestStoreLoad(t *testing.T) {
 
 	mKV, _ := NewDefaultInMemoryKVStore()
 	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
-	for _, kv := range []ds.Datastore{mKV, dKV} {
+	for _, kv := range []ds.TxnDatastore{mKV, dKV} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				assert := assert.New(t)

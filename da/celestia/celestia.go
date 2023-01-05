@@ -38,7 +38,6 @@ type Config struct {
 
 // Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
-	// TODO: gupadhyaya, datastore is not utilized?
 	c.namespaceID = namespaceID
 	c.logger = logger
 

@@ -1,7 +1,6 @@
 package kv
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"strings"
 
 	ds "github.com/ipfs/go-datastore"
-	badger3 "github.com/ipfs/go-ds-badger3"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
@@ -26,12 +24,12 @@ var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
 // events with an underlying KV store. Block events are indexed by their height,
 // such that matching search criteria returns the respective block height(s).
 type BlockerIndexer struct {
-	store ds.Datastore
+	store ds.TxnDatastore
 
 	ctx context.Context
 }
 
-func New(ctx context.Context, store ds.Datastore) *BlockerIndexer {
+func New(ctx context.Context, store ds.TxnDatastore) *BlockerIndexer {
 	return &BlockerIndexer{
 		store: store,
 		ctx:   ctx,
@@ -55,12 +53,7 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 // BeginBlock events: encode(eventType.eventAttr|eventValue|height|begin_block) => encode(height)
 // EndBlock events: encode(eventType.eventAttr|eventValue|height|end_block) => encode(height)
 func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
-	badgerDS, ok := idx.store.(*badger3.Datastore)
-	if !ok {
-		return errors.New("failed to retrieve the ds.Datastore implementation")
-	}
-
-	batch, err := badgerDS.NewTransaction(idx.ctx, false)
+	batch, err := idx.store.NewTransaction(idx.ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
@@ -163,11 +156,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 			continue
 		}
 
-		var buf bytes.Buffer
-		buf.WriteString(c.CompositeKey)
-		buf.WriteString("/")
-		buf.WriteString(fmt.Sprintf("%v", c.Operand))
-		startKey := buf.String()
+		startKey := store.GenerateKey([]interface{}{c.CompositeKey, c.Operand})
 
 		if !heightsInitialized {
 			filteredHeights, err = idx.match(ctx, c, ds.NewKey(startKey).String(), filteredHeights, true)
@@ -245,12 +234,12 @@ func (idx *BlockerIndexer) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	entries, err := store.PrefixEntries(ctx, idx.store, startKey)
+	results, err := store.PrefixEntries(ctx, idx.store, startKey)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, entry := range entries {
+	for result := range results.Next() {
 		cont := true
 
 		var (
@@ -260,9 +249,9 @@ func (idx *BlockerIndexer) matchRange(
 		)
 
 		if qr.Key == types.BlockHeightKey {
-			v, err = parseValueFromPrimaryKey(entry.Key)
+			v, err = parseValueFromPrimaryKey(result.Entry.Key)
 		} else {
-			vStr = parseValueFromEventKey(entry.Key)
+			vStr = parseValueFromEventKey(result.Entry.Key)
 			v, err = strconv.ParseInt(vStr, 10, 64)
 		}
 		if err != nil {
@@ -280,7 +269,7 @@ func (idx *BlockerIndexer) matchRange(
 			}
 
 			if include {
-				tmpHeights[string(entry.Value)] = entry.Value
+				tmpHeights[string(result.Entry.Value)] = result.Entry.Value
 			}
 		}
 
@@ -355,13 +344,13 @@ func (idx *BlockerIndexer) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		entries, err := store.PrefixEntries(ctx, idx.store, startKeyBz)
+		results, err := store.PrefixEntries(ctx, idx.store, startKeyBz)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, entry := range entries {
-			tmpHeights[string(entry.Value)] = entry.Value
+		for result := range results.Next() {
+			tmpHeights[string(result.Entry.Value)] = result.Entry.Value
 
 			if err := ctx.Err(); err != nil {
 				break
@@ -370,15 +359,15 @@ func (idx *BlockerIndexer) match(
 
 	case c.Op == query.OpExists:
 
-		entries, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
+		results, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
 		if err != nil {
 			return nil, err
 		}
 
-		for _, entry := range entries {
+		for result := range results.Next() {
 			cont := true
 
-			tmpHeights[string(entry.Value)] = entry.Value
+			tmpHeights[string(result.Entry.Value)] = result.Entry.Value
 
 			select {
 			case <-ctx.Done():
@@ -394,18 +383,18 @@ func (idx *BlockerIndexer) match(
 
 	case c.Op == query.OpContains:
 
-		entries, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
+		results, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
 		if err != nil {
 			return nil, err
 		}
 
-		for _, entry := range entries {
+		for result := range results.Next() {
 			cont := true
 
-			eventValue := parseValueFromEventKey(entry.Key)
+			eventValue := parseValueFromEventKey(result.Entry.Key)
 
 			if strings.Contains(eventValue, c.Operand.(string)) {
-				tmpHeights[string(entry.Value)] = entry.Value
+				tmpHeights[string(result.Entry.Value)] = result.Entry.Value
 			}
 
 			select {

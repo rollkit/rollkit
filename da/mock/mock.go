@@ -1,11 +1,9 @@
 package mock
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"math/rand"
-	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -114,19 +112,14 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: "block not found"}}
 	}
 
-	entries, err := store.PrefixEntries(ctx, m.dalcKV, getPrefix(daHeight))
+	results, err := store.PrefixEntries(ctx, m.dalcKV, getPrefix(daHeight))
 	if err != nil {
 		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
 	var blocks []*types.Block
-	for _, entry := range entries {
-		hash, err := m.dalcKV.Get(ctx, ds.NewKey(entry.Key))
-		if err != nil {
-			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-		}
-
-		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(hash)))
+	for result := range results.Next() {
+		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(result.Entry.Value)))
 		if err != nil {
 			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
@@ -143,18 +136,11 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 }
 
 func getPrefix(daHeight uint64) string {
-	var buf bytes.Buffer
-	buf.WriteString("/")
-	buf.WriteString(strconv.FormatUint(daHeight, 10))
-	return buf.String() // returns `/daHeight`
+	return store.GenerateKey([]interface{}{daHeight})
 }
 
 func getKey(daHeight uint64, height uint64) ds.Key {
-	var buf bytes.Buffer
-	buf.WriteString(strconv.FormatUint(daHeight, 10))
-	buf.WriteString("/")
-	buf.WriteString(strconv.FormatUint(height, 10))
-	return ds.NewKey(buf.String()) // returns `/daHeight/height`
+	return ds.NewKey(store.GenerateKey([]interface{}{daHeight, height}))
 }
 
 func (m *DataAvailabilityLayerClient) updateDAHeight() {

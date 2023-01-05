@@ -1,17 +1,14 @@
 package kv
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
-	badger3 "github.com/ipfs/go-ds-badger3"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
@@ -30,13 +27,13 @@ var _ txindex.TxIndexer = (*TxIndex)(nil)
 
 // TxIndex is the simplest possible indexer, backed by key-value storage (levelDB).
 type TxIndex struct {
-	store ds.Datastore
+	store ds.TxnDatastore
 
 	ctx context.Context
 }
 
 // NewTxIndex creates new KV indexer.
-func NewTxIndex(ctx context.Context, store ds.Datastore) *TxIndex {
+func NewTxIndex(ctx context.Context, store ds.TxnDatastore) *TxIndex {
 	return &TxIndex{
 		store: store,
 		ctx:   ctx,
@@ -72,11 +69,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 // the respective attribute's key delimited by a "." (eg. "account.number").
 // Any event with an empty type is not indexed.
 func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
-	badgerDS, ok := txi.store.(*badger3.Datastore)
-	if !ok {
-		return errors.New("failed to retrieve the ds.Datastore implementation")
-	}
-	storeBatch, err := badgerDS.NewTransaction(txi.ctx, false)
+	storeBatch, err := txi.store.NewTransaction(txi.ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
@@ -116,11 +109,7 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 // respective attribute's key delimited by a "." (eg. "account.number").
 // Any event with an empty type is not indexed.
 func (txi *TxIndex) Index(result *abci.TxResult) error {
-	badgerDS, ok := txi.store.(*badger3.Datastore)
-	if !ok {
-		return errors.New("failed to retrieve the ds.Datastore implementation")
-	}
-	b, err := badgerDS.NewTransaction(txi.ctx, false)
+	b, err := txi.store.NewTransaction(txi.ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
@@ -339,15 +328,15 @@ func (txi *TxIndex) match(
 
 	switch {
 	case c.Op == query.OpEqual:
-		entries, err := store.PrefixEntries(ctx, txi.store, startKeyBz)
+		results, err := store.PrefixEntries(ctx, txi.store, startKeyBz)
 		if err != nil {
 			panic(err)
 		}
 
-		for _, entry := range entries {
+		for result := range results.Next() {
 			cont := true
 
-			tmpHashes[string(entry.Value)] = entry.Value
+			tmpHashes[string(result.Entry.Value)] = result.Entry.Value
 
 			// Potentially exit early.
 			select {
@@ -364,15 +353,15 @@ func (txi *TxIndex) match(
 	case c.Op == query.OpExists:
 		// XXX: can't use startKeyBz here because c.Operand is nil
 		// (e.g. "account.owner/<nil>/" won't match w/ a single row)
-		entries, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
+		results, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
 		if err != nil {
 			panic(err)
 		}
 
-		for _, entry := range entries {
+		for result := range results.Next() {
 			cont := true
 
-			tmpHashes[string(entry.Value)] = entry.Value
+			tmpHashes[string(result.Entry.Value)] = result.Entry.Value
 
 			// Potentially exit early.
 			select {
@@ -390,20 +379,20 @@ func (txi *TxIndex) match(
 		// XXX: startKey does not apply here.
 		// For example, if startKey = "account.owner/an/" and search query = "account.owner CONTAINS an"
 		// we can't iterate with prefix "account.owner/an/" because we might miss keys like "account.owner/Ulan/"
-		entries, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
+		results, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
 		if err != nil {
 			panic(err)
 		}
 
-		for _, entry := range entries {
+		for result := range results.Next() {
 			cont := true
 
-			if !isTagKey([]byte(entry.Key)) {
+			if !isTagKey([]byte(result.Entry.Key)) {
 				continue
 			}
 
-			if strings.Contains(extractValueFromKey([]byte(entry.Key)), c.Operand.(string)) {
-				tmpHashes[string(entry.Value)] = entry.Value
+			if strings.Contains(extractValueFromKey([]byte(result.Entry.Key)), c.Operand.(string)) {
+				tmpHashes[string(result.Entry.Value)] = result.Entry.Value
 			}
 
 			// Potentially exit early.
@@ -478,21 +467,21 @@ func (txi *TxIndex) matchRange(
 	lowerBound := qr.LowerBoundValue()
 	upperBound := qr.UpperBoundValue()
 
-	entries, err := store.PrefixEntries(ctx, txi.store, startKey)
+	results, err := store.PrefixEntries(ctx, txi.store, startKey)
 	if err != nil {
 		panic(err)
 	}
 
 LOOP:
-	for _, entry := range entries {
+	for result := range results.Next() {
 		cont := true
 
-		if !isTagKey([]byte(entry.Key)) {
+		if !isTagKey([]byte(result.Entry.Key)) {
 			continue
 		}
 
 		if _, ok := qr.AnyBound().(int64); ok {
-			v, err := strconv.ParseInt(extractValueFromKey([]byte(entry.Key)), 10, 64)
+			v, err := strconv.ParseInt(extractValueFromKey([]byte(result.Entry.Key)), 10, 64)
 			if err != nil {
 				continue LOOP
 			}
@@ -507,7 +496,7 @@ LOOP:
 			}
 
 			if include {
-				tmpHashes[string(entry.Value)] = entry.Value
+				tmpHashes[string(result.Entry.Value)] = result.Entry.Value
 			}
 
 			// XXX: passing time in a ABCI Events is not yet implemented
@@ -602,10 +591,5 @@ func startKeyForCondition(c query.Condition, height int64) string {
 }
 
 func startKey(fields ...interface{}) string {
-	var b bytes.Buffer
-	b.WriteString("/")
-	for _, f := range fields {
-		b.Write([]byte(fmt.Sprintf("%v", f) + tagKeySeparator))
-	}
-	return b.String()
+	return store.GenerateKey(fields)
 }

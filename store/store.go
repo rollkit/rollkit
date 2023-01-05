@@ -1,16 +1,13 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync/atomic"
 
 	ds "github.com/ipfs/go-datastore"
-	badger3 "github.com/ipfs/go-ds-badger3"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -21,17 +18,17 @@ import (
 )
 
 var (
-	blockPrefix      = "b/"
-	indexPrefix      = "i/"
-	commitPrefix     = "c/"
-	statePrefix      = "s/"
-	responsesPrefix  = "r/"
-	validatorsPrefix = "v/"
+	blockPrefix      = "b"
+	indexPrefix      = "i"
+	commitPrefix     = "c"
+	statePrefix      = "s"
+	responsesPrefix  = "r"
+	validatorsPrefix = "v"
 )
 
 // DefaultStore is a default store implmementation.
 type DefaultStore struct {
-	db ds.Datastore
+	db ds.TxnDatastore
 
 	height uint64
 	ctx    context.Context
@@ -40,7 +37,7 @@ type DefaultStore struct {
 var _ Store = &DefaultStore{}
 
 // New returns new, default store.
-func New(ctx context.Context, ds ds.Datastore) Store {
+func New(ctx context.Context, ds ds.TxnDatastore) Store {
 	return &DefaultStore{
 		db:  ds,
 		ctx: ctx,
@@ -74,11 +71,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 		return fmt.Errorf("failed to marshal Commit to binary: %w", err)
 	}
 
-	badgerDS, ok := s.db.(*badger3.Datastore)
-	if !ok {
-		return errors.New("failed to retrieve the ds.Datastore implementation")
-	}
-	bb, err := badgerDS.NewTransaction(s.ctx, false)
+	bb, err := s.db.NewTransaction(s.ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
@@ -233,6 +226,7 @@ func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, err
 	return tmtypes.ValidatorSetFromProto(&pbValSet)
 }
 
+// loadHashFromIndex returns the hash of a block given its height
 func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
 	blob, err := s.db.Get(s.ctx, ds.NewKey(getIndexKey(height)))
 
@@ -248,24 +242,15 @@ func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
 }
 
 func getBlockKey(hash [32]byte) string {
-	var buf bytes.Buffer
-	buf.WriteString(blockPrefix)
-	buf.WriteString(hex.EncodeToString(hash[:]))
-	return buf.String()
+	return GenerateKey([]interface{}{blockPrefix, hex.EncodeToString(hash[:])})
 }
 
 func getCommitKey(hash [32]byte) string {
-	var buf bytes.Buffer
-	buf.WriteString(commitPrefix)
-	buf.WriteString(hex.EncodeToString(hash[:]))
-	return buf.String()
+	return GenerateKey([]interface{}{commitPrefix, hex.EncodeToString(hash[:])})
 }
 
 func getIndexKey(height uint64) string {
-	var buf bytes.Buffer
-	buf.WriteString(indexPrefix)
-	buf.WriteString(strconv.FormatUint(height, 10))
-	return buf.String()
+	return GenerateKey([]interface{}{indexPrefix, height})
 }
 
 func getStateKey() string {
@@ -273,15 +258,9 @@ func getStateKey() string {
 }
 
 func getResponsesKey(height uint64) string {
-	var buf bytes.Buffer
-	buf.WriteString(responsesPrefix)
-	buf.WriteString(strconv.FormatUint(height, 10))
-	return buf.String()
+	return GenerateKey([]interface{}{responsesPrefix, height})
 }
 
 func getValidatorsKey(height uint64) string {
-	var buf bytes.Buffer
-	buf.WriteString(validatorsPrefix)
-	buf.WriteString(strconv.FormatUint(height, 10))
-	return buf.String()
+	return GenerateKey([]interface{}{validatorsPrefix, height})
 }

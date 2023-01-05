@@ -6,7 +6,6 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	badger3 "github.com/ipfs/go-ds-badger3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -88,7 +87,7 @@ func TestPrefixKVBatch(t *testing.T) {
 	basekv, _ := NewDefaultInMemoryKVStore()
 	prefixkv := ktds.Wrap(basekv, ktds.PrefixTransform{Prefix: ds.NewKey("prefix1")}).Children()[0]
 
-	badgerPrefixkv, _ := prefixkv.(*badger3.Datastore)
+	badgerPrefixkv, _ := prefixkv.(ds.TxnDatastore)
 	prefixbatchkv1, _ := badgerPrefixkv.NewTransaction(ctx, false)
 
 	keys := []ds.Key{ds.NewKey("key1"), ds.NewKey("key2"), ds.NewKey("key3"), ds.NewKey("key4")}

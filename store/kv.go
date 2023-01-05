@@ -1,7 +1,10 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -12,7 +15,7 @@ import (
 )
 
 // NewDefaultInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
-func NewDefaultInMemoryKVStore() (ds.Datastore, error) {
+func NewDefaultInMemoryKVStore() (ds.TxnDatastore, error) {
 	inMemoryOptions := &badger3.Options{
 		GcDiscardRatio: 0.2,
 		GcInterval:     15 * time.Minute,
@@ -23,26 +26,28 @@ func NewDefaultInMemoryKVStore() (ds.Datastore, error) {
 }
 
 // NewDefaultKVStore creates instance of default key-value store.
-func NewDefaultKVStore(rootDir, dbPath, dbName string) (ds.Datastore, error) {
+func NewDefaultKVStore(rootDir, dbPath, dbName string) (ds.TxnDatastore, error) {
 	path := filepath.Join(rootify(rootDir, dbPath), dbName)
 	return badger3.NewDatastore(path, nil)
 }
 
-func PrefixEntries(ctx context.Context, store ds.Datastore, prefix string) ([]dsq.Entry, error) {
+// PrefixEntries retrieves all entries in the datastore whose keys have the supplied prefix
+func PrefixEntries(ctx context.Context, store ds.Datastore, prefix string) (dsq.Results, error) {
 	results, err := store.Query(ctx, dsq.Query{Prefix: prefix})
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		err = results.Close()
-	}()
+	return results, nil
+}
 
-	entries, err := results.Rest()
-	if err != nil {
-		return nil, err
+// GenerateKey ...
+func GenerateKey(fields []interface{}) string {
+	var b bytes.Buffer
+	b.WriteString("/")
+	for _, f := range fields {
+		b.Write([]byte(fmt.Sprintf("%v", f) + "/"))
 	}
-
-	return entries, nil
+	return path.Clean(b.String())
 }
 
 // rootify works just like in cosmos-sdk

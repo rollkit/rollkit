@@ -1,12 +1,12 @@
 package kv
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/celestiaorg/rollmint/store"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 )
@@ -33,23 +33,11 @@ func int64ToBytes(i int64) []byte {
 }
 
 func heightKey(height int64) string {
-	var buf bytes.Buffer
-	buf.WriteString(types.BlockHeightKey)
-	buf.WriteString("/")
-	buf.WriteString(strconv.FormatInt(height, 10))
-	return buf.String()
+	return store.GenerateKey([]interface{}{types.BlockHeightKey, height})
 }
 
 func eventKey(compositeKey, typ, eventValue string, height int64) string {
-	var buf bytes.Buffer
-	buf.WriteString(compositeKey)
-	buf.WriteString("/")
-	buf.WriteString(eventValue)
-	buf.WriteString("/")
-	buf.WriteString(strconv.FormatInt(height, 10))
-	buf.WriteString("/")
-	buf.WriteString(typ)
-	return buf.String()
+	return store.GenerateKey([]interface{}{compositeKey, eventValue, height, typ})
 }
 
 func parseValueFromPrimaryKey(key string) (int64, error) {
