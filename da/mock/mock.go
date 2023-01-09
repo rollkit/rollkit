@@ -2,10 +2,12 @@ package mock
 
 import (
 	"context"
-	"encoding/binary"
+	"encoding/hex"
 	"math/rand"
 	"sync/atomic"
 	"time"
+
+	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/log"
@@ -17,7 +19,7 @@ import (
 // It does actually ensures DA - it stores data in-memory.
 type DataAvailabilityLayerClient struct {
 	logger   log.Logger
-	dalcKV   store.KVStore
+	dalcKV   ds.Datastore
 	daHeight uint64
 	config   config
 }
@@ -32,7 +34,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV store.KVStore, logger log.Logger) error {
+func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV ds.Datastore, logger log.Logger) error {
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1
@@ -79,11 +81,12 @@ func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	err = m.dalcKV.Set(getKey(daHeight, block.Header.Height), hash[:])
+	err = m.dalcKV.Put(ctx, getKey(daHeight, block.Header.Height), hash[:])
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
-	err = m.dalcKV.Set(hash[:], blob)
+
+	err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])), blob)
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -109,14 +112,14 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: "block not found"}}
 	}
 
-	iter := m.dalcKV.PrefixIterator(getPrefix(daHeight))
-	defer iter.Discard()
+	results, err := store.PrefixEntries(ctx, m.dalcKV, getPrefix(daHeight))
+	if err != nil {
+		return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+	}
 
 	var blocks []*types.Block
-	for iter.Valid() {
-		hash := iter.Value()
-
-		blob, err := m.dalcKV.Get(hash)
+	for result := range results.Next() {
+		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(result.Entry.Value)))
 		if err != nil {
 			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
@@ -127,24 +130,17 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
 		blocks = append(blocks, block)
-
-		iter.Next()
 	}
 
 	return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusSuccess}, Blocks: blocks}
 }
 
-func getPrefix(daHeight uint64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, daHeight)
-	return b
+func getPrefix(daHeight uint64) string {
+	return store.GenerateKey([]interface{}{daHeight})
 }
 
-func getKey(daHeight uint64, height uint64) []byte {
-	b := make([]byte, 16)
-	binary.BigEndian.PutUint64(b, daHeight)
-	binary.BigEndian.PutUint64(b[8:], height)
-	return b
+func getKey(daHeight uint64, height uint64) ds.Key {
+	return ds.NewKey(store.GenerateKey([]interface{}{daHeight, height}))
 }
 
 func (m *DataAvailabilityLayerClient) updateDAHeight() {

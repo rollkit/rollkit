@@ -300,6 +300,8 @@ github.com/ipfs/go-datastore v0.6.0 h1:JKyz+Gvz1QEZw0LsX1IBn+JFCJQH4SJVFtM4uWU0M
 github.com/ipfs/go-datastore v0.6.0/go.mod h1:rt5M3nNbSO/8q1t4LNkLyUwRs8HupMeN/8O4Vn9YAT8=
 github.com/ipfs/go-detect-race v0.0.1 h1:qX/xay2W3E4Q1U7d9lNs1sU9nvguX0a7319XbyQ6cOk=
 github.com/ipfs/go-detect-race v0.0.1/go.mod h1:8BNT7shDZPo99Q74BpGMK+4D8Mn4j46UU0LZ723meps=
+github.com/ipfs/go-ds-badger3 v0.0.2 h1:+pME0YfRnbUKhvySnakNMuCMsUUhmGfwIsH/nnHZ7QY=
+github.com/ipfs/go-ds-badger3 v0.0.2/go.mod h1:6/yjF1KaOU+IpCaqMV43yoWIdxHqOAJlO9EhWLnZSkI=
 github.com/ipfs/go-ipfs-util v0.0.2 h1:59Sswnk1MFaiq+VcaknX7aYEyGyGDAA73ilhEK2POp8=
 github.com/ipfs/go-ipfs-util v0.0.2/go.mod h1:CbPtkWJzjLdEcezDns2XYaehFVNXG9zrdrtMecczcsQ=
 github.com/ipfs/go-ipns v0.2.0 h1:BgmNtQhqOw5XEZ8RAfWEpK4DhqaYiuP6h71MhIp7xXU=

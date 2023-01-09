@@ -3,9 +3,10 @@ package txindex
 import (
 	"context"
 
-	"github.com/celestiaorg/rollmint/state/indexer"
 	"github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/rollmint/state/indexer"
 )
 
 // XXX/TODO: These types should be moved to the indexer package.

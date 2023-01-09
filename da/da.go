@@ -3,8 +3,9 @@ package da
 import (
 	"context"
 
+	ds "github.com/ipfs/go-datastore"
+
 	"github.com/celestiaorg/rollmint/log"
-	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
 )
 
@@ -60,7 +61,7 @@ type ResultRetrieveBlocks struct {
 // It also contains life-cycle methods.
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(namespaceID types.NamespaceID, config []byte, kvStore store.KVStore, logger log.Logger) error
+	Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error
 
 	// Start is called once, after Init. It's implementation should start operation of DataAvailabilityLayerClient.
 	Start() error

@@ -88,7 +88,8 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		}
 		conf, _ = json.Marshal(config)
 	}
-	err := dalc.Init(testNamespaceID, conf, store.NewDefaultInMemoryKVStore(), test.NewLogger(t))
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -149,7 +150,8 @@ func startMockGRPCServ(t *testing.T) *grpc.Server {
 	conf := grpcda.DefaultConfig
 	logger := tmlog.NewTMLogger(os.Stdout)
 
-	srv := mockserv.GetServer(store.NewDefaultInMemoryKVStore(), conf, []byte(mockDaBlockTime.String()), logger)
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
 		t.Fatal(err)
@@ -192,7 +194,8 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		}
 		conf, _ = json.Marshal(config)
 	}
-	err := dalc.Init(testNamespaceID, conf, store.NewDefaultInMemoryKVStore(), test.NewLogger(t))
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()

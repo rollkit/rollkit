@@ -2,12 +2,14 @@ package kv
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,7 +23,8 @@ import (
 )
 
 func TestTxIndex(t *testing.T) {
-	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	indexer := NewTxIndex(context.Background(), kvStore)
 
 	tx := types.Tx("HELLO WORLD")
 	txResult := &abci.TxResult{
@@ -67,7 +70,8 @@ func TestTxIndex(t *testing.T) {
 }
 
 func TestTxSearch(t *testing.T) {
-	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
 		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
@@ -141,7 +145,8 @@ func TestTxSearch(t *testing.T) {
 }
 
 func TestTxSearchWithCancelation(t *testing.T) {
-	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
 		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
@@ -159,7 +164,9 @@ func TestTxSearchWithCancelation(t *testing.T) {
 }
 
 func TestTxSearchDeprecatedIndexing(t *testing.T) {
-	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
+	ctx := context.Background()
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	indexer := NewTxIndex(ctx, kvStore)
 
 	// index tx using events indexing (composite key)
 	txResult1 := txResultWithEvents([]abci.Event{
@@ -175,25 +182,27 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 	txResult2.Tx = types.Tx("HELLO WORLD 2")
 
 	hash2 := types.Tx(txResult2.Tx).Hash()
-	b := indexer.store.NewBatch()
+
+	b, _ := indexer.store.NewTransaction(ctx, false)
+	defer b.Discard(ctx)
 
 	rawBytes, err := proto.Marshal(txResult2)
 	require.NoError(t, err)
 
-	depKey := []byte(fmt.Sprintf("%s/%s/%d/%d",
+	depKey := fmt.Sprintf("%s/%s/%d/%d",
 		"sender",
 		"addr1",
 		txResult2.Height,
 		txResult2.Index,
-	))
+	)
 
-	err = b.Set(depKey, hash2)
+	err = b.Put(ctx, ds.NewKey(depKey), hash2)
 	require.NoError(t, err)
-	err = b.Set(keyForHeight(txResult2), hash2)
+	err = b.Put(ctx, ds.NewKey(keyForHeight(txResult2)), hash2)
 	require.NoError(t, err)
-	err = b.Set(hash2, rawBytes)
+	err = b.Put(ctx, ds.NewKey(hex.EncodeToString(hash2)), rawBytes)
 	require.NoError(t, err)
-	err = b.Commit()
+	err = b.Commit(ctx)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -221,8 +230,6 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 		{"sender = 'addr1'", []*abci.TxResult{txResult2}},
 	}
 
-	ctx := context.Background()
-
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.q, func(t *testing.T) {
@@ -238,7 +245,8 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 }
 
 func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
-	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
 		{Type: "account", Attributes: []abci.EventAttribute{{Key: []byte("number"), Value: []byte("1"), Index: true}}},
@@ -260,7 +268,8 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 }
 
 func TestTxSearchMultipleTxs(t *testing.T) {
-	indexer := NewTxIndex(store.NewDefaultInMemoryKVStore())
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	indexer := NewTxIndex(context.Background(), kvStore)
 
 	// indexed first, but bigger height (to test the order of transactions)
 	txResult := txResultWithEvents([]abci.Event{
@@ -333,9 +342,9 @@ func benchmarkTxIndex(txsCount int64, b *testing.B) {
 	require.NoError(b, err)
 	defer os.RemoveAll(dir)
 
-	store := store.NewDefaultKVStore(dir, "db", "tx_index")
+	store, err := store.NewDefaultKVStore(dir, "db", "tx_index")
 	require.NoError(b, err)
-	indexer := NewTxIndex(store)
+	indexer := NewTxIndex(context.Background(), store)
 
 	batch := txindex.NewBatch(txsCount)
 	txIndex := uint32(0)

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/go-cnc"
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/log"
-	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
 	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
 )
@@ -37,7 +37,7 @@ type Config struct {
 }
 
 // Init initializes DataAvailabilityLayerClient instance.
-func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore store.KVStore, logger log.Logger) error {
+func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
 	c.namespaceID = namespaceID
 	c.logger = logger
 

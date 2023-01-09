@@ -1,10 +1,12 @@
 package store
 
 import (
+	"context"
 	"math/rand"
 	"os"
 	"testing"
 
+	ds "github.com/ipfs/go-datastore"
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
@@ -43,7 +45,8 @@ func TestStoreHeight(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			bstore := New(NewDefaultInMemoryKVStore())
+			ds, _ := NewDefaultInMemoryKVStore()
+			bstore := New(context.Background(), ds)
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
@@ -87,13 +90,15 @@ func TestStoreLoad(t *testing.T) {
 		}
 	}()
 
-	for _, kv := range []KVStore{NewDefaultInMemoryKVStore(), NewDefaultKVStore(tmpDir, "db", "test")} {
+	mKV, _ := NewDefaultInMemoryKVStore()
+	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
+	for _, kv := range []ds.TxnDatastore{mKV, dKV} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				assert := assert.New(t)
 				require := require.New(t)
 
-				bstore := New(kv)
+				bstore := New(context.Background(), kv)
 
 				lastCommit := &types.Commit{}
 				for _, block := range c.blocks {
@@ -132,8 +137,9 @@ func TestRestart(t *testing.T) {
 
 	validatorSet := getRandomValidatorSet()
 
-	kv := NewDefaultInMemoryKVStore()
-	s1 := New(kv)
+	ctx := context.Background()
+	kv, _ := NewDefaultInMemoryKVStore()
+	s1 := New(ctx, kv)
 	expectedHeight := uint64(10)
 	err := s1.UpdateState(types.State{
 		LastBlockHeight: int64(expectedHeight),
@@ -143,7 +149,7 @@ func TestRestart(t *testing.T) {
 	})
 	assert.NoError(err)
 
-	s2 := New(kv)
+	s2 := New(ctx, kv)
 	_, err = s2.LoadState()
 	assert.NoError(err)
 
@@ -154,8 +160,8 @@ func TestBlockResponses(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	kv := NewDefaultInMemoryKVStore()
-	s := New(kv)
+	kv, _ := NewDefaultInMemoryKVStore()
+	s := New(context.Background(), kv)
 
 	expected := &tmstate.ABCIResponses{
 		BeginBlock: &abcitypes.ResponseBeginBlock{
