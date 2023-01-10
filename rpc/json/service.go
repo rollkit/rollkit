@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/rpc/v2/json2"
-	"github.com/tendermint/tendermint/libs/pubsub"
-	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
+	/*"github.com/tendermint/tendermint/libs/pubsub"
+	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"*/
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
@@ -91,10 +91,10 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 
 	// TODO(tzdybal): pass config and check subscriptions limits
 
-	q, err := tmquery.New(args.Query)
+	/*q, err := tmquery.New(args.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse query: %w", err)
-	}
+	}*/
 
 	s.logger.Debug("subscribe to query", "remote", addr, "query", args.Query)
 
@@ -104,7 +104,39 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 	ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
 	defer cancel()
 
-	sub, err := s.client.EventBus.Subscribe(ctx, addr, q, subBufferSize)
+	eventCh, err := s.client.Subscribe(ctx, addr, args.Query, subBufferSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to subscribe: %w", err)
+	}
+	go func() {
+		for {
+			select {
+			case msg := <-eventCh:
+				data, err := json.Marshal(msg.Data)
+				if err != nil {
+					s.logger.Error("failed to marshal response data", "error", err)
+					continue
+				}
+				if wsConn != nil {
+					wsConn.queue <- data
+				}
+			case <-ctx.Done():
+				/*if sub.Err() != pubsub.ErrUnsubscribed {
+					var reason string
+					if sub.Err() == nil {
+						reason = "unknown failure"
+					} else {
+						reason = sub.Err().Error()
+					}
+					s.logger.Error("subscription was cancelled", "reason", reason)
+				}*/
+				return
+			}
+
+		}
+	}()
+
+	/*sub, err := s.client.EventBus.Subscribe(ctx, addr, q, subBufferSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe: %w", err)
 	}
@@ -134,7 +166,7 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 				return
 			}
 		}
-	}()
+	}()*/
 
 	return &ctypes.ResultSubscribe{}, nil
 }
