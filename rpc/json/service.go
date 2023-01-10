@@ -42,7 +42,8 @@ func newMethod(m interface{}) *method {
 }
 
 type service struct {
-	client  *client.Client
+	//client  *client.Client
+	client  rpcclient.Client
 	methods map[string]*method
 	logger  log.Logger
 }
@@ -101,10 +102,10 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 	// TODO(tzdybal): extract consts or configs
 	const SubscribeTimeout = 5 * time.Second
 	const subBufferSize = 100
-	ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
-	defer cancel()
+	/*ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
+	defer cancel()*/
 
-	eventCh, err := s.client.Subscribe(ctx, addr, args.Query, subBufferSize)
+	eventCh, err := s.client.Subscribe(req.Context(), addr, args.Query, subBufferSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe: %w", err)
 	}
@@ -120,17 +121,6 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 				if wsConn != nil {
 					wsConn.queue <- data
 				}
-			case <-ctx.Done():
-				/*if sub.Err() != pubsub.ErrUnsubscribed {
-					var reason string
-					if sub.Err() == nil {
-						reason = "unknown failure"
-					} else {
-						reason = sub.Err().Error()
-					}
-					s.logger.Error("subscription was cancelled", "reason", reason)
-				}*/
-				return
 			}
 
 		}
