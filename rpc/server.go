@@ -16,7 +16,6 @@ import (
 	"golang.org/x/net/netutil"
 
 	"github.com/celestiaorg/rollmint/node"
-	"github.com/celestiaorg/rollmint/rpc/client"
 	"github.com/celestiaorg/rollmint/rpc/json"
 )
 
@@ -31,10 +30,10 @@ type Server struct {
 }
 
 // NewServer creates new instance of Server with given configuration.
-func NewServer(node *node.Node, config *config.RPCConfig, logger log.Logger) *Server {
+func NewServer(node *node.FullNode, config *config.RPCConfig, logger log.Logger) *Server {
 	srv := &Server{
 		config: config,
-		client: client.NewClient(node),
+		client: node.GetClient(),
 	}
 	srv.BaseService = service.NewBaseService(logger, "RPC", srv)
 	return srv

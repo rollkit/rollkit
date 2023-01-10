@@ -27,7 +27,6 @@ import (
 	"github.com/celestiaorg/rollmint/config"
 	"github.com/celestiaorg/rollmint/mocks"
 	"github.com/celestiaorg/rollmint/node"
-	"github.com/celestiaorg/rollmint/rpc/client"
 )
 
 func TestHandlerMapping(t *testing.T) {
@@ -269,7 +268,7 @@ func TestSubscription(t *testing.T) {
 }
 
 // copied from rpc
-func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
+func getRPC(t *testing.T) (*mocks.Application, *node.FullClient) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
@@ -292,14 +291,14 @@ func getRPC(t *testing.T) (*mocks.Application, *client.Client) {
 	})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
-	require.NotNil(node)
+	require.NotNil(n)
 
-	err = node.Start()
+	err = n.Start()
 	require.NoError(err)
 
-	local := client.NewClient(node)
+	local := node.NewClient(n)
 	require.NotNil(local)
 
 	return app, local

@@ -191,7 +191,7 @@ func TestFraudProofTrigger(t *testing.T) {
 }
 
 // Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
-func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Node, []*mocks.Application) {
+func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
@@ -209,7 +209,7 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*No
 
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
-func startNodes(nodes []*Node, wg *sync.WaitGroup, t *testing.T) {
+func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
 	numNodes := len(nodes)
 	wg.Add((numNodes) * (numNodes - 1))
 	for _, n := range nodes {
@@ -238,7 +238,7 @@ func startNodes(nodes []*Node, wg *sync.WaitGroup, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*Node, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -254,7 +254,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
 
-	nodes := make([]*Node, num)
+	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	_ = dalc.Init([8]byte{}, nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
@@ -267,7 +267,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*FullNode, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
