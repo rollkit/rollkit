@@ -13,11 +13,10 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/celestiaorg/rollmint/log"
-	"github.com/celestiaorg/rollmint/rpc/client"
 )
 
 // GetHTTPHandler returns handler configured to serve Tendermint-compatible RPC.
-func GetHTTPHandler(l *client.Client, logger log.Logger) (http.Handler, error) {
+func GetHTTPHandler(l rpcclient.Client, logger log.Logger) (http.Handler, error) {
 	return newHandler(newService(l, logger), json2.NewCodec(), logger), nil
 }
 
@@ -45,7 +44,7 @@ type service struct {
 	logger  log.Logger
 }
 
-func newService(c *client.Client, l log.Logger) *service {
+func newService(c rpcclient.Client, l log.Logger) *service {
 	s := service{
 		client: c,
 		logger: l,

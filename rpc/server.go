@@ -25,7 +25,7 @@ type Server struct {
 	*service.BaseService
 
 	config *config.RPCConfig
-	client *client.Client
+	client rpcclient.Client
 
 	server http.Server
 }
