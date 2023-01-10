@@ -241,7 +241,9 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
 		Header: types.Header{
-			Height: height,
+			BaseHeader: types.BaseHeader{
+				Height: height,
+			},
 		},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),

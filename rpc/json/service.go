@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tendermint/tendermint/libs/pubsub"
+	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"net/http"
 	"reflect"
 	"time"
 
 	"github.com/gorilla/rpc/v2/json2"
-	"github.com/tendermint/tendermint/libs/pubsub"
-	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 

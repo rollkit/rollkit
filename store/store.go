@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/go-header"
 	"sync/atomic"
 
 	ds "github.com/ipfs/go-datastore"
@@ -78,7 +79,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getBlockKey(hash)), blockBlob))
 	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getCommitKey(hash)), commitBlob))
-	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getIndexKey(block.Header.Height)), hash[:]))
+	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getIndexKey(uint64(block.Header.Height()))), hash[:]))
 
 	if err != nil {
 		bb.Discard(s.ctx)
@@ -105,7 +106,7 @@ func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
 }
 
 // LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockByHash(hash [32]byte) (*types.Block, error) {
+func (s *DefaultStore) LoadBlockByHash(hash header.Hash) (*types.Block, error) {
 	blockData, err := s.db.Get(s.ctx, ds.NewKey(getBlockKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load block data: %w", err)
@@ -152,7 +153,7 @@ func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 }
 
 // LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadCommitByHash(hash [32]byte) (*types.Commit, error) {
+func (s *DefaultStore) LoadCommitByHash(hash header.Hash) (*types.Commit, error) {
 	commitData, err := s.db.Get(s.ctx, ds.NewKey(getCommitKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve commit from hash %v: %w", hash, err)
@@ -227,25 +228,23 @@ func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, err
 }
 
 // loadHashFromIndex returns the hash of a block given its height
-func (s *DefaultStore) loadHashFromIndex(height uint64) ([32]byte, error) {
+func (s *DefaultStore) loadHashFromIndex(height uint64) (header.Hash, error) {
 	blob, err := s.db.Get(s.ctx, ds.NewKey(getIndexKey(height)))
 
-	var hash [32]byte
 	if err != nil {
-		return hash, fmt.Errorf("failed to load block hash for height %v: %w", height, err)
+		return nil, fmt.Errorf("failed to load block hash for height %v: %w", height, err)
 	}
-	if len(blob) != len(hash) {
-		return hash, errors.New("invalid hash length")
+	if len(blob) != 32 {
+		return nil, errors.New("invalid hash length")
 	}
-	copy(hash[:], blob)
-	return hash, nil
+	return blob, nil
 }
 
-func getBlockKey(hash [32]byte) string {
+func getBlockKey(hash header.Hash) string {
 	return GenerateKey([]interface{}{blockPrefix, hex.EncodeToString(hash[:])})
 }
 
-func getCommitKey(hash [32]byte) string {
+func getCommitKey(hash header.Hash) string {
 	return GenerateKey([]interface{}{commitPrefix, hex.EncodeToString(hash[:])})
 }
 
