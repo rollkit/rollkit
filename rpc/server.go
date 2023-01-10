@@ -30,7 +30,7 @@ type Server struct {
 }
 
 // NewServer creates new instance of Server with given configuration.
-func NewServer(node *node.FullNode, config *config.RPCConfig, logger log.Logger) *Server {
+func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger) *Server {
 	srv := &Server{
 		config: config,
 		client: node.GetClient(),
