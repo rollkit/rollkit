@@ -84,34 +84,32 @@ func newService(c rpcclient.Client, l log.Logger) *service {
 }
 
 func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsConn) (*ctypes.ResultSubscribe, error) {
-	addr := req.RemoteAddr
-
 	// TODO(tzdybal): pass config and check subscriptions limits
-
-	s.logger.Debug("subscribe to query", "remote", addr, "query", args.Query)
-
 	// TODO(tzdybal): extract consts or configs
 	const SubscribeTimeout = 5 * time.Second
 	const subBufferSize = 100
 
-	eventCh, err := s.client.Subscribe(req.Context(), addr, args.Query, subBufferSize)
+	addr := req.RemoteAddr
+	query := args.Query
+
+	ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
+	defer cancel()
+
+	sub, err := s.client.Subscribe(ctx, addr, query, subBufferSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe: %w", err)
 	}
-	go func() {
-		for {
-			select {
-			case msg := <-eventCh:
-				data, err := json.Marshal(msg.Data)
-				if err != nil {
-					s.logger.Error("failed to marshal response data", "error", err)
-					continue
-				}
-				if wsConn != nil {
-					wsConn.queue <- data
-				}
-			}
 
+	go func() {
+		for msg := range sub {
+			data, err := json.Marshal(msg.Data)
+			if err != nil {
+				s.logger.Error("failed to marshal response data", "error", err)
+				continue
+			}
+			if wsConn != nil {
+				wsConn.queue <- data
+			}
 		}
 	}()
 
