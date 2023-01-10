@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/rpc/v2/json2"
-	/*"github.com/tendermint/tendermint/libs/pubsub"
-	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"*/
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
@@ -42,7 +40,6 @@ func newMethod(m interface{}) *method {
 }
 
 type service struct {
-	//client  *client.Client
 	client  rpcclient.Client
 	methods map[string]*method
 	logger  log.Logger
@@ -92,18 +89,11 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 
 	// TODO(tzdybal): pass config and check subscriptions limits
 
-	/*q, err := tmquery.New(args.Query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse query: %w", err)
-	}*/
-
 	s.logger.Debug("subscribe to query", "remote", addr, "query", args.Query)
 
 	// TODO(tzdybal): extract consts or configs
 	const SubscribeTimeout = 5 * time.Second
 	const subBufferSize = 100
-	/*ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
-	defer cancel()*/
 
 	eventCh, err := s.client.Subscribe(req.Context(), addr, args.Query, subBufferSize)
 	if err != nil {
@@ -125,38 +115,6 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 
 		}
 	}()
-
-	/*sub, err := s.client.EventBus.Subscribe(ctx, addr, q, subBufferSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe: %w", err)
-	}
-
-	go func() {
-		for {
-			select {
-			case msg := <-sub.Out():
-				data, err := json.Marshal(msg.Data())
-				if err != nil {
-					s.logger.Error("failed to marshal response data", "error", err)
-					continue
-				}
-				if wsConn != nil {
-					wsConn.queue <- data
-				}
-			case <-sub.Cancelled():
-				if sub.Err() != pubsub.ErrUnsubscribed {
-					var reason string
-					if sub.Err() == nil {
-						reason = "unknown failure"
-					} else {
-						reason = sub.Err().Error()
-					}
-					s.logger.Error("subscription was cancelled", "reason", reason)
-				}
-				return
-			}
-		}
-	}()*/
 
 	return &ctypes.ResultSubscribe{}, nil
 }
