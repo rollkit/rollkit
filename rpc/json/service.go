@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/rpc/v2/json2"
-	"github.com/tendermint/tendermint/libs/pubsub"
-	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
@@ -87,51 +85,31 @@ func newService(c *client.Client, l log.Logger) *service {
 }
 
 func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsConn) (*ctypes.ResultSubscribe, error) {
-	addr := req.RemoteAddr
-
 	// TODO(tzdybal): pass config and check subscriptions limits
-
-	q, err := tmquery.New(args.Query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse query: %w", err)
-	}
-
-	s.logger.Debug("subscribe to query", "remote", addr, "query", args.Query)
-
 	// TODO(tzdybal): extract consts or configs
 	const SubscribeTimeout = 5 * time.Second
 	const subBufferSize = 100
+
+	addr := req.RemoteAddr
+	query := args.Query
+
 	ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
 	defer cancel()
 
-	sub, err := s.client.EventBus.Subscribe(ctx, addr, q, subBufferSize)
+	sub, err := s.client.Subscribe(ctx, addr, query, subBufferSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe: %w", err)
 	}
 
 	go func() {
-		for {
-			select {
-			case msg := <-sub.Out():
-				data, err := json.Marshal(msg.Data())
-				if err != nil {
-					s.logger.Error("failed to marshal response data", "error", err)
-					continue
-				}
-				if wsConn != nil {
-					wsConn.queue <- data
-				}
-			case <-sub.Cancelled():
-				if sub.Err() != pubsub.ErrUnsubscribed {
-					var reason string
-					if sub.Err() == nil {
-						reason = "unknown failure"
-					} else {
-						reason = sub.Err().Error()
-					}
-					s.logger.Error("subscription was cancelled", "reason", reason)
-				}
-				return
+		for msg := range sub {
+			data, err := json.Marshal(msg.Data)
+			if err != nil {
+				s.logger.Error("failed to marshal response data", "error", err)
+				continue
+			}
+			if wsConn != nil {
+				wsConn.queue <- data
 			}
 		}
 	}()
