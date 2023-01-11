@@ -3,6 +3,8 @@ package node
 import (
 	"context"
 
+	ds "github.com/ipfs/go-datastore"
+	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	abciclient "github.com/tendermint/tendermint/abci/client"

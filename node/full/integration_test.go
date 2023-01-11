@@ -257,7 +257,8 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	_ = dalc.Init([8]byte{}, nil, store.NewDefaultInMemoryKVStore(), log.TestingLogger())
+	ds, _ := store.NewDefaultInMemoryKVStore()
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	nodes[0], apps[0] = createNode(aggCtx, 0, isMalicious, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {

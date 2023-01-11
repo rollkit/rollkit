@@ -1,6 +1,7 @@
 package block
 
 import (
+	"context"
 	"crypto/rand"
 	"testing"
 	"time"
@@ -33,9 +34,12 @@ func TestInitialState(t *testing.T) {
 		NextValidators:  getRandomValidatorSet(),
 	}
 
-	emptyStore := store.New(store.NewDefaultInMemoryKVStore())
+	ctx := context.Background()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	emptyStore := store.New(ctx, es)
 
-	fullStore := store.New(store.NewDefaultInMemoryKVStore())
+	es2, _ := store.NewDefaultInMemoryKVStore()
+	fullStore := store.New(ctx, es2)
 	err := fullStore.UpdateState(sampleState)
 	require.NoError(t, err)
 
