@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 
+	ds "github.com/ipfs/go-datastore"
+	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
@@ -35,9 +37,9 @@ import (
 
 // prefixes used in KV store to separate main node data from DALC data
 var (
-	mainPrefix    = []byte{0}
-	dalcPrefix    = []byte{1}
-	indexerPrefix = []byte{2}
+	mainPrefix    = "0"
+	dalcPrefix    = "1"
+	indexerPrefix = "2" // indexPrefix uses "i", so using "0-2" to avoid clash
 )
 
 const (
@@ -99,18 +101,23 @@ func NewFullNode(
 		return nil, err
 	}
 
-	var baseKV store.KVStore
+	var baseKV ds.TxnDatastore
+
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
-		baseKV = store.NewDefaultInMemoryKVStore()
+		baseKV, err = store.NewDefaultInMemoryKVStore()
 	} else {
-		baseKV = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
+		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
 	}
-	mainKV := store.NewPrefixKV(baseKV, mainPrefix)
-	dalcKV := store.NewPrefixKV(baseKV, dalcPrefix)
-	indexerKV := store.NewPrefixKV(baseKV, indexerPrefix)
+	if err != nil {
+		return nil, err
+	}
 
-	s := store.New(mainKV)
+	mainKV := newPrefixKV(baseKV, mainPrefix)
+	dalcKV := newPrefixKV(baseKV, dalcPrefix)
+	indexerKV := newPrefixKV(baseKV, indexerPrefix)
+
+	s := store.New(ctx, mainKV)
 
 	dalc := registry.GetClient(conf.DALayer)
 	if dalc == nil {
@@ -121,7 +128,7 @@ func NewFullNode(
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
 
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(conf, indexerKV, eventBus, logger)
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, conf, indexerKV, eventBus, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -367,9 +374,14 @@ func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
 	}
 }
 
+func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
+	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
+}
+
 func createAndStartIndexerService(
+	ctx context.Context,
 	conf config.NodeConfig,
-	kvStore store.KVStore,
+	kvStore ds.TxnDatastore,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
@@ -379,8 +391,8 @@ func createAndStartIndexerService(
 		blockIndexer indexer.BlockIndexer
 	)
 
-	txIndexer = kv.NewTxIndex(kvStore)
-	blockIndexer = blockidxkv.New(store.NewPrefixKV(kvStore, []byte("block_events")))
+	txIndexer = kv.NewTxIndex(ctx, kvStore)
+	blockIndexer = blockidxkv.New(ctx, newPrefixKV(kvStore, "block_events"))
 
 	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))
