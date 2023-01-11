@@ -90,7 +90,7 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(cryptorand.Reader)
-	n, _ := NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, abcicli.NewLocalClient(nil, mockApp), genDoc, log.TestingLogger())
+	n, _ := NewFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, abcicli.NewLocalClient(nil, mockApp), genDoc, log.TestingLogger())
 
 	rpc := NewClient(n)
 
@@ -403,7 +403,7 @@ func TestTx(t *testing.T) {
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := NewNode(context.Background(), config.NodeConfig{
+	node, err := NewFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
@@ -660,7 +660,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		waitCh <- nil
 	})
 
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := NewFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -784,7 +784,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := NewFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -849,7 +849,7 @@ func TestMempool2Nodes(t *testing.T) {
 	id1, err := peer.IDFromPrivateKey(key1)
 	require.NoError(err)
 
-	node1, err := NewNode(context.Background(), config.NodeConfig{
+	node1, err := NewFullNode(context.Background(), config.NodeConfig{
 		DALayer: "mock",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
@@ -858,7 +858,7 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node1)
 
-	node2, err := NewNode(context.Background(), config.NodeConfig{
+	node2, err := NewFullNode(context.Background(), config.NodeConfig{
 		DALayer: "mock",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
@@ -933,7 +933,7 @@ func TestStatus(t *testing.T) {
 		}
 	}
 
-	node, err := NewNode(
+	node, err := NewFullNode(
 		context.Background(),
 		config.NodeConfig{
 			DALayer: "mock",

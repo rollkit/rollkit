@@ -79,7 +79,7 @@ type FullNode struct {
 }
 
 // NewNode creates new rollmint node.
-func NewNode(
+func NewFullNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
