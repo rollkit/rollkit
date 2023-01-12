@@ -1,4 +1,4 @@
-package full
+package node
 
 import (
 	"context"
@@ -81,7 +81,7 @@ type FullNode struct {
 }
 
 // NewNode creates new rollmint node.
-func NewFullNode(
+func newFullNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,

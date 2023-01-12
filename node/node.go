@@ -11,7 +11,6 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/node/full"
 )
 
 type Node interface {
@@ -29,7 +28,7 @@ func NewNode(
 	logger log.Logger,
 ) (Node, error) {
 	if !conf.Light {
-		return full.NewFullNode(
+		return newFullNode(
 			ctx,
 			conf,
 			p2pKey,

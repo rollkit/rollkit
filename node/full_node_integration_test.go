@@ -1,4 +1,4 @@
-package full
+package node
 
 import (
 	"context"
@@ -52,7 +52,7 @@ func TestAggregatorMode(t *testing.T) {
 		BlockTime:   1 * time.Second,
 		NamespaceID: rmtypes.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := NewFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -318,7 +318,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	node, err := NewFullNode(
+	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
 			P2P:                p2pConfig,
