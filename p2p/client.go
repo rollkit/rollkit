@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/connmgr"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	cdiscovery "github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -58,10 +57,10 @@ type Client struct {
 	chainID string
 	privKey crypto.PrivKey
 
-	gater *conngater.BasicConnectionGater
 	host  host.Host
 	dht   *dht.IpfsDHT
 	disc  *discovery.RoutingDiscovery
+	gater *conngater.BasicConnectionGater
 
 	txGossiper  *Gossiper
 	txValidator GossipValidator

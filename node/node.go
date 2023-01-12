@@ -41,7 +41,6 @@ var (
 	mainPrefix    = "0"
 	dalcPrefix    = "1"
 	indexerPrefix = "2" // indexPrefix uses "i", so using "0-2" to avoid clash
-	gaterPrefix   = "3"
 )
 
 const (
@@ -114,9 +113,8 @@ func NewNode(
 	mainKV := newPrefixKV(baseKV, mainPrefix)
 	dalcKV := newPrefixKV(baseKV, dalcPrefix)
 	indexerKV := newPrefixKV(baseKV, indexerPrefix)
-	gaterKV := newPrefixKV(baseKV, gaterPrefix)
 
-	gater, err := conngater.NewBasicConnectionGater(gaterKV)
+	gater, err := conngater.NewBasicConnectionGater(baseKV)
 	if err != nil {
 		return nil, err
 	}
