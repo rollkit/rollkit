@@ -7,9 +7,16 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
+	dssync "github.com/ipfs/go-datastore/sync"
+	badger3 "github.com/ipfs/go-ds-badger3"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/multierr"
 
 	abciclient "github.com/tendermint/tendermint/abci/client"
@@ -20,6 +27,11 @@ import (
 	corep2p "github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/go-header"
+	goheaderp2p "github.com/celestiaorg/go-header/p2p"
+	goheaderstore "github.com/celestiaorg/go-header/store"
+	"github.com/celestiaorg/go-header/sync"
+	goheadersync "github.com/celestiaorg/go-header/sync"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -76,6 +88,12 @@ type FullNode struct {
 	TxIndexer      txindex.TxIndexer
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
+
+	ex          *goheaderp2p.Exchange[*types.Header]
+	syncer      *sync.Syncer[*types.Header]
+	sub         *goheaderp2p.Subscriber[*types.Header]
+	p2pServer   *goheaderp2p.ExchangeServer[*types.Header]
+	headerStore *goheaderstore.Store[*types.Header]
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -144,6 +162,17 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
+	// mainKV is TxnDatastore, but we require Batching, hence the type conversion
+	// note, badger datastore implements both
+	mainKVBatch, ok := mainKV.(*badger3.Datastore)
+	if !ok {
+		return nil, errors.New("failed to access the main datastore")
+	}
+	ss, err := goheaderstore.NewStore[*types.Header](mainKVBatch)
+	if err != nil {
+		return nil, fmt.Errorf("NewStore initialization error: %w", err)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
@@ -161,6 +190,7 @@ func newFullNode(
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
+		headerStore:    ss,
 		ctx:            ctx,
 		cancel:         cancel,
 	}
@@ -201,6 +231,20 @@ func (n *FullNode) initGenesisChunks() error {
 	}
 
 	return nil
+}
+
+func (n *FullNode) headerBroadcast(ctx context.Context) {
+	for {
+		select {
+		case signedHeader := <-n.blockManager.HeaderOutCh:
+			err := n.sub.Broadcast(ctx, &signedHeader.Header)
+			if err != nil {
+				n.Logger.Error("failed to broadcast block header", "error", err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (n *FullNode) headerPublishLoop(ctx context.Context) {
@@ -249,6 +293,59 @@ func (n *FullNode) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
+
+	// have to do the initializations here to utilize the p2p node which is created on start
+	pubsub1, err := pubsub.NewGossipSub(n.ctx, n.P2P.Host(), pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
+	if err != nil {
+		return err
+	}
+	n.sub = goheaderp2p.NewSubscriber[*types.Header](pubsub1, pubsub.DefaultMsgIdFn)
+
+	_, _, network := n.P2P.Info()
+	n.p2pServer, err = newP2PServer(n.P2P.Host(), n.headerStore, network)
+	if err != nil {
+		return err
+	}
+
+	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
+	if err != nil {
+		return err
+	}
+	n.ex, err = newP2PExchange(n.P2P.Host(), n.P2P.Host().Peerstore().Peers(), network, connGater)
+	if err != nil {
+		return err
+	}
+
+	n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(config.DefaultNodeConfig.BlockTime))
+	if err != nil {
+		return err
+	}
+	genesisHeader, err := n.ex.GetByHeight(n.ctx, uint64(n.genesis.InitialHeight))
+	if err != nil {
+		return fmt.Errorf("ganesh err: %d, %w, %x", n.genesis.InitialHeight, err, n.conf.P2P.Seeds)
+	}
+	err = goheaderstore.Init[*types.Header](n.ctx, n.headerStore, n.ex, genesisHeader.Hash())
+	if err != nil {
+		return err
+	}
+
+	err = n.headerStore.Start(n.ctx)
+	if err != nil {
+		return fmt.Errorf("error while starting header store: %w", err)
+	}
+	err = n.p2pServer.Start(n.ctx)
+	if err != nil {
+		return fmt.Errorf("error while starting p2p server: %w", err)
+	}
+	err = n.ex.Start(n.ctx)
+	if err != nil {
+		return fmt.Errorf("error while starting exchange: %w", err)
+	}
+	err = n.sub.Start(n.ctx)
+	if err != nil {
+		return fmt.Errorf("error while starting subscriber: %w", err)
+	}
+
 	err = n.dalc.Start()
 	if err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
@@ -257,10 +354,16 @@ func (n *FullNode) OnStart() error {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
+		go n.headerBroadcast(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
 	go n.fraudProofPublishLoop(n.ctx)
+
+	err = n.syncer.Start(n.ctx)
+	if err != nil {
+		return fmt.Errorf("error while starting syncer: %w", err)
+	}
 
 	return nil
 }
@@ -285,6 +388,11 @@ func (n *FullNode) OnStop() {
 	n.cancel()
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
+	err = multierr.Append(err, n.headerStore.Stop(n.ctx))
+	err = multierr.Append(err, n.p2pServer.Stop(n.ctx))
+	err = multierr.Append(err, n.ex.Stop(n.ctx))
+	err = multierr.Append(err, n.sub.Stop(n.ctx))
+	err = multierr.Append(err, n.syncer.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
@@ -408,4 +516,38 @@ func createAndStartIndexerService(
 	}
 
 	return indexerService, txIndexer, blockIndexer, nil
+}
+
+// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
+func newP2PServer(
+	host host.Host,
+	store *goheaderstore.Store[*types.Header],
+	network string,
+	opts ...goheaderp2p.Option[goheaderp2p.ServerParameters],
+) (*goheaderp2p.ExchangeServer[*types.Header], error) {
+	return goheaderp2p.NewExchangeServer[*types.Header](host, store, network, opts...)
+}
+
+func newP2PExchange(
+	host host.Host,
+	peers []peer.ID,
+	network string,
+	conngater *conngater.BasicConnectionGater,
+	opts ...goheaderp2p.Option[goheaderp2p.ClientParameters],
+) (*goheaderp2p.Exchange[*types.Header], error) {
+	return goheaderp2p.NewExchange[*types.Header](host, peers, network, conngater, opts...)
+}
+
+// InitStore is a type representing initialized header store.
+// NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
+type InitStore header.Store[*types.Header]
+
+// newSyncer constructs new Syncer for headers.
+func newSyncer(
+	ex header.Exchange[*types.Header],
+	store InitStore,
+	sub header.Subscriber[*types.Header],
+	opt goheadersync.Options,
+) (*sync.Syncer[*types.Header], error) {
+	return sync.NewSyncer[*types.Header](ex, store, sub, opt)
 }

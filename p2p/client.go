@@ -204,6 +204,11 @@ func (c *Client) Addrs() []multiaddr.Multiaddr {
 	return c.host.Addrs()
 }
 
+// Host returns the libp2p node in a peer-to-peer network
+func (c *Client) Host() host.Host {
+	return c.host
+}
+
 // Info returns client ID, ListenAddr, and Network info
 func (c *Client) Info() (p2p.ID, string, string) {
 	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
