@@ -52,8 +52,8 @@ type FullClient struct {
 	node *FullNode
 }
 
-// NewClient returns Client working with given node.
-func NewClient(node *FullNode) *FullClient {
+// NewFullClient returns Client working with given node.
+func NewFullClient(node *FullNode) *FullClient {
 	return &FullClient{
 		EventBus: node.EventBus(),
 		config:   config.DefaultRPCConfig(),
@@ -62,7 +62,7 @@ func NewClient(node *FullNode) *FullClient {
 }
 
 func (n *FullNode) GetClient() rpcclient.Client {
-	return NewClient(n)
+	return NewFullClient(n)
 }
 
 // ABCIInfo returns basic information about application state.

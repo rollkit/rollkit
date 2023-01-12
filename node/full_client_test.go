@@ -91,7 +91,7 @@ func TestGenesisChunked(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, abcicli.NewLocalClient(nil, mockApp), genDoc, log.TestingLogger())
 
-	rpc := NewClient(n)
+	rpc := NewFullClient(n)
 
 	var expectedID uint = 2
 	gc, err := rpc.GenesisChunked(context.Background(), expectedID)
@@ -414,7 +414,7 @@ func TestTx(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	rpc := NewClient(node)
+	rpc := NewFullClient(node)
 	require.NotNil(rpc)
 	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
@@ -663,7 +663,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	rpc := NewClient(node)
+	rpc := NewFullClient(node)
 	require.NotNil(rpc)
 
 	err = node.Start()
@@ -787,7 +787,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	rpc := NewClient(node)
+	rpc := NewFullClient(node)
 	require.NotNil(rpc)
 
 	return app, rpc
@@ -878,7 +878,7 @@ func TestMempool2Nodes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	local := NewClient(node1)
+	local := NewFullClient(node1)
 	require.NotNil(local)
 
 	// broadcast the bad Tx, this should not be propogated or added to the local mempool
@@ -964,7 +964,7 @@ func TestStatus(t *testing.T) {
 	err = node.Store.UpdateState(types.State{LastValidators: validatorSet, NextValidators: validatorSet, Validators: validatorSet})
 	assert.NoError(err)
 
-	rpc := NewClient(node)
+	rpc := NewFullClient(node)
 	assert.NotNil(rpc)
 
 	earliestBlock := getRandomBlockWithProposer(1, 1, validators[0].Address.Bytes())

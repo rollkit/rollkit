@@ -7,3 +7,7 @@ import (
 type LightNode struct {
 	service.BaseService
 }
+
+func (n *LightNode) IsRunning() bool {
+	panic("Not implemented")
+}
