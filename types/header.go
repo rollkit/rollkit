@@ -1,7 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"encoding"
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/go-header"
@@ -82,14 +84,67 @@ func (h *Header) IsExpired() bool {
 	return !expirationTime.After(time.Now())
 }
 
-func (h *Header) VerifyAdjacent(h2 header.Header) error {
-	//TODO implement me
-	panic("implement me")
+func (h *Header) VerifyAdjacent(untrst header.Header) error {
+	untrstH, ok := untrst.(*Header)
+	if !ok {
+		return &header.VerifyError{
+			fmt.Errorf("%T is not of type %T", untrst, h),
+		}
+	}
+
+	if untrstH.Height() != h.Height()+1 {
+		return &header.VerifyError{
+			fmt.Errorf("headers must be adjacent in height: trusted %d, untrusted %d", h.Height(), untrstH.Height()),
+		}
+	}
+
+	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
+		return &header.VerifyError{Reason: err}
+	}
+
+	// Check the validator hashes are the same
+	// TODO: next validator set is not available
+	if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
+		return &header.VerifyError{
+			fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+				h.AggregatorsHash,
+				untrstH.AggregatorsHash,
+			),
+		}
+	}
+
+	return nil
+
 }
 
-func (h *Header) VerifyNonAdjacent(h2 header.Header) error {
-	//TODO implement me
-	panic("implement me")
+func (h *Header) VerifyNonAdjacent(untrst header.Header) error {
+	untrstH, ok := untrst.(*Header)
+	if !ok {
+		return &header.VerifyError{
+			fmt.Errorf("%T is not of type %T", untrst, h),
+		}
+	}
+	if untrstH.Height() == h.Height()+1 {
+		return &header.VerifyError{
+			fmt.Errorf(
+				"headers must be non adjacent in height: trusted %d, untrusted %d",
+				h.Height(),
+				untrstH.Height(),
+			),
+		}
+	}
+
+	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
+		return &header.VerifyError{Reason: err}
+	}
+
+	// Ensure that untrusted commit has enough of trusted commit's power.
+	// err := h.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID, untrst.Commit, light.DefaultTrustLevel)
+	// if err != nil {
+	// 	return &VerifyError{err}
+	// }
+
+	return nil
 }
 
 func (h *Header) Verify(h2 header.Header) error {
@@ -99,6 +154,38 @@ func (h *Header) Verify(h2 header.Header) error {
 
 func (h *Header) Validate() error {
 	return h.ValidateBasic()
+}
+
+// clockDrift defines how much new header's time can drift into
+// the future relative to the now time during verification.
+var maxClockDrift = 10 * time.Second
+
+// verifyNewHeaderAndVals performs basic verification of untrusted header.
+func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
+	if err := untrusted.ValidateBasic(); err != nil {
+		return fmt.Errorf("untrusted.ValidateBasic failed: %w", err)
+	}
+
+	if untrusted.Height() <= trusted.Height() {
+		return fmt.Errorf("expected new header height %d to be greater than one of old header %d",
+			untrusted.Height(),
+			trusted.Height())
+	}
+
+	if !untrusted.Time().After(trusted.Time()) {
+		return fmt.Errorf("expected new header time %v to be after old header time %v",
+			untrusted.Time(),
+			trusted.Time())
+	}
+
+	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
+		return fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
+			untrusted.Time(),
+			time.Now(),
+			maxClockDrift)
+	}
+
+	return nil
 }
 
 var _ header.Header = &Header{}
