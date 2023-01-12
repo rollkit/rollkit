@@ -27,13 +27,13 @@ func TestClientStartup(t *testing.T) {
 		p2pconf config.P2PConfig
 	}{
 		{"blank config", config.P2PConfig{}},
-		{"unblocking a not previously explicitly blocked peer shouldn't error", config.P2PConfig{
+		{"peer whitelisting", config.P2PConfig{
 			ListenAddress: "",
 			Seeds:         "",
 			BlockedPeers:  "",
 			AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
 		}},
-		{"blocking a peer", config.P2PConfig{
+		{"peer blacklisting", config.P2PConfig{
 			ListenAddress: "",
 			Seeds:         "",
 			BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",

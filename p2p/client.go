@@ -122,14 +122,13 @@ func (c *Client) Start(ctx context.Context) error {
 
 func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 	c.host = h
-	var err error
 	for _, a := range c.host.Addrs() {
 		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
 	}
 
 	if c.gater != nil {
 		c.logger.Debug("blocking blacklisted peers", c.conf.BlockedPeers)
-		err = c.setupBlockedPeers(c.parseAddrInfoList(c.conf.BlockedPeers))
+		err := c.setupBlockedPeers(c.parseAddrInfoList(c.conf.BlockedPeers))
 		if err != nil {
 			return err
 		}
@@ -142,7 +141,7 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 	}
 
 	c.logger.Debug("setting up gossiping")
-	err = c.setupGossiping(ctx)
+	err := c.setupGossiping(ctx)
 	if err != nil {
 		return err
 	}
@@ -430,12 +429,12 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 	for _, p := range peers {
 		maddr, err := multiaddr.NewMultiaddr(p)
 		if err != nil {
-			c.logger.Error("failed to parse node", "address", p, "error", err)
+			c.logger.Error("failed to parse peer", "address", p, "error", err)
 			continue
 		}
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
-			c.logger.Error("failed to create addr info for", "address", maddr, "error", err)
+			c.logger.Error("failed to create addr info for peer", "address", maddr, "error", err)
 			continue
 		}
 		addrs = append(addrs, *addrInfo)
