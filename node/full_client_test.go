@@ -24,6 +24,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 
@@ -402,19 +403,21 @@ func TestTx(t *testing.T) {
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{
+	node, err := NewNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
-		}},
+		},
+		Light: false,
+	},
 		key, signingKey, abcicli.NewLocalClient(nil, mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test"},
 		log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
-	rpc := NewClient(node)
+	rpc := node.GetClient()
 	require.NotNil(rpc)
 	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
@@ -424,7 +427,7 @@ func TestTx(t *testing.T) {
 	mockApp.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 	mockApp.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 
-	err = rpc.node.Start()
+	err = node.Start()
 	require.NoError(err)
 
 	tx1 := tmtypes.Tx("tx1")
@@ -659,11 +662,11 @@ func TestValidatorSetHandling(t *testing.T) {
 		waitCh <- nil
 	})
 
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}, Light: false}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
-	rpc := NewClient(node)
+	rpc := node.GetClient()
 	require.NotNil(rpc)
 
 	err = node.Start()
@@ -776,18 +779,18 @@ func getBlockMeta(rpc *FullClient, n int64) *tmtypes.BlockMeta {
 	return bmeta
 }
 
-func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
+func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := NewNode(context.Background(), config.NodeConfig{DALayer: "mock", Light: false}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
-	rpc := NewClient(node)
+	rpc := node.GetClient()
 	require.NotNil(rpc)
 
 	return app, rpc
