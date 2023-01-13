@@ -23,10 +23,6 @@ func NewLightClient(node *LightNode) *LightClient {
 	panic("Not implemented")
 }
 
-func (n *LightNode) GetClient() rpcclient.Client {
-	return NewLightClient(n)
-}
-
 // ABCIInfo returns basic information about application state.
 func (c *LightClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
 	panic("Not implemented")
