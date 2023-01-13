@@ -12,7 +12,6 @@ import (
 
 	mux2 "github.com/gorilla/mux"
 
-	"github.com/celestiaorg/go-cnc"
 	"github.com/celestiaorg/rollmint/da"
 	mockda "github.com/celestiaorg/rollmint/da/mock"
 	"github.com/celestiaorg/rollmint/log"
@@ -69,7 +68,7 @@ func (s *Server) Stop() {
 
 func (s *Server) getHandler() http.Handler {
 	mux := mux2.NewRouter()
-	mux.HandleFunc("/submit_pfd", s.submit).Methods(http.MethodPost)
+	mux.HandleFunc("/submit_pfb", s.submit).Methods(http.MethodPost)
 	mux.HandleFunc("/namespaced_shares/{namespace}/height/{height}", s.shares).Methods(http.MethodGet)
 	mux.HandleFunc("/namespaced_data/{namespace}/height/{height}", s.data).Methods(http.MethodGet)
 
@@ -77,7 +76,7 @@ func (s *Server) getHandler() http.Handler {
 }
 
 func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
-	req := cnc.SubmitPFDRequest{}
+	req := cnc.SubmitPFBRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		s.writeError(w, err)

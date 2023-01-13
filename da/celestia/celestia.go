@@ -9,7 +9,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/go-cnc"
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/types"
@@ -74,7 +73,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, blob, c.config.Fee, c.config.GasLimit)
+	txResponse, err := c.client.SubmitPFB(ctx, c.namespaceID, blob, c.config.Fee, c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
