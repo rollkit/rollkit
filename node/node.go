@@ -38,6 +38,6 @@ func NewNode(
 			logger,
 		)
 	} else {
-		panic("Light node not implemented")
+		return newLightNode()
 	}
 }
