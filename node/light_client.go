@@ -3,10 +3,8 @@ package node
 import (
 	"context"
 
-	abcicli "github.com/tendermint/tendermint/abci/client"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
@@ -183,22 +181,5 @@ func (c *LightClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctype
 //
 // If valid, the tx is automatically added to the mempool.
 func (c *LightClient) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
-	panic("Not implemented")
-}
-
-func (c *LightClient) eventsRoutine(sub types.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
-	panic("Not implemented")
-}
-
-// Try to resubscribe with exponential backoff.
-func (c *LightClient) resubscribe(subscriber string, q tmpubsub.Query) types.Subscription {
-	panic("Not implemented")
-}
-
-func (c *LightClient) appClient() abcicli.Client {
-	panic("Not implemented")
-}
-
-func (c *LightClient) normalizeHeight(height *int64) uint64 {
 	panic("Not implemented")
 }
