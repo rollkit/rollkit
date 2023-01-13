@@ -12,6 +12,8 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
+var _ rpcclient.Client = &LightClient{}
+
 type LightClient struct {
 	*types.EventBus
 	config *config.RPCConfig

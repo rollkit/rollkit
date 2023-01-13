@@ -48,6 +48,8 @@ const (
 	genesisChunkSize = 16 * 1024 * 1024 // 16 MiB
 )
 
+var _ Node = &FullNode{}
+
 // FullNode represents a client node in rollmint network.
 // It connects all the components and orchestrates their work.
 type FullNode struct {

@@ -4,6 +4,8 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 )
 
+var _ Node = &LightNode{}
+
 type LightNode struct {
 	service.BaseService
 }
