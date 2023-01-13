@@ -18,7 +18,3 @@ func (n *LightNode) GetClient() rpcclient.Client {
 func newLightNode() (Node, error) {
 	return &LightNode{}, nil
 }
-
-func (n *LightNode) IsRunning() bool {
-	panic("Not implemented")
-}
