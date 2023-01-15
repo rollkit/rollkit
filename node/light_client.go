@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 
-	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -13,14 +12,14 @@ import (
 var _ rpcclient.Client = &LightClient{}
 
 type LightClient struct {
-	*types.EventBus
-	config *config.RPCConfig
-
-	node LightNode
+	types.EventBus
+	node *LightNode
 }
 
 func NewLightClient(node *LightNode) *LightClient {
-	panic("Not implemented")
+	return &LightClient{
+		node: node,
+	}
 }
 
 // ABCIInfo returns basic information about application state.
