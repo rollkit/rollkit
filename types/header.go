@@ -88,13 +88,13 @@ func (h *Header) VerifyAdjacent(untrst header.Header) error {
 	untrstH, ok := untrst.(*Header)
 	if !ok {
 		return &header.VerifyError{
-			fmt.Errorf("%T is not of type %T", untrst, h),
+			Reason: fmt.Errorf("%T is not of type %T", untrst, h),
 		}
 	}
 
 	if untrstH.Height() != h.Height()+1 {
 		return &header.VerifyError{
-			fmt.Errorf("headers must be adjacent in height: trusted %d, untrusted %d", h.Height(), untrstH.Height()),
+			Reason: fmt.Errorf("headers must be adjacent in height: trusted %d, untrusted %d", h.Height(), untrstH.Height()),
 		}
 	}
 
@@ -106,7 +106,7 @@ func (h *Header) VerifyAdjacent(untrst header.Header) error {
 	// TODO: next validator set is not available
 	if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
 		return &header.VerifyError{
-			fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+			Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
 				h.AggregatorsHash,
 				untrstH.AggregatorsHash,
 			),
@@ -121,12 +121,12 @@ func (h *Header) VerifyNonAdjacent(untrst header.Header) error {
 	untrstH, ok := untrst.(*Header)
 	if !ok {
 		return &header.VerifyError{
-			fmt.Errorf("%T is not of type %T", untrst, h),
+			Reason: fmt.Errorf("%T is not of type %T", untrst, h),
 		}
 	}
 	if untrstH.Height() == h.Height()+1 {
 		return &header.VerifyError{
-			fmt.Errorf(
+			Reason: fmt.Errorf(
 				"headers must be non adjacent in height: trusted %d, untrusted %d",
 				h.Height(),
 				untrstH.Height(),

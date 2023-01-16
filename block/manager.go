@@ -3,7 +3,6 @@ package block
 import (
 	"context"
 	"fmt"
-	"github.com/celestiaorg/go-header"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +14,8 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
+
+	"github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/rollmint/config"
 	"github.com/celestiaorg/rollmint/da"

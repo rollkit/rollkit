@@ -1,9 +1,10 @@
 package store
 
 import (
-	"github.com/celestiaorg/go-header"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/rollmint/types"
 )

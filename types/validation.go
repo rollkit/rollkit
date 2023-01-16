@@ -66,7 +66,7 @@ func (h *SignedHeader) ValidateBasic() error {
 	if h.Commit.Height != uint64(h.Header.Height()) {
 		return fmt.Errorf("height missmatch - header height: %d, commit height: %d", h.Header.Height(), h.Commit.Height)
 	}
-	if bytes.Compare(h.Commit.HeaderHash[:], h.Header.Hash()) != 0 {
+	if !bytes.Equal(h.Commit.HeaderHash[:], h.Header.Hash()) {
 		return fmt.Errorf("hash missmatch - header hash: %s, commit hash: %s", hex.EncodeToString(h.Header.Hash()), hex.EncodeToString(h.Commit.HeaderHash[:]))
 	}
 	return nil

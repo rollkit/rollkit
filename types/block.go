@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding"
+
 	"github.com/celestiaorg/go-header"
 )
 

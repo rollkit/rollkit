@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/go-header"
 	"sync/atomic"
 
 	ds "github.com/ipfs/go-datastore"
@@ -13,6 +12,8 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
+
+	"github.com/celestiaorg/go-header"
 
 	"github.com/celestiaorg/rollmint/types"
 	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"

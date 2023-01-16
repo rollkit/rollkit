@@ -5,17 +5,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/go-header"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
+
+	"github.com/celestiaorg/go-header"
 
 	abciconv "github.com/celestiaorg/rollmint/conv/abci"
 	"github.com/celestiaorg/rollmint/log"
