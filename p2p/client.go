@@ -131,12 +131,12 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
 	}
 
-	c.logger.Debug("blocking blacklisted peers", c.conf.BlockedPeers)
+	c.logger.Debug("blocking blacklisted peers", "blacklist", c.conf.BlockedPeers)
 	if err := c.setupBlockedPeers(c.parseAddrInfoList(c.conf.BlockedPeers)); err != nil {
 		return err
 	}
 
-	c.logger.Debug("allowing whitelisted peers", c.conf.AllowedPeers)
+	c.logger.Debug("allowing whitelisted peers", "whitelist", c.conf.AllowedPeers)
 	if err := c.setupAllowedPeers(c.parseAddrInfoList(c.conf.AllowedPeers)); err != nil {
 		return err
 	}
