@@ -799,6 +799,7 @@ func (c *FullClient) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCh
 }
 
 func (c *FullClient) eventsRoutine(sub types.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
+	defer close(outc)
 	for {
 		select {
 		case msg := <-sub.Out():
