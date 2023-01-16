@@ -10,7 +10,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/multierr"
 
 	abciclient "github.com/tendermint/tendermint/abci/client"
@@ -114,11 +113,7 @@ func NewNode(
 	dalcKV := newPrefixKV(baseKV, dalcPrefix)
 	indexerKV := newPrefixKV(baseKV, indexerPrefix)
 
-	gater, err := conngater.NewBasicConnectionGater(baseKV)
-	if err != nil {
-		return nil, err
-	}
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, gater, logger.With("module", "p2p"))
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"))
 	if err != nil {
 		return nil, err
 	}

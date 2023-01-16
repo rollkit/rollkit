@@ -2,11 +2,11 @@ package p2p
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -85,12 +85,17 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, gater *conngater.BasicConnectionGater, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, errNoPrivKey
 	}
 	if conf.ListenAddress == "" {
 		conf.ListenAddress = config.DefaultListenAddress
+	}
+
+	gater, err := conngater.NewBasicConnectionGater(ds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection gater: %w", err)
 	}
 
 	return &Client{
@@ -126,35 +131,28 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
 	}
 
-	if c.gater != nil {
-		c.logger.Debug("blocking blacklisted peers", c.conf.BlockedPeers)
-		err := c.setupBlockedPeers(c.parseAddrInfoList(c.conf.BlockedPeers))
-		if err != nil {
-			return err
-		}
+	c.logger.Debug("blocking blacklisted peers", c.conf.BlockedPeers)
+	if err := c.setupBlockedPeers(c.parseAddrInfoList(c.conf.BlockedPeers)); err != nil {
+		return err
+	}
 
-		c.logger.Debug("allowing whitelisted peers", c.conf.AllowedPeers)
-		err = c.setupAllowedPeers(c.parseAddrInfoList(c.conf.AllowedPeers))
-		if err != nil {
-			return err
-		}
+	c.logger.Debug("allowing whitelisted peers", c.conf.AllowedPeers)
+	if err := c.setupAllowedPeers(c.parseAddrInfoList(c.conf.AllowedPeers)); err != nil {
+		return err
 	}
 
 	c.logger.Debug("setting up gossiping")
-	err := c.setupGossiping(ctx)
-	if err != nil {
+	if err := c.setupGossiping(ctx); err != nil {
 		return err
 	}
 
 	c.logger.Debug("setting up DHT")
-	err = c.setupDHT(ctx)
-	if err != nil {
+	if err := c.setupDHT(ctx); err != nil {
 		return err
 	}
 
 	c.logger.Debug("setting up active peer discovery")
-	err = c.peerDiscovery(ctx)
-	if err != nil {
+	if err := c.peerDiscovery(ctx); err != nil {
 		return err
 	}
 
@@ -267,12 +265,7 @@ func (c *Client) listen(ctx context.Context) (host.Host, error) {
 		return nil, err
 	}
 
-	opts := []libp2p.Option{libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey)}
-	if c.gater != nil {
-		opts = append(opts, libp2p.ConnectionGater(c.gater))
-	}
-
-	return libp2p.New(opts...)
+	return libp2p.New(libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey), libp2p.ConnectionGater(c.gater))
 }
 
 func (c *Client) setupDHT(ctx context.Context) error {
@@ -332,9 +325,6 @@ func (c *Client) setupPeerDiscovery(ctx context.Context) error {
 }
 
 func (c *Client) setupBlockedPeers(peers []peer.AddrInfo) error {
-	if c.gater == nil {
-		return errors.New("connection gater is nil, cannot blacklist peers")
-	}
 	for _, p := range peers {
 		if err := c.gater.BlockPeer(p.ID); err != nil {
 			return err
@@ -344,9 +334,6 @@ func (c *Client) setupBlockedPeers(peers []peer.AddrInfo) error {
 }
 
 func (c *Client) setupAllowedPeers(peers []peer.AddrInfo) error {
-	if c.gater == nil {
-		return errors.New("connection gater is nil, cannot whitelist peers")
-	}
 	for _, p := range peers {
 		if err := c.gater.UnblockPeer(p.ID); err != nil {
 			return err

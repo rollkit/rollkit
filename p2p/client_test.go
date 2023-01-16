@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,9 +44,13 @@ func TestClientStartup(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			gater, err := conngater.NewBasicConnectionGater(nil)
-			assert.NoError(err)
-			client, err := NewClient(testCase.p2pconf, privKey, "TestChain", gater, test.NewLogger(t))
+			client, err := NewClient(
+				testCase.p2pconf,
+				privKey,
+				"TestChain",
+				dssync.MutexWrap(datastore.NewMapDatastore()),
+				test.NewLogger(t),
+			)
 			assert.NoError(err)
 			assert.NotNil(client)
 
