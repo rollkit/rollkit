@@ -44,13 +44,8 @@ func TestClientStartup(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			client, err := NewClient(
-				testCase.p2pconf,
-				privKey,
-				"TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()),
-				test.NewLogger(t),
-			)
+			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
+				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewLogger(t))
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -198,7 +193,8 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := &test.MockLogger{}
-			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork", nil, logger)
+			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork",
+				dssync.MutexWrap(datastore.NewMapDatastore()), logger)
 			require.NoError(err)
 			require.NotNil(client)
 			actual := client.parseAddrInfoList(c.input)
