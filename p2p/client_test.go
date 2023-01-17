@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -20,16 +22,40 @@ import (
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	client, err := NewClient(config.P2PConfig{}, privKey, "TestChain", test.NewLogger(t))
 	assert := assert.New(t)
-	assert.NoError(err)
-	assert.NotNil(client)
+	testCases := []struct {
+		desc    string
+		p2pconf config.P2PConfig
+	}{
+		{"blank config", config.P2PConfig{}},
+		{"peer whitelisting", config.P2PConfig{
+			ListenAddress: "",
+			Seeds:         "",
+			BlockedPeers:  "",
+			AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+		}},
+		{"peer blacklisting", config.P2PConfig{
+			ListenAddress: "",
+			Seeds:         "",
+			BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+			AllowedPeers:  "",
+		}},
+	}
 
-	err = client.Start(context.Background())
-	defer func() {
-		_ = client.Close()
-	}()
-	assert.NoError(err)
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
+				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewLogger(t))
+			assert.NoError(err)
+			assert.NotNil(client)
+
+			err = client.Start(context.Background())
+			defer func() {
+				_ = client.Close()
+			}()
+			assert.NoError(err)
+		})
+	}
 }
 
 func TestBootstrapping(t *testing.T) {
@@ -167,10 +193,11 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := &test.MockLogger{}
-			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork", logger)
+			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork",
+				dssync.MutexWrap(datastore.NewMapDatastore()), logger)
 			require.NoError(err)
 			require.NotNil(client)
-			actual := client.getSeedAddrInfo(c.input)
+			actual := client.parseAddrInfoList(c.input)
 			assert.NotNil(actual)
 			assert.Equal(c.expected, actual)
 			// ensure that errors are logged
