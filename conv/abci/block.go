@@ -1,8 +1,7 @@
 package abci
 
 import (
-	"time"
-
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -18,8 +17,8 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 			Block: header.Version.Block,
 			App:   header.Version.App,
 		},
-		Height: int64(header.Height),
-		Time:   time.Unix(int64(header.Time), 0),
+		Height: int64(header.Height()),
+		Time:   header.Time(),
 		LastBlockId: tmproto.BlockID{
 			Hash: header.LastHeaderHash[:],
 			PartSetHeader: tmproto.PartSetHeader{
@@ -36,7 +35,7 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 		LastResultsHash:    header.LastResultsHash[:],
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
-		ChainID:            header.ChainID,
+		ChainID:            header.ChainID(),
 	}, nil
 }
 
@@ -48,8 +47,8 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 			Block: header.Version.Block,
 			App:   header.Version.App,
 		},
-		Height: int64(header.Height),
-		Time:   time.Unix(int64(header.Time), 0),
+		Height: int64(header.Height()),
+		Time:   header.Time(),
 		LastBlockID: tmtypes.BlockID{
 			Hash: header.LastHeaderHash[:],
 			PartSetHeader: tmtypes.PartSetHeader{
@@ -66,7 +65,7 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		LastResultsHash:    header.LastResultsHash[:],
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
-		ChainID:            header.ChainID,
+		ChainID:            header.ChainID(),
 	}, nil
 }
 
@@ -122,7 +121,7 @@ func ToABCICommit(commit *types.Commit) *tmtypes.Commit {
 		Height: int64(commit.Height),
 		Round:  0,
 		BlockID: tmtypes.BlockID{
-			Hash:          commit.HeaderHash[:],
+			Hash:          tmbytes.HexBytes(commit.HeaderHash),
 			PartSetHeader: tmtypes.PartSetHeader{},
 		},
 	}

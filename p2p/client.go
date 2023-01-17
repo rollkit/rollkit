@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -17,6 +18,7 @@ import (
 	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	discutil "github.com/libp2p/go-libp2p/p2p/discovery/util"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
@@ -55,9 +57,10 @@ type Client struct {
 	chainID string
 	privKey crypto.PrivKey
 
-	host host.Host
-	dht  *dht.IpfsDHT
-	disc *discovery.RoutingDiscovery
+	host  host.Host
+	dht   *dht.IpfsDHT
+	disc  *discovery.RoutingDiscovery
+	gater *conngater.BasicConnectionGater
 
 	txGossiper  *Gossiper
 	txValidator GossipValidator
@@ -82,15 +85,22 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger) (*Client, error) {
 	if privKey == nil {
 		return nil, errNoPrivKey
 	}
 	if conf.ListenAddress == "" {
 		conf.ListenAddress = config.DefaultListenAddress
 	}
+
+	gater, err := conngater.NewBasicConnectionGater(ds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection gater: %w", err)
+	}
+
 	return &Client{
 		conf:    conf,
+		gater:   gater,
 		privKey: privKey,
 		chainID: chainID,
 		logger:  logger,
@@ -121,21 +131,28 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 		c.logger.Info("listening on", "address", fmt.Sprintf("%s/p2p/%s", a, c.host.ID()))
 	}
 
+	c.logger.Debug("blocking blacklisted peers", "blacklist", c.conf.BlockedPeers)
+	if err := c.setupBlockedPeers(c.parseAddrInfoList(c.conf.BlockedPeers)); err != nil {
+		return err
+	}
+
+	c.logger.Debug("allowing whitelisted peers", "whitelist", c.conf.AllowedPeers)
+	if err := c.setupAllowedPeers(c.parseAddrInfoList(c.conf.AllowedPeers)); err != nil {
+		return err
+	}
+
 	c.logger.Debug("setting up gossiping")
-	err := c.setupGossiping(ctx)
-	if err != nil {
+	if err := c.setupGossiping(ctx); err != nil {
 		return err
 	}
 
 	c.logger.Debug("setting up DHT")
-	err = c.setupDHT(ctx)
-	if err != nil {
+	if err := c.setupDHT(ctx); err != nil {
 		return err
 	}
 
 	c.logger.Debug("setting up active peer discovery")
-	err = c.peerDiscovery(ctx)
-	if err != nil {
+	if err := c.peerDiscovery(ctx); err != nil {
 		return err
 	}
 
@@ -243,22 +260,16 @@ func (c *Client) Peers() []PeerConnection {
 }
 
 func (c *Client) listen(ctx context.Context) (host.Host, error) {
-	var err error
 	maddr, err := multiaddr.NewMultiaddr(c.conf.ListenAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	host, err := libp2p.New(libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey))
-	if err != nil {
-		return nil, err
-	}
-
-	return host, nil
+	return libp2p.New(libp2p.ListenAddrs(maddr), libp2p.Identity(c.privKey), libp2p.ConnectionGater(c.gater))
 }
 
 func (c *Client) setupDHT(ctx context.Context) error {
-	seedNodes := c.getSeedAddrInfo(c.conf.Seeds)
+	seedNodes := c.parseAddrInfoList(c.conf.Seeds)
 	if len(seedNodes) == 0 {
 		c.logger.Info("no seed nodes - only listening for connections")
 	}
@@ -310,6 +321,24 @@ func (c *Client) setupPeerDiscovery(ctx context.Context) error {
 	case <-c.dht.RefreshRoutingTable():
 	}
 	c.disc = discovery.NewRoutingDiscovery(c.dht)
+	return nil
+}
+
+func (c *Client) setupBlockedPeers(peers []peer.AddrInfo) error {
+	for _, p := range peers {
+		if err := c.gater.BlockPeer(p.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Client) setupAllowedPeers(peers []peer.AddrInfo) error {
+	for _, p := range peers {
+		if err := c.gater.UnblockPeer(p.ID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -377,21 +406,22 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) getSeedAddrInfo(seedStr string) []peer.AddrInfo {
-	if len(seedStr) == 0 {
+// parseAddrInfoList parses a comma separated string of multiaddrs into a list of peer.AddrInfo structs
+func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
+	if len(addrInfoStr) == 0 {
 		return []peer.AddrInfo{}
 	}
-	seeds := strings.Split(seedStr, ",")
-	addrs := make([]peer.AddrInfo, 0, len(seeds))
-	for _, s := range seeds {
-		maddr, err := multiaddr.NewMultiaddr(s)
+	peers := strings.Split(addrInfoStr, ",")
+	addrs := make([]peer.AddrInfo, 0, len(peers))
+	for _, p := range peers {
+		maddr, err := multiaddr.NewMultiaddr(p)
 		if err != nil {
-			c.logger.Error("failed to parse seed node", "address", s, "error", err)
+			c.logger.Error("failed to parse peer", "address", p, "error", err)
 			continue
 		}
 		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 		if err != nil {
-			c.logger.Error("failed to create addr info for seed", "address", maddr, "error", err)
+			c.logger.Error("failed to create addr info for peer", "address", maddr, "error", err)
 			continue
 		}
 		addrs = append(addrs, *addrInfo)

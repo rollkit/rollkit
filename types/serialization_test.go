@@ -43,9 +43,11 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 					Block: 1,
 					App:   2,
 				},
-				NamespaceID:     NamespaceID{0, 1, 2, 3, 4, 5, 6, 7},
-				Height:          3,
-				Time:            4567,
+				NamespaceID: NamespaceID{0, 1, 2, 3, 4, 5, 6, 7},
+				BaseHeader: BaseHeader{
+					Height: 3,
+					Time:   4567,
+				},
 				LastHeaderHash:  h[0],
 				LastCommitHash:  h[1],
 				DataHash:        h[2],
@@ -63,7 +65,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			},
 			LastCommit: Commit{
 				Height:     8,
-				HeaderHash: h[7],
+				HeaderHash: h[7][:],
 				Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 			},
 		}},

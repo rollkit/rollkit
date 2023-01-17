@@ -98,13 +98,8 @@ func newFullNode(
 		return nil, err
 	}
 
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, logger.With("module", "p2p"))
-	if err != nil {
-		return nil, err
-	}
-
 	var baseKV ds.TxnDatastore
-
+	var err error
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV, err = store.NewDefaultInMemoryKVStore()
@@ -119,6 +114,10 @@ func newFullNode(
 	dalcKV := newPrefixKV(baseKV, dalcPrefix)
 	indexerKV := newPrefixKV(baseKV, indexerPrefix)
 
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"))
+	if err != nil {
+		return nil, err
+	}
 	s := store.New(ctx, mainKV)
 
 	dalc := registry.GetClient(conf.DALayer)

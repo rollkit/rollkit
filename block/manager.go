@@ -15,6 +15,8 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
+	"github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/rollmint/config"
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/log"
@@ -195,8 +197,8 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 		case <-daTicker.C:
 			m.retrieveCond.Signal()
 		case header := <-m.HeaderInCh:
-			m.logger.Debug("block header received", "height", header.Header.Height, "hash", header.Header.Hash())
-			newHeight := header.Header.Height
+			m.logger.Debug("block header received", "height", header.Header.Height(), "hash", header.Header.Hash())
+			newHeight := header.Header.BaseHeader.Height
 			currentHeight := m.store.Height()
 			// in case of client reconnecting after being offline
 			// newHeight may be significantly larger than currentHeight
@@ -223,7 +225,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
-			m.syncCache[block.Header.Height] = block
+			m.syncCache[block.Header.BaseHeader.Height] = block
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
@@ -279,7 +281,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	}
 
 	if b1 != nil && commit != nil {
-		m.logger.Info("Syncing block", "height", b1.Header.Height)
+		m.logger.Info("Syncing block", "height", b1.Header.Height())
 		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -292,9 +294,9 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
-		m.store.SetHeight(b1.Header.Height)
+		m.store.SetHeight(uint64(b1.Header.Height()))
 
-		err = m.store.SaveBlockResponses(b1.Header.Height, responses)
+		err = m.store.SaveBlockResponses(uint64(b1.Header.Height()), responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
@@ -412,7 +414,7 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 		return nil, err
 	}
 	return &types.Commit{
-		Height:     header.Height,
+		Height:     uint64(header.Height()),
 		HeaderHash: header.Hash(),
 		Signatures: []types.Signature{sign},
 	}, nil
@@ -420,14 +422,14 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 
 func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
-	var lastHeaderHash [32]byte
+	var lastHeaderHash header.Hash
 	var err error
 	height := m.store.Height()
 	newHeight := height + 1
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
-		lastCommit = &types.Commit{Height: height, HeaderHash: [32]byte{}}
+		lastCommit = &types.Commit{Height: height}
 	} else {
 		lastCommit, err = m.store.LoadCommit(height)
 		if err != nil {
@@ -499,7 +501,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(block.Header.Height, responses)
+	err = m.store.SaveBlockResponses(uint64(block.Header.Height()), responses)
 	if err != nil {
 		return err
 	}
@@ -515,13 +517,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveValidators commits the DB tx
-	err = m.store.SaveValidators(block.Header.Height, m.lastState.Validators)
+	err = m.store.SaveValidators(uint64(block.Header.Height()), m.lastState.Validators)
 	if err != nil {
 		return err
 	}
 
 	// Only update the stored height after successfully submitting to DA layer and committing to the DB
-	m.store.SetHeight(block.Header.Height)
+	m.store.SetHeight(uint64(block.Header.Height()))
 
 	m.publishSignedHeader(block, commit)
 

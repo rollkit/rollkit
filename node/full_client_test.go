@@ -246,7 +246,7 @@ func TestGetBlock(t *testing.T) {
 
 	block := getRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
-	rpc.node.Store.SetHeight(block.Header.Height)
+	rpc.node.Store.SetHeight(uint64(block.Header.Height()))
 	require.NoError(err)
 
 	blockResp, err := rpc.Block(context.Background(), nil)
@@ -272,17 +272,17 @@ func TestGetCommit(t *testing.T) {
 	require.NoError(err)
 
 	for _, b := range blocks {
-		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: b.Header.Height})
-		rpc.node.Store.SetHeight(b.Header.Height)
+		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: uint64(b.Header.Height())})
+		rpc.node.Store.SetHeight(uint64(b.Header.Height()))
 		require.NoError(err)
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
 		for _, b := range blocks {
-			h := int64(b.Header.Height)
+			h := b.Header.Height()
 			commit, err := rpc.Commit(context.Background(), &h)
 			require.NoError(err)
 			require.NotNil(commit)
-			assert.Equal(b.Header.Height, uint64(commit.Height))
+			assert.Equal(b.Header.Height(), commit.Height)
 		}
 	})
 
@@ -290,7 +290,7 @@ func TestGetCommit(t *testing.T) {
 		commit, err := rpc.Commit(context.Background(), nil)
 		require.NoError(err)
 		require.NotNil(commit)
-		assert.Equal(blocks[3].Header.Height, uint64(commit.Height))
+		assert.Equal(blocks[3].Header.Height(), commit.Height)
 	})
 
 	err = rpc.node.Stop()
@@ -376,7 +376,7 @@ func TestGetBlockByHash(t *testing.T) {
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	require.NoError(err)
 
-	height := int64(block.Header.Height)
+	height := block.Header.Height()
 	retrievedBlock, err := rpc.Block(context.Background(), &height)
 	require.NoError(err)
 	require.NotNil(retrievedBlock)
@@ -565,7 +565,7 @@ func TestBlockchainInfo(t *testing.T) {
 			Height:     uint64(h),
 			HeaderHash: block.Header.Hash(),
 		})
-		rpc.node.Store.SetHeight(block.Header.Height)
+		rpc.node.Store.SetHeight(uint64(block.Header.Height()))
 		require.NoError(err)
 	}
 
@@ -719,7 +719,9 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
 	block := &types.Block{
 		Header: types.Header{
-			Height:          height,
+			BaseHeader: types.BaseHeader{
+				Height: height,
+			},
 			Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
 			ProposerAddress: proposerAddr,
 		},
@@ -968,13 +970,13 @@ func TestStatus(t *testing.T) {
 	assert.NotNil(rpc)
 
 	earliestBlock := getRandomBlockWithProposer(1, 1, validators[0].Address.Bytes())
-	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{Height: earliestBlock.Header.Height})
-	rpc.node.Store.SetHeight(earliestBlock.Header.Height)
+	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{Height: uint64(earliestBlock.Header.Height())})
+	rpc.node.Store.SetHeight(uint64(earliestBlock.Header.Height()))
 	require.NoError(err)
 
 	latestBlock := getRandomBlockWithProposer(2, 1, validators[1].Address.Bytes())
-	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{Height: latestBlock.Header.Height})
-	rpc.node.Store.SetHeight(latestBlock.Header.Height)
+	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{Height: uint64(latestBlock.Header.Height())})
+	rpc.node.Store.SetHeight(uint64(latestBlock.Header.Height()))
 	require.NoError(err)
 
 	err = node.Start()

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -62,12 +63,11 @@ func (h *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	if h.Commit.Height != h.Header.Height {
-		return fmt.Errorf("height missmatch - header height: %d, commit height: %d", h.Header.Height, h.Commit.Height)
+	if h.Commit.Height != uint64(h.Header.Height()) {
+		return fmt.Errorf("height missmatch - header height: %d, commit height: %d", h.Header.Height(), h.Commit.Height)
 	}
-	if h.Commit.HeaderHash != h.Header.Hash() {
-		hash := h.Header.Hash()
-		return fmt.Errorf("hash missmatch - header hash: %s, commit hash: %s", hex.EncodeToString(hash[:]), hex.EncodeToString(h.Commit.HeaderHash[:]))
+	if !bytes.Equal(h.Commit.HeaderHash[:], h.Header.Hash()) {
+		return fmt.Errorf("hash missmatch - header hash: %s, commit hash: %s", hex.EncodeToString(h.Header.Hash()), hex.EncodeToString(h.Commit.HeaderHash[:]))
 	}
 	return nil
 }

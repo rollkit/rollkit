@@ -189,8 +189,8 @@ func (h *Header) ToProto() *pb.Header {
 			App:   h.Version.App,
 		},
 		NamespaceId:     h.NamespaceID[:],
-		Height:          h.Height,
-		Time:            h.Time,
+		Height:          h.BaseHeader.Height,
+		Time:            h.BaseHeader.Time,
 		LastHeaderHash:  h.LastHeaderHash[:],
 		LastCommitHash:  h.LastCommitHash[:],
 		DataHash:        h.DataHash[:],
@@ -199,7 +199,7 @@ func (h *Header) ToProto() *pb.Header {
 		LastResultsHash: h.LastResultsHash[:],
 		ProposerAddress: h.ProposerAddress[:],
 		AggregatorsHash: h.AggregatorsHash[:],
-		ChainId:         h.ChainID,
+		ChainId:         h.BaseHeader.ChainID,
 	}
 }
 
@@ -207,12 +207,12 @@ func (h *Header) ToProto() *pb.Header {
 func (h *Header) FromProto(other *pb.Header) error {
 	h.Version.Block = other.Version.Block
 	h.Version.App = other.Version.App
-	h.ChainID = other.ChainId
+	h.BaseHeader.ChainID = other.ChainId
 	if !safeCopy(h.NamespaceID[:], other.NamespaceId) {
 		return errors.New("invalid length of 'NamespaceId'")
 	}
-	h.Height = other.Height
-	h.Time = other.Time
+	h.BaseHeader.Height = other.Height
+	h.BaseHeader.Time = other.Time
 	if !safeCopy(h.LastHeaderHash[:], other.LastHeaderHash) {
 		return errors.New("invalid length of 'LastHeaderHash'")
 	}
@@ -293,7 +293,7 @@ func (b *Block) FromProto(other *pb.Block) error {
 func (c *Commit) ToProto() *pb.Commit {
 	return &pb.Commit{
 		Height:     c.Height,
-		HeaderHash: c.HeaderHash[:],
+		HeaderHash: c.HeaderHash,
 		Signatures: signaturesToByteSlices(c.Signatures),
 	}
 }
@@ -301,9 +301,7 @@ func (c *Commit) ToProto() *pb.Commit {
 // FromProto fills Commit with data from its protobuf representation.
 func (c *Commit) FromProto(other *pb.Commit) error {
 	c.Height = other.Height
-	if !safeCopy(c.HeaderHash[:], other.HeaderHash) {
-		return errors.New("invalid length of HeaderHash")
-	}
+	c.HeaderHash = other.HeaderHash
 	c.Signatures = byteSlicesToSignatures(other.Signatures)
 
 	return nil

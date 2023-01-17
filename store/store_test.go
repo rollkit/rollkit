@@ -51,7 +51,7 @@ func TestStoreHeight(t *testing.T) {
 
 			for _, block := range c.blocks {
 				err := bstore.SaveBlock(block, &types.Commit{})
-				bstore.SetHeight(block.Header.Height)
+				bstore.SetHeight(uint64(block.Header.Height()))
 				assert.NoError(err)
 			}
 
@@ -102,7 +102,7 @@ func TestStoreLoad(t *testing.T) {
 
 				lastCommit := &types.Commit{}
 				for _, block := range c.blocks {
-					commit := &types.Commit{Height: block.Header.Height, HeaderHash: block.Header.Hash()}
+					commit := &types.Commit{Height: uint64(block.Header.Height()), HeaderHash: block.Header.Hash()}
 					block.LastCommit = *lastCommit
 					err := bstore.SaveBlock(block, commit)
 					require.NoError(err)
@@ -110,18 +110,18 @@ func TestStoreLoad(t *testing.T) {
 				}
 
 				for _, expected := range c.blocks {
-					block, err := bstore.LoadBlock(expected.Header.Height)
+					block, err := bstore.LoadBlock(uint64(expected.Header.Height()))
 					assert.NoError(err)
 					assert.NotNil(block)
 					assert.Equal(expected, block)
-					assert.Equal(expected.Header.Height-1, block.LastCommit.Height)
+					assert.Equal(expected.Header.Height()-1, int64(block.LastCommit.Height))
 					assert.Equal(expected.LastCommit.Height, block.LastCommit.Height)
 					assert.Equal(expected.LastCommit.HeaderHash, block.LastCommit.HeaderHash)
 
-					commit, err := bstore.LoadCommit(expected.Header.Height)
+					commit, err := bstore.LoadCommit(uint64(expected.Header.Height()))
 					assert.NoError(err)
 					assert.NotNil(commit)
-					assert.Equal(expected.Header.Height, commit.Height)
+					assert.Equal(uint64(expected.Header.Height()), commit.Height)
 					headerHash := expected.Header.Hash()
 					assert.Equal(headerHash, commit.HeaderHash)
 				}
@@ -202,7 +202,9 @@ func TestBlockResponses(t *testing.T) {
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
 		Header: types.Header{
-			Height: height,
+			BaseHeader: types.BaseHeader{
+				Height: height,
+			},
 		},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),
