@@ -81,7 +81,7 @@ func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	err = m.dalcKV.Put(ctx, getKey(daHeight, block.Header.Height), hash[:])
+	err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.Header.Height())), hash[:])
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}

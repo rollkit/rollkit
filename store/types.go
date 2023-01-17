@@ -4,6 +4,8 @@ import (
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmtypes "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/go-header"
+
 	"github.com/celestiaorg/rollmint/types"
 )
 
@@ -21,7 +23,7 @@ type Store interface {
 	// LoadBlock returns block at given height, or error if it's not found in Store.
 	LoadBlock(height uint64) (*types.Block, error)
 	// LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
-	LoadBlockByHash(hash [32]byte) (*types.Block, error)
+	LoadBlockByHash(hash header.Hash) (*types.Block, error)
 
 	// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
 	SaveBlockResponses(height uint64, responses *tmstate.ABCIResponses) error
@@ -32,7 +34,7 @@ type Store interface {
 	// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
 	LoadCommit(height uint64) (*types.Commit, error)
 	// LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-	LoadCommitByHash(hash [32]byte) (*types.Commit, error)
+	LoadCommitByHash(hash header.Hash) (*types.Commit, error)
 
 	// UpdateState updates state saved in Store. Only one State is stored.
 	// If there is no State in Store, state will be saved.

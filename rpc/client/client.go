@@ -435,10 +435,7 @@ func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock,
 
 // BlockByHash returns BlockID and block itself for given hash.
 func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
-	var h [32]byte
-	copy(h[:], hash)
-
-	block, err := c.node.Store.LoadBlockByHash(h)
+	block, err := c.node.Store.LoadBlockByHash(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +446,7 @@ func (c *Client) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBl
 	}
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
-			Hash: h[:],
+			Hash: hash,
 			PartSetHeader: types.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
@@ -703,7 +700,7 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
-	validators, err := c.node.Store.LoadValidators(latest.Header.Height)
+	validators, err := c.node.Store.LoadValidators(uint64(latest.Header.Height()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
 	}
@@ -737,12 +734,12 @@ func (c *Client) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		SyncInfo: ctypes.SyncInfo{
 			LatestBlockHash:     latest.Header.DataHash[:],
 			LatestAppHash:       latest.Header.AppHash[:],
-			LatestBlockHeight:   int64(latest.Header.Height),
-			LatestBlockTime:     time.Unix(0, int64(latest.Header.Time)),
+			LatestBlockHeight:   latest.Header.Height(),
+			LatestBlockTime:     latest.Header.Time(),
 			EarliestBlockHash:   initial.Header.DataHash[:],
 			EarliestAppHash:     initial.Header.AppHash[:],
-			EarliestBlockHeight: int64(initial.Header.Height),
-			EarliestBlockTime:   time.Unix(0, int64(initial.Header.Time)),
+			EarliestBlockHeight: initial.Header.Height(),
+			EarliestBlockTime:   initial.Header.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
