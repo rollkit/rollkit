@@ -94,6 +94,12 @@ func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data
 	return &ctypes.ResultABCIQuery{Response: *resQuery}, nil
 }
 
+// Centralized sequencers can expose this RPC endpoint publicly to receive transactions directly
+// skipping the inefficient gossip
+func (c *FullClient) DirectTx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
+	panic("Not implemented")
+}
+
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
 func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {

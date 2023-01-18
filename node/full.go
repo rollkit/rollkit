@@ -230,7 +230,7 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx)
+		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.validateTx)
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
@@ -313,6 +313,32 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 
 		return checkTxResp.Code == abci.CodeTypeOK
 	}
+}
+
+func (n *FullNode) validateTx(m *p2p.GossipMessage) bool {
+	n.Logger.Debug("transaction received", "bytes", len(m.Data))
+	checkTxResCh := make(chan *abci.Response, 1)
+	err := n.Mempool.CheckTx(m.Data, func(resp *abci.Response) {
+		checkTxResCh <- resp
+	}, mempool.TxInfo{
+		SenderID:    n.mempoolIDs.GetForPeer(m.From),
+		SenderP2PID: corep2p.ID(m.From),
+	})
+	switch {
+	case errors.Is(err, mempool.ErrTxInCache):
+		return true
+	case errors.Is(err, mempool.ErrMempoolIsFull{}):
+		return true
+	case errors.Is(err, mempool.ErrTxTooLarge{}):
+		return false
+	case errors.Is(err, mempool.ErrPreCheck{}):
+		return false
+	default:
+	}
+	res := <-checkTxResCh
+	checkTxResp := res.GetCheckTx()
+
+	return checkTxResp.Code == abci.CodeTypeOK
 }
 
 // newHeaderValidator returns a pubsub validator that runs basic checks and forwards

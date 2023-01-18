@@ -21,6 +21,7 @@ import (
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/mempool"
+	"github.com/celestiaorg/rollmint/p2p"
 	"github.com/celestiaorg/rollmint/state"
 	"github.com/celestiaorg/rollmint/store"
 	"github.com/celestiaorg/rollmint/types"
@@ -169,10 +170,18 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context) {
+func (m *Manager) AggregationLoop(ctx context.Context, ingress chan *p2p.GossipMessage, txVal p2p.GossipValidator) {
 	timer := time.NewTimer(0)
 	for {
 		select {
+		case msg := <-ingress:
+			m.logger.Debug("Received transactions directly", "from", msg.From)
+			if txVal(msg) {
+				m.logger.Debug("Tx is valid!")
+			} else {
+				m.logger.Debug("Tx is invalid :(")
+			}
+
 		case <-ctx.Done():
 			return
 		case <-timer.C:
