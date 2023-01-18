@@ -15,8 +15,6 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/go-header"
-
 	"github.com/celestiaorg/rollmint/config"
 	"github.com/celestiaorg/rollmint/da"
 	"github.com/celestiaorg/rollmint/log"
@@ -422,7 +420,7 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 
 func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
-	var lastHeaderHash header.Hash
+	var lastHeaderHash types.Hash
 	var err error
 	height := m.store.Height()
 	newHeight := height + 1

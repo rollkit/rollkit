@@ -1,7 +1,6 @@
 package abci
 
 import (
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -50,19 +49,19 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		Height: int64(header.Height()),
 		Time:   header.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: header.LastHeaderHash[:],
+			Hash: types.ConvertToHexBytes(header.LastHeaderHash[:]),
 			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     header.LastCommitHash[:],
-		DataHash:           header.DataHash[:],
-		ValidatorsHash:     header.AggregatorsHash[:],
+		LastCommitHash:     types.ConvertToHexBytes(header.LastCommitHash[:]),
+		DataHash:           types.ConvertToHexBytes(header.DataHash[:]),
+		ValidatorsHash:     types.ConvertToHexBytes(header.AggregatorsHash[:]),
 		NextValidatorsHash: nil,
-		ConsensusHash:      header.ConsensusHash[:],
-		AppHash:            header.AppHash[:],
-		LastResultsHash:    header.LastResultsHash[:],
+		ConsensusHash:      types.ConvertToHexBytes(header.ConsensusHash[:]),
+		AppHash:            types.ConvertToHexBytes(header.AppHash[:]),
+		LastResultsHash:    types.ConvertToHexBytes(header.LastResultsHash[:]),
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 		ChainID:            header.ChainID(),
@@ -92,7 +91,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = block.Header.DataHash[:]
+	abciBlock.Header.DataHash = types.ConvertToHexBytes(block.Header.DataHash[:])
 
 	return &abciBlock, nil
 }
@@ -121,7 +120,7 @@ func ToABCICommit(commit *types.Commit) *tmtypes.Commit {
 		Height: int64(commit.Height),
 		Round:  0,
 		BlockID: tmtypes.BlockID{
-			Hash:          tmbytes.HexBytes(commit.HeaderHash),
+			Hash:          types.ConvertToHexBytes(commit.HeaderHash),
 			PartSetHeader: tmtypes.PartSetHeader{},
 		},
 	}

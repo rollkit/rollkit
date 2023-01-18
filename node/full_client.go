@@ -25,6 +25,7 @@ import (
 	rconfig "github.com/celestiaorg/rollmint/config"
 	abciconv "github.com/celestiaorg/rollmint/conv/abci"
 	"github.com/celestiaorg/rollmint/mempool"
+	rtypes "github.com/celestiaorg/rollmint/types"
 )
 
 const (
@@ -426,7 +427,7 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 	}
 	return &ctypes.ResultBlock{
 		BlockID: types.BlockID{
-			Hash: hash[:],
+			Hash: rtypes.ConvertToHexBytes(hash[:]),
 			PartSetHeader: types.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
@@ -735,12 +736,12 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     latest.Header.DataHash[:],
-			LatestAppHash:       latest.Header.AppHash[:],
+			LatestBlockHash:     rtypes.ConvertToHexBytes(latest.Header.DataHash[:]),
+			LatestAppHash:       rtypes.ConvertToHexBytes(latest.Header.AppHash[:]),
 			LatestBlockHeight:   latest.Header.Height(),
 			LatestBlockTime:     latest.Header.Time(),
-			EarliestBlockHash:   initial.Header.DataHash[:],
-			EarliestAppHash:     initial.Header.AppHash[:],
+			EarliestBlockHash:   rtypes.ConvertToHexBytes(initial.Header.DataHash[:]),
+			EarliestAppHash:     rtypes.ConvertToHexBytes(initial.Header.AppHash[:]),
 			EarliestBlockHeight: initial.Header.Height(),
 			EarliestBlockTime:   initial.Header.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height

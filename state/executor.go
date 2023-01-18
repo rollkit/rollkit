@@ -9,14 +9,11 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
-
-	"github.com/celestiaorg/go-header"
 
 	abciconv "github.com/celestiaorg/rollmint/conv/abci"
 	"github.com/celestiaorg/rollmint/log"
@@ -89,7 +86,7 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash header.Hash, state types.State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
@@ -109,8 +106,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			NamespaceID: e.namespaceID,
 			//LastHeaderHash: lastHeaderHash,
 			//LastCommitHash:  lastCommitHash,
-			DataHash:        [32]byte{},
-			ConsensusHash:   [32]byte{},
+			DataHash:        types.Hash{},
+			ConsensusHash:   types.Hash{},
 			AppHash:         state.AppHash,
 			LastResultsHash: state.LastResultsHash,
 			ProposerAddress: e.proposerAddress,
@@ -222,7 +219,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastBlockHeight: block.Header.Height(),
 		LastBlockTime:   block.Header.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: tmbytes.HexBytes(block.Header.Hash()),
+			Hash: types.ConvertToHexBytes(block.Header.Hash()),
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,
@@ -231,7 +228,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
-		AppHash:                          [32]byte{},
+		AppHash:                          types.Hash{},
 	}
 	copy(s.LastResultsHash[:], tmtypes.NewResults(abciResponses.DeliverTxs).Hash())
 

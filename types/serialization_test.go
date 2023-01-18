@@ -23,9 +23,9 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	require := require.New(t)
 
 	// create random hashes
-	h := [][32]byte{}
+	h := []Hash{}
 	for i := 0; i < 8; i++ {
-		var h1 [32]byte
+		var h1 Hash
 		n, err := rand.Read(h1[:])
 		require.Equal(32, n)
 		require.NoError(err)
@@ -156,8 +156,8 @@ func TestStateRoundTrip(t *testing.T) {
 					},
 				},
 				LastHeightConsensusParamsChanged: 12345,
-				LastResultsHash:                  [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
-				AppHash:                          [32]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
+				LastResultsHash:                  Hash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
+				AppHash:                          Hash{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
 			},
 		},
 	}

@@ -7,7 +7,17 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
+
+type Hash = header.Hash
+
+func ConvertToHexBytes(hash Hash) tmbytes.HexBytes {
+	if hash == nil {
+		return nil
+	}
+	return tmbytes.HexBytes(hash)
+}
 
 // BaseHeader contains the most basic data of a header
 type BaseHeader struct {
@@ -30,18 +40,18 @@ type Header struct {
 	NamespaceID NamespaceID
 
 	// prev block info
-	LastHeaderHash [32]byte
+	LastHeaderHash Hash
 
 	// hashes of block data
-	LastCommitHash [32]byte // commit from aggregator(s) from the last block
-	DataHash       [32]byte // Block.Data root aka Transactions
-	ConsensusHash  [32]byte // consensus params for current block
-	AppHash        [32]byte // state after applying txs from the current block
+	LastCommitHash Hash // commit from aggregator(s) from the last block
+	DataHash       Hash // Block.Data root aka Transactions
+	ConsensusHash  Hash // consensus params for current block
+	AppHash        Hash // state after applying txs from the current block
 
 	// Root hash of all results from the txs from the previous block.
 	// This is ABCI specific but smart-contract chains require some way of committing
 	// to transaction receipts/results.
-	LastResultsHash [32]byte
+	LastResultsHash Hash
 
 	// Note that the address can be derived from the pubkey which can be derived
 	// from the signature when using secp256k.
@@ -50,7 +60,7 @@ type Header struct {
 	ProposerAddress []byte // original proposer of the block
 
 	// Hash of block aggregator set, at a time of block creation
-	AggregatorsHash [32]byte
+	AggregatorsHash Hash
 }
 
 func (h *Header) New() header.Header {
@@ -65,7 +75,7 @@ func (h *Header) Height() int64 {
 	return int64(h.BaseHeader.Height)
 }
 
-func (h *Header) LastHeader() header.Hash {
+func (h *Header) LastHeader() Hash {
 	return h.LastHeaderHash[:]
 }
 

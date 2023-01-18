@@ -52,10 +52,10 @@ type State struct {
 	LastHeightConsensusParamsChanged int64
 
 	// Merkle root of the results from executing prev block
-	LastResultsHash [32]byte
+	LastResultsHash Hash
 
 	// the latest AppHash we've received from calling abci.Commit()
-	AppHash [32]byte
+	AppHash Hash
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
