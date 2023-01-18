@@ -11,7 +11,7 @@ ABCI-client implementation for Optimistic Rollups.
 
 ## Building From Source
 
-Requires Go version >= 1.17.
+Requires Go version >= 1.19.
 
 To build:
 
