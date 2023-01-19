@@ -19,6 +19,7 @@ const (
 	flagDAStartHeight = "rollmint.da_start_height"
 	flagNamespaceID   = "rollmint.namespace_id"
 	flagFraudProofs   = "rollmint.experimental_insecure_fraud_proofs"
+	flagLight         = "rollmint.light"
 )
 
 // NodeConfig stores rollmint node configuration.
@@ -33,6 +34,7 @@ type NodeConfig struct {
 	BlockManagerConfig `mapstructure:",squash"`
 	DALayer            string `mapstructure:"da_layer"`
 	DAConfig           string `mapstructure:"da_config"`
+	Light              bool   `mapstructure:"light"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
@@ -59,6 +61,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nsID := v.GetString(flagNamespaceID)
 	nc.FraudProofs = v.GetBool(flagFraudProofs)
+	nc.Light = v.GetBool(flagLight)
 	bytes, err := hex.DecodeString(nsID)
 	if err != nil {
 		return err
@@ -80,4 +83,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
+	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 }
