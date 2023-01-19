@@ -172,6 +172,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	height := m.store.Height()
 	var delay time.Duration
 
+	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
 	if height < initialHeight {
 		delay = time.Until(m.genesis.GenesisTime)
 	} else if height >= initialHeight {
