@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/go-header"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	"github.com/celestiaorg/go-header"
 )
 
 type Hash = header.Hash
