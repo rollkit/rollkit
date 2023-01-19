@@ -106,8 +106,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			NamespaceID: e.namespaceID,
 			//LastHeaderHash: lastHeaderHash,
 			//LastCommitHash:  lastCommitHash,
-			DataHash:        types.Hash{},
-			ConsensusHash:   types.Hash{},
+			DataHash:        make(types.Hash, 32),
+			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         state.AppHash,
 			LastResultsHash: state.LastResultsHash,
 			ProposerAddress: e.proposerAddress,
@@ -228,7 +228,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
-		AppHash:                          types.Hash{},
+		AppHash:                          make(types.Hash, 32),
 	}
 	copy(s.LastResultsHash[:], tmtypes.NewResults(abciResponses.DeliverTxs).Hash())
 

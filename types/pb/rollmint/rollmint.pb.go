@@ -1631,7 +1631,7 @@ func (m *Header) Unmarshal(dAtA []byte) error {
 			}
 			m.LastHeaderHash = append(m.LastHeaderHash[:0], dAtA[iNdEx:postIndex]...)
 			if m.LastHeaderHash == nil {
-				m.LastHeaderHash = []byte{}
+				m.LastHeaderHash = make([]byte, 32)
 			}
 			iNdEx = postIndex
 		case 6:

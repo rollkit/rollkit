@@ -1,13 +1,12 @@
 package types
 
 import (
-	"github.com/celestiaorg/go-header"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 // Hash returns ABCI-compatible hash of a header.
-func (h *Header) Hash() header.Hash {
+func (h *Header) Hash() Hash {
 	abciHeader := tmtypes.Header{
 		Version: tmversion.Consensus{
 			Block: h.Version.Block,
@@ -38,7 +37,5 @@ func (h *Header) Hash() header.Hash {
 
 // Hash returns ABCI-compatible hash of a block.
 func (b *Block) Hash() Hash {
-	var hash Hash
-	copy(hash[:], b.Header.Hash())
-	return hash
+	return b.Header.Hash()
 }

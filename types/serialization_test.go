@@ -25,7 +25,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	// create random hashes
 	h := []Hash{}
 	for i := 0; i < 8; i++ {
-		var h1 Hash
+		h1 := make(Hash, 32)
 		n, err := rand.Read(h1[:])
 		require.Equal(32, n)
 		require.NoError(err)
