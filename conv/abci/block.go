@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -49,19 +50,19 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		Height: int64(header.Height()),
 		Time:   header.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: types.ConvertToHexBytes(header.LastHeaderHash[:]),
+			Hash: bytes.HexBytes(header.LastHeaderHash[:]),
 			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     types.ConvertToHexBytes(header.LastCommitHash[:]),
-		DataHash:           types.ConvertToHexBytes(header.DataHash[:]),
-		ValidatorsHash:     types.ConvertToHexBytes(header.AggregatorsHash[:]),
+		LastCommitHash:     bytes.HexBytes(header.LastCommitHash[:]),
+		DataHash:           bytes.HexBytes(header.DataHash[:]),
+		ValidatorsHash:     bytes.HexBytes(header.AggregatorsHash[:]),
 		NextValidatorsHash: nil,
-		ConsensusHash:      types.ConvertToHexBytes(header.ConsensusHash[:]),
-		AppHash:            types.ConvertToHexBytes(header.AppHash[:]),
-		LastResultsHash:    types.ConvertToHexBytes(header.LastResultsHash[:]),
+		ConsensusHash:      bytes.HexBytes(header.ConsensusHash[:]),
+		AppHash:            bytes.HexBytes(header.AppHash[:]),
+		LastResultsHash:    bytes.HexBytes(header.LastResultsHash[:]),
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 		ChainID:            header.ChainID(),
@@ -91,7 +92,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = types.ConvertToHexBytes(block.Header.DataHash[:])
+	abciBlock.Header.DataHash = bytes.HexBytes(block.Header.DataHash[:])
 
 	return &abciBlock, nil
 }
@@ -120,7 +121,7 @@ func ToABCICommit(commit *types.Commit) *tmtypes.Commit {
 		Height: int64(commit.Height),
 		Round:  0,
 		BlockID: tmtypes.BlockID{
-			Hash:          types.ConvertToHexBytes(commit.HeaderHash),
+			Hash:          bytes.HexBytes(commit.HeaderHash),
 			PartSetHeader: tmtypes.PartSetHeader{},
 		},
 	}

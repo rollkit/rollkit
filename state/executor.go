@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	bytes2 "github.com/tendermint/tendermint/libs/bytes"
 	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -219,7 +220,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastBlockHeight: block.Header.Height(),
 		LastBlockTime:   block.Header.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: types.ConvertToHexBytes(block.Header.Hash()),
+			Hash: bytes2.HexBytes(block.Header.Hash()),
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,
