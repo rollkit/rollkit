@@ -9,6 +9,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
@@ -219,7 +220,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastBlockHeight: block.Header.Height(),
 		LastBlockTime:   block.Header.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: types.ConvertToHexBytes(block.Header.Hash()),
+			Hash: tmbytes.HexBytes(block.Header.Hash()),
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,

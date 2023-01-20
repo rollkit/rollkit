@@ -6,16 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-
 	"github.com/celestiaorg/go-header"
 )
 
 type Hash = header.Hash
-
-func ConvertToHexBytes(hash Hash) tmbytes.HexBytes {
-	return tmbytes.HexBytes(hash)
-}
 
 // BaseHeader contains the most basic data of a header
 type BaseHeader struct {

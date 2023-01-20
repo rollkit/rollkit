@@ -1,6 +1,7 @@
 package types
 
 import (
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
@@ -15,19 +16,19 @@ func (h *Header) Hash() Hash {
 		Height: int64(h.Height()),
 		Time:   h.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: ConvertToHexBytes(h.LastHeaderHash[:]),
+			Hash: tmbytes.HexBytes(h.LastHeaderHash[:]),
 			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     ConvertToHexBytes(h.LastCommitHash[:]),
-		DataHash:           ConvertToHexBytes(h.DataHash[:]),
-		ValidatorsHash:     ConvertToHexBytes(h.AggregatorsHash[:]),
+		LastCommitHash:     tmbytes.HexBytes(h.LastCommitHash[:]),
+		DataHash:           tmbytes.HexBytes(h.DataHash[:]),
+		ValidatorsHash:     tmbytes.HexBytes(h.AggregatorsHash[:]),
 		NextValidatorsHash: nil,
-		ConsensusHash:      ConvertToHexBytes(h.ConsensusHash[:]),
-		AppHash:            ConvertToHexBytes(h.AppHash[:]),
-		LastResultsHash:    ConvertToHexBytes(h.LastResultsHash[:]),
+		ConsensusHash:      tmbytes.HexBytes(h.ConsensusHash[:]),
+		AppHash:            tmbytes.HexBytes(h.AppHash[:]),
+		LastResultsHash:    tmbytes.HexBytes(h.LastResultsHash[:]),
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    h.ProposerAddress,
 		ChainID:            h.ChainID(),
