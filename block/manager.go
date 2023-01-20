@@ -175,7 +175,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
 	if height < initialHeight {
 		delay = time.Until(m.genesis.GenesisTime)
-	} else if height >= initialHeight {
+	} else {
 		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
 	}
 
