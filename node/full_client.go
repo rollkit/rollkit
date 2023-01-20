@@ -735,12 +735,12 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     tmbytes.HexBytes(latest.Header.DataHash[:]),
-			LatestAppHash:       tmbytes.HexBytes(latest.Header.AppHash[:]),
+			LatestBlockHash:     tmbytes.HexBytes(latest.Header.DataHash),
+			LatestAppHash:       tmbytes.HexBytes(latest.Header.AppHash),
 			LatestBlockHeight:   latest.Header.Height(),
 			LatestBlockTime:     latest.Header.Time(),
-			EarliestBlockHash:   tmbytes.HexBytes(initial.Header.DataHash[:]),
-			EarliestAppHash:     tmbytes.HexBytes(initial.Header.AppHash[:]),
+			EarliestBlockHash:   tmbytes.HexBytes(initial.Header.DataHash),
+			EarliestAppHash:     tmbytes.HexBytes(initial.Header.AppHash),
 			EarliestBlockHeight: initial.Header.Height(),
 			EarliestBlockTime:   initial.Header.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
