@@ -1,11 +1,12 @@
 package abci
 
 import (
-	"github.com/celestiaorg/rollmint/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/rollmint/types"
 )
 
 // ToABCIHeaderPB converts rollmint header to Header format defined in ABCI.
