@@ -570,7 +570,7 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// the state. We don't set appHash since we don't want the genesis doc app hash
 	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.
 	if len(res.AppHash) > 0 {
-		copy(s.AppHash[:], res.AppHash)
+		s.AppHash = res.AppHash
 	}
 
 	if res.ConsensusParams != nil {
@@ -595,7 +595,7 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 		s.Version.Consensus.App = s.ConsensusParams.Version.AppVersion
 	}
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
-	copy(s.LastResultsHash[:], merkle.HashFromByteSlices(nil))
+	s.LastResultsHash = merkle.HashFromByteSlices(nil)
 
 	if len(res.Validators) > 0 {
 		vals, err := tmtypes.PB2TM.ValidatorUpdates(res.Validators)

@@ -119,9 +119,9 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 		},
 		LastCommit: *lastCommit,
 	}
-	copy(block.Header.LastCommitHash[:], e.getLastCommitHash(lastCommit, &block.Header))
-	copy(block.Header.LastHeaderHash[:], lastHeaderHash)
-	copy(block.Header.AggregatorsHash[:], state.Validators.Hash())
+	block.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.Header)
+	block.Header.LastHeaderHash = lastHeaderHash
+	block.Header.AggregatorsHash = state.Validators.Hash()
 
 	return block
 }
@@ -171,7 +171,7 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 		return []byte{}, 0, err
 	}
 
-	copy(state.AppHash[:], appHash[:])
+	state.AppHash = appHash[:]
 
 	err = e.publishEvents(resp, block, state)
 	if err != nil {

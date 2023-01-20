@@ -19,7 +19,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	"github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 
 	rconfig "github.com/celestiaorg/rollmint/config"
@@ -47,7 +47,7 @@ var _ rpcclient.Client = &FullClient{}
 //
 // This is the type that is used in communication between cosmos-sdk app and rollmint.
 type FullClient struct {
-	*types.EventBus
+	*tmtypes.EventBus
 	config *config.RPCConfig
 
 	node *FullNode
@@ -97,7 +97,7 @@ func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data
 
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
-func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	// This implementation corresponds to Tendermints implementation from rpc/core/mempool.go.
 	// ctx.RemoteAddr godoc: If neither HTTPReq nor WSConn is set, an empty string is returned.
 	// This code is a local client, so we can assume that subscriber is ""
@@ -112,7 +112,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctype
 	// Subscribe to tx being committed in block.
 	subCtx, cancel := context.WithTimeout(ctx, subscribeTimeout)
 	defer cancel()
-	q := types.EventQueryTxFor(tx)
+	q := tmtypes.EventQueryTxFor(tx)
 	deliverTxSub, err := c.EventBus.Subscribe(subCtx, subscriber, q)
 	if err != nil {
 		err = fmt.Errorf("failed to subscribe to tx: %w", err)
@@ -153,7 +153,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctype
 	// Wait for the tx to be included in a block or timeout.
 	select {
 	case msg := <-deliverTxSub.Out(): // The tx was included in a block.
-		deliverTxRes := msg.Data().(types.EventDataTx)
+		deliverTxRes := msg.Data().(tmtypes.EventDataTx)
 		return &ctypes.ResultBroadcastTxCommit{
 			CheckTx:   *checkTxRes,
 			DeliverTx: deliverTxRes.Result,
@@ -188,7 +188,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctype
 // BroadcastTxAsync returns right away, with no response. Does not wait for
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
-func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
 	err := c.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes
 // BroadcastTxSync returns with the response from CheckTx. Does not wait for
 // DeliverTx result.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
-func (c *FullClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *FullClient) BroadcastTxSync(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
 	resCh := make(chan *abci.Response, 1)
 	err := c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		resCh <- res
@@ -251,7 +251,7 @@ func (c *FullClient) Subscribe(ctx context.Context, subscriber, query string, ou
 		outCap = outCapacity[0]
 	}
 
-	var sub types.Subscription
+	var sub tmtypes.Subscription
 	if outCap > 0 {
 		sub, err = c.EventBus.Subscribe(ctx, subscriber, q, outCap)
 	} else {
@@ -323,7 +323,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	}
 	c.Logger.Debug("BlockchainInfo", "maxHeight", maxHeight, "minHeight", minHeight)
 
-	blocks := make([]*types.BlockMeta, 0, maxHeight-minHeight+1)
+	blocks := make([]*tmtypes.BlockMeta, 0, maxHeight-minHeight+1)
 	for height := maxHeight; height >= minHeight; height-- {
 		block, err := c.node.Store.LoadBlock(uint64(height))
 		if err != nil {
@@ -426,9 +426,9 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 		return nil, err
 	}
 	return &ctypes.ResultBlock{
-		BlockID: types.BlockID{
+		BlockID: tmtypes.BlockID{
 			Hash: rtypes.ConvertToHexBytes(hash[:]),
-			PartSetHeader: types.PartSetHeader{
+			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
@@ -449,9 +449,9 @@ func (c *FullClient) BlockByHash(ctx context.Context, hash []byte) (*ctypes.Resu
 		return nil, err
 	}
 	return &ctypes.ResultBlock{
-		BlockID: types.BlockID{
+		BlockID: tmtypes.BlockID{
 			Hash: hash,
-			PartSetHeader: types.PartSetHeader{
+			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
@@ -542,13 +542,13 @@ func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.R
 	height := res.Height
 	index := res.Index
 
-	var proof types.TxProof
+	var proof tmtypes.TxProof
 	if prove {
 		block, _ := c.node.Store.LoadBlock(uint64(height))
 		blockProof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
-		proof = types.TxProof{
+		proof = tmtypes.TxProof{
 			RootHash: blockProof.RootHash,
-			Data:     types.Tx(blockProof.Data),
+			Data:     tmtypes.Tx(blockProof.Data),
 			Proof:    blockProof.Proof,
 		}
 	}
@@ -611,14 +611,14 @@ func (c *FullClient) TxSearch(ctx context.Context, query string, prove bool, pag
 	for i := skipCount; i < skipCount+pageSize; i++ {
 		r := results[i]
 
-		var proof types.TxProof
+		var proof tmtypes.TxProof
 		/*if prove {
 			block := nil                               //env.BlockStore.LoadBlock(r.Height)
 			proof = block.Data.Txs.Proof(int(r.Index)) // XXX: overflow on 32-bit machines
 		}*/
 
 		apiResults = append(apiResults, &ctypes.ResultTx{
-			Hash:     types.Tx(r.Tx).Hash(),
+			Hash:     tmtypes.Tx(r.Tx).Hash(),
 			Height:   r.Height,
 			Index:    r.Index,
 			TxResult: r.Result,
@@ -683,7 +683,7 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 		}
 		blocks = append(blocks, &ctypes.ResultBlock{
 			Block: block,
-			BlockID: types.BlockID{
+			BlockID: tmtypes.BlockID{
 				Hash: block.Hash(),
 			},
 		})
@@ -756,7 +756,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 }
 
 // BroadcastEvidence is not yet implemented.
-func (c *FullClient) BroadcastEvidence(ctx context.Context, evidence types.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
+func (c *FullClient) BroadcastEvidence(ctx context.Context, evidence tmtypes.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
 	return &ctypes.ResultBroadcastEvidence{
 		Hash: evidence.Hash(),
 	}, nil
@@ -788,7 +788,7 @@ func (c *FullClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes
 // CheckTx executes a new transaction against the application to determine its validity.
 //
 // If valid, the tx is automatically added to the mempool.
-func (c *FullClient) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
+func (c *FullClient) CheckTx(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultCheckTx, error) {
 	res, err := c.appClient().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
@@ -796,7 +796,7 @@ func (c *FullClient) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCh
 	return &ctypes.ResultCheckTx{ResponseCheckTx: *res}, nil
 }
 
-func (c *FullClient) eventsRoutine(sub types.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
+func (c *FullClient) eventsRoutine(sub tmtypes.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
 	defer close(outc)
 	for {
 		select {
@@ -828,7 +828,7 @@ func (c *FullClient) eventsRoutine(sub types.Subscription, subscriber string, q 
 }
 
 // Try to resubscribe with exponential backoff.
-func (c *FullClient) resubscribe(subscriber string, q tmpubsub.Query) types.Subscription {
+func (c *FullClient) resubscribe(subscriber string, q tmpubsub.Query) tmtypes.Subscription {
 	attempts := 0
 	for {
 		if !c.IsRunning() {

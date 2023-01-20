@@ -732,7 +732,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 			},
 		},
 	}
-	copy(block.Header.AppHash[:], getRandomBytes(32))
+	block.Header.AppHash = getRandomBytes(32)
 
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = getRandomTx()
@@ -749,7 +749,9 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 	if err != nil {
 		return nil
 	}
-	copy(block.Header.LastCommitHash[:], tmprotoLC.Hash())
+	lastCommitHash := make(types.Hash, 32)
+	copy(lastCommitHash, tmprotoLC.Hash().Bytes())
+	block.Header.LastCommitHash = lastCommitHash
 
 	return block
 }

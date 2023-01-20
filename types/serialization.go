@@ -218,7 +218,6 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.DataHash = other.DataHash
 	h.ConsensusHash = other.ConsensusHash
 	h.AppHash = other.AppHash
-
 	h.LastResultsHash = other.LastResultsHash
 	h.AggregatorsHash = other.AggregatorsHash
 	if len(other.ProposerAddress) > 0 {

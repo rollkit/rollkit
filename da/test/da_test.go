@@ -252,7 +252,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 			},
 		},
 	}
-	copy(block.Header.AppHash[:], getRandomBytes(32))
+	block.Header.AppHash = getRandomBytes(32)
 
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = getRandomTx()
