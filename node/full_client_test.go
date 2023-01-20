@@ -381,7 +381,7 @@ func TestGetBlockByHash(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(retrievedBlock)
 	assert.Equal(abciBlock, retrievedBlock.Block)
-	assert.Equal(abciBlock.Hash(), retrievedBlock.Block.Header.Hash())
+	assert.Equal(abciBlock.Hash(), retrievedBlock.Block.Hash())
 
 	blockHash := block.Header.Hash()
 	blockResp, err := rpc.BlockByHash(context.Background(), blockHash[:])
@@ -724,6 +724,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 			},
 			Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
 			ProposerAddress: proposerAddr,
+			AggregatorsHash: make([]byte, 32),
 		},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),

@@ -14,9 +14,7 @@ import (
 type Hash = header.Hash
 
 func ConvertToHexBytes(hash Hash) tmbytes.HexBytes {
-	tmHash := make(tmbytes.HexBytes, 32)
-	copy(tmHash, hash)
-	return tmHash
+	return tmbytes.HexBytes(hash)
 }
 
 // BaseHeader contains the most basic data of a header
