@@ -97,9 +97,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		ConsensusParams:                  *genDoc.ConsensusParams,
 		LastHeightConsensusParamsChanged: genDoc.InitialHeight,
 	}
-	appHash := make(Hash, 32)
-	copy(appHash, genDoc.AppHash.Bytes())
-	s.AppHash = appHash
+	s.AppHash = genDoc.AppHash.Bytes()
 
 	return s, nil
 }

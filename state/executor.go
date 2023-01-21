@@ -172,7 +172,7 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 		return []byte{}, 0, err
 	}
 
-	state.AppHash = appHash[:]
+	state.AppHash = appHash
 
 	err = e.publishEvents(resp, block, state)
 	if err != nil {

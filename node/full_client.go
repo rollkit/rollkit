@@ -426,7 +426,7 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 	}
 	return &ctypes.ResultBlock{
 		BlockID: tmtypes.BlockID{
-			Hash: tmbytes.HexBytes(hash[:]),
+			Hash: tmbytes.HexBytes(hash),
 			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
