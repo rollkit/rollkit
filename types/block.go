@@ -2,8 +2,6 @@ package types
 
 import (
 	"encoding"
-
-	"github.com/celestiaorg/go-header"
 )
 
 type NamespaceID [8]byte
@@ -42,7 +40,7 @@ type EvidenceData struct {
 // Commit contains evidence of block creation.
 type Commit struct {
 	Height     uint64
-	HeaderHash header.Hash
+	HeaderHash Hash
 	Signatures []Signature // most of the time this is a single signature
 }
 

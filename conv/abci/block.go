@@ -50,19 +50,19 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 		Height: int64(header.Height()),
 		Time:   header.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: header.LastHeaderHash[:],
+			Hash: tmbytes.HexBytes(header.LastHeaderHash),
 			PartSetHeader: tmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     header.LastCommitHash[:],
-		DataHash:           header.DataHash[:],
-		ValidatorsHash:     header.AggregatorsHash[:],
+		LastCommitHash:     tmbytes.HexBytes(header.LastCommitHash),
+		DataHash:           tmbytes.HexBytes(header.DataHash),
+		ValidatorsHash:     tmbytes.HexBytes(header.AggregatorsHash),
 		NextValidatorsHash: nil,
-		ConsensusHash:      header.ConsensusHash[:],
-		AppHash:            header.AppHash[:],
-		LastResultsHash:    header.LastResultsHash[:],
+		ConsensusHash:      tmbytes.HexBytes(header.ConsensusHash),
+		AppHash:            tmbytes.HexBytes(header.AppHash),
+		LastResultsHash:    tmbytes.HexBytes(header.LastResultsHash),
 		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 		ChainID:            header.ChainID(),
@@ -92,7 +92,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = block.Header.DataHash[:]
+	abciBlock.Header.DataHash = tmbytes.HexBytes(block.Header.DataHash)
 
 	return &abciBlock, nil
 }

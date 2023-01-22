@@ -213,27 +213,13 @@ func (h *Header) FromProto(other *pb.Header) error {
 	}
 	h.BaseHeader.Height = other.Height
 	h.BaseHeader.Time = other.Time
-	if !safeCopy(h.LastHeaderHash[:], other.LastHeaderHash) {
-		return errors.New("invalid length of 'LastHeaderHash'")
-	}
-	if !safeCopy(h.LastCommitHash[:], other.LastCommitHash) {
-		return errors.New("invalid length of 'LastCommitHash'")
-	}
-	if !safeCopy(h.DataHash[:], other.DataHash) {
-		return errors.New("invalid length of 'DataHash'")
-	}
-	if !safeCopy(h.ConsensusHash[:], other.ConsensusHash) {
-		return errors.New("invalid length of 'ConsensusHash'")
-	}
-	if !safeCopy(h.AppHash[:], other.AppHash) {
-		return errors.New("invalid length of 'AppHash'")
-	}
-	if !safeCopy(h.LastResultsHash[:], other.LastResultsHash) {
-		return errors.New("invalid length of 'LastResultsHash'")
-	}
-	if !safeCopy(h.AggregatorsHash[:], other.AggregatorsHash) {
-		return errors.New("invalid length of 'AggregatorsHash'")
-	}
+	h.LastHeaderHash = other.LastHeaderHash
+	h.LastCommitHash = other.LastCommitHash
+	h.DataHash = other.DataHash
+	h.ConsensusHash = other.ConsensusHash
+	h.AppHash = other.AppHash
+	h.LastResultsHash = other.LastResultsHash
+	h.AggregatorsHash = other.AggregatorsHash
 	if len(other.ProposerAddress) > 0 {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
 		copy(h.ProposerAddress, other.ProposerAddress)
@@ -370,8 +356,8 @@ func (s *State) FromProto(other *pb.State) error {
 	s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
 	s.ConsensusParams = other.ConsensusParams
 	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
-	copy(s.LastResultsHash[:], other.LastResultsHash)
-	copy(s.AppHash[:], other.AppHash)
+	s.LastResultsHash = other.LastResultsHash
+	s.AppHash = other.AppHash
 
 	return nil
 }

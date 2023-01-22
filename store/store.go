@@ -107,7 +107,7 @@ func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
 }
 
 // LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockByHash(hash header.Hash) (*types.Block, error) {
+func (s *DefaultStore) LoadBlockByHash(hash types.Hash) (*types.Block, error) {
 	blockData, err := s.db.Get(s.ctx, ds.NewKey(getBlockKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load block data: %w", err)
@@ -154,7 +154,7 @@ func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
 }
 
 // LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadCommitByHash(hash header.Hash) (*types.Commit, error) {
+func (s *DefaultStore) LoadCommitByHash(hash types.Hash) (*types.Commit, error) {
 	commitData, err := s.db.Get(s.ctx, ds.NewKey(getCommitKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve commit from hash %v: %w", hash, err)
@@ -241,11 +241,11 @@ func (s *DefaultStore) loadHashFromIndex(height uint64) (header.Hash, error) {
 	return blob, nil
 }
 
-func getBlockKey(hash header.Hash) string {
+func getBlockKey(hash types.Hash) string {
 	return GenerateKey([]interface{}{blockPrefix, hex.EncodeToString(hash[:])})
 }
 
-func getCommitKey(hash header.Hash) string {
+func getCommitKey(hash types.Hash) string {
 	return GenerateKey([]interface{}{commitPrefix, hex.EncodeToString(hash[:])})
 }
 

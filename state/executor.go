@@ -16,8 +16,6 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/go-header"
-
 	abciconv "github.com/celestiaorg/rollmint/conv/abci"
 	"github.com/celestiaorg/rollmint/log"
 	"github.com/celestiaorg/rollmint/mempool"
@@ -89,7 +87,7 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash header.Hash, state types.State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
@@ -109,8 +107,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			NamespaceID: e.namespaceID,
 			//LastHeaderHash: lastHeaderHash,
 			//LastCommitHash:  lastCommitHash,
-			DataHash:        [32]byte{},
-			ConsensusHash:   [32]byte{},
+			DataHash:        make(types.Hash, 32),
+			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         state.AppHash,
 			LastResultsHash: state.LastResultsHash,
 			ProposerAddress: e.proposerAddress,
@@ -122,9 +120,9 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 		},
 		LastCommit: *lastCommit,
 	}
-	copy(block.Header.LastCommitHash[:], e.getLastCommitHash(lastCommit, &block.Header))
-	copy(block.Header.LastHeaderHash[:], lastHeaderHash)
-	copy(block.Header.AggregatorsHash[:], state.Validators.Hash())
+	block.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.Header)
+	block.Header.LastHeaderHash = lastHeaderHash
+	block.Header.AggregatorsHash = state.Validators.Hash()
 
 	return block
 }
@@ -174,7 +172,7 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 		return []byte{}, 0, err
 	}
 
-	copy(state.AppHash[:], appHash[:])
+	state.AppHash = appHash
 
 	err = e.publishEvents(resp, block, state)
 	if err != nil {
@@ -231,7 +229,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
-		AppHash:                          [32]byte{},
+		AppHash:                          make(types.Hash, 32),
 	}
 	copy(s.LastResultsHash[:], tmtypes.NewResults(abciResponses.DeliverTxs).Hash())
 
