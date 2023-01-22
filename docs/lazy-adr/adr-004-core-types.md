@@ -213,4 +213,4 @@ For finishing the implementation these items need to be tackled at least:
 
 ## References
 
-- <https://github.com/celestiaorg/rollmint/pull/41>
+- <https://github.com/rollkit/rollkit/pull/41>

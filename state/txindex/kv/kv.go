@@ -14,9 +14,9 @@ import (
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/state/indexer"
-	"github.com/celestiaorg/rollmint/state/txindex"
-	"github.com/celestiaorg/rollmint/store"
+	"github.com/rollkit/rollkit/state/indexer"
+	"github.com/rollkit/rollkit/state/txindex"
+	"github.com/rollkit/rollkit/store"
 )
 
 const (

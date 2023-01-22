@@ -6,7 +6,7 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/state/indexer"
+	"github.com/rollkit/rollkit/state/indexer"
 )
 
 // XXX/TODO: These types should be moved to the indexer package.

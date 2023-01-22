@@ -12,7 +12,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Header Interface
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/574">
+                                <a href="https://github.com/rollkit/rollkit/issues/574">
                                     574
                                 </a>
                             </div>
@@ -88,7 +88,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 New Rollmint Header
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/579">
+                                <a href="https://github.com/rollkit/rollkit/issues/579">
                                     579
                                 </a>
                             </div>
@@ -136,7 +136,7 @@
                                     Celestia Message Inclusion Proofs
                                 </font>
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/594">
+                                <a href="https://github.com/rollkit/rollkit/issues/594">
                                     594
                                 </a>
                             </div>
@@ -266,7 +266,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Rollmint Light Clients
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/362">
+                                <a href="https://github.com/rollkit/rollkit/issues/362">
                                     362
                                 </a>
                             </div>
@@ -308,7 +308,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 State Tracing
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/514">
+                                <a href="https://github.com/rollkit/rollkit/issues/514">
                                     514
                                 </a>
                             </div>
@@ -333,7 +333,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Fraud Proof generation
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/514">
+                                <a href="https://github.com/rollkit/rollkit/issues/514">
                                     514
                                 </a>
                             </div>
@@ -392,7 +392,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Start minimal cosmos-sdk with State
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/571">
+                                <a href="https://github.com/rollkit/rollkit/issues/571">
                                     571
                                 </a>
                             </div>

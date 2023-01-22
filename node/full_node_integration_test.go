@@ -22,13 +22,13 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/da"
-	mockda "github.com/celestiaorg/rollmint/da/mock"
-	"github.com/celestiaorg/rollmint/mocks"
-	"github.com/celestiaorg/rollmint/p2p"
-	"github.com/celestiaorg/rollmint/store"
-	rmtypes "github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/da"
+	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/store"
+	rmtypes "github.com/rollkit/rollkit/types"
 )
 
 func TestAggregatorMode(t *testing.T) {

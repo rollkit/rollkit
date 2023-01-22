@@ -10,7 +10,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/config"
+	"github.com/rollkit/rollkit/config"
 )
 
 type Node interface {

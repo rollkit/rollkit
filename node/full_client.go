@@ -22,9 +22,9 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 
-	rconfig "github.com/celestiaorg/rollmint/config"
-	abciconv "github.com/celestiaorg/rollmint/conv/abci"
-	"github.com/celestiaorg/rollmint/mempool"
+	rconfig "github.com/rollkit/rollkit/config"
+	abciconv "github.com/rollkit/rollkit/conv/abci"
+	"github.com/rollkit/rollkit/mempool"
 )
 
 const (
@@ -380,7 +380,7 @@ func (c *FullClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensu
 //
 // Currently, consensus params changes are not supported and this method returns params as defined in genesis.
 func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/rollmint/issues/291
+	// TODO(tzdybal): implement consensus params handling: https://github.com/rollkit/rollkit/issues/291
 	params := c.node.GetGenesis().ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),

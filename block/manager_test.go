@@ -13,11 +13,11 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/da"
-	mockda "github.com/celestiaorg/rollmint/da/mock"
-	"github.com/celestiaorg/rollmint/store"
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/da"
+	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestInitialState(t *testing.T) {

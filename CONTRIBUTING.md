@@ -11,7 +11,7 @@ Issue labels have been used to help designate the priority, status and beginner-
 
 No explicit permission is needed to work on these issues but it would be good idea to tag the user who opened the issue and ask that the issue is assinged to yourself.
 
-All issue labels can be [found here](https://github.com/celestiaorg/rollmint/labels) for you to explore and see what peaks your interest.
+All issue labels can be [found here](https://github.com/rollkit/rollkit/labels) for you to explore and see what peaks your interest.
 
 ## Contribution process
 

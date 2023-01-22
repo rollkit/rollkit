@@ -14,7 +14,7 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
+	pb "github.com/rollkit/rollkit/types/pb/rollmint"
 )
 
 func TestBlockSerializationRoundTrip(t *testing.T) {

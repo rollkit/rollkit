@@ -1,4 +1,4 @@
-module github.com/celestiaorg/rollmint
+module github.com/rollkit/rollkit
 
 go 1.18
 

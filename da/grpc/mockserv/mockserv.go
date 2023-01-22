@@ -7,11 +7,11 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
 
-	grpcda "github.com/celestiaorg/rollmint/da/grpc"
-	"github.com/celestiaorg/rollmint/da/mock"
-	"github.com/celestiaorg/rollmint/types"
-	"github.com/celestiaorg/rollmint/types/pb/dalc"
-	"github.com/celestiaorg/rollmint/types/pb/rollmint"
+	grpcda "github.com/rollkit/rollkit/da/grpc"
+	"github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/types"
+	"github.com/rollkit/rollkit/types/pb/dalc"
+	"github.com/rollkit/rollkit/types/pb/rollmint"
 )
 
 // GetServer creates and returns gRPC server instance.

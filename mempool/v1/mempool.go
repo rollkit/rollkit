@@ -14,8 +14,8 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/mempool"
-	"github.com/celestiaorg/rollmint/mempool/clist"
+	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/mempool/clist"
 )
 
 var _ mempool.Mempool = (*TxMempool)(nil)

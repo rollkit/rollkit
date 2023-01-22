@@ -10,10 +10,10 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/go-cnc"
-	"github.com/celestiaorg/rollmint/da"
-	"github.com/celestiaorg/rollmint/log"
-	"github.com/celestiaorg/rollmint/types"
-	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
+	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/types"
+	pb "github.com/rollkit/rollkit/types/pb/rollmint"
 )
 
 // DataAvailabilityLayerClient use celestia-node public API.

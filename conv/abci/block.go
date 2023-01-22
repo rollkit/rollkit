@@ -6,7 +6,7 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/types"
 )
 
 // ToABCIHeaderPB converts rollmint header to Header format defined in ABCI.

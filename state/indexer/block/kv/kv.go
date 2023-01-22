@@ -14,8 +14,8 @@ import (
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/state/indexer"
-	"github.com/celestiaorg/rollmint/store"
+	"github.com/rollkit/rollkit/state/indexer"
+	"github.com/rollkit/rollkit/store"
 )
 
 var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)

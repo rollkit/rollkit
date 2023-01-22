@@ -5,8 +5,8 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/rollmint/log"
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/types"
 )
 
 // StatusCode is a type for DA layer return status.

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/celestiaorg/rollmint/store"
+	"github.com/rollkit/rollkit/store"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 )

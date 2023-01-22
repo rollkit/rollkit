@@ -17,9 +17,9 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/mempool"
-	"github.com/celestiaorg/rollmint/mocks"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/mocks"
 )
 
 // simply check that node is starting and stopping without panicking

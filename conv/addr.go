@@ -5,7 +5,7 @@ import (
 
 	"github.com/multiformats/go-multiaddr"
 
-	"github.com/celestiaorg/rollmint/config"
+	"github.com/rollkit/rollkit/config"
 )
 
 // TranslateAddresses updates conf by changing Cosmos-style addresses to Multiaddr format.

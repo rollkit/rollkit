@@ -17,10 +17,10 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/mempool"
-	mempoolv1 "github.com/celestiaorg/rollmint/mempool/v1"
-	"github.com/celestiaorg/rollmint/mocks"
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/mempool"
+	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
+	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/types"
 )
 
 func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {

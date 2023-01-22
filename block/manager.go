@@ -15,13 +15,13 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/da"
-	"github.com/celestiaorg/rollmint/log"
-	"github.com/celestiaorg/rollmint/mempool"
-	"github.com/celestiaorg/rollmint/state"
-	"github.com/celestiaorg/rollmint/store"
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/state"
+	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager

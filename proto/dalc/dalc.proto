@@ -1,6 +1,6 @@
 syntax = "proto3";
 package dalc;
-option go_package = "github.com/celestiaorg/rollmint/types/pb/dalc";
+option go_package = "github.com/rollkit/rollkit/types/pb/dalc";
 
 import "rollmint/rollmint.proto";
 import "gogoproto/gogo.proto";
