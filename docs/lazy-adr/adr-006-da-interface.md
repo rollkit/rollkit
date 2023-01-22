@@ -6,10 +6,11 @@
 - 2021.06.03: Init method added
 - 2021.07.09: Added CheckBlockAvailability method, added KVStore to Init method, added missing result types
 - 29.09.2022: Rename Optimint to rollmint
+- 22.01.2023: Rename rollmint to Rollkit
 
 ## Context
 
-rollmint requires data availability layer. Different implementations are expected.
+Rollkit requires data availability layer. Different implementations are expected.
 
 ## Alternative Approaches
 
@@ -50,7 +51,7 @@ type BlockRetriever interface {
 }
 
 // TODO define an enum of different non-happy-path cases
-// that might need to be handled by rollmint independent of
+// that might need to be handled by Rollkit independent of
 // the underlying DA chain.
 type StatusCode uint64
 
@@ -73,7 +74,7 @@ type DAResult struct {
 type ResultSubmitBlock struct {
 	DAResult
 	// Not sure if this needs to be bubbled up to other
-	// parts of rollmint.
+	// parts of Rollkit.
 	// Hash hash.Hash
 }
 

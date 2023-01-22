@@ -13,6 +13,7 @@ import (
 	mux2 "github.com/gorilla/mux"
 
 	"github.com/celestiaorg/go-cnc"
+
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"

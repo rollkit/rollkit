@@ -21,7 +21,7 @@ type BaseHeader struct {
 	ChainID string
 }
 
-// Header defines the structure of rollmint block header.
+// Header defines the structure of Rollkit block header.
 type Header struct {
 	BaseHeader
 	// Block and App version

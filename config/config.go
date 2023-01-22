@@ -11,25 +11,25 @@ import (
 )
 
 const (
-	flagAggregator    = "rollmint.aggregator"
-	flagDALayer       = "rollmint.da_layer"
-	flagDAConfig      = "rollmint.da_config"
-	flagBlockTime     = "rollmint.block_time"
-	flagDABlockTime   = "rollmint.da_block_time"
-	flagDAStartHeight = "rollmint.da_start_height"
-	flagNamespaceID   = "rollmint.namespace_id"
-	flagFraudProofs   = "rollmint.experimental_insecure_fraud_proofs"
-	flagLight         = "rollmint.light"
+	flagAggregator    = "rollkit.aggregator"
+	flagDALayer       = "rollkit.da_layer"
+	flagDAConfig      = "rollkit.da_config"
+	flagBlockTime     = "rollkit.block_time"
+	flagDABlockTime   = "rollkit.da_block_time"
+	flagDAStartHeight = "rollkit.da_start_height"
+	flagNamespaceID   = "rollkit.namespace_id"
+	flagFraudProofs   = "rollkit.experimental_insecure_fraud_proofs"
+	flagLight         = "rollkit.light"
 )
 
-// NodeConfig stores rollmint node configuration.
+// NodeConfig stores Rollkit node configuration.
 type NodeConfig struct {
 	// parameters below are translated from existing config
 	RootDir string
 	DBPath  string
 	P2P     P2PConfig
 	RPC     RPCConfig
-	// parameters below are rollmint specific and read from config
+	// parameters below are Rollkit specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
 	DALayer            string `mapstructure:"da_layer"`
@@ -70,7 +70,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	return nil
 }
 
-// AddFlags adds rollmint specific configuration options to cobra Command.
+// AddFlags adds Rollkit specific configuration options to cobra Command.
 //
 // This function is called in cosmos-sdk.
 func AddFlags(cmd *cobra.Command) {

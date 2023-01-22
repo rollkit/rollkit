@@ -1,11 +1,11 @@
-# rollmint
+# Rollkit
 
 ABCI-client implementation for Optimistic Rollups.
 
 [![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
 [![golangci-lint](https://github.com/rollkit/rollkit/actions/workflows/lint.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/lint.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rollkit/rollkit)](https://goreportcard.com/report/github.com/rollkit/rollkit)
-[![codecov](https://codecov.io/gh/celestiaorg/rollmint/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/rollmint)
+[![codecov](https://codecov.io/gh/rollkit/rollkit/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/rollkit/rollkit)
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
 [![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
 
@@ -17,7 +17,7 @@ To build:
 
 ```sh
 git clone https://github.com/rollkit/rollkit.git
-cd rollmint
+cd rollkit 
 go build -v ./...
 ```
 
@@ -46,7 +46,7 @@ Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to as
 
 ## Dependency Graph
 
-To see our progress and a possible future of rollmint visit our [Dependency Graph](./docs/specification/rollmint-dependency-graph.md).
+To see our progress and a possible future of Rollkit visit our [Dependency Graph](./docs/specification/rollkit-dependency-graph.md).
 
 ## Code of Conduct
 

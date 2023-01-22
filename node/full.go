@@ -50,7 +50,7 @@ const (
 
 var _ Node = &FullNode{}
 
-// FullNode represents a client node in rollmint network.
+// FullNode represents a client node in Rollkit network.
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
@@ -82,7 +82,7 @@ type FullNode struct {
 	ctx context.Context
 }
 
-// NewNode creates new rollmint node.
+// NewNode creates new Rollkit node.
 func newFullNode(
 	ctx context.Context,
 	conf config.NodeConfig,
@@ -104,7 +104,7 @@ func newFullNode(
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV, err = store.NewDefaultInMemoryKVStore()
 	} else {
-		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
+		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit")
 	}
 	if err != nil {
 		return nil, err

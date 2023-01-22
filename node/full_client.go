@@ -36,15 +36,15 @@ const (
 )
 
 var (
-	// ErrConsensusStateNotAvailable is returned because rollmint doesn't use Tendermint consensus.
-	ErrConsensusStateNotAvailable = errors.New("consensus state not available in rollmint")
+	// ErrConsensusStateNotAvailable is returned because Rollkit doesn't use Tendermint consensus.
+	ErrConsensusStateNotAvailable = errors.New("consensus state not available in Rollkit")
 )
 
 var _ rpcclient.Client = &FullClient{}
 
 // FullClient implements tendermint RPC client interface.
 //
-// This is the type that is used in communication between cosmos-sdk app and rollmint.
+// This is the type that is used in communication between cosmos-sdk app and Rollkit.
 type FullClient struct {
 	*tmtypes.EventBus
 	config *config.RPCConfig
@@ -366,12 +366,12 @@ func (c *FullClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error)
 	return &res, nil
 }
 
-// DumpConsensusState always returns error as there is no consensus state in rollmint.
+// DumpConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *FullClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }
 
-// ConsensusState always returns error as there is no consensus state in rollmint.
+// ConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *FullClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }

@@ -86,7 +86,7 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 1040px; margin-left: 191px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                New Rollmint Header
+                                New Rollkit Header
                                 <br/>
                                 <a href="https://github.com/rollkit/rollkit/issues/579">
                                     579
@@ -96,7 +96,7 @@
                     </div>
                 </foreignObject>
                 <text x="250" y="1044" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    New Rollmint Header...
+                    New Rollkit Header...
                 </text>
             </switch>
         </g>
@@ -159,13 +159,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 930px; margin-left: 1px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                P2P Rollmint Headersync
+                                P2P Rollkit Headersync
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="60" y="934" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    P2P Rollmint Headers...
+                    P2P Rollkit Headers...
                 </text>
             </switch>
         </g>
@@ -243,7 +243,7 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 410px; margin-left: 11px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Asynchronous Celestia/Rollmint
+                                Asynchronous Celestia/Rollkit
                             </div>
                         </div>
                     </div>
@@ -264,7 +264,7 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 530px; margin-left: 651px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Rollmint Light Clients
+                                Rollkit Light Clients
                                 <br/>
                                 <a href="https://github.com/rollkit/rollkit/issues/362">
                                     362
@@ -274,7 +274,7 @@
                     </div>
                 </foreignObject>
                 <text x="710" y="534" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Rollmint Light Clien...
+                    Rollkit Light Clien...
                 </text>
             </switch>
         </g>
@@ -556,13 +556,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 160px; margin-left: 651px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Rollmint Frontend
+                                Rollkit Frontend
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="710" y="164" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Rollmint Frontend
+                    Rollkit Frontend
                 </text>
             </switch>
         </g>
@@ -670,13 +670,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 1250px; margin-left: 541px;">
                         <div data-drawio-colors="color: #000000; " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Rollmint Transaction Flow
+                                Rollkit Transaction Flow
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="600" y="1254" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Rollmint Transaction...
+                    Rollkit Transaction...
                 </text>
             </switch>
         </g>

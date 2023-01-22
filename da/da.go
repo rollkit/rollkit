@@ -11,7 +11,7 @@ import (
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
-// that might need to be handled by rollmint independent of
+// that might need to be handled by Rollkit independent of
 // the underlying DA chain.
 type StatusCode uint64
 
@@ -37,7 +37,7 @@ type BaseResult struct {
 type ResultSubmitBlock struct {
 	BaseResult
 	// Not sure if this needs to be bubbled up to other
-	// parts of rollmint.
+	// parts of Rollkit.
 	// Hash hash.Hash
 }
 

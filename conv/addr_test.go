@@ -15,7 +15,7 @@ func TestTranslateAddresses(t *testing.T) {
 
 	invalidCosmos := "foobar"
 	validCosmos := "127.0.0.1:1234"
-	validRollmint := "/ip4/127.0.0.1/tcp/1234"
+	validRollkit := "/ip4/127.0.0.1/tcp/1234"
 
 	cases := []struct {
 		name        string
@@ -27,13 +27,13 @@ func TestTranslateAddresses(t *testing.T) {
 		{
 			"valid listen address",
 			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validCosmos}},
-			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validRollmint}},
+			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validRollkit}},
 			"",
 		},
 		{
 			"valid seed address",
 			config.NodeConfig{P2P: config.P2PConfig{Seeds: validCosmos + "," + validCosmos}},
-			config.NodeConfig{P2P: config.P2PConfig{Seeds: validRollmint + "," + validRollmint}},
+			config.NodeConfig{P2P: config.P2PConfig{Seeds: validRollkit + "," + validRollkit}},
 			"",
 		},
 		{

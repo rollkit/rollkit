@@ -114,7 +114,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			ProposerAddress: e.proposerAddress,
 		},
 		Data: types.Data{
-			Txs:                    toRollmintTxs(mempoolTxs),
+			Txs:                    toRollkitTxs(mempoolTxs),
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
@@ -198,7 +198,7 @@ func (e *BlockExecutor) VerifyFraudProof(fraudProof abci.FraudProof, expectedApp
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
-	// rollmint can work without validators
+	// Rollkit can work without validators
 	if len(nValSet.Validators) > 0 {
 		if len(validatorUpdates) > 0 {
 			err := nValSet.UpdateWithChangeSet(validatorUpdates)
@@ -252,7 +252,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(int64(block.Header.Height()), fromRollmintTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	err = e.mempool.Update(int64(block.Header.Height()), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -495,18 +495,18 @@ func (e *BlockExecutor) getAppHash() ([]byte, error) {
 	return isrResp.AppHash, nil
 }
 
-func toRollmintTxs(txs tmtypes.Txs) types.Txs {
-	rollmintTxs := make(types.Txs, len(txs))
+func toRollkitTxs(txs tmtypes.Txs) types.Txs {
+	rollkitTxs := make(types.Txs, len(txs))
 	for i := range txs {
-		rollmintTxs[i] = []byte(txs[i])
+		rollkitTxs[i] = []byte(txs[i])
 	}
-	return rollmintTxs
+	return rollkitTxs
 }
 
-func fromRollmintTxs(rollmintTxs types.Txs) tmtypes.Txs {
-	txs := make(tmtypes.Txs, len(rollmintTxs))
-	for i := range rollmintTxs {
-		txs[i] = []byte(rollmintTxs[i])
+func fromRollkitTxs(rollkitTxs types.Txs) tmtypes.Txs {
+	txs := make(tmtypes.Txs, len(rollkitTxs))
+	for i := range rollkitTxs {
+		txs[i] = []byte(rollkitTxs[i])
 	}
 	return txs
 }

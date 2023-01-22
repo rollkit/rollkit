@@ -10,6 +10,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/go-cnc"
+
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"

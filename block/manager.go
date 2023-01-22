@@ -27,7 +27,7 @@ import (
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
 const defaultDABlockTime = 30 * time.Second
 
-// maxSubmitAttempts defines how many times rollmint will re-try to publish block to DA layer.
+// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
 
@@ -536,7 +536,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
 		res := m.dalc.SubmitBlock(ctx, block)
 		if res.Code == da.StatusSuccess {
-			m.logger.Info("successfully submitted rollmint block to DA layer", "rollmintHeight", block.Header.Height, "daHeight", res.DAHeight)
+			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.Header.Height, "daHeight", res.DAHeight)
 			submitted = true
 		} else {
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)

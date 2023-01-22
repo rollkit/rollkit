@@ -22,7 +22,7 @@ func main() {
 	flag.StringVar(&conf.Host, "host", "0.0.0.0", "listening address")
 	flag.Parse()
 
-	kv, err := store.NewDefaultKVStore(".", "db", "rollmint")
+	kv, err := store.NewDefaultKVStore(".", "db", "rollkit")
 	if err != nil {
 		log.Panic(err)
 	}

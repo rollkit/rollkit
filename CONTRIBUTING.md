@@ -2,7 +2,7 @@
 
 ## Finding an issue
 
-GitHub issues are used to track the work associated with rollmint. That's where you can find things to work on.
+GitHub issues are used to track the work associated with Rollkit. That's where you can find things to work on.
 
 Issue labels have been used to help designate the priority, status and beginner-friendliness of various issues. Here are some of the ones that are most relevant to finding a good issue to work on:
 
