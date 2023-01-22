@@ -13,7 +13,7 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollmint"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // DataAvailabilityLayerClient use celestia-node public API.
