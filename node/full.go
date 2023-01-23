@@ -89,11 +89,12 @@ type FullNode struct {
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
-	ex          *goheaderp2p.Exchange[*types.Header]
-	syncer      *sync.Syncer[*types.Header]
-	sub         *goheaderp2p.Subscriber[*types.Header]
-	p2pServer   *goheaderp2p.ExchangeServer[*types.Header]
-	headerStore *goheaderstore.Store[*types.Header]
+	ex            *goheaderp2p.Exchange[*types.Header]
+	syncer        *sync.Syncer[*types.Header]
+	sub           *goheaderp2p.Subscriber[*types.Header]
+	p2pServer     *goheaderp2p.ExchangeServer[*types.Header]
+	headerStore   *goheaderstore.Store[*types.Header]
+	syncerStarted bool
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -233,12 +234,69 @@ func (n *FullNode) initGenesisChunks() error {
 	return nil
 }
 
-func (n *FullNode) headerBroadcast(ctx context.Context) {
+func (n *FullNode) initOrAppendHeaderStore(ctx context.Context, header *types.Header) error {
+	var err error
+
+	// Init the header store if first block, else append to store
+	if header.Height() == n.genesis.InitialHeight {
+		if err = n.headerStore.Init(ctx, header); err != nil {
+			return err
+		}
+		// possibly need to append as well
+		// if _, err = n.headerStore.Append(ctx, header); err != nil {
+		// 	return err
+		// }
+		if !n.conf.Aggregator {
+			err = n.syncer.Start(n.ctx)
+			if err != nil {
+				return err
+			}
+			n.syncerStarted = true
+		}
+	} else {
+		_, err = n.headerStore.Append(ctx, header)
+	}
+	return err
+}
+
+func (n *FullNode) updateHeaderStoreOnHeaderReceiveLoop(ctx context.Context) {
+	for {
+		select {
+		case signedHeader := <-n.blockManager.HeaderInCh:
+			n.Logger.Debug(
+				"[HeaderSync] block header received",
+				"height",
+				signedHeader.Header.Height(),
+				"hash",
+				signedHeader.Header.Hash(),
+			)
+			if err := n.initOrAppendHeaderStore(ctx, &signedHeader.Header); err != nil {
+				n.Logger.Error("failed to write block header to header store", "error", err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (n *FullNode) writeToHeaderStoreAndBroadcastLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderOutCh:
-			err := n.sub.Broadcast(ctx, &signedHeader.Header)
-			if err != nil {
+			n.Logger.Debug(
+				"[HeaderSync] publishing block header",
+				"height",
+				signedHeader.Header.Height(),
+				"hash",
+				signedHeader.Header.Hash(),
+			)
+			// Init the header store if first block, else append to store
+			if err := n.initOrAppendHeaderStore(ctx, &signedHeader.Header); err != nil {
+				n.Logger.Error("failed to write block header to header store", "error", err)
+			}
+
+			// Broadcast for subscribers
+			if err := n.sub.Broadcast(ctx, &signedHeader.Header); err != nil {
 				n.Logger.Error("failed to broadcast block header", "error", err)
 			}
 		case <-ctx.Done():
@@ -300,51 +358,39 @@ func (n *FullNode) OnStart() error {
 		return err
 	}
 	n.sub = goheaderp2p.NewSubscriber[*types.Header](pubsub1, pubsub.DefaultMsgIdFn)
+	if err = n.sub.Start(n.ctx); err != nil {
+		return fmt.Errorf("error while starting subscriber: %w", err)
+	}
+
+	if err = n.headerStore.Start(n.ctx); err != nil {
+		return fmt.Errorf("error while starting header store: %w", err)
+	}
 
 	_, _, network := n.P2P.Info()
-	n.p2pServer, err = newP2PServer(n.P2P.Host(), n.headerStore, network)
-	if err != nil {
+	if n.p2pServer, err = newP2PServer(n.P2P.Host(), n.headerStore, network); err != nil {
 		return err
+	}
+	if err = n.p2pServer.Start(n.ctx); err != nil {
+		return fmt.Errorf("error while starting p2p server: %w", err)
 	}
 
 	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
 	if err != nil {
 		return err
 	}
-	n.ex, err = newP2PExchange(n.P2P.Host(), n.P2P.Host().Peerstore().Peers(), network, connGater)
-	if err != nil {
+	if n.ex, err = newP2PExchange(n.P2P.Host(), n.P2P.Host().Peerstore().Peers(), network, connGater); err != nil {
 		return err
 	}
-
-	n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(config.DefaultNodeConfig.BlockTime))
-	if err != nil {
-		return err
-	}
-	genesisHeader, err := n.ex.GetByHeight(n.ctx, uint64(n.genesis.InitialHeight))
-	if err != nil {
-		return fmt.Errorf("ganesh err: %d, %w, %x", n.genesis.InitialHeight, err, n.conf.P2P.Seeds)
-	}
-	err = goheaderstore.Init[*types.Header](n.ctx, n.headerStore, n.ex, genesisHeader.Hash())
-	if err != nil {
-		return err
-	}
-
-	err = n.headerStore.Start(n.ctx)
-	if err != nil {
-		return fmt.Errorf("error while starting header store: %w", err)
-	}
-	err = n.p2pServer.Start(n.ctx)
-	if err != nil {
-		return fmt.Errorf("error while starting p2p server: %w", err)
-	}
-	err = n.ex.Start(n.ctx)
-	if err != nil {
+	if err = n.ex.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
-	err = n.sub.Start(n.ctx)
-	if err != nil {
-		return fmt.Errorf("error while starting subscriber: %w", err)
+
+	if n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(config.DefaultNodeConfig.BlockTime)); err != nil {
+		return err
 	}
+	// cannot start syncer here, postponing until the first block is created
+	// so that headerstore can be initialized with that first block and
+	// the syncer can then gracefully start
 
 	err = n.dalc.Start()
 	if err != nil {
@@ -354,16 +400,13 @@ func (n *FullNode) OnStart() error {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
-		go n.headerBroadcast(n.ctx)
+		go n.writeToHeaderStoreAndBroadcastLoop(n.ctx)
+	} else {
+		go n.updateHeaderStoreOnHeaderReceiveLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
 	go n.fraudProofPublishLoop(n.ctx)
-
-	err = n.syncer.Start(n.ctx)
-	if err != nil {
-		return fmt.Errorf("error while starting syncer: %w", err)
-	}
 
 	return nil
 }
@@ -392,7 +435,9 @@ func (n *FullNode) OnStop() {
 	err = multierr.Append(err, n.p2pServer.Stop(n.ctx))
 	err = multierr.Append(err, n.ex.Stop(n.ctx))
 	err = multierr.Append(err, n.sub.Stop(n.ctx))
-	err = multierr.Append(err, n.syncer.Stop(n.ctx))
+	if !n.conf.Aggregator && n.syncerStarted {
+		err = multierr.Append(err, n.syncer.Stop(n.ctx))
+	}
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
