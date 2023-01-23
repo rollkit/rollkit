@@ -15,8 +15,8 @@ import (
 
 	"github.com/celestiaorg/go-header"
 
-	"github.com/celestiaorg/rollmint/types"
-	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
+	"github.com/rollkit/rollkit/types"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 var (

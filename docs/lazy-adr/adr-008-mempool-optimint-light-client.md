@@ -3,10 +3,12 @@
 ## Changelog
 
 - 20.09.2022: Initial Draft
+- 29.09.2022: Rename Optimint to rollmint
+- 22.01.2023: Rename rollmint to Rollkit
 
 ## Context
 
-Rollmint Light Clients cannot validate transactions without a state. Therefore Light Clients should not gossip incoming transactions, and the mempool can be disabled.
+Rollkit Light Clients cannot validate transactions without a state. Therefore Light Clients should not gossip incoming transactions, and the mempool can be disabled.
 
 ### Explanation
 

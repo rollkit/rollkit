@@ -5,13 +5,13 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/rollmint/log"
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/types"
 )
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
-// that might need to be handled by rollmint independent of
+// that might need to be handled by Rollkit independent of
 // the underlying DA chain.
 type StatusCode uint64
 
@@ -37,7 +37,7 @@ type BaseResult struct {
 type ResultSubmitBlock struct {
 	BaseResult
 	// Not sure if this needs to be bubbled up to other
-	// parts of rollmint.
+	// parts of Rollkit.
 	// Hash hash.Hash
 }
 

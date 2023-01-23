@@ -43,7 +43,7 @@ jobs:
           cp -R rollmint ethermint
           cd ethermint
           rm -rf .git
-          go mod edit -replace=github.com/celestiaorg/rollmint=./rollmint
+          go mod edit -replace=github.com/rollkit/rollkit=./rollmint
           go mod tidy -compat=1.17 -e
       - name: Docker meta
         id: meta

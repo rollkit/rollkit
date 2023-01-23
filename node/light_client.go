@@ -87,12 +87,12 @@ func (c *LightClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error
 	panic("Not implemented")
 }
 
-// DumpConsensusState always returns error as there is no consensus state in rollmint.
+// DumpConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *LightClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	panic("Not implemented")
 }
 
-// ConsensusState always returns error as there is no consensus state in rollmint.
+// ConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *LightClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
 	panic("Not implemented")
 }

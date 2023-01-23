@@ -23,8 +23,8 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/log"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/log"
 )
 
 // TODO(tzdybal): refactor to configuration parameters

@@ -7,7 +7,7 @@ import (
 
 	tmcfg "github.com/tendermint/tendermint/config"
 
-	"github.com/celestiaorg/rollmint/config"
+	"github.com/rollkit/rollkit/config"
 )
 
 func TestGetNodeConfig(t *testing.T) {

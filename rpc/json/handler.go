@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 
-	"github.com/celestiaorg/rollmint/log"
+	"github.com/rollkit/rollkit/log"
 )
 
 type handler struct {

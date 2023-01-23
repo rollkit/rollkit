@@ -15,7 +15,7 @@ type Version struct {
 	App   uint64
 }
 
-// Block defines the structure of rollmint block.
+// Block defines the structure of Rollkit block.
 type Block struct {
 	Header     Header
 	Data       Data
@@ -25,7 +25,7 @@ type Block struct {
 var _ encoding.BinaryMarshaler = &Block{}
 var _ encoding.BinaryUnmarshaler = &Block{}
 
-// Data defines rollmint block data.
+// Data defines Rollkit block data.
 type Data struct {
 	Txs                    Txs
 	IntermediateStateRoots IntermediateStateRoots

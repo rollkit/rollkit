@@ -20,19 +20,19 @@ import (
 	corep2p "github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/block"
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/da"
-	"github.com/celestiaorg/rollmint/da/registry"
-	"github.com/celestiaorg/rollmint/mempool"
-	mempoolv1 "github.com/celestiaorg/rollmint/mempool/v1"
-	"github.com/celestiaorg/rollmint/p2p"
-	"github.com/celestiaorg/rollmint/state/indexer"
-	blockidxkv "github.com/celestiaorg/rollmint/state/indexer/block/kv"
-	"github.com/celestiaorg/rollmint/state/txindex"
-	"github.com/celestiaorg/rollmint/state/txindex/kv"
-	"github.com/celestiaorg/rollmint/store"
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/block"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/registry"
+	"github.com/rollkit/rollkit/mempool"
+	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
+	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/state/indexer"
+	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
+	"github.com/rollkit/rollkit/state/txindex"
+	"github.com/rollkit/rollkit/state/txindex/kv"
+	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -50,7 +50,7 @@ const (
 
 var _ Node = &FullNode{}
 
-// FullNode represents a client node in rollmint network.
+// FullNode represents a client node in Rollkit network.
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
@@ -82,7 +82,7 @@ type FullNode struct {
 	ctx context.Context
 }
 
-// NewNode creates new rollmint node.
+// NewNode creates new Rollkit node.
 func newFullNode(
 	ctx context.Context,
 	conf config.NodeConfig,
@@ -104,7 +104,7 @@ func newFullNode(
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV, err = store.NewDefaultInMemoryKVStore()
 	} else {
-		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollmint")
+		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit")
 	}
 	if err != nil {
 		return nil, err

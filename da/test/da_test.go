@@ -16,16 +16,16 @@ import (
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
-	"github.com/celestiaorg/rollmint/da"
-	"github.com/celestiaorg/rollmint/da/celestia"
-	cmock "github.com/celestiaorg/rollmint/da/celestia/mock"
-	grpcda "github.com/celestiaorg/rollmint/da/grpc"
-	"github.com/celestiaorg/rollmint/da/grpc/mockserv"
-	"github.com/celestiaorg/rollmint/da/mock"
-	"github.com/celestiaorg/rollmint/da/registry"
-	"github.com/celestiaorg/rollmint/log/test"
-	"github.com/celestiaorg/rollmint/store"
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/celestia"
+	cmock "github.com/rollkit/rollkit/da/celestia/mock"
+	grpcda "github.com/rollkit/rollkit/da/grpc"
+	"github.com/rollkit/rollkit/da/grpc/mockserv"
+	"github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/da/registry"
+	"github.com/rollkit/rollkit/log/test"
+	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond
@@ -110,7 +110,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
-	// wait a bit more than mockDaBlockTime, so rollmint blocks can be "included" in mock block
+	// wait a bit more than mockDaBlockTime, so Rollkit blocks can be "included" in mock block
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
 	check := dalc.CheckBlockAvailability(ctx, h1)
@@ -260,7 +260,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
 	}
 
-	// TODO(tzdybal): see https://github.com/celestiaorg/rollmint/issues/143
+	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
 	if nTxs == 0 {
 		block.Data.Txs = nil
 		block.Data.IntermediateStateRoots.RawRootsList = nil

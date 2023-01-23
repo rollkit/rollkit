@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/types"
 )
 
 const (

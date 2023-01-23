@@ -4,10 +4,11 @@
 
 - 19.04.2021: Initial Draft
 - 29.09.2022: Rename Optimint to rollmint
+- 22.01.2023: Rename rollmint to Rollkit
 
 ## Context
 
-This document describes the core data structures of any rollmint-powered blockchain.
+This document describes the core data structures of any Rollkit-powered blockchain.
 
 ## Alternative Approaches
 
@@ -28,7 +29,7 @@ Where such tradeoffs are made, we explicitly comment on them.
 
 ### Transactions
 
-In rollmint, like in Tendermint, Transactions are just an opaque slice of bytes:
+In Rollkit, like in Tendermint, Transactions are just an opaque slice of bytes:
 
 ```go
 type Tx []byte
@@ -130,7 +131,7 @@ This could be seen as a state transition and the ConsensusHash in the header wou
 That said, none of the existing default Cosmos-SDK modules actually make use of this functionality though.
 Hence, we can treat the ConsensusParams as constants (for the same app version).
 We clearly need to communicate this to optimistic rollup chain developers.
-Ideally, we should ensure this programmatically to guarantee that this assumption always holds inside rollmint.
+Ideally, we should ensure this programmatically to guarantee that this assumption always holds inside Rollkit.
 
 The ConsensusParams have the exact same structure as in Tendermint. For the sake of self-containedness we still list them here:
 
@@ -213,4 +214,4 @@ For finishing the implementation these items need to be tackled at least:
 
 ## References
 
-- <https://github.com/celestiaorg/rollmint/pull/41>
+- <https://github.com/rollkit/rollkit/pull/41>

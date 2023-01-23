@@ -22,9 +22,9 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 
-	rconfig "github.com/celestiaorg/rollmint/config"
-	abciconv "github.com/celestiaorg/rollmint/conv/abci"
-	"github.com/celestiaorg/rollmint/mempool"
+	rconfig "github.com/rollkit/rollkit/config"
+	abciconv "github.com/rollkit/rollkit/conv/abci"
+	"github.com/rollkit/rollkit/mempool"
 )
 
 const (
@@ -36,15 +36,15 @@ const (
 )
 
 var (
-	// ErrConsensusStateNotAvailable is returned because rollmint doesn't use Tendermint consensus.
-	ErrConsensusStateNotAvailable = errors.New("consensus state not available in rollmint")
+	// ErrConsensusStateNotAvailable is returned because Rollkit doesn't use Tendermint consensus.
+	ErrConsensusStateNotAvailable = errors.New("consensus state not available in Rollkit")
 )
 
 var _ rpcclient.Client = &FullClient{}
 
 // FullClient implements tendermint RPC client interface.
 //
-// This is the type that is used in communication between cosmos-sdk app and rollmint.
+// This is the type that is used in communication between cosmos-sdk app and Rollkit.
 type FullClient struct {
 	*tmtypes.EventBus
 	config *config.RPCConfig
@@ -366,12 +366,12 @@ func (c *FullClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error)
 	return &res, nil
 }
 
-// DumpConsensusState always returns error as there is no consensus state in rollmint.
+// DumpConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *FullClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }
 
-// ConsensusState always returns error as there is no consensus state in rollmint.
+// ConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *FullClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
 	return nil, ErrConsensusStateNotAvailable
 }
@@ -380,7 +380,7 @@ func (c *FullClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensu
 //
 // Currently, consensus params changes are not supported and this method returns params as defined in genesis.
 func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// TODO(tzdybal): implement consensus params handling: https://github.com/celestiaorg/rollmint/issues/291
+	// TODO(tzdybal): implement consensus params handling: https://github.com/rollkit/rollkit/issues/291
 	params := c.node.GetGenesis().ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),

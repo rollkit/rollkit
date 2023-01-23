@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestStoreHeight(t *testing.T) {
@@ -81,7 +81,7 @@ func TestStoreLoad(t *testing.T) {
 		//}},
 	}
 
-	tmpDir, err := os.MkdirTemp("", "rollmint_test")
+	tmpDir, err := os.MkdirTemp("", "rollkit_test")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)

@@ -3,10 +3,10 @@ package conv
 import (
 	tmcfg "github.com/tendermint/tendermint/config"
 
-	"github.com/celestiaorg/rollmint/config"
+	"github.com/rollkit/rollkit/config"
 )
 
-// GetNodeConfig translates Tendermint's configuration into rollmint configuration.
+// GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
 //
 // This method only translates configuration, and doesn't verify it. If some option is missing in Tendermint's
 // config, it's skipped during translation.

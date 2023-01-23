@@ -18,8 +18,8 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/state/txindex"
-	"github.com/celestiaorg/rollmint/store"
+	"github.com/rollkit/rollkit/state/txindex"
+	"github.com/rollkit/rollkit/store"
 )
 
 func TestTxIndex(t *testing.T) {

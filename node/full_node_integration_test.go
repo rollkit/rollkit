@@ -20,15 +20,15 @@ import (
 	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/da"
-	mockda "github.com/celestiaorg/rollmint/da/mock"
-	"github.com/celestiaorg/rollmint/mocks"
-	"github.com/celestiaorg/rollmint/p2p"
-	"github.com/celestiaorg/rollmint/store"
-	rmtypes "github.com/celestiaorg/rollmint/types"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/da"
+	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestAggregatorMode(t *testing.T) {
@@ -50,9 +50,9 @@ func TestAggregatorMode(t *testing.T) {
 
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
-		NamespaceID: rmtypes.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -279,7 +279,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 	bmConfig := config.BlockManagerConfig{
 		BlockTime:   300 * time.Millisecond,
-		NamespaceID: rmtypes.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 		FraudProofs: true,
 	}
 	for i := 0; i < len(keys); i++ {
@@ -329,7 +329,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		keys[n],
 		signingKey,
 		abcicli.NewLocalClient(nil, app),
-		&types.GenesisDoc{ChainID: "test"},
+		&tmtypes.GenesisDoc{ChainID: "test"},
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)

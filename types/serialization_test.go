@@ -14,7 +14,7 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	pb "github.com/celestiaorg/rollmint/types/pb/rollmint"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 func TestBlockSerializationRoundTrip(t *testing.T) {
@@ -119,7 +119,7 @@ func TestStateRoundTrip(t *testing.T) {
 						Block: 123,
 						App:   456,
 					},
-					Software: "rollmint",
+					Software: "rollkit",
 				},
 				ChainID:         "testchain",
 				InitialHeight:   987,

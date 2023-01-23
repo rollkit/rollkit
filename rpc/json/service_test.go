@@ -25,9 +25,9 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/mocks"
-	"github.com/celestiaorg/rollmint/node"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/node"
 )
 
 func TestHandlerMapping(t *testing.T) {

@@ -1,6 +1,6 @@
 syntax = "proto3";
-package rollmint;
-option go_package = "github.com/celestiaorg/rollmint/types/pb/rollmint";
+package rollkit;
+option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";

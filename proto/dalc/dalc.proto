@@ -1,8 +1,8 @@
 syntax = "proto3";
 package dalc;
-option go_package = "github.com/celestiaorg/rollmint/types/pb/dalc";
+option go_package = "github.com/rollkit/rollkit/types/pb/dalc";
 
-import "rollmint/rollmint.proto";
+import "rollkit/rollkit.proto";
 import "gogoproto/gogo.proto";
 
 enum StatusCode {
@@ -19,7 +19,7 @@ message DAResponse {
 }
 
 message SubmitBlockRequest {
-	rollmint.Block block = 1;
+	rollkit.Block block = 1;
 }
 
 message SubmitBlockResponse {
@@ -41,7 +41,7 @@ message RetrieveBlocksRequest {
 
 message RetrieveBlocksResponse {
 	DAResponse result = 1;
-	repeated rollmint.Block blocks = 2;
+	repeated rollkit.Block blocks = 2;
 }
 
 service DALCService {

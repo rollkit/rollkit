@@ -15,8 +15,8 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"golang.org/x/net/netutil"
 
-	"github.com/celestiaorg/rollmint/node"
-	"github.com/celestiaorg/rollmint/rpc/json"
+	"github.com/rollkit/rollkit/node"
+	"github.com/rollkit/rollkit/rpc/json"
 )
 
 // Server handles HTTP and JSON-RPC requests, exposing Tendermint-compatible API.

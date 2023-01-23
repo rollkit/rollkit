@@ -7,7 +7,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 
-	"github.com/celestiaorg/rollmint/state/txindex"
+	"github.com/rollkit/rollkit/state/txindex"
 )
 
 var _ txindex.TxIndexer = (*TxIndex)(nil)

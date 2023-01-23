@@ -12,10 +12,10 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 
-	blockidxkv "github.com/celestiaorg/rollmint/state/indexer/block/kv"
-	"github.com/celestiaorg/rollmint/state/txindex"
-	"github.com/celestiaorg/rollmint/state/txindex/kv"
-	"github.com/celestiaorg/rollmint/store"
+	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
+	"github.com/rollkit/rollkit/state/txindex"
+	"github.com/rollkit/rollkit/state/txindex/kv"
+	"github.com/rollkit/rollkit/store"
 )
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {

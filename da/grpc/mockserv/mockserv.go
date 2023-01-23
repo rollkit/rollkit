@@ -7,11 +7,11 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
 
-	grpcda "github.com/celestiaorg/rollmint/da/grpc"
-	"github.com/celestiaorg/rollmint/da/mock"
-	"github.com/celestiaorg/rollmint/types"
-	"github.com/celestiaorg/rollmint/types/pb/dalc"
-	"github.com/celestiaorg/rollmint/types/pb/rollmint"
+	grpcda "github.com/rollkit/rollkit/da/grpc"
+	"github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/types"
+	"github.com/rollkit/rollkit/types/pb/dalc"
+	"github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // GetServer creates and returns gRPC server instance.
@@ -65,7 +65,7 @@ func (m *mockImpl) CheckBlockAvailability(ctx context.Context, request *dalc.Che
 
 func (m *mockImpl) RetrieveBlocks(ctx context.Context, request *dalc.RetrieveBlocksRequest) (*dalc.RetrieveBlocksResponse, error) {
 	resp := m.mock.RetrieveBlocks(ctx, request.DAHeight)
-	blocks := make([]*rollmint.Block, len(resp.Blocks))
+	blocks := make([]*rollkit.Block, len(resp.Blocks))
 	for i := range resp.Blocks {
 		blocks[i] = resp.Blocks[i].ToProto()
 	}

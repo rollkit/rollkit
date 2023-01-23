@@ -7,7 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/celestiaorg/rollmint/log"
+	"github.com/rollkit/rollkit/log"
 )
 
 type wsConn struct {
@@ -68,7 +68,7 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if mt != websocket.TextMessage {
-			// TODO(tzdybal): https://github.com/celestiaorg/rollmint/issues/465
+			// TODO(tzdybal): https://github.com/rollkit/rollkit/issues/465
 			h.logger.Debug("expected text message")
 			continue
 		}

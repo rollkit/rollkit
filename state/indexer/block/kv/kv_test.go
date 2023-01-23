@@ -12,8 +12,8 @@ import (
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 
-	blockidxkv "github.com/celestiaorg/rollmint/state/indexer/block/kv"
-	"github.com/celestiaorg/rollmint/store"
+	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
+	"github.com/rollkit/rollkit/store"
 )
 
 func TestBlockIndexer(t *testing.T) {
