@@ -22,6 +22,8 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+var ErrFraudProofGenerated = errors.New("failed to ApplyBlock: halting node due to fraud")
+
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
 	proposerAddress    []byte
@@ -34,6 +36,8 @@ type BlockExecutor struct {
 	eventBus *tmtypes.EventBus
 
 	logger log.Logger
+
+	FraudProofOutCh chan *abci.FraudProof
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
@@ -48,6 +52,7 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 		fraudProofsEnabled: fraudProofsEnabled,
 		eventBus:           eventBus,
 		logger:             logger,
+		FraudProofOutCh:    make(chan *abci.FraudProof),
 	}
 }
 
@@ -181,11 +186,11 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	return appHash, retainHeight, nil
 }
 
-func (e *BlockExecutor) VerifyFraudProof(fraudProof abci.FraudProof, expectedAppHash []byte) (bool, error) {
+func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedValidAppHash []byte) (bool, error) {
 	resp, err := e.proxyApp.VerifyFraudProofSync(
 		abci.RequestVerifyFraudProof{
-			FraudProof:      &fraudProof,
-			ExpectedAppHash: expectedAppHash,
+			FraudProof:           fraudProof,
+			ExpectedValidAppHash: expectedValidAppHash,
 		},
 	)
 	if err != nil {
@@ -332,13 +337,14 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		ISRs = append(ISRs, isr)
 		isFraud := e.isFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
 		if isFraud {
+			e.logger.Info("found fraud occurrence, generating a fraud proof...")
 			fraudProof, err := e.generateFraudProof(beginBlockRequest, deliverTxRequests, endBlockRequest)
 			if err != nil {
 				return err
 			}
-			// TODO: gossip fraudProof to P2P network
-			// fraudTx: current DeliverTx
-			_ = fraudProof
+			// Gossip Fraud Proof
+			e.FraudProofOutCh <- fraudProof
+			return ErrFraudProofGenerated
 		}
 		currentIsrIndex++
 		return nil
@@ -370,7 +376,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	deliverTxRequests := make([]*abci.RequestDeliverTx, len(block.Data.Txs))
+	deliverTxRequests := make([]*abci.RequestDeliverTx, 0, len(block.Data.Txs))
 	for _, tx := range block.Data.Txs {
 		deliverTxRequest := abci.RequestDeliverTx{Tx: tx}
 		deliverTxRequests = append(deliverTxRequests, &deliverTxRequest)
