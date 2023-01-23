@@ -168,7 +168,24 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
+	initialHeight := uint64(m.genesis.InitialHeight)
+	height := m.store.Height()
+	var delay time.Duration
+
+	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
+	if height < initialHeight {
+		delay = time.Until(m.genesis.GenesisTime)
+	} else {
+		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
+	}
+
+	if delay > 0 {
+		m.logger.Info("Waiting to produce block", "delay", delay)
+		time.Sleep(delay)
+	}
+
 	timer := time.NewTimer(0)
+
 	for {
 		select {
 		case <-ctx.Done():

@@ -5,6 +5,7 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -1021,4 +1022,50 @@ func TestStatus(t *testing.T) {
 		res := resp.NodeInfo.Other.TxIndex == tc.other.TxIndex
 		assert.Equal(tc.expected, res, tc)
 	}
+}
+
+func TestFutureGenesisTime(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var beginBlockTime time.Time
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	mockApp := &mocks.Application{}
+	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{}).Run(func(_ mock.Arguments) {
+		beginBlockTime = time.Now()
+		wg.Done()
+	})
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
+	node, err := newFullNode(context.Background(), config.NodeConfig{
+		DALayer:    "mock",
+		Aggregator: true,
+		BlockManagerConfig: config.BlockManagerConfig{
+			BlockTime: 200 * time.Millisecond,
+		}},
+		key, signingKey,
+		abcicli.NewLocalClient(nil, mockApp),
+		&tmtypes.GenesisDoc{
+			ChainID:       "test",
+			InitialHeight: 1,
+			GenesisTime:   genesisTime,
+		},
+		log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node)
+
+	err = node.Start()
+	require.NoError(err)
+
+	wg.Wait()
+
+	assert.True(beginBlockTime.After(genesisTime))
 }
