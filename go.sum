@@ -76,8 +76,8 @@ github.com/celestiaorg/go-cnc v0.2.0 h1:QBcWz1v6341r+5Urbr/eaCm9S8D2wwEwielKcwBc
 github.com/celestiaorg/go-cnc v0.2.0/go.mod h1:CZBVUhQnJnAVcfQnnEAqREF+PNWr97m/BhJ5fp1K44Q=
 github.com/celestiaorg/go-header v0.1.0 h1:K/atYWwZ/bjMLJ/Apy0dokbREa8BGgxUMiMjhRHlF4E=
 github.com/celestiaorg/go-header v0.1.0/go.mod h1:AR7GQ1519TDLEFxRC0rt9emq1IvhU+Nf+1Ufe3JI3nA=
-github.com/celestiaorg/tendermint v0.34.22-0.20221013213714-8be9b54c8c21 h1:M1fprJ+U7Z3SZzDBeiuJ/vx21QgguOu+Ld9ALVDyLuY=
-github.com/celestiaorg/tendermint v0.34.22-0.20221013213714-8be9b54c8c21/go.mod h1:zoyyiiihvTW8DnOr63YLxhYn/WK/QmE74CeIpS++hBE=
+github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d h1:OH9dp6WWotp53aG58xSdLWd+F1Znf3DhA0BadyJO4Aw=
+github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d/go.mod h1:zoyyiiihvTW8DnOr63YLxhYn/WK/QmE74CeIpS++hBE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cespare/xxhash v1.1.0 h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=

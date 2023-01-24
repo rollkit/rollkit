@@ -140,7 +140,7 @@ message RequestGenerateFraudProof {
 // Verifies a fraud proof
 message RequestVerifyFraudProof {
   FraudProof fraud_proof = 1;
-  bytes expected_app_hash = 2;
+  bytes expected_valid_app_hash = 2;
 }
 
 //----------------------------------------
@@ -426,12 +426,13 @@ message Snapshot {
 // Represents a single-round fraudProof
 message FraudProof {
   int64 block_height = 1;
-  bytes app_hash = 2;
-  map<string, StateWitness> state_witness = 3;
+  bytes pre_state_app_hash = 2;
+  bytes expected_valid_app_hash = 3;
+  map<string, StateWitness> state_witness = 4;
 
-  RequestBeginBlock fraudulent_begin_block = 4;
-  RequestDeliverTx fraudulent_deliver_tx = 5;
-  RequestEndBlock fraudulent_end_block = 6;
+  RequestBeginBlock fraudulent_begin_block = 5;
+  RequestDeliverTx fraudulent_deliver_tx = 6;
+  RequestEndBlock fraudulent_end_block = 7;
 }
 
 // State witness with a list of all witness data
@@ -446,9 +447,16 @@ message StateWitness {
 
 // Witness data containing a key/value pair and a Merkle proof for said key/value pair
 message WitnessData {
-  bytes key = 1;
-  bytes value = 2;
-  tendermint.crypto.ProofOp proof = 3;
+  Operation operation = 1;
+  bytes key = 2;
+  bytes value = 3;
+  repeated tendermint.crypto.ProofOp proofs = 4;
+}
+
+enum Operation {
+   WRITE     = 0 [(gogoproto.enumvalue_customname) = "write"];
+   READ      = 1 [(gogoproto.enumvalue_customname) = "read"];
+   DELETE    = 2 [(gogoproto.enumvalue_customname) = "delete"];
 }
 
 //----------------------------------------
