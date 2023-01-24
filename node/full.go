@@ -229,8 +229,7 @@ func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
 			n.Logger.Info("generated fraud proof: ", fraudProof.String())
 			fraudProofBytes, err := fraudProof.Marshal()
 			if err != nil {
-				n.Logger.Error("failed to serialize fraud proof", "error", err)
-				return
+				panic(fmt.Errorf("failed to serialize fraud proof: %w", err))
 			}
 			n.Logger.Info("gossipping fraud proof...")
 			err = n.P2P.GossipFraudProof(context.Background(), fraudProofBytes)
