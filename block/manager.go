@@ -62,7 +62,7 @@ type Manager struct {
 	CommitInCh chan *types.Commit
 	lastCommit atomic.Value
 
-	FraudProofCh chan *types.FraudProof
+	FraudProofInCh chan *abci.FraudProof
 
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
@@ -139,13 +139,14 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh: make(chan *types.SignedHeader, 100),
-		HeaderInCh:  make(chan *types.SignedHeader, 100),
-		CommitInCh:  make(chan *types.Commit, 100),
-		blockInCh:   make(chan newBlockEvent, 100),
-		retrieveMtx: new(sync.Mutex),
-		syncCache:   make(map[uint64]*types.Block),
-		logger:      logger,
+		HeaderOutCh:    make(chan *types.SignedHeader, 100),
+		HeaderInCh:     make(chan *types.SignedHeader, 100),
+		CommitInCh:     make(chan *types.Commit, 100),
+		blockInCh:      make(chan newBlockEvent, 100),
+		FraudProofInCh: make(chan *abci.FraudProof, 100),
+		retrieveMtx:    new(sync.Mutex),
+		syncCache:      make(map[uint64]*types.Block),
+		logger:         logger,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -164,6 +165,10 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.dalc = dalc
 	m.retriever = dalc.(da.BlockRetriever)
+}
+
+func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
+	return m.executor.FraudProofOutCh
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
@@ -205,7 +210,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 //
 // SyncLoop processes headers gossiped in P2p network to know what's the latest block height,
 // block data is retrieved from DA layer.
-func (m *Manager) SyncLoop(ctx context.Context) {
+func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
 	for {
 		select {
@@ -244,24 +249,33 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
+			if err != nil && err.Error() == fmt.Errorf("failed to ApplyBlock: %w", state.ErrFraudProofGenerated).Error() {
+				return
+			}
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
-		case fraudProof := <-m.FraudProofCh:
-			m.logger.Debug("fraud proof received", "Block Height", "dummy block height") // TODO: Insert real block height
-			_ = fraudProof
+		case fraudProof := <-m.FraudProofInCh:
+			m.logger.Debug("fraud proof received",
+				"block height", fraudProof.BlockHeight,
+				"pre-state app hash", fraudProof.PreStateAppHash,
+				"expected valid app hash", fraudProof.ExpectedValidAppHash,
+				"length of state witness", len(fraudProof.StateWitness),
+			)
 			// TODO(light-client): Set up a new cosmos-sdk app
-			// How to get expected appHash here?
+			// TODO: Add fraud proof window validation
 
-			// success, err := m.executor.VerifyFraudProof(fraudProof, nil)
-			// if err != nil {
-			// 	m.logger.Error("failed to verify fraud proof", "error", err)
-			// 	continue
-			// }
-			// if success {
-			// 	// halt chain somehow
-			// 	defer context.WithCancel(ctx)
-			// }
+			success, err := m.executor.VerifyFraudProof(fraudProof, fraudProof.ExpectedValidAppHash)
+			if err != nil {
+				m.logger.Error("failed to verify fraud proof", "error", err)
+				continue
+			}
+			if success {
+				// halt chain
+				m.logger.Info("verified fraud proof, halting chain")
+				cancel()
+				return
+			}
 
 		case <-ctx.Done():
 			return
