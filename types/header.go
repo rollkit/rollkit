@@ -59,6 +59,10 @@ func (h *Header) New() header.Header {
 	return new(Header)
 }
 
+func (h *Header) IsZero() bool {
+	return h == nil
+}
+
 func (h *Header) ChainID() string {
 	return h.BaseHeader.ChainID
 }
@@ -73,17 +77,6 @@ func (h *Header) LastHeader() Hash {
 
 func (h *Header) Time() time.Time {
 	return time.Unix(int64(h.BaseHeader.Time), 0)
-}
-
-func (h *Header) IsRecent(blockTime time.Duration) bool {
-	return time.Since(h.Time()) <= blockTime
-}
-
-func (h *Header) IsExpired() bool {
-	// TODO(tzdybal): TrustingPeriod will be configurable soon (https://github.com/celestiaorg/celestia-node/pull/1544)
-	const TrustingPeriod = 168 * time.Hour
-	expirationTime := h.Time().Add(TrustingPeriod)
-	return !expirationTime.After(time.Now())
 }
 
 func (h *Header) VerifyAdjacent(untrst header.Header) error {
@@ -147,11 +140,6 @@ func (h *Header) VerifyNonAdjacent(untrst header.Header) error {
 	// }
 
 	return nil
-}
-
-func (h *Header) Verify(h2 header.Header) error {
-	// TODO(tzdybal): deprecated
-	panic("implement me")
 }
 
 func (h *Header) Validate() error {
