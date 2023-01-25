@@ -24,7 +24,9 @@ var DefaultNodeConfig = NodeConfig{
 		NamespaceID: types.NamespaceID{},
 		FraudProofs: false,
 	},
-	DALayer:  "mock",
-	DAConfig: "",
-	Light:    false,
+	DALayer:                     "mock",
+	DAConfig:                    "",
+	Light:                       false,
+	SequencerListenAddress:      "",
+	SequencerMaxOpenConnections: 0,
 }

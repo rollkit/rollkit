@@ -20,6 +20,10 @@ const (
 	flagNamespaceID   = "rollkit.namespace_id"
 	flagFraudProofs   = "rollkit.experimental_insecure_fraud_proofs"
 	flagLight         = "rollkit.light"
+
+	flagSequencerListenAddress      = "rollkit.sequencer_listen_address"
+	flagSequencerMaxOpenConnections = "rollkit.sequencer_max_open_connections"
+	flagSequencerCorsEnabled        = "rollkit.sequencer_cors_enabled"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -30,11 +34,15 @@ type NodeConfig struct {
 	P2P     P2PConfig
 	RPC     RPCConfig
 	// parameters below are Rollkit specific and read from config
-	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
 	DALayer            string `mapstructure:"da_layer"`
 	DAConfig           string `mapstructure:"da_config"`
 	Light              bool   `mapstructure:"light"`
+
+	// Sequencer-specific settings
+	Aggregator                  bool   `mapstructure:"aggregator"`
+	SequencerListenAddress      string `mapstructure:"sequencer_listen_address"`
+	SequencerMaxOpenConnections uint64 `mapstructure:"sequencer_max_open_connections"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
@@ -54,6 +62,7 @@ type BlockManagerConfig struct {
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
+	nc.SequencerListenAddress = v.GetString(flagSequencerListenAddress)
 	nc.DALayer = v.GetString(flagDALayer)
 	nc.DAConfig = v.GetString(flagDAConfig)
 	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
@@ -84,4 +93,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
+	cmd.Flags().String(flagSequencerListenAddress, def.SequencerListenAddress, "listening address for centralized sequencer")
+	cmd.Flags().Uint64(flagSequencerMaxOpenConnections, def.SequencerMaxOpenConnections, "max open connections for centralized sequencer")
 }
