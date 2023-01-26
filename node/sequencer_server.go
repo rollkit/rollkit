@@ -60,6 +60,11 @@ func (s *SequencerServer) Start() error {
 		listener = netutil.LimitListener(listener, int(s.node.conf.SequencerMaxOpenConnections))
 	}
 
+	handler, err := newHandler(s)
+	if err != nil {
+		return err
+	}
+
 	if s.config.IsCorsEnabled() {
 		s.Logger.Debug("Sequencer CORS enabled",
 			"origins", s.config.CORSAllowedOrigins,
@@ -71,7 +76,45 @@ func (s *SequencerServer) Start() error {
 			AllowedMethods: s.config.CORSAllowedMethods,
 			AllowedHeaders: s.config.CORSAllowedHeaders,
 		})
+		handler = c.Handler(handler)
 	}
 
+	go func() {
+		err := s.serve(listener, handler)
+		if err != http.ErrServerClosed {
+			s.Logger.Error("error while serving HTTP", "error", err)
+		}
+	}()
+
 	return nil
+}
+
+func (s *SequencerServer) serve(listener net.Listener, handler http.Handler) error {
+	s.Logger.Info("serving HTTP", "listen address", listener.Addr())
+	s.server = http.Server{Handler: handler}
+	if s.config.TLSCertFile != "" && s.config.TLSKeyFile != "" {
+		return s.server.ServeTLS(listener, s.config.CertFile(), s.config.KeyFile())
+	}
+	return s.server.Serve(listener)
+}
+
+type handler struct {
+	mux *http.ServeMux
+}
+
+func newHandler(s *SequencerServer) (http.Handler, error) {
+	mux := http.NewServeMux()
+	h := handler{
+		mux: mux,
+	}
+	mux.HandleFunc("/tx", s.handleDirectTx)
+	return h, nil
+}
+
+func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mux.ServeHTTP(w, r)
+}
+
+func (s *SequencerServer) handleDirectTx(w http.ResponseWriter, r *http.Request) {
+	return
 }
