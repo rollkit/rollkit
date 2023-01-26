@@ -15,48 +15,46 @@ message Version {
 message Header {
 	// Block and App version
 	Version version = 1;
-	// NamespaceID identifies this chain e.g. when connected to other rollups via IBC.
-	bytes namespace_id = 2;
 
 	// Block height
-	uint64 height = 3;
+	uint64 height = 2;
 
 	// Block creation time
-	uint64 time = 4;
+	uint64 time = 3;
 
 	// Previous block info
-	bytes last_header_hash = 5;
+	bytes last_header_hash = 4;
 
 	// Commit from aggregator(s) from the last block
-	bytes last_commit_hash = 6;
+	bytes last_commit_hash = 5;
 	
 	// Block.Data root aka Transactions
-	bytes data_hash = 7;
+	bytes data_hash = 6;
 
 	// Consensus params for current block
-	bytes consensus_hash = 8;
+	bytes consensus_hash = 7;
 
 	// State after applying txs from the current block
-	bytes app_hash = 9;
+	bytes app_hash = 8;
 
 	// Root hash of all results from the txs from the previous block.
 	// This is ABCI specific but smart-contract chains require some way of committing
 	// to transaction receipts/results.
-	bytes last_results_hash = 10;
+	bytes last_results_hash = 9;
 
 	// Original proposer of the block
 	// Note that the address can be derived from the pubkey which can be derived
 	// from the signature when using secp256k.
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
-	bytes proposer_address = 11;
+	bytes proposer_address = 10;
 
 
 	// Hash of block aggregator set, at a time of block creation
-	bytes aggregators_hash = 12;
+	bytes aggregators_hash = 11;
 
 	// Chain ID the block belongs to
-	string chain_id = 13;
+	string chain_id = 12;
 }
 
 message Commit {

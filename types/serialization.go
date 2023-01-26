@@ -1,8 +1,6 @@
 package types
 
 import (
-	"errors"
-
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/types"
 
@@ -109,7 +107,6 @@ func (h *Header) ToProto() *pb.Header {
 			Block: h.Version.Block,
 			App:   h.Version.App,
 		},
-		NamespaceId:     h.NamespaceID[:],
 		Height:          h.BaseHeader.Height,
 		Time:            h.BaseHeader.Time,
 		LastHeaderHash:  h.LastHeaderHash[:],
@@ -129,9 +126,6 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.Version.Block = other.Version.Block
 	h.Version.App = other.Version.App
 	h.BaseHeader.ChainID = other.ChainId
-	if !safeCopy(h.NamespaceID[:], other.NamespaceId) {
-		return errors.New("invalid length of 'NamespaceId'")
-	}
 	h.BaseHeader.Height = other.Height
 	h.BaseHeader.Time = other.Time
 	h.LastHeaderHash = other.LastHeaderHash
