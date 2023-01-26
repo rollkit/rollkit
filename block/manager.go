@@ -59,7 +59,6 @@ type Manager struct {
 	HeaderOutCh chan *types.SignedHeader
 	HeaderInCh  chan *types.SignedHeader
 
-	CommitInCh chan *types.Commit
 	lastCommit atomic.Value
 
 	FraudProofInCh chan *abci.FraudProof
@@ -141,7 +140,6 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderOutCh:    make(chan *types.SignedHeader, 100),
 		HeaderInCh:     make(chan *types.SignedHeader, 100),
-		CommitInCh:     make(chan *types.Commit, 100),
 		blockInCh:      make(chan newBlockEvent, 100),
 		FraudProofInCh: make(chan *abci.FraudProof, 100),
 		retrieveMtx:    new(sync.Mutex),
@@ -227,15 +225,14 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCond.Signal()
 			}
-			m.CommitInCh <- &header.Commit
-		case commit := <-m.CommitInCh:
+			commit := &header.Commit
 			// TODO(tzdybal): check if it's from right aggregator
 			m.lastCommit.Store(commit)
 			err := m.trySyncNextBlock(ctx, 0)
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			} else {
-				m.logger.Debug("synced using gossiped commit", "height", commit.Height)
+				m.logger.Debug("synced using signed header", "height", commit.Height)
 			}
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
