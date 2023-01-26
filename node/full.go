@@ -169,7 +169,6 @@ func newFullNode(
 
 	node.P2P.SetTxValidator(node.newTxValidator())
 	node.P2P.SetHeaderValidator(node.newHeaderValidator())
-	node.P2P.SetCommitValidator(node.newCommitValidator())
 	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
@@ -361,28 +360,6 @@ func (n *FullNode) newHeaderValidator() p2p.GossipValidator {
 			return false
 		}
 		n.blockManager.HeaderInCh <- &header
-		return true
-	}
-}
-
-// newCommitValidator returns a pubsub validator that runs basic checks and forwards
-// the deserialized commit for further processing
-func (n *FullNode) newCommitValidator() p2p.GossipValidator {
-	return func(commitMsg *p2p.GossipMessage) bool {
-		n.Logger.Debug("commit received", "from", commitMsg.From, "bytes", len(commitMsg.Data))
-		var commit types.Commit
-		err := commit.UnmarshalBinary(commitMsg.Data)
-		if err != nil {
-			n.Logger.Error("failed to deserialize commit", "error", err)
-			return false
-		}
-		err = commit.ValidateBasic()
-		if err != nil {
-			n.Logger.Error("failed to validate commit", "error", err)
-			return false
-		}
-		n.Logger.Debug("commit received", "height", commit.Height)
-		n.blockManager.CommitInCh <- &commit
 		return true
 	}
 }
