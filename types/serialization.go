@@ -143,16 +143,6 @@ func (h *Header) FromProto(other *pb.Header) error {
 	return nil
 }
 
-// safeCopy copies bytes from src slice into dst slice if both have same size.
-// It returns true if sizes of src and dst are the same.
-func safeCopy(dst, src []byte) bool {
-	if len(src) != len(dst) {
-		return false
-	}
-	_ = copy(dst, src)
-	return true
-}
-
 // ToProto converts Block into protobuf representation and returns it.
 func (b *Block) ToProto() *pb.Block {
 	return &pb.Block{
