@@ -4,6 +4,8 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 )
 
+var DIRECT = 0
+
 // TxInfo are parameters that get passed when attempting to add a tx to the
 // mempool.
 type TxInfo struct {

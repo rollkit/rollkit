@@ -2,17 +2,23 @@ package node
 
 import (
 	//"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/gorilla/rpc/v2/json2"
 
 	//"time"
 
 	//"github.com/rs/cors"
 	"github.com/rs/cors"
 	"github.com/tendermint/tendermint/config"
+	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/types"
 	"golang.org/x/net/netutil"
 	//"github.com/tendermint/tendermint/libs/service"
 	/*rpcclient "github.com/tendermint/tendermint/rpc/client"
@@ -116,5 +122,48 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SequencerServer) handleDirectTx(w http.ResponseWriter, r *http.Request) {
-	return
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		s.encodeAndWriteResponse(w, nil, err, int(json2.E_PARSE))
+		return
+	}
+	tx := []byte(values["tx"][0])
+	s.node.ReceiveDirectTx(tx)
+}
+
+func (s *SequencerServer) encodeAndWriteResponse(w http.ResponseWriter, result interface{}, errResult error, statusCode int) {
+	w.Header().Set("x-content-type-options", "nosniff")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	resp := response{
+		Version: "2.0",
+		ID:      []byte("-1"),
+	}
+
+	if errResult != nil {
+		resp.Error = &json2.Error{Code: json2.ErrorCode(statusCode), Data: errResult.Error()}
+	} else {
+		bytes, err := tmjson.Marshal(result)
+		if err != nil {
+			resp.Error = &json2.Error{Code: json2.ErrorCode(json2.E_INTERNAL), Data: err.Error()}
+		} else {
+			resp.Result = bytes
+		}
+	}
+
+	encoder := json.NewEncoder(w)
+	err := encoder.Encode(resp)
+	if err != nil {
+		s.Logger.Error("failed to encode RPC response", "error", err)
+	}
+}
+
+type response struct {
+	Version string          `json:"jsonrpc"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *json2.Error    `json:"error,omitempty"`
+	ID      json.RawMessage `json:"id"`
+}
+type receiveTxDirectArgs struct {
+	Tx types.Tx `json:"tx"`
 }

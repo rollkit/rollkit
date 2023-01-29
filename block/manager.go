@@ -167,7 +167,7 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context) {
+func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVal func([]byte) bool) {
 	initialHeight := uint64(m.genesis.InitialHeight)
 	height := m.store.Height()
 	var delay time.Duration
@@ -188,6 +188,13 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 
 	for {
 		select {
+		case msg := <-ingress:
+			m.logger.Debug("Received transactions directly")
+			if txVal(msg) {
+				m.logger.Debug("Tx is valid!")
+			} else {
+				m.logger.Debug("Tx is invalid :(")
+			}
 		case <-ctx.Done():
 			return
 		case <-timer.C:

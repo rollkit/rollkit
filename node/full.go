@@ -67,7 +67,7 @@ type FullNode struct {
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
-	incomingTxCh chan *p2p.GossipMessage
+	incomingTxCh chan []byte
 
 	Store        store.Store
 	blockManager *block.Manager
@@ -152,7 +152,7 @@ func newFullNode(
 		dalc:           dalc,
 		Mempool:        mp,
 		mempoolIDs:     mpIDs,
-		incomingTxCh:   make(chan *p2p.GossipMessage),
+		incomingTxCh:   make(chan []byte),
 		Store:          s,
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
@@ -230,7 +230,7 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx)
+		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.validateTx)
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
@@ -283,6 +283,36 @@ func (n *FullNode) EventBus() *tmtypes.EventBus {
 // AppClient returns ABCI proxy connections to communicate with application.
 func (n *FullNode) AppClient() abciclient.Client {
 	return n.appClient
+}
+
+func (n *FullNode) ReceiveDirectTx(m []byte) bool {
+	return n.validateTx(m)
+}
+
+func (n *FullNode) validateTx(m []byte) bool {
+	n.Logger.Debug("transaction received", "bytes", len(m))
+	checkTxResCh := make(chan *abci.Response, 1)
+	err := n.Mempool.CheckTx(m, func(resp *abci.Response) {
+		checkTxResCh <- resp
+	}, mempool.TxInfo{
+		SenderID:    uint16(mempool.DIRECT),
+		SenderP2PID: "DIRECT",
+	})
+	switch {
+	case errors.Is(err, mempool.ErrTxInCache):
+		return true
+	case errors.Is(err, mempool.ErrMempoolIsFull{}):
+		return true
+	case errors.Is(err, mempool.ErrTxTooLarge{}):
+		return false
+	case errors.Is(err, mempool.ErrPreCheck{}):
+		return false
+	default:
+	}
+	res := <-checkTxResCh
+	checkTxResp := res.GetCheckTx()
+
+	return checkTxResp.Code == abci.CodeTypeOK
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
