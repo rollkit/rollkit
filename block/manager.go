@@ -104,6 +104,7 @@ func NewManager(
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 	txsAvailable <-chan struct{},
+	doneBuildingCh chan struct{},
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -147,17 +148,17 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh:     make(chan *types.SignedHeader, 100),
-		HeaderInCh:      make(chan *types.SignedHeader, 100),
-		CommitInCh:      make(chan *types.Commit, 100),
-		blockInCh:       make(chan newBlockEvent, 100),
-		retrieveMtx:     new(sync.Mutex),
-		syncCache:       make(map[uint64]*types.Block),
-		buildingBlock:   false,
-		startedBuilding: 0,
-		txsAvailable:    txsAvailable,
-		doneBuildingBlock: make(chan struct{}),
-		logger:          logger,
+		HeaderOutCh:       make(chan *types.SignedHeader, 100),
+		HeaderInCh:        make(chan *types.SignedHeader, 100),
+		CommitInCh:        make(chan *types.Commit, 100),
+		blockInCh:         make(chan newBlockEvent, 100),
+		retrieveMtx:       new(sync.Mutex),
+		syncCache:         make(map[uint64]*types.Block),
+		buildingBlock:     false,
+		startedBuilding:   0,
+		txsAvailable:      txsAvailable,
+		doneBuildingBlock: doneBuildingCh,
+		logger:            logger,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -217,7 +218,7 @@ func (m *Manager) ProgressiveAggregationLoop(ctx context.Context, ingress chan [
 			if err != nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
-			m.doneBuildingBlock <- struct{}
+			m.doneBuildingBlock <- struct{}{}
 		}
 	}
 }

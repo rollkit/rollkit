@@ -65,9 +65,10 @@ type FullNode struct {
 	P2P  *p2p.Client
 
 	// TODO(tzdybal): consider extracting "mempool reactor"
-	Mempool      mempool.Mempool
-	mempoolIDs   *mempoolIDs
-	incomingTxCh chan []byte
+	Mempool           mempool.Mempool
+	mempoolIDs        *mempoolIDs
+	incomingTxCh      chan []byte
+	DoneBuildingBlock chan struct{}
 
 	Store        store.Store
 	blockManager *block.Manager
@@ -138,27 +139,30 @@ func newFullNode(
 	mpIDs := newMempoolIDs()
 	mp.EnableTxsAvailable()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"), mp.TxsAvailable())
+	doneBuildingChannel := make(chan struct{})
+
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"), mp.TxsAvailable(), doneBuildingChannel)
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	node := &FullNode{
-		appClient:      appClient,
-		eventBus:       eventBus,
-		genesis:        genesis,
-		conf:           conf,
-		P2P:            client,
-		blockManager:   blockManager,
-		dalc:           dalc,
-		Mempool:        mp,
-		mempoolIDs:     mpIDs,
-		incomingTxCh:   make(chan []byte),
-		Store:          s,
-		TxIndexer:      txIndexer,
-		IndexerService: indexerService,
-		BlockIndexer:   blockIndexer,
-		ctx:            ctx,
+		appClient:         appClient,
+		eventBus:          eventBus,
+		genesis:           genesis,
+		conf:              conf,
+		P2P:               client,
+		blockManager:      blockManager,
+		dalc:              dalc,
+		Mempool:           mp,
+		mempoolIDs:        mpIDs,
+		incomingTxCh:      make(chan []byte),
+		Store:             s,
+		TxIndexer:         txIndexer,
+		IndexerService:    indexerService,
+		BlockIndexer:      blockIndexer,
+		DoneBuildingBlock: doneBuildingChannel,
+		ctx:               ctx,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -292,6 +296,7 @@ func (n *FullNode) AppClient() abciclient.Client {
 
 func (n *FullNode) ReceiveDirectTx(m []byte) bool {
 	//return n.validateTx(m)
+	n.Logger.Info("Receive Direct Tx")
 	n.incomingTxCh <- m
 	return true
 }

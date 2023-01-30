@@ -2,12 +2,13 @@ package node
 
 import (
 	//"context"
+	"context"
 	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gorilla/rpc/v2/json2"
 
@@ -123,14 +124,50 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *SequencerServer) handleDirectTx(w http.ResponseWriter, r *http.Request) {
 	s.Logger.Info("HELLO")
-	values, err := url.ParseQuery(r.URL.RawQuery)
+	/*values, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		s.encodeAndWriteResponse(w, nil, err, int(json2.E_PARSE))
 		return
+	}*/
+	r.ParseForm()
+	values := r.PostForm
+	s.Logger.Info("Parsed")
+	s.Logger.Info(r.RequestURI)
+	body := r.Body
+	bodyData := make([]byte, 1024)
+	body.Read(bodyData)
+	s.Logger.Info(string(bodyData))
+	marsh, err := json.Marshal(values)
+	if err != nil {
+		return
 	}
-	tx := []byte(values["tx"][0])
-	s.node.ReceiveDirectTx(tx)
-	s.encodeAndWriteResponse(w, "RESPONSE:)", nil, 200)
+	s.Logger.Info(string(marsh))
+	if len(values["tx"]) == 0 {
+		s.Logger.Info("Empty")
+		s.encodeAndWriteResponse(w, "RESPONSE:)", nil, 200)
+	} else {
+		s.Logger.Info("Got tx. Processing...")
+		tx := []byte(values["tx"][0])
+		s.node.ReceiveDirectTx(tx)
+		s.Logger.Info("Waiting for block to be built")
+		ctx, cancel := context.WithCancel(context.TODO())
+		go func() {
+			time.Sleep(2 * time.Second)
+			cancel()
+		}()
+		for {
+			select {
+			case <-s.node.DoneBuildingBlock:
+				s.Logger.Info("server -done building block")
+				return
+			case <-ctx.Done():
+				s.Logger.Info("Handler timed out waiting for block to be build")
+				return
+			}
+		}
+		s.Logger.Info("Trying to respond")
+		s.encodeAndWriteResponse(w, "RESPONSE:)", nil, 200)
+	}
 }
 
 func (s *SequencerServer) encodeAndWriteResponse(w http.ResponseWriter, result interface{}, errResult error, statusCode int) {

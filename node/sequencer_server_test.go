@@ -47,23 +47,38 @@ func TestSequencerServer(t *testing.T) {
 		Aggregator:             true,
 		BlockManagerConfig:     blockManagerConfig,
 		SequencerListenAddress: "tcp://127.0.0.1:2007",
+		ProgressiveSequencer:   true,
 	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
 	assert.False(node.IsRunning())
 
+	err = node.Start()
+	assert.NoError(err)
+	defer func() {
+		err := node.Stop()
+		assert.NoError(err)
+	}()
+	assert.True(node.IsRunning())
+
+	require.NoError(err)
+
 	conf := tmconf.DefaultRPCConfig()
 	ss := NewSequencerServer(node, conf, node.Logger)
 	err = ss.Start()
 	assert.NoError(err)
 
-	_, err = http.PostForm("http://127.0.0.1:2007/tx",
+	resp, err := http.PostForm("http://127.0.0.1:2007/tx",
 		url.Values{
-			"tx": []string{string([]byte{0})},
+			"tx": []string{"abcdefg"},
 		},
 	)
-	//assert.NoError(err)
+	assert.NoError(err)
+	respData := make([]byte, 1024)
+	resp.Body.Read(respData)
+	node.Logger.Info("Got:")
+	node.Logger.Info(string(respData))
 
 	/*err = node.Start()
 	assert.NoError(err)
