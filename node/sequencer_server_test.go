@@ -3,6 +3,8 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -40,7 +42,12 @@ func TestSequencerServer(t *testing.T) {
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{
+		DALayer:                "mock",
+		Aggregator:             true,
+		BlockManagerConfig:     blockManagerConfig,
+		SequencerListenAddress: "tcp://127.0.0.1:2007",
+	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -50,6 +57,13 @@ func TestSequencerServer(t *testing.T) {
 	ss := NewSequencerServer(node, conf, node.Logger)
 	err = ss.Start()
 	assert.NoError(err)
+
+	_, err = http.PostForm("http://127.0.0.1:2007/tx",
+		url.Values{
+			"tx": []string{string([]byte{0})},
+		},
+	)
+	//assert.NoError(err)
 
 	/*err = node.Start()
 	assert.NoError(err)

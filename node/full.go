@@ -136,8 +136,9 @@ func newFullNode(
 
 	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient, 0)
 	mpIDs := newMempoolIDs()
+	mp.EnableTxsAvailable()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"))
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"), mp.TxsAvailable())
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -230,7 +231,11 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.validateTx)
+		if n.conf.ProgressiveSequencer {
+			go n.blockManager.ProgressiveAggregationLoop(n.ctx, n.incomingTxCh, n.validateTx)
+		} else {
+			go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.validateTx)
+		}
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
@@ -286,7 +291,9 @@ func (n *FullNode) AppClient() abciclient.Client {
 }
 
 func (n *FullNode) ReceiveDirectTx(m []byte) bool {
-	return n.validateTx(m)
+	//return n.validateTx(m)
+	n.incomingTxCh <- m
+	return true
 }
 
 func (n *FullNode) validateTx(m []byte) bool {

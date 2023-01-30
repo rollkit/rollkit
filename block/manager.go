@@ -73,6 +73,13 @@ type Manager struct {
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
 	retrieveCond *sync.Cond
 
+	// whether or not the centralized sequencer is currently building a block
+	buildingBlock     bool
+	startedBuilding   uint32
+	txsAvailable      <-chan struct{}
+	timer             time.Timer
+	doneBuildingBlock chan struct{}
+
 	logger log.Logger
 }
 
@@ -96,6 +103,7 @@ func NewManager(
 	dalc da.DataAvailabilityLayerClient,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
+	txsAvailable <-chan struct{},
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -139,13 +147,17 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh: make(chan *types.SignedHeader, 100),
-		HeaderInCh:  make(chan *types.SignedHeader, 100),
-		CommitInCh:  make(chan *types.Commit, 100),
-		blockInCh:   make(chan newBlockEvent, 100),
-		retrieveMtx: new(sync.Mutex),
-		syncCache:   make(map[uint64]*types.Block),
-		logger:      logger,
+		HeaderOutCh:     make(chan *types.SignedHeader, 100),
+		HeaderInCh:      make(chan *types.SignedHeader, 100),
+		CommitInCh:      make(chan *types.Commit, 100),
+		blockInCh:       make(chan newBlockEvent, 100),
+		retrieveMtx:     new(sync.Mutex),
+		syncCache:       make(map[uint64]*types.Block),
+		buildingBlock:   false,
+		startedBuilding: 0,
+		txsAvailable:    txsAvailable,
+		doneBuildingBlock: make(chan struct{}),
+		logger:          logger,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -164,6 +176,50 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.dalc = dalc
 	m.retriever = dalc.(da.BlockRetriever)
+}
+
+func (m *Manager) ProgressiveAggregationLoop(ctx context.Context, ingress chan []byte, txVal func([]byte) bool) {
+	//initialHeight := uint64(m.genesis.InitialHeight)
+	//height := m.store.Height()
+
+	/*var delay time.Duration
+	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
+	if height < initialHeight {
+		delay = time.Until(m.genesis.GenesisTime)
+	} else {
+		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
+	}*/
+	m.logger.Info("Starting Progressive Aggregation Loop")
+
+	for {
+		select {
+		case msg := <-ingress:
+			m.logger.Debug("Received transactions directly")
+			if txVal(msg) {
+				m.logger.Debug("Tx is valid!")
+			} else {
+				m.logger.Debug("Tx is invalid :(")
+			}
+		case <-ctx.Done():
+			m.logger.Debug("Done")
+			return
+		case <-m.txsAvailable:
+			m.logger.Debug("Txs available! Starting block building...")
+			if !m.buildingBlock {
+				m.buildingBlock = true
+				m.startedBuilding = uint32(time.Now().Second())
+				m.timer = *time.NewTimer(1 * time.Second)
+			}
+		case <-m.timer.C:
+			m.logger.Debug("Block building time elapsed.")
+			m.buildingBlock = false
+			err := m.publishBlock(ctx)
+			if err != nil {
+				m.logger.Error("error while publishing block", "error", err)
+			}
+			m.doneBuildingBlock <- struct{}
+		}
+	}
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.

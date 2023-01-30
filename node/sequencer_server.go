@@ -122,6 +122,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SequencerServer) handleDirectTx(w http.ResponseWriter, r *http.Request) {
+	s.Logger.Info("HELLO")
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		s.encodeAndWriteResponse(w, nil, err, int(json2.E_PARSE))
@@ -129,6 +130,7 @@ func (s *SequencerServer) handleDirectTx(w http.ResponseWriter, r *http.Request)
 	}
 	tx := []byte(values["tx"][0])
 	s.node.ReceiveDirectTx(tx)
+	s.encodeAndWriteResponse(w, "RESPONSE:)", nil, 200)
 }
 
 func (s *SequencerServer) encodeAndWriteResponse(w http.ResponseWriter, result interface{}, errResult error, statusCode int) {

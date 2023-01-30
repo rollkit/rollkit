@@ -29,4 +29,5 @@ var DefaultNodeConfig = NodeConfig{
 	Light:                       false,
 	SequencerListenAddress:      "",
 	SequencerMaxOpenConnections: 0,
+	ProgressiveSequencer:        false,
 }
