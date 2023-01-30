@@ -56,8 +56,9 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
-	HeaderOutCh chan *types.SignedHeader
-	HeaderInCh  chan *types.SignedHeader
+	HeaderOutCh     chan *types.SignedHeader
+	HeaderInCh      chan *types.SignedHeader
+	SyncedHeadersCh chan *types.SignedHeader
 
 	lastCommit atomic.Value
 
@@ -138,13 +139,14 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh:    make(chan *types.SignedHeader, 100),
-		HeaderInCh:     make(chan *types.SignedHeader, 100),
-		blockInCh:      make(chan newBlockEvent, 100),
-		FraudProofInCh: make(chan *abci.FraudProof, 100),
-		retrieveMtx:    new(sync.Mutex),
-		syncCache:      make(map[uint64]*types.Block),
-		logger:         logger,
+		HeaderOutCh:     make(chan *types.SignedHeader, 100),
+		HeaderInCh:      make(chan *types.SignedHeader, 100),
+		SyncedHeadersCh: make(chan *types.SignedHeader, 100),
+		blockInCh:       make(chan newBlockEvent, 100),
+		FraudProofInCh:  make(chan *abci.FraudProof, 100),
+		retrieveMtx:     new(sync.Mutex),
+		syncCache:       make(map[uint64]*types.Block),
+		logger:          logger,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -216,6 +218,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			m.retrieveCond.Signal()
 		case header := <-m.HeaderInCh:
 			m.logger.Debug("block header received", "height", header.Header.Height(), "hash", header.Header.Hash())
+			m.SyncedHeadersCh <- header
 			newHeight := header.Header.BaseHeader.Height
 			currentHeight := m.store.Height()
 			// in case of client reconnecting after being offline
