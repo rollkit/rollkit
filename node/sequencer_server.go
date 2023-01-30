@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -149,7 +150,6 @@ func (s *SequencerServer) handleDirectTx(w http.ResponseWriter, r *http.Request)
 		s.Logger.Info("Got tx. Processing...")
 		tx := []byte(values["tx"][0])
 		s.node.ReceiveDirectTx(tx)
-		s.Logger.Info("Waiting for block to be built")
 		ctx, cancel := context.WithCancel(context.TODO())
 		go func() {
 			time.Sleep(2 * time.Second)
@@ -159,14 +159,16 @@ func (s *SequencerServer) handleDirectTx(w http.ResponseWriter, r *http.Request)
 			select {
 			case <-s.node.DoneBuildingBlock:
 				s.Logger.Info("server -done building block")
+				s.Logger.Info("Trying to respond")
+				s.encodeAndWriteResponse(w, fmt.Sprintf("includd in block %d", s.node.Store.Height()), nil, 200)
 				return
 			case <-ctx.Done():
 				s.Logger.Info("Handler timed out waiting for block to be build")
+				s.Logger.Info("Trying to respond")
+				s.encodeAndWriteResponse(w, "TIMED OUT :(", nil, 200)
 				return
 			}
 		}
-		s.Logger.Info("Trying to respond")
-		s.encodeAndWriteResponse(w, "RESPONSE:)", nil, 200)
 	}
 }
 

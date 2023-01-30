@@ -69,17 +69,21 @@ func TestSequencerServer(t *testing.T) {
 	err = ss.Start()
 	assert.NoError(err)
 
-	resp, err := http.PostForm("http://127.0.0.1:2007/tx",
-		url.Values{
-			"tx": []string{"abcdefg"},
-		},
-	)
-	assert.NoError(err)
-	respData := make([]byte, 1024)
-	resp.Body.Read(respData)
-	node.Logger.Info("Got:")
-	node.Logger.Info(string(respData))
-
+	resps := make([]*http.Response, 5)
+	for i := 0; i < 5; i++ {
+		resps[i], err = http.PostForm("http://127.0.0.1:2007/tx",
+			url.Values{
+				"tx": []string{"abcdefg"},
+			},
+		)
+		assert.NoError(err)
+	}
+	for _, r := range resps {
+		respData := make([]byte, 1024)
+		r.Body.Read(respData)
+		node.Logger.Info("Got:")
+		node.Logger.Info(string(respData))
+	}
 	/*err = node.Start()
 	assert.NoError(err)
 	defer func() {
