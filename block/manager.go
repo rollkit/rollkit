@@ -198,6 +198,7 @@ func (m *Manager) ProgressiveAggregationLoop(ctx context.Context, ingress chan [
 			m.logger.Debug("Received transactions directly")
 			if txVal(msg) {
 				m.logger.Debug("Tx is valid!")
+				m.logger.Debug(fmt.Sprintf("height %d", m.store.Height()))
 			} else {
 				m.logger.Debug("Tx is invalid :(")
 			}

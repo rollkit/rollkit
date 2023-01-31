@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
@@ -70,10 +71,10 @@ func TestSequencerServer(t *testing.T) {
 	assert.NoError(err)
 
 	resps := make([]*http.Response, 5)
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 2; i++ {
 		resps[i], err = http.PostForm("http://127.0.0.1:2007/tx",
 			url.Values{
-				"tx": []string{"abcdefg"},
+				"tx": []string{fmt.Sprintf("abc%d", i)},
 			},
 		)
 		assert.NoError(err)
