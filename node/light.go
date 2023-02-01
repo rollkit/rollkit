@@ -2,17 +2,19 @@ package node
 
 import (
 	"context"
-	abci "github.com/tendermint/tendermint/abci/types"
 
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abciclient "github.com/tendermint/tendermint/abci/client"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/rollmint/config"
-	"github.com/celestiaorg/rollmint/p2p"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/store"
 )
 
 var _ Node = &LightNode{}
@@ -39,7 +41,11 @@ func newLightNode(
 	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*LightNode, error) {
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, logger.With("module", "p2p"))
+	datastore, err := openDatastore(conf, logger)
+	if err != nil {
+		return nil, err
+	}
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"))
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +58,19 @@ func newLightNode(
 
 	node.P2P.SetTxValidator(node.falseValidator())
 	node.P2P.SetHeaderValidator(node.falseValidator())
-	node.P2P.SetCommitValidator(node.falseValidator())
 	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
 
 	return node, nil
+}
+
+func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
+	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+		logger.Info("WARNING: working in in-memory mode")
+		return store.NewDefaultInMemoryKVStore()
+	}
+	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }
 
 func (ln *LightNode) OnStart() error {
@@ -98,8 +111,4 @@ func (ln *LightNode) newFraudProofValidator() p2p.GossipValidator {
 
 		return false
 	}
-}
-
-func newLightNode() (Node, error) {
-	return &LightNode{}, nil
 }
