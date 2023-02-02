@@ -81,6 +81,8 @@ type FullNode struct {
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	ctx context.Context
+
+	cancel context.CancelFunc
 }
 
 // NewNode creates new Rollkit node.
@@ -146,6 +148,8 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+
 	node := &FullNode{
 		appClient:         appClient,
 		eventBus:          eventBus,
@@ -163,13 +167,13 @@ func newFullNode(
 		BlockIndexer:      blockIndexer,
 		DoneBuildingBlock: doneBuildingChannel,
 		ctx:               ctx,
+		cancel:            cancel,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	node.P2P.SetTxValidator(node.newTxValidator())
 	node.P2P.SetHeaderValidator(node.newHeaderValidator())
-	node.P2P.SetCommitValidator(node.newCommitValidator())
 	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
@@ -222,6 +226,27 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
+func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
+	for {
+		select {
+		case fraudProof := <-n.blockManager.GetFraudProofOutChan():
+			n.Logger.Info("generated fraud proof: ", fraudProof.String())
+			fraudProofBytes, err := fraudProof.Marshal()
+			if err != nil {
+				panic(fmt.Errorf("failed to serialize fraud proof: %w", err))
+			}
+			n.Logger.Info("gossipping fraud proof...")
+			err = n.P2P.GossipFraudProof(context.Background(), fraudProofBytes)
+			if err != nil {
+				n.Logger.Error("failed to gossip fraud proof", "error", err)
+			}
+			_ = n.Stop()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
 	n.Logger.Info("starting P2P client")
@@ -243,7 +268,8 @@ func (n *FullNode) OnStart() error {
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
-	go n.blockManager.SyncLoop(n.ctx)
+	go n.blockManager.SyncLoop(n.ctx, n.cancel)
+	go n.fraudProofPublishLoop(n.ctx)
 
 	return nil
 }
@@ -264,6 +290,8 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 
 // OnStop is a part of Service interface.
 func (n *FullNode) OnStop() {
+	n.Logger.Info("halting full node...")
+	n.cancel()
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	n.Logger.Error("errors while stopping node:", "errors", err)
@@ -378,41 +406,19 @@ func (n *FullNode) newHeaderValidator() p2p.GossipValidator {
 	}
 }
 
-// newCommitValidator returns a pubsub validator that runs basic checks and forwards
-// the deserialized commit for further processing
-func (n *FullNode) newCommitValidator() p2p.GossipValidator {
-	return func(commitMsg *p2p.GossipMessage) bool {
-		n.Logger.Debug("commit received", "from", commitMsg.From, "bytes", len(commitMsg.Data))
-		var commit types.Commit
-		err := commit.UnmarshalBinary(commitMsg.Data)
-		if err != nil {
-			n.Logger.Error("failed to deserialize commit", "error", err)
-			return false
-		}
-		err = commit.ValidateBasic()
-		if err != nil {
-			n.Logger.Error("failed to validate commit", "error", err)
-			return false
-		}
-		n.Logger.Debug("commit received", "height", commit.Height)
-		n.blockManager.CommitInCh <- &commit
-		return true
-	}
-}
-
 // newFraudProofValidator returns a pubsub validator that validates a fraud proof and forwards
 // it to be verified
 func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
 	return func(fraudProofMsg *p2p.GossipMessage) bool {
 		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		var fraudProof types.FraudProof
-		err := fraudProof.UnmarshalBinary(fraudProofMsg.Data)
+		var fraudProof abci.FraudProof
+		err := fraudProof.Unmarshal(fraudProofMsg.Data)
 		if err != nil {
 			n.Logger.Error("failed to deserialize fraud proof", "error", err)
 			return false
 		}
 		// TODO(manav): Add validation checks for fraud proof here
-		n.blockManager.FraudProofCh <- &fraudProof
+		n.blockManager.FraudProofInCh <- &fraudProof
 		return true
 	}
 }

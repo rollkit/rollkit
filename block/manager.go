@@ -59,10 +59,9 @@ type Manager struct {
 	HeaderOutCh chan *types.SignedHeader
 	HeaderInCh  chan *types.SignedHeader
 
-	CommitInCh chan *types.Commit
 	lastCommit atomic.Value
 
-	FraudProofCh chan *types.FraudProof
+	FraudProofInCh chan *abci.FraudProof
 
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
@@ -150,8 +149,8 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderOutCh:       make(chan *types.SignedHeader, 100),
 		HeaderInCh:        make(chan *types.SignedHeader, 100),
-		CommitInCh:        make(chan *types.Commit, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
+		FraudProofInCh:    make(chan *abci.FraudProof, 100),
 		retrieveMtx:       new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
 		buildingBlock:     false,
@@ -225,6 +224,10 @@ func (m *Manager) ProgressiveAggregationLoop(ctx context.Context, ingress chan [
 	}
 }
 
+func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
+	return m.executor.FraudProofOutCh
+}
+
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVal func([]byte) bool) {
 	initialHeight := uint64(m.genesis.InitialHeight)
@@ -271,7 +274,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVa
 //
 // SyncLoop processes headers gossiped in P2p network to know what's the latest block height,
 // block data is retrieved from DA layer.
-func (m *Manager) SyncLoop(ctx context.Context) {
+func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
 	for {
 		select {
@@ -288,15 +291,14 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				atomic.StoreUint64(&m.syncTarget, newHeight)
 				m.retrieveCond.Signal()
 			}
-			m.CommitInCh <- &header.Commit
-		case commit := <-m.CommitInCh:
+			commit := &header.Commit
 			// TODO(tzdybal): check if it's from right aggregator
 			m.lastCommit.Store(commit)
 			err := m.trySyncNextBlock(ctx, 0)
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			} else {
-				m.logger.Debug("synced using gossiped commit", "height", commit.Height)
+				m.logger.Debug("synced using signed header", "height", commit.Height)
 			}
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
@@ -310,24 +312,33 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
+			if err != nil && err.Error() == fmt.Errorf("failed to ApplyBlock: %w", state.ErrFraudProofGenerated).Error() {
+				return
+			}
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
-		case fraudProof := <-m.FraudProofCh:
-			m.logger.Debug("fraud proof received", "Block Height", "dummy block height") // TODO: Insert real block height
-			_ = fraudProof
+		case fraudProof := <-m.FraudProofInCh:
+			m.logger.Debug("fraud proof received",
+				"block height", fraudProof.BlockHeight,
+				"pre-state app hash", fraudProof.PreStateAppHash,
+				"expected valid app hash", fraudProof.ExpectedValidAppHash,
+				"length of state witness", len(fraudProof.StateWitness),
+			)
 			// TODO(light-client): Set up a new cosmos-sdk app
-			// How to get expected appHash here?
+			// TODO: Add fraud proof window validation
 
-			// success, err := m.executor.VerifyFraudProof(fraudProof, nil)
-			// if err != nil {
-			// 	m.logger.Error("failed to verify fraud proof", "error", err)
-			// 	continue
-			// }
-			// if success {
-			// 	// halt chain somehow
-			// 	defer context.WithCancel(ctx)
-			// }
+			success, err := m.executor.VerifyFraudProof(fraudProof, fraudProof.ExpectedValidAppHash)
+			if err != nil {
+				m.logger.Error("failed to verify fraud proof", "error", err)
+				continue
+			}
+			if success {
+				// halt chain
+				m.logger.Info("verified fraud proof, halting chain")
+				cancel()
+				return
+			}
 
 		case <-ctx.Done():
 			return

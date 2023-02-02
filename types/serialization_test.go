@@ -43,7 +43,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 					Block: 1,
 					App:   2,
 				},
-				NamespaceID: NamespaceID{0, 1, 2, 3, 4, 5, 6, 7},
 				BaseHeader: BaseHeader{
 					Height: 3,
 					Time:   4567,
@@ -183,40 +182,6 @@ func TestStateRoundTrip(t *testing.T) {
 			require.NoError(err)
 
 			assert.Equal(c.state, newState)
-		})
-	}
-}
-
-func TestFraudProofSerializationRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name  string
-		input *FraudProof
-	}{
-		{"fp", &FraudProof{
-			BlockHeight: 1234,
-			StateWitness: StateWitness{
-				WitnessData: []WitnessData{
-					{Key: []byte{1, 2}, Value: []byte{3, 4}},
-					{Key: []byte{5, 6}, Value: []byte{7, 8}},
-				},
-			},
-		},
-		}}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
-			blob, err := c.input.MarshalBinary()
-			assert.NoError(err)
-			assert.NotEmpty(blob)
-
-			deserialized := &FraudProof{}
-			err = deserialized.UnmarshalBinary(blob)
-			assert.NoError(err)
-
-			assert.Equal(c.input, deserialized)
 		})
 	}
 }

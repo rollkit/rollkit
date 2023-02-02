@@ -41,9 +41,6 @@ const (
 	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
 	headerTopicSuffix = "-header"
 
-	// commitTopicSuffix is added after namespace to create pubsub topic for block commit gossiping.
-	commitTopicSuffix = "-commit"
-
 	fraudProofTopicSuffix = "-fraudProof"
 )
 
@@ -70,9 +67,6 @@ type Client struct {
 
 	fraudProofGossiper  *Gossiper
 	fraudProofValidator GossipValidator
-
-	commitGossiper  *Gossiper
-	commitValidator GossipValidator
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -192,17 +186,6 @@ func (c *Client) GossipSignedHeader(ctx context.Context, headerBytes []byte) err
 // SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
-}
-
-// GossipCommit sends the block commit to the P2P network.
-func (c *Client) GossipCommit(ctx context.Context, commitBytes []byte) error {
-	c.logger.Debug("Gossiping block commit", "len", len(commitBytes))
-	return c.commitGossiper.Publish(ctx, commitBytes)
-}
-
-// SetCommitValidator sets the callback function, that will be invoked after block commit is received from P2P network.
-func (c *Client) SetCommitValidator(validator GossipValidator) {
-	c.commitValidator = validator
 }
 
 // GossipHeader sends a fraud proof to the P2P network.
@@ -386,16 +369,6 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 	go c.headerGossiper.ProcessMessages(ctx)
 
-	var opts []GossiperOption
-	if c.commitValidator != nil {
-		opts = append(opts, WithValidator(c.commitValidator))
-	}
-	c.commitGossiper, err = NewGossiper(c.host, ps, c.getCommitTopic(), c.logger, opts...)
-	if err != nil {
-		return err
-	}
-	go c.commitGossiper.ProcessMessages(ctx)
-
 	c.fraudProofGossiper, err = NewGossiper(c.host, ps, c.getFraudProofTopic(), c.logger,
 		WithValidator(c.fraudProofValidator))
 	if err != nil {
@@ -443,10 +416,6 @@ func (c *Client) getTxTopic() string {
 
 func (c *Client) getHeaderTopic() string {
 	return c.getNamespace() + headerTopicSuffix
-}
-
-func (c *Client) getCommitTopic() string {
-	return c.getNamespace() + commitTopicSuffix
 }
 
 func (c *Client) getFraudProofTopic() string {
