@@ -409,7 +409,6 @@ func (txmp *TxMempool) Update(
 			len(blockTxs), len(deliverTxResponses)))
 	}
 
-	txmp.logger.Debug("Mempool update called.")
 	txmp.height = blockHeight
 	txmp.notifiedTxsAvailable = false
 

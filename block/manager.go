@@ -197,13 +197,12 @@ func (m *Manager) ProgressiveAggregationLoop(ctx context.Context, ingress chan [
 		case msg := <-ingress:
 			m.logger.Debug("Received transactions directly")
 			if txVal(msg) {
-				m.logger.Debug("Tx is valid!")
-				m.logger.Debug(fmt.Sprintf("height %d", m.store.Height()))
+				m.logger.Debug(fmt.Sprintf("Received valid tx, will include in block %d", m.store.Height()))
 			} else {
-				m.logger.Debug("Tx is invalid :(")
+				m.logger.Debug("Tx is invalid")
 			}
 		case <-ctx.Done():
-			m.logger.Debug("Done")
+			m.logger.Debug("ProgressiveAggregationLoop done")
 			return
 		case <-m.txsAvailable:
 			m.logger.Debug("Txs available! Starting block building...")
