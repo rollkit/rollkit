@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
@@ -70,26 +71,55 @@ func TestSequencerServer(t *testing.T) {
 	err = ss.Start()
 	assert.NoError(err)
 
-	resps := make([]*http.Response, 5)
-	for i := 0; i < 2; i++ {
-		resps[i], err = http.PostForm("http://127.0.0.1:2007/tx",
+	sendAsync := func(i int, out chan *http.Response) {
+		resp, err := http.PostForm("http://127.0.0.1:2007/tx",
 			url.Values{
 				"tx": []string{fmt.Sprintf("abc%d", i)},
 			},
 		)
+		out <- resp
 		assert.NoError(err)
 	}
-	for _, r := range resps {
-		respData := make([]byte, 1024)
-		r.Body.Read(respData)
-		node.Logger.Info("Got:")
-		node.Logger.Info(string(respData))
+
+	resps := make(chan *http.Response)
+	for i := 0; i < 5; i++ {
+		go sendAsync(i, resps)
 	}
-	/*err = node.Start()
-	assert.NoError(err)
-	defer func() {
-		err := node.Stop()
+	time.Sleep(3 * time.Second)
+	for i := 5; i < 10; i++ {
+		go sendAsync(i, resps)
+	}
+	time.Sleep(3 * time.Second)
+	for i := 10; i < 15; i++ {
+		go sendAsync(i, resps)
+	}
+	time.Sleep(3 * time.Second)
+	for i := 15; i < 20; i++ {
+		go sendAsync(i, resps)
+	}
+	time.Sleep(3 * time.Second)
+	// "Genesis" block: should be height = 1
+	for i := 0; i < 10; i++ {
+		r := <-resps
+		b, err := io.ReadAll(r.Body)
 		assert.NoError(err)
-	}()
-	assert.True(node.IsRunning())*/
+		assert.Equal(string(b), `{"jsonrpc":"2.0","result":"includd in block 1","id":-1}
+`)
+	}
+	// Next block height = 2
+	for i := 10; i < 15; i++ {
+		r := <-resps
+		b, err := io.ReadAll(r.Body)
+		assert.NoError(err)
+		assert.Equal(string(b), `{"jsonrpc":"2.0","result":"includd in block 2","id":-1}
+`)
+	}
+	// Next block height = 3
+	for i := 15; i < 20; i++ {
+		r := <-resps
+		b, err := io.ReadAll(r.Body)
+		assert.NoError(err)
+		assert.Equal(string(b), `{"jsonrpc":"2.0","result":"includd in block 3","id":-1}
+`)
+	}
 }

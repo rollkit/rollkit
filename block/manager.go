@@ -219,7 +219,9 @@ func (m *Manager) ProgressiveAggregationLoop(ctx context.Context, ingress chan [
 			if err != nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
-			m.doneBuildingBlock <- struct{}{}
+			//m.doneBuildingBlock <- struct{}{}
+			close(m.doneBuildingBlock)
+			m.doneBuildingBlock = make(chan struct{})
 		}
 	}
 }
