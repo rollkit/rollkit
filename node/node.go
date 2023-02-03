@@ -40,6 +40,13 @@ func NewNode(
 			logger,
 		)
 	} else {
-		return newLightNode()
+		return newLightNode(
+			ctx,
+			conf,
+			p2pKey,
+			appClient,
+			genesis,
+			logger,
+		)
 	}
 }
