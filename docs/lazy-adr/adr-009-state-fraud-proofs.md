@@ -165,7 +165,7 @@ message ResponseGenerateFraudProof {
 }
 ```
 
-Note that currently the only underlying store supported by Cosmos SDK is the Merkle IAVL+ tree. As part of generating state witnesses, we added preliminary support for Deep Subtrees to this library [here](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x). It enables import/export of partial state and adds tracing to IAVL trees. Note that documentation and exploring optimizations of Deep Subtrees is a work in progress. 
+Note that currently the only underlying store supported by Cosmos SDK is the Merkle IAVL+ tree. As part of generating state witnesses, we added preliminary support for Deep Subtrees to this library [here](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x). It enables import and export of partial state and adds tracing to IAVL trees. Note that documentation and exploring optimizations of Deep Subtrees is a work in progress. 
 
 ### Gossiping Fraud Proofs
 
@@ -245,10 +245,10 @@ Proposed
 
 ## Working Branches
 A prototype implementation of the above design is available in the following working branches:
-[Rollkit](https://github.com/rollkit/rollkit/releases/tag/v0.6.0): Contains fraud proof detection and gossiping logic. As fraud proofs are currently a work in progress, this logic can be toggled using a flag `--rollmint.experimental_insecure_fraud_proofs`. By default, this flag is set to `false`.
-[Cosmos-SDK](https://github.com/rollkit/cosmos-sdk/tree/manav/fraudproof_iavl_prototype): Implements the new ABCI methods described.
-[Tendermint](https://github.com/rollkit/tendermint/tree/abci_fraud_proofs): Contains modifications to the ABCI interface described.
-[IAVL](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x): Adds support for Deep Subtrees and tracing.
+ - [Rollkit](https://github.com/rollkit/rollkit/releases/tag/v0.6.0): Contains fraud proof detection and gossiping logic. As fraud proofs are currently a work in progress, this logic can be toggled using a flag `--rollmint.experimental_insecure_fraud_proofs`. By default, this flag is set to `false`.
+- [Cosmos-SDK](https://github.com/rollkit/cosmos-sdk/tree/manav/fraudproof_iavl_prototype): Implements the new ABCI methods described.
+- [Tendermint](https://github.com/rollkit/tendermint/tree/abci_fraud_proofs): Contains modifications to the ABCI interface described.
+- [IAVL](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x): Adds support for Deep Subtrees and tracing.
 
 ## References
 
