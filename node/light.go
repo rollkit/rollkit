@@ -81,6 +81,7 @@ func (ln *LightNode) OnStart() error {
 	return nil
 }
 
+// Dummy validator that always returns a callback function with boolean `false`
 func (ln *LightNode) falseValidator() p2p.GossipValidator {
 	return func(*p2p.GossipMessage) bool {
 		return false
@@ -90,7 +91,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 func (ln *LightNode) newFraudProofValidator() p2p.GossipValidator {
 	return func(fraudProofMsg *p2p.GossipMessage) bool {
 		ln.Logger.Info("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		var fraudProof abci.FraudProof
+		fraudProof := abci.FraudProof{}
 		err := fraudProof.Unmarshal(fraudProofMsg.Data)
 		if err != nil {
 			ln.Logger.Error("failed to deserialize fraud proof", "error", err)
