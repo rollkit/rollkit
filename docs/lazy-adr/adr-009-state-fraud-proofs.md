@@ -11,7 +11,7 @@ Manav Aggarwal (@Manav-Aggarwal)
 
 ## Context
 
-This ADR introduces a design for state fraud proofs in optimistic cosmos-sdk rollups using rollkit.
+This ADR introduces a design for state fraud proofs in optimistic cosmos-sdk rollups using Rollkit.
 It implements parts of Section 4 (Fraud Proofs) of Al-Bassam et al’s paper [“Fraud and Data Availability Proofs: Detecting Invalid Blocks in Light Clients”](http://www0.cs.ucl.ac.uk/staff/M.AlBassam/publications/fraudproofs.pdf).
 Some previous notes regarding this topic in the context of cosmos-sdk are described in Matthew Di Ferrante's [notes](https://github.com/rollkit/rollkit/issues/132).
 
@@ -45,7 +45,7 @@ Rollkit blocks contain a field called `Intermediate State Roots` in block data:
 
 ```go
 
-// Data defines rollkit block data.
+// Data defines Rollkit block data.
 type Data struct {
 	Txs                    Txs
 	IntermediateStateRoots IntermediateStateRoots
