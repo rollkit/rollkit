@@ -241,7 +241,7 @@ Proposed
 
 - Breaks ABCI compatibility and requires maintaining an ABCI version specific to Rollkit.
 
-### Neutral
+<!--- ### Neutral -->
 
 ## Working Branches
 A prototype implementation of the above design is available in the following working branches:
