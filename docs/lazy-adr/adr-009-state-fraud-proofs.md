@@ -225,7 +225,7 @@ message ResponseVerifyFraudProof {
 }
 ```
 
-If a fraud proof is successfuly verified, the Rollkit light client can halt and wait for an off-chain social recovery process. Otherwise, it ignores the Fraud Proof and proceeds as usual.
+If a fraud proof is successfully verified, the Rollkit light client can halt and wait for an off-chain social recovery process. Otherwise, it ignores the Fraud Proof and proceeds as usual.
 
 ## Status
 
