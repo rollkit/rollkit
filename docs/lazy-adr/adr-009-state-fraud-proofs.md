@@ -141,7 +141,8 @@ message StateWitness {
   repeated WitnessData witness_data = 3;
 }
 
-// Witness data containing operation, a key/value pair, and Merkle inclusion proofs needed for corresponding operation for key/value pair
+// Witness data containing operation, a key/value pair, and Merkle 
+// inclusion proofs needed for corresponding operation for key/value pair
 message WitnessData {
   Operation operation = 1;
   bytes key = 2;
@@ -173,7 +174,7 @@ After a Rollkit Full Node generates a Fraud Proof, it gossips the Fraud Proof ov
 
 ### Verifying Fraud Proofs
 
-Rollkit light clients should be able to use these gossiped state fraud proofs to verify whether a fraudulent state transition occured or not by themselves.
+Rollkit light clients should be able to use these gossiped state fraud proofs to verify whether a fraudulent state transition occurred or not by themselves.
 
 There are four stages of verification that must occur for a Fraud Proof. The first three stages take place in Rollkit and verify that the fraud proof itself was generated correctly. The fourth stage takes place in a Cosmos SDK app to actually execute the fraudulent state transition embedded in the fraud proof.
 
