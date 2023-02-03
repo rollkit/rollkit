@@ -3,6 +3,7 @@
 ## Changelog
 
 - 2022-11-03: Initial draft
+- 2023-02-02: Update design with Deep Subtrees and caveats
 
 ## Authors
 
@@ -20,7 +21,7 @@ Overall, State Fraud Proofs will enable trust-minimization between full nodes an
 
 Note that Rollkit State Fraud Proofs are still a work in progress and will require new methods on top of ABCI, specifically, `GenerateFraudProof`, `VerifyFraudProof`, and `GetAppHash`.
 
-List of required modifications to push State Fraud Proofs towards completion:
+List of caveats and required modifications to push State Fraud Proofs towards completion:
 
 * Add ability for light nodes to receive and verify state fraud proofs.
 * Add inclusion proofs over transactions so fraud proof verifiers have knowledge over which rollup transaction is being fraud proven.
@@ -75,9 +76,11 @@ message ResponseGetAppHash {
 
 This `GetAppHash` ABCI method returns an equivalent of `CommitID` hash in the ABCI method `Commit` and thus provides a way to extract ISRs from an app without doing any disk write operations.
 
-Full nodes use these ISRs to detect fraudulent state transitions. A full node must also execute all state transitions (`BeginBlock`, `DeliverTx`, and `EndBlock` calls) and compute its own Intermediate State Roots (ISRs). After each state transition, a full node compares the corresponding ISR with the ISR given by the Sequencer. If it finds a mismatch between its own computed ISR and and one given by the Sequencer, a fraudulent transition is detected and it moves on to generate a Fraud Proof.
+Full nodes use these ISRs to detect fraudulent state transitions. A full node must also execute all state transitions (`BeginBlock`, `DeliverTx`, and `EndBlock` calls) and compute its own Intermediate State Roots (ISRs). After each state transition, a full node compares the corresponding ISR with the ISR given by the Sequencer. If it finds a mismatch between its own computed ISR and and one given by the Sequencer, a fraudulent transition is detected and it moves on to generate a State Fraud Proof.
 
-### Generating Fraud Proofs
+### Generating State Fraud Proofs
+
+Note: Starting from this section, this ADR refers to State Fraud Proofs simply as Fraud Proofs.
 
 We introduce the following ABCI method to enable Fraud Proof Generation in the Cosmos SDK:
 
@@ -102,30 +105,30 @@ The `GenerateFraudProof` method in the Cosmos SDK app receives this list of stat
 
 - Revert local state to the last committed state
 - Execute all the non-fraudulent state transitions
-- Remove all trace logs from executing the above state transitions
-- Execute the fraudulent state transition with tracing-enabled and store logs of what state, specifically key/value pairs, is accessed, modified, added, or removed during this fraudulent state transition.
+- Enable tracing and execute the fraudulent state transition. Tracing stores logs of what state, specifically key/value pairs, is accessed during this fraudulent state transition and generates corresponding merkle inclusion proofs of each action (read, write, delete) log. These logs correspond to state witnesses needed to re-execute this state transition.
 - Revert local state back to the last committed state
 - Execute all the non-fraudulent state transitions again
-- Use the stored logs to filter the local state down to the set of minimal set of key/value pairs needed to execute the fraudulent state transition and generate corresponding merkle inclusion proofs for the state.
-- Put this minimal set of key/value pairs and corresponding merkle inclusion proofs in a State Fraud Proof which looks like this:
+- Construct a State Fraud Proof with the state witnesses generated earlier which looks like this:
 
 ```protobuf
 
-// Represents a single-round fraudProof
+// Represents a single-round state fraudProof
 message FraudProof {
   // The block height during which the fraudulent state transition occured
   int64 block_height = 1;
   // Intermediate State Root right before the fraudulent state transition
-  bytes app_hash = 2;
+  bytes pre_state_app_hash = 2;
+  // Intermediate State Root right after the fraudulent state transition
+  bytes expected_valid_app_hash = 3;
 
   // Map from an app module name to a State Witness
-  map<string, StateWitness> state_witness = 3;
+  map<string, StateWitness> state_witness = 4;
 
   // Fraudulent state transition has to be one of these
   // Only one have of these three can be non-nil
-  RequestBeginBlock fraudulent_begin_block = 4;
-  RequestDeliverTx fraudulent_deliver_tx = 5;
-  RequestEndBlock fraudulent_end_block = 6;
+  RequestBeginBlock fraudulent_begin_block = 5;
+  RequestDeliverTx fraudulent_deliver_tx = 6;
+  RequestEndBlock fraudulent_end_block = 7;
 }
 
 // State witness with a list of all witness data
@@ -138,12 +141,19 @@ message StateWitness {
   repeated WitnessData witness_data = 3;
 }
 
-// Witness data containing a key/value pair and a Merkle inclusion proof for said key/value pair
+// Witness data containing operation, a key/value pair, and Merkle inclusion proofs needed for corresponding operation for key/value pair
 message WitnessData {
-  bytes key = 1;
-  bytes value = 2;
-  // substore level merkle inclusion proof
-  tendermint.crypto.ProofOp proof = 3;
+  Operation operation = 1;
+  bytes key = 2;
+  // only set for "write" operation
+  bytes value = 3;
+  repeated tendermint.crypto.ProofOp proofs = 4;
+}
+
+enum Operation {
+   WRITE     = 0 [(gogoproto.enumvalue_customname) = "write"];
+   READ      = 1 [(gogoproto.enumvalue_customname) = "read"];
+   DELETE    = 2 [(gogoproto.enumvalue_customname) = "delete"];
 }
 ```
 
@@ -154,6 +164,8 @@ message ResponseGenerateFraudProof {
   FraudProof fraud_proof = 1;
 }
 ```
+
+Note that currently the only underlying store supported by Cosmos SDK is the Merkle IAVL+ tree. As part of generating state witnesses, we added preliminary support for Deep Subtrees to this library [here](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x). It allows import/export of partial state with IAVL trees. Note that documentation and exploring optimizations of Deep Subtrees is a work in progress. 
 
 ### Gossiping Fraud Proofs
 
@@ -175,7 +187,7 @@ Go through the `state_witness` list in the `FraudProof` and verify that all the 
 
 #### **Stage Three**
 
-Go through the `WitnessData` in each `StateWitness` and verify that all the substore level merkle inclusion proofs are valid: the corresponding `key` was included in a merkle tree with root `root_hash`.
+Go through the `WitnessData` in each `StateWitness` and verify that the first substore level merkle inclusion proof is valid: the corresponding `key` was included in a merkle tree with root `root_hash`. Note that we can only verify the first witness in this witnessData with current root hash. Other proofs are verified in the IAVL tree when re-executing operations in the underlying IAVL Deep Subtree.
 
 #### **Stage Four**
 
@@ -193,14 +205,10 @@ With this new ABCI method, a Rollkit light client can send a request to a newly 
 
 ```protobuf
 message RequestVerifyFraudProof {
-  // Fraudulent state transition has to be one of these
-  // Only one have of these three can be non-nil
-  RequestBeginBlock fraudulent_begin_block = 1;
-  RequestDeliverTx fraudulent_deliver_tx = 2;
-  RequestEndBlock fraudulent_end_block = 3;
+  FraudProof fraud_proof = 1;
 
-  // The app hash to compare against after executing the above state transition
-  bytes expected_app_hash = 4;
+  // Note: to be removed. Moved inside state fraud proof
+  bytes expected_valid_app_hash = 2;
 }
 ```
 
@@ -241,4 +249,4 @@ Proposed
 
 - <http://www0.cs.ucl.ac.uk/staff/M.AlBassam/publications/fraudproofs.pdf>
 - <https://github.com/rollkit/rollkit/issues/132>
-- <https://github.com/rollkit/cosmos-sdk/issues/245>
+- <https://github.com/rollkit/rollkit/issues/514>
