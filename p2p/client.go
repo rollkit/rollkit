@@ -381,7 +381,7 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 	go c.headerGossiper.ProcessMessages(ctx)
 
-	c.fraudProofGossiper, err = NewGossiper(c.host, ps, c.getFraudProofTopic(), c.logger,
+	c.fraudProofGossiper, err = NewGossiper(c.host, c.ps, c.getFraudProofTopic(), c.logger,
 		WithValidator(c.fraudProofValidator))
 	if err != nil {
 		return err

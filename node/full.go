@@ -237,7 +237,6 @@ func (n *FullNode) initOrAppendHeaderStore(ctx context.Context, header *types.He
 	var err error
 
 	// Init the header store if first block, else append to store
-	fmt.Println("header.Height()", header.Height(), "n.genesis.InitialHeight", n.genesis.InitialHeight)
 	if header.Height() == n.genesis.InitialHeight {
 		err = n.headerStore.Init(ctx, header)
 	} else {
@@ -247,33 +246,19 @@ func (n *FullNode) initOrAppendHeaderStore(ctx context.Context, header *types.He
 }
 
 func (n *FullNode) initHeaderStoreAndStartSyncerOnFirstHeaderReceive(ctx context.Context) {
-	for {
-		select {
-		case signedHeader := <-n.blockManager.SyncedHeadersCh:
-			if signedHeader.Header.Height() == n.genesis.InitialHeight {
-				if err := n.headerStore.Init(ctx, &signedHeader.Header); err != nil {
-					n.Logger.Error("failed to initialize the header store", "error", err)
-				}
-				if err := n.syncer.Start(n.ctx); err != nil {
-					n.Logger.Error("failed to start the syncer after initializing the header store", "error", err)
-				}
-				n.syncerStarted = true
-				return // no need for loop, as future headers will be synced via header exchange
-			}
-		case <-ctx.Done():
-			return
+	signedHeader := <-n.blockManager.SyncedHeadersCh
+	if signedHeader.Header.Height() == n.genesis.InitialHeight {
+		if err := n.headerStore.Init(ctx, &signedHeader.Header); err != nil {
+			n.Logger.Error("failed to initialize the header store", "error", err)
 		}
+		if err := n.syncer.Start(n.ctx); err != nil {
+			n.Logger.Error("failed to start the syncer after initializing the header store", "error", err)
+		}
+		n.syncerStarted = true
 	}
 }
 
 func (n *FullNode) writeToHeaderStoreAndBroadcastLoop(ctx context.Context, signedHeader *types.SignedHeader) {
-	n.Logger.Debug(
-		"[Header-Exchange] publishing block header",
-		"height",
-		signedHeader.Header.Height(),
-		"hash",
-		signedHeader.Header.Hash(),
-	)
 	// Init the header store if first block, else append to store
 	if err := n.initOrAppendHeaderStore(ctx, &signedHeader.Header); err != nil {
 		n.Logger.Error("failed to write block header to header store", "error", err)
