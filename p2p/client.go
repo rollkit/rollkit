@@ -58,6 +58,7 @@ type Client struct {
 	dht   *dht.IpfsDHT
 	disc  *discovery.RoutingDiscovery
 	gater *conngater.BasicConnectionGater
+	ps    *pubsub.PubSub
 
 	txGossiper  *Gossiper
 	txValidator GossipValidator
@@ -209,6 +210,11 @@ func (c *Client) Host() host.Host {
 	return c.host
 }
 
+// PubSub returns the libp2p node pubsub for adding future subscriptions
+func (c *Client) PubSub() *pubsub.PubSub {
+	return c.ps
+}
+
 // Info returns client ID, ListenAddr, and Network info
 func (c *Client) Info() (p2p.ID, string, string) {
 	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
@@ -357,18 +363,19 @@ func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 }
 
 func (c *Client) setupGossiping(ctx context.Context) error {
-	ps, err := pubsub.NewGossipSub(ctx, c.host)
+	var err error
+	c.ps, err = pubsub.NewGossipSub(ctx, c.host)
 	if err != nil {
 		return err
 	}
 
-	c.txGossiper, err = NewGossiper(c.host, ps, c.getTxTopic(), c.logger, WithValidator(c.txValidator))
+	c.txGossiper, err = NewGossiper(c.host, c.ps, c.getTxTopic(), c.logger, WithValidator(c.txValidator))
 	if err != nil {
 		return err
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
+	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
 	if err != nil {
 		return err
 	}

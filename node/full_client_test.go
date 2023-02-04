@@ -407,7 +407,7 @@ func TestTx(t *testing.T) {
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 200 * time.Millisecond,
+			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
 		key, signingKey, abcicli.NewLocalClient(nil, mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test"},
@@ -433,7 +433,7 @@ func TestTx(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(res)
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	resTx, errTx := rpc.Tx(context.Background(), res.Hash, true)
 	assert.NoError(errTx)

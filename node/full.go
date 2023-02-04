@@ -89,12 +89,12 @@ type FullNode struct {
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
-	ex          *goheaderp2p.Exchange[*types.Header]
-	syncer      *sync.Syncer[*types.Header]
-	sub         *goheaderp2p.Subscriber[*types.Header]
-	p2pServer   *goheaderp2p.ExchangeServer[*types.Header]
-	headerStore *goheaderstore.Store[*types.Header]
-
+	ex            *goheaderp2p.Exchange[*types.Header]
+	syncer        *sync.Syncer[*types.Header]
+	sub           *goheaderp2p.Subscriber[*types.Header]
+	p2pServer     *goheaderp2p.ExchangeServer[*types.Header]
+	headerStore   *goheaderstore.Store[*types.Header]
+	syncerStarted bool
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	ctx context.Context
@@ -250,13 +250,6 @@ func (n *FullNode) initHeaderStoreAndStartSyncerOnFirstHeaderReceive(ctx context
 	for {
 		select {
 		case signedHeader := <-n.blockManager.SyncedHeadersCh:
-			n.Logger.Debug(
-				"[Header-Exchange] block header received",
-				"height",
-				signedHeader.Header.Height(),
-				"hash",
-				signedHeader.Header.Hash(),
-			)
 			if signedHeader.Header.Height() == n.genesis.InitialHeight {
 				if err := n.headerStore.Init(ctx, &signedHeader.Header); err != nil {
 					n.Logger.Error("failed to initialize the header store", "error", err)
@@ -264,7 +257,8 @@ func (n *FullNode) initHeaderStoreAndStartSyncerOnFirstHeaderReceive(ctx context
 				if err := n.syncer.Start(n.ctx); err != nil {
 					n.Logger.Error("failed to start the syncer after initializing the header store", "error", err)
 				}
-				return
+				n.syncerStarted = true
+				return // no need for loop, as future headers will be synced via header exchange
 			}
 		case <-ctx.Done():
 			return
@@ -340,11 +334,8 @@ func (n *FullNode) OnStart() error {
 	}
 
 	// have to do the initializations here to utilize the p2p node which is created on start
-	pubsub1, err := pubsub.NewGossipSub(n.ctx, n.P2P.Host()) //, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
-	if err != nil {
-		return err
-	}
-	n.sub = goheaderp2p.NewSubscriber[*types.Header](pubsub1, pubsub.DefaultMsgIdFn)
+	ps := n.P2P.PubSub()
+	n.sub = goheaderp2p.NewSubscriber[*types.Header](ps, pubsub.DefaultMsgIdFn)
 	if err = n.sub.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -427,7 +418,7 @@ func (n *FullNode) OnStop() {
 	err = multierr.Append(err, n.p2pServer.Stop(n.ctx))
 	err = multierr.Append(err, n.ex.Stop(n.ctx))
 	err = multierr.Append(err, n.sub.Stop(n.ctx))
-	if !n.conf.Aggregator {
+	if !n.conf.Aggregator && n.syncerStarted {
 		err = multierr.Append(err, n.syncer.Stop(n.ctx))
 	}
 	n.Logger.Error("errors while stopping node:", "errors", err)

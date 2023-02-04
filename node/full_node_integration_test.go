@@ -279,7 +279,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
 	bmConfig := config.BlockManagerConfig{
-		BlockTime:   300 * time.Millisecond,
+		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 		FraudProofs: true,
 	}
