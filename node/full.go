@@ -7,10 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	dssync "github.com/ipfs/go-datastore/sync"
 	badger3 "github.com/ipfs/go-ds-badger3"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -30,8 +28,6 @@ import (
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-header/sync"
-	goheadersync "github.com/celestiaorg/go-header/sync"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -45,6 +41,9 @@ import (
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
+
+	"github.com/celestiaorg/go-header/sync"
+	goheadersync "github.com/celestiaorg/go-header/sync"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -258,7 +257,7 @@ func (n *FullNode) initHeaderStoreAndStartSyncerOnFirstHeaderReceive(ctx context
 	}
 }
 
-func (n *FullNode) writeToHeaderStoreAndBroadcastLoop(ctx context.Context, signedHeader *types.SignedHeader) {
+func (n *FullNode) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
 	// Init the header store if first block, else append to store
 	if err := n.initOrAppendHeaderStore(ctx, &signedHeader.Header); err != nil {
 		n.Logger.Error("failed to write block header to header store", "error", err)
@@ -274,7 +273,7 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderOutCh:
-			n.writeToHeaderStoreAndBroadcastLoop(ctx, signedHeader)
+			n.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
 			headerBytes, err := signedHeader.MarshalBinary()
 			if err != nil {
 				n.Logger.Error("failed to serialize signed block header", "error", err)
@@ -340,11 +339,7 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting p2p server: %w", err)
 	}
 
-	connGater, err := conngater.NewBasicConnectionGater(dssync.MutexWrap(datastore.NewMapDatastore()))
-	if err != nil {
-		return err
-	}
-	if n.ex, err = newP2PExchange(n.P2P.Host(), n.P2P.Host().Peerstore().Peers(), network, connGater); err != nil {
+	if n.ex, err = newP2PExchange(n.P2P.Host(), n.P2P.Host().Peerstore().Peers(), network, n.P2P.ConnectionGater()); err != nil {
 		return err
 	}
 	if err = n.ex.Start(n.ctx); err != nil {
@@ -352,6 +347,7 @@ func (n *FullNode) OnStart() error {
 	}
 
 	// for single aggregator configuration, syncer is not needed
+	// TODO: design syncer flow for multiple aggregator scenario
 	if !n.conf.Aggregator {
 		if n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(config.DefaultNodeConfig.BlockTime)); err != nil {
 			return err

@@ -215,6 +215,10 @@ func (c *Client) PubSub() *pubsub.PubSub {
 	return c.ps
 }
 
+func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
+	return c.gater
+}
+
 // Info returns client ID, ListenAddr, and Network info
 func (c *Client) Info() (p2p.ID, string, string) {
 	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
