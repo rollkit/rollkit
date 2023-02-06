@@ -10,6 +10,9 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
+type receiveDirectTxArgs struct {
+	tx []byte `json:"tx"`
+}
 type subscribeArgs struct {
 	Query string `json:"query"`
 }

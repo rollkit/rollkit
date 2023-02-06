@@ -16,8 +16,8 @@ import (
 )
 
 // GetHTTPHandler returns handler configured to serve Tendermint-compatible RPC.
-func GetHTTPHandler(l rpcclient.Client, logger log.Logger) (http.Handler, error) {
-	return newHandler(newService(l, logger), json2.NewCodec(), logger), nil
+func GetHTTPHandler(l rpcclient.Client, logger log.Logger, receiveDirectTx func([]byte) bool) (http.Handler, error) {
+	return newHandler(newService(l, logger, receiveDirectTx), json2.NewCodec(), logger), nil
 }
 
 type method struct {
@@ -39,15 +39,17 @@ func newMethod(m interface{}) *method {
 }
 
 type service struct {
-	client  rpcclient.Client
-	methods map[string]*method
-	logger  log.Logger
+	client          rpcclient.Client
+	methods         map[string]*method
+	logger          log.Logger
+	receiveDirectTx func([]byte) bool
 }
 
-func newService(c rpcclient.Client, l log.Logger) *service {
+func newService(c rpcclient.Client, l log.Logger, receiveDirectTx func([]byte) bool) *service {
 	s := service{
-		client: c,
-		logger: l,
+		client:          c,
+		logger:          l,
+		receiveDirectTx: receiveDirectTx,
 	}
 	s.methods = map[string]*method{
 		"subscribe":            newMethod(s.Subscribe),
@@ -79,9 +81,17 @@ func newService(c rpcclient.Client, l log.Logger) *service {
 		"abci_query":           newMethod(s.ABCIQuery),
 		"abci_info":            newMethod(s.ABCIInfo),
 		"broadcast_evidence":   newMethod(s.BroadcastEvidence),
+		"receive_direct_tx":    newMethod(s.ReceiveDirectTx),
 	}
 	return &s
 }
+
+func (s *service) ReceiveDirectTx(req *http.Request, args *receiveDirectTxArgs, wsConn *wsConn) (*ResultReceiveDirectTx, error) {
+	s.receiveDirectTx(args.tx)
+	return &ResultReceiveDirectTx{}, nil
+}
+
+type ResultReceiveDirectTx struct{}
 
 func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsConn) (*ctypes.ResultSubscribe, error) {
 	// TODO(tzdybal): pass config and check subscriptions limits

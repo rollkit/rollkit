@@ -26,14 +26,17 @@ type Server struct {
 	config *config.RPCConfig
 	client rpcclient.Client
 
+	receiveDirectTx func([]byte) bool
+
 	server http.Server
 }
 
 // NewServer creates new instance of Server with given configuration.
-func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger) *Server {
+func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger, receiveDirectTx func([]byte) bool) *Server {
 	srv := &Server{
-		config: config,
-		client: node.GetClient(),
+		config:          config,
+		client:          node.GetClient(),
+		receiveDirectTx: receiveDirectTx,
 	}
 	srv.BaseService = service.NewBaseService(logger, "RPC", srv)
 	return srv
@@ -82,7 +85,7 @@ func (s *Server) startRPC() error {
 		listener = netutil.LimitListener(listener, s.config.MaxOpenConnections)
 	}
 
-	handler, err := json.GetHTTPHandler(s.client, s.Logger)
+	handler, err := json.GetHTTPHandler(s.client, s.Logger, s.receiveDirectTx)
 	if err != nil {
 		return err
 	}
