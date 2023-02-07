@@ -322,11 +322,13 @@ func (n *FullNode) AppClient() abciclient.Client {
 	return n.appClient
 }
 
-func (n *FullNode) ReceiveDirectTx(m []byte) bool {
+func (n *FullNode) ReceiveDirectTx() func([]byte) bool {
 	//return n.validateTx(m)
-	n.Logger.Info("Receive Direct Tx")
-	n.incomingTxCh <- m
-	return true
+	return func(tx []byte) bool {
+		n.Logger.Info("Receive Direct Tx")
+		n.incomingTxCh <- tx
+		return true
+	}
 }
 
 func (n *FullNode) validateTx(m []byte) bool {

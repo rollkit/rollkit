@@ -11,7 +11,7 @@ import (
 )
 
 type receiveDirectTxArgs struct {
-	tx []byte `json:"tx"`
+	Tx []byte `json:"tx"`
 }
 type subscribeArgs struct {
 	Query string `json:"query"`

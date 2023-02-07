@@ -15,6 +15,12 @@ func (n *LightNode) GetClient() rpcclient.Client {
 	return NewLightClient(n)
 }
 
+func (n *LightNode) ReceiveDirectTx() func([]byte) bool {
+	return func(tx []byte) bool {
+		panic("Light nodes cannot be sequencers")
+	}
+}
+
 func newLightNode() (Node, error) {
 	return &LightNode{}, nil
 }
