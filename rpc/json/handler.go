@@ -119,7 +119,9 @@ func (h *handler) serveJSONRPCforWS(w http.ResponseWriter, r *http.Request, wsCo
 func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		args := reflect.New(methodSpec.argsType)
+		fmt.Println("args: ", args)
 		values, err := url.ParseQuery(r.URL.RawQuery)
+		fmt.Println("values: ", values)
 		if err != nil {
 			h.encodeAndWriteResponse(w, nil, err, int(json2.E_PARSE))
 			return

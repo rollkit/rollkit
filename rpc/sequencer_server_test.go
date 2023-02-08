@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -12,7 +11,7 @@ import (
 	//"io"
 	//"net/http"
 	//"net/url"
-	"encoding/json"
+
 	"testing"
 	"time"
 
@@ -91,14 +90,14 @@ func TestSequencerServer(t *testing.T) {
 	time.Sleep(3 * time.Second)
 	fmt.Println("Ok.")
 
-	arg := receiveDirectTxArgs{
+	/*arg := receiveDirectTxArgs{
 		Tx: []byte(fmt.Sprintf("abc%d", 1)),
-	}
-	encoded, err := json.Marshal(arg)
+	}*/
+
+	/*jsonReq, err := json2.EncodeClientRequest("receive_direct_tx", &arg)
 	assert.NoError(err)
-	requestBuf := bytes.NewBuffer(encoded)
-	fmt.Println("Sending ", string(encoded))
-	resp, err := http.Post("http://127.0.0.1:26657/receive_direct_tx", "application/json", requestBuf)
+	fmt.Println("sending: ", string(jsonReq))*/
+	resp, err := http.Get("http://127.0.0.1:26657/receive_direct_tx?tx=0101")
 	assert.NoError(err)
 	b, err := io.ReadAll(resp.Body)
 	fmt.Println("got: ", string(b))
