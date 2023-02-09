@@ -87,7 +87,6 @@ func newService(c rpcclient.Client, l log.Logger, receiveDirectTx func([]byte) b
 }
 
 func (s *service) ReceiveDirectTx(req *http.Request, args *receiveDirectTxArgs) (*ResultReceiveDirectTx, error) {
-	fmt.Println("Receive direct tx routine")
 	s.receiveDirectTx(args.Tx)
 	return &ResultReceiveDirectTx{}, nil
 }

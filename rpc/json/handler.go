@@ -156,7 +156,6 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 				return
 			}
 		}
-		fmt.Println("Reflect call!")
 		rets := methodSpec.m.Call([]reflect.Value{
 			reflect.ValueOf(r),
 			args,
