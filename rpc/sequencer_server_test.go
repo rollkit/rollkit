@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/node"
