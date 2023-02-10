@@ -324,8 +324,8 @@ func (n *FullNode) AppClient() abciclient.Client {
 }
 
 type ResultDirectTx struct {
-	Included bool
-	Height   uint64
+	Included bool   `json:"included"`
+	Height   uint64 `json:"height"`
 }
 
 func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {

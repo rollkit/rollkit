@@ -87,9 +87,9 @@ func newService(c rpcclient.Client, l log.Logger, receiveDirectTx func([]byte) n
 	return &s
 }
 
-func (s *service) ReceiveDirectTx(req *http.Request, args *receiveDirectTxArgs) (*ResultReceiveDirectTx, error) {
-	s.receiveDirectTx(args.Tx)
-	return &ResultReceiveDirectTx{}, nil
+func (s *service) ReceiveDirectTx(req *http.Request, args *receiveDirectTxArgs) (*node.ResultDirectTx, error) {
+	res := s.receiveDirectTx(args.Tx)
+	return &res, nil
 }
 
 type ResultReceiveDirectTx struct{}
