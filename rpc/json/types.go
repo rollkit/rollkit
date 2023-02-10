@@ -13,6 +13,7 @@ import (
 type receiveDirectTxArgs struct {
 	Tx []byte `json:"tx"`
 }
+
 type subscribeArgs struct {
 	Query string `json:"query"`
 }

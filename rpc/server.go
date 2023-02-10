@@ -26,13 +26,13 @@ type Server struct {
 	config *config.RPCConfig
 	client rpcclient.Client
 
-	receiveDirectTx func([]byte) bool
+	receiveDirectTx func([]byte) node.ResultDirectTx
 
 	server http.Server
 }
 
 // NewServer creates new instance of Server with given configuration.
-func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger, receiveDirectTx func([]byte) bool) *Server {
+func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger, receiveDirectTx func([]byte) node.ResultDirectTx) *Server {
 	srv := &Server{
 		config:          config,
 		client:          node.GetClient(),

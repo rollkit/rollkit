@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"io"
 	"net/http"
 
 	//"fmt"
@@ -90,28 +89,15 @@ func TestSequencerServer(t *testing.T) {
 	time.Sleep(3 * time.Second)
 	fmt.Println("Ok.")
 
-	/*arg := receiveDirectTxArgs{
-		Tx: []byte(fmt.Sprintf("abc%d", 1)),
-	}*/
-
-	/*jsonReq, err := json2.EncodeClientRequest("receive_direct_tx", &arg)
-	assert.NoError(err)
-	fmt.Println("sending: ", string(jsonReq))*/
-	resp, err := http.Get("http://127.0.0.1:26657/receive_direct_tx?tx=0101")
+	/*resp, err := http.Get("http://127.0.0.1:26657/receive_direct_tx?tx=0101")
 	assert.NoError(err)
 	b, err := io.ReadAll(resp.Body)
 	fmt.Println("got: ", string(b))
 	assert.NoError(err)
-	/*sendAsync := func(i int, out chan *http.Response) {
-		arg := receiveDirectTxArgs{
-			Tx: []byte(fmt.Sprintf("abc%d", i)),
-		}
-		encoded, err := json.Marshal(arg)
-		assert.NoError(err)
-		requestBuf := bytes.NewBuffer(encoded)
-		fmt.Println("Sending")
-		resp, err := http.Post("http://127.0.0.1:26657/receive_direct_tx", "application/json", requestBuf)
-		fmt.Println("Sent")
+	time.Sleep(2 * time.Second)*/
+
+	sendAsync := func(i int, out chan *http.Response) {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:26657/receive_direct_tx?tx=abc%d", i))
 		assert.NoError(err)
 		out <- resp
 	}
@@ -120,7 +106,7 @@ func TestSequencerServer(t *testing.T) {
 	sendAsync(0, resps)
 	resp1 := <-resps
 	fmt.Println("Got:")
-	fmt.Println(resp1)*/
+	fmt.Println(resp1)
 	//sendAsync := func(i int, out chan *http.Response) {
 	/*resp, err := http.PostForm("http://127.0.0.1:26657/receive_direct_tx",
 		url.Values{

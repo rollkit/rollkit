@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
@@ -322,12 +323,41 @@ func (n *FullNode) AppClient() abciclient.Client {
 	return n.appClient
 }
 
-func (n *FullNode) ReceiveDirectTx() func([]byte) bool {
-	//return n.validateTx(m)
-	return func(tx []byte) bool {
+type ResultDirectTx struct {
+	Included bool
+	Height   uint64
+}
+
+func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
+	// returns "true" if a block is built, "false" if it times out.
+	return func(tx []byte) ResultDirectTx {
 		n.Logger.Info("Receive Direct Tx")
 		n.incomingTxCh <- tx
-		return true
+		t := time.NewTimer(2 * time.Second)
+
+		// Non-progressive sequencer doesn't track
+		// whether or not the tx was included in a block
+		if !n.conf.ProgressiveSequencer {
+			return ResultDirectTx{
+				true,
+				0,
+			}
+		}
+
+		for {
+			select {
+			case <-t.C:
+				return ResultDirectTx{
+					false,
+					0,
+				}
+			case <-n.DoneBuildingBlock:
+				return ResultDirectTx{
+					true,
+					n.Store.Height(),
+				}
+			}
+		}
 	}
 }
 
