@@ -261,11 +261,7 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		if n.conf.ProgressiveSequencer {
-			go n.blockManager.ProgressiveAggregationLoop(n.ctx, n.incomingTxCh, n.validateTx)
-		} else {
-			go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.validateTx)
-		}
+		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.validateTx, n.conf.ProgressiveSequencer)
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)

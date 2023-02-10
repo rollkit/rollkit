@@ -21,10 +21,7 @@ const (
 	flagFraudProofs   = "rollkit.experimental_insecure_fraud_proofs"
 	flagLight         = "rollkit.light"
 
-	flagSequencerListenAddress      = "rollkit.sequencer_listen_address"
-	flagSequencerMaxOpenConnections = "rollkit.sequencer_max_open_connections"
-	flagSequencerCorsEnabled        = "rollkit.sequencer_cors_enabled"
-	flagProgressiveSequencer        = "rollkit.progressive_sequencer"
+	flagProgressiveSequencer = "rollkit.progressive_sequencer"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -41,10 +38,8 @@ type NodeConfig struct {
 	Light              bool   `mapstructure:"light"`
 
 	// Sequencer-specific settings
-	Aggregator                  bool   `mapstructure:"aggregator"`
-	ProgressiveSequencer        bool   `mapstructure:"progressive_sequencer"`
-	SequencerListenAddress      string `mapstructure:"sequencer_listen_address"`
-	SequencerMaxOpenConnections uint64 `mapstructure:"sequencer_max_open_connections"`
+	Aggregator           bool `mapstructure:"aggregator"`
+	ProgressiveSequencer bool `mapstructure:"progressive_sequencer"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
@@ -64,7 +59,6 @@ type BlockManagerConfig struct {
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
-	nc.SequencerListenAddress = v.GetString(flagSequencerListenAddress)
 	nc.DALayer = v.GetString(flagDALayer)
 	nc.DAConfig = v.GetString(flagDAConfig)
 	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
@@ -96,7 +90,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
-	cmd.Flags().String(flagSequencerListenAddress, def.SequencerListenAddress, "listening address for centralized sequencer")
-	cmd.Flags().Uint64(flagSequencerMaxOpenConnections, def.SequencerMaxOpenConnections, "max open connections for centralized sequencer")
 	cmd.Flags().Bool(flagProgressiveSequencer, def.ProgressiveSequencer, "progressive sequencer")
 }

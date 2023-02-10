@@ -178,94 +178,83 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.retriever = dalc.(da.BlockRetriever)
 }
 
-func (m *Manager) ProgressiveAggregationLoop(ctx context.Context, ingress chan []byte, txVal func([]byte) bool) {
-	//initialHeight := uint64(m.genesis.InitialHeight)
-	//height := m.store.Height()
-
-	/*var delay time.Duration
-	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
-	if height < initialHeight {
-		delay = time.Until(m.genesis.GenesisTime)
-	} else {
-		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
-	}*/
-	m.logger.Info("Starting Progressive Aggregation Loop")
-
-	for {
-		select {
-		case msg := <-ingress:
-			m.logger.Debug("Received transactions directly")
-			if txVal(msg) {
-				m.logger.Debug(fmt.Sprintf("Received valid tx, will include in block %d", m.store.Height()))
-			} else {
-				m.logger.Debug("Tx is invalid")
-			}
-		case <-ctx.Done():
-			m.logger.Debug("ProgressiveAggregationLoop done")
-			return
-		case <-m.txsAvailable:
-			m.logger.Debug("Txs available! Starting block building...")
-			if !m.buildingBlock {
-				m.buildingBlock = true
-				m.startedBuilding = uint32(time.Now().Second())
-				m.timer = *time.NewTimer(1 * time.Second)
-			}
-		case <-m.timer.C:
-			m.logger.Debug("Block building time elapsed.")
-			m.buildingBlock = false
-			err := m.publishBlock(ctx)
-			if err != nil {
-				m.logger.Error("error while publishing block", "error", err)
-			}
-			//m.doneBuildingBlock <- struct{}{}
-			close(m.doneBuildingBlock)
-			m.doneBuildingBlock = make(chan struct{})
-		}
-	}
-}
-
 func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
 	return m.executor.FraudProofOutCh
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVal func([]byte) bool) {
-	initialHeight := uint64(m.genesis.InitialHeight)
-	height := m.store.Height()
-	var delay time.Duration
+func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVal func([]byte) bool, progressive bool) {
+	if !progressive {
+		initialHeight := uint64(m.genesis.InitialHeight)
+		height := m.store.Height()
+		var delay time.Duration
 
-	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
-	if height < initialHeight {
-		delay = time.Until(m.genesis.GenesisTime)
+		// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
+		if height < initialHeight {
+			delay = time.Until(m.genesis.GenesisTime)
+		} else {
+			delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
+		}
+
+		if delay > 0 {
+			m.logger.Info("Waiting to produce block", "delay", delay)
+			time.Sleep(delay)
+		}
+
+		timer := time.NewTimer(0)
+
+		for {
+			select {
+			case msg := <-ingress:
+				m.logger.Debug("Received transactions directly")
+				if txVal(msg) {
+					m.logger.Debug("Tx is valid!")
+				} else {
+					m.logger.Debug("Tx is invalid :(")
+				}
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				start := time.Now()
+				err := m.publishBlock(ctx)
+				if err != nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
+				timer.Reset(m.getRemainingSleep(start))
+			}
+		}
 	} else {
-		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
-	}
+		m.logger.Info("Starting Progressive Aggregation Loop")
 
-	if delay > 0 {
-		m.logger.Info("Waiting to produce block", "delay", delay)
-		time.Sleep(delay)
-	}
-
-	timer := time.NewTimer(0)
-
-	for {
-		select {
-		case msg := <-ingress:
-			m.logger.Debug("Received transactions directly")
-			if txVal(msg) {
-				m.logger.Debug("Tx is valid!")
-			} else {
-				m.logger.Debug("Tx is invalid :(")
+		for {
+			select {
+			case msg := <-ingress:
+				m.logger.Debug("Received transactions directly")
+				if txVal(msg) {
+					m.logger.Debug(fmt.Sprintf("Received valid tx, will include in block %d", m.store.Height()))
+				} else {
+					m.logger.Debug("Tx is invalid")
+				}
+			case <-ctx.Done():
+				m.logger.Debug("ProgressiveAggregationLoop done")
+				return
+			case <-m.txsAvailable:
+				m.logger.Debug("Txs available! Starting block building...")
+				if !m.buildingBlock {
+					m.buildingBlock = true
+					m.startedBuilding = uint32(time.Now().Second())
+					m.timer = *time.NewTimer(1 * time.Second)
+				}
+			case <-m.timer.C:
+				m.logger.Debug("Block building time elapsed.")
+				m.buildingBlock = false
+				err := m.publishBlock(ctx)
+				if err != nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
+				close(m.doneBuildingBlock)
+				m.doneBuildingBlock = make(chan struct{})
 			}
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			start := time.Now()
-			err := m.publishBlock(ctx)
-			if err != nil {
-				m.logger.Error("error while publishing block", "error", err)
-			}
-			timer.Reset(m.getRemainingSleep(start))
 		}
 	}
 }
