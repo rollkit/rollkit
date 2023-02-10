@@ -439,7 +439,7 @@ func (n *FullNode) newHeaderValidator() p2p.GossipValidator {
 func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
 	return func(fraudProofMsg *p2p.GossipMessage) bool {
 		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		var fraudProof abci.FraudProof
+		fraudProof := abci.FraudProof{}
 		err := fraudProof.Unmarshal(fraudProofMsg.Data)
 		if err != nil {
 			n.Logger.Error("failed to deserialize fraud proof", "error", err)

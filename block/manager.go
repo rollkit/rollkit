@@ -293,7 +293,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
 			m.logger.Debug("block body retrieved from DALC",
-				"height", block.Header.Height,
+				"height", block.Header.Height(),
 				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
@@ -612,14 +612,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
-	m.logger.Info("submitting block to DA layer", "height", block.Header.Height)
+	m.logger.Info("submitting block to DA layer", "height", block.Header.Height())
 
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
 		res := m.dalc.SubmitBlock(ctx, block)
 		if res.Code == da.StatusSuccess {
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.Header.Height, "daHeight", res.DAHeight)
+			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.Header.Height(), "daHeight", res.DAHeight)
 			submitted = true
 		} else {
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
