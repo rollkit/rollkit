@@ -181,7 +181,7 @@ func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVal func([]byte) bool, progressive bool) {
+func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, progressive bool) {
 	if !progressive {
 		initialHeight := uint64(m.genesis.InitialHeight)
 		height := m.store.Height()

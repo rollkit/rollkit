@@ -261,7 +261,7 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.validateTx, n.conf.ProgressiveSequencer)
+		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.conf.ProgressiveSequencer)
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
@@ -328,7 +328,8 @@ func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
 	// returns "true" if a block is built, "false" if it times out.
 	return func(tx []byte) ResultDirectTx {
 
-		if !n.validateTx(tx) {
+		err := n.tryInsertTxToMempool(tx)
+		if err != nil {
 			return ResultDirectTx{
 				Included: false,
 				Height:   0,
@@ -363,7 +364,7 @@ func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
 	}
 }
 
-func (n *FullNode) validateTx(m []byte) bool {
+func (n *FullNode) tryInsertTxToMempool(m []byte) error {
 	n.Logger.Debug("transaction received", "bytes", len(m))
 	checkTxResCh := make(chan *abci.Response, 1)
 	err := n.Mempool.CheckTx(m, func(resp *abci.Response) {
@@ -372,21 +373,7 @@ func (n *FullNode) validateTx(m []byte) bool {
 		SenderID:    uint16(mempool.DIRECT),
 		SenderP2PID: "DIRECT",
 	})
-	switch {
-	case errors.Is(err, mempool.ErrTxInCache):
-		return true
-	case errors.Is(err, mempool.ErrMempoolIsFull{}):
-		return true
-	case errors.Is(err, mempool.ErrTxTooLarge{}):
-		return false
-	case errors.Is(err, mempool.ErrPreCheck{}):
-		return false
-	default:
-	}
-	res := <-checkTxResCh
-	checkTxResp := res.GetCheckTx()
-
-	return checkTxResp.Code == abci.CodeTypeOK
+	return err
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
