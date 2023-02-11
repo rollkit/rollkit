@@ -261,7 +261,7 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.conf.ProgressiveSequencer)
+		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.conf.ProgressiveAggregator)
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
@@ -338,7 +338,7 @@ func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
 
 		// Non-progressive sequencer doesn't track
 		// whether or not the tx was included in a block
-		if !n.conf.ProgressiveSequencer {
+		if !n.conf.ProgressiveAggregator {
 			return ResultDirectTx{
 				true,
 				0,

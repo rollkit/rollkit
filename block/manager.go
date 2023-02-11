@@ -203,13 +203,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 
 		for {
 			select {
-			/*case msg := <-ingress:
-			m.logger.Debug("Received transactions directly")
-			if txVal(msg) {
-				m.logger.Debug("Tx is valid!")
-			} else {
-				m.logger.Debug("Tx is invalid :(")
-			}*/
 			case <-ctx.Done():
 				return
 			case <-timer.C:
@@ -226,13 +219,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 
 		for {
 			select {
-			/*case msg := <-ingress:
-			m.logger.Debug("Received transactions directly")
-			if txVal(msg) {
-				m.logger.Debug(fmt.Sprintf("Received valid tx, will include in block %d", m.store.Height()))
-			} else {
-				m.logger.Debug("Tx is invalid")
-			}*/
 			case <-ctx.Done():
 				m.logger.Debug("ProgressiveAggregationLoop done")
 				return

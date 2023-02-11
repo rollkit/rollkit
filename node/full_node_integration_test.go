@@ -102,10 +102,10 @@ func TestProgressiveAggregation(t *testing.T) {
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 	node, err := newFullNode(context.Background(), config.NodeConfig{
-		DALayer:              "mock",
-		Aggregator:           true,
-		BlockManagerConfig:   blockManagerConfig,
-		ProgressiveSequencer: true,
+		DALayer:               "mock",
+		Aggregator:            true,
+		BlockManagerConfig:    blockManagerConfig,
+		ProgressiveAggregator: true,
 	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
@@ -132,20 +132,6 @@ func TestProgressiveAggregation(t *testing.T) {
 	node.incomingTxCh <- []byte(time.Now().String())
 	time.Sleep(3 * time.Second)
 
-	/*ctx, cancel := context.WithCancel(context.TODO())
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				node.incomingTxCh <- []byte(time.Now().String())
-				time.Sleep(time.Duration(mrand.Uint32()%20) * time.Millisecond)
-			}
-		}
-	}()
-	time.Sleep(3 * time.Second)
-	cancel()*/
 }
 
 // TestTxGossipingAndAggregation setups a network of nodes, with single aggregator and multiple producers.

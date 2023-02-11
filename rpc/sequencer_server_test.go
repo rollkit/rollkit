@@ -56,10 +56,10 @@ func TestSequencerServer(t *testing.T) {
 	}
 
 	node, err := node.NewNode(context.Background(), config.NodeConfig{
-		DALayer:              "mock",
-		Aggregator:           true,
-		BlockManagerConfig:   blockManagerConfig,
-		ProgressiveSequencer: true,
+		DALayer:               "mock",
+		Aggregator:            true,
+		BlockManagerConfig:    blockManagerConfig,
+		ProgressiveAggregator: true,
 	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
