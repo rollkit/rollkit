@@ -327,9 +327,13 @@ type ResultDirectTx struct {
 func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
 	// returns "true" if a block is built, "false" if it times out.
 	return func(tx []byte) ResultDirectTx {
-		n.Logger.Info("Receive Direct Tx")
-		n.incomingTxCh <- tx
-		t := time.NewTimer(2 * time.Second)
+
+		if !n.validateTx(tx) {
+			return ResultDirectTx{
+				Included: false,
+				Height:   0,
+			}
+		}
 
 		// Non-progressive sequencer doesn't track
 		// whether or not the tx was included in a block
@@ -340,6 +344,7 @@ func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
 			}
 		}
 
+		t := time.NewTimer(2 * time.Second)
 		for {
 			select {
 			case <-t.C:
@@ -354,6 +359,7 @@ func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
 				}
 			}
 		}
+
 	}
 }
 

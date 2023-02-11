@@ -74,7 +74,6 @@ type Manager struct {
 
 	// whether or not the centralized sequencer is currently building a block
 	buildingBlock     bool
-	startedBuilding   uint32
 	txsAvailable      <-chan struct{}
 	timer             time.Timer
 	doneBuildingBlock chan struct{}
@@ -154,7 +153,6 @@ func NewManager(
 		retrieveMtx:       new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
 		buildingBlock:     false,
-		startedBuilding:   0,
 		txsAvailable:      txsAvailable,
 		doneBuildingBlock: doneBuildingCh,
 		logger:            logger,
@@ -205,13 +203,13 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVa
 
 		for {
 			select {
-			case msg := <-ingress:
-				m.logger.Debug("Received transactions directly")
-				if txVal(msg) {
-					m.logger.Debug("Tx is valid!")
-				} else {
-					m.logger.Debug("Tx is invalid :(")
-				}
+			/*case msg := <-ingress:
+			m.logger.Debug("Received transactions directly")
+			if txVal(msg) {
+				m.logger.Debug("Tx is valid!")
+			} else {
+				m.logger.Debug("Tx is invalid :(")
+			}*/
 			case <-ctx.Done():
 				return
 			case <-timer.C:
@@ -228,13 +226,13 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVa
 
 		for {
 			select {
-			case msg := <-ingress:
-				m.logger.Debug("Received transactions directly")
-				if txVal(msg) {
-					m.logger.Debug(fmt.Sprintf("Received valid tx, will include in block %d", m.store.Height()))
-				} else {
-					m.logger.Debug("Tx is invalid")
-				}
+			/*case msg := <-ingress:
+			m.logger.Debug("Received transactions directly")
+			if txVal(msg) {
+				m.logger.Debug(fmt.Sprintf("Received valid tx, will include in block %d", m.store.Height()))
+			} else {
+				m.logger.Debug("Tx is invalid")
+			}*/
 			case <-ctx.Done():
 				m.logger.Debug("ProgressiveAggregationLoop done")
 				return
@@ -242,7 +240,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, txVa
 				m.logger.Debug("Txs available! Starting block building...")
 				if !m.buildingBlock {
 					m.buildingBlock = true
-					m.startedBuilding = uint32(time.Now().Second())
 					m.timer = *time.NewTimer(1 * time.Second)
 				}
 			case <-m.timer.C:
