@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -245,16 +246,29 @@ func (n *FullNode) initOrAppendHeaderStore(ctx context.Context, header *types.He
 	return err
 }
 
-func (n *FullNode) initHeaderStoreAndStartSyncerOnFirstHeaderReceive(ctx context.Context) {
-	signedHeader := <-n.blockManager.SyncedHeadersCh
-	if signedHeader.Header.Height() == n.genesis.InitialHeight {
-		if err := n.headerStore.Init(ctx, &signedHeader.Header); err != nil {
-			n.Logger.Error("failed to initialize the header store", "error", err)
+func (n *FullNode) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.Header) error {
+	if err := n.headerStore.Init(ctx, initial); err != nil {
+		return err
+	}
+	if err := n.syncer.Start(n.ctx); err != nil {
+		return err
+	}
+	n.syncerStarted = true
+	return nil
+}
+
+func (n *FullNode) tryInitHeaderStoreAndStartSyncer(ctx context.Context, trustedHeader *types.Header) {
+	if trustedHeader != nil {
+		if err := n.initHeaderStoreAndStartSyncer(ctx, trustedHeader); err != nil {
+			n.Logger.Error("failed to initialize the headerstore and start syncer", "error", err)
 		}
-		if err := n.syncer.Start(n.ctx); err != nil {
-			n.Logger.Error("failed to start the syncer after initializing the header store", "error", err)
+	} else {
+		signedHeader := <-n.blockManager.SyncedHeadersCh
+		if signedHeader.Header.Height() == n.genesis.InitialHeight {
+			if err := n.initHeaderStoreAndStartSyncer(ctx, &signedHeader.Header); err != nil {
+				n.Logger.Error("failed to initialize the headerstore and start syncer", "error", err)
+			}
 		}
-		n.syncerStarted = true
 	}
 }
 
@@ -348,26 +362,46 @@ func (n *FullNode) OnStart() error {
 	}
 
 	// for single aggregator configuration, syncer is not needed
-	// TODO: design syncer flow for multiple aggregator scenario
+	// TODO (ganesh): design syncer flow for multiple aggregator scenario
 	if !n.conf.Aggregator {
 		if n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(config.DefaultNodeConfig.BlockTime)); err != nil {
 			return err
 		}
-		// cannot start syncer here, postponing until the first block is created
-		// so that headerstore can be initialized with that first block and
-		// the syncer can then gracefully start
+		// Check if the headerstore is not initialized and try initializing
+		if n.headerStore.Height() == 0 {
+			// Look to see if trusted hash is passed, if not get the genesis header
+			var trustedHeader *types.Header
+			// Try fetching the trusted header from peers if exists
+			if n.P2P.Host().Peerstore().Peers().Len() > 1 {
+				if n.conf.TrustedHash != "" {
+					if trustedHashBytes, err := hex.DecodeString(n.conf.TrustedHash); err != nil {
+						return fmt.Errorf("fail to parse the trusted hash for initializing the headerstore: %w", err)
+					} else {
+						if trustedHeader, err = n.ex.Get(n.ctx, header.Hash(trustedHashBytes)); err != nil {
+							return fmt.Errorf("fail to fetch the trusted header for initializing the headerstore: %w", err)
+						}
+					}
+				} else {
+					// Try fetching the genesis header if available, otherwise fallback to signed headers
+					trustedHeader, _ = n.ex.GetByHeight(n.ctx, uint64(n.genesis.InitialHeight))
+				}
+			}
+			go n.tryInitHeaderStoreAndStartSyncer(n.ctx, trustedHeader)
+		} else {
+			if err := n.syncer.Start(n.ctx); err != nil {
+				return fmt.Errorf("error while starting the syncer: %w", err)
+			}
+			n.syncerStarted = true
+		}
 	}
 
-	err = n.dalc.Start()
-	if err != nil {
+	if err = n.dalc.Start(); err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
-	} else {
-		go n.initHeaderStoreAndStartSyncerOnFirstHeaderReceive(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
