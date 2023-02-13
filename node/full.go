@@ -354,7 +354,8 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting p2p server: %w", err)
 	}
 
-	if n.ex, err = newP2PExchange(n.P2P.Host(), n.P2P.Host().Peerstore().Peers(), network, n.P2P.ConnectionGater()); err != nil {
+	peerIDs := n.P2P.PeerIDs()
+	if n.ex, err = newP2PExchange(n.P2P.Host(), peerIDs, network, n.P2P.ConnectionGater()); err != nil {
 		return err
 	}
 	if err = n.ex.Start(n.ctx); err != nil {
@@ -372,7 +373,7 @@ func (n *FullNode) OnStart() error {
 			// Look to see if trusted hash is passed, if not get the genesis header
 			var trustedHeader *types.Header
 			// Try fetching the trusted header from peers if exists
-			if n.P2P.Host().Peerstore().Peers().Len() > 1 {
+			if len(peerIDs) > 0 {
 				if n.conf.TrustedHash != "" {
 					if trustedHashBytes, err := hex.DecodeString(n.conf.TrustedHash); err != nil {
 						return fmt.Errorf("fail to parse the trusted hash for initializing the headerstore: %w", err)
@@ -383,7 +384,11 @@ func (n *FullNode) OnStart() error {
 					}
 				} else {
 					// Try fetching the genesis header if available, otherwise fallback to signed headers
-					trustedHeader, _ = n.ex.GetByHeight(n.ctx, uint64(n.genesis.InitialHeight))
+					if trustedHeader, err = n.ex.GetByHeight(n.ctx, uint64(n.genesis.InitialHeight)); err != nil {
+						// Fullnode has to wait for aggregator to publish the genesis header
+						// if the aggregator is passed as seed while starting the fullnode
+						return fmt.Errorf("failed to get genesis header: %w", err)
+					}
 				}
 			}
 			go n.tryInitHeaderStoreAndStartSyncer(n.ctx, trustedHeader)

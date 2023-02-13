@@ -233,6 +233,15 @@ type PeerConnection struct {
 	RemoteIP         string               `json:"remote_ip"`
 }
 
+// PeerIDs returns list of peer IDs of connected peers excluding self and inactive
+func (c *Client) PeerIDs() []peer.ID {
+	peerIDs := make([]peer.ID, 0)
+	for _, conn := range c.host.Network().Conns() {
+		peerIDs = append(peerIDs, conn.RemotePeer())
+	}
+	return peerIDs
+}
+
 // Peers returns list of peers connected to Client.
 func (c *Client) Peers() []PeerConnection {
 	conns := c.host.Network().Conns()
