@@ -207,7 +207,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 				return
 			case <-timer.C:
 				start := time.Now()
-				err := m.publishBlock(ctx)
+				err := m.publishBlock(ctx, false)
 				if err != nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
@@ -231,7 +231,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 			case <-m.timer.C:
 				m.logger.Debug("Block building time elapsed.")
 				m.buildingBlock = false
-				err := m.publishBlock(ctx)
+				err := m.publishBlock(ctx, true)
 				if err != nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
@@ -484,7 +484,7 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	}, nil
 }
 
-func (m *Manager) publishBlock(ctx context.Context) error {
+func (m *Manager) publishBlock(ctx context.Context, maxTx bool) error {
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
 	var err error
@@ -517,7 +517,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState, maxTx)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		commit, err := m.getCommit(block.Header)

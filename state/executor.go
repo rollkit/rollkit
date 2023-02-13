@@ -92,11 +92,16 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) *types.Block {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State, maxTx bool) *types.Block {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
 
-	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
+	var mempoolTxs tmtypes.Txs
+	if maxTx {
+		mempoolTxs = e.mempool.ReapMaxTxs(-1)
+	} else {
+		mempoolTxs = e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
+	}
 
 	block := &types.Block{
 		Header: types.Header{
