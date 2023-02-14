@@ -213,8 +213,12 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
 	numNodes := len(nodes)
 	wg.Add((numNodes) * (numNodes - 1))
-	for _, n := range nodes {
-		require.NoError(t, n.Start())
+
+	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
+	require.NoError(t, nodes[0].Start())
+	time.Sleep(1 * time.Second)
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(t, nodes[i].Start())
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
