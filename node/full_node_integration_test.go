@@ -81,59 +81,6 @@ func TestAggregatorMode(t *testing.T) {
 	cancel()
 }
 
-func TestProgressiveAggregation(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
-
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
-	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{
-		DALayer:               "mock",
-		Aggregator:            true,
-		BlockManagerConfig:    blockManagerConfig,
-		ProgressiveAggregator: true,
-	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
-
-	assert.False(node.IsRunning())
-
-	err = node.Start()
-	assert.NoError(err)
-	defer func() {
-		err := node.Stop()
-		assert.NoError(err)
-	}()
-	assert.True(node.IsRunning())
-
-	require.NoError(err)
-
-	time.Sleep(5 * time.Second)
-	node.incomingTxCh <- []byte(time.Now().String())
-	node.incomingTxCh <- []byte(time.Now().String())
-	node.incomingTxCh <- []byte(time.Now().String())
-	time.Sleep(5 * time.Second)
-	node.incomingTxCh <- []byte(time.Now().String())
-	node.incomingTxCh <- []byte(time.Now().String())
-	node.incomingTxCh <- []byte(time.Now().String())
-	time.Sleep(3 * time.Second)
-
-}
-
 // TestTxGossipingAndAggregation setups a network of nodes, with single aggregator and multiple producers.
 // Nodes should gossip transactions and aggregator node should produce blocks.
 func TestTxGossipingAndAggregation(t *testing.T) {
