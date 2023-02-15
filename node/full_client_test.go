@@ -854,10 +854,21 @@ func TestMempool2Nodes(t *testing.T) {
 	id1, err := peer.IDFromPrivateKey(key1)
 	require.NoError(err)
 
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+
+	// make node1 an aggregator, so that node2 can start gracefully
 	node1, err := newFullNode(context.Background(), config.NodeConfig{
-		DALayer: "mock",
+		Aggregator: true,
+		DALayer:    "mock",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
+		},
+		BlockManagerConfig: config.BlockManagerConfig{
+			BlockTime: 1 * time.Second,
 		},
 	}, key1, signingKey1, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
@@ -875,6 +886,8 @@ func TestMempool2Nodes(t *testing.T) {
 
 	err = node1.Start()
 	require.NoError(err)
+
+	time.Sleep(1 * time.Second)
 
 	err = node2.Start()
 	require.NoError(err)
