@@ -102,7 +102,6 @@ func NewManager(
 	dalc da.DataAvailabilityLayerClient,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
-	txsAvailable <-chan struct{},
 	doneBuildingCh chan struct{},
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
@@ -154,7 +153,7 @@ func NewManager(
 		retrieveMtx:       new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
 		buildingBlock:     false,
-		txsAvailable:      txsAvailable,
+		txsAvailable:      mempool.TxsAvailable(),
 		moreTxsAvailable:  make(chan struct{}),
 		doneBuildingBlock: doneBuildingCh,
 		logger:            logger,
