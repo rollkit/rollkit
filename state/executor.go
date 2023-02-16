@@ -175,7 +175,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 }
 
 // Commit commits the block
-func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *tmstate.ABCIResponses) ([]byte, uint64, error) {
+func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *tmstate.ABCIResponses, moreTxsAvailable chan struct{}) ([]byte, uint64, error) {
 	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
 	if err != nil {
 		return []byte{}, 0, err
@@ -187,6 +187,13 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
 	}
+
+	if moreTxsAvailable != nil {
+		if e.mempool.Size() > 0 {
+			moreTxsAvailable <- struct{}{}
+		}
+	}
+
 	return appHash, retainHeight, nil
 }
 

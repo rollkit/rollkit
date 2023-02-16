@@ -75,6 +75,7 @@ type Manager struct {
 	// whether or not the centralized sequencer is currently building a block
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
+	moreTxsAvailable  chan struct{}
 	timer             time.Timer
 	doneBuildingBlock chan struct{}
 
@@ -154,6 +155,7 @@ func NewManager(
 		syncCache:         make(map[uint64]*types.Block),
 		buildingBlock:     false,
 		txsAvailable:      txsAvailable,
+		moreTxsAvailable:  make(chan struct{}),
 		doneBuildingBlock: doneBuildingCh,
 		logger:            logger,
 	}
@@ -207,7 +209,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 				return
 			case <-timer.C:
 				start := time.Now()
-				err := m.publishBlock(ctx, false)
+				err := m.publishBlock(ctx, false, m.moreTxsAvailable)
 				if err != nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
@@ -228,10 +230,16 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 					m.buildingBlock = true
 					m.timer = *time.NewTimer(1 * time.Second)
 				}
+			case <-m.moreTxsAvailable:
+				m.logger.Debug("Txs remained in mempool after building last block. Building another block.")
+				if !m.buildingBlock {
+					m.buildingBlock = true
+					m.timer = *time.NewTimer(1 * time.Second)
+				}
 			case <-m.timer.C:
 				m.logger.Debug("Block building time elapsed.")
 				m.buildingBlock = false
-				err := m.publishBlock(ctx, true)
+				err := m.publishBlock(ctx, true, m.moreTxsAvailable)
 				if err != nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
@@ -354,7 +362,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+		_, _, err = m.executor.Commit(ctx, newState, b1, responses, nil)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
@@ -484,7 +492,7 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	}, nil
 }
 
-func (m *Manager) publishBlock(ctx context.Context, maxTx bool) error {
+func (m *Manager) publishBlock(ctx context.Context, maxTx bool, moreTxsAvailable chan struct{}) error {
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
 	var err error
@@ -559,7 +567,7 @@ func (m *Manager) publishBlock(ctx context.Context, maxTx bool) error {
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	_, _, err = m.executor.Commit(ctx, newState, block, responses)
+	_, _, err = m.executor.Commit(ctx, newState, block, responses, moreTxsAvailable)
 	if err != nil {
 		return err
 	}
