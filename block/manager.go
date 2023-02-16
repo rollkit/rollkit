@@ -525,7 +525,7 @@ func (m *Manager) publishBlock(ctx context.Context, maxTx bool, moreTxsAvailable
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState, maxTx)
+		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		commit, err := m.getCommit(block.Header)
