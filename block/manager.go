@@ -217,12 +217,9 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 			}
 		}
 	} else {
-		m.logger.Info("Starting Progressive Aggregation Loop")
-
 		for {
 			select {
 			case <-ctx.Done():
-				m.logger.Debug("ProgressiveAggregationLoop done")
 				return
 			case <-m.txsAvailable:
 				m.logger.Debug("Txs available! Starting block building...")
