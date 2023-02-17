@@ -13,8 +13,8 @@ import (
 	goheadersync "github.com/celestiaorg/go-header/sync"
 	ds "github.com/ipfs/go-datastore"
 	badger3 "github.com/ipfs/go-ds-badger3"
-	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/tendermint/tendermint/libs/log"
@@ -150,41 +150,47 @@ func (hExService *HeaderExchangeService) Start() error {
 
 	// for single aggregator configuration, syncer is not needed
 	// TODO (ganesh): design syncer flow for multiple aggregator scenario
-	if !hExService.conf.Aggregator {
-		if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, goheadersync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
-			return err
+	if hExService.conf.Aggregator {
+		return nil
+	}
+
+	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, goheadersync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
+		return err
+	}
+
+	// Check if the headerstore is not initialized and try initializing
+	if hExService.headerStore.Height() > 0 {
+		if err := hExService.syncer.Start(hExService.ctx); err != nil {
+			return fmt.Errorf("error while starting the syncer: %w", err)
 		}
-		// Check if the headerstore is not initialized and try initializing
-		if hExService.headerStore.Height() == 0 {
-			// Look to see if trusted hash is passed, if not get the genesis header
-			var trustedHeader *types.Header
-			// Try fetching the trusted header from peers if exists
-			if len(peerIDs) > 0 {
-				if hExService.conf.TrustedHash != "" {
-					if trustedHashBytes, err := hex.DecodeString(hExService.conf.TrustedHash); err != nil {
-						return fmt.Errorf("fail to parse the trusted hash for initializing the headerstore: %w", err)
-					} else {
-						if trustedHeader, err = hExService.ex.Get(hExService.ctx, header.Hash(trustedHashBytes)); err != nil {
-							return fmt.Errorf("fail to fetch the trusted header for initializing the headerstore: %w", err)
-						}
-					}
-				} else {
-					// Try fetching the genesis header if available, otherwise fallback to signed headers
-					if trustedHeader, err = hExService.ex.GetByHeight(hExService.ctx, uint64(hExService.genesis.InitialHeight)); err != nil {
-						// Fullnode has to wait for aggregator to publish the genesis header
-						// if the aggregator is passed as seed while starting the fullnode
-						return fmt.Errorf("failed to get genesis header: %w", err)
-					}
-				}
+		hExService.syncerStarted = true
+		return nil
+	}
+
+	// Look to see if trusted hash is passed, if not get the genesis header
+	var trustedHeader *types.Header
+	// Try fetching the trusted header from peers if exists
+	if len(peerIDs) > 0 {
+		if hExService.conf.TrustedHash != "" {
+			trustedHashBytes, err := hex.DecodeString(hExService.conf.TrustedHash)
+			if err != nil {
+				return fmt.Errorf("fail to parse the trusted hash for initializing the headerstore: %w", err)
 			}
-			go hExService.tryInitHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
+
+			if trustedHeader, err = hExService.ex.Get(hExService.ctx, header.Hash(trustedHashBytes)); err != nil {
+				return fmt.Errorf("fail to fetch the trusted header for initializing the headerstore: %w", err)
+			}
 		} else {
-			if err := hExService.syncer.Start(hExService.ctx); err != nil {
-				return fmt.Errorf("error while starting the syncer: %w", err)
+			// Try fetching the genesis header if available, otherwise fallback to signed headers
+			if trustedHeader, err = hExService.ex.GetByHeight(hExService.ctx, uint64(hExService.genesis.InitialHeight)); err != nil {
+				// Full/light nodes have to wait for aggregator to publish the genesis header
+				// if the aggregator is passed as seed while starting the fullnode
+				return fmt.Errorf("failed to get genesis header: %w", err)
 			}
-			hExService.syncerStarted = true
 		}
 	}
+	go hExService.tryInitHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
+
 	return nil
 }
 
