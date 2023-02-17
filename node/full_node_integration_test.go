@@ -144,8 +144,8 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 	require := require.New(t)
 
 	var wg sync.WaitGroup
-	aggCtx, _ := context.WithCancel(context.Background())
-	ctx, _ := context.WithCancel(context.Background())
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 1
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
 
@@ -159,11 +159,13 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	n1h := node1.headerStore.Height()
+	aggCancel()
 	require.NoError(node1.Stop())
 
 	time.Sleep(3 * time.Second)
 
 	n2h := node2.headerStore.Height()
+	cancel()
 	require.NoError(node2.Stop())
 
 	assert.Equal(n1h, n2h, "heights must match")
@@ -174,8 +176,8 @@ func testSingleAggreatorTwoFullNode(t *testing.T) {
 	require := require.New(t)
 
 	var wg sync.WaitGroup
-	aggCtx, _ := context.WithCancel(context.Background())
-	ctx, _ := context.WithCancel(context.Background())
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 2
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
 
@@ -191,11 +193,13 @@ func testSingleAggreatorTwoFullNode(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	n1h := node1.headerStore.Height()
+	aggCancel()
 	require.NoError(node1.Stop())
 
 	time.Sleep(3 * time.Second)
 
 	n2h := node2.headerStore.Height()
+	cancel()
 	require.NoError(node2.Stop())
 
 	n3h := node3.headerStore.Height()
@@ -210,8 +214,8 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	require := require.New(t)
 
 	var wg sync.WaitGroup
-	aggCtx, _ := context.WithCancel(context.Background())
-	ctx, _ := context.WithCancel(context.Background())
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 1
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
 
@@ -229,11 +233,13 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	n1h := node1.headerStore.Height()
+	aggCancel()
 	require.NoError(node1.Stop())
 
 	time.Sleep(3 * time.Second)
 
 	n2h := node2.headerStore.Height()
+	cancel()
 	require.NoError(node2.Stop())
 
 	assert.Equal(n1h, n2h, "heights must match")
