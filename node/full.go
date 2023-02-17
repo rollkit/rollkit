@@ -365,7 +365,7 @@ func (n *FullNode) OnStart() error {
 	// for single aggregator configuration, syncer is not needed
 	// TODO (ganesh): design syncer flow for multiple aggregator scenario
 	if !n.conf.Aggregator {
-		if n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(config.DefaultNodeConfig.BlockTime)); err != nil {
+		if n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(n.conf.BlockTime)); err != nil {
 			return err
 		}
 		// Check if the headerstore is not initialized and try initializing
