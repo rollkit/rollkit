@@ -10,9 +10,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"go.uber.org/multierr"
 
 	abciclient "github.com/tendermint/tendermint/abci/client"
@@ -22,10 +19,6 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	corep2p "github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/go-header"
-	goheaderp2p "github.com/celestiaorg/go-header/p2p"
-	goheaderstore "github.com/celestiaorg/go-header/store"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -40,9 +33,6 @@ import (
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
-
-	"github.com/celestiaorg/go-header/sync"
-	goheadersync "github.com/celestiaorg/go-header/sync"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -432,38 +422,4 @@ func createAndStartIndexerService(
 	}
 
 	return indexerService, txIndexer, blockIndexer, nil
-}
-
-// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
-func newP2PServer(
-	host host.Host,
-	store *goheaderstore.Store[*types.Header],
-	network string,
-	opts ...goheaderp2p.Option[goheaderp2p.ServerParameters],
-) (*goheaderp2p.ExchangeServer[*types.Header], error) {
-	return goheaderp2p.NewExchangeServer[*types.Header](host, store, network, opts...)
-}
-
-func newP2PExchange(
-	host host.Host,
-	peers []peer.ID,
-	network string,
-	conngater *conngater.BasicConnectionGater,
-	opts ...goheaderp2p.Option[goheaderp2p.ClientParameters],
-) (*goheaderp2p.Exchange[*types.Header], error) {
-	return goheaderp2p.NewExchange[*types.Header](host, peers, network, conngater, opts...)
-}
-
-// InitStore is a type representing initialized header store.
-// NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
-type InitStore header.Store[*types.Header]
-
-// newSyncer constructs new Syncer for headers.
-func newSyncer(
-	ex header.Exchange[*types.Header],
-	store InitStore,
-	sub header.Subscriber[*types.Header],
-	opt goheadersync.Options,
-) (*sync.Syncer[*types.Header], error) {
-	return sync.NewSyncer[*types.Header](ex, store, sub, opt)
 }

@@ -13,7 +13,10 @@ import (
 	goheadersync "github.com/celestiaorg/go-header/sync"
 	ds "github.com/ipfs/go-datastore"
 	badger3 "github.com/ipfs/go-ds-badger3"
+	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
@@ -195,4 +198,38 @@ func (hExService *HeaderExchangeService) Stop() error {
 		err = multierr.Append(err, hExService.syncer.Stop(hExService.ctx))
 	}
 	return err
+}
+
+// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
+func newP2PServer(
+	host host.Host,
+	store *goheaderstore.Store[*types.Header],
+	network string,
+	opts ...goheaderp2p.Option[goheaderp2p.ServerParameters],
+) (*goheaderp2p.ExchangeServer[*types.Header], error) {
+	return goheaderp2p.NewExchangeServer[*types.Header](host, store, network, opts...)
+}
+
+func newP2PExchange(
+	host host.Host,
+	peers []peer.ID,
+	network string,
+	conngater *conngater.BasicConnectionGater,
+	opts ...goheaderp2p.Option[goheaderp2p.ClientParameters],
+) (*goheaderp2p.Exchange[*types.Header], error) {
+	return goheaderp2p.NewExchange[*types.Header](host, peers, network, conngater, opts...)
+}
+
+// InitStore is a type representing initialized header store.
+// NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
+type InitStore header.Store[*types.Header]
+
+// newSyncer constructs new Syncer for headers.
+func newSyncer(
+	ex header.Exchange[*types.Header],
+	store InitStore,
+	sub header.Subscriber[*types.Header],
+	opt goheadersync.Options,
+) (*sync.Syncer[*types.Header], error) {
+	return sync.NewSyncer[*types.Header](ex, store, sub, opt)
 }
