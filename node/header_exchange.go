@@ -14,12 +14,13 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	badger3 "github.com/ipfs/go-ds-badger3"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
+
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/types"
 )
 
 type HeaderExchangeService struct {

@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -11,10 +12,12 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 var _ Node = &LightNode{}
@@ -26,7 +29,10 @@ type LightNode struct {
 
 	app abciclient.Client
 
-	ctx context.Context
+	hExService *HeaderExchangeService
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func (ln *LightNode) GetClient() rpcclient.Client {
@@ -50,10 +56,19 @@ func newLightNode(
 		return nil, err
 	}
 
+	headerExchangeService, err := NewHeaderExchangeService(ctx, datastore, conf, genesis, client, make(chan *types.SignedHeader), logger.With("module", "HeaderExchangeService"))
+	if err != nil {
+		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+
 	node := &LightNode{
-		P2P: client,
-		app: appClient,
-		ctx: ctx,
+		P2P:        client,
+		app:        appClient,
+		hExService: headerExchangeService,
+		cancel:     cancel,
+		ctx:        ctx,
 	}
 
 	node.P2P.SetTxValidator(node.falseValidator())
@@ -78,7 +93,19 @@ func (ln *LightNode) OnStart() error {
 		return err
 	}
 
+	if err := ln.hExService.Start(); err != nil {
+		return fmt.Errorf("error while starting header exchange service: %w", err)
+	}
+
 	return nil
+}
+
+func (ln *LightNode) OnStop() {
+	ln.Logger.Info("halting full node...")
+	ln.cancel()
+	err := ln.P2P.Close()
+	err = multierr.Append(err, ln.hExService.Stop())
+	ln.Logger.Error("errors while stopping node:", "errors", err)
 }
 
 // Dummy validator that always returns a callback function with boolean `false`
