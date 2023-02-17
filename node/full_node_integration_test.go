@@ -158,13 +158,13 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 
 	time.Sleep(3 * time.Second)
 
-	n1h := node1.headerStore.Height()
+	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(node1.Stop())
 
 	time.Sleep(3 * time.Second)
 
-	n2h := node2.headerStore.Height()
+	n2h := node2.hExService.headerStore.Height()
 	cancel()
 	require.NoError(node2.Stop())
 
@@ -192,17 +192,17 @@ func testSingleAggreatorTwoFullNode(t *testing.T) {
 
 	time.Sleep(3 * time.Second)
 
-	n1h := node1.headerStore.Height()
+	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(node1.Stop())
 
 	time.Sleep(3 * time.Second)
 
-	n2h := node2.headerStore.Height()
+	n2h := node2.hExService.headerStore.Height()
 	cancel()
 	require.NoError(node2.Stop())
 
-	n3h := node3.headerStore.Height()
+	n3h := node3.hExService.headerStore.Height()
 	require.NoError(node3.Stop())
 
 	assert.Equal(n1h, n2h, "heights must match")
@@ -225,20 +225,20 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	require.NoError(node1.Start())
 	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
 	// Get the trusted hash from node1 and pass it to node2 config
-	trustedHash, err := node1.headerStore.GetByHeight(aggCtx, 1)
+	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
 	require.NoError(err)
 	node2.conf.TrustedHash = trustedHash.Hash().String()
 	require.NoError(node2.Start())
 
 	time.Sleep(3 * time.Second)
 
-	n1h := node1.headerStore.Height()
+	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(node1.Stop())
 
 	time.Sleep(3 * time.Second)
 
-	n2h := node2.headerStore.Height()
+	n2h := node2.hExService.headerStore.Height()
 	cancel()
 	require.NoError(node2.Stop())
 

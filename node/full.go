@@ -3,15 +3,12 @@ package node
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	badger3 "github.com/ipfs/go-ds-badger3"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -90,12 +87,8 @@ type FullNode struct {
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
-	ex            *goheaderp2p.Exchange[*types.Header]
-	syncer        *sync.Syncer[*types.Header]
-	sub           *goheaderp2p.Subscriber[*types.Header]
-	p2pServer     *goheaderp2p.ExchangeServer[*types.Header]
-	headerStore   *goheaderstore.Store[*types.Header]
-	syncerStarted bool
+	hExService *HeaderExchangeService
+
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	ctx context.Context
@@ -163,15 +156,9 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
-	// mainKV is TxnDatastore, but we require Batching, hence the type conversion
-	// note, badger datastore implements both
-	mainKVBatch, ok := mainKV.(*badger3.Datastore)
-	if !ok {
-		return nil, errors.New("failed to access the main datastore")
-	}
-	ss, err := goheaderstore.NewStore[*types.Header](mainKVBatch)
+	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, blockManager.SyncedHeadersCh, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
-		return nil, fmt.Errorf("NewStore initialization error: %w", err)
+		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -191,7 +178,7 @@ func newFullNode(
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
-		headerStore:    ss,
+		hExService:     headerExchangeService,
 		ctx:            ctx,
 		cancel:         cancel,
 	}
@@ -234,61 +221,11 @@ func (n *FullNode) initGenesisChunks() error {
 	return nil
 }
 
-func (n *FullNode) initOrAppendHeaderStore(ctx context.Context, header *types.Header) error {
-	var err error
-
-	// Init the header store if first block, else append to store
-	if header.Height() == n.genesis.InitialHeight {
-		err = n.headerStore.Init(ctx, header)
-	} else {
-		_, err = n.headerStore.Append(ctx, header)
-	}
-	return err
-}
-
-func (n *FullNode) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.Header) error {
-	if err := n.headerStore.Init(ctx, initial); err != nil {
-		return err
-	}
-	if err := n.syncer.Start(n.ctx); err != nil {
-		return err
-	}
-	n.syncerStarted = true
-	return nil
-}
-
-func (n *FullNode) tryInitHeaderStoreAndStartSyncer(ctx context.Context, trustedHeader *types.Header) {
-	if trustedHeader != nil {
-		if err := n.initHeaderStoreAndStartSyncer(ctx, trustedHeader); err != nil {
-			n.Logger.Error("failed to initialize the headerstore and start syncer", "error", err)
-		}
-	} else {
-		signedHeader := <-n.blockManager.SyncedHeadersCh
-		if signedHeader.Header.Height() == n.genesis.InitialHeight {
-			if err := n.initHeaderStoreAndStartSyncer(ctx, &signedHeader.Header); err != nil {
-				n.Logger.Error("failed to initialize the headerstore and start syncer", "error", err)
-			}
-		}
-	}
-}
-
-func (n *FullNode) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
-	// Init the header store if first block, else append to store
-	if err := n.initOrAppendHeaderStore(ctx, &signedHeader.Header); err != nil {
-		n.Logger.Error("failed to write block header to header store", "error", err)
-	}
-
-	// Broadcast for subscribers
-	if err := n.sub.Broadcast(ctx, &signedHeader.Header); err != nil {
-		n.Logger.Error("failed to broadcast block header", "error", err)
-	}
-}
-
 func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderOutCh:
-			n.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
 			headerBytes, err := signedHeader.MarshalBinary()
 			if err != nil {
 				n.Logger.Error("failed to serialize signed block header", "error", err)
@@ -332,72 +269,8 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
-	// have to do the initializations here to utilize the p2p node which is created on start
-	ps := n.P2P.PubSub()
-	n.sub = goheaderp2p.NewSubscriber[*types.Header](ps, pubsub.DefaultMsgIdFn)
-	if err = n.sub.Start(n.ctx); err != nil {
-		return fmt.Errorf("error while starting subscriber: %w", err)
-	}
-	if _, err := n.sub.Subscribe(); err != nil {
-		return fmt.Errorf("error while subscribing: %w", err)
-	}
-
-	if err = n.headerStore.Start(n.ctx); err != nil {
-		return fmt.Errorf("error while starting header store: %w", err)
-	}
-
-	_, _, network := n.P2P.Info()
-	if n.p2pServer, err = newP2PServer(n.P2P.Host(), n.headerStore, network); err != nil {
-		return err
-	}
-	if err = n.p2pServer.Start(n.ctx); err != nil {
-		return fmt.Errorf("error while starting p2p server: %w", err)
-	}
-
-	peerIDs := n.P2P.PeerIDs()
-	if n.ex, err = newP2PExchange(n.P2P.Host(), peerIDs, network, n.P2P.ConnectionGater()); err != nil {
-		return err
-	}
-	if err = n.ex.Start(n.ctx); err != nil {
-		return fmt.Errorf("error while starting exchange: %w", err)
-	}
-
-	// for single aggregator configuration, syncer is not needed
-	// TODO (ganesh): design syncer flow for multiple aggregator scenario
-	if !n.conf.Aggregator {
-		if n.syncer, err = newSyncer(n.ex, n.headerStore, n.sub, goheadersync.WithBlockTime(n.conf.BlockTime)); err != nil {
-			return err
-		}
-		// Check if the headerstore is not initialized and try initializing
-		if n.headerStore.Height() == 0 {
-			// Look to see if trusted hash is passed, if not get the genesis header
-			var trustedHeader *types.Header
-			// Try fetching the trusted header from peers if exists
-			if len(peerIDs) > 0 {
-				if n.conf.TrustedHash != "" {
-					if trustedHashBytes, err := hex.DecodeString(n.conf.TrustedHash); err != nil {
-						return fmt.Errorf("fail to parse the trusted hash for initializing the headerstore: %w", err)
-					} else {
-						if trustedHeader, err = n.ex.Get(n.ctx, header.Hash(trustedHashBytes)); err != nil {
-							return fmt.Errorf("fail to fetch the trusted header for initializing the headerstore: %w", err)
-						}
-					}
-				} else {
-					// Try fetching the genesis header if available, otherwise fallback to signed headers
-					if trustedHeader, err = n.ex.GetByHeight(n.ctx, uint64(n.genesis.InitialHeight)); err != nil {
-						// Fullnode has to wait for aggregator to publish the genesis header
-						// if the aggregator is passed as seed while starting the fullnode
-						return fmt.Errorf("failed to get genesis header: %w", err)
-					}
-				}
-			}
-			go n.tryInitHeaderStoreAndStartSyncer(n.ctx, trustedHeader)
-		} else {
-			if err := n.syncer.Start(n.ctx); err != nil {
-				return fmt.Errorf("error while starting the syncer: %w", err)
-			}
-			n.syncerStarted = true
-		}
+	if err = n.hExService.Start(); err != nil {
+		return fmt.Errorf("error while starting header exchange service: %w", err)
 	}
 
 	if err = n.dalc.Start(); err != nil {
@@ -435,13 +308,7 @@ func (n *FullNode) OnStop() {
 	n.cancel()
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
-	err = multierr.Append(err, n.headerStore.Stop(n.ctx))
-	err = multierr.Append(err, n.p2pServer.Stop(n.ctx))
-	err = multierr.Append(err, n.ex.Stop(n.ctx))
-	err = multierr.Append(err, n.sub.Stop(n.ctx))
-	if !n.conf.Aggregator && n.syncerStarted {
-		err = multierr.Append(err, n.syncer.Stop(n.ctx))
-	}
+	err = multierr.Append(err, n.hExService.Stop())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
