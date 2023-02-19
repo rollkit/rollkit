@@ -165,7 +165,7 @@ func startMockGRPCServ(t *testing.T) *grpc.Server {
 func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
 	t.Helper()
 	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewLogger(t))
-	l, err := net.Listen("tcp4", ":26658")
+	l, err := net.Listen("tcp4", "127.0.0.1:26658")
 	if err != nil {
 		t.Fatal("failed to create listener for mock celestia-node RPC server", "error", err)
 	}
@@ -209,10 +209,10 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	blocks := make(map[*types.Block]uint64)
 
 	for i := uint64(0); i < 100; i++ {
-		b := getRandomBlock(i, rand.Int()%20)
+		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
 		resp := dalc.SubmitBlock(ctx, b)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
-		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds()))
+		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 
 		countAtHeight[resp.DAHeight]++
 		blocks[b] = resp.DAHeight
@@ -270,12 +270,12 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 }
 
 func getRandomTx() types.Tx {
-	size := rand.Int()%100 + 100
+	size := rand.Int()%100 + 100 //nolint:gosec
 	return types.Tx(getRandomBytes(size))
 }
 
 func getRandomBytes(n int) []byte {
 	data := make([]byte, n)
-	_, _ = rand.Read(data)
+	_, _ = rand.Read(data) //nolint:gosec
 	return data
 }
