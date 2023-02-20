@@ -54,5 +54,3 @@ Proposed
 ### Negative
 
 ### Neutral
-
-
