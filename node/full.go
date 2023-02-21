@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
@@ -322,58 +321,6 @@ func (n *FullNode) AppClient() abciclient.Client {
 type ResultDirectTx struct {
 	Included bool   `json:"included"`
 	Height   uint64 `json:"height"`
-}
-
-func (n *FullNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
-	// returns "true" if a block is built, "false" if it times out.
-	return func(tx []byte) ResultDirectTx {
-
-		err := n.tryInsertTxToMempool(tx)
-		if err != nil {
-			return ResultDirectTx{
-				Included: false,
-				Height:   0,
-			}
-		}
-
-		// Non-progressive sequencer doesn't track
-		// whether or not the tx was included in a block
-		if !n.conf.ProgressiveAggregator {
-			return ResultDirectTx{
-				true,
-				0,
-			}
-		}
-
-		t := time.NewTimer(2 * time.Second)
-		for {
-			select {
-			case <-t.C:
-				return ResultDirectTx{
-					false,
-					0,
-				}
-			case <-n.DoneBuildingBlock:
-				return ResultDirectTx{
-					true,
-					n.Store.Height(),
-				}
-			}
-		}
-
-	}
-}
-
-func (n *FullNode) tryInsertTxToMempool(m []byte) error {
-	n.Logger.Debug("transaction received", "bytes", len(m))
-	checkTxResCh := make(chan *abci.Response, 1)
-	err := n.Mempool.CheckTx(m, func(resp *abci.Response) {
-		checkTxResCh <- resp
-	}, mempool.TxInfo{
-		SenderID:    uint16(mempool.DIRECT),
-		SenderP2PID: "DIRECT",
-	})
-	return err
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
