@@ -260,7 +260,7 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.conf.ProgressiveAggregator)
+		go n.blockManager.AggregationLoop(n.ctx, n.incomingTxCh, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)

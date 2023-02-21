@@ -130,7 +130,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
-func TestLazySequencer(t *testing.T) {
+func TestLazyAggregator(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -152,10 +152,10 @@ func TestLazySequencer(t *testing.T) {
 	}
 
 	node, err := NewNode(context.Background(), config.NodeConfig{
-		DALayer:               "mock",
-		Aggregator:            true,
-		BlockManagerConfig:    blockManagerConfig,
-		ProgressiveAggregator: true,
+		DALayer:            "mock",
+		Aggregator:         true,
+		BlockManagerConfig: blockManagerConfig,
+		LazyAggregator:     true,
 	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)

@@ -21,7 +21,7 @@ const (
 	flagFraudProofs   = "rollkit.experimental_insecure_fraud_proofs"
 	flagLight         = "rollkit.light"
 
-	flagProgressiveAggregator = "rollkit.progressive_aggregator"
+	flagLazyAggregator = "rollkit.lazy_aggregator"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -38,8 +38,8 @@ type NodeConfig struct {
 	Light              bool   `mapstructure:"light"`
 
 	// Sequencer-specific settings
-	Aggregator            bool `mapstructure:"aggregator"`
-	ProgressiveAggregator bool `mapstructure:"progressive_aggregator"`
+	Aggregator     bool `mapstructure:"aggregator"`
+	LazyAggregator bool `mapstructure:"lazy_aggregator"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
@@ -67,7 +67,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nsID := v.GetString(flagNamespaceID)
 	nc.FraudProofs = v.GetBool(flagFraudProofs)
 	nc.Light = v.GetBool(flagLight)
-	nc.ProgressiveAggregator = v.GetBool(flagProgressiveAggregator)
+	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
 	bytes, err := hex.DecodeString(nsID)
 	if err != nil {
 		return err
@@ -90,5 +90,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
-	cmd.Flags().Bool(flagProgressiveAggregator, def.ProgressiveAggregator, "progressive sequencer")
+	cmd.Flags().Bool(flagLazyAggregator, def.LazyAggregator, "progressive sequencer")
 }
