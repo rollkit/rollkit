@@ -32,11 +32,10 @@ type Server struct {
 }
 
 // NewServer creates new instance of Server with given configuration.
-func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger, receiveDirectTx func([]byte) node.ResultDirectTx) *Server {
+func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger) *Server {
 	srv := &Server{
-		config:          config,
-		client:          node.GetClient(),
-		receiveDirectTx: receiveDirectTx,
+		config: config,
+		client: node.GetClient(),
 	}
 	srv.BaseService = service.NewBaseService(logger, "RPC", srv)
 	return srv

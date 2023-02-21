@@ -18,7 +18,6 @@ type Node interface {
 	GetClient() rpcclient.Client
 	Stop() error
 	IsRunning() bool
-	ReceiveDirectTx() func([]byte) ResultDirectTx
 }
 
 func NewNode(

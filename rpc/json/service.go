@@ -40,17 +40,15 @@ func newMethod(m interface{}) *method {
 }
 
 type service struct {
-	client          rpcclient.Client
-	methods         map[string]*method
-	logger          log.Logger
-	receiveDirectTx func([]byte) node.ResultDirectTx
+	client  rpcclient.Client
+	methods map[string]*method
+	logger  log.Logger
 }
 
 func newService(c rpcclient.Client, l log.Logger, receiveDirectTx func([]byte) node.ResultDirectTx) *service {
 	s := service{
-		client:          c,
-		logger:          l,
-		receiveDirectTx: receiveDirectTx,
+		client: c,
+		logger: l,
 	}
 	s.methods = map[string]*method{
 		"subscribe":            newMethod(s.Subscribe),
@@ -82,14 +80,8 @@ func newService(c rpcclient.Client, l log.Logger, receiveDirectTx func([]byte) n
 		"abci_query":           newMethod(s.ABCIQuery),
 		"abci_info":            newMethod(s.ABCIInfo),
 		"broadcast_evidence":   newMethod(s.BroadcastEvidence),
-		"receive_direct_tx":    newMethod(s.ReceiveDirectTx),
 	}
 	return &s
-}
-
-func (s *service) ReceiveDirectTx(req *http.Request, args *receiveDirectTxArgs) (*node.ResultDirectTx, error) {
-	res := s.receiveDirectTx(args.Tx)
-	return &res, nil
 }
 
 type ResultReceiveDirectTx struct{}
