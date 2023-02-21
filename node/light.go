@@ -65,12 +65,6 @@ func newLightNode(
 	return node, nil
 }
 
-func (n *LightNode) ReceiveDirectTx() func([]byte) ResultDirectTx {
-	return func(tx []byte) ResultDirectTx {
-		panic("Light nodes cannot be sequencers")
-	}
-}
-
 func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
