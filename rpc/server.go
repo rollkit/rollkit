@@ -26,8 +26,6 @@ type Server struct {
 	config *config.RPCConfig
 	client rpcclient.Client
 
-	receiveDirectTx func([]byte) node.ResultDirectTx
-
 	server http.Server
 }
 
@@ -84,7 +82,7 @@ func (s *Server) startRPC() error {
 		listener = netutil.LimitListener(listener, s.config.MaxOpenConnections)
 	}
 
-	handler, err := json.GetHTTPHandler(s.client, s.Logger, s.receiveDirectTx)
+	handler, err := json.GetHTTPHandler(s.client, s.Logger)
 	if err != nil {
 		return err
 	}

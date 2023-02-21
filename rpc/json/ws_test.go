@@ -22,7 +22,7 @@ func TestWebSockets(t *testing.T) {
 	require := require.New(t)
 
 	_, local := getRPC(t)
-	handler, err := GetHTTPHandler(local, log.TestingLogger(), nil)
+	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
 	srv := httptest.NewServer(handler)
