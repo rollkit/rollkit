@@ -83,8 +83,6 @@ func newService(c rpcclient.Client, l log.Logger) *service {
 	return &s
 }
 
-type ResultReceiveDirectTx struct{}
-
 func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsConn) (*ctypes.ResultSubscribe, error) {
 	// TODO(tzdybal): pass config and check subscriptions limits
 	// TODO(tzdybal): extract consts or configs
