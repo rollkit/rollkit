@@ -76,7 +76,6 @@ type Manager struct {
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
 	moreTxsAvailable  chan struct{}
-	timer             time.Timer
 	doneBuildingBlock chan struct{}
 
 	logger log.Logger
@@ -183,6 +182,7 @@ func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, progressive bool) {
+	var timer time.Timer
 	if !progressive {
 		initialHeight := uint64(m.genesis.InitialHeight)
 		height := m.store.Height()
@@ -200,7 +200,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 			time.Sleep(delay)
 		}
 
-		timer := time.NewTimer(0)
+		timer = *time.NewTimer(0)
 
 		for {
 			select {
@@ -224,15 +224,15 @@ func (m *Manager) AggregationLoop(ctx context.Context, ingress chan []byte, prog
 				m.logger.Debug("Txs available! Starting block building...")
 				if !m.buildingBlock {
 					m.buildingBlock = true
-					m.timer = *time.NewTimer(1 * time.Second)
+					timer = *time.NewTimer(1 * time.Second)
 				}
 			case <-m.moreTxsAvailable:
 				m.logger.Debug("Txs remained in mempool after building last block. Building another block.")
 				if !m.buildingBlock {
 					m.buildingBlock = true
-					m.timer = *time.NewTimer(1 * time.Second)
+					timer = *time.NewTimer(1 * time.Second)
 				}
-			case <-m.timer.C:
+			case <-timer.C:
 				m.logger.Debug("Block building time elapsed.")
 				m.buildingBlock = false
 				err := m.publishBlock(ctx, true, m.moreTxsAvailable)
