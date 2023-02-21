@@ -130,6 +130,58 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
+func TestLazySequencer(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+
+	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+
+	blockManagerConfig := config.BlockManagerConfig{
+		BlockTime:   1 * time.Second,
+		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+	}
+
+	node, err := NewNode(context.Background(), config.NodeConfig{
+		DALayer:               "mock",
+		Aggregator:            true,
+		BlockManagerConfig:    blockManagerConfig,
+		ProgressiveAggregator: true,
+	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	assert.False(node.IsRunning())
+	assert.NoError(err)
+	err = node.Start()
+	assert.NoError(err)
+	defer func() {
+		err := node.Stop()
+		assert.NoError(err)
+	}()
+	assert.True(node.IsRunning())
+
+	require.NoError(err)
+
+	client := node.GetClient()
+	client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
+	time.Sleep(2 * time.Second)
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(1))
+	client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
+	time.Sleep(2 * time.Second)
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(2))
+	client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
+	time.Sleep(2 * time.Second)
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(3))
+
+}
+
 // TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
 // TestFraudProofTrigger setups a network of nodes, with single malicious aggregator and multiple producers.
 // Aggregator node should produce malicious blocks, nodes should detect fraud, and generate fraud proofs
