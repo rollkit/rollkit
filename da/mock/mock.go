@@ -144,6 +144,6 @@ func getKey(daHeight uint64, height uint64) ds.Key {
 }
 
 func (m *DataAvailabilityLayerClient) updateDAHeight() {
-	blockStep := rand.Uint64()%10 + 1
+	blockStep := rand.Uint64()%10 + 1 //nolint:gosec
 	atomic.AddUint64(&m.daHeight, blockStep)
 }

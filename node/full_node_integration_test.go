@@ -76,7 +76,7 @@ func TestAggregatorMode(t *testing.T) {
 				return
 			default:
 				node.incomingTxCh <- &p2p.GossipMessage{Data: []byte(time.Now().String()), From: pid}
-				time.Sleep(time.Duration(mrand.Uint32()%20) * time.Millisecond)
+				time.Sleep(time.Duration(mrand.Uint32()%20) * time.Millisecond) //nolint:gosec
 			}
 		}
 	}()

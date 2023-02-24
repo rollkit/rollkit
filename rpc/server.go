@@ -113,7 +113,10 @@ func (s *Server) startRPC() error {
 
 func (s *Server) serve(listener net.Listener, handler http.Handler) error {
 	s.Logger.Info("serving HTTP", "listen address", listener.Addr())
-	s.server = http.Server{Handler: handler}
+	s.server = http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: time.Second * 2,
+	}
 	if s.config.TLSCertFile != "" && s.config.TLSKeyFile != "" {
 		return s.server.ServeTLS(listener, s.config.CertFile(), s.config.KeyFile())
 	}

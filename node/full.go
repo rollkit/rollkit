@@ -84,7 +84,7 @@ type FullNode struct {
 	cancel context.CancelFunc
 }
 
-// NewNode creates new Rollkit node.
+// newFullNode creates a new Rollkit full node.
 func newFullNode(
 	ctx context.Context,
 	conf config.NodeConfig,
@@ -392,7 +392,6 @@ func createAndStartIndexerService(
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
-
 	var (
 		txIndexer    txindex.TxIndexer
 		blockIndexer indexer.BlockIndexer
