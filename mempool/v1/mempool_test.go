@@ -110,7 +110,7 @@ func checkTxs(t *testing.T, txmp *TxMempool, numTxs int, peerID uint16) []testTx
 	txs := make([]testTx, numTxs)
 	txInfo := mempool.TxInfo{SenderID: peerID}
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 
 	for i := 0; i < numTxs; i++ {
 		prefix := make([]byte, 20)
@@ -405,7 +405,7 @@ func TestTxMempool_ReapMaxTxs(t *testing.T) {
 func TestTxMempool_CheckTxExceedsMaxSize(t *testing.T) {
 	txmp := setup(t, 0)
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 	tx := make([]byte, txmp.config.MaxTxBytes+1)
 	_, err := rng.Read(tx)
 	require.NoError(t, err)
@@ -422,7 +422,7 @@ func TestTxMempool_CheckTxExceedsMaxSize(t *testing.T) {
 func TestTxMempool_CheckTxSamePeer(t *testing.T) {
 	txmp := setup(t, 100)
 	peerID := uint16(1)
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 
 	prefix := make([]byte, 20)
 	_, err := rng.Read(prefix)
@@ -437,7 +437,7 @@ func TestTxMempool_CheckTxSamePeer(t *testing.T) {
 func TestTxMempool_CheckTxSameSender(t *testing.T) {
 	txmp := setup(t, 100)
 	peerID := uint16(1)
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 
 	prefix1 := make([]byte, 20)
 	_, err := rng.Read(prefix1)
@@ -458,7 +458,7 @@ func TestTxMempool_CheckTxSameSender(t *testing.T) {
 
 func TestTxMempool_ConcurrentTxs(t *testing.T) {
 	txmp := setup(t, 100)
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 	checkTxDone := make(chan struct{})
 
 	var wg sync.WaitGroup
@@ -635,7 +635,7 @@ func TestTxMempool_CheckTxPostCheckError(t *testing.T) {
 				return testCase.err
 			}
 			txmp := setup(t, 0, WithPostCheck(postCheckFn))
-			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+			rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 			tx := make([]byte, txmp.config.MaxTxBytes-1)
 			_, err := rng.Read(tx)
 			require.NoError(t, err)

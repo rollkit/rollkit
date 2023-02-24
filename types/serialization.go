@@ -289,7 +289,8 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
 	var ret []*abci.Evidence
 	for _, e := range evidence.Evidence {
-		for _, ae := range e.ABCI() {
+		for i := range e.ABCI() {
+			ae := e.ABCI()[i]
 			ret = append(ret, &ae)
 		}
 	}

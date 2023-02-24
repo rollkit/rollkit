@@ -13,7 +13,7 @@ import (
 
 func BenchmarkTxMempool_CheckTx(b *testing.B) {
 	txmp := setup(b, 10000)
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 
 	b.ResetTimer()
 
