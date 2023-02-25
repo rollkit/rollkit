@@ -79,9 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Clone repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Clone ephemeral-cluster repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: celestiaorg/ephemeral-cluster
         path: ephemeral-cluster
