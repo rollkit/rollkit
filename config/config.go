@@ -20,6 +20,7 @@ const (
 	flagNamespaceID   = "rollkit.namespace_id"
 	flagFraudProofs   = "rollkit.experimental_insecure_fraud_proofs"
 	flagLight         = "rollkit.light"
+	flagTrustedHash   = "rollkit.trusted_hash"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -35,6 +36,12 @@ type NodeConfig struct {
 	DALayer            string `mapstructure:"da_layer"`
 	DAConfig           string `mapstructure:"da_config"`
 	Light              bool   `mapstructure:"light"`
+	HeaderConfig       `mapstructure:",squash"`
+}
+
+// HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
+type HeaderConfig struct {
+	TrustedHash string `mapstructure:"trusted_hash"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
@@ -67,6 +74,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 		return err
 	}
 	copy(nc.NamespaceID[:], bytes)
+	nc.TrustedHash = v.GetString(flagTrustedHash)
 	return nil
 }
 
@@ -84,4 +92,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
+	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 }

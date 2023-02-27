@@ -27,4 +27,7 @@ var DefaultNodeConfig = NodeConfig{
 	DALayer:  "mock",
 	DAConfig: "",
 	Light:    false,
+	HeaderConfig: HeaderConfig{
+		TrustedHash: "",
+	},
 }

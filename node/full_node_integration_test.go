@@ -133,6 +133,158 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
+func TestHeaderExchange(t *testing.T) {
+	testSingleAggreatorSingleFullNode(t)
+	testSingleAggreatorTwoFullNode(t)
+	testSingleAggreatorSingleFullNodeTrustedHash(t)
+	testSingleAggreatorSingleFullNodeSingleLightNode(t)
+}
+
+func testSingleAggreatorSingleFullNode(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 1
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+
+	require.NoError(node1.Start())
+	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+	require.NoError(node2.Start())
+
+	time.Sleep(3 * time.Second)
+
+	n1h := node1.hExService.headerStore.Height()
+	aggCancel()
+	require.NoError(node1.Stop())
+
+	time.Sleep(3 * time.Second)
+
+	n2h := node2.hExService.headerStore.Height()
+	cancel()
+	require.NoError(node2.Stop())
+
+	assert.Equal(n1h, n2h, "heights must match")
+}
+
+func testSingleAggreatorTwoFullNode(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+	node3 := nodes[2]
+
+	require.NoError(node1.Start())
+	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+	require.NoError(node2.Start())
+	require.NoError(node3.Start())
+
+	time.Sleep(3 * time.Second)
+
+	n1h := node1.hExService.headerStore.Height()
+	aggCancel()
+	require.NoError(node1.Stop())
+
+	time.Sleep(3 * time.Second)
+
+	n2h := node2.hExService.headerStore.Height()
+	cancel()
+	require.NoError(node2.Stop())
+
+	n3h := node3.hExService.headerStore.Height()
+	require.NoError(node3.Stop())
+
+	assert.Equal(n1h, n2h, "heights must match")
+	assert.Equal(n1h, n3h, "heights must match")
+}
+
+func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 1
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+
+	require.NoError(node1.Start())
+	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+	// Get the trusted hash from node1 and pass it to node2 config
+	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
+	require.NoError(err)
+	node2.conf.TrustedHash = trustedHash.Hash().String()
+	require.NoError(node2.Start())
+
+	time.Sleep(3 * time.Second)
+
+	n1h := node1.hExService.headerStore.Height()
+	aggCancel()
+	require.NoError(node1.Stop())
+
+	time.Sleep(3 * time.Second)
+
+	n2h := node2.hExService.headerStore.Height()
+	cancel()
+	require.NoError(node2.Stop())
+
+	assert.Equal(n1h, n2h, "heights must match")
+}
+
+func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+	node3 := nodes[2]
+
+	require.NoError(node1.Start())
+	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+	require.NoError(node2.Start())
+
+	node3.conf.Light = true
+	require.NoError(node3.Start())
+
+	time.Sleep(3 * time.Second)
+
+	n1h := node1.hExService.headerStore.Height()
+	aggCancel()
+	require.NoError(node1.Stop())
+
+	time.Sleep(3 * time.Second)
+
+	n2h := node2.hExService.headerStore.Height()
+	n3h := node3.hExService.headerStore.Height()
+	cancel()
+	require.NoError(node2.Stop())
+	require.NoError(node3.Stop())
+
+	assert.Equal(n1h, n2h, "heights must match")
+	assert.Equal(n1h, n3h, "heights must match")
+}
+
 // TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
 // TestFraudProofTrigger setups a network of nodes, with single malicious aggregator and multiple producers.
 // Aggregator node should produce malicious blocks, nodes should detect fraud, and generate fraud proofs
@@ -213,8 +365,12 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
 	numNodes := len(nodes)
 	wg.Add((numNodes) * (numNodes - 1))
-	for _, n := range nodes {
-		require.NoError(t, n.Start())
+
+	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
+	require.NoError(t, nodes[0].Start())
+	time.Sleep(1 * time.Second)
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(t, nodes[i].Start())
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
@@ -279,7 +435,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
 	bmConfig := config.BlockManagerConfig{
-		BlockTime:   300 * time.Millisecond,
+		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 		FraudProofs: true,
 	}

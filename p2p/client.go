@@ -58,6 +58,7 @@ type Client struct {
 	dht   *dht.IpfsDHT
 	disc  *discovery.RoutingDiscovery
 	gater *conngater.BasicConnectionGater
+	ps    *pubsub.PubSub
 
 	txGossiper  *Gossiper
 	txValidator GossipValidator
@@ -204,6 +205,20 @@ func (c *Client) Addrs() []multiaddr.Multiaddr {
 	return c.host.Addrs()
 }
 
+// Host returns the libp2p node in a peer-to-peer network
+func (c *Client) Host() host.Host {
+	return c.host
+}
+
+// PubSub returns the libp2p node pubsub for adding future subscriptions
+func (c *Client) PubSub() *pubsub.PubSub {
+	return c.ps
+}
+
+func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
+	return c.gater
+}
+
 // Info returns client ID, ListenAddr, and Network info
 func (c *Client) Info() (p2p.ID, string, string) {
 	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
@@ -216,6 +231,15 @@ type PeerConnection struct {
 	IsOutbound       bool                 `json:"is_outbound"`
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
 	RemoteIP         string               `json:"remote_ip"`
+}
+
+// PeerIDs returns list of peer IDs of connected peers excluding self and inactive
+func (c *Client) PeerIDs() []peer.ID {
+	peerIDs := make([]peer.ID, 0)
+	for _, conn := range c.host.Network().Conns() {
+		peerIDs = append(peerIDs, conn.RemotePeer())
+	}
+	return peerIDs
 }
 
 // Peers returns list of peers connected to Client.
@@ -352,24 +376,25 @@ func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 }
 
 func (c *Client) setupGossiping(ctx context.Context) error {
-	ps, err := pubsub.NewGossipSub(ctx, c.host)
+	var err error
+	c.ps, err = pubsub.NewGossipSub(ctx, c.host)
 	if err != nil {
 		return err
 	}
 
-	c.txGossiper, err = NewGossiper(c.host, ps, c.getTxTopic(), c.logger, WithValidator(c.txValidator))
+	c.txGossiper, err = NewGossiper(c.host, c.ps, c.getTxTopic(), c.logger, WithValidator(c.txValidator))
 	if err != nil {
 		return err
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossiper(c.host, ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
+	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
 	if err != nil {
 		return err
 	}
 	go c.headerGossiper.ProcessMessages(ctx)
 
-	c.fraudProofGossiper, err = NewGossiper(c.host, ps, c.getFraudProofTopic(), c.logger,
+	c.fraudProofGossiper, err = NewGossiper(c.host, c.ps, c.getFraudProofTopic(), c.logger,
 		WithValidator(c.fraudProofValidator))
 	if err != nil {
 		return err

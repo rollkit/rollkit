@@ -77,6 +77,8 @@ type FullNode struct {
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
+	hExService *HeaderExchangeService
+
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	ctx context.Context
@@ -144,6 +146,11 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
+	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, blockManager.SyncedHeadersCh, logger.With("module", "HeaderExchangeService"))
+	if err != nil {
+		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
@@ -161,6 +168,7 @@ func newFullNode(
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
+		hExService:     headerExchangeService,
 		ctx:            ctx,
 		cancel:         cancel,
 	}
@@ -207,6 +215,7 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderOutCh:
+			n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
 			headerBytes, err := signedHeader.MarshalBinary()
 			if err != nil {
 				n.Logger.Error("failed to serialize signed block header", "error", err)
@@ -249,8 +258,12 @@ func (n *FullNode) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
-	err = n.dalc.Start()
-	if err != nil {
+
+	if err = n.hExService.Start(); err != nil {
+		return fmt.Errorf("error while starting header exchange service: %w", err)
+	}
+
+	if err = n.dalc.Start(); err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	if n.conf.Aggregator {
@@ -285,6 +298,7 @@ func (n *FullNode) OnStop() {
 	n.cancel()
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
+	err = multierr.Append(err, n.hExService.Stop())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
