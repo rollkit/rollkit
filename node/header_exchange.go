@@ -42,11 +42,11 @@ type HeaderExchangeService struct {
 }
 
 func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, syncedHeadersCh chan *types.SignedHeader, logger log.Logger) (*HeaderExchangeService, error) {
-	// mainKV is TxnDatastore, but we require Batching, hence the type conversion
-	// note, badger datastore implements both
+	// store is TxnDatastore, but we require Batching, hence the type assertion
+	// note, the badger datastore impl that is used in the background implements both
 	storeBatch, ok := store.(ds.Batching)
 	if !ok {
-		return nil, errors.New("failed to access the main datastore")
+		return nil, errors.New("failed to access the datastore")
 	}
 	ss, err := goheaderstore.NewStore[*types.Header](storeBatch)
 	if err != nil {
