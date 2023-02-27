@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 	goheadersync "github.com/celestiaorg/go-header/sync"
 	ds "github.com/ipfs/go-datastore"
-	badger3 "github.com/ipfs/go-ds-badger3"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -42,16 +41,16 @@ type HeaderExchangeService struct {
 	ctx    context.Context
 }
 
-func NewHeaderExchangeService(ctx context.Context, ds ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, syncedHeadersCh chan *types.SignedHeader, logger log.Logger) (*HeaderExchangeService, error) {
+func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, syncedHeadersCh chan *types.SignedHeader, logger log.Logger) (*HeaderExchangeService, error) {
 	// mainKV is TxnDatastore, but we require Batching, hence the type conversion
 	// note, badger datastore implements both
-	mainKVBatch, ok := ds.(*badger3.Datastore)
+	storeBatch, ok := store.(ds.Batching)
 	if !ok {
 		return nil, errors.New("failed to access the main datastore")
 	}
-	ss, err := goheaderstore.NewStore[*types.Header](mainKVBatch)
+	ss, err := goheaderstore.NewStore[*types.Header](storeBatch)
 	if err != nil {
-		return nil, fmt.Errorf("NewStore initialization error: %w", err)
+		return nil, fmt.Errorf("failed to initialize the header store: %w", err)
 	}
 
 	return &HeaderExchangeService{
@@ -174,18 +173,18 @@ func (hExService *HeaderExchangeService) Start() error {
 		if hExService.conf.TrustedHash != "" {
 			trustedHashBytes, err := hex.DecodeString(hExService.conf.TrustedHash)
 			if err != nil {
-				return fmt.Errorf("fail to parse the trusted hash for initializing the headerstore: %w", err)
+				return fmt.Errorf("failed to parse the trusted hash for initializing the headerstore: %w", err)
 			}
 
 			if trustedHeader, err = hExService.ex.Get(hExService.ctx, header.Hash(trustedHashBytes)); err != nil {
-				return fmt.Errorf("fail to fetch the trusted header for initializing the headerstore: %w", err)
+				return fmt.Errorf("failed to fetch the trusted header for initializing the headerstore: %w", err)
 			}
 		} else {
 			// Try fetching the genesis header if available, otherwise fallback to signed headers
 			if trustedHeader, err = hExService.ex.GetByHeight(hExService.ctx, uint64(hExService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis header
 				// if the aggregator is passed as seed while starting the fullnode
-				return fmt.Errorf("failed to get genesis header: %w", err)
+				return fmt.Errorf("failed to fetch the genesis header: %w", err)
 			}
 		}
 	}
@@ -226,16 +225,12 @@ func newP2PExchange(
 	return goheaderp2p.NewExchange[*types.Header](host, peers, network, conngater, opts...)
 }
 
-// InitStore is a type representing initialized header store.
-// NOTE: It is needed to ensure that Store is always initialized before Syncer is started.
-type InitStore header.Store[*types.Header]
-
 // newSyncer constructs new Syncer for headers.
 func newSyncer(
 	ex header.Exchange[*types.Header],
-	store InitStore,
+	store header.Store[*types.Header],
 	sub header.Subscriber[*types.Header],
 	opt goheadersync.Options,
 ) (*sync.Syncer[*types.Header], error) {
-	return sync.NewSyncer[*types.Header](ex, store, sub, opt)
+	return sync.NewSyncer(ex, store, sub, opt)
 }

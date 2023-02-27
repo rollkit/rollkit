@@ -101,7 +101,7 @@ func (ln *LightNode) OnStart() error {
 }
 
 func (ln *LightNode) OnStop() {
-	ln.Logger.Info("halting full node...")
+	ln.Logger.Info("halting light node...")
 	ln.cancel()
 	err := ln.P2P.Close()
 	err = multierr.Append(err, ln.hExService.Stop())
