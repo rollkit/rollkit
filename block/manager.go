@@ -482,7 +482,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-		commit, err := m.getCommit(block.Header)
+		commit, err = m.getCommit(block.Header)
 		if err != nil {
 			return err
 		}
@@ -496,7 +496,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Apply the block but DONT commit
 	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
-
 	if err != nil {
 		return err
 	}

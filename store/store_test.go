@@ -224,13 +224,13 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 }
 
 func getRandomTx() types.Tx {
-	size := rand.Int()%100 + 100
+	size := rand.Int()%100 + 100 //nolint:gosec
 	return types.Tx(getRandomBytes(size))
 }
 
 func getRandomBytes(n int) []byte {
 	data := make([]byte, n)
-	_, _ = rand.Read(data)
+	_, _ = rand.Read(data) //nolint:gosec
 	return data
 }
 

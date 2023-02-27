@@ -79,9 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Clone repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Clone ephemeral-cluster repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: celestiaorg/ephemeral-cluster
         path: ephemeral-cluster
@@ -93,7 +93,7 @@ jobs:
         path: ethermint
         ref: optimint-v0.3.0-rebase
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: 1.17
     - name: "Setup Cluster"
