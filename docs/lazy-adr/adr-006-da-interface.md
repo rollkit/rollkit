@@ -1,4 +1,4 @@
-# ADR 005: Data Availability Client Interface
+# ADR 006: Data Availability Client Interface
 
 ## Changelog
 
