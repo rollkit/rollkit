@@ -134,6 +134,13 @@ func NewManager(
 		}
 	}
 
+	var txsAvailableChan <-chan struct{}
+	if mempool != nil {
+		txsAvailableChan = mempool.TxsAvailable()
+	} else {
+		txsAvailableChan = nil
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -152,7 +159,7 @@ func NewManager(
 		retrieveMtx:       new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
 		buildingBlock:     false,
-		txsAvailable:      mempool.TxsAvailable(),
+		txsAvailable:      txsAvailableChan,
 		moreTxsAvailable:  make(chan struct{}),
 		doneBuildingBlock: doneBuildingCh,
 		logger:            logger,
