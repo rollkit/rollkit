@@ -100,13 +100,16 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	// only blocks b1 and b2 will be submitted to DA
 	b1 := getRandomBlock(1, 10)
-	b2 := getRandomBlock(2, 10)
-
-	resp := dalc.SubmitBlock(ctx, b1)
+	b1Data, err := b1.MarshalBinary()
+	require.NoError(err)
+	resp := dalc.SubmitBlock(ctx, b1Data)
 	h1 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
-	resp = dalc.SubmitBlock(ctx, b2)
+	b2 := getRandomBlock(2, 10)
+	b2Data, err := b2.MarshalBinary()
+	require.NoError(err)
+	resp = dalc.SubmitBlock(ctx, b2Data)
 	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
@@ -210,7 +213,9 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
-		resp := dalc.SubmitBlock(ctx, b)
+		data, err := b.MarshalBinary()
+		require.NoError(err)
+		resp := dalc.SubmitBlock(ctx, data)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 

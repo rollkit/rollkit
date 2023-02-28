@@ -64,18 +64,8 @@ func (c *DataAvailabilityLayerClient) Stop() error {
 }
 
 // SubmitBlock submits a block to DA layer.
-func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
-	blob, err := block.MarshalBinary()
-	if err != nil {
-		return da.ResultSubmitBlock{
-			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
-	}
-
-	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, blob, c.config.Fee, c.config.GasLimit)
+func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, data da.Data) da.ResultSubmitBlock {
+	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, data, c.config.Fee, c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{

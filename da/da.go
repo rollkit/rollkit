@@ -15,6 +15,9 @@ import (
 // the underlying DA chain.
 type StatusCode uint64
 
+// This could be a block or a transaction for example
+type Data []byte
+
 // Data Availability return codes.
 const (
 	StatusUnknown StatusCode = iota
@@ -72,7 +75,7 @@ type DataAvailabilityLayerClient interface {
 	// SubmitBlock submits the passed in block to the DA layer.
 	// This should create a transaction which (potentially)
 	// triggers a state transition in the DA layer.
-	SubmitBlock(ctx context.Context, block *types.Block) ResultSubmitBlock
+	SubmitBlock(ctx context.Context, data Data) ResultSubmitBlock
 
 	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
 	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock

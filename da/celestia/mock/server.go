@@ -18,7 +18,6 @@ import (
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 // Server mocks celestia-node HTTP API.
@@ -85,19 +84,12 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	block := types.Block{}
 	blockData, err := hex.DecodeString(req.Data)
 	if err != nil {
 		s.writeError(w, err)
 		return
 	}
-	err = block.UnmarshalBinary(blockData)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	res := s.mock.SubmitBlock(r.Context(), &block)
+	res := s.mock.SubmitBlock(r.Context(), blockData)
 	code := 0
 	if res.Code != da.StatusSuccess {
 		code = 3

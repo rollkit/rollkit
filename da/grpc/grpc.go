@@ -75,7 +75,14 @@ func (d *DataAvailabilityLayerClient) Stop() error {
 }
 
 // SubmitBlock proxies SubmitBlock request to gRPC server.
-func (d *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
+func (d *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, data da.Data) da.ResultSubmitBlock {
+	block := &types.Block{}
+	err := block.UnmarshalBinary(data)
+	if err != nil {
+		return da.ResultSubmitBlock{
+			BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()},
+		}
+	}
 	resp, err := d.client.SubmitBlock(ctx, &dalc.SubmitBlockRequest{Block: block.ToProto()})
 	if err != nil {
 		return da.ResultSubmitBlock{
