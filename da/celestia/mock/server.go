@@ -89,7 +89,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, err)
 		return
 	}
-	res := s.mock.SubmitBlock(r.Context(), blockData)
+	res := s.mock.Put(r.Context(), blockData)
 	code := 0
 	if res.Code != da.StatusSuccess {
 		code = 3

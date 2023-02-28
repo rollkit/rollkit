@@ -64,7 +64,7 @@ func (c *DataAvailabilityLayerClient) Stop() error {
 }
 
 // SubmitBlock submits a block to DA layer.
-func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, data da.Data) da.ResultSubmitBlock {
+func (c *DataAvailabilityLayerClient) Put(ctx context.Context, data da.Data) da.ResultSubmitBlock {
 	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, data, c.config.Fee, c.config.GasLimit)
 
 	if err != nil {

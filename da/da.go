@@ -42,6 +42,7 @@ type ResultSubmitBlock struct {
 	// Not sure if this needs to be bubbled up to other
 	// parts of Rollkit.
 	// Hash hash.Hash
+	// Proof []byte
 }
 
 // ResultCheckBlock contains information about block availability, returned from DA layer client.
@@ -75,7 +76,7 @@ type DataAvailabilityLayerClient interface {
 	// SubmitBlock submits the passed in block to the DA layer.
 	// This should create a transaction which (potentially)
 	// triggers a state transition in the DA layer.
-	SubmitBlock(ctx context.Context, data Data) ResultSubmitBlock
+	Put(ctx context.Context, data Data) ResultSubmitBlock
 
 	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
 	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock

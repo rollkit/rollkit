@@ -46,7 +46,7 @@ func (m *mockImpl) SubmitBlock(ctx context.Context, request *dalc.SubmitBlockReq
 	if err != nil {
 		return nil, err
 	}
-	resp := m.mock.SubmitBlock(ctx, data)
+	resp := m.mock.Put(ctx, data)
 	return &dalc.SubmitBlockResponse{
 		Result: &dalc.DAResponse{
 			Code:     dalc.StatusCode(resp.Code),

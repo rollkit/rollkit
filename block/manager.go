@@ -568,7 +568,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 		if err != nil {
 			m.logger.Error("unable to marshal block", "error", err.Error(), "attempt", attempt)
 		}
-		res := m.dalc.SubmitBlock(ctx, data)
+		res := m.dalc.Put(ctx, data)
 		if res.Code == da.StatusSuccess {
 			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.Header.Height(), "daHeight", res.DAHeight)
 			submitted = true

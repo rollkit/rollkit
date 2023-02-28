@@ -102,14 +102,14 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	b1 := getRandomBlock(1, 10)
 	b1Data, err := b1.MarshalBinary()
 	require.NoError(err)
-	resp := dalc.SubmitBlock(ctx, b1Data)
+	resp := dalc.Put(ctx, b1Data)
 	h1 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	b2 := getRandomBlock(2, 10)
 	b2Data, err := b2.MarshalBinary()
 	require.NoError(err)
-	resp = dalc.SubmitBlock(ctx, b2Data)
+	resp = dalc.Put(ctx, b2Data)
 	h2 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
@@ -215,7 +215,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
 		data, err := b.MarshalBinary()
 		require.NoError(err)
-		resp := dalc.SubmitBlock(ctx, data)
+		resp := dalc.Put(ctx, data)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 

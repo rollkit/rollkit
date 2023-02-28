@@ -71,7 +71,7 @@ func (m *DataAvailabilityLayerClient) Stop() error {
 // SubmitBlock submits the passed in block to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
-func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, data da.Data) da.ResultSubmitBlock {
+func (m *DataAvailabilityLayerClient) Put(ctx context.Context, data da.Data) da.ResultSubmitBlock {
 	daHeight := atomic.LoadUint64(&m.daHeight)
 	block := &types.Block{}
 	err := block.UnmarshalBinary(data)
