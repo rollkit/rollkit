@@ -370,7 +370,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+		_, _, err = m.executor.Commit(ctx, newState, b1, responses, m.moreTxsAvailable)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
@@ -574,7 +574,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	_, _, err = m.executor.Commit(ctx, newState, block, responses)
+	_, _, err = m.executor.Commit(ctx, newState, block, responses, m.moreTxsAvailable)
 	if err != nil {
 		return err
 	}
