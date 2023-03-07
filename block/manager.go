@@ -207,10 +207,10 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 		time.Sleep(delay)
 	}
 
-	var timer *time.Timer
+	//var timer *time.Timer
+	timer := time.NewTimer(0)
 
 	if !lazy {
-		timer = time.NewTimer(0)
 		for {
 			select {
 			case <-ctx.Done():
@@ -225,7 +225,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 		}
 	} else {
-		timer = time.NewTimer(0)
 		<-timer.C
 		for {
 			select {
@@ -235,13 +234,13 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				m.logger.Debug("Lazy mode: txs available! Starting block building...")
 				if !m.buildingBlock {
 					m.buildingBlock = true
-					timer = time.NewTimer(1 * time.Second)
+					timer.Reset(1 * time.Second)
 				}
 			case <-m.moreTxsAvailable:
 				m.logger.Debug("more txns available in mempool. Building another block.")
 				if !m.buildingBlock {
 					m.buildingBlock = true
-					timer = time.NewTimer(1 * time.Second)
+					timer.Reset(1 * time.Second)
 				}
 			case <-timer.C:
 				m.logger.Debug("Block building time elapsed.")

@@ -143,6 +143,7 @@ func newFullNode(
 
 	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient, 0)
 	mpIDs := newMempoolIDs()
+	mp.EnableTxsAvailable()
 
 	doneBuildingChannel := make(chan struct{})
 	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel)
