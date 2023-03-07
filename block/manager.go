@@ -78,7 +78,6 @@ type Manager struct {
 	// For usage by Lazy Aggregator mode
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
-	moreTxsAvailable  chan struct{}
 	doneBuildingBlock chan struct{}
 }
 
@@ -162,7 +161,6 @@ func NewManager(
 		syncCache:         make(map[uint64]*types.Block),
 		logger:            logger,
 		txsAvailable:      txsAvailableChan,
-		moreTxsAvailable:  make(chan struct{}),
 		doneBuildingBlock: doneBuildingCh,
 		buildingBlock:     false,
 	}
@@ -232,12 +230,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				return
 			case <-m.txsAvailable:
 				m.logger.Debug("Lazy mode: txs available! Starting block building...")
-				if !m.buildingBlock {
-					m.buildingBlock = true
-					timer.Reset(1 * time.Second)
-				}
-			case <-m.moreTxsAvailable:
-				m.logger.Debug("more txns available in mempool. Building another block.")
 				if !m.buildingBlock {
 					m.buildingBlock = true
 					timer.Reset(1 * time.Second)
