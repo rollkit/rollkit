@@ -170,7 +170,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 }
 
 // Commit commits the block
-func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *tmstate.ABCIResponses) ([]byte, uint64, error) {
+func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *tmstate.ABCIResponses, notifyMempoolNotEmpty chan struct{}) ([]byte, uint64, error) {
 	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
 	if err != nil {
 		return []byte{}, 0, err
@@ -181,6 +181,13 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	err = e.publishEvents(resp, block, state)
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
+	}
+	// this channel is passed in by lazy aggregators,
+	// to notify it that transactions remain in the mempool after building a block.
+	if notifyMempoolNotEmpty != nil {
+		if e.mempool.Size() > 0 {
+			notifyMempoolNotEmpty <- struct{}{}
+		}
 	}
 	return appHash, retainHeight, nil
 }
