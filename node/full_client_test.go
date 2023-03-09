@@ -24,7 +24,6 @@ import (
 	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
 
@@ -747,13 +746,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 		block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 
-	tmprotoLC, err := tmtypes.CommitFromProto(&tmproto.Commit{})
-	if err != nil {
-		return nil
-	}
-	lastCommitHash := make(types.Hash, 32)
-	copy(lastCommitHash, tmprotoLC.Hash().Bytes())
-	block.Header.LastCommitHash = lastCommitHash
+	block.Header.LastCommitSignatures = []types.Signature{}
 
 	return block
 }
