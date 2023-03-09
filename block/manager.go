@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -281,6 +282,30 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			return
 		}
 	}
+}
+
+func (m *Manager) ProcessGossipedHeader(ctx context.Context, header *types.Header) pubsub.ValidationResult {
+	m.logger.Debug("block header received", "height", header.Height(), "hash", header.Hash())
+
+	newHeight := header.BaseHeader.Height
+	currentHeight := m.store.Height()
+	if newHeight > currentHeight {
+		atomic.StoreUint64(&m.syncTarget, newHeight)
+		m.retrieveCond.Signal()
+	}
+
+	commit := &types.Commit{}
+	// TODO(tzdybal): check if it's from right aggregator
+	m.lastCommit.Store(commit)
+
+	err := m.trySyncNextBlock(ctx, 0)
+	if err != nil {
+		m.logger.Error("failed to sync next block", "error", err)
+		return pubsub.ValidationReject
+	}
+
+	m.logger.Debug("synced using signed header", "height", commit.Height)
+	return pubsub.ValidationAccept
 }
 
 // trySyncNextBlock tries to progress one step (one block) in sync process.

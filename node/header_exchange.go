@@ -26,22 +26,32 @@ import (
 )
 
 type HeaderExchangeService struct {
-	conf            config.NodeConfig
-	genesis         *tmtypes.GenesisDoc
-	p2p             *p2p.Client
-	ex              *goheaderp2p.Exchange[*types.Header]
-	syncer          *sync.Syncer[*types.Header]
-	sub             *goheaderp2p.Subscriber[*types.Header]
-	p2pServer       *goheaderp2p.ExchangeServer[*types.Header]
-	headerStore     *goheaderstore.Store[*types.Header]
-	syncerStarted   bool
-	syncedHeadersCh chan *types.SignedHeader
+	conf                 config.NodeConfig
+	genesis              *tmtypes.GenesisDoc
+	p2p                  *p2p.Client
+	ex                   *goheaderp2p.Exchange[*types.Header]
+	syncer               *sync.Syncer[*types.Header]
+	sub                  *goheaderp2p.Subscriber[*types.Header]
+	p2pServer            *goheaderp2p.ExchangeServer[*types.Header]
+	headerStore          *goheaderstore.Store[*types.Header]
+	syncerStarted        bool
+	syncedHeadersCh      chan *types.SignedHeader
+	headerValidationFunc func(context.Context, *types.Header) pubsub.ValidationResult
 
 	logger log.Logger
 	ctx    context.Context
 }
 
-func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, syncedHeadersCh chan *types.SignedHeader, logger log.Logger) (*HeaderExchangeService, error) {
+func NewHeaderExchangeService(
+	ctx context.Context,
+	store ds.TxnDatastore,
+	conf config.NodeConfig,
+	genesis *tmtypes.GenesisDoc,
+	p2p *p2p.Client,
+	syncedHeadersCh chan *types.SignedHeader,
+	headerValidationFunc func(context.Context, *types.Header) pubsub.ValidationResult,
+	logger log.Logger,
+) (*HeaderExchangeService, error) {
 	// store is TxnDatastore, but we require Batching, hence the type assertion
 	// note, the badger datastore impl that is used in the background implements both
 	storeBatch, ok := store.(ds.Batching)
@@ -54,13 +64,14 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 	}
 
 	return &HeaderExchangeService{
-		conf:            conf,
-		genesis:         genesis,
-		p2p:             p2p,
-		ctx:             ctx,
-		headerStore:     ss,
-		syncedHeadersCh: syncedHeadersCh,
-		logger:          logger,
+		conf:                 conf,
+		genesis:              genesis,
+		p2p:                  p2p,
+		ctx:                  ctx,
+		headerStore:          ss,
+		syncedHeadersCh:      syncedHeadersCh,
+		headerValidationFunc: headerValidationFunc,
+		logger:               logger,
 	}, nil
 }
 
@@ -125,6 +136,10 @@ func (hExService *HeaderExchangeService) Start() error {
 	}
 	if _, err := hExService.sub.Subscribe(); err != nil {
 		return fmt.Errorf("error while subscribing: %w", err)
+	}
+
+	if hExService.headerValidationFunc != nil {
+		hExService.sub.AddValidator(hExService.headerValidationFunc)
 	}
 
 	if err = hExService.headerStore.Start(hExService.ctx); err != nil {

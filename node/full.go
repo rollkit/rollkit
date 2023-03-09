@@ -146,7 +146,7 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
-	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, blockManager.SyncedHeadersCh, logger.With("module", "HeaderExchangeService"))
+	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, blockManager.SyncedHeadersCh, blockManager.ProcessGossipedHeader, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}

@@ -56,7 +56,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerExchangeService, err := NewHeaderExchangeService(ctx, datastore, conf, genesis, client, make(chan *types.SignedHeader), logger.With("module", "HeaderExchangeService"))
+	headerExchangeService, err := NewHeaderExchangeService(ctx, datastore, conf, genesis, client, make(chan *types.SignedHeader), nil, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
