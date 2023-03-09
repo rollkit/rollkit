@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -22,7 +24,7 @@ func (h *Header) Hash() Hash {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     tmbytes.HexBytes(h.LastCommitHash),
+		LastCommitHash:     tmbytes.HexBytes(bytes.Join(SignaturesToByteSlices(h.LastCommitSignatures), nil)),
 		DataHash:           tmbytes.HexBytes(h.DataHash),
 		ValidatorsHash:     tmbytes.HexBytes(h.AggregatorsHash),
 		NextValidatorsHash: nil,

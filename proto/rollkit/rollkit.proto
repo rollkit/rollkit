@@ -25,8 +25,8 @@ message Header {
 	// Previous block info
 	bytes last_header_hash = 4;
 
-	// Commit from aggregator(s) from the last block
-	bytes last_commit_hash = 5;
+	// Commit signatures from aggregator(s) from the last block
+	repeated bytes last_commit_signatures = 5;
 	
 	// Block.Data root aka Transactions
 	bytes data_hash = 6;
@@ -64,11 +64,6 @@ message Commit {
 	repeated bytes signatures = 3;
 }
 
-message SignedHeader {
-	Header header = 1;
-	Commit commit = 2;
-}
-
 message Data {
 	repeated bytes txs = 1;
 	repeated bytes intermediate_state_roots = 2;
@@ -78,5 +73,4 @@ message Data {
 message Block {	
 	Header header = 1;
 	Data data = 2;
-	Commit last_commit = 3;
 }

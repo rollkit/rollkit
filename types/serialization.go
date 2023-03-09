@@ -60,46 +60,6 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 	return err
 }
 
-// ToProto converts SignedHeader into protobuf representation and returns it.
-func (h *SignedHeader) ToProto() *pb.SignedHeader {
-	return &pb.SignedHeader{
-		Header: h.Header.ToProto(),
-		Commit: h.Commit.ToProto(),
-	}
-}
-
-// FromProto fills SignedHeader with data from protobuf representation.
-func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
-	err := h.Header.FromProto(other.Header)
-	if err != nil {
-		return err
-	}
-	err = h.Commit.FromProto(other.Commit)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalBinary encodes SignedHeader into binary form and returns it.
-func (h *SignedHeader) MarshalBinary() ([]byte, error) {
-	return h.ToProto().Marshal()
-}
-
-// UnmarshalBinary decodes binary form of SignedHeader into object.
-func (h *SignedHeader) UnmarshalBinary(data []byte) error {
-	var pHeader pb.SignedHeader
-	err := pHeader.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-	err = h.FromProto(&pHeader)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // ToProto converts Header into protobuf representation and returns it.
 func (h *Header) ToProto() *pb.Header {
 	return &pb.Header{
@@ -107,17 +67,17 @@ func (h *Header) ToProto() *pb.Header {
 			Block: h.Version.Block,
 			App:   h.Version.App,
 		},
-		Height:          h.BaseHeader.Height,
-		Time:            h.BaseHeader.Time,
-		LastHeaderHash:  h.LastHeaderHash[:],
-		LastCommitHash:  h.LastCommitHash[:],
-		DataHash:        h.DataHash[:],
-		ConsensusHash:   h.ConsensusHash[:],
-		AppHash:         h.AppHash[:],
-		LastResultsHash: h.LastResultsHash[:],
-		ProposerAddress: h.ProposerAddress[:],
-		AggregatorsHash: h.AggregatorsHash[:],
-		ChainId:         h.BaseHeader.ChainID,
+		Height:               h.BaseHeader.Height,
+		Time:                 h.BaseHeader.Time,
+		LastHeaderHash:       h.LastHeaderHash[:],
+		LastCommitSignatures: SignaturesToByteSlices(h.LastCommitSignatures),
+		DataHash:             h.DataHash[:],
+		ConsensusHash:        h.ConsensusHash[:],
+		AppHash:              h.AppHash[:],
+		LastResultsHash:      h.LastResultsHash[:],
+		ProposerAddress:      h.ProposerAddress[:],
+		AggregatorsHash:      h.AggregatorsHash[:],
+		ChainId:              h.BaseHeader.ChainID,
 	}
 }
 
@@ -129,7 +89,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.BaseHeader.Height = other.Height
 	h.BaseHeader.Time = other.Time
 	h.LastHeaderHash = other.LastHeaderHash
-	h.LastCommitHash = other.LastCommitHash
+	h.LastCommitSignatures = byteSlicesToSignatures(other.LastCommitSignatures)
 	h.DataHash = other.DataHash
 	h.ConsensusHash = other.ConsensusHash
 	h.AppHash = other.AppHash
@@ -146,9 +106,8 @@ func (h *Header) FromProto(other *pb.Header) error {
 // ToProto converts Block into protobuf representation and returns it.
 func (b *Block) ToProto() *pb.Block {
 	return &pb.Block{
-		Header:     b.Header.ToProto(),
-		Data:       b.Data.ToProto(),
-		LastCommit: b.LastCommit.ToProto(),
+		Header: b.Header.ToProto(),
+		Data:   b.Data.ToProto(),
 	}
 }
 
@@ -170,12 +129,6 @@ func (b *Block) FromProto(other *pb.Block) error {
 	b.Data.Txs = byteSlicesToTxs(other.Data.Txs)
 	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
 	b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
-	if other.LastCommit != nil {
-		err := b.LastCommit.FromProto(other.LastCommit)
-		if err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
@@ -185,7 +138,7 @@ func (c *Commit) ToProto() *pb.Commit {
 	return &pb.Commit{
 		Height:     c.Height,
 		HeaderHash: c.HeaderHash,
-		Signatures: signaturesToByteSlices(c.Signatures),
+		Signatures: SignaturesToByteSlices(c.Signatures),
 	}
 }
 
@@ -303,7 +256,8 @@ func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
 	return ret
 }
 
-func signaturesToByteSlices(sigs []Signature) [][]byte {
+// SignaturesToByteSlices converts []Signature to [][]byte
+func SignaturesToByteSlices(sigs []Signature) [][]byte {
 	if sigs == nil {
 		return nil
 	}

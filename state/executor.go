@@ -109,13 +109,13 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 				Height:  height,
 				Time:    uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
 			},
-			//LastHeaderHash: lastHeaderHash,
-			//LastCommitHash:  lastCommitHash,
-			DataHash:        make(types.Hash, 32),
-			ConsensusHash:   make(types.Hash, 32),
-			AppHash:         state.AppHash,
-			LastResultsHash: state.LastResultsHash,
-			ProposerAddress: e.proposerAddress,
+			LastHeaderHash:       lastHeaderHash,
+			LastCommitSignatures: lastCommit.Signatures,
+			DataHash:             make(types.Hash, 32),
+			ConsensusHash:        make(types.Hash, 32),
+			AppHash:              state.AppHash,
+			LastResultsHash:      state.LastResultsHash,
+			ProposerAddress:      e.proposerAddress,
 		},
 		Data: types.Data{
 			Txs:                    toRollkitTxs(mempoolTxs),
@@ -124,8 +124,6 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 		},
 		LastCommit: *lastCommit,
 	}
-	block.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.Header)
-	block.Header.LastHeaderHash = lastHeaderHash
 	block.Header.AggregatorsHash = state.Validators.Hash()
 
 	return block

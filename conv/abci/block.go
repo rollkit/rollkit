@@ -1,6 +1,8 @@
 package abci
 
 import (
+	"bytes"
+
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -26,7 +28,7 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     header.LastCommitHash[:],
+		LastCommitHash:     bytes.Join(types.SignaturesToByteSlices(header.LastCommitSignatures), nil),
 		DataHash:           header.DataHash[:],
 		ValidatorsHash:     header.AggregatorsHash[:],
 		NextValidatorsHash: nil,
@@ -56,7 +58,7 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     tmbytes.HexBytes(header.LastCommitHash),
+		LastCommitHash:     bytes.Join(types.SignaturesToByteSlices(header.LastCommitSignatures), nil),
 		DataHash:           tmbytes.HexBytes(header.DataHash),
 		ValidatorsHash:     tmbytes.HexBytes(header.AggregatorsHash),
 		NextValidatorsHash: nil,

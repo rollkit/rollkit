@@ -31,10 +31,10 @@ type Header struct {
 	LastHeaderHash Hash
 
 	// hashes of block data
-	LastCommitHash Hash // commit from aggregator(s) from the last block
-	DataHash       Hash // Block.Data root aka Transactions
-	ConsensusHash  Hash // consensus params for current block
-	AppHash        Hash // state after applying txs from the current block
+	LastCommitSignatures []Signature // most of the time this is a single signature
+	DataHash             Hash        // Block.Data root aka Transactions
+	ConsensusHash        Hash        // consensus params for current block
+	AppHash              Hash        // state after applying txs from the current block
 
 	// Root hash of all results from the txs from the previous block.
 	// This is ABCI specific but smart-contract chains require some way of committing

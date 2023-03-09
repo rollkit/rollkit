@@ -178,12 +178,6 @@ func (c *Client) SetTxValidator(val GossipValidator) {
 	c.txValidator = val
 }
 
-// GossipSignedHeader sends the block header to the P2P network.
-func (c *Client) GossipSignedHeader(ctx context.Context, headerBytes []byte) error {
-	c.logger.Debug("Gossiping block header", "len", len(headerBytes))
-	return c.headerGossiper.Publish(ctx, headerBytes)
-}
-
 // SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
