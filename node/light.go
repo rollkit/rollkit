@@ -17,7 +17,6 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 var _ Node = &LightNode{}
@@ -56,7 +55,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerExchangeService, err := NewHeaderExchangeService(ctx, datastore, conf, genesis, client, make(chan *types.SignedHeader), nil, logger.With("module", "HeaderExchangeService"))
+	headerExchangeService, err := NewHeaderExchangeService(ctx, datastore, conf, genesis, client, nil, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}

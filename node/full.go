@@ -32,7 +32,6 @@ import (
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -146,7 +145,7 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
-	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, blockManager.SyncedHeadersCh, blockManager.ProcessGossipedHeader, logger.With("module", "HeaderExchangeService"))
+	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, blockManager.ProcessGossipedHeader, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
@@ -176,7 +175,6 @@ func newFullNode(
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	node.P2P.SetTxValidator(node.newTxValidator())
-	node.P2P.SetHeaderValidator(node.newHeaderValidator())
 	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
@@ -214,16 +212,8 @@ func (n *FullNode) initGenesisChunks() error {
 func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case signedHeader := <-n.blockManager.HeaderOutCh:
-			n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
-			headerBytes, err := signedHeader.MarshalBinary()
-			if err != nil {
-				n.Logger.Error("failed to serialize signed block header", "error", err)
-			}
-			err = n.P2P.GossipSignedHeader(ctx, headerBytes)
-			if err != nil {
-				n.Logger.Error("failed to gossip signed block header", "error", err)
-			}
+		case header := <-n.blockManager.HeaderCh:
+			n.hExService.writeToHeaderStoreAndBroadcast(ctx, header)
 		case <-ctx.Done():
 			return
 		}
@@ -354,27 +344,6 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 		checkTxResp := res.GetCheckTx()
 
 		return checkTxResp.Code == abci.CodeTypeOK
-	}
-}
-
-// newHeaderValidator returns a pubsub validator that runs basic checks and forwards
-// the deserialized header for further processing
-func (n *FullNode) newHeaderValidator() p2p.GossipValidator {
-	return func(headerMsg *p2p.GossipMessage) bool {
-		n.Logger.Debug("header received", "from", headerMsg.From, "bytes", len(headerMsg.Data))
-		var header types.SignedHeader
-		err := header.UnmarshalBinary(headerMsg.Data)
-		if err != nil {
-			n.Logger.Error("failed to deserialize header", "error", err)
-			return false
-		}
-		err = header.ValidateBasic()
-		if err != nil {
-			n.Logger.Error("failed to validate header", "error", err)
-			return false
-		}
-		n.blockManager.HeaderInCh <- &header
-		return true
 	}
 }
 

@@ -57,9 +57,7 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
-	HeaderOutCh     chan *types.SignedHeader
-	HeaderInCh      chan *types.SignedHeader
-	SyncedHeadersCh chan *types.SignedHeader
+	HeaderCh chan *types.Header
 
 	lastCommit atomic.Value
 
@@ -130,24 +128,21 @@ func NewManager(
 	}
 
 	agg := &Manager{
-		proposerKey: proposerKey,
-		conf:        conf,
-		genesis:     genesis,
-		lastState:   s,
-		store:       store,
-		executor:    exec,
-		dalc:        dalc,
-		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
-		daHeight:    s.DAHeight,
-		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh:     make(chan *types.SignedHeader, 100),
-		HeaderInCh:      make(chan *types.SignedHeader, 100),
-		SyncedHeadersCh: make(chan *types.SignedHeader, 100),
-		blockInCh:       make(chan newBlockEvent, 100),
-		FraudProofInCh:  make(chan *abci.FraudProof, 100),
-		retrieveMtx:     new(sync.Mutex),
-		syncCache:       make(map[uint64]*types.Block),
-		logger:          logger,
+		proposerKey:    proposerKey,
+		conf:           conf,
+		genesis:        genesis,
+		lastState:      s,
+		store:          store,
+		executor:       exec,
+		dalc:           dalc,
+		retriever:      dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
+		daHeight:       s.DAHeight,
+		HeaderCh:       make(chan *types.Header, 100),
+		blockInCh:      make(chan newBlockEvent, 100),
+		FraudProofInCh: make(chan *abci.FraudProof, 100),
+		retrieveMtx:    new(sync.Mutex),
+		syncCache:      make(map[uint64]*types.Block),
+		logger:         logger,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -217,27 +212,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		select {
 		case <-daTicker.C:
 			m.retrieveCond.Signal()
-		case header := <-m.HeaderInCh:
-			m.logger.Debug("block header received", "height", header.Header.Height(), "hash", header.Header.Hash())
-			m.SyncedHeadersCh <- header
-			newHeight := header.Header.BaseHeader.Height
-			currentHeight := m.store.Height()
-			// in case of client reconnecting after being offline
-			// newHeight may be significantly larger than currentHeight
-			// it's handled gently in RetrieveLoop
-			if newHeight > currentHeight {
-				atomic.StoreUint64(&m.syncTarget, newHeight)
-				m.retrieveCond.Signal()
-			}
-			commit := &header.Commit
-			// TODO(tzdybal): check if it's from right aggregator
-			m.lastCommit.Store(commit)
-			err := m.trySyncNextBlock(ctx, 0)
-			if err != nil {
-				m.logger.Info("failed to sync next block", "error", err)
-			} else {
-				m.logger.Debug("synced using signed header", "height", commit.Height)
-			}
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -578,7 +552,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Only update the stored height after successfully submitting to DA layer and committing to the DB
 	m.store.SetHeight(uint64(block.Header.Height()))
 
-	m.publishSignedHeader(block, commit)
+	// Publish header to channel so that header exchange service can broadcast
+	m.HeaderCh <- &block.Header
 
 	return nil
 }
@@ -613,11 +588,6 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 		backoff = m.conf.DABlockTime
 	}
 	return backoff
-}
-
-// TODO(tzdybal): consider inlining
-func (m *Manager) publishSignedHeader(block *types.Block, commit *types.Commit) {
-	m.HeaderOutCh <- &types.SignedHeader{Header: block.Header, Commit: *commit}
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {

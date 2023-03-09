@@ -35,7 +35,6 @@ type HeaderExchangeService struct {
 	p2pServer            *goheaderp2p.ExchangeServer[*types.Header]
 	headerStore          *goheaderstore.Store[*types.Header]
 	syncerStarted        bool
-	syncedHeadersCh      chan *types.SignedHeader
 	headerValidationFunc func(context.Context, *types.Header) pubsub.ValidationResult
 
 	logger log.Logger
@@ -48,7 +47,6 @@ func NewHeaderExchangeService(
 	conf config.NodeConfig,
 	genesis *tmtypes.GenesisDoc,
 	p2p *p2p.Client,
-	syncedHeadersCh chan *types.SignedHeader,
 	headerValidationFunc func(context.Context, *types.Header) pubsub.ValidationResult,
 	logger log.Logger,
 ) (*HeaderExchangeService, error) {
@@ -69,7 +67,6 @@ func NewHeaderExchangeService(
 		p2p:                  p2p,
 		ctx:                  ctx,
 		headerStore:          ss,
-		syncedHeadersCh:      syncedHeadersCh,
 		headerValidationFunc: headerValidationFunc,
 		logger:               logger,
 	}, nil
@@ -103,24 +100,17 @@ func (hExService *HeaderExchangeService) tryInitHeaderStoreAndStartSyncer(ctx co
 		if err := hExService.initHeaderStoreAndStartSyncer(ctx, trustedHeader); err != nil {
 			hExService.logger.Error("failed to initialize the headerstore and start syncer", "error", err)
 		}
-	} else {
-		signedHeader := <-hExService.syncedHeadersCh
-		if signedHeader.Header.Height() == hExService.genesis.InitialHeight {
-			if err := hExService.initHeaderStoreAndStartSyncer(ctx, &signedHeader.Header); err != nil {
-				hExService.logger.Error("failed to initialize the headerstore and start syncer", "error", err)
-			}
-		}
 	}
 }
 
-func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
+func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, header *types.Header) {
 	// Init the header store if first block, else append to store
-	if err := hExService.initOrAppendHeaderStore(ctx, &signedHeader.Header); err != nil {
+	if err := hExService.initOrAppendHeaderStore(ctx, header); err != nil {
 		hExService.logger.Error("failed to write block header to header store", "error", err)
 	}
 
 	// Broadcast for subscribers
-	if err := hExService.sub.Broadcast(ctx, &signedHeader.Header); err != nil {
+	if err := hExService.sub.Broadcast(ctx, header); err != nil {
 		hExService.logger.Error("failed to broadcast block header", "error", err)
 	}
 }
