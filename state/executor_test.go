@@ -39,7 +39,7 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, RewindableFromStandard(proxy.NewAppConnConsensus(client)), fraudProofsEnabled, nil, logger)
 
 	state := types.State{}
 	state.ConsensusParams.Block.MaxBytes = 100
@@ -110,7 +110,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	eventBus := tmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, RewindableFromStandard(proxy.NewAppConnConsensus(client)), fraudProofsEnabled, eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)

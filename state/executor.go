@@ -12,7 +12,6 @@ import (
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
@@ -29,7 +28,7 @@ type BlockExecutor struct {
 	proposerAddress    []byte
 	namespaceID        types.NamespaceID
 	chainID            string
-	proxyApp           proxy.AppConnConsensus
+	proxyApp           RewindableAppConnConsensus
 	mempool            mempool.Mempool
 	fraudProofsEnabled bool
 
@@ -42,7 +41,7 @@ type BlockExecutor struct {
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, fraudProofsEnabled bool, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp RewindableAppConnConsensus, fraudProofsEnabled bool, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress:    proposerAddress,
 		namespaceID:        namespaceID,
