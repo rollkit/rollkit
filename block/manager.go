@@ -135,11 +135,11 @@ func NewManager(
 		}
 	}
 
-	var txsAvailableChan <-chan struct{}
+	var txsAvailableCh <-chan struct{}
 	if mempool != nil {
-		txsAvailableChan = mempool.TxsAvailable()
+		txsAvailableCh = mempool.TxsAvailable()
 	} else {
-		txsAvailableChan = nil
+		txsAvailableCh = nil
 	}
 
 	agg := &Manager{
@@ -161,7 +161,7 @@ func NewManager(
 		retrieveMtx:       new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
 		logger:            logger,
-		txsAvailable:      txsAvailableChan,
+		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
 		buildingBlock:     false,
 		buildBlock:        make(chan struct{}, 100),
