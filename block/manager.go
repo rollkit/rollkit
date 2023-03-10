@@ -131,7 +131,13 @@ func NewManager(
 		}
 	}
 
-	fcr := fork_choice.GetRule(conf.ForkChoiceRule)
+	fcr, ok := fork_choice.GetRule(conf.ForkChoiceRule)
+	if !ok {
+		fcr, ok = fork_choice.GetRule(config.DefaultNodeConfig.BlockManagerConfig.ForkChoiceRule)
+		if !ok {
+			panic("Invalid default fork-choice rule")
+		}
+	}
 
 	agg := &Manager{
 		proposerKey: proposerKey,

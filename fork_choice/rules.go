@@ -13,8 +13,9 @@ var rules = map[string]func([]*types.Block) (*types.Block, bool){
 	FirstOrderedPure: ApplyFirstOrderedPure,
 }
 
-func GetRule(ruleName string) func([]*types.Block) (*types.Block, bool) {
-	return rules[ruleName]
+func GetRule(ruleName string) (func([]*types.Block) (*types.Block, bool), bool) {
+	fcr, ok := rules[ruleName]
+	return fcr, ok
 }
 
 // func ApplyFirstOrderedCentralized {
