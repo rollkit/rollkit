@@ -3,6 +3,7 @@ package config
 import (
 	"time"
 
+	"github.com/rollkit/rollkit/fork_choice"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -20,9 +21,10 @@ var DefaultNodeConfig = NodeConfig{
 	},
 	Aggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
-		BlockTime:   30 * time.Second,
-		NamespaceID: types.NamespaceID{},
-		FraudProofs: false,
+		ForkChoiceRule: fork_choice.FirstOrderedPure,
+		BlockTime:      30 * time.Second,
+		NamespaceID:    types.NamespaceID{},
+		FraudProofs:    false,
 	},
 	DALayer:  "mock",
 	DAConfig: "",

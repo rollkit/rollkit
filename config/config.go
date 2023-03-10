@@ -11,16 +11,17 @@ import (
 )
 
 const (
-	flagAggregator    = "rollkit.aggregator"
-	flagDALayer       = "rollkit.da_layer"
-	flagDAConfig      = "rollkit.da_config"
-	flagBlockTime     = "rollkit.block_time"
-	flagDABlockTime   = "rollkit.da_block_time"
-	flagDAStartHeight = "rollkit.da_start_height"
-	flagNamespaceID   = "rollkit.namespace_id"
-	flagFraudProofs   = "rollkit.experimental_insecure_fraud_proofs"
-	flagLight         = "rollkit.light"
-	flagTrustedHash   = "rollkit.trusted_hash"
+	flagAggregator     = "rollkit.aggregator"
+	flagDALayer        = "rollkit.da_layer"
+	flagDAConfig       = "rollkit.da_config"
+	flagBlockTime      = "rollkit.block_time"
+	flagDABlockTime    = "rollkit.da_block_time"
+	flagDAStartHeight  = "rollkit.da_start_height"
+	flagNamespaceID    = "rollkit.namespace_id"
+	flagFraudProofs    = "rollkit.experimental_insecure_fraud_proofs"
+	flagLight          = "rollkit.light"
+	flagTrustedHash    = "rollkit.trusted_hash"
+	flagForkChoiceRule = "rollkit.fork_choice_rule"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -51,9 +52,10 @@ type BlockManagerConfig struct {
 	// DABlockTime informs about block time of underlying data availability layer
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
-	DAStartHeight uint64            `mapstructure:"da_start_height"`
-	NamespaceID   types.NamespaceID `mapstructure:"namespace_id"`
-	FraudProofs   bool              `mapstructure:"fraud_proofs"`
+	DAStartHeight  uint64            `mapstructure:"da_start_height"`
+	NamespaceID    types.NamespaceID `mapstructure:"namespace_id"`
+	FraudProofs    bool              `mapstructure:"fraud_proofs"`
+	ForkChoiceRule string            `mapstructure:"fork_choice_rule"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.
@@ -61,6 +63,7 @@ type BlockManagerConfig struct {
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
+	nc.ForkChoiceRule = v.GetString(flagForkChoiceRule)
 	nc.DALayer = v.GetString(flagDALayer)
 	nc.DAConfig = v.GetString(flagDAConfig)
 	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
@@ -84,6 +87,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 	cmd.Flags().Bool(flagAggregator, def.Aggregator, "run node in aggregator mode")
+	cmd.Flags().String(flagForkChoiceRule, def.ForkChoiceRule, "Fork-choice rule / leader selection scheme")
 	cmd.Flags().String(flagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
 	cmd.Flags().String(flagDAConfig, def.DAConfig, "Data Availability Layer Client config")
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")

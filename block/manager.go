@@ -17,6 +17,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/fork_choice"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/state"
@@ -66,7 +67,7 @@ type Manager struct {
 
 	syncTarget uint64
 	blockInCh  chan newBlockEvent
-	syncCache  map[uint64]*types.Block
+	syncCache  map[uint64][]*types.Block
 
 	// retrieveMtx is used by retrieveCond
 	retrieveMtx *sync.Mutex
@@ -74,6 +75,8 @@ type Manager struct {
 	retrieveCond *sync.Cond
 
 	logger log.Logger
+
+	fcr func([]*types.Block) (*types.Block, bool)
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -128,6 +131,8 @@ func NewManager(
 		}
 	}
 
+	fcr := fork_choice.GetRule(conf.ForkChoiceRule)
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -145,8 +150,9 @@ func NewManager(
 		blockInCh:       make(chan newBlockEvent, 100),
 		FraudProofInCh:  make(chan *abci.FraudProof, 100),
 		retrieveMtx:     new(sync.Mutex),
-		syncCache:       make(map[uint64]*types.Block),
+		syncCache:       make(map[uint64][]*types.Block),
 		logger:          logger,
+		fcr:             fcr,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -245,7 +251,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
-			m.syncCache[block.Header.BaseHeader.Height] = block
+			m.syncCache[block.Header.BaseHeader.Height] = append(m.syncCache[block.Header.BaseHeader.Height], block)
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
@@ -293,11 +299,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	var commit *types.Commit
 	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
 
-	b1, ok1 := m.syncCache[currentHeight+1]
+	b1, ok1 := m.fcr(m.syncCache[currentHeight+1])
 	if !ok1 {
 		return nil
 	}
-	b2, ok2 := m.syncCache[currentHeight+2]
+	b2, ok2 := m.fcr(m.syncCache[currentHeight+2])
 	if ok2 {
 		m.logger.Debug("using last commit from next block")
 		commit = &b2.LastCommit
