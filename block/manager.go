@@ -251,6 +251,9 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
+			if m.syncCache[block.Header.BaseHeader.Height] == nil {
+				m.syncCache[block.Header.BaseHeader.Height] = make([]*types.Block, 1)
+			}
 			m.syncCache[block.Header.BaseHeader.Height] = append(m.syncCache[block.Header.BaseHeader.Height], block)
 			m.retrieveCond.Signal()
 

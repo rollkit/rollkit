@@ -27,9 +27,9 @@ func GetRule(ruleName string) func([]*types.Block) (*types.Block, bool) {
 }*/
 
 func ApplyFirstOrderedPure(candidates []*types.Block) (*types.Block, bool) {
-	if candidates[0] != nil {
+	if len(candidates) > 0 && candidates[0] != nil {
 		return candidates[0], true
 	} else {
-		return nil, false
+		return &types.Block{}, false
 	}
 }

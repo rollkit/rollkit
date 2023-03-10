@@ -25,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/fork_choice"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
@@ -49,8 +50,9 @@ func TestAggregatorMode(t *testing.T) {
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		ForkChoiceRule: fork_choice.FirstOrderedPure,
+		BlockTime:      1 * time.Second,
+		NamespaceID:    types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
@@ -435,9 +437,10 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
 	bmConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		FraudProofs: true,
+		ForkChoiceRule: fork_choice.FirstOrderedPure,
+		BlockTime:      1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		NamespaceID:    types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		FraudProofs:    true,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {
