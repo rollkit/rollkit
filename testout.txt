@@ -1,0 +1,54 @@
+=== RUN   TestTxGossipingAndAggregation
+D[2023-03-10|01:25:58.569] Mock Data Availability Layer Client starting 
+I[2023-03-10|01:25:58.570] service start                                module=events node=0 msg="Starting EventBus service" impl=EventBus
+I[2023-03-10|01:25:58.570] service start                                module=pubsub node=0 msg="Starting PubSub service" impl=PubSub
+I[2023-03-10|01:25:58.570] WARNING: working in in-memory mode           node=0
+I[2023-03-10|01:25:58.572] service start                                module=txindex node=0 msg="Starting IndexerService service" impl=IndexerService
+I[2023-03-10|01:25:58.572] WARNING: using default DA block time         module=BlockManager node=0 DABlockTime=30s
+I[2023-03-10|01:25:58.573] service start                                module=events node=1 msg="Starting EventBus service" impl=EventBus
+I[2023-03-10|01:25:58.573] service start                                module=pubsub node=1 msg="Starting PubSub service" impl=PubSub
+I[2023-03-10|01:25:58.573] WARNING: working in in-memory mode           node=1
+I[2023-03-10|01:25:58.575] service start                                module=txindex node=1 msg="Starting IndexerService service" impl=IndexerService
+I[2023-03-10|01:25:58.575] WARNING: using default DA block time         module=BlockManager node=1 DABlockTime=30s
+I[2023-03-10|01:25:58.576] service start                                module=events node=2 msg="Starting EventBus service" impl=EventBus
+I[2023-03-10|01:25:58.576] service start                                module=pubsub node=2 msg="Starting PubSub service" impl=PubSub
+I[2023-03-10|01:25:58.576] WARNING: working in in-memory mode           node=2
+I[2023-03-10|01:25:58.578] service start                                module=txindex node=2 msg="Starting IndexerService service" impl=IndexerService
+I[2023-03-10|01:25:58.578] WARNING: using default DA block time         module=BlockManager node=2 DABlockTime=30s
+I[2023-03-10|01:25:58.579] service start                                module=events node=3 msg="Starting EventBus service" impl=EventBus
+I[2023-03-10|01:25:58.579] service start                                module=pubsub node=3 msg="Starting PubSub service" impl=PubSub
+I[2023-03-10|01:25:58.579] WARNING: working in in-memory mode           node=3
+I[2023-03-10|01:25:58.581] service start                                module=txindex node=3 msg="Starting IndexerService service" impl=IndexerService
+I[2023-03-10|01:25:58.581] WARNING: using default DA block time         module=BlockManager node=3 DABlockTime=30s
+I[2023-03-10|01:25:58.581] service start                                module=events node=4 msg="Starting EventBus service" impl=EventBus
+I[2023-03-10|01:25:58.581] service start                                module=pubsub node=4 msg="Starting PubSub service" impl=PubSub
+I[2023-03-10|01:25:58.581] WARNING: working in in-memory mode           node=4
+I[2023-03-10|01:25:58.583] service start                                module=txindex node=4 msg="Starting IndexerService service" impl=IndexerService
+I[2023-03-10|01:25:58.583] WARNING: using default DA block time         module=BlockManager node=4 DABlockTime=30s
+I[2023-03-10|01:25:58.583] service start                                node=0 msg="Starting Node service" impl=Node
+I[2023-03-10|01:25:58.583] starting P2P client                          node=0
+D[2023-03-10|01:25:58.583] starting P2P client                          module=p2p node=0
+I[2023-03-10|01:25:58.587] listening on                                 module=p2p node=0 address=/ip4/127.0.0.1/tcp/10000/p2p/12D3KooWMx2W365kKwnfQSb9rDkKkyHrSN4bA2hNJcSgixX3LH8R
+D[2023-03-10|01:25:58.587] blocking blacklisted peers                   module=p2p node=0 blacklist=
+D[2023-03-10|01:25:58.587] allowing whitelisted peers                   module=p2p node=0 whitelist=
+D[2023-03-10|01:25:58.587] setting up gossiping                         module=p2p node=0
+D[2023-03-10|01:25:58.587] setting up DHT                               module=p2p node=0
+D[2023-03-10|01:25:58.587] seed node                                    module=p2p node=0 addr="{12D3KooWKJ1B8Rrt1eF5StmDxNf7XR4iJaeHfHmGiec4sv5affVH: [/ip4/127.0.0.1/tcp/10001]}"
+D[2023-03-10|01:25:58.587] seed node                                    module=p2p node=0 addr="{12D3KooWM4TsHienyjCt2jLEMzSDgHt7RiGbCnxCeeAT8kdimkPh: [/ip4/127.0.0.1/tcp/10002]}"
+D[2023-03-10|01:25:58.587] seed node                                    module=p2p node=0 addr="{12D3KooWP7hd3eHWYvFAKNsKzHt6VgYmUBoxGY3WmZtuNZifaHWG: [/ip4/127.0.0.1/tcp/10003]}"
+D[2023-03-10|01:25:58.587] seed node                                    module=p2p node=0 addr="{12D3KooWPYSZrRi323mUu2z6hKMtvxyWo9RwbVSMKynTMtiUe2QJ: [/ip4/127.0.0.1/tcp/10004]}"
+D[2023-03-10|01:25:58.587] setting up active peer discovery             module=p2p node=0
+D[2023-03-10|01:25:58.589] Mock Data Availability Layer Client starting 
+I[2023-03-10|01:25:58.589] working in aggregator mode                   node=0 blocktime=1s
+I[2023-03-10|01:25:58.589] Creating and publishing block                module=BlockManager node=0 height=1
+D[2023-03-10|01:25:58.589] block info                                   module=BlockManager node=0 num_tx=0
+I[2023-03-10|01:25:58.589] submitting block to DA layer                 module=BlockManager node=0 height=1
+D[2023-03-10|01:25:58.589] Submitting block to DA layer!                height=1 dataLayerHeight=1
+I[2023-03-10|01:25:58.589] successfully submitted Rollkit block to DA layer module=BlockManager node=0 rollkitHeight=1 daHeight=1
+I[2023-03-10|01:25:58.590] indexed block                                module=txindex node=0 height=1
+D[2023-03-10|01:25:58.590] indexed block txs                            module=txindex node=0 height=1 num_txs=0
+D[2023-03-10|01:25:58.590] Gossiping block header                       module=p2p node=0 len=317
+D[2023-03-10|01:25:58.590] header received                              node=0 from=12D3KooWMx2W365kKwnfQSb9rDkKkyHrSN4bA2hNJcSgixX3LH8R bytes=317
+D[2023-03-10|01:25:58.590] block header received                        module=BlockManager node=0 height=1 hash=6B3870A176105D6201AF1A2404C08D38E31F5E9AE7AA420CBF4371B494454A09
+D[2023-03-10|01:25:58.590] synced using signed header                   module=BlockManager node=0 height=1
+FAIL	github.com/rollkit/rollkit/node	1.161s

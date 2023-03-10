@@ -30,6 +30,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	abciconv "github.com/rollkit/rollkit/conv/abci"
+	"github.com/rollkit/rollkit/fork_choice"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -407,7 +408,8 @@ func TestTx(t *testing.T) {
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+			ForkChoiceRule: fork_choice.FirstOrderedPure,
+			BlockTime:      1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
 		key, signingKey, abcicli.NewLocalClient(nil, mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test"},
