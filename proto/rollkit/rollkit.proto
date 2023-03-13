@@ -61,7 +61,7 @@ message Header {
 }
 
 message Commit {
-	repeated bytes signatures = 3;
+	repeated bytes signatures = 1;
 }
 
 message SignedHeader {
