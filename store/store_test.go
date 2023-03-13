@@ -51,7 +51,7 @@ func TestStoreHeight(t *testing.T) {
 
 			for _, block := range c.blocks {
 				err := bstore.SaveBlock(block, &types.Commit{})
-				bstore.SetHeight(uint64(block.Header.Height()))
+				bstore.SetHeight(uint64(block.SignedHeader.Header.Height()))
 				assert.NoError(err)
 			}
 
@@ -102,27 +102,27 @@ func TestStoreLoad(t *testing.T) {
 
 				lastCommit := &types.Commit{}
 				for _, block := range c.blocks {
-					commit := &types.Commit{Height: uint64(block.Header.Height()), HeaderHash: block.Header.Hash()}
-					block.LastCommit = *lastCommit
+					commit := &types.Commit{Height: uint64(block.SignedHeader.Header.Height()), HeaderHash: block.SignedHeader.Header.Hash()}
+					block.SignedHeader.Commit = *lastCommit
 					err := bstore.SaveBlock(block, commit)
 					require.NoError(err)
 					lastCommit = commit
 				}
 
 				for _, expected := range c.blocks {
-					block, err := bstore.LoadBlock(uint64(expected.Header.Height()))
+					block, err := bstore.LoadBlock(uint64(expected.SignedHeader.Header.Height()))
 					assert.NoError(err)
 					assert.NotNil(block)
 					assert.Equal(expected, block)
-					assert.Equal(expected.Header.Height()-1, int64(block.LastCommit.Height))
-					assert.Equal(expected.LastCommit.Height, block.LastCommit.Height)
-					assert.Equal(expected.LastCommit.HeaderHash, block.LastCommit.HeaderHash)
+					assert.Equal(expected.SignedHeader.Header.Height()-1, int64(block.SignedHeader.Commit.Height))
+					assert.Equal(expected.SignedHeader.Commit.Height, block.SignedHeader.Commit.Height)
+					assert.Equal(expected.SignedHeader.Commit.HeaderHash, block.SignedHeader.Commit.HeaderHash)
 
-					commit, err := bstore.LoadCommit(uint64(expected.Header.Height()))
+					commit, err := bstore.LoadCommit(uint64(expected.SignedHeader.Header.Height()))
 					assert.NoError(err)
 					assert.NotNil(commit)
-					assert.Equal(uint64(expected.Header.Height()), commit.Height)
-					headerHash := expected.Header.Hash()
+					assert.Equal(uint64(expected.SignedHeader.Header.Height()), commit.Height)
+					headerHash := expected.SignedHeader.Header.Hash()
 					assert.Equal(headerHash, commit.HeaderHash)
 				}
 			})
@@ -201,12 +201,13 @@ func TestBlockResponses(t *testing.T) {
 
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
-		Header: types.Header{
-			BaseHeader: types.BaseHeader{
-				Height: height,
-			},
-			AggregatorsHash: make([]byte, 32),
-		},
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
+				BaseHeader: types.BaseHeader{
+					Height: height,
+				},
+				AggregatorsHash: make([]byte, 32),
+			}},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),
 			IntermediateStateRoots: types.IntermediateStateRoots{

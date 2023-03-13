@@ -38,34 +38,35 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	}{
 		{"empty block", &Block{}},
 		{"full", &Block{
-			Header: Header{
-				Version: Version{
-					Block: 1,
-					App:   2,
+			SignedHeader: SignedHeader{
+				Header: Header{
+					Version: Version{
+						Block: 1,
+						App:   2,
+					},
+					BaseHeader: BaseHeader{
+						Height: 3,
+						Time:   4567,
+					},
+					LastHeaderHash:  h[0],
+					LastCommitHash:  h[1],
+					DataHash:        h[2],
+					ConsensusHash:   h[3],
+					AppHash:         h[4],
+					LastResultsHash: h[5],
+					ProposerAddress: []byte{4, 3, 2, 1},
+					AggregatorsHash: h[6],
 				},
-				BaseHeader: BaseHeader{
-					Height: 3,
-					Time:   4567,
-				},
-				LastHeaderHash:  h[0],
-				LastCommitHash:  h[1],
-				DataHash:        h[2],
-				ConsensusHash:   h[3],
-				AppHash:         h[4],
-				LastResultsHash: h[5],
-				ProposerAddress: []byte{4, 3, 2, 1},
-				AggregatorsHash: h[6],
-			},
+				Commit: Commit{
+					Height:     8,
+					HeaderHash: h[7][:],
+					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
+				}},
 			Data: Data{
 				Txs:                    nil,
 				IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
 				// TODO(tzdybal): update when we have actual evidence types
 				Evidence: EvidenceData{Evidence: nil},
-			},
-			LastCommit: Commit{
-				Height:     8,
-				HeaderHash: h[7][:],
-				Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 			},
 		}},
 	}
