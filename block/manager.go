@@ -79,7 +79,6 @@ type Manager struct {
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
 	doneBuildingBlock chan struct{}
-	buildBlock        chan struct{}
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -164,7 +163,6 @@ func NewManager(
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
 		buildingBlock:     false,
-		buildBlock:        make(chan struct{}, 100),
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -233,14 +231,12 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			// the buildBlock channel is signalled when Txns become available
 			// in the mempool, or after transactions remain in the mempool after
 			// building a block.
-			case <-m.buildBlock:
+			case <-m.txsAvailable:
 				m.logger.Debug("Lazy mode: txs available! Starting block building...")
 				if !m.buildingBlock {
 					m.buildingBlock = true
 					timer.Reset(1 * time.Second)
 				}
-			case <-m.txsAvailable:
-				m.buildBlock <- struct{}{}
 			case <-timer.C:
 				// build a block with all the transactions received in the last 1 second
 				m.logger.Debug("Block building time elapsed.")
@@ -371,7 +367,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b1, responses, nil)
+		_, _, err = m.executor.Commit(ctx, newState, b1, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
@@ -575,7 +571,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	_, _, err = m.executor.Commit(ctx, newState, block, responses, m.buildBlock)
+	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
 		return err
 	}

@@ -146,7 +146,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(int64(1), newState.LastBlockHeight)
-	appHash, _, err := executor.Commit(context.Background(), newState, block, resp, nil)
+	appHash, _, err := executor.Commit(context.Background(), newState, block, resp)
 	require.NoError(err)
 	assert.Equal(mockAppHash, appHash)
 
@@ -164,7 +164,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(int64(2), newState.LastBlockHeight)
-	_, _, err = executor.Commit(context.Background(), newState, block, resp, nil)
+	_, _, err = executor.Commit(context.Background(), newState, block, resp)
 	require.NoError(err)
 
 	// wait for at least 4 Tx events, for up to 3 second.
