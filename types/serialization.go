@@ -176,16 +176,12 @@ func (b *Block) FromProto(other *pb.Block) error {
 // ToProto converts Commit into protobuf representation and returns it.
 func (c *Commit) ToProto() *pb.Commit {
 	return &pb.Commit{
-		Height:     c.Height,
-		HeaderHash: c.HeaderHash,
 		Signatures: signaturesToByteSlices(c.Signatures),
 	}
 }
 
 // FromProto fills Commit with data from its protobuf representation.
 func (c *Commit) FromProto(other *pb.Commit) error {
-	c.Height = other.Height
-	c.HeaderHash = other.HeaderHash
 	c.Signatures = byteSlicesToSignatures(other.Signatures)
 
 	return nil

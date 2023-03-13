@@ -102,7 +102,7 @@ func TestStoreLoad(t *testing.T) {
 
 				lastCommit := &types.Commit{}
 				for _, block := range c.blocks {
-					commit := &types.Commit{Height: uint64(block.SignedHeader.Header.Height()), HeaderHash: block.SignedHeader.Header.Hash()}
+					commit := &types.Commit{}
 					block.SignedHeader.Commit = *lastCommit
 					err := bstore.SaveBlock(block, commit)
 					require.NoError(err)
@@ -114,16 +114,10 @@ func TestStoreLoad(t *testing.T) {
 					assert.NoError(err)
 					assert.NotNil(block)
 					assert.Equal(expected, block)
-					assert.Equal(expected.SignedHeader.Header.Height()-1, int64(block.SignedHeader.Commit.Height))
-					assert.Equal(expected.SignedHeader.Commit.Height, block.SignedHeader.Commit.Height)
-					assert.Equal(expected.SignedHeader.Commit.HeaderHash, block.SignedHeader.Commit.HeaderHash)
 
 					commit, err := bstore.LoadCommit(uint64(expected.SignedHeader.Header.Height()))
 					assert.NoError(err)
 					assert.NotNil(commit)
-					assert.Equal(uint64(expected.SignedHeader.Header.Height()), commit.Height)
-					headerHash := expected.SignedHeader.Header.Hash()
-					assert.Equal(headerHash, commit.HeaderHash)
 				}
 			})
 		}

@@ -58,8 +58,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 					AggregatorsHash: h[6],
 				},
 				Commit: Commit{
-					Height:     8,
-					HeaderHash: h[7][:],
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 				}},
 			Data: Data{
