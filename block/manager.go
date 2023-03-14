@@ -536,6 +536,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return err
 		}
 
+		// set the commit to current block's signed header
+		block.SignedHeader.Commit = *commit
+
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
 		if err != nil {
