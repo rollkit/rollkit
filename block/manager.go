@@ -232,14 +232,12 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			// in the mempool, or after transactions remain in the mempool after
 			// building a block.
 			case <-m.txsAvailable:
-				m.logger.Debug("Lazy mode: txs available! Starting block building...")
 				if !m.buildingBlock {
 					m.buildingBlock = true
 					timer.Reset(1 * time.Second)
 				}
 			case <-timer.C:
 				// build a block with all the transactions received in the last 1 second
-				m.logger.Debug("Block building time elapsed.")
 				err := m.publishBlock(ctx)
 				if err != nil {
 					m.logger.Error("error while publishing block", "error", err)
