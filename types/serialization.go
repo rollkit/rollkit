@@ -78,8 +78,12 @@ func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	if err != nil {
 		return err
 	}
-	h.Commit.HeaderHash = h.Header.Hash()
-	h.Commit.Height = uint64(h.Header.Height())
+
+	if len(h.Commit.Signatures) > 0 {
+		h.Commit.HeaderHash = h.Header.Hash()
+		h.Commit.Height = uint64(h.Header.Height())
+	}
+
 	return nil
 }
 
