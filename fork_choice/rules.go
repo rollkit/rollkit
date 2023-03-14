@@ -1,6 +1,8 @@
 package fork_choice
 
-import "github.com/rollkit/rollkit/types"
+import (
+	"github.com/rollkit/rollkit/types"
+)
 
 const (
 	//FirstOrderedCentralized = "FOC"
@@ -28,9 +30,11 @@ func GetRule(ruleName string) (func([]*types.Block) (*types.Block, bool), bool) 
 }*/
 
 func ApplyFirstOrderedPure(candidates []*types.Block) (*types.Block, bool) {
-	if len(candidates) > 0 && candidates[0] != nil {
-		return candidates[0], true
-	} else {
-		return &types.Block{}, false
+	// Return first non-nil block from the candidates
+	for _, b := range candidates {
+		if b != nil {
+			return b, true
+		}
 	}
+	return nil, false
 }
