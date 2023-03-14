@@ -32,6 +32,25 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		h = append(h, h1)
 	}
 
+	h1 := Header{
+		Version: Version{
+			Block: 1,
+			App:   2,
+		},
+		BaseHeader: BaseHeader{
+			Height: 3,
+			Time:   4567,
+		},
+		LastHeaderHash:  h[0],
+		LastCommitHash:  h[1],
+		DataHash:        h[2],
+		ConsensusHash:   h[3],
+		AppHash:         h[4],
+		LastResultsHash: h[5],
+		ProposerAddress: []byte{4, 3, 2, 1},
+		AggregatorsHash: h[6],
+	}
+
 	cases := []struct {
 		name  string
 		input *Block
@@ -39,25 +58,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		{"empty block", &Block{}},
 		{"full", &Block{
 			SignedHeader: SignedHeader{
-				Header: Header{
-					Version: Version{
-						Block: 1,
-						App:   2,
-					},
-					BaseHeader: BaseHeader{
-						Height: 3,
-						Time:   4567,
-					},
-					LastHeaderHash:  h[0],
-					LastCommitHash:  h[1],
-					DataHash:        h[2],
-					ConsensusHash:   h[3],
-					AppHash:         h[4],
-					LastResultsHash: h[5],
-					ProposerAddress: []byte{4, 3, 2, 1},
-					AggregatorsHash: h[6],
-				},
+				Header: h1,
 				Commit: Commit{
+					Height:     3,
+					HeaderHash: h1.Hash(),
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 				}},
 			Data: Data{
