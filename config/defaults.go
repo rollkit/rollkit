@@ -18,7 +18,8 @@ var DefaultNodeConfig = NodeConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
 	},
-	Aggregator: false,
+	Aggregator:     false,
+	LazyAggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
 		BlockTime:   30 * time.Second,
 		NamespaceID: types.NamespaceID{},

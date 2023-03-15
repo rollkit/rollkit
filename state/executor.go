@@ -182,6 +182,7 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
 	}
+
 	return appHash, retainHeight, nil
 }
 

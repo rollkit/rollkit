@@ -74,6 +74,11 @@ type Manager struct {
 	retrieveCond *sync.Cond
 
 	logger log.Logger
+
+	// For usage by Lazy Aggregator mode
+	buildingBlock     bool
+	txsAvailable      <-chan struct{}
+	doneBuildingBlock chan struct{}
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -96,6 +101,7 @@ func NewManager(
 	dalc da.DataAvailabilityLayerClient,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
+	doneBuildingCh chan struct{},
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -128,6 +134,13 @@ func NewManager(
 		}
 	}
 
+	var txsAvailableCh <-chan struct{}
+	if mempool != nil {
+		txsAvailableCh = mempool.TxsAvailable()
+	} else {
+		txsAvailableCh = nil
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -139,14 +152,17 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh:     make(chan *types.SignedHeader, 100),
-		HeaderInCh:      make(chan *types.SignedHeader, 100),
-		SyncedHeadersCh: make(chan *types.SignedHeader, 100),
-		blockInCh:       make(chan newBlockEvent, 100),
-		FraudProofInCh:  make(chan *abci.FraudProof, 100),
-		retrieveMtx:     new(sync.Mutex),
-		syncCache:       make(map[uint64]*types.Block),
-		logger:          logger,
+		HeaderOutCh:       make(chan *types.SignedHeader, 100),
+		HeaderInCh:        make(chan *types.SignedHeader, 100),
+		SyncedHeadersCh:   make(chan *types.SignedHeader, 100),
+		blockInCh:         make(chan newBlockEvent, 100),
+		FraudProofInCh:    make(chan *abci.FraudProof, 100),
+		retrieveMtx:       new(sync.Mutex),
+		syncCache:         make(map[uint64]*types.Block),
+		logger:            logger,
+		txsAvailable:      txsAvailableCh,
+		doneBuildingBlock: doneBuildingCh,
+		buildingBlock:     false,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -172,7 +188,7 @@ func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context) {
+func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	initialHeight := uint64(m.genesis.InitialHeight)
 	height := m.store.Height()
 	var delay time.Duration
@@ -189,19 +205,49 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 		time.Sleep(delay)
 	}
 
+	//var timer *time.Timer
 	timer := time.NewTimer(0)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			start := time.Now()
-			err := m.publishBlock(ctx)
-			if err != nil {
-				m.logger.Error("error while publishing block", "error", err)
+	if !lazy {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				start := time.Now()
+				err := m.publishBlock(ctx)
+				if err != nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
+				timer.Reset(m.getRemainingSleep(start))
 			}
-			timer.Reset(m.getRemainingSleep(start))
+		}
+	} else {
+		<-timer.C
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			// the buildBlock channel is signalled when Txns become available
+			// in the mempool, or after transactions remain in the mempool after
+			// building a block.
+			case <-m.txsAvailable:
+				if !m.buildingBlock {
+					m.buildingBlock = true
+					timer.Reset(1 * time.Second)
+				}
+			case <-timer.C:
+				// build a block with all the transactions received in the last 1 second
+				err := m.publishBlock(ctx)
+				if err != nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
+				// this can be used to notify multiple subscribers when a block has been built
+				// intended to help improve the UX of lightclient frontends and wallets.
+				close(m.doneBuildingBlock)
+				m.doneBuildingBlock = make(chan struct{})
+				m.buildingBlock = false
+			}
 		}
 	}
 }
