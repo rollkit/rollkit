@@ -309,43 +309,36 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 // If block at height h+1 is not available, value of last gossiped commit is checked.
 // If commit for block h is available, we proceed with sync process, and remove synced block from sync cache.
 func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
-	var b1 *types.Block
 	var commit *types.Commit
 	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
 
-	b1, ok1 := m.syncCache[currentHeight+1]
-	if !ok1 {
+	b, ok := m.syncCache[currentHeight+1]
+	if !ok {
 		return nil
 	}
-	b2, ok2 := m.syncCache[currentHeight+2]
-	if ok2 {
-		m.logger.Debug("using last commit from next block")
-		commit = &b2.SignedHeader.Commit
-	} else {
-		lastCommit := m.getLastCommit()
-		if lastCommit != nil && lastCommit.Height == currentHeight+1 {
-			m.logger.Debug("using gossiped commit")
-			commit = lastCommit
-		}
+
+	signedHeader := &b.SignedHeader
+	if signedHeader != nil {
+		commit = &b.SignedHeader.Commit
 	}
 
-	if b1 != nil && commit != nil {
-		m.logger.Info("Syncing block", "height", b1.SignedHeader.Header.Height())
-		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+	if b != nil && commit != nil {
+		m.logger.Info("Syncing block", "height", b.SignedHeader.Header.Height())
+		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
-		err = m.store.SaveBlock(b1, commit)
+		err = m.store.SaveBlock(b, commit)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+		_, _, err = m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
-		m.store.SetHeight(uint64(b1.SignedHeader.Header.Height()))
+		m.store.SetHeight(uint64(b.SignedHeader.Header.Height()))
 
-		err = m.store.SaveBlockResponses(uint64(b1.SignedHeader.Header.Height()), responses)
+		err = m.store.SaveBlockResponses(uint64(b.SignedHeader.Header.Height()), responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
@@ -362,14 +355,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	}
 
 	return nil
-}
-
-func (m *Manager) getLastCommit() *types.Commit {
-	ptr := m.lastCommit.Load()
-	if ptr == nil {
-		return nil
-	}
-	return ptr.(*types.Commit)
 }
 
 // RetrieveLoop is responsible for interacting with DA layer.
