@@ -62,9 +62,8 @@ type Manager struct {
 
 	FraudProofInCh chan *abci.FraudProof
 
-	syncTarget uint64
-	blockInCh  chan newBlockEvent
-	syncCache  map[uint64]*types.Block
+	blockInCh chan newBlockEvent
+	syncCache map[uint64]*types.Block
 
 	// retrieveMtx is used by retrieveCond
 	retrieveMtx *sync.Mutex
