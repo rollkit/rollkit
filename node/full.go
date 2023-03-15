@@ -84,6 +84,9 @@ type FullNode struct {
 	ctx context.Context
 
 	cancel context.CancelFunc
+
+	// For use in Lazy Aggregator
+	DoneBuildingBlock chan struct{}
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -146,8 +149,10 @@ func newFullNode(
 
 	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 	mpIDs := newMempoolIDs()
+	mp.EnableTxsAvailable()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"))
+	doneBuildingChannel := make(chan struct{})
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel)
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -160,23 +165,24 @@ func newFullNode(
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
-		proxyApp:       proxyApp,
-		eventBus:       eventBus,
-		genesis:        genesis,
-		conf:           conf,
-		P2P:            client,
-		blockManager:   blockManager,
-		dalc:           dalc,
-		Mempool:        mp,
-		mempoolIDs:     mpIDs,
-		incomingTxCh:   make(chan *p2p.GossipMessage),
-		Store:          s,
-		TxIndexer:      txIndexer,
-		IndexerService: indexerService,
-		BlockIndexer:   blockIndexer,
-		hExService:     headerExchangeService,
-		ctx:            ctx,
-		cancel:         cancel,
+		proxyApp:          proxyApp,
+		eventBus:          eventBus,
+		genesis:           genesis,
+		conf:              conf,
+		P2P:               client,
+		blockManager:      blockManager,
+		dalc:              dalc,
+		Mempool:           mp,
+		mempoolIDs:        mpIDs,
+		incomingTxCh:      make(chan *p2p.GossipMessage),
+		Store:             s,
+		TxIndexer:         txIndexer,
+		IndexerService:    indexerService,
+		BlockIndexer:      blockIndexer,
+		hExService:        headerExchangeService,
+		ctx:               ctx,
+		cancel:            cancel,
+		DoneBuildingBlock: doneBuildingChannel,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -275,7 +281,7 @@ func (n *FullNode) OnStart() error {
 	}
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx)
+		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)

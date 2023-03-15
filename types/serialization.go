@@ -78,6 +78,12 @@ func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	if err != nil {
 		return err
 	}
+
+	if len(h.Commit.Signatures) > 0 {
+		h.Commit.HeaderHash = h.Header.Hash()
+		h.Commit.Height = uint64(h.Header.Height())
+	}
+
 	return nil
 }
 
@@ -146,9 +152,8 @@ func (h *Header) FromProto(other *pb.Header) error {
 // ToProto converts Block into protobuf representation and returns it.
 func (b *Block) ToProto() *pb.Block {
 	return &pb.Block{
-		Header:     b.Header.ToProto(),
-		Data:       b.Data.ToProto(),
-		LastCommit: b.LastCommit.ToProto(),
+		SignedHeader: b.SignedHeader.ToProto(),
+		Data:         b.Data.ToProto(),
 	}
 }
 
@@ -163,19 +168,13 @@ func (d *Data) ToProto() *pb.Data {
 
 // FromProto fills Block with data from its protobuf representation.
 func (b *Block) FromProto(other *pb.Block) error {
-	err := b.Header.FromProto(other.Header)
+	err := b.SignedHeader.FromProto(other.SignedHeader)
 	if err != nil {
 		return err
 	}
 	b.Data.Txs = byteSlicesToTxs(other.Data.Txs)
 	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
 	b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
-	if other.LastCommit != nil {
-		err := b.LastCommit.FromProto(other.LastCommit)
-		if err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
@@ -183,16 +182,12 @@ func (b *Block) FromProto(other *pb.Block) error {
 // ToProto converts Commit into protobuf representation and returns it.
 func (c *Commit) ToProto() *pb.Commit {
 	return &pb.Commit{
-		Height:     c.Height,
-		HeaderHash: c.HeaderHash,
 		Signatures: signaturesToByteSlices(c.Signatures),
 	}
 }
 
 // FromProto fills Commit with data from its protobuf representation.
 func (c *Commit) FromProto(other *pb.Commit) error {
-	c.Height = other.Height
-	c.HeaderHash = other.HeaderHash
 	c.Signatures = byteSlicesToSignatures(other.Signatures)
 
 	return nil

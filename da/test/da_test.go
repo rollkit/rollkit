@@ -240,12 +240,13 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 // copy-pasted from store/store_test.go
 func getRandomBlock(height uint64, nTxs int) *types.Block {
 	block := &types.Block{
-		Header: types.Header{
-			BaseHeader: types.BaseHeader{
-				Height: height,
-			},
-			AggregatorsHash: make([]byte, 32),
-		},
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
+				BaseHeader: types.BaseHeader{
+					Height: height,
+				},
+				AggregatorsHash: make([]byte, 32),
+			}},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),
 			IntermediateStateRoots: types.IntermediateStateRoots{
@@ -253,7 +254,7 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 			},
 		},
 	}
-	block.Header.AppHash = getRandomBytes(32)
+	block.SignedHeader.Header.AppHash = getRandomBytes(32)
 
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = getRandomTx()
