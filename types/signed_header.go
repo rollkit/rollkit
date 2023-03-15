@@ -15,7 +15,7 @@ func (sH *SignedHeader) IsZero() bool {
 }
 
 func (sH *SignedHeader) VerifyAdjacent(untrst header.Header) error {
-	// Explicit type checks are required due to embeded Header which also does the explicit type check
+	// Explicit type checks are required due to embedded Header which also does the explicit type check
 	untrstH, ok := untrst.(*SignedHeader)
 	if !ok {
 		return &header.VerifyError{
