@@ -72,14 +72,14 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 // ToABCIBlock converts Rolkit block into block format defined by ABCI.
 // Returned block should pass `ValidateBasic`.
 func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
-	abciHeader, err := ToABCIHeader(&block.Header)
+	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
 	}
-	abciCommit := ToABCICommit(&block.LastCommit)
+	abciCommit := ToABCICommit(&block.SignedHeader.Commit)
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
-		abciCommit.Signatures[0].ValidatorAddress = block.Header.ProposerAddress
+		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.Header.ProposerAddress
 	}
 	abciBlock := tmtypes.Block{
 		Header: abciHeader,
@@ -92,7 +92,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = tmbytes.HexBytes(block.Header.DataHash)
+	abciBlock.Header.DataHash = tmbytes.HexBytes(block.SignedHeader.Header.DataHash)
 
 	return &abciBlock, nil
 }
