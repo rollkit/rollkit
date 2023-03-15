@@ -5,8 +5,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	"github.com/tendermint/tendermint/libs/log"
+	proxy "github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -20,12 +20,14 @@ type Node interface {
 	IsRunning() bool
 }
 
+// Add Defaults?
+
 func NewNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	appClient abciclient.Client,
+	appClient proxy.ClientCreator,
 	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
 ) (Node, error) {
