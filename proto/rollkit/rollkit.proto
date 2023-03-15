@@ -49,7 +49,7 @@ message Header {
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	bytes proposer_address = 10;
 
-	//public key of the proposer so we can verify the signature
+	// public key of the proposer so we can verify the signature
 	bytes proposer_public_key = 11;
 
 
@@ -76,6 +76,6 @@ message Data {
 }
 
 message Block {	
-	SignedHeader signedHeader = 1;
+	SignedHeader signed_header = 1;
 	Data data = 2;
 }
