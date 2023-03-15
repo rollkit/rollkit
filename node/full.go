@@ -12,12 +12,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	llcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
 	corep2p "github.com/tendermint/tendermint/p2p"
+	proxy "github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/block"
@@ -55,7 +55,7 @@ var _ Node = &FullNode{}
 type FullNode struct {
 	service.BaseService
 	eventBus  *tmtypes.EventBus
-	appClient abciclient.Client
+	appClient proxy.AppConns
 
 	genesis *tmtypes.GenesisDoc
 	// cache of chunked genesis data.
@@ -92,10 +92,16 @@ func newFullNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	appClient abciclient.Client,
+	appClient proxy.ClientCreator,
 	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
+	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
+	proxyApp, err := createAndStartProxyAppConns(appClient, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	eventBus := tmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
@@ -103,7 +109,6 @@ func newFullNode(
 	}
 
 	var baseKV ds.TxnDatastore
-	var err error
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV, err = store.NewDefaultInMemoryKVStore()
@@ -138,10 +143,10 @@ func newFullNode(
 		return nil, err
 	}
 
-	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient, 0)
+	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 	mpIDs := newMempoolIDs()
 
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"))
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -154,7 +159,7 @@ func newFullNode(
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
-		appClient:      appClient,
+		appClient:      proxyApp,
 		eventBus:       eventBus,
 		genesis:        genesis,
 		conf:           conf,
@@ -323,7 +328,7 @@ func (n *FullNode) EventBus() *tmtypes.EventBus {
 }
 
 // AppClient returns ABCI proxy connections to communicate with application.
-func (n *FullNode) AppClient() abciclient.Client {
+func (n *FullNode) AppClient() proxy.AppConns {
 	return n.appClient
 }
 
@@ -422,4 +427,13 @@ func createAndStartIndexerService(
 	}
 
 	return indexerService, txIndexer, blockIndexer, nil
+}
+
+func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.AppConns, error) {
+	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp.SetLogger(logger.With("module", "proxy"))
+	if err := proxyApp.Start(); err != nil {
+		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+	}
+	return proxyApp, nil
 }

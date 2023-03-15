@@ -7,7 +7,6 @@ import (
 	"sort"
 	"time"
 
-	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/config"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -67,7 +66,7 @@ func (n *FullNode) GetClient() rpcclient.Client {
 
 // ABCIInfo returns basic information about application state.
 func (c *FullClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := c.appClient().InfoSync(proxy.RequestInfo)
+	resInfo, err := c.appClient().Query().InfoSync(proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func (c *FullClient) ABCIQuery(ctx context.Context, path string, data tmbytes.He
 
 // ABCIQueryWithOptions queries for data from application.
 func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.appClient().QuerySync(abci.RequestQuery{
+	resQuery, err := c.appClient().Query().QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -788,7 +787,7 @@ func (c *FullClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes
 //
 // If valid, the tx is automatically added to the mempool.
 func (c *FullClient) CheckTx(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := c.appClient().CheckTxSync(abci.RequestCheckTx{Tx: tx})
+	res, err := c.appClient().Mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
@@ -844,7 +843,7 @@ func (c *FullClient) resubscribe(subscriber string, q tmpubsub.Query) tmtypes.Su
 	}
 }
 
-func (c *FullClient) appClient() abcicli.Client {
+func (c *FullClient) appClient() proxy.AppConns {
 	return c.node.AppClient()
 }
 
