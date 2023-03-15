@@ -58,6 +58,8 @@ type Manager struct {
 
 	HeaderCh chan *types.SignedHeader
 
+	lastCommit atomic.Value
+
 	FraudProofInCh chan *abci.FraudProof
 
 	blockInCh chan newBlockEvent
