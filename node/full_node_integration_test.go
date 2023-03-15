@@ -159,7 +159,7 @@ func TestLazyAggregator(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 	err = node.Start()
