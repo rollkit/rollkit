@@ -19,7 +19,8 @@ var DefaultNodeConfig = NodeConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
 	},
-	Aggregator: false,
+	Aggregator:     false,
+	LazyAggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
 		ForkChoiceRule: fork_choice.FirstOrderedPure,
 		BlockTime:      30 * time.Second,

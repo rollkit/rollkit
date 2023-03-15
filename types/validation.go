@@ -9,7 +9,7 @@ import (
 
 // ValidateBasic performs basic validation of a block.
 func (b *Block) ValidateBasic() error {
-	err := b.Header.ValidateBasic()
+	err := b.SignedHeader.Header.ValidateBasic()
 	if err != nil {
 		return err
 	}
@@ -19,7 +19,7 @@ func (b *Block) ValidateBasic() error {
 		return err
 	}
 
-	err = b.LastCommit.ValidateBasic()
+	err = b.SignedHeader.Commit.ValidateBasic()
 	if err != nil {
 		return err
 	}

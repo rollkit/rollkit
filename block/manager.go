@@ -77,6 +77,10 @@ type Manager struct {
 	logger log.Logger
 
 	fcr func([]*types.Block) (*types.Block, bool)
+	// For usage by Lazy Aggregator mode
+	buildingBlock     bool
+	txsAvailable      <-chan struct{}
+	doneBuildingBlock chan struct{}
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -99,6 +103,7 @@ func NewManager(
 	dalc da.DataAvailabilityLayerClient,
 	eventBus *tmtypes.EventBus,
 	logger log.Logger,
+	doneBuildingCh chan struct{},
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -138,6 +143,12 @@ func NewManager(
 			panic("Invalid default fork-choice rule")
 		}
 	}
+	var txsAvailableCh <-chan struct{}
+	if mempool != nil {
+		txsAvailableCh = mempool.TxsAvailable()
+	} else {
+		txsAvailableCh = nil
+	}
 
 	agg := &Manager{
 		proposerKey: proposerKey,
@@ -150,15 +161,18 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh:     make(chan *types.SignedHeader, 100),
-		HeaderInCh:      make(chan *types.SignedHeader, 100),
-		SyncedHeadersCh: make(chan *types.SignedHeader, 100),
-		blockInCh:       make(chan newBlockEvent, 100),
-		FraudProofInCh:  make(chan *abci.FraudProof, 100),
-		retrieveMtx:     new(sync.Mutex),
-		syncCache:       make(map[uint64][]*types.Block),
-		logger:          logger,
-		fcr:             fcr,
+		HeaderOutCh:       make(chan *types.SignedHeader, 100),
+		HeaderInCh:        make(chan *types.SignedHeader, 100),
+		SyncedHeadersCh:   make(chan *types.SignedHeader, 100),
+		blockInCh:         make(chan newBlockEvent, 100),
+		FraudProofInCh:    make(chan *abci.FraudProof, 100),
+		retrieveMtx:       new(sync.Mutex),
+		syncCache:         make(map[uint64][]*types.Block),
+		logger:            logger,
+		fcr:               fcr,
+		txsAvailable:      txsAvailableCh,
+		doneBuildingBlock: doneBuildingCh,
+		buildingBlock:     false,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 
@@ -184,7 +198,7 @@ func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context) {
+func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	initialHeight := uint64(m.genesis.InitialHeight)
 	height := m.store.Height()
 	var delay time.Duration
@@ -201,19 +215,49 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 		time.Sleep(delay)
 	}
 
+	//var timer *time.Timer
 	timer := time.NewTimer(0)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			start := time.Now()
-			err := m.publishBlock(ctx)
-			if err != nil {
-				m.logger.Error("error while publishing block", "error", err)
+	if !lazy {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				start := time.Now()
+				err := m.publishBlock(ctx)
+				if err != nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
+				timer.Reset(m.getRemainingSleep(start))
 			}
-			timer.Reset(m.getRemainingSleep(start))
+		}
+	} else {
+		<-timer.C
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			// the buildBlock channel is signalled when Txns become available
+			// in the mempool, or after transactions remain in the mempool after
+			// building a block.
+			case <-m.txsAvailable:
+				if !m.buildingBlock {
+					m.buildingBlock = true
+					timer.Reset(1 * time.Second)
+				}
+			case <-timer.C:
+				// build a block with all the transactions received in the last 1 second
+				err := m.publishBlock(ctx)
+				if err != nil {
+					m.logger.Error("error while publishing block", "error", err)
+				}
+				// this can be used to notify multiple subscribers when a block has been built
+				// intended to help improve the UX of lightclient frontends and wallets.
+				close(m.doneBuildingBlock)
+				m.doneBuildingBlock = make(chan struct{})
+				m.buildingBlock = false
+			}
 		}
 	}
 }
@@ -253,14 +297,14 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
 			m.logger.Debug("block body retrieved from DALC",
-				"height", block.Header.Height(),
+				"height", block.SignedHeader.Header.Height(),
 				"daHeight", daHeight,
 				"hash", block.Hash(),
 			)
-			if m.syncCache[block.Header.BaseHeader.Height] == nil {
-				m.syncCache[block.Header.BaseHeader.Height] = make([]*types.Block, 1)
+			if m.syncCache[block.SignedHeader.Header.BaseHeader.Height] == nil {
+				m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = make([]*types.Block, 1)
 			}
-			m.syncCache[block.Header.BaseHeader.Height] = append(m.syncCache[block.Header.BaseHeader.Height], block)
+			m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = append(m.syncCache[block.SignedHeader.Header.BaseHeader.Height], block)
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
@@ -315,7 +359,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	b2, ok2 := m.fcr(m.syncCache[currentHeight+2])
 	if ok2 {
 		m.logger.Debug("using last commit from next block")
-		commit = &b2.LastCommit
+		commit = &b2.SignedHeader.Commit
 	} else {
 		lastCommit := m.getLastCommit()
 		if lastCommit != nil && lastCommit.Height == currentHeight+1 {
@@ -325,7 +369,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	}
 
 	if b1 != nil && commit != nil {
-		m.logger.Info("Syncing block", "height", b1.Header.Height())
+		m.logger.Info("Syncing block", "height", b1.SignedHeader.Header.Height())
 		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -338,9 +382,9 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
-		m.store.SetHeight(uint64(b1.Header.Height()))
+		m.store.SetHeight(uint64(b1.SignedHeader.Header.Height()))
 
-		err = m.store.SaveBlockResponses(uint64(b1.Header.Height()), responses)
+		err = m.store.SaveBlockResponses(uint64(b1.SignedHeader.Header.Height()), responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
@@ -483,7 +527,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
-		lastHeaderHash = lastBlock.Header.Hash()
+		lastHeaderHash = lastBlock.SignedHeader.Header.Hash()
 	}
 
 	var block *types.Block
@@ -500,10 +544,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-		commit, err = m.getCommit(block.Header)
+		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
 		}
+
+		// set the commit to current block's signed header
+		block.SignedHeader.Commit = *commit
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
@@ -519,7 +566,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	if commit == nil {
-		commit, err = m.getCommit(block.Header)
+		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
 		}
@@ -544,7 +591,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(uint64(block.Header.Height()), responses)
+	err = m.store.SaveBlockResponses(uint64(block.SignedHeader.Header.Height()), responses)
 	if err != nil {
 		return err
 	}
@@ -560,13 +607,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveValidators commits the DB tx
-	err = m.store.SaveValidators(uint64(block.Header.Height()), m.lastState.Validators)
+	err = m.store.SaveValidators(uint64(block.SignedHeader.Header.Height()), m.lastState.Validators)
 	if err != nil {
 		return err
 	}
 
 	// Only update the stored height after successfully submitting to DA layer and committing to the DB
-	m.store.SetHeight(uint64(block.Header.Height()))
+	m.store.SetHeight(uint64(block.SignedHeader.Header.Height()))
 
 	m.publishSignedHeader(block, commit)
 
@@ -574,14 +621,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
-	m.logger.Info("submitting block to DA layer", "height", block.Header.Height())
+	m.logger.Info("submitting block to DA layer", "height", block.SignedHeader.Header.Height())
 
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
 		res := m.dalc.SubmitBlock(ctx, block)
 		if res.Code == da.StatusSuccess {
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.Header.Height(), "daHeight", res.DAHeight)
+			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.SignedHeader.Header.Height(), "daHeight", res.DAHeight)
 			submitted = true
 		} else {
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
@@ -607,7 +654,7 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 
 // TODO(tzdybal): consider inlining
 func (m *Manager) publishSignedHeader(block *types.Block, commit *types.Commit) {
-	m.HeaderOutCh <- &types.SignedHeader{Header: block.Header, Commit: *commit}
+	m.HeaderOutCh <- &types.SignedHeader{Header: block.SignedHeader.Header, Commit: *commit}
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {

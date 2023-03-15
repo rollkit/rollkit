@@ -17,9 +17,8 @@ type Version struct {
 
 // Block defines the structure of Rollkit block.
 type Block struct {
-	Header     Header
-	Data       Data
-	LastCommit Commit
+	SignedHeader SignedHeader
+	Data         Data
 }
 
 var _ encoding.BinaryMarshaler = &Block{}
@@ -48,7 +47,7 @@ type Commit struct {
 //
 // Used mostly for gossiping.
 type SignedHeader struct {
-	Header Header
+	Header
 	Commit Commit
 }
 

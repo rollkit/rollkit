@@ -703,11 +703,11 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
-	validators, err := c.node.Store.LoadValidators(uint64(latest.Header.Height()))
+	validators, err := c.node.Store.LoadValidators(uint64(latest.SignedHeader.Header.Height()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
 	}
-	_, validator := validators.GetByAddress(latest.Header.ProposerAddress)
+	_, validator := validators.GetByAddress(latest.SignedHeader.Header.ProposerAddress)
 
 	state, err := c.node.Store.LoadState()
 	if err != nil {
@@ -735,14 +735,14 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     tmbytes.HexBytes(latest.Header.DataHash),
-			LatestAppHash:       tmbytes.HexBytes(latest.Header.AppHash),
-			LatestBlockHeight:   latest.Header.Height(),
-			LatestBlockTime:     latest.Header.Time(),
-			EarliestBlockHash:   tmbytes.HexBytes(initial.Header.DataHash),
-			EarliestAppHash:     tmbytes.HexBytes(initial.Header.AppHash),
-			EarliestBlockHeight: initial.Header.Height(),
-			EarliestBlockTime:   initial.Header.Time(),
+			LatestBlockHash:     tmbytes.HexBytes(latest.SignedHeader.Header.DataHash),
+			LatestAppHash:       tmbytes.HexBytes(latest.SignedHeader.Header.AppHash),
+			LatestBlockHeight:   latest.SignedHeader.Header.Height(),
+			LatestBlockTime:     latest.SignedHeader.Header.Time(),
+			EarliestBlockHash:   tmbytes.HexBytes(initial.SignedHeader.Header.DataHash),
+			EarliestAppHash:     tmbytes.HexBytes(initial.SignedHeader.Header.AppHash),
+			EarliestBlockHeight: initial.SignedHeader.Header.Height(),
+			EarliestBlockTime:   initial.SignedHeader.Header.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{

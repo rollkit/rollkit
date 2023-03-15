@@ -22,6 +22,7 @@ const (
 	flagLight          = "rollkit.light"
 	flagTrustedHash    = "rollkit.trusted_hash"
 	flagForkChoiceRule = "rollkit.fork_choice_rule"
+	flagLazyAggregator = "rollkit.lazy_aggregator"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -38,6 +39,7 @@ type NodeConfig struct {
 	DAConfig           string `mapstructure:"da_config"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
+	LazyAggregator     bool `mapstructure:"lazy_aggregator"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -69,6 +71,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(flagDABlockTime)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
+	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
 	nsID := v.GetString(flagNamespaceID)
 	nc.FraudProofs = v.GetBool(flagFraudProofs)
 	nc.Light = v.GetBool(flagLight)
@@ -88,6 +91,7 @@ func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 	cmd.Flags().Bool(flagAggregator, def.Aggregator, "run node in aggregator mode")
 	cmd.Flags().String(flagForkChoiceRule, def.ForkChoiceRule, "Fork-choice rule / leader selection scheme")
+	cmd.Flags().Bool(flagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
 	cmd.Flags().String(flagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
 	cmd.Flags().String(flagDAConfig, def.DAConfig, "Data Availability Layer Client config")
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")

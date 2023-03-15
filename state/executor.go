@@ -99,34 +99,36 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
 
 	block := &types.Block{
-		Header: types.Header{
-			Version: types.Version{
-				Block: state.Version.Consensus.Block,
-				App:   state.Version.Consensus.App,
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
+				Version: types.Version{
+					Block: state.Version.Consensus.Block,
+					App:   state.Version.Consensus.App,
+				},
+				BaseHeader: types.BaseHeader{
+					ChainID: e.chainID,
+					Height:  height,
+					Time:    uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
+				},
+				//LastHeaderHash: lastHeaderHash,
+				//LastCommitHash:  lastCommitHash,
+				DataHash:        make(types.Hash, 32),
+				ConsensusHash:   make(types.Hash, 32),
+				AppHash:         state.AppHash,
+				LastResultsHash: state.LastResultsHash,
+				ProposerAddress: e.proposerAddress,
 			},
-			BaseHeader: types.BaseHeader{
-				ChainID: e.chainID,
-				Height:  height,
-				Time:    uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
-			},
-			//LastHeaderHash: lastHeaderHash,
-			//LastCommitHash:  lastCommitHash,
-			DataHash:        make(types.Hash, 32),
-			ConsensusHash:   make(types.Hash, 32),
-			AppHash:         state.AppHash,
-			LastResultsHash: state.LastResultsHash,
-			ProposerAddress: e.proposerAddress,
+			Commit: *lastCommit,
 		},
 		Data: types.Data{
 			Txs:                    toRollkitTxs(mempoolTxs),
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			Evidence:               types.EvidenceData{Evidence: nil},
 		},
-		LastCommit: *lastCommit,
 	}
-	block.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.Header)
-	block.Header.LastHeaderHash = lastHeaderHash
-	block.Header.AggregatorsHash = state.Validators.Hash()
+	block.SignedHeader.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.SignedHeader.Header)
+	block.SignedHeader.Header.LastHeaderHash = lastHeaderHash
+	block.SignedHeader.Header.AggregatorsHash = state.Validators.Hash()
 
 	return block
 }
@@ -182,6 +184,7 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	if err != nil {
 		e.logger.Error("failed to fire block events", "error", err)
 	}
+
 	return appHash, retainHeight, nil
 }
 
@@ -210,7 +213,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 				return state, nil
 			}
 			// Change results from this height but only applies to the next next height.
-			lastHeightValSetChanged = block.Header.Height() + 1 + 1
+			lastHeightValSetChanged = block.SignedHeader.Header.Height() + 1 + 1
 		}
 
 		// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
@@ -221,10 +224,10 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		Version:         state.Version,
 		ChainID:         state.ChainID,
 		InitialHeight:   state.InitialHeight,
-		LastBlockHeight: block.Header.Height(),
-		LastBlockTime:   block.Header.Time(),
+		LastBlockHeight: block.SignedHeader.Header.Height(),
+		LastBlockTime:   block.SignedHeader.Header.Time(),
 		LastBlockID: tmtypes.BlockID{
-			Hash: tmbytes.HexBytes(block.Header.Hash()),
+			Hash: tmbytes.HexBytes(block.SignedHeader.Header.Hash()),
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,
@@ -256,7 +259,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(int64(block.Header.Height()), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	err = e.mempool.Update(int64(block.SignedHeader.Header.Height()), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -269,21 +272,21 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 	if err != nil {
 		return err
 	}
-	if block.Header.Version.App != state.Version.Consensus.App ||
-		block.Header.Version.Block != state.Version.Consensus.Block {
+	if block.SignedHeader.Header.Version.App != state.Version.Consensus.App ||
+		block.SignedHeader.Header.Version.Block != state.Version.Consensus.Block {
 		return errors.New("block version mismatch")
 	}
-	if state.LastBlockHeight <= 0 && block.Header.Height() != state.InitialHeight {
+	if state.LastBlockHeight <= 0 && block.SignedHeader.Header.Height() != state.InitialHeight {
 		return errors.New("initial block height mismatch")
 	}
-	if state.LastBlockHeight > 0 && block.Header.Height() != state.LastBlockHeight+1 {
+	if state.LastBlockHeight > 0 && block.SignedHeader.Header.Height() != state.LastBlockHeight+1 {
 		return errors.New("block height mismatch")
 	}
-	if !bytes.Equal(block.Header.AppHash[:], state.AppHash[:]) {
+	if !bytes.Equal(block.SignedHeader.Header.AppHash[:], state.AppHash[:]) {
 		return errors.New("AppHash mismatch")
 	}
 
-	if !bytes.Equal(block.Header.LastResultsHash[:], state.LastResultsHash[:]) {
+	if !bytes.Equal(block.SignedHeader.Header.LastResultsHash[:], state.LastResultsHash[:]) {
 		return errors.New("LastResultsHash mismatch")
 	}
 
@@ -350,7 +353,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	}
 
 	hash := block.Hash()
-	abciHeader, err := abciconv.ToABCIHeaderPB(&block.Header)
+	abciHeader, err := abciconv.ToABCIHeaderPB(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +392,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 			return nil, err
 		}
 	}
-	endBlockRequest := abci.RequestEndBlock{Height: block.Header.Height()}
+	endBlockRequest := abci.RequestEndBlock{Height: block.SignedHeader.Header.Height()}
 	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(endBlockRequest)
 	if err != nil {
 		return nil, err
@@ -476,13 +479,13 @@ func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.
 	for _, ev := range abciBlock.Evidence.Evidence {
 		err = multierr.Append(err, e.eventBus.PublishEventNewEvidence(tmtypes.EventDataNewEvidence{
 			Evidence: ev,
-			Height:   block.Header.Height(),
+			Height:   block.SignedHeader.Header.Height(),
 		}))
 	}
 	for i, dtx := range resp.DeliverTxs {
 		err = multierr.Append(err, e.eventBus.PublishEventTx(tmtypes.EventDataTx{
 			TxResult: abci.TxResult{
-				Height: block.Header.Height(),
+				Height: block.SignedHeader.Header.Height(),
 				Index:  uint32(i),
 				Tx:     abciBlock.Data.Txs[i],
 				Result: *dtx,

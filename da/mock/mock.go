@@ -73,15 +73,15 @@ func (m *DataAvailabilityLayerClient) Stop() error {
 // triggers a state transition in the DA layer.
 func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
 	daHeight := atomic.LoadUint64(&m.daHeight)
-	m.logger.Debug("Submitting block to DA layer!", "height", block.Header.Height(), "dataLayerHeight", daHeight)
+	m.logger.Debug("Submitting block to DA layer!", "height", block.SignedHeader.Header.Height(), "dataLayerHeight", daHeight)
 
-	hash := block.Header.Hash()
+	hash := block.SignedHeader.Header.Hash()
 	blob, err := block.MarshalBinary()
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.Header.Height())), hash[:])
+	err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.SignedHeader.Header.Height())), hash[:])
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}

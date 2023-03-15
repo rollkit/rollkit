@@ -50,14 +50,14 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
-	assert.Equal(int64(1), block.Header.Height())
+	assert.Equal(int64(1), block.SignedHeader.Header.Height())
 
 	// one small Tx
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block = executor.CreateBlock(2, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
-	assert.Equal(int64(2), block.Header.Height())
+	assert.Equal(int64(2), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 1)
 
 	// now there are 3 Txs, and only two can fit into single block
@@ -138,7 +138,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(err)
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
-	assert.Equal(int64(1), block.Header.Height())
+	assert.Equal(int64(1), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 1)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
@@ -156,7 +156,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
 	block = executor.CreateBlock(2, &types.Commit{}, []byte{}, newState)
 	require.NotNil(block)
-	assert.Equal(int64(2), block.Header.Height())
+	assert.Equal(int64(2), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 3)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)

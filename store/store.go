@@ -62,7 +62,7 @@ func (s *DefaultStore) Height() uint64 {
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
-	hash := block.Header.Hash()
+	hash := block.SignedHeader.Header.Hash()
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal Block to binary: %w", err)
@@ -80,7 +80,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getBlockKey(hash)), blockBlob))
 	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getCommitKey(hash)), commitBlob))
-	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getIndexKey(uint64(block.Header.Height()))), hash[:]))
+	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getIndexKey(uint64(block.SignedHeader.Header.Height()))), hash[:]))
 
 	if err != nil {
 		bb.Discard(s.ctx)
