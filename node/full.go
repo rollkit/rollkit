@@ -54,8 +54,8 @@ var _ Node = &FullNode{}
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
-	eventBus  *tmtypes.EventBus
-	appClient proxy.AppConns
+	eventBus *tmtypes.EventBus
+	proxyApp proxy.AppConns
 
 	genesis *tmtypes.GenesisDoc
 	// cache of chunked genesis data.
@@ -92,14 +92,14 @@ func newFullNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	appClient proxy.ClientCreator,
+	clientCreator proxy.ClientCreator,
 	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
-	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
-	proxyApp, err := createAndStartProxyAppConns(appClient, logger)
-	if err != nil {
-		return nil, err
+	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp.SetLogger(logger.With("module", "proxy"))
+	if err := proxyApp.Start(); err != nil {
+		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
 
 	eventBus := tmtypes.NewEventBus()
@@ -108,6 +108,7 @@ func newFullNode(
 		return nil, err
 	}
 
+	var err error
 	var baseKV ds.TxnDatastore
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
@@ -159,7 +160,7 @@ func newFullNode(
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
-		appClient:      proxyApp,
+		proxyApp:       proxyApp,
 		eventBus:       eventBus,
 		genesis:        genesis,
 		conf:           conf,
@@ -258,6 +259,7 @@ func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
 
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
+
 	n.Logger.Info("starting P2P client")
 	err := n.P2P.Start(n.ctx)
 	if err != nil {
@@ -329,7 +331,7 @@ func (n *FullNode) EventBus() *tmtypes.EventBus {
 
 // AppClient returns ABCI proxy connections to communicate with application.
 func (n *FullNode) AppClient() proxy.AppConns {
-	return n.appClient
+	return n.proxyApp
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
@@ -427,13 +429,4 @@ func createAndStartIndexerService(
 	}
 
 	return indexerService, txIndexer, blockIndexer, nil
-}
-
-func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
-	}
-	return proxyApp, nil
 }

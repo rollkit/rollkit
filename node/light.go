@@ -27,7 +27,7 @@ type LightNode struct {
 
 	P2P *p2p.Client
 
-	app proxy.AppConns
+	proxyApp proxy.AppConns
 
 	hExService *HeaderExchangeService
 
@@ -43,14 +43,15 @@ func newLightNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
-	appClient proxy.ClientCreator,
+	clientCreator proxy.ClientCreator,
 	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*LightNode, error) {
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
-	proxyApp, err := createAndStartProxyAppConns(appClient, logger)
-	if err != nil {
-		return nil, err
+	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp.SetLogger(logger.With("module", "proxy"))
+	if err := proxyApp.Start(); err != nil {
+		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
 
 	datastore, err := openDatastore(conf, logger)
@@ -71,7 +72,7 @@ func newLightNode(
 
 	node := &LightNode{
 		P2P:        client,
-		app:        proxyApp,
+		proxyApp:   proxyApp,
 		hExService: headerExchangeService,
 		cancel:     cancel,
 		ctx:        ctx,
@@ -95,6 +96,10 @@ func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, 
 }
 
 func (ln *LightNode) OnStart() error {
+	if err := ln.proxyApp.Start(); err != nil {
+		return fmt.Errorf("error starting proxy app connections: %v", err)
+	}
+
 	if err := ln.P2P.Start(ln.ctx); err != nil {
 		return err
 	}
@@ -131,7 +136,7 @@ func (ln *LightNode) newFraudProofValidator() p2p.GossipValidator {
 			return false
 		}
 
-		resp, err := ln.app.Consensus().VerifyFraudProofSync(abci.RequestVerifyFraudProof{
+		resp, err := ln.proxyApp.Consensus().VerifyFraudProofSync(abci.RequestVerifyFraudProof{
 			FraudProof:           &fraudProof,
 			ExpectedValidAppHash: fraudProof.ExpectedValidAppHash,
 		})
