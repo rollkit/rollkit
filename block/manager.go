@@ -494,6 +494,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
+		// set the validator set using the signer's public key
+		// TODO(ganesh): need to hook into a module that selects signers
+		pubKey, err := m.proposerKey.GetPublic().Raw()
+		if err != nil {
+			return err
+		}
+		block.SignedHeader.Validators = types.ValidatorSet{Validators: []types.Validator{{PublicKey: pubKey}}}
+
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
 		if err != nil {
