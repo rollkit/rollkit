@@ -446,8 +446,6 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 		return nil, err
 	}
 	return &types.Commit{
-		Height:     uint64(header.Height()),
-		HeaderHash: header.Hash(),
 		Signatures: []types.Signature{sign},
 	}, nil
 }
@@ -461,7 +459,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
-		lastCommit = &types.Commit{Height: height}
+		lastCommit = &types.Commit{}
 	} else {
 		lastCommit, err = m.store.LoadCommit(height)
 		if err != nil {
