@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -534,6 +536,9 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	privBytes, _ := signingKey.Raw()
+	ed25519Priv := ed25519.GenPrivKeyFromSecret(privBytes)
+	cryptoPriv, _ := crypto.UnmarshalEd25519PrivateKey(ed25519Priv.Bytes())
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
@@ -543,9 +548,16 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 			BlockManagerConfig: bmConfig,
 		},
 		keys[n],
-		signingKey,
+		cryptoPriv,
 		abcicli.NewLocalClient(nil, app),
-		&tmtypes.GenesisDoc{ChainID: "test"},
+		&tmtypes.GenesisDoc{
+			ChainID:       "test",
+			InitialHeight: int64(1),
+			AppHash:       []byte("test hash"),
+			Validators: []tmtypes.GenesisValidator{
+				{Address: bytes.HexBytes{}, Name: "test", Power: 1, PubKey: ed25519Priv.PubKey()},
+			},
+		},
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)

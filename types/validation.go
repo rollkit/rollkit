@@ -77,7 +77,11 @@ func (h *SignedHeader) ValidateBasic() error {
 	for i, val := range h.Validators.Validators {
 		sig := h.Commit.Signatures[i]
 		var pubKey ed25519.PubKey = val.PublicKey
-		if !pubKey.VerifySignature(h.Hash(), sig) {
+		msg, err := h.Header.MarshalBinary()
+		if err != nil {
+			return errors.New("signature verification failed, unable to marshal header")
+		}
+		if !pubKey.VerifySignature(msg, sig) {
 			return errors.New("signature verification failed")
 		}
 	}
