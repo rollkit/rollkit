@@ -98,11 +98,6 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
 
-	var validatorSet types.ValidatorSet
-	for _, val := range state.Validators.Validators {
-		validatorSet.Validators = append(validatorSet.Validators, types.Validator{PublicKey: val.PubKey.Bytes()})
-	}
-
 	block := &types.Block{
 		SignedHeader: types.SignedHeader{
 			Header: types.Header{
@@ -123,8 +118,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 				LastResultsHash: state.LastResultsHash,
 				ProposerAddress: e.proposerAddress,
 			},
-			Commit:     *lastCommit,
-			Validators: validatorSet,
+			Commit: *lastCommit,
 		},
 		Data: types.Data{
 			Txs:                    toRollkitTxs(mempoolTxs),
