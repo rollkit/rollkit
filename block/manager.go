@@ -76,7 +76,7 @@ type Manager struct {
 
 	logger log.Logger
 
-	fcr func([]*types.Block) (*types.Block, bool)
+	fcr fork_choice.ForkChoiceRule
 	// For usage by Lazy Aggregator mode
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
@@ -352,11 +352,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	var commit *types.Commit
 	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
 
-	b1, ok1 := m.fcr(m.syncCache[currentHeight+1])
+	b1, ok1 := m.fcr.Apply(m.syncCache[currentHeight+1])
 	if !ok1 {
 		return nil
 	}
-	b2, ok2 := m.fcr(m.syncCache[currentHeight+2])
+	b2, ok2 := m.fcr.Apply(m.syncCache[currentHeight+2])
 	if ok2 {
 		m.logger.Debug("using last commit from next block")
 		commit = &b2.SignedHeader.Commit
