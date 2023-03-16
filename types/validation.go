@@ -8,17 +8,12 @@ import (
 
 // ValidateBasic performs basic validation of a block.
 func (b *Block) ValidateBasic() error {
-	err := b.SignedHeader.Header.ValidateBasic()
+	err := b.SignedHeader.ValidateBasic()
 	if err != nil {
 		return err
 	}
 
 	err = b.Data.ValidateBasic()
-	if err != nil {
-		return err
-	}
-
-	err = b.SignedHeader.Commit.ValidateBasic()
 	if err != nil {
 		return err
 	}
@@ -76,15 +71,14 @@ func (h *SignedHeader) ValidateBasic() error {
 
 	// Make sure there are as many signatures as validators
 	if len(h.Commit.Signatures) != len(h.Validators.Validators) {
-		errors.New("number of signatures and keys don't match")
+		return errors.New("number of signatures and keys don't match")
 	}
 
 	for i, val := range h.Validators.Validators {
 		sig := h.Commit.Signatures[i]
-		var pubKey ed25519.PubKey
-		pubKey = val.PublicKey
+		var pubKey ed25519.PubKey = val.PublicKey
 		if !pubKey.VerifySignature(h.Hash(), sig) {
-			errors.New("signature verification failed")
+			return errors.New("signature verification failed")
 		}
 	}
 
