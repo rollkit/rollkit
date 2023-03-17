@@ -64,8 +64,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				},
 				Validators: ValidatorSet{
 					Validators: []Validator{
-						{PublicKey: []byte{1, 1, 1}},
-						{PublicKey: []byte{2, 2, 2}},
+						{PublicKey: []byte{3, 3, 3}},
+						{PublicKey: []byte{4, 4, 4}},
 					},
 				},
 			},
