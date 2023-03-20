@@ -220,7 +220,7 @@ func newSyncer(
 	ex header.Exchange[*types.SignedHeader],
 	store header.Store[*types.SignedHeader],
 	sub header.Subscriber[*types.SignedHeader],
-	opt goheadersync.Options,
+	opt sync.Options,
 ) (*sync.Syncer[*types.SignedHeader], error) {
 	return sync.NewSyncer(ex, store, sub, opt)
 }
