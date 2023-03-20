@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-header/sync"
 	goheadersync "github.com/celestiaorg/go-header/sync"
 	ds "github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -30,7 +29,7 @@ type HeaderExchangeService struct {
 	genesis       *tmtypes.GenesisDoc
 	p2p           *p2p.Client
 	ex            *goheaderp2p.Exchange[*types.SignedHeader]
-	syncer        *sync.Syncer[*types.SignedHeader]
+	syncer        *goheadersync.Syncer[*types.SignedHeader]
 	sub           *goheaderp2p.Subscriber[*types.SignedHeader]
 	p2pServer     *goheaderp2p.ExchangeServer[*types.SignedHeader]
 	headerStore   *goheaderstore.Store[*types.SignedHeader]
@@ -222,6 +221,6 @@ func newSyncer(
 	store header.Store[*types.SignedHeader],
 	sub header.Subscriber[*types.SignedHeader],
 	opt goheadersync.Options,
-) (*sync.Syncer[*types.SignedHeader], error) {
-	return sync.NewSyncer(ex, store, sub, opt)
+) (*goheadersync.Syncer[*types.SignedHeader], error) {
+	return goheadersync.NewSyncer(ex, store, sub, opt)
 }
