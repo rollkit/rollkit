@@ -47,7 +47,7 @@ type Commit struct {
 //
 // Used mostly for gossiping.
 type SignedHeader struct {
-	Header Header
+	Header
 	Commit Commit
 }
 
