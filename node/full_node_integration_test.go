@@ -499,6 +499,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		BlockTime:      1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		NamespaceID:    types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 		FraudProofs:    true,
+		DABlockTime:    100 * time.Millisecond,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {

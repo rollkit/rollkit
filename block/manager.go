@@ -57,17 +57,12 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
-	HeaderOutCh     chan *types.SignedHeader
-	HeaderInCh      chan *types.SignedHeader
-	SyncedHeadersCh chan *types.SignedHeader
-
-	lastCommit atomic.Value
+	HeaderCh chan *types.SignedHeader
 
 	FraudProofInCh chan *abci.FraudProof
 
-	syncTarget uint64
-	blockInCh  chan newBlockEvent
-	syncCache  map[uint64][]*types.Block
+	blockInCh chan newBlockEvent
+	syncCache map[uint64][]*types.Block
 
 	// retrieveMtx is used by retrieveCond
 	retrieveMtx *sync.Mutex
@@ -161,9 +156,7 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderOutCh:       make(chan *types.SignedHeader, 100),
-		HeaderInCh:        make(chan *types.SignedHeader, 100),
-		SyncedHeadersCh:   make(chan *types.SignedHeader, 100),
+		HeaderCh:          make(chan *types.SignedHeader, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
 		FraudProofInCh:    make(chan *abci.FraudProof, 100),
 		retrieveMtx:       new(sync.Mutex),
@@ -272,27 +265,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		select {
 		case <-daTicker.C:
 			m.retrieveCond.Signal()
-		case header := <-m.HeaderInCh:
-			m.logger.Debug("block header received", "height", header.Header.Height(), "hash", header.Header.Hash())
-			m.SyncedHeadersCh <- header
-			newHeight := header.Header.BaseHeader.Height
-			currentHeight := m.store.Height()
-			// in case of client reconnecting after being offline
-			// newHeight may be significantly larger than currentHeight
-			// it's handled gently in RetrieveLoop
-			if newHeight > currentHeight {
-				atomic.StoreUint64(&m.syncTarget, newHeight)
-				m.retrieveCond.Signal()
-			}
-			commit := &header.Commit
-			// TODO(tzdybal): check if it's from right aggregator
-			m.lastCommit.Store(commit)
-			err := m.trySyncNextBlock(ctx, 0)
-			if err != nil {
-				m.logger.Info("failed to sync next block", "error", err)
-			} else {
-				m.logger.Debug("synced using signed header", "height", commit.Height)
-			}
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -348,43 +320,35 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 // If block at height h+1 is not available, value of last gossiped commit is checked.
 // If commit for block h is available, we proceed with sync process, and remove synced block from sync cache.
 func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
-	var b1 *types.Block
 	var commit *types.Commit
 	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
-
-	b1, ok1 := m.fcr.Apply(m.syncCache[currentHeight+1])
-	if !ok1 {
+	b, ok := m.fcr.Apply(m.syncCache[currentHeight+1])
+	if !ok {
 		return nil
 	}
-	b2, ok2 := m.fcr.Apply(m.syncCache[currentHeight+2])
-	if ok2 {
-		m.logger.Debug("using last commit from next block")
-		commit = &b2.SignedHeader.Commit
-	} else {
-		lastCommit := m.getLastCommit()
-		if lastCommit != nil && lastCommit.Height == currentHeight+1 {
-			m.logger.Debug("using gossiped commit")
-			commit = lastCommit
-		}
+
+	signedHeader := &b.SignedHeader
+	if signedHeader != nil {
+		commit = &b.SignedHeader.Commit
 	}
 
-	if b1 != nil && commit != nil {
-		m.logger.Info("Syncing block", "height", b1.SignedHeader.Header.Height())
-		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b1)
+	if b != nil && commit != nil {
+		m.logger.Info("Syncing block", "height", b.SignedHeader.Header.Height())
+		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
-		err = m.store.SaveBlock(b1, commit)
+		err = m.store.SaveBlock(b, commit)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b1, responses)
+		_, _, err = m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
-		m.store.SetHeight(uint64(b1.SignedHeader.Header.Height()))
+		m.store.SetHeight(uint64(b.SignedHeader.Header.Height()))
 
-		err = m.store.SaveBlockResponses(uint64(b1.SignedHeader.Header.Height()), responses)
+		err = m.store.SaveBlockResponses(uint64(b.SignedHeader.Header.Height()), responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
@@ -401,14 +365,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	}
 
 	return nil
-}
-
-func (m *Manager) getLastCommit() *types.Commit {
-	ptr := m.lastCommit.Load()
-	if ptr == nil {
-		return nil
-	}
-	return ptr.(*types.Commit)
 }
 
 // RetrieveLoop is responsible for interacting with DA layer.
@@ -615,7 +571,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Only update the stored height after successfully submitting to DA layer and committing to the DB
 	m.store.SetHeight(uint64(block.SignedHeader.Header.Height()))
 
-	m.publishSignedHeader(block, commit)
+	// Publish header to channel so that header exchange service can broadcast
+	m.HeaderCh <- &block.SignedHeader
 
 	return nil
 }
@@ -638,7 +595,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	}
 
 	if !submitted {
-		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
 	return nil
@@ -650,11 +607,6 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 		backoff = m.conf.DABlockTime
 	}
 	return backoff
-}
-
-// TODO(tzdybal): consider inlining
-func (m *Manager) publishSignedHeader(block *types.Block, commit *types.Commit) {
-	m.HeaderOutCh <- &types.SignedHeader{Header: block.SignedHeader.Header, Commit: *commit}
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {

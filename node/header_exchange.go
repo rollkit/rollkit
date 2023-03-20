@@ -26,22 +26,21 @@ import (
 )
 
 type HeaderExchangeService struct {
-	conf            config.NodeConfig
-	genesis         *tmtypes.GenesisDoc
-	p2p             *p2p.Client
-	ex              *goheaderp2p.Exchange[*types.SignedHeader]
-	syncer          *sync.Syncer[*types.SignedHeader]
-	sub             *goheaderp2p.Subscriber[*types.SignedHeader]
-	p2pServer       *goheaderp2p.ExchangeServer[*types.SignedHeader]
-	headerStore     *goheaderstore.Store[*types.SignedHeader]
-	syncerStarted   bool
-	syncedHeadersCh chan *types.SignedHeader
+	conf          config.NodeConfig
+	genesis       *tmtypes.GenesisDoc
+	p2p           *p2p.Client
+	ex            *goheaderp2p.Exchange[*types.SignedHeader]
+	syncer        *sync.Syncer[*types.SignedHeader]
+	sub           *goheaderp2p.Subscriber[*types.SignedHeader]
+	p2pServer     *goheaderp2p.ExchangeServer[*types.SignedHeader]
+	headerStore   *goheaderstore.Store[*types.SignedHeader]
+	syncerStarted bool
 
 	logger log.Logger
 	ctx    context.Context
 }
 
-func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, syncedHeadersCh chan *types.SignedHeader, logger log.Logger) (*HeaderExchangeService, error) {
+func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderExchangeService, error) {
 	// store is TxnDatastore, but we require Batching, hence the type assertion
 	// note, the badger datastore impl that is used in the background implements both
 	storeBatch, ok := store.(ds.Batching)
@@ -54,13 +53,12 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 	}
 
 	return &HeaderExchangeService{
-		conf:            conf,
-		genesis:         genesis,
-		p2p:             p2p,
-		ctx:             ctx,
-		headerStore:     ss,
-		syncedHeadersCh: syncedHeadersCh,
-		logger:          logger,
+		conf:        conf,
+		genesis:     genesis,
+		p2p:         p2p,
+		ctx:         ctx,
+		headerStore: ss,
+		logger:      logger,
 	}, nil
 }
 
@@ -91,13 +89,6 @@ func (hExService *HeaderExchangeService) tryInitHeaderStoreAndStartSyncer(ctx co
 	if trustedHeader != nil {
 		if err := hExService.initHeaderStoreAndStartSyncer(ctx, trustedHeader); err != nil {
 			hExService.logger.Error("failed to initialize the headerstore and start syncer", "error", err)
-		}
-	} else {
-		signedHeader := <-hExService.syncedHeadersCh
-		if signedHeader.Header.Height() == hExService.genesis.InitialHeight {
-			if err := hExService.initHeaderStoreAndStartSyncer(ctx, signedHeader); err != nil {
-				hExService.logger.Error("failed to initialize the headerstore and start syncer", "error", err)
-			}
 		}
 	}
 }
