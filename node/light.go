@@ -95,10 +95,6 @@ func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, 
 }
 
 func (ln *LightNode) OnStart() error {
-	if err := ln.proxyApp.Start(); err != nil {
-		return fmt.Errorf("error starting proxy app connections: %v", err)
-	}
-
 	if err := ln.P2P.Start(ln.ctx); err != nil {
 		return err
 	}
