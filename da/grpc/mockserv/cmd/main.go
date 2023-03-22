@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	tmlog "github.com/tendermint/tendermint/libs/log"
+	tmlog "github.com/cometbft/cometbft/libs/log"
 
 	grpcda "github.com/rollkit/rollkit/da/grpc"
 	"github.com/rollkit/rollkit/da/grpc/mockserv"

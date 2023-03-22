@@ -5,10 +5,10 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	abciclient "github.com/tendermint/tendermint/abci/client"
-	"github.com/tendermint/tendermint/libs/log"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	tmtypes "github.com/tendermint/tendermint/types"
+	abciclient "github.com/cometbft/cometbft/abci/client"
+	"github.com/cometbft/cometbft/libs/log"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	tmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/config"
 )

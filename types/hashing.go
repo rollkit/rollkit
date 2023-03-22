@@ -1,9 +1,9 @@
 package types
 
 import (
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmtypes "github.com/tendermint/tendermint/types"
+	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	tmtypes "github.com/cometbft/cometbft/types"
 )
 
 // Hash returns ABCI-compatible hash of a header.

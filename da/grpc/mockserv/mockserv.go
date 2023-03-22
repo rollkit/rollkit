@@ -3,8 +3,8 @@ package mockserv
 import (
 	"context"
 
+	tmlog "github.com/cometbft/cometbft/libs/log"
 	ds "github.com/ipfs/go-datastore"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
 
 	grpcda "github.com/rollkit/rollkit/da/grpc"

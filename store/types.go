@@ -1,8 +1,8 @@
 package store
 
 import (
-	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
-	tmtypes "github.com/tendermint/tendermint/types"
+	tmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	tmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/types"
 )

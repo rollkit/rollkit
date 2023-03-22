@@ -5,7 +5,7 @@ import (
 
 	// TODO: either copy the vanilla abci types (or the protos) into this repo
 	// or, import the vanilla tendermint types instead.
-	abci "github.com/tendermint/tendermint/abci/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 )
 
 // Evidence represents any provable malicious activity by a validator.

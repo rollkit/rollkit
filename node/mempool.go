@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	tmsync "github.com/cometbft/cometbft/libs/sync"
 	"github.com/libp2p/go-libp2p/core/peer"
-	tmsync "github.com/tendermint/tendermint/libs/sync"
 )
 
 const (

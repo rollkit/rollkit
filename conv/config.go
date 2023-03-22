@@ -1,7 +1,7 @@
 package conv
 
 import (
-	tmcfg "github.com/tendermint/tendermint/config"
+	tmcfg "github.com/cometbft/cometbft/config"
 
 	"github.com/rollkit/rollkit/config"
 )

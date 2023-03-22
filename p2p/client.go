@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cometbft/cometbft/p2p"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -20,7 +21,6 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
