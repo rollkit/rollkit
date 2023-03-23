@@ -33,3 +33,13 @@ Show specific validator
 ```
 gmd query staking validator [validator address]
 ```
+
+## Implementation
+
+* Query validators for pubkeys, staking power etc
+
+* Instantiate ValidatorSet from validators
+
+* Use Proposer to create next block
+
+* Add SequencerSet (instance of ValidatorSet) to Manager
