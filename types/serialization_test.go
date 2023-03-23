@@ -60,15 +60,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			SignedHeader: SignedHeader{
 				Header: h1,
 				Commit: Commit{
+					Height:     3,
+					HeaderHash: h1.Hash(),
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
-				},
-				Validators: ValidatorSet{
-					Validators: []Validator{
-						{PublicKey: []byte{3, 3, 3}},
-						{PublicKey: []byte{4, 4, 4}},
-					},
-				},
-			},
+				}},
 			Data: Data{
 				Txs:                    nil,
 				IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},

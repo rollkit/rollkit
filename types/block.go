@@ -38,15 +38,9 @@ type EvidenceData struct {
 
 // Commit contains evidence of block creation.
 type Commit struct {
+	Height     uint64
+	HeaderHash Hash
 	Signatures []Signature // most of the time this is a single signature
-}
-
-type Validator struct {
-	PublicKey []byte
-}
-
-type ValidatorSet struct {
-	Validators []Validator
 }
 
 // SignedHeader combines Header and its Commit.
@@ -54,8 +48,7 @@ type ValidatorSet struct {
 // Used mostly for gossiping.
 type SignedHeader struct {
 	Header
-	Commit     Commit
-	Validators ValidatorSet
+	Commit Commit
 }
 
 // Signature represents signature of block creator.

@@ -274,7 +274,7 @@ func TestGetCommit(t *testing.T) {
 	require.NoError(err)
 
 	for _, b := range blocks {
-		err = rpc.node.Store.SaveBlock(b, &types.Commit{})
+		err = rpc.node.Store.SaveBlock(b, &types.Commit{Height: uint64(b.SignedHeader.Header.Height())})
 		rpc.node.Store.SetHeight(uint64(b.SignedHeader.Header.Height()))
 		require.NoError(err)
 	}
@@ -309,7 +309,10 @@ func TestBlockSearch(t *testing.T) {
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
 		block := getRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(block, &types.Commit{})
+		err := rpc.node.Store.SaveBlock(block, &types.Commit{
+			Height:     uint64(h),
+			HeaderHash: block.SignedHeader.Header.Hash(),
+		})
 		require.NoError(err)
 	}
 	indexBlocks(t, rpc, heights)
@@ -561,7 +564,10 @@ func TestBlockchainInfo(t *testing.T) {
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
 		block := getRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(block, &types.Commit{})
+		err := rpc.node.Store.SaveBlock(block, &types.Commit{
+			Height:     uint64(h),
+			HeaderHash: block.SignedHeader.Header.Hash(),
+		})
 		rpc.node.Store.SetHeight(uint64(block.SignedHeader.Header.Height()))
 		require.NoError(err)
 	}
@@ -984,12 +990,12 @@ func TestStatus(t *testing.T) {
 	assert.NotNil(rpc)
 
 	earliestBlock := getRandomBlockWithProposer(1, 1, validators[0].Address.Bytes())
-	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{})
+	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{Height: uint64(earliestBlock.SignedHeader.Header.Height())})
 	rpc.node.Store.SetHeight(uint64(earliestBlock.SignedHeader.Header.Height()))
 	require.NoError(err)
 
 	latestBlock := getRandomBlockWithProposer(2, 1, validators[1].Address.Bytes())
-	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{})
+	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{Height: uint64(latestBlock.SignedHeader.Header.Height())})
 	rpc.node.Store.SetHeight(uint64(latestBlock.SignedHeader.Header.Height()))
 	require.NoError(err)
 

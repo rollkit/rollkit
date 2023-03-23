@@ -458,6 +458,8 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 		return nil, err
 	}
 	return &types.Commit{
+		Height:     uint64(header.Height()),
+		HeaderHash: header.Hash(),
 		Signatures: []types.Signature{sign},
 	}, nil
 }
@@ -471,7 +473,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
-		lastCommit = &types.Commit{}
+		lastCommit = &types.Commit{Height: height}
 	} else {
 		lastCommit, err = m.store.LoadCommit(height)
 		if err != nil {
@@ -505,14 +507,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
-
-		// set the validator set using the signer's public key
-		// TODO(ganesh): need to hook into a module that selects signers
-		pubKey, err := m.proposerKey.GetPublic().Raw()
-		if err != nil {
-			return err
-		}
-		block.SignedHeader.Validators = types.ValidatorSet{Validators: []types.Validator{{PublicKey: pubKey}}}
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)

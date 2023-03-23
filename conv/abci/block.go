@@ -76,7 +76,7 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	abciCommit := ToABCICommit(&block.SignedHeader.Commit, block.SignedHeader.Header.BaseHeader.Height, block.SignedHeader.Hash())
+	abciCommit := ToABCICommit(&block.SignedHeader.Commit)
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.Header.ProposerAddress
@@ -116,12 +116,12 @@ func ToABCIBlockMeta(block *types.Block) (*tmtypes.BlockMeta, error) {
 // ToABCICommit converts Rollkit commit into commit format defined by ABCI.
 // This function only converts fields that are available in Rollkit commit.
 // Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
-func ToABCICommit(commit *types.Commit, height uint64, hash types.Hash) *tmtypes.Commit {
+func ToABCICommit(commit *types.Commit) *tmtypes.Commit {
 	tmCommit := tmtypes.Commit{
-		Height: int64(height),
+		Height: int64(commit.Height),
 		Round:  0,
 		BlockID: tmtypes.BlockID{
-			Hash:          tmbytes.HexBytes(hash),
+			Hash:          tmbytes.HexBytes(commit.HeaderHash),
 			PartSetHeader: tmtypes.PartSetHeader{},
 		},
 	}

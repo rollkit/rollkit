@@ -493,7 +493,7 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	if err != nil {
 		return nil, err
 	}
-	commit := abciconv.ToABCICommit(com, heightValue, b.SignedHeader.Hash())
+	commit := abciconv.ToABCICommit(com)
 	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
 		return nil, err

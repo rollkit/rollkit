@@ -63,9 +63,8 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (h *SignedHeader) ToProto() *pb.SignedHeader {
 	return &pb.SignedHeader{
-		Header:     h.Header.ToProto(),
-		Commit:     h.Commit.ToProto(),
-		Validators: h.Validators.ToProto(),
+		Header: h.Header.ToProto(),
+		Commit: h.Commit.ToProto(),
 	}
 }
 
@@ -80,9 +79,9 @@ func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		return err
 	}
 
-	err = h.Validators.FromProto(other.Validators)
-	if err != nil {
-		return err
+	if len(h.Commit.Signatures) > 0 {
+		h.Commit.HeaderHash = h.Header.Hash()
+		h.Commit.Height = uint64(h.Header.Height())
 	}
 
 	return nil
@@ -194,18 +193,6 @@ func (c *Commit) FromProto(other *pb.Commit) error {
 	return nil
 }
 
-func (vSet *ValidatorSet) ToProto() *pb.ValidatorSet {
-	return &pb.ValidatorSet{
-		Validators: validatorsToProto(vSet.Validators),
-	}
-}
-
-func (vSet *ValidatorSet) FromProto(other *pb.ValidatorSet) error {
-	vSet.Validators = validatorsFromProto(other.Validators)
-
-	return nil
-}
-
 // ToProto converts State into protobuf representation and returns it.
 func (s *State) ToProto() (*pb.State, error) {
 	nextValidators, err := s.NextValidators.ToProto()
@@ -292,22 +279,6 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 		txs[i] = bytes[i]
 	}
 	return txs
-}
-
-func validatorsToProto(validators []Validator) []*pb.Validator {
-	var ret []*pb.Validator
-	for _, v := range validators {
-		ret = append(ret, &pb.Validator{PublicKey: v.PublicKey})
-	}
-	return ret
-}
-
-func validatorsFromProto(validators []*pb.Validator) []Validator {
-	var ret []Validator
-	for _, v := range validators {
-		ret = append(ret, Validator{PublicKey: v.PublicKey})
-	}
-	return ret
 }
 
 func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
