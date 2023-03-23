@@ -216,6 +216,12 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 		}
 	} else {
+		// build initial block
+		m.logger.Info("Building a freakin' block")
+		err := m.publishBlock(ctx)
+		if err != nil {
+			m.logger.Info("Failed to build the freakin' block")
+		}
 		for {
 			select {
 			case <-ctx.Done():
