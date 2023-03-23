@@ -43,3 +43,9 @@ gmd query staking validator [validator address]
 * Use Proposer to create next block
 
 * Add SequencerSet (instance of ValidatorSet) to Manager
+
+* Query stake using gRPC:
+
+    gmd query staking
+
+* Create NewValidatorSet see: https://github.com/tendermint/tendermint/blob/64747b2b184184ecba4f4bffc54ffbcb47cfbcb0/types/validator_set_test.go#L188
