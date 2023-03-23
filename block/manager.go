@@ -216,7 +216,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 		}
 	} else {
-		// build initial block
 		for {
 			select {
 			case <-ctx.Done():

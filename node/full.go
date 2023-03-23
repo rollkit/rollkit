@@ -263,7 +263,7 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 	if n.conf.Aggregator {
-		n.Logger.Info("working in aggregator mode changed!!!", "block time", n.conf.BlockTime)
+		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
 	}
