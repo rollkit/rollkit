@@ -216,7 +216,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 		}
 	} else {
-		<-timer.C
 		for {
 			select {
 			case <-ctx.Done():
