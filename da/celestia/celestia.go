@@ -75,7 +75,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	txResponse, err := c.client.SubmitPFD(ctx, c.namespaceID, blob, c.config.Fee, c.config.GasLimit)
+	txResponse, err := c.client.SubmitPFB(ctx, c.namespaceID, blob, c.config.Fee, c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
