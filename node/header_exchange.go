@@ -69,7 +69,7 @@ func (hExService *HeaderExchangeService) initOrAppendHeaderStore(ctx context.Con
 	if header.Height() == hExService.genesis.InitialHeight {
 		err = hExService.headerStore.Init(ctx, header)
 	} else {
-		_, err = hExService.headerStore.Append(ctx, header)
+		err = hExService.headerStore.Append(ctx, header)
 	}
 	return err
 }
@@ -110,7 +110,7 @@ func (hExService *HeaderExchangeService) Start() error {
 	var err error
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := hExService.p2p.PubSub()
-	hExService.sub = goheaderp2p.NewSubscriber[*types.SignedHeader](ps, pubsub.DefaultMsgIdFn)
+	hExService.sub = goheaderp2p.NewSubscriber[*types.SignedHeader](ps, pubsub.DefaultMsgIdFn, hExService.genesis.ChainID)
 	if err = hExService.sub.Start(hExService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -203,7 +203,10 @@ func newP2PServer(
 	network string,
 	opts ...goheaderp2p.Option[goheaderp2p.ServerParameters],
 ) (*goheaderp2p.ExchangeServer[*types.SignedHeader], error) {
-	return goheaderp2p.NewExchangeServer[*types.SignedHeader](host, store, network, opts...)
+	opts = append(opts,
+		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
+	)
+	return goheaderp2p.NewExchangeServer[*types.SignedHeader](host, store, opts...)
 }
 
 func newP2PExchange(
@@ -213,7 +216,11 @@ func newP2PExchange(
 	conngater *conngater.BasicConnectionGater,
 	opts ...goheaderp2p.Option[goheaderp2p.ClientParameters],
 ) (*goheaderp2p.Exchange[*types.SignedHeader], error) {
-	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, network, conngater, opts...)
+	opts = append(opts,
+		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
+		goheaderp2p.WithChainID[goheaderp2p.ClientParameters](network),
+	)
+	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
 }
 
 // newSyncer constructs new Syncer for headers.
@@ -223,5 +230,5 @@ func newSyncer(
 	sub header.Subscriber[*types.SignedHeader],
 	opt goheadersync.Options,
 ) (*sync.Syncer[*types.SignedHeader], error) {
-	return sync.NewSyncer(ex, store, sub, opt)
+	return sync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
 }

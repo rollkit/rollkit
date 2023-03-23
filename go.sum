@@ -109,6 +109,8 @@ github.com/celestiaorg/go-cnc v0.3.0 h1:eAVPNHGpx+2sBO7NZyQ1+VW8rzf6W4FQDlSq6aqS
 github.com/celestiaorg/go-cnc v0.3.0/go.mod h1:zYzvHudSd1iNPuHBMyvZ1YvWou5aT9JXgtch9Tkaf70=
 github.com/celestiaorg/go-header v0.1.0 h1:K/atYWwZ/bjMLJ/Apy0dokbREa8BGgxUMiMjhRHlF4E=
 github.com/celestiaorg/go-header v0.1.0/go.mod h1:AR7GQ1519TDLEFxRC0rt9emq1IvhU+Nf+1Ufe3JI3nA=
+github.com/celestiaorg/go-header v0.2.0 h1:UnufpDXQGLpP40SyiwfZLRT7alKLmo3lraPaJtsV8qI=
+github.com/celestiaorg/go-header v0.2.0/go.mod h1:6XKf0yhoEQqfKQTZnyTZjTjF5jH5Wq9uO9AvDMkdYbs=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d h1:OH9dp6WWotp53aG58xSdLWd+F1Znf3DhA0BadyJO4Aw=
@@ -1055,6 +1057,8 @@ go.opencensus.io v0.24.0 h1:y73uSU6J157QMP2kn2r30vwW1A2W2WFwSCGnAVxeaD0=
 go.opencensus.io v0.24.0/go.mod h1:vNK8G9p7aAivkbmorf4v+7Hgx+Zs0yY+0fOtgBfjQKo=
 go.opentelemetry.io/otel v1.11.2 h1:YBZcQlsVekzFsFbjygXMOXSs6pialIZxcjfO/mBDmR0=
 go.opentelemetry.io/otel v1.11.2/go.mod h1:7p4EUV+AqgdlNV9gL97IgUZiVR3yrFXYo53f9BM3tRI=
+go.opentelemetry.io/otel/metric v0.34.0 h1:MCPoQxcg/26EuuJwpYN1mZTeCYAUGx8ABxfW07YkjP8=
+go.opentelemetry.io/otel/metric v0.34.0/go.mod h1:ZFuI4yQGNCupurTXCwkeD/zHBt+C2bR7bw5JqUm/AP8=
 go.opentelemetry.io/otel/trace v1.11.2 h1:Xf7hWSF2Glv0DE3MH7fBHvtpSBsjcBUe5MYAmZM/+y0=
 go.opentelemetry.io/otel/trace v1.11.2/go.mod h1:4N+yC7QEz7TTsG9BSRLNAa63eg5E06ObSbKPmxQ/pKA=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
