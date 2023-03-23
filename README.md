@@ -10,20 +10,6 @@ A modular framework for rollups, with an ABCI-compatible client interface.
 [![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
 
 ## Decentralized Sequencing Hackathon Branch
-How to query the staking module:
-Show all commands:
-```
-gmd query staking --help
-```
-Show all validators
-```
-gmd query staking validators
-```
-Show specific validator
-```
-gmd query staking validator [validator address]
-```
-
 ## Building From Source
 
 Requires Go version >= 1.19.
