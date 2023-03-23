@@ -176,7 +176,7 @@ require (
 )
 
 replace (
-	github.com/cometbft/cometbft => github.com/rollkit/tendermint v0.34.22-0.20230322165257-03a1a96ae101
+	github.com/cometbft/cometbft => github.com/rollkit/tendermint v0.34.22-0.20230323105358-3463bc889d51
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )

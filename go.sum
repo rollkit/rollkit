@@ -987,8 +987,8 @@ github.com/regen-network/protobuf v1.3.2-alpha.regen.4/go.mod h1:/J8/bR1T/NXyIdQ
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.1 h1:/FiVV8dS/e+YqF2JvO3yXRFbBLTIuSDkuC7aBOAvL+k=
-github.com/rollkit/tendermint v0.34.22-0.20230322165257-03a1a96ae101 h1:NYqtUaqtAI+BsAgo9lYAio0w4HbcqwFTnqqrWOtulbw=
-github.com/rollkit/tendermint v0.34.22-0.20230322165257-03a1a96ae101/go.mod h1:8+w8imVlfMAf+KN+6RBsHrgdQ4qSt8Qv5s2vsiohjKw=
+github.com/rollkit/tendermint v0.34.22-0.20230323105358-3463bc889d51 h1:Vn3iiEaS2kk/8wtf2nggfihirgAYcMU9gGueQ1xzucM=
+github.com/rollkit/tendermint v0.34.22-0.20230323105358-3463bc889d51/go.mod h1:8+w8imVlfMAf+KN+6RBsHrgdQ4qSt8Qv5s2vsiohjKw=
 github.com/rs/cors v1.8.3 h1:O+qNyWn7Z+F9M0ILBHgMVPuB1xTOucVd5gtaYyXBpRo=
 github.com/rs/cors v1.8.3/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
