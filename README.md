@@ -9,7 +9,6 @@ A modular framework for rollups, with an ABCI-compatible client interface.
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
 [![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
 
-## Decentralized Sequencing Hackathon Branch
 ## Building From Source
 
 Requires Go version >= 1.19.
