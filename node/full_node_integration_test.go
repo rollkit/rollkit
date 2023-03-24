@@ -213,7 +213,6 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 	node2 := nodes[1]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
 	require.NoError(node2.Start())
 
 	time.Sleep(3 * time.Second)
@@ -246,7 +245,6 @@ func testSingleAggreatorTwoFullNode(t *testing.T) {
 	node3 := nodes[2]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
 	require.NoError(node2.Start())
 	require.NoError(node3.Start())
 
@@ -283,7 +281,6 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	node2 := nodes[1]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
 	// Get the trusted hash from node1 and pass it to node2 config
 	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
 	require.NoError(err)
@@ -320,7 +317,6 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	node3 := nodes[2]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
 	require.NoError(node2.Start())
 
 	node3.conf.Light = true
