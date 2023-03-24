@@ -42,6 +42,16 @@ var expectedInfo = abci.ResponseInfo{
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
+func getRandomValidatorSet() *tmtypes.ValidatorSet {
+	pubKey := ed25519.GenPrivKey().PubKey()
+	return &tmtypes.ValidatorSet{
+		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*tmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address()},
+		},
+	}
+}
+
 func TestConnectionGetter(t *testing.T) {
 	assert := assert.New(t)
 
@@ -749,6 +759,8 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 	lastCommitHash := make(types.Hash, 32)
 	copy(lastCommitHash, tmprotoLC.Hash().Bytes())
 	block.SignedHeader.Header.LastCommitHash = lastCommitHash
+
+	block.SignedHeader.Validators = getRandomValidatorSet()
 
 	return block
 }
