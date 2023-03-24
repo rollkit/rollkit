@@ -123,7 +123,7 @@ func (hExService *HeaderExchangeService) Start() error {
 	}
 
 	_, _, network := hExService.p2p.Info()
-	if hExService.p2pServer, err = newP2PServer(hExService.p2p.Host(), hExService.headerStore, hExService.genesis.ChainID); err != nil {
+	if hExService.p2pServer, err = newP2PServer(hExService.p2p.Host(), hExService.headerStore, network); err != nil {
 		return err
 	}
 	if err = hExService.p2pServer.Start(hExService.ctx); err != nil {
