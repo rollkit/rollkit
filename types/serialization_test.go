@@ -51,6 +51,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		AggregatorsHash: h[6],
 	}
 
+	pubKey := ed25519.GenPrivKey().PubKey()
+
 	cases := []struct {
 		name  string
 		input *Block
@@ -64,8 +66,11 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				},
 				Validators: &tmtypes.ValidatorSet{
 					Validators: []*tmtypes.Validator{
-						{PubKey: ed25519.PubKey([]byte{3, 3, 3})},
-						{PubKey: ed25519.PubKey([]byte{4, 4, 4})},
+						{Address: pubKey.Address(), PubKey: pubKey},
+						{Address: pubKey.Address(), PubKey: pubKey},
+					},
+					Proposer: &tmtypes.Validator{
+						Address: pubKey.Address(), PubKey: pubKey,
 					},
 				},
 			},

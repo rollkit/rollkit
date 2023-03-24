@@ -84,12 +84,14 @@ func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		return err
 	}
 
-	validators, err := types.ValidatorSetFromProto(other.Validators)
-	if err != nil {
-		return err
-	}
+	if other.Validators != nil && other.Validators.GetProposer() != nil {
+		validators, err := types.ValidatorSetFromProto(other.Validators)
+		if err != nil {
+			return err
+		}
 
-	h.Validators = validators
+		h.Validators = validators
+	}
 	return nil
 }
 
