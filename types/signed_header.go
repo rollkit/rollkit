@@ -24,3 +24,5 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	}
 	return sH.Header.Verify(&untrstH.Header)
 }
+
+var _ header.Header = &SignedHeader{}
