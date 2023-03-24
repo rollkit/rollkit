@@ -177,17 +177,17 @@ func TestLazyAggregator(t *testing.T) {
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
 	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(1))
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(2))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
 	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(2))
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(3))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
 	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(3))
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(4))
 
 }
 
