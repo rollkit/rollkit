@@ -500,7 +500,15 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		block.SignedHeader.Validators = &tmtypes.ValidatorSet{Validators: []*tmtypes.Validator{{PubKey: ed25519.PubKey(pubKey)}}}
+		// TODO: read staking query to construct validators
+		block.SignedHeader.Validators = &tmtypes.ValidatorSet{
+			Validators: []*tmtypes.Validator{
+				{Address: ed25519.PubKey(pubKey).Address(), PubKey: ed25519.PubKey(pubKey)},
+			},
+			Proposer: &tmtypes.Validator{
+				Address: ed25519.PubKey(pubKey).Address(), PubKey: ed25519.PubKey(pubKey),
+			},
+		}
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)

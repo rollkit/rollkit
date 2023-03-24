@@ -410,6 +410,14 @@ func TestTx(t *testing.T) {
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+
+	vKeys := make([]tmcrypto.PrivKey, 4)
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+	}
+
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
@@ -417,7 +425,7 @@ func TestTx(t *testing.T) {
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
 		key, signingKey, abcicli.NewLocalClient(nil, mockApp),
-		&tmtypes.GenesisDoc{ChainID: "test"},
+		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 		log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
