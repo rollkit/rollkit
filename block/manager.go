@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -499,7 +500,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		block.SignedHeader.Validators = types.ValidatorSet{Validators: []types.Validator{{PublicKey: pubKey}}}
+		block.SignedHeader.Validators = &tmtypes.ValidatorSet{Validators: []*tmtypes.Validator{{PubKey: ed25519.PubKey(pubKey)}}}
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)

@@ -2,6 +2,8 @@ package types
 
 import (
 	"encoding"
+
+	"github.com/tendermint/tendermint/types"
 )
 
 type NamespaceID [8]byte
@@ -41,21 +43,13 @@ type Commit struct {
 	Signatures []Signature // most of the time this is a single signature
 }
 
-type Validator struct {
-	PublicKey []byte
-}
-
-type ValidatorSet struct {
-	Validators []Validator
-}
-
 // SignedHeader combines Header and its Commit.
 //
 // Used mostly for gossiping.
 type SignedHeader struct {
 	Header
 	Commit     Commit
-	Validators ValidatorSet
+	Validators *types.ValidatorSet
 }
 
 // Signature represents signature of block creator.

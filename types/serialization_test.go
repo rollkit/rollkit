@@ -62,10 +62,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				Commit: Commit{
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 				},
-				Validators: ValidatorSet{
-					Validators: []Validator{
-						{PublicKey: []byte{3, 3, 3}},
-						{PublicKey: []byte{4, 4, 4}},
+				Validators: &tmtypes.ValidatorSet{
+					Validators: []*tmtypes.Validator{
+						{PubKey: ed25519.PubKey([]byte{3, 3, 3})},
+						{PubKey: ed25519.PubKey([]byte{4, 4, 4})},
 					},
 				},
 			},

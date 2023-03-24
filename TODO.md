@@ -49,3 +49,7 @@ gmd query staking validator [validator address]
     gmd query staking
 
 * Create NewValidatorSet see: https://github.com/tendermint/tendermint/blob/64747b2b184184ecba4f4bffc54ffbcb47cfbcb0/types/validator_set_test.go#L188
+
+* Use tendermint types for ValidatorSet
+
+* Commit + test
