@@ -131,7 +131,7 @@ func (hExService *HeaderExchangeService) Start() error {
 	}
 
 	peerIDs := hExService.p2p.PeerIDs()
-	if hExService.ex, err = newP2PExchange(hExService.p2p.Host(), peerIDs, network, hExService.p2p.ConnectionGater()); err != nil {
+	if hExService.ex, err = newP2PExchange(hExService.p2p.Host(), peerIDs, network, hExService.genesis.ChainID, hExService.p2p.ConnectionGater()); err != nil {
 		return err
 	}
 	if err = hExService.ex.Start(hExService.ctx); err != nil {
@@ -212,13 +212,13 @@ func newP2PServer(
 func newP2PExchange(
 	host host.Host,
 	peers []peer.ID,
-	network string,
+	network, chainID string,
 	conngater *conngater.BasicConnectionGater,
 	opts ...goheaderp2p.Option[goheaderp2p.ClientParameters],
 ) (*goheaderp2p.Exchange[*types.SignedHeader], error) {
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
-		goheaderp2p.WithChainID[goheaderp2p.ClientParameters](network),
+		goheaderp2p.WithChainID[goheaderp2p.ClientParameters](chainID),
 	)
 	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
 }
