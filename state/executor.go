@@ -68,8 +68,8 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 	return e.proxyApp.InitChainSync(abci.RequestInitChain{
 		Time:    genesis.GenesisTime,
 		ChainId: genesis.ChainID,
-		ConsensusParams: &abci.ConsensusParams{
-			Block: &abci.BlockParams{
+		ConsensusParams: &tmproto.ConsensusParams{
+			Block: &tmproto.BlockParams{
 				MaxBytes: params.Block.MaxBytes,
 				MaxGas:   params.Block.MaxGas,
 			},
@@ -82,7 +82,7 @@ func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseIn
 				PubKeyTypes: params.Validator.PubKeyTypes,
 			},
 			Version: &tmproto.VersionParams{
-				AppVersion: params.Version.AppVersion,
+				App: params.Version.App,
 			},
 		},
 		Validators:    tmtypes.TM2PB.ValidatorUpdates(tmtypes.NewValidatorSet(validators)),
@@ -147,7 +147,12 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 	}
 
 	abciValUpdates := resp.EndBlock.ValidatorUpdates
-	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
+
+	protoState, err := state.ToProto()
+	if err != nil {
+		return types.State{}, nil, err
+	}
+	err = validateValidatorUpdates(abciValUpdates, protoState.ConsensusParams.Validator)
 	if err != nil {
 		return state, nil, fmt.Errorf("error in validator updates: %v", err)
 	}
@@ -362,7 +367,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	beginBlockRequest := abci.RequestBeginBlock{
 		Hash:   hash[:],
 		Header: abciHeader,
-		LastCommitInfo: abci.LastCommitInfo{
+		LastCommitInfo: abci.CommitInfo{
 			Round: 0,
 			Votes: nil,
 		},
@@ -520,7 +525,7 @@ func fromRollkitTxs(rollkitTxs types.Txs) tmtypes.Txs {
 }
 
 func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
-	params tmproto.ValidatorParams) error {
+	params *tmproto.ValidatorParams) error {
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.GetPower() < 0 {
 			return fmt.Errorf("voting power can't be negative %v", valUpdate)
@@ -536,7 +541,7 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 			return err
 		}
 
-		if !tmtypes.IsValidPubkeyType(params, pk.Type()) {
+		if !tmtypes.IsValidPubkeyType(tmtypes.ValidatorParams{PubKeyTypes: params.PubKeyTypes}, pk.Type()) {
 			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
 				valUpdate, pk.Type())
 		}

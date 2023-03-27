@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	tmtypes "github.com/cometbft/cometbft/types"
 
@@ -32,16 +34,22 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 
+	fmt.Println("App On CheckTx")
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
+	fmt.Println("Created New Local Client")
 	require.NoError(err)
 	require.NotNil(client)
 
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
-
-	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
+	fmt.Println("Made NID")
+	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	fmt.Println("Made a NewTxMempool")
+	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, nil, logger)
+	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
+
+	state.ConsensusParams.Block = &tmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 	state.Validators = tmtypes.NewValidatorSet(nil)
@@ -107,10 +115,10 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	chainID := "test"
 
-	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
+	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := tmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -131,6 +139,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
+	state.ConsensusParams.Block = &tmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 

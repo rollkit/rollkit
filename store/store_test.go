@@ -9,6 +9,7 @@ import (
 	abcitypes "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	tmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 
@@ -162,8 +163,8 @@ func TestBlockResponses(t *testing.T) {
 			Events: []abcitypes.Event{{
 				Type: "test",
 				Attributes: []abcitypes.EventAttribute{{
-					Key:   []byte("foo"),
-					Value: []byte("bar"),
+					Key:   string([]byte("foo")),
+					Value: string([]byte("bar")),
 					Index: false,
 				}},
 			}},
@@ -171,8 +172,8 @@ func TestBlockResponses(t *testing.T) {
 		DeliverTxs: nil,
 		EndBlock: &abcitypes.ResponseEndBlock{
 			ValidatorUpdates: nil,
-			ConsensusParamUpdates: &abcitypes.ConsensusParams{
-				Block: &abcitypes.BlockParams{
+			ConsensusParamUpdates: &tmproto.ConsensusParams{
+				Block: &tmproto.BlockParams{
 					MaxBytes: 12345,
 					MaxGas:   678909876,
 				},

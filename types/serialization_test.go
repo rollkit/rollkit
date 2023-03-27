@@ -105,10 +105,9 @@ func TestStateRoundTrip(t *testing.T) {
 				Validators:     valSet,
 				NextValidators: valSet,
 				ConsensusParams: tmproto.ConsensusParams{
-					Block: tmproto.BlockParams{
-						MaxBytes:   123,
-						MaxGas:     456,
-						TimeIotaMs: 789,
+					Block: &tmproto.BlockParams{
+						MaxBytes: 123,
+						MaxGas:   456,
 					},
 				},
 			},
@@ -140,21 +139,20 @@ func TestStateRoundTrip(t *testing.T) {
 				LastValidators:              valSet,
 				LastHeightValidatorsChanged: 8272,
 				ConsensusParams: tmproto.ConsensusParams{
-					Block: tmproto.BlockParams{
-						MaxBytes:   12345,
-						MaxGas:     6543234,
-						TimeIotaMs: 235,
+					Block: &tmproto.BlockParams{
+						MaxBytes: 12345,
+						MaxGas:   6543234,
 					},
-					Evidence: tmproto.EvidenceParams{
+					Evidence: &tmproto.EvidenceParams{
 						MaxAgeNumBlocks: 100,
 						MaxAgeDuration:  200,
 						MaxBytes:        300,
 					},
-					Validator: tmproto.ValidatorParams{
+					Validator: &tmproto.ValidatorParams{
 						PubKeyTypes: []string{"secure", "more secure"},
 					},
-					Version: tmproto.VersionParams{
-						AppVersion: 42,
+					Version: &tmproto.VersionParams{
+						App: 42,
 					},
 				},
 				LastHeightConsensusParamsChanged: 12345,

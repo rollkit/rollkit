@@ -813,8 +813,8 @@ func indexBlocks(t *testing.T, rpc *FullClient, heights []int64) {
 						Type: "begin_event",
 						Attributes: []abci.EventAttribute{
 							{
-								Key:   []byte("proposer"),
-								Value: []byte("FCAA001"),
+								Key:   string([]byte("proposer")),
+								Value: string([]byte("FCAA001")),
 								Index: true,
 							},
 						},
@@ -827,8 +827,8 @@ func indexBlocks(t *testing.T, rpc *FullClient, heights []int64) {
 						Type: "end_event",
 						Attributes: []abci.EventAttribute{
 							{
-								Key:   []byte("foo"),
-								Value: []byte(fmt.Sprintf("%d", h)),
+								Key:   string([]byte("foo")),
+								Value: string([]byte(fmt.Sprintf("%d", h))),
 								Index: true,
 							},
 						},

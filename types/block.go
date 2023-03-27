@@ -2,6 +2,8 @@ package types
 
 import (
 	"encoding"
+
+	cmtypes "github.com/cometbft/cometbft/types"
 )
 
 type NamespaceID [8]byte
@@ -33,7 +35,7 @@ type Data struct {
 
 // EvidenceData defines how evidence is stored in block.
 type EvidenceData struct {
-	Evidence []Evidence
+	Evidence []cmtypes.Evidence
 }
 
 // Commit contains evidence of block creation.

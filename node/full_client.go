@@ -10,12 +10,12 @@ import (
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
+	bytes "github.com/cometbft/cometbft/libs/bytes"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	tmmath "github.com/cometbft/cometbft/libs/math"
 	tmpubsub "github.com/cometbft/cometbft/libs/pubsub"
 	tmquery "github.com/cometbft/cometbft/libs/pubsub/query"
 	corep2p "github.com/cometbft/cometbft/p2p"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -25,6 +25,7 @@ import (
 	rconfig "github.com/rollkit/rollkit/config"
 	abciconv "github.com/rollkit/rollkit/conv/abci"
 	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/types"
 )
 
 const (
@@ -384,22 +385,21 @@ func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctype
 	params := c.node.GetGenesis().ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),
-		ConsensusParams: tmproto.ConsensusParams{
-			Block: tmproto.BlockParams{
-				MaxBytes:   params.Block.MaxBytes,
-				MaxGas:     params.Block.MaxGas,
-				TimeIotaMs: params.Block.TimeIotaMs,
+		ConsensusParams: tmtypes.ConsensusParams{
+			Block: tmtypes.BlockParams{
+				MaxBytes: params.Block.MaxBytes,
+				MaxGas:   params.Block.MaxGas,
 			},
-			Evidence: tmproto.EvidenceParams{
+			Evidence: tmtypes.EvidenceParams{
 				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
 				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
 				MaxBytes:        params.Evidence.MaxBytes,
 			},
-			Validator: tmproto.ValidatorParams{
+			Validator: tmtypes.ValidatorParams{
 				PubKeyTypes: params.Validator.PubKeyTypes,
 			},
-			Version: tmproto.VersionParams{
-				AppVersion: params.Version.AppVersion,
+			Version: tmtypes.VersionParams{
+				App: params.Version.App,
 			},
 		},
 	}, nil
@@ -795,6 +795,33 @@ func (c *FullClient) CheckTx(ctx context.Context, tx tmtypes.Tx) (*ctypes.Result
 	return &ctypes.ResultCheckTx{ResponseCheckTx: *res}, nil
 }
 
+func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
+	blockMeta := c.getBlockMeta(*height)
+	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
+}
+
+func (c *FullClient) HeaderByHash(ctx context.Context, hash bytes.HexBytes) (*ctypes.ResultHeader, error) {
+	// N.B. The hash parameter is HexBytes so that the reflective parameter
+	// decoding logic in the HTTP service will correctly translate from JSON.
+	// See https://github.com/tendermint/tendermint/issues/6802 for context.
+
+	block, err := c.node.Store.LoadBlockByHash(types.Hash(hash))
+	if err != nil {
+		return nil, err
+	}
+
+	blockMeta, err := abciconv.ToABCIBlockMeta(block)
+	if err != nil {
+		return nil, err
+	}
+
+	if blockMeta == nil {
+		return &ctypes.ResultHeader{}, nil
+	}
+
+	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
+}
+
 func (c *FullClient) eventsRoutine(sub tmtypes.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
 	defer close(outc)
 	for {
@@ -857,6 +884,19 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 	}
 
 	return heightValue
+}
+
+func (rpc *FullClient) getBlockMeta(n int64) *tmtypes.BlockMeta {
+	b, err := rpc.node.Store.LoadBlock(uint64(n))
+	if err != nil {
+		return nil
+	}
+	bmeta, err := abciconv.ToABCIBlockMeta(b)
+	if err != nil {
+		return nil
+	}
+
+	return bmeta
 }
 
 func validatePerPage(perPagePtr *int) int {

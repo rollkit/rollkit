@@ -94,7 +94,23 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		LastValidators:              types.NewValidatorSet(nil),
 		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
-		ConsensusParams:                  *genDoc.ConsensusParams,
+		ConsensusParams: tmproto.ConsensusParams{
+			Block: &tmproto.BlockParams{
+				MaxBytes: genDoc.ConsensusParams.Block.MaxBytes,
+				MaxGas:   genDoc.ConsensusParams.Block.MaxGas,
+			},
+			Evidence: &tmproto.EvidenceParams{
+				MaxAgeNumBlocks: genDoc.ConsensusParams.Evidence.MaxAgeNumBlocks,
+				MaxAgeDuration:  genDoc.ConsensusParams.Evidence.MaxAgeDuration,
+				MaxBytes:        genDoc.ConsensusParams.Evidence.MaxBytes,
+			},
+			Validator: &tmproto.ValidatorParams{
+				PubKeyTypes: genDoc.ConsensusParams.Validator.PubKeyTypes,
+			},
+			Version: &tmproto.VersionParams{
+				App: genDoc.ConsensusParams.Version.App,
+			},
+		},
 		LastHeightConsensusParamsChanged: genDoc.InitialHeight,
 	}
 	s.AppHash = genDoc.AppHash.Bytes()

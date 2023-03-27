@@ -281,8 +281,8 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 	return txs
 }
 
-func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
-	var ret []*abci.Evidence
+func evidenceToProto(evidence EvidenceData) []*abci.Misbehavior {
+	var ret []*abci.Misbehavior
 	for _, e := range evidence.Evidence {
 		for i := range e.ABCI() {
 			ae := e.ABCI()[i]
@@ -292,7 +292,7 @@ func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
 	return ret
 }
 
-func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
+func evidenceFromProto(evidence []*abci.Misbehavior) EvidenceData {
 	var ret EvidenceData
 	// TODO(tzdybal): right now Evidence is just an interface without implementations
 	return ret

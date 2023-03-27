@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 
+	bytes "github.com/cometbft/cometbft/libs/bytes"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -176,5 +177,13 @@ func (c *LightClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctype
 //
 // If valid, the tx is automatically added to the mempool.
 func (c *LightClient) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
+	panic("Not implemented")
+}
+
+func (c *LightClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
+	panic("Not implemented")
+}
+
+func (c *LightClient) HeaderByHash(ctx context.Context, hash bytes.HexBytes) (*ctypes.ResultHeader, error) {
 	panic("Not implemented")
 }

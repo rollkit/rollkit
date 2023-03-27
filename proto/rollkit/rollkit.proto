@@ -72,7 +72,7 @@ message SignedHeader {
 message Data {
 	repeated bytes txs = 1;
 	repeated bytes intermediate_state_roots = 2;
-	repeated tendermint.abci.Evidence evidence = 3;
+	repeated tendermint.abci.Misbehavior evidence = 3;
 }
 
 message Block {	

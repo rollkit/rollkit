@@ -622,9 +622,9 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 			s.ConsensusParams.Validator.PubKeyTypes = append([]string{}, params.Validator.PubKeyTypes...)
 		}
 		if params.Version != nil {
-			s.ConsensusParams.Version.AppVersion = params.Version.AppVersion
+			s.ConsensusParams.Version.App = params.Version.App
 		}
-		s.Version.Consensus.App = s.ConsensusParams.Version.AppVersion
+		s.Version.Consensus.App = s.ConsensusParams.Version.App
 	}
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
 	s.LastResultsHash = merkle.HashFromByteSlices(nil)
