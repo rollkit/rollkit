@@ -3,8 +3,9 @@ package types
 import (
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 	"github.com/tendermint/tendermint/types"
+
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // MarshalBinary encodes Block into binary form and returns it.
