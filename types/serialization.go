@@ -169,7 +169,9 @@ func (h *Header) FromProto(other *pb.Header) error {
 // ToProto converts Block into protobuf representation and returns it.
 func (b *Block) ToProto() (*pb.Block, error) {
 	sp, err := b.SignedHeader.ToProto()
-	println(err)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.Block{
 		SignedHeader: sp,
 		Data:         b.Data.ToProto(),
