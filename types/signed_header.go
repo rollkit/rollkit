@@ -14,23 +14,15 @@ func (sH *SignedHeader) IsZero() bool {
 	return sH == nil
 }
 
-func (sH *SignedHeader) VerifyAdjacent(untrst header.Header) error {
+func (sH *SignedHeader) Verify(untrst header.Header) error {
 	// Explicit type checks are required due to embedded Header which also does the explicit type check
 	untrstH, ok := untrst.(*SignedHeader)
 	if !ok {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%T is not of type %T", untrst, sH),
-		}
+		// if the header type is wrong, something very bad is going on
+		// and is a programmer bug
+		panic(fmt.Errorf("%T is not of type %T", untrst, untrstH))
 	}
-	return sH.Header.VerifyAdjacent(&untrstH.Header)
+	return sH.Header.Verify(&untrstH.Header)
 }
 
-func (sH *SignedHeader) VerifyNonAdjacent(untrst header.Header) error {
-	untrstH, ok := untrst.(*SignedHeader)
-	if !ok {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%T is not of type %T", untrst, sH),
-		}
-	}
-	return sH.Header.VerifyNonAdjacent(&untrstH.Header)
-}
+var _ header.Header = &SignedHeader{}
