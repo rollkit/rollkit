@@ -3,7 +3,7 @@ package types
 import (
 	"encoding"
 
-	"github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 type NamespaceID [8]byte
@@ -49,7 +49,7 @@ type Commit struct {
 type SignedHeader struct {
 	Header
 	Commit     Commit
-	Validators *types.ValidatorSet
+	Validators *tmtypes.ValidatorSet
 }
 
 // Signature represents signature of block creator.

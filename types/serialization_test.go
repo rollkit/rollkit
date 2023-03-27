@@ -51,7 +51,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		AggregatorsHash: h[6],
 	}
 
-	pubKey := ed25519.GenPrivKey().PubKey()
+	pubKey1 := ed25519.GenPrivKey().PubKey()
+	pubKey2 := ed25519.GenPrivKey().PubKey()
+	validator1 := &tmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
+	validator2 := &tmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
 
 	cases := []struct {
 		name  string
@@ -66,12 +69,10 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				},
 				Validators: &tmtypes.ValidatorSet{
 					Validators: []*tmtypes.Validator{
-						{Address: pubKey.Address(), PubKey: pubKey},
-						{Address: pubKey.Address(), PubKey: pubKey},
+						validator1,
+						validator2,
 					},
-					Proposer: &tmtypes.Validator{
-						Address: pubKey.Address(), PubKey: pubKey,
-					},
+					Proposer: validator1,
 				},
 			},
 			Data: Data{
