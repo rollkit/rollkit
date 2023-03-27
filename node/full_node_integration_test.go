@@ -172,6 +172,9 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(err)
 
+	// delay to ensure it waits for block 1 to be built
+	time.Sleep(1 * time.Second)
+
 	client := node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
