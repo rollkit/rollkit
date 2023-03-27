@@ -9,7 +9,11 @@ import (
 
 // MarshalBinary encodes Block into binary form and returns it.
 func (b *Block) MarshalBinary() ([]byte, error) {
-	return b.ToProto().Marshal()
+	bp, err := b.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	return bp.Marshal()
 }
 
 // UnmarshalBinary decodes binary form of Block into object.
@@ -162,13 +166,13 @@ func (h *Header) FromProto(other *pb.Header) error {
 }
 
 // ToProto converts Block into protobuf representation and returns it.
-func (b *Block) ToProto() *pb.Block {
+func (b *Block) ToProto() (*pb.Block, error) {
 	sp, err := b.SignedHeader.ToProto()
 	println(err)
 	return &pb.Block{
 		SignedHeader: sp,
 		Data:         b.Data.ToProto(),
-	}
+	}, nil
 }
 
 // ToProto converts Data into protobuf representation and returns it.
