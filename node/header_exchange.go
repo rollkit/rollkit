@@ -104,7 +104,6 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
 			hExService.logger.Error("failed to start syncer after initializing header store", "error", err)
 		}
-
 	}
 
 	// Broadcast for subscribers
