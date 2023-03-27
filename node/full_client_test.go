@@ -42,6 +42,7 @@ var expectedInfo = abci.ResponseInfo{
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
+// TODO: accept argument for number of validators / proposer index
 func getRandomValidatorSet() *tmtypes.ValidatorSet {
 	pubKey := ed25519.GenPrivKey().PubKey()
 	return &tmtypes.ValidatorSet{
@@ -415,7 +416,7 @@ func TestTx(t *testing.T) {
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("genesis validator #%d", i)}
 	}
 
 	node, err := newFullNode(context.Background(), config.NodeConfig{
