@@ -496,18 +496,16 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the validator set using the signer's public key
 		// TODO(ganesh): need to hook into a module that selects signers
-		pubKey, err := m.proposerKey.GetPublic().Raw()
+		pubKeyRaw, err := m.proposerKey.GetPublic().Raw()
 		if err != nil {
 			return err
 		}
+		pubKey := ed25519.PubKey(pubKeyRaw)
+		proposer := &tmtypes.Validator{Address: pubKey.Address(), PubKey: pubKey}
 		// TODO: read staking query to construct validators
 		block.SignedHeader.Validators = &tmtypes.ValidatorSet{
-			Validators: []*tmtypes.Validator{
-				{Address: ed25519.PubKey(pubKey).Address(), PubKey: ed25519.PubKey(pubKey)},
-			},
-			Proposer: &tmtypes.Validator{
-				Address: ed25519.PubKey(pubKey).Address(), PubKey: ed25519.PubKey(pubKey),
-			},
+			Validators: []*tmtypes.Validator{proposer},
+			Proposer: proposer,
 		}
 
 		// SaveBlock commits the DB tx
