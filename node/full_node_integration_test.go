@@ -45,14 +45,13 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -147,8 +146,7 @@ func TestLazyAggregator(t *testing.T) {
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
@@ -159,7 +157,7 @@ func TestLazyAggregator(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 	err = node.Start()
@@ -536,7 +534,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		ctx = context.Background()
 	}
 
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
@@ -548,7 +546,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		keys[n],
 		signingKey,
 		abcicli.NewLocalClient(nil, app),
-		&tmtypes.GenesisDoc{ChainID: "test"},
+		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)

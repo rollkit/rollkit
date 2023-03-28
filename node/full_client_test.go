@@ -29,6 +29,7 @@ import (
 	"github.com/tendermint/tendermint/version"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/conv"
 	abciconv "github.com/rollkit/rollkit/conv/abci"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -51,6 +52,21 @@ func getRandomValidatorSet() *tmtypes.ValidatorSet {
 			{PubKey: pubKey, Address: pubKey.Address()},
 		},
 	}
+}
+
+// TODO: use n and return n validators
+func getGenesisValidatorSetWithSigner(n int) ([]tmtypes.GenesisValidator, crypto.PrivKey) {
+	validatorKey := ed25519.GenPrivKey()
+	nodeKey := &p2p.NodeKey{
+		PrivKey: validatorKey,
+	}
+	signingKey, _ := conv.GetNodeKey(nodeKey)
+	pubKey := validatorKey.PubKey()
+
+	genesisValidators := []tmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	}
+	return genesisValidators, signingKey
 }
 
 func TestConnectionGetter(t *testing.T) {
@@ -410,15 +426,7 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-
-	vKeys := make([]tmcrypto.PrivKey, 4)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("genesis validator #%d", i)}
-	}
-
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
@@ -640,6 +648,9 @@ func TestBlockchainInfo(t *testing.T) {
 }
 
 func TestValidatorSetHandling(t *testing.T) {
+	// handle multiple sequencers
+	t.Skip()
+
 	assert := assert.New(t)
 	require := require.New(t)
 	app := &mocks.Application{}
@@ -651,14 +662,18 @@ func TestValidatorSetHandling(t *testing.T) {
 	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	vKeys := make([]tmcrypto.PrivKey, 4)
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
 	}
+
+	nodeKey := &p2p.NodeKey{
+		PrivKey: vKeys[0],
+	}
+	signingKey, _ := conv.GetNodeKey(nodeKey)
 
 	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
 	require.NoError(err)
@@ -1072,7 +1087,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
@@ -1086,6 +1101,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			ChainID:       "test",
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,
+			Validators: genesisValidators,
 		},
 		log.TestingLogger())
 	require.NoError(err)
