@@ -166,11 +166,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = types.ValidatorSet{
-		Validators: []types.Validator{{
-			PublicKey: vKey.PubKey().Bytes(),
-		}},
-	}
+	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
@@ -195,11 +191,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = types.ValidatorSet{
-		Validators: []types.Validator{{
-			PublicKey: vKey.PubKey().Bytes(),
-		}},
-	}
+	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)
