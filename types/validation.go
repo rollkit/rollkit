@@ -44,14 +44,6 @@ func (c *Commit) ValidateBasic() error {
 	return nil
 }
 
-// ValidateBasic performs basic validation of a validator set
-func (vSet *ValidatorSet) ValidateBasic() error {
-	if len(vSet.Validators) == 0 {
-		return errors.New("no validators")
-	}
-	return nil
-}
-
 // ValidateBasic performs basic validation of a signed header.
 func (h *SignedHeader) ValidateBasic() error {
 	err := h.Header.ValidateBasic()
@@ -76,7 +68,7 @@ func (h *SignedHeader) ValidateBasic() error {
 
 	for i, val := range h.Validators.Validators {
 		sig := h.Commit.Signatures[i]
-		var pubKey ed25519.PubKey = val.PublicKey
+		var pubKey ed25519.PubKey = val.PubKey.Bytes()
 		msg, err := h.Header.MarshalBinary()
 		if err != nil {
 			return errors.New("signature verification failed, unable to marshal header")
