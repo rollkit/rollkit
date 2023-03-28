@@ -866,16 +866,9 @@ func TestMempool2Nodes(t *testing.T) {
 	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	vKeys := make([]tmcrypto.PrivKey, 2)
-	validators := make([]*tmtypes.Validator, len(vKeys))
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &tmtypes.Validator{
-			Address:          vKeys[i].PubKey().Address(),
-			PubKey:           vKeys[i].PubKey(),
-			VotingPower:      int64(i + 100),
-			ProposerPriority: int64(i),
-		}
 		genesisValidators[i] = tmtypes.GenesisValidator{
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
@@ -1091,16 +1084,9 @@ func TestFutureGenesisTime(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	vKeys := make([]tmcrypto.PrivKey, 2)
-	validators := make([]*tmtypes.Validator, len(vKeys))
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &tmtypes.Validator{
-			Address:          vKeys[i].PubKey().Address(),
-			PubKey:           vKeys[i].PubKey(),
-			VotingPower:      int64(i + 100),
-			ProposerPriority: int64(i),
-		}
 		genesisValidators[i] = tmtypes.GenesisValidator{
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
