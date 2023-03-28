@@ -50,21 +50,14 @@ func TestAggregatorMode(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	vKeys := make([]tmcrypto.PrivKey, 2)
-	validators := make([]*tmtypes.Validator, len(vKeys))
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &tmtypes.Validator{
-			Address:          vKeys[i].PubKey().Address(),
-			PubKey:           vKeys[i].PubKey(),
-			VotingPower:      int64(i + 100),
-			ProposerPriority: int64(i),
-		}
 		genesisValidators[i] = tmtypes.GenesisValidator{
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    "one",
+			Name:    fmt.Sprintf("genesis validator #%d", i),
 		}
 	}
 
@@ -183,7 +176,7 @@ func TestLazyAggregator(t *testing.T) {
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    "one",
+			Name:    fmt.Sprintf("genesis validator #%d", i),
 		}
 	}
 
@@ -576,21 +569,14 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	vKeys := make([]tmcrypto.PrivKey, 2)
-	validators := make([]*tmtypes.Validator, len(vKeys))
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &tmtypes.Validator{
-			Address:          vKeys[i].PubKey().Address(),
-			PubKey:           vKeys[i].PubKey(),
-			VotingPower:      int64(i + 100),
-			ProposerPriority: int64(i),
-		}
 		genesisValidators[i] = tmtypes.GenesisValidator{
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    "one",
+			Name:    fmt.Sprintf("genesis validator #%d", i),
 		}
 	}
 

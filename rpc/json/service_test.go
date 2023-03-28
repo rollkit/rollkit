@@ -295,21 +295,14 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	vKeys := make([]tmcrypto.PrivKey, 2)
-	validators := make([]*tmtypes.Validator, len(vKeys))
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &tmtypes.Validator{
-			Address:          vKeys[i].PubKey().Address(),
-			PubKey:           vKeys[i].PubKey(),
-			VotingPower:      int64(i + 100),
-			ProposerPriority: int64(i),
-		}
 		genesisValidators[i] = tmtypes.GenesisValidator{
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    "one",
+			Name:    fmt.Sprintf("genesis validator #%d", i),
 		}
 	}
 

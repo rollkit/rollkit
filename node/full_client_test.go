@@ -656,7 +656,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("genesis validator #%d", i)}
 	}
 
 	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
@@ -880,7 +880,7 @@ func TestMempool2Nodes(t *testing.T) {
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    "one",
+			Name:    fmt.Sprintf("genesis validator #%d", i),
 		}
 	}
 
@@ -980,7 +980,7 @@ func TestStatus(t *testing.T) {
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    "one",
+			Name:    fmt.Sprintf("genesis validator #%d", i),
 		}
 	}
 
@@ -1105,7 +1105,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    "one",
+			Name:    fmt.Sprintf("genesis validator #%d", i),
 		}
 	}
 
