@@ -426,7 +426,8 @@ func TestTx(t *testing.T) {
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
 		key, signingKey, abcicli.NewLocalClient(nil, mockApp),
-		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+		log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -656,7 +657,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("genesis validator #%d", i)}
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
 	}
 
 	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
@@ -865,17 +866,6 @@ func TestMempool2Nodes(t *testing.T) {
 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	vKeys := make([]tmcrypto.PrivKey, 2)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{
-			Address: vKeys[i].PubKey().Address(),
-			PubKey:  vKeys[i].PubKey(),
-			Power:   int64(i + 100),
-			Name:    fmt.Sprintf("genesis validator #%d", i),
-		}
-	}
 
 	id1, err := peer.IDFromPrivateKey(key1)
 	require.NoError(err)
@@ -896,7 +886,7 @@ func TestMempool2Nodes(t *testing.T) {
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second,
 		},
-	}, key1, signingKey1, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key1, signingKey1, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -906,7 +896,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key2, signingKey2, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -973,7 +963,7 @@ func TestStatus(t *testing.T) {
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
-			Name:    fmt.Sprintf("genesis validator #%d", i),
+			Name:    "one",
 		}
 	}
 
@@ -1083,18 +1073,6 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	vKeys := make([]tmcrypto.PrivKey, 2)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{
-			Address: vKeys[i].PubKey().Address(),
-			PubKey:  vKeys[i].PubKey(),
-			Power:   int64(i + 100),
-			Name:    fmt.Sprintf("genesis validator #%d", i),
-		}
-	}
-
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
@@ -1108,7 +1086,6 @@ func TestFutureGenesisTime(t *testing.T) {
 			ChainID:       "test",
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,
-			Validators:    genesisValidators,
 		},
 		log.TestingLogger())
 	require.NoError(err)

@@ -21,11 +21,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmcrypto "github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mocks"
@@ -294,19 +292,7 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	vKeys := make([]tmcrypto.PrivKey, 2)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{
-			Address: vKeys[i].PubKey().Address(),
-			PubKey:  vKeys[i].PubKey(),
-			Power:   int64(i + 100),
-			Name:    fmt.Sprintf("genesis validator #%d", i),
-		}
-	}
-
-	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, abciclient.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 

@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"testing"
 	"time"
 
@@ -15,11 +14,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmcrypto "github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mempool"
@@ -60,19 +56,8 @@ func TestMempoolDirectly(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	vKeys := make([]tmcrypto.PrivKey, 2)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{
-			Address: vKeys[i].PubKey().Address(),
-			PubKey:  vKeys[i].PubKey(),
-			Power:   int64(i + 100),
-			Name:    fmt.Sprintf("genesis validator #%d", i),
-		}
-	}
 
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
