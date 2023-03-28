@@ -21,11 +21,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
-	tmcrypto "github.com/tendermint/tendermint/crypto"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mocks"
