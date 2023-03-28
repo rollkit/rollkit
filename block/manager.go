@@ -1,6 +1,7 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -449,12 +450,37 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	}, nil
 }
 
+func (m *Manager) IsProposer() (bool, error) {
+	// if proposer is not set, assume self proposer
+	if m.lastState.Validators.Proposer == nil {
+		return true, nil
+	}
+
+	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Println("Proposer", tmcrypto.AddressHash(m.lastState.Validators.Proposer.PubKey.Bytes()).String())
+
+	return bytes.Equal(m.lastState.Validators.Proposer.PubKey.Bytes(), signerPubBytes), nil
+}
+
 func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
 	var err error
 	height := m.store.Height()
 	newHeight := height + 1
+
+	isProposer, err := m.IsProposer()
+	if err != nil {
+		return fmt.Errorf("error while checking for proposer: %w", err)
+	}
+	// if !isProposer {
+	// 	return nil
+	// }
+	fmt.Println(isProposer)
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {

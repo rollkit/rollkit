@@ -647,12 +647,7 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func TestValidatorSetHandling(t *testing.T) {
-	// handle multiple sequencers
-	t.Skip()
-
-	assert := assert.New(t)
-	require := require.New(t)
+func createApp(keyToRemove tmcrypto.PrivKey, waitCh chan interface{}, require *require.Assertions) *mocks.Application {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
@@ -661,24 +656,8 @@ func TestValidatorSetHandling(t *testing.T) {
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 
-	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-
-	vKeys := make([]tmcrypto.PrivKey, 4)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
-	}
-
-	nodeKey := &p2p.NodeKey{
-		PrivKey: vKeys[0],
-	}
-	signingKey, _ := conv.GetNodeKey(nodeKey)
-
-	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
+	pbValKey, err := encoding.PubKeyToProto(keyToRemove.PubKey())
 	require.NoError(err)
-
-	waitCh := make(chan interface{})
 
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
@@ -688,21 +667,55 @@ func TestValidatorSetHandling(t *testing.T) {
 		waitCh <- nil
 	})
 
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
+	return app
+}
 
-	rpc := NewFullClient(node)
+func TestValidatorSetHandling(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	waitCh := make(chan interface{})
+
+	vKeys := make([]tmcrypto.PrivKey, 2)
+	apps := make([]*mocks.Application, 2)
+	nodes := make([]*FullNode, 2)
+
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		fmt.Println("Proposer", i, tmcrypto.AddressHash(vKeys[i].PubKey().Bytes()).String())
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+		apps[i] = createApp(vKeys[0], waitCh, require)
+	}
+
+	for i := 0; i < len(nodes); i++ {
+		nodeKey := &p2p.NodeKey{
+			PrivKey: vKeys[i],
+		}
+		signingKey, err := conv.GetNodeKey(nodeKey)
+		require.NoError(err)
+		nodes[i], err = newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}}, signingKey, signingKey, abcicli.NewLocalClient(nil, apps[i]), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+		require.NoError(err)
+		require.NotNil(nodes[i])
+	}
+
+	rpc := NewFullClient(nodes[0])
 	require.NotNil(rpc)
 
-	err = node.Start()
-	require.NoError(err)
+	for i := 0; i < len(nodes); i++ {
+		err := nodes[i].Start()
+		require.NoError(err)
+	}
 
+	<-waitCh
 	<-waitCh
 
 	// test first blocks
 	for h := int64(1); h <= 6; h++ {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
+		// resBlock, err := rpc.Block(context.Background(), &h)
+		// assert.NoError(err)
+		// fmt.Println("block height", h, resBlock.Block.ProposerAddress)
 		assert.NoError(err)
 		assert.NotNil(vals)
 		assert.EqualValues(len(genesisValidators), vals.Total)
@@ -723,6 +736,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	// 8th EndBlock adds validator back
 	for h := int64(9); h <= 12; h++ {
 		<-waitCh
+		<-waitCh
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
@@ -738,6 +752,8 @@ func TestValidatorSetHandling(t *testing.T) {
 	assert.EqualValues(len(genesisValidators), vals.Total)
 	assert.Len(vals.Validators, len(genesisValidators))
 	assert.GreaterOrEqual(vals.BlockHeight, int64(12))
+
+	assert.Error(err)
 }
 
 // copy-pasted from store/store_test.go
