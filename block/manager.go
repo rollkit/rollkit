@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -494,19 +493,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
-		// set the validator set using the signer's public key
-		// TODO(ganesh): need to hook into a module that selects signers
-		pubKeyRaw, err := m.proposerKey.GetPublic().Raw()
-		if err != nil {
-			return err
-		}
-		pubKey := ed25519.PubKey(pubKeyRaw)
-		proposer := &tmtypes.Validator{Address: pubKey.Address(), PubKey: pubKey}
-		// TODO: read staking query to construct validators
-		block.SignedHeader.Validators = &tmtypes.ValidatorSet{
-			Validators: []*tmtypes.Validator{proposer},
-			Proposer:   proposer,
-		}
+		block.SignedHeader.Validators = m.lastState.Validators
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
