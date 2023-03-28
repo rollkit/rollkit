@@ -21,9 +21,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	"github.com/tendermint/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mocks"
@@ -292,7 +294,26 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	vKeys := make([]tmcrypto.PrivKey, 2)
+	validators := make([]*tmtypes.Validator, len(vKeys))
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		validators[i] = &tmtypes.Validator{
+			Address:          vKeys[i].PubKey().Address(),
+			PubKey:           vKeys[i].PubKey(),
+			VotingPower:      int64(i + 100),
+			ProposerPriority: int64(i),
+		}
+		genesisValidators[i] = tmtypes.GenesisValidator{
+			Address: vKeys[i].PubKey().Address(),
+			PubKey:  vKeys[i].PubKey(),
+			Power:   int64(i + 100),
+			Name:    "one",
+		}
+	}
+
+	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, abciclient.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 

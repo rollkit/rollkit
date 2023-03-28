@@ -504,7 +504,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		proposer := &tmtypes.Validator{Address: pubKey.Address(), PubKey: pubKey}
 		// TODO: read staking query to construct validators
 		block.SignedHeader.Validators = &tmtypes.ValidatorSet{
-			Validators: []*tmtypes.Validator{proposer},
+			Validators: m.lastState.Validators.Validators,
 			Proposer:   proposer,
 		}
 

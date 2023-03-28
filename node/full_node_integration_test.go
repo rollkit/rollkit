@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 	abcicli "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -47,12 +49,30 @@ func TestAggregatorMode(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	vKeys := make([]tmcrypto.PrivKey, 2)
+	validators := make([]*tmtypes.Validator, len(vKeys))
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		validators[i] = &tmtypes.Validator{
+			Address:          vKeys[i].PubKey().Address(),
+			PubKey:           vKeys[i].PubKey(),
+			VotingPower:      int64(i + 100),
+			ProposerPriority: int64(i),
+		}
+		genesisValidators[i] = tmtypes.GenesisValidator{
+			Address: vKeys[i].PubKey().Address(),
+			PubKey:  vKeys[i].PubKey(),
+			Power:   int64(i + 100),
+			Name:    "one",
+		}
+	}
 
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -148,6 +168,24 @@ func TestLazyAggregator(t *testing.T) {
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	vKeys := make([]tmcrypto.PrivKey, 2)
+	validators := make([]*tmtypes.Validator, len(vKeys))
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		validators[i] = &tmtypes.Validator{
+			Address:          vKeys[i].PubKey().Address(),
+			PubKey:           vKeys[i].PubKey(),
+			VotingPower:      int64(i + 100),
+			ProposerPriority: int64(i),
+		}
+		genesisValidators[i] = tmtypes.GenesisValidator{
+			Address: vKeys[i].PubKey().Address(),
+			PubKey:  vKeys[i].PubKey(),
+			Power:   int64(i + 100),
+			Name:    "one",
+		}
+	}
 
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
@@ -159,7 +197,7 @@ func TestLazyAggregator(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 	err = node.Start()
@@ -537,6 +575,25 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	vKeys := make([]tmcrypto.PrivKey, 2)
+	validators := make([]*tmtypes.Validator, len(vKeys))
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		validators[i] = &tmtypes.Validator{
+			Address:          vKeys[i].PubKey().Address(),
+			PubKey:           vKeys[i].PubKey(),
+			VotingPower:      int64(i + 100),
+			ProposerPriority: int64(i),
+		}
+		genesisValidators[i] = tmtypes.GenesisValidator{
+			Address: vKeys[i].PubKey().Address(),
+			PubKey:  vKeys[i].PubKey(),
+			Power:   int64(i + 100),
+			Name:    "one",
+		}
+	}
+
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
@@ -548,7 +605,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		keys[n],
 		signingKey,
 		abcicli.NewLocalClient(nil, app),
-		&tmtypes.GenesisDoc{ChainID: "test"},
+		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
