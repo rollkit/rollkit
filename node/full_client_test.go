@@ -1101,7 +1101,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			ChainID:       "test",
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,
-			Validators: genesisValidators,
+			Validators:    genesisValidators,
 		},
 		log.TestingLogger())
 	require.NoError(err)
