@@ -61,9 +61,9 @@ func (h *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	// Make sure there are as many signatures as validators
+	// Make sure there is exactly one signature
 	if len(h.Commit.Signatures) != 1 {
-		return errors.New("expected one signature")
+		return errors.New("expected exactly one signature")
 	}
 
 	signature := h.Commit.Signatures[0]
