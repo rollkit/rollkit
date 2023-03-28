@@ -5,13 +5,12 @@ package rollkit
 
 import (
 	fmt "fmt"
-	io "io"
-	math "math"
-	math_bits "math/bits"
-
 	proto "github.com/gogo/protobuf/proto"
 	types1 "github.com/tendermint/tendermint/abci/types"
 	types "github.com/tendermint/tendermint/proto/tendermint/types"
+	io "io"
+	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
