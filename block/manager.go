@@ -69,6 +69,8 @@ type Manager struct {
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
 	retrieveCond *sync.Cond
 
+	lastStateMtx *sync.Mutex
+
 	logger log.Logger
 
 	// For usage by Lazy Aggregator mode
@@ -152,6 +154,7 @@ func NewManager(
 		blockInCh:         make(chan newBlockEvent, 100),
 		FraudProofInCh:    make(chan *abci.FraudProof, 100),
 		retrieveMtx:       new(sync.Mutex),
+		lastStateMtx:      new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
@@ -344,7 +347,9 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
+		m.lastStateMtx.Lock()
 		m.lastState = newState
+		m.lastStateMtx.Unlock()
 		err = m.store.UpdateState(m.lastState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
@@ -458,7 +463,7 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 
 func (m *Manager) IsProposer() (bool, error) {
 	// if proposer is not set, assume self proposer
-	if m.lastState.Validators.Proposer == nil {
+	if m.lastState.NextValidators.Proposer == nil {
 		return true, nil
 	}
 
@@ -477,7 +482,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 
+	m.lastStateMtx.Lock()
 	isProposer, err := m.IsProposer()
+	m.lastStateMtx.Unlock()
 	if err != nil {
 		return fmt.Errorf("error while checking for proposer: %w", err)
 	}
