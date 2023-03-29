@@ -64,7 +64,7 @@ func (h *SignedHeader) ValidateBasic() error {
 
 	validatorSetHash := h.Validators.Hash()
 	if !bytes.Equal(validatorSetHash, h.AggregatorsHash[:]) {
-		return errors.New("AggregatorHash and validator set hash mismatch")
+		return errors.New("aggregator set hash in signed header and hash of validator set do not match")
 	}
 
 	// Make sure there is exactly one signature
