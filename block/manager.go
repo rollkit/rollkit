@@ -350,6 +350,12 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
 		delete(m.syncCache, currentHeight+1)
+
+		// SaveValidators commits the DB tx
+		err = m.store.SaveValidators(uint64(b.SignedHeader.Header.Height()), m.lastState.Validators)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -461,9 +467,7 @@ func (m *Manager) IsProposer() (bool, error) {
 		return false, err
 	}
 
-	fmt.Println("Proposer", tmcrypto.AddressHash(m.lastState.Validators.Proposer.PubKey.Bytes()).String())
-
-	return bytes.Equal(m.lastState.Validators.Proposer.PubKey.Bytes(), signerPubBytes), nil
+	return bytes.Equal(m.lastState.NextValidators.Proposer.PubKey.Bytes(), signerPubBytes), nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -477,10 +481,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error while checking for proposer: %w", err)
 	}
-	// if !isProposer {
-	// 	return nil
-	// }
-	fmt.Println(isProposer)
+	if !isProposer {
+		return nil
+	}
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
@@ -519,7 +522,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
-		block.SignedHeader.Validators = m.lastState.Validators
+		block.SignedHeader.Validators = m.lastState.NextValidators
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)

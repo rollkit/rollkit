@@ -31,7 +31,9 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/conv"
 	abciconv "github.com/rollkit/rollkit/conv/abci"
+	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -647,29 +649,6 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func createApp(keyToRemove tmcrypto.PrivKey, waitCh chan interface{}, require *require.Assertions) *mocks.Application {
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
-	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
-
-	pbValKey, err := encoding.PubKeyToProto(keyToRemove.PubKey())
-	require.NoError(err)
-
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
-		waitCh <- nil
-	})
-
-	return app
-}
-
 func TestValidatorSetHandling(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -688,15 +667,39 @@ func TestValidatorSetHandling(t *testing.T) {
 		apps[i] = createApp(vKeys[0], waitCh, require)
 	}
 
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	ds, _ := store.NewDefaultInMemoryKVStore()
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Start()
+
 	for i := 0; i < len(nodes); i++ {
 		nodeKey := &p2p.NodeKey{
 			PrivKey: vKeys[i],
 		}
 		signingKey, err := conv.GetNodeKey(nodeKey)
 		require.NoError(err)
-		nodes[i], err = newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}}, signingKey, signingKey, abcicli.NewLocalClient(nil, apps[i]), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+		nodes[i], err = newFullNode(
+			context.Background(),
+			config.NodeConfig{
+				DALayer:    "mock",
+				Aggregator: true,
+				BlockManagerConfig: config.BlockManagerConfig{
+					BlockTime:   1 * time.Second,
+					DABlockTime: 100 * time.Millisecond,
+				},
+			},
+			signingKey,
+			signingKey,
+			abcicli.NewLocalClient(nil, apps[i]),
+			&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+			log.TestingLogger(),
+		)
 		require.NoError(err)
 		require.NotNil(nodes[i])
+
+		// use same, common DALC, so nodes can share data
+		nodes[i].dalc = dalc
+		nodes[i].blockManager.SetDALC(dalc)
 	}
 
 	rpc := NewFullClient(nodes[0])
@@ -711,11 +714,8 @@ func TestValidatorSetHandling(t *testing.T) {
 	<-waitCh
 
 	// test first blocks
-	for h := int64(1); h <= 6; h++ {
+	for h := int64(1); h <= 3; h++ {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
-		// resBlock, err := rpc.Block(context.Background(), &h)
-		// assert.NoError(err)
-		// fmt.Println("block height", h, resBlock.Block.ProposerAddress)
 		assert.NoError(err)
 		assert.NotNil(vals)
 		assert.EqualValues(len(genesisValidators), vals.Total)
@@ -724,7 +724,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	}
 
 	// 6th EndBlock removes first validator from the list
-	for h := int64(7); h <= 8; h++ {
+	for h := int64(4); h <= 5; h++ {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
@@ -734,7 +734,7 @@ func TestValidatorSetHandling(t *testing.T) {
 	}
 
 	// 8th EndBlock adds validator back
-	for h := int64(9); h <= 12; h++ {
+	for h := int64(6); h <= 9; h++ {
 		<-waitCh
 		<-waitCh
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
@@ -751,9 +751,29 @@ func TestValidatorSetHandling(t *testing.T) {
 	assert.NotNil(vals)
 	assert.EqualValues(len(genesisValidators), vals.Total)
 	assert.Len(vals.Validators, len(genesisValidators))
-	assert.GreaterOrEqual(vals.BlockHeight, int64(12))
+	assert.GreaterOrEqual(vals.BlockHeight, int64(9))
+}
 
-	assert.Error(err)
+func createApp(keyToRemove tmcrypto.PrivKey, waitCh chan interface{}, require *require.Assertions) *mocks.Application {
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+
+	pbValKey, err := encoding.PubKeyToProto(keyToRemove.PubKey())
+	require.NoError(err)
+
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
+		waitCh <- nil
+	})
+	return app
 }
 
 // copy-pasted from store/store_test.go
