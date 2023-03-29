@@ -344,6 +344,12 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
+		// SaveValidators commits the DB tx
+		err = m.store.SaveValidators(uint64(b.SignedHeader.Header.Height()), m.lastState.Validators)
+		if err != nil {
+			return err
+		}
+
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
@@ -355,12 +361,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
 		delete(m.syncCache, currentHeight+1)
-
-		// SaveValidators commits the DB tx
-		err = m.store.SaveValidators(uint64(b.SignedHeader.Header.Height()), m.lastState.Validators)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -463,7 +463,7 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 
 func (m *Manager) IsProposer() (bool, error) {
 	// if proposer is not set, assume self proposer
-	if m.lastState.NextValidators.Proposer == nil {
+	if m.lastState.Validators.Proposer == nil {
 		return true, nil
 	}
 
@@ -472,7 +472,7 @@ func (m *Manager) IsProposer() (bool, error) {
 		return false, err
 	}
 
-	return bytes.Equal(m.lastState.NextValidators.Proposer.PubKey.Bytes(), signerPubBytes), nil
+	return bytes.Equal(m.lastState.Validators.Proposer.PubKey.Bytes(), signerPubBytes), nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -529,7 +529,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
-		block.SignedHeader.Validators = m.lastState.NextValidators
+		block.SignedHeader.Validators = m.lastState.Validators
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
@@ -575,18 +575,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	// SaveValidators commits the DB tx
+	err = m.store.SaveValidators(uint64(block.SignedHeader.Header.Height()), m.lastState.Validators)
+	if err != nil {
+		return err
+	}
+
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	m.lastState = newState
 
 	// UpdateState commits the DB tx
 	err = m.store.UpdateState(m.lastState)
-	if err != nil {
-		return err
-	}
-
-	// SaveValidators commits the DB tx
-	err = m.store.SaveValidators(uint64(block.SignedHeader.Header.Height()), m.lastState.Validators)
 	if err != nil {
 		return err
 	}

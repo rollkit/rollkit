@@ -662,7 +662,6 @@ func TestValidatorSetHandling(t *testing.T) {
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		fmt.Println("Proposer", i, tmcrypto.AddressHash(vKeys[i].PubKey().Bytes()).String())
 		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
 		apps[i] = createApp(vKeys[0], waitCh, require)
 	}
