@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -59,6 +60,11 @@ func (h *SignedHeader) ValidateBasic() error {
 	err = h.Validators.ValidateBasic()
 	if err != nil {
 		return err
+	}
+
+	validatorSetHash := h.Validators.Hash()
+	if !bytes.Equal(validatorSetHash, h.AggregatorsHash[:]) {
+		return errors.New("AggregatorHash and validator set hash mismatch")
 	}
 
 	// Make sure there is exactly one signature
