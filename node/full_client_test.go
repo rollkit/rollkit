@@ -725,7 +725,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
-	// 6th EndBlock removes first validator from the list
+	// 3rd EndBlock removes the first validator from the list
 	for h := int64(4); h <= 5; h++ {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
