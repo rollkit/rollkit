@@ -662,14 +662,17 @@ func TestValidatorSetHandling(t *testing.T) {
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
 		apps[i] = createApp(vKeys[0], waitCh, require)
 	}
 
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
-	_ = dalc.Start()
+	ds, err := store.NewDefaultInMemoryKVStore()
+	require.Nil(err)
+	err = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	require.Nil(err)
+	err = dalc.Start()
+	require.Nil(err)
 
 	for i := 0; i < len(nodes); i++ {
 		nodeKey := &p2p.NodeKey{
