@@ -735,7 +735,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
-	// 8th EndBlock adds validator back
+	// 5th EndBlock adds validator back
 	for h := int64(6); h <= 9; h++ {
 		<-waitCh
 		<-waitCh
