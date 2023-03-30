@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -563,6 +564,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	// Only update the stored height after successfully submitting to DA layer and committing to the DB
+	m.store.SetHeight(uint64(block.SignedHeader.Header.Height()))
+
 	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
@@ -591,11 +595,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// Only update the stored height after successfully submitting to DA layer and committing to the DB
-	m.store.SetHeight(uint64(block.SignedHeader.Header.Height()))
-
 	// Publish header to channel so that header exchange service can broadcast
 	m.HeaderCh <- &block.SignedHeader
+
+	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", block.SignedHeader.Height())
 
 	return nil
 }
