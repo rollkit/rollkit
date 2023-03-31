@@ -75,6 +75,9 @@ func (h *SignedHeader) ValidateBasic() error {
 
 	signature := h.Commit.Signatures[0]
 	proposer := h.Validators.GetProposer()
+	if proposer == nil {
+		return nil
+	}
 	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
 	msg, err := h.Header.MarshalBinary()
 	if err != nil {
