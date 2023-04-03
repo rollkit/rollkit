@@ -16,3 +16,10 @@ updates:
       - "rollkit/celestia"
     labels:
       - T:dependencies
+  - package-ecosystem: docker
+    directory: "/docker"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    reviewers:
+      - "rollkit/celestia"
