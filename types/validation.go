@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -61,21 +62,24 @@ func (h *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	// Make sure there are as many signatures as validators
-	if len(h.Commit.Signatures) != len(h.Validators.Validators) {
-		return errors.New("number of signatures and keys don't match")
+	if !bytes.Equal(h.Validators.Hash(), h.AggregatorsHash[:]) {
+		return errors.New("aggregator set hash in signed header and hash of validator set do not match")
 	}
 
-	for i, val := range h.Validators.Validators {
-		sig := h.Commit.Signatures[i]
-		var pubKey ed25519.PubKey = val.PubKey.Bytes()
-		msg, err := h.Header.MarshalBinary()
-		if err != nil {
-			return errors.New("signature verification failed, unable to marshal header")
-		}
-		if !pubKey.VerifySignature(msg, sig) {
-			return errors.New("signature verification failed")
-		}
+	// Make sure there is exactly one signature
+	if len(h.Commit.Signatures) != 1 {
+		return errors.New("expected exactly one signature")
+	}
+
+	signature := h.Commit.Signatures[0]
+	proposer := h.Validators.GetProposer()
+	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
+	msg, err := h.Header.MarshalBinary()
+	if err != nil {
+		return errors.New("signature verification failed, unable to marshal header")
+	}
+	if !pubKey.VerifySignature(msg, signature) {
+		return errors.New("signature verification failed")
 	}
 
 	return nil

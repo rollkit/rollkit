@@ -231,7 +231,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,
-		Validators:                       state.NextValidators.Copy(),
+		Validators:                       nValSet,
 		LastValidators:                   state.Validators.Copy(),
 		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,

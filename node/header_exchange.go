@@ -99,6 +99,13 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 		hExService.logger.Error("failed to write block header to header store", "error", err)
 	}
 
+	// For genesis header, start the syncer
+	if signedHeader.Height() == hExService.genesis.InitialHeight {
+		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
+			hExService.logger.Error("failed to start syncer after initializing header store", "error", err)
+		}
+	}
+
 	// Broadcast for subscribers
 	if err := hExService.sub.Broadcast(ctx, signedHeader); err != nil {
 		hExService.logger.Error("failed to broadcast block header", "error", err)
@@ -138,12 +145,6 @@ func (hExService *HeaderExchangeService) Start() error {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	// for single aggregator configuration, syncer is not needed
-	// TODO (ganesh): design syncer flow for multiple aggregator scenario
-	if hExService.conf.Aggregator {
-		return nil
-	}
-
 	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, goheadersync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
 		return err
 	}
@@ -174,8 +175,8 @@ func (hExService *HeaderExchangeService) Start() error {
 			// Try fetching the genesis header if available, otherwise fallback to signed headers
 			if trustedHeader, err = hExService.ex.GetByHeight(hExService.ctx, uint64(hExService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis header
-				// if the aggregator is passed as seed while starting the fullnode
-				return fmt.Errorf("failed to fetch the genesis header: %w", err)
+				// proposing aggregator can init the store and start the syncer when the first header is published
+				hExService.logger.Info("failed to fetch the genesis header", "error", err)
 			}
 		}
 	}

@@ -29,8 +29,11 @@ import (
 	"github.com/tendermint/tendermint/version"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/conv"
 	abciconv "github.com/rollkit/rollkit/conv/abci"
+	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -51,6 +54,21 @@ func getRandomValidatorSet() *tmtypes.ValidatorSet {
 			{PubKey: pubKey, Address: pubKey.Address()},
 		},
 	}
+}
+
+// TODO: use n and return n validators
+func getGenesisValidatorSetWithSigner(n int) ([]tmtypes.GenesisValidator, crypto.PrivKey) {
+	validatorKey := ed25519.GenPrivKey()
+	nodeKey := &p2p.NodeKey{
+		PrivKey: validatorKey,
+	}
+	signingKey, _ := conv.GetNodeKey(nodeKey)
+	pubKey := validatorKey.PubKey()
+
+	genesisValidators := []tmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	}
+	return genesisValidators, signingKey
 }
 
 func TestConnectionGetter(t *testing.T) {
@@ -410,15 +428,7 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-
-	vKeys := make([]tmcrypto.PrivKey, 4)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("genesis validator #%d", i)}
-	}
-
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
@@ -642,51 +652,71 @@ func TestBlockchainInfo(t *testing.T) {
 func TestValidatorSetHandling(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
-	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
-
-	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-
-	vKeys := make([]tmcrypto.PrivKey, 4)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
-	}
-
-	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
-	require.NoError(err)
 
 	waitCh := make(chan interface{})
 
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
-		waitCh <- nil
-	})
+	vKeys := make([]tmcrypto.PrivKey, 2)
+	apps := make([]*mocks.Application, 2)
+	nodes := make([]*FullNode, 2)
 
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
+	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	for i := 0; i < len(vKeys); i++ {
+		vKeys[i] = ed25519.GenPrivKey()
+		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
+		apps[i] = createApp(vKeys[0], waitCh, require)
+	}
 
-	rpc := NewFullClient(node)
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	ds, err := store.NewDefaultInMemoryKVStore()
+	require.Nil(err)
+	err = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	require.Nil(err)
+	err = dalc.Start()
+	require.Nil(err)
+
+	for i := 0; i < len(nodes); i++ {
+		nodeKey := &p2p.NodeKey{
+			PrivKey: vKeys[i],
+		}
+		signingKey, err := conv.GetNodeKey(nodeKey)
+		require.NoError(err)
+		nodes[i], err = newFullNode(
+			context.Background(),
+			config.NodeConfig{
+				DALayer:    "mock",
+				Aggregator: true,
+				BlockManagerConfig: config.BlockManagerConfig{
+					BlockTime:   1 * time.Second,
+					DABlockTime: 100 * time.Millisecond,
+				},
+			},
+			signingKey,
+			signingKey,
+			abcicli.NewLocalClient(nil, apps[i]),
+			&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+			log.TestingLogger(),
+		)
+		require.NoError(err)
+		require.NotNil(nodes[i])
+
+		// use same, common DALC, so nodes can share data
+		nodes[i].dalc = dalc
+		nodes[i].blockManager.SetDALC(dalc)
+	}
+
+	rpc := NewFullClient(nodes[0])
 	require.NotNil(rpc)
 
-	err = node.Start()
-	require.NoError(err)
+	for i := 0; i < len(nodes); i++ {
+		err := nodes[i].Start()
+		require.NoError(err)
+	}
 
+	<-waitCh
 	<-waitCh
 
 	// test first blocks
-	for h := int64(1); h <= 6; h++ {
+	for h := int64(1); h <= 3; h++ {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
@@ -695,8 +725,8 @@ func TestValidatorSetHandling(t *testing.T) {
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
-	// 6th EndBlock removes first validator from the list
-	for h := int64(7); h <= 8; h++ {
+	// 3rd EndBlock removes the first validator from the list
+	for h := int64(4); h <= 5; h++ {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
@@ -705,8 +735,9 @@ func TestValidatorSetHandling(t *testing.T) {
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
-	// 8th EndBlock adds validator back
-	for h := int64(9); h <= 12; h++ {
+	// 5th EndBlock adds validator back
+	for h := int64(6); h <= 9; h++ {
+		<-waitCh
 		<-waitCh
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
@@ -722,7 +753,29 @@ func TestValidatorSetHandling(t *testing.T) {
 	assert.NotNil(vals)
 	assert.EqualValues(len(genesisValidators), vals.Total)
 	assert.Len(vals.Validators, len(genesisValidators))
-	assert.GreaterOrEqual(vals.BlockHeight, int64(12))
+	assert.GreaterOrEqual(vals.BlockHeight, int64(9))
+}
+
+func createApp(keyToRemove tmcrypto.PrivKey, waitCh chan interface{}, require *require.Assertions) *mocks.Application {
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+
+	pbValKey, err := encoding.PubKeyToProto(keyToRemove.PubKey())
+	require.NoError(err)
+
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
+		waitCh <- nil
+	})
+	return app
 }
 
 // copy-pasted from store/store_test.go
@@ -1072,7 +1125,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
@@ -1086,6 +1139,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			ChainID:       "test",
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,
+			Validators:    genesisValidators,
 		},
 		log.TestingLogger())
 	require.NoError(err)
