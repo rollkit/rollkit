@@ -38,6 +38,8 @@ jobs:
   # hadolint lints the Dockerfile
   hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.1.0 # yamllint disable-line rule:line-length
+    with:
+      dockerfile: docker/mockserv.Dockerfile
 
   yamllint:
     runs-on: ubuntu-latest
