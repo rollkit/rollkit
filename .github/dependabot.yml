@@ -5,15 +5,11 @@ updates:
     schedule:
       interval: daily
     open-pull-requests-limit: 10
-    reviewers:
-      - "rollkit/celestia"
   - package-ecosystem: gomod
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
-    reviewers:
-      - "rollkit/celestia"
     labels:
       - T:dependencies
   - package-ecosystem: docker
@@ -21,5 +17,3 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
-    reviewers:
-      - "rollkit/celestia"
