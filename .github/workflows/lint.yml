@@ -19,7 +19,8 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: 1.19
-        # This steps sets the GIT_DIFF environment variable to true if files defined in PATTERS changed
+        # This steps sets the GIT_DIFF environment variable to true
+        # if files defined in PATTERS changed
       - uses: technote-space/get-diff-action@v6.1.2
         with:
           # This job will pass without running if go.mod, go.sum, and *.go
