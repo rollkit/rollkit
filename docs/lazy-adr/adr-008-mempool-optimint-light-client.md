@@ -55,4 +55,4 @@ Proposed
 
 ## References
 
-Issue #100 [References](https://github.com/celestiaorg/oollmint/issues/100#issuecomment-921848268)
+Issue #100 [References](https://github.com/rollkit/rollkit/issues/100#issuecomment-921848268)

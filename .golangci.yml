@@ -31,7 +31,7 @@ issues:
 linters-settings:
   revive:
     rules:
-    - name: package-comments
-      disabled: true
+      - name: package-comments
+        disabled: true
   goimports:
     local-prefixes: github.com/rollkit

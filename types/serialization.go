@@ -2,6 +2,7 @@ package types
 
 import (
 	abci "github.com/tendermint/tendermint/abci/types"
+
 	"github.com/tendermint/tendermint/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
@@ -9,7 +10,11 @@ import (
 
 // MarshalBinary encodes Block into binary form and returns it.
 func (b *Block) MarshalBinary() ([]byte, error) {
-	return b.ToProto().Marshal()
+	bp, err := b.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	return bp.Marshal()
 }
 
 // UnmarshalBinary decodes binary form of Block into object.
@@ -61,12 +66,16 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 }
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
-func (h *SignedHeader) ToProto() *pb.SignedHeader {
+func (h *SignedHeader) ToProto() (*pb.SignedHeader, error) {
+	vSet, err := h.Validators.ToProto()
+	if err != nil {
+		return nil, err
+	}
 	return &pb.SignedHeader{
 		Header:     h.Header.ToProto(),
 		Commit:     h.Commit.ToProto(),
-		Validators: h.Validators.ToProto(),
-	}
+		Validators: vSet,
+	}, nil
 }
 
 // FromProto fills SignedHeader with data from protobuf representation.
@@ -80,17 +89,24 @@ func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		return err
 	}
 
-	err = h.Validators.FromProto(other.Validators)
-	if err != nil {
-		return err
-	}
+	if other.Validators != nil && other.Validators.GetProposer() != nil {
+		validators, err := types.ValidatorSetFromProto(other.Validators)
+		if err != nil {
+			return err
+		}
 
+		h.Validators = validators
+	}
 	return nil
 }
 
 // MarshalBinary encodes SignedHeader into binary form and returns it.
 func (h *SignedHeader) MarshalBinary() ([]byte, error) {
-	return h.ToProto().Marshal()
+	hp, err := h.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	return hp.Marshal()
 }
 
 // UnmarshalBinary decodes binary form of SignedHeader into object.
@@ -151,11 +167,15 @@ func (h *Header) FromProto(other *pb.Header) error {
 }
 
 // ToProto converts Block into protobuf representation and returns it.
-func (b *Block) ToProto() *pb.Block {
-	return &pb.Block{
-		SignedHeader: b.SignedHeader.ToProto(),
-		Data:         b.Data.ToProto(),
+func (b *Block) ToProto() (*pb.Block, error) {
+	sp, err := b.SignedHeader.ToProto()
+	if err != nil {
+		return nil, err
 	}
+	return &pb.Block{
+		SignedHeader: sp,
+		Data:         b.Data.ToProto(),
+	}, nil
 }
 
 // ToProto converts Data into protobuf representation and returns it.
@@ -190,18 +210,6 @@ func (c *Commit) ToProto() *pb.Commit {
 // FromProto fills Commit with data from its protobuf representation.
 func (c *Commit) FromProto(other *pb.Commit) error {
 	c.Signatures = byteSlicesToSignatures(other.Signatures)
-
-	return nil
-}
-
-func (vSet *ValidatorSet) ToProto() *pb.ValidatorSet {
-	return &pb.ValidatorSet{
-		Validators: validatorsToProto(vSet.Validators),
-	}
-}
-
-func (vSet *ValidatorSet) FromProto(other *pb.ValidatorSet) error {
-	vSet.Validators = validatorsFromProto(other.Validators)
 
 	return nil
 }
@@ -292,22 +300,6 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 		txs[i] = bytes[i]
 	}
 	return txs
-}
-
-func validatorsToProto(validators []Validator) []*pb.Validator {
-	var ret []*pb.Validator
-	for _, v := range validators {
-		ret = append(ret, &pb.Validator{PublicKey: v.PublicKey})
-	}
-	return ret
-}
-
-func validatorsFromProto(validators []*pb.Validator) []Validator {
-	var ret []Validator
-	for _, v := range validators {
-		ret = append(ret, Validator{PublicKey: v.PublicKey})
-	}
-	return ret
 }
 
 func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
