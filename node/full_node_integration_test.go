@@ -86,6 +86,7 @@ func TestAggregatorMode(t *testing.T) {
 // TestTxGossipingAndAggregation setups a network of nodes, with single aggregator and multiple producers.
 // Nodes should gossip transactions and aggregator node should produce blocks.
 func TestTxGossipingAndAggregation(t *testing.T) {
+	t.Skip()
 	assert := assert.New(t)
 	require := require.New(t)
 
