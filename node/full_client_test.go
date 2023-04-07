@@ -692,7 +692,7 @@ func TestValidatorSetHandling(t *testing.T) {
 			},
 			signingKey,
 			signingKey,
-			abcicli.NewLocalClient(nil, apps[i]),
+			proxy.NewLocalClientCreator(apps[i]),
 			&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 			log.TestingLogger(),
 		)

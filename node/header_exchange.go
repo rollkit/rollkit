@@ -144,7 +144,7 @@ func (hExService *HeaderExchangeService) Start() error {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, goheadersync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
+	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, sync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
 		return err
 	}
 
