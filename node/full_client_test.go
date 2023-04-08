@@ -649,7 +649,7 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func TestValidatorSetHandlingRemoveAndAddBack(t *testing.T) {
+func TestValidatorSetHandling(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -858,7 +858,7 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
-	// 3rd EndBlock removes the first validator from the list
+	// 3rd EndBlock removes the first validator from the list and makes the rollup based
 	for h := int64(4); h <= 5; h++ {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
@@ -868,14 +868,13 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
-	// 5th EndBlock adds validator back
 	for h := int64(6); h <= 9; h++ {
 		<-waitCh
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
-		assert.EqualValues(len(genesisValidators), vals.Total)
-		assert.Len(vals.Validators, len(genesisValidators))
+		assert.EqualValues(len(genesisValidators)-1, vals.Total)
+		assert.Len(vals.Validators, len(genesisValidators)-1)
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
