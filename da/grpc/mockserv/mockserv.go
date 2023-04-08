@@ -67,7 +67,11 @@ func (m *mockImpl) RetrieveBlocks(ctx context.Context, request *dalc.RetrieveBlo
 	resp := m.mock.RetrieveBlocks(ctx, request.DAHeight)
 	blocks := make([]*rollkit.Block, len(resp.Blocks))
 	for i := range resp.Blocks {
-		blocks[i] = resp.Blocks[i].ToProto()
+		bp, err := resp.Blocks[i].ToProto()
+		if err != nil {
+			return nil, err
+		}
+		blocks[i] = bp
 	}
 	return &dalc.RetrieveBlocksResponse{
 		Result: &dalc.DAResponse{

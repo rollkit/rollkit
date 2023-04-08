@@ -12,6 +12,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/proxy"
@@ -44,7 +45,16 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	state := types.State{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
-	state.Validators = tmtypes.NewValidatorSet(nil)
+	vKey := ed25519.GenPrivKey()
+	validators := []*tmtypes.Validator{
+		{
+			Address:          vKey.PubKey().Address(),
+			PubKey:           vKey.PubKey(),
+			VotingPower:      int64(100),
+			ProposerPriority: int64(1),
+		},
+	}
+	state.Validators = tmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
@@ -124,10 +134,19 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(err)
 	require.NotNil(headerSub)
 
+	vKey := ed25519.GenPrivKey()
+	validators := []*tmtypes.Validator{
+		{
+			Address:          vKey.PubKey().Address(),
+			PubKey:           vKey.PubKey(),
+			VotingPower:      int64(100),
+			ProposerPriority: int64(1),
+		},
+	}
 	state := types.State{
-		NextValidators: tmtypes.NewValidatorSet(nil),
-		Validators:     tmtypes.NewValidatorSet(nil),
-		LastValidators: tmtypes.NewValidatorSet(nil),
+		NextValidators: tmtypes.NewValidatorSet(validators),
+		Validators:     tmtypes.NewValidatorSet(validators),
+		LastValidators: tmtypes.NewValidatorSet(validators),
 	}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
@@ -136,10 +155,18 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 
 	_ = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
+	block := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
 	require.NotNil(block)
 	assert.Equal(int64(1), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 1)
+
+	// Update the signature on the block to current from last
+	headerBytes, _ := block.SignedHeader.Header.MarshalBinary()
+	sig, _ := vKey.Sign(headerBytes)
+	block.SignedHeader.Commit = types.Commit{
+		Signatures: []types.Signature{sig},
+	}
+	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
@@ -154,10 +181,17 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.Response) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
-	block = executor.CreateBlock(2, &types.Commit{}, []byte{}, newState)
+	block = executor.CreateBlock(2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
 	require.NotNil(block)
 	assert.Equal(int64(2), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 3)
+
+	headerBytes, _ = block.SignedHeader.Header.MarshalBinary()
+	sig, _ = vKey.Sign(headerBytes)
+	block.SignedHeader.Commit = types.Commit{
+		Signatures: []types.Signature{sig},
+	}
+	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)

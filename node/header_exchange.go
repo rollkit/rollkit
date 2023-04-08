@@ -68,7 +68,7 @@ func (hExService *HeaderExchangeService) initOrAppendHeaderStore(ctx context.Con
 	if header.Height() == hExService.genesis.InitialHeight {
 		err = hExService.headerStore.Init(ctx, header)
 	} else {
-		_, err = hExService.headerStore.Append(ctx, header)
+		err = hExService.headerStore.Append(ctx, header)
 	}
 	return err
 }
@@ -98,6 +98,13 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 		hExService.logger.Error("failed to write block header to header store", "error", err)
 	}
 
+	// For genesis header, start the syncer
+	if signedHeader.Height() == hExService.genesis.InitialHeight {
+		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
+			hExService.logger.Error("failed to start syncer after initializing header store", "error", err)
+		}
+	}
+
 	// Broadcast for subscribers
 	if err := hExService.sub.Broadcast(ctx, signedHeader); err != nil {
 		hExService.logger.Error("failed to broadcast block header", "error", err)
@@ -109,7 +116,7 @@ func (hExService *HeaderExchangeService) Start() error {
 	var err error
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := hExService.p2p.PubSub()
-	hExService.sub = goheaderp2p.NewSubscriber[*types.SignedHeader](ps, pubsub.DefaultMsgIdFn)
+	hExService.sub = goheaderp2p.NewSubscriber[*types.SignedHeader](ps, pubsub.DefaultMsgIdFn, hExService.genesis.ChainID)
 	if err = hExService.sub.Start(hExService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -130,17 +137,11 @@ func (hExService *HeaderExchangeService) Start() error {
 	}
 
 	peerIDs := hExService.p2p.PeerIDs()
-	if hExService.ex, err = newP2PExchange(hExService.p2p.Host(), peerIDs, network, hExService.p2p.ConnectionGater()); err != nil {
+	if hExService.ex, err = newP2PExchange(hExService.p2p.Host(), peerIDs, network, hExService.genesis.ChainID, hExService.p2p.ConnectionGater()); err != nil {
 		return err
 	}
 	if err = hExService.ex.Start(hExService.ctx); err != nil {
 		return fmt.Errorf("error while starting exchange: %w", err)
-	}
-
-	// for single aggregator configuration, syncer is not needed
-	// TODO (ganesh): design syncer flow for multiple aggregator scenario
-	if hExService.conf.Aggregator {
-		return nil
 	}
 
 	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, sync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
@@ -173,8 +174,8 @@ func (hExService *HeaderExchangeService) Start() error {
 			// Try fetching the genesis header if available, otherwise fallback to signed headers
 			if trustedHeader, err = hExService.ex.GetByHeight(hExService.ctx, uint64(hExService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis header
-				// if the aggregator is passed as seed while starting the fullnode
-				return fmt.Errorf("failed to fetch the genesis header: %w", err)
+				// proposing aggregator can init the store and start the syncer when the first header is published
+				hExService.logger.Info("failed to fetch the genesis header", "error", err)
 			}
 		}
 	}
@@ -202,17 +203,24 @@ func newP2PServer(
 	network string,
 	opts ...goheaderp2p.Option[goheaderp2p.ServerParameters],
 ) (*goheaderp2p.ExchangeServer[*types.SignedHeader], error) {
-	return goheaderp2p.NewExchangeServer[*types.SignedHeader](host, store, network, opts...)
+	opts = append(opts,
+		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
+	)
+	return goheaderp2p.NewExchangeServer[*types.SignedHeader](host, store, opts...)
 }
 
 func newP2PExchange(
 	host host.Host,
 	peers []peer.ID,
-	network string,
+	network, chainID string,
 	conngater *conngater.BasicConnectionGater,
 	opts ...goheaderp2p.Option[goheaderp2p.ClientParameters],
 ) (*goheaderp2p.Exchange[*types.SignedHeader], error) {
-	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, network, conngater, opts...)
+	opts = append(opts,
+		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
+		goheaderp2p.WithChainID[goheaderp2p.ClientParameters](chainID),
+	)
+	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
 }
 
 // newSyncer constructs new Syncer for headers.
@@ -222,5 +230,5 @@ func newSyncer(
 	sub header.Subscriber[*types.SignedHeader],
 	opt sync.Options,
 ) (*sync.Syncer[*types.SignedHeader], error) {
-	return sync.NewSyncer(ex, store, sub, opt)
+	return sync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
 }

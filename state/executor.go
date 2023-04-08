@@ -231,7 +231,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,
-		Validators:                       state.NextValidators.Copy(),
+		Validators:                       nValSet,
 		LastValidators:                   state.Validators.Copy(),
 		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
@@ -446,7 +446,7 @@ func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginB
 }
 
 func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
-	lastABCICommit := abciconv.ToABCICommit(lastCommit)
+	lastABCICommit := abciconv.ToABCICommit(lastCommit, header.BaseHeader.Height, header.Hash())
 	if len(lastCommit.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
 		lastABCICommit.Signatures[0].Timestamp = header.Time()

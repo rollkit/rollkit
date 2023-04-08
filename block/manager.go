@@ -1,7 +1,9 @@
 package block
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -67,6 +69,8 @@ type Manager struct {
 	retrieveMtx *sync.Mutex
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
 	retrieveCond *sync.Cond
+
+	lastStateMtx *sync.Mutex
 
 	logger log.Logger
 
@@ -151,6 +155,7 @@ func NewManager(
 		blockInCh:         make(chan newBlockEvent, 100),
 		FraudProofInCh:    make(chan *abci.FraudProof, 100),
 		retrieveMtx:       new(sync.Mutex),
+		lastStateMtx:      new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
@@ -216,7 +221,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 		}
 	} else {
-		<-timer.C
 		for {
 			select {
 			case <-ctx.Done():
@@ -341,10 +345,18 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
+		// SaveValidators commits the DB tx
+		err = m.store.SaveValidators(uint64(b.SignedHeader.Header.Height()), m.lastState.Validators)
+		if err != nil {
+			return err
+		}
+
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
+		m.lastStateMtx.Lock()
 		m.lastState = newState
+		m.lastStateMtx.Unlock()
 		err = m.store.UpdateState(m.lastState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
@@ -446,10 +458,22 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 		return nil, err
 	}
 	return &types.Commit{
-		Height:     uint64(header.Height()),
-		HeaderHash: header.Hash(),
 		Signatures: []types.Signature{sign},
 	}, nil
+}
+
+func (m *Manager) IsProposer() (bool, error) {
+	// if proposer is not set, assume self proposer
+	if m.lastState.Validators.Proposer == nil {
+		return true, nil
+	}
+
+	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
+	if err != nil {
+		return false, err
+	}
+
+	return bytes.Equal(m.lastState.Validators.Proposer.PubKey.Bytes(), signerPubBytes), nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -459,9 +483,19 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 
+	m.lastStateMtx.Lock()
+	isProposer, err := m.IsProposer()
+	m.lastStateMtx.Unlock()
+	if err != nil {
+		return fmt.Errorf("error while checking for proposer: %w", err)
+	}
+	if !isProposer {
+		return nil
+	}
+
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
-		lastCommit = &types.Commit{Height: height}
+		lastCommit = &types.Commit{}
 	} else {
 		lastCommit, err = m.store.LoadCommit(height)
 		if err != nil {
@@ -496,6 +530,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
+		block.SignedHeader.Validators = m.lastState.Validators
+
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
 		if err != nil {
@@ -528,6 +564,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	// Only update the stored height after successfully submitting to DA layer and committing to the DB
+	m.store.SetHeight(uint64(block.SignedHeader.Header.Height()))
+
 	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
@@ -536,6 +575,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(uint64(block.SignedHeader.Header.Height()), responses)
+	if err != nil {
+		return err
+	}
+
+	// SaveValidators commits the DB tx
+	err = m.store.SaveValidators(uint64(block.SignedHeader.Header.Height()), m.lastState.Validators)
 	if err != nil {
 		return err
 	}
@@ -550,17 +595,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// SaveValidators commits the DB tx
-	err = m.store.SaveValidators(uint64(block.SignedHeader.Header.Height()), m.lastState.Validators)
-	if err != nil {
-		return err
-	}
-
-	// Only update the stored height after successfully submitting to DA layer and committing to the DB
-	m.store.SetHeight(uint64(block.SignedHeader.Header.Height()))
-
 	// Publish header to channel so that header exchange service can broadcast
 	m.HeaderCh <- &block.SignedHeader
+
+	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", block.SignedHeader.Height())
 
 	return nil
 }
