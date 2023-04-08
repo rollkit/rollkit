@@ -1,1 +1,3 @@
-Rollkit CLI
+# Rollkit CLI
+
+A cli tool that allows you to run different kinds of nodes for a rollkit network while also helping you generate the required configuration files
