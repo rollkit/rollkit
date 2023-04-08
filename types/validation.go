@@ -3,10 +3,8 @@ package types
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 // ValidateBasic performs basic validation of a block.
@@ -59,7 +57,12 @@ func (h *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	err = ValidatorsValidateBasic(h.Validators)
+	// Handle Based Rollup case
+	if h.Validators.IsNilOrEmpty() {
+		return nil
+	}
+
+	err = h.Validators.ValidateBasic()
 	if err != nil {
 		return err
 	}
@@ -75,9 +78,6 @@ func (h *SignedHeader) ValidateBasic() error {
 
 	signature := h.Commit.Signatures[0]
 	proposer := h.Validators.GetProposer()
-	if proposer == nil {
-		return nil
-	}
 	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
 	msg, err := h.Header.MarshalBinary()
 	if err != nil {
@@ -85,22 +85,6 @@ func (h *SignedHeader) ValidateBasic() error {
 	}
 	if !pubKey.VerifySignature(msg, signature) {
 		return errors.New("signature verification failed")
-	}
-
-	return nil
-}
-
-func ValidatorsValidateBasic(vals *tmtypes.ValidatorSet) error {
-	for idx, val := range vals.Validators {
-		if err := val.ValidateBasic(); err != nil {
-			return fmt.Errorf("invalid validator #%d: %w", idx, err)
-		}
-	}
-
-	if len(vals.Validators) > 0 && vals.Proposer != nil {
-		if err := vals.Proposer.ValidateBasic(); err != nil {
-			return fmt.Errorf("proposer failed validate basic, error: %w", err)
-		}
 	}
 
 	return nil
