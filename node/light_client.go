@@ -24,22 +24,25 @@ func NewLightClient(node *LightNode) *LightClient {
 
 // ABCIInfo returns basic information about application state.
 func (c *LightClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	panic("Not implemented")
+	return c.node.RPCService.ABCIInfo(ctx)
 }
 
 // ABCIQuery queries for data from application.
 func (c *LightClient) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
-	panic("Not implemented")
+	// TODO: Enforce merkle proof verification
+	return c.node.RPCService.ABCIQuery(ctx, path, data)
 }
 
 // ABCIQueryWithOptions queries for data from application.
 func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	panic("Not implemented")
+	// TODO: Enforce merkle proof verification, authenticate to apphash in observed header
+	return c.node.RPCService.ABCIQueryWithOptions(ctx, path, data, opts)
 }
 
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
 func (c *LightClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	// TODO: gossip to network
 	panic("Not implemented")
 }
 
