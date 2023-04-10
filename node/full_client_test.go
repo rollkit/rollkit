@@ -732,6 +732,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
+		// Should be ignored since adding validators to empty validator set is not allowed
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
 			waitCh <- nil
@@ -806,6 +807,8 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(1)
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
 		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
 			waitCh <- nil
 		})
