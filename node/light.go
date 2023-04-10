@@ -11,6 +11,7 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	proxy "github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	remoterpc "github.com/tendermint/tendermint/rpc/client/http"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
@@ -26,7 +27,8 @@ type LightNode struct {
 
 	P2P *p2p.Client
 
-	proxyApp proxy.AppConns
+	proxyApp   proxy.AppConns
+	RPCService *remoterpc.HTTP
 
 	hExService *HeaderExchangeService
 
@@ -67,6 +69,11 @@ func newLightNode(
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
+	remoteRpc, err := remoterpc.New(conf.UntrustedRPC, "/websocket")
+	if err != nil {
+		return nil, fmt.Errorf("unable to create JSON RPC client to remote full node: %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &LightNode{
@@ -75,6 +82,7 @@ func newLightNode(
 		hExService: headerExchangeService,
 		cancel:     cancel,
 		ctx:        ctx,
+		RPCService: remoteRpc,
 	}
 
 	node.P2P.SetTxValidator(node.falseValidator())
