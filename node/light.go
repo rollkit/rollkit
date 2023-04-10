@@ -6,10 +6,10 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	abciclient "github.com/tendermint/tendermint/abci/client"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/service"
+	proxy "github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
@@ -26,7 +26,7 @@ type LightNode struct {
 
 	P2P *p2p.Client
 
-	app abciclient.Client
+	proxyApp proxy.AppConns
 
 	hExService *HeaderExchangeService
 
@@ -42,10 +42,17 @@ func newLightNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
-	appClient abciclient.Client,
+	clientCreator proxy.ClientCreator,
 	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*LightNode, error) {
+	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
+	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp.SetLogger(logger.With("module", "proxy"))
+	if err := proxyApp.Start(); err != nil {
+		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+	}
+
 	datastore, err := openDatastore(conf, logger)
 	if err != nil {
 		return nil, err
@@ -64,7 +71,7 @@ func newLightNode(
 
 	node := &LightNode{
 		P2P:        client,
-		app:        appClient,
+		proxyApp:   proxyApp,
 		hExService: headerExchangeService,
 		cancel:     cancel,
 		ctx:        ctx,
@@ -124,7 +131,7 @@ func (ln *LightNode) newFraudProofValidator() p2p.GossipValidator {
 			return false
 		}
 
-		resp, err := ln.app.VerifyFraudProofSync(abci.RequestVerifyFraudProof{
+		resp, err := ln.proxyApp.Consensus().VerifyFraudProofSync(abci.RequestVerifyFraudProof{
 			FraudProof:           &fraudProof,
 			ExpectedValidAppHash: fraudProof.ExpectedValidAppHash,
 		})

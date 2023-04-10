@@ -9,8 +9,7 @@ import (
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-header/sync"
-	goheadersync "github.com/celestiaorg/go-header/sync"
+	sync "github.com/celestiaorg/go-header/sync"
 	ds "github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -145,7 +144,7 @@ func (hExService *HeaderExchangeService) Start() error {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, goheadersync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
+	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, sync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
 		return err
 	}
 
@@ -229,7 +228,7 @@ func newSyncer(
 	ex header.Exchange[*types.SignedHeader],
 	store header.Store[*types.SignedHeader],
 	sub header.Subscriber[*types.SignedHeader],
-	opt goheadersync.Options,
+	opt sync.Options,
 ) (*sync.Syncer[*types.SignedHeader], error) {
 	return sync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
 }
