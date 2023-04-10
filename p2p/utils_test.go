@@ -80,7 +80,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 			require.NoError(err)
 			host, err := mnet.AddPeer(privKey, addr)
 			require.NoError(err)
-			require.NotEmpty(host)
+			require.NotNil(host)
 		} else {
 			_, err := mnet.GenPeer()
 			require.NoError(err)

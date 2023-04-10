@@ -75,60 +75,32 @@ func (h *Header) Time() time.Time {
 	return time.Unix(int64(h.BaseHeader.Time), 0)
 }
 
-func (h *Header) VerifyAdjacent(untrst header.Header) error {
+func (h *Header) Verify(untrst header.Header) error {
 	untrstH, ok := untrst.(*Header)
 	if !ok {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%T is not of type %T", untrst, h),
-		}
+		// if the header type is wrong, something very bad is going on
+		// and is a programmer bug
+		panic(fmt.Errorf("%T is not of type %T", untrst, h))
 	}
-
-	if untrstH.Height() != h.Height()+1 {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("headers must be adjacent in height: trusted %d, untrusted %d", h.Height(), untrstH.Height()),
-		}
-	}
-
+	// sanity check fields
 	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
 		return &header.VerifyError{Reason: err}
 	}
-
-	// Check the validator hashes are the same
-	// TODO: next validator set is not available
-	if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-				h.AggregatorsHash,
-				untrstH.AggregatorsHash,
-			),
-		}
-	}
-
-	return nil
-
-}
-
-func (h *Header) VerifyNonAdjacent(untrst header.Header) error {
-	untrstH, ok := untrst.(*Header)
-	if !ok {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%T is not of type %T", untrst, h),
-		}
-	}
+	// perform actual verification
 	if untrstH.Height() == h.Height()+1 {
-		return &header.VerifyError{
-			Reason: fmt.Errorf(
-				"headers must be non adjacent in height: trusted %d, untrusted %d",
-				h.Height(),
-				untrstH.Height(),
-			),
+		// Check the validator hashes are the same in the case headers are adjacent
+		// TODO: next validator set is not available
+		if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
+			return &header.VerifyError{
+				Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+					h.AggregatorsHash,
+					untrstH.AggregatorsHash,
+				),
+			}
 		}
 	}
 
-	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
-		return &header.VerifyError{Reason: err}
-	}
-
+	// TODO: There must be a way to verify non-adjacent headers
 	// Ensure that untrusted commit has enough of trusted commit's power.
 	// err := h.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID, untrst.Commit, light.DefaultTrustLevel)
 	// if err != nil {

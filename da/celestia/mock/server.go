@@ -78,7 +78,7 @@ func (s *Server) getHandler() http.Handler {
 }
 
 func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
-	req := cnc.SubmitPFDRequest{}
+	req := cnc.SubmitPFBRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		s.writeError(w, err)

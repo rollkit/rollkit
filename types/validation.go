@@ -2,24 +2,19 @@ package types
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
-	"fmt"
+
+	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 // ValidateBasic performs basic validation of a block.
 func (b *Block) ValidateBasic() error {
-	err := b.SignedHeader.Header.ValidateBasic()
+	err := b.SignedHeader.ValidateBasic()
 	if err != nil {
 		return err
 	}
 
 	err = b.Data.ValidateBasic()
-	if err != nil {
-		return err
-	}
-
-	err = b.SignedHeader.Commit.ValidateBasic()
 	if err != nil {
 		return err
 	}
@@ -44,30 +39,48 @@ func (d *Data) ValidateBasic() error {
 
 // ValidateBasic performs basic validation of a commit.
 func (c *Commit) ValidateBasic() error {
-	if c.Height > 0 {
-		if len(c.Signatures) == 0 {
-			return errors.New("no signatures")
-		}
+	if len(c.Signatures) == 0 {
+		return errors.New("no signatures")
 	}
 	return nil
 }
 
 // ValidateBasic performs basic validation of a signed header.
 func (h *SignedHeader) ValidateBasic() error {
-	err := h.Commit.ValidateBasic()
-	if err != nil {
-		return err
-	}
-	err = h.Header.ValidateBasic()
+	err := h.Header.ValidateBasic()
 	if err != nil {
 		return err
 	}
 
-	if h.Commit.Height != uint64(h.Header.Height()) {
-		return fmt.Errorf("height missmatch - header height: %d, commit height: %d", h.Header.Height(), h.Commit.Height)
+	err = h.Commit.ValidateBasic()
+	if err != nil {
+		return err
 	}
-	if !bytes.Equal(h.Commit.HeaderHash[:], h.Header.Hash()) {
-		return fmt.Errorf("hash missmatch - header hash: %s, commit hash: %s", hex.EncodeToString(h.Header.Hash()), hex.EncodeToString(h.Commit.HeaderHash[:]))
+
+	err = h.Validators.ValidateBasic()
+	if err != nil {
+		return err
 	}
+
+	if !bytes.Equal(h.Validators.Hash(), h.AggregatorsHash[:]) {
+		return errors.New("aggregator set hash in signed header and hash of validator set do not match")
+	}
+
+	// Make sure there is exactly one signature
+	if len(h.Commit.Signatures) != 1 {
+		return errors.New("expected exactly one signature")
+	}
+
+	signature := h.Commit.Signatures[0]
+	proposer := h.Validators.GetProposer()
+	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
+	msg, err := h.Header.MarshalBinary()
+	if err != nil {
+		return errors.New("signature verification failed, unable to marshal header")
+	}
+	if !pubKey.VerifySignature(msg, signature) {
+		return errors.New("signature verification failed")
+	}
+
 	return nil
 }
