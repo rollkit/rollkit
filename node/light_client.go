@@ -43,68 +43,68 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
 func (c *LightClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	// TODO: gossip to network
-	panic("Not implemented")
+	return c.node.RPCService.BroadcastTxCommit(ctx, tx)
 }
 
 // BroadcastTxAsync returns right away, with no response. Does not wait for
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (c *LightClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	panic("Not implemented")
+	return c.node.RPCService.BroadcastTxAsync(ctx, tx)
 }
 
 // BroadcastTxSync returns with the response from CheckTx. Does not wait for
 // DeliverTx result.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
 func (c *LightClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	panic("Not implemented")
+	return c.node.RPCService.BroadcastTxSync(ctx, tx)
 }
 
 // Subscribe subscribe given subscriber to a query.
 func (c *LightClient) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
-	panic("Not implemented")
+	return c.node.RPCService.Subscribe(ctx, subscriber, query, outCapacity...)
 }
 
 // Unsubscribe unsubscribes given subscriber from a query.
 func (c *LightClient) Unsubscribe(ctx context.Context, subscriber, query string) error {
-	panic("Not implemented")
+	return c.node.RPCService.Unsubscribe(ctx, subscriber, query)
 }
 
 // Genesis returns entire genesis.
 func (c *LightClient) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
-	panic("Not implemented")
+	return c.node.RPCService.Genesis(nil)
 }
 
 // GenesisChunked returns given chunk of genesis.
 func (c *LightClient) GenesisChunked(context context.Context, id uint) (*ctypes.ResultGenesisChunk, error) {
-	panic("Not implemented")
+	return c.node.RPCService.GenesisChunked(context, id)
 }
 
 // BlockchainInfo returns ABCI block meta information for given height range.
 func (c *LightClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-	panic("Not implemented")
+	return c.node.RPCService.BlockchainInfo(ctx, minHeight, maxHeight)
 }
 
 // NetInfo returns basic information about client P2P connections.
 func (c *LightClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) {
-	panic("Not implemented")
+	return c.node.RPCService.NetInfo(ctx)
 }
 
 // DumpConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *LightClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error) {
-	panic("Not implemented")
+	return nil, ErrConsensusStateNotAvailable
 }
 
 // ConsensusState always returns error as there is no consensus state in Rollkit.
 func (c *LightClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error) {
-	panic("Not implemented")
+	return nil, ErrConsensusStateNotAvailable
 }
 
 // ConsensusParams returns consensus params at given height.
 //
 // Currently, consensus params changes are not supported and this method returns params as defined in genesis.
 func (c *LightClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	panic("Not implemented")
+	return c.node.RPCService.ConsensusParams(ctx, height)
 }
 
 // Health endpoint returns empty value. It can be used to monitor service availability.
