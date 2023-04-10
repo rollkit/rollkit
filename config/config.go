@@ -20,6 +20,7 @@ const (
 	flagNamespaceID    = "rollkit.namespace_id"
 	flagFraudProofs    = "rollkit.experimental_insecure_fraud_proofs"
 	flagLight          = "rollkit.light"
+	flagUntrustedRPC   = "rollkit.untrusted_rpc"
 	flagTrustedHash    = "rollkit.trusted_hash"
 	flagLazyAggregator = "rollkit.lazy_aggregator"
 )
@@ -38,12 +39,17 @@ type NodeConfig struct {
 	DAConfig           string `mapstructure:"da_config"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
+	LightNodeConfig    `mapstructure:",squash"`
 	LazyAggregator     bool `mapstructure:"lazy_aggregator"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
 type HeaderConfig struct {
 	TrustedHash string `mapstructure:"trusted_hash"`
+}
+
+type LightNodeConfig struct {
+	UntrustedRPC string `mapstructure:"untrusted_rpc"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
@@ -72,6 +78,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nsID := v.GetString(flagNamespaceID)
 	nc.FraudProofs = v.GetBool(flagFraudProofs)
 	nc.Light = v.GetBool(flagLight)
+	nc.UntrustedRPC = v.GetString(flagUntrustedRPC)
 	bytes, err := hex.DecodeString(nsID)
 	if err != nil {
 		return err
@@ -97,4 +104,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
+	cmd.Flags().String(flagUntrustedRPC, "", "RPC service address for authenticated light client queries")
 }
