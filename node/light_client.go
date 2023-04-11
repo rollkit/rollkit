@@ -2,14 +2,20 @@ package node
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	tmlightrpc "github.com/tendermint/tendermint/light/rpc/"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 )
 
 var _ rpcclient.Client = &LightClient{}
+
+var errNegOrZeroHeight = errors.New("negative or zero height")
 
 type LightClient struct {
 	types.EventBus
@@ -35,8 +41,58 @@ func (c *LightClient) ABCIQuery(ctx context.Context, path string, data tmbytes.H
 
 // ABCIQueryWithOptions queries for data from application.
 func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	// TODO: Enforce merkle proof verification, authenticate to apphash in observed header
-	return c.node.RPCService.ABCIQueryWithOptions(ctx, path, data, opts)
+
+	// always request the proof
+	opts.Prove = true
+
+	res, err := c.node.RPCService.ABCIQueryWithOptions(ctx, path, data, opts)
+	if err != nil {
+		return nil, err
+	}
+	resp := res.Response
+
+	// Validate the response.
+	if resp.IsErr() {
+		return nil, fmt.Errorf("err response code: %v", resp.Code)
+	}
+	if len(resp.Key) == 0 {
+		return nil, errors.New("empty key")
+	}
+	if resp.ProofOps == nil || len(resp.ProofOps.Ops) == 0 {
+		return nil, errors.New("no proof ops")
+	}
+	if resp.Height <= 0 {
+		return nil, errNegOrZeroHeight
+	}
+
+	keyPathFn := tmlightrpc.DefaultMerkleKeyPathFn
+	rt := merkle.DefaultProofRuntime()
+
+	// Validate the value proof against the trusted header.
+	if resp.Value != nil {
+		// 1) build a Merkle key path from path and resp.Key
+		if keyPathFn == nil {
+			return nil, errors.New("please configure Client with KeyPathFn option")
+		}
+
+		kp, err := keyPathFn(path, resp.Key)
+		if err != nil {
+			return nil, fmt.Errorf("can't build merkle key path: %w", err)
+		}
+
+		// 2) verify value
+		err = rt.VerifyValue(resp.ProofOps, l.AppHash, kp.String(), resp.Value)
+		if err != nil {
+			return nil, fmt.Errorf("verify value proof: %w", err)
+		}
+	} else { // OR validate the absence proof against the trusted header.
+		err = rt.VerifyAbsence(resp.ProofOps, l.AppHash, string(resp.Key))
+		if err != nil {
+			return nil, fmt.Errorf("verify absence proof: %w", err)
+		}
+	}
+
+	return &ctypes.ResultABCIQuery{Response: resp}, nil
 }
 
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
@@ -72,7 +128,7 @@ func (c *LightClient) Unsubscribe(ctx context.Context, subscriber, query string)
 
 // Genesis returns entire genesis.
 func (c *LightClient) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
-	return c.node.RPCService.Genesis(nil)
+	return c.node.RPCService.Genesis(context.TODO())
 }
 
 // GenesisChunked returns given chunk of genesis.
