@@ -7,7 +7,7 @@ import (
 
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmlightrpc "github.com/tendermint/tendermint/light/rpc/"
+	tmlightrpc "github.com/tendermint/tendermint/light/rpc"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
@@ -65,8 +65,13 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 		return nil, errNegOrZeroHeight
 	}
 
-	keyPathFn := tmlightrpc.DefaultMerkleKeyPathFn
+	keyPathFn := tmlightrpc.DefaultMerkleKeyPathFn()
 	rt := merkle.DefaultProofRuntime()
+
+	header, err := c.node.hExService.headerStore.GetByHeight(ctx, uint64(opts.Height))
+	if err != nil {
+		return nil, errors.New("header not found at height")
+	}
 
 	// Validate the value proof against the trusted header.
 	if resp.Value != nil {
@@ -81,12 +86,12 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 		}
 
 		// 2) verify value
-		err = rt.VerifyValue(resp.ProofOps, l.AppHash, kp.String(), resp.Value)
+		err = rt.VerifyValue(resp.ProofOps, header.AppHash, kp.String(), resp.Value)
 		if err != nil {
 			return nil, fmt.Errorf("verify value proof: %w", err)
 		}
 	} else { // OR validate the absence proof against the trusted header.
-		err = rt.VerifyAbsence(resp.ProofOps, l.AppHash, string(resp.Key))
+		err = rt.VerifyAbsence(resp.ProofOps, header.AppHash, string(resp.Key))
 		if err != nil {
 			return nil, fmt.Errorf("verify absence proof: %w", err)
 		}
