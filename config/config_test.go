@@ -26,7 +26,7 @@ func TestViperAndCobra(t *testing.T) {
 	assert.NoError(cmd.Flags().Set(flagDAConfig, `{"json":true}`))
 	assert.NoError(cmd.Flags().Set(flagBlockTime, "1234s"))
 	assert.NoError(cmd.Flags().Set(flagHeaderNamespaceID, "0102030405060708"))
-	assert.NoError(cmd.Flags().Set(flagDataNamespaceID, "0102030405060708"))
+	assert.NoError(cmd.Flags().Set(flagDataNamespaceID, "0807060504030201"))
 	assert.NoError(cmd.Flags().Set(flagFraudProofs, "false"))
 
 	nc := DefaultNodeConfig
@@ -37,6 +37,6 @@ func TestViperAndCobra(t *testing.T) {
 	assert.Equal(`{"json":true}`, nc.DAConfig)
 	assert.Equal(1234*time.Second, nc.BlockTime)
 	assert.Equal(types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8}, nc.HeaderNamespaceID)
-	assert.Equal(types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8}, nc.DataNamespaceID)
+	assert.Equal(types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1}, nc.DataNamespaceID)
 	assert.Equal(false, nc.FraudProofs)
 }

@@ -104,46 +104,46 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	b2 := getRandomBlock(2, 10)
 
 	resp := dalc.SubmitBlockHeader(ctx, &b1.SignedHeader)
-	h1 := resp.DAHeight
+	h11 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	resp = dalc.SubmitBlockData(ctx, &b1.Data)
-	h1 = resp.DAHeight
+	h12 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	resp = dalc.SubmitBlockHeader(ctx, &b2.SignedHeader)
-	h2 := resp.DAHeight
+	h21 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	resp = dalc.SubmitBlockData(ctx, &b2.Data)
-	h2 = resp.DAHeight
+	h22 := resp.DAHeight
 	assert.Equal(da.StatusSuccess, resp.Code)
 
 	// wait a bit more than mockDaBlockTime, so Rollkit blocks can be "included" in mock block
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
-	check := dalc.CheckBlockHeaderAvailability(ctx, h1)
+	check := dalc.CheckBlockHeaderAvailability(ctx, h11)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	check = dalc.CheckBlockDataAvailability(ctx, h2)
+	check = dalc.CheckBlockDataAvailability(ctx, h12)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	check = dalc.CheckBlockHeaderAvailability(ctx, h2)
+	check = dalc.CheckBlockHeaderAvailability(ctx, h21)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
-	check = dalc.CheckBlockDataAvailability(ctx, h2)
+	check = dalc.CheckBlockDataAvailability(ctx, h22)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.True(check.DataAvailable)
 
 	// this height should not be used by DALC
-	check = dalc.CheckBlockHeaderAvailability(ctx, h1-1)
+	check = dalc.CheckBlockHeaderAvailability(ctx, h11-1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.False(check.DataAvailable)
 
-	check = dalc.CheckBlockDataAvailability(ctx, h1-1)
+	check = dalc.CheckBlockDataAvailability(ctx, h12-1)
 	assert.Equal(da.StatusSuccess, check.Code)
 	assert.False(check.DataAvailable)
 }

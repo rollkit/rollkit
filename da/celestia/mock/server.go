@@ -172,7 +172,7 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 			}
 			nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
 		}
-	} else {
+	} else if strings.Compare(s.dataNamespaceID, namespaceId) == 0 {
 		res := s.mock.RetrieveBlockDatas(r.Context(), height)
 		if res.Code != da.StatusSuccess {
 			s.writeError(w, errors.New(res.Message))
@@ -192,6 +192,9 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 			}
 			nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
 		}
+	} else {
+		s.writeError(w, errors.New("unknown namespace to handle request"))
+		return
 	}
 
 	shares := make([]Share, len(nShares))
@@ -237,7 +240,7 @@ func (s *Server) data(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-	} else {
+	} else if strings.Compare(s.dataNamespaceID, namespaceId) == 0 {
 		res := s.mock.RetrieveBlockDatas(r.Context(), height)
 		if res.Code != da.StatusSuccess {
 			s.writeError(w, errors.New(res.Message))
@@ -253,6 +256,9 @@ func (s *Server) data(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	} else {
+		s.writeError(w, errors.New("unknown namespace to handle request"))
+		return
 	}
 
 	resp, err := json.Marshal(namespacedDataResponse{

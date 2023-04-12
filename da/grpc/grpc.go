@@ -74,7 +74,7 @@ func (d *DataAvailabilityLayerClient) Stop() error {
 	return d.conn.Close()
 }
 
-// SubmitBlockHeader proxies SubmitBlock request to gRPC server.
+// SubmitBlockHeader proxies SubmitBlockHeader request to gRPC server.
 func (d *DataAvailabilityLayerClient) SubmitBlockHeader(ctx context.Context, header *types.SignedHeader) da.ResultSubmitBlock {
 	hp, err := header.ToProto()
 	if err != nil {
@@ -97,7 +97,7 @@ func (d *DataAvailabilityLayerClient) SubmitBlockHeader(ctx context.Context, hea
 	}
 }
 
-// SubmitBlockData proxies SubmitBlockHeader request to gRPC server.
+// SubmitBlockData proxies SubmitBlockData request to gRPC server.
 func (d *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data *types.Data) da.ResultSubmitBlock {
 	dp := data.ToProto()
 	resp, err := d.client.SubmitBlockData(ctx, &dalc.SubmitBlockDataRequest{Data: dp})
@@ -139,7 +139,7 @@ func (d *DataAvailabilityLayerClient) CheckBlockDataAvailability(ctx context.Con
 	}
 }
 
-// RetrieveBlockHeaders proxies RetrieveBlocks request to gRPC server.
+// RetrieveBlockHeaders proxies RetrieveBlockHeaders request to gRPC server.
 func (d *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, daHeight uint64) da.ResultRetrieveBlockHeaders {
 	resp, err := d.client.RetrieveBlockHeaders(ctx, &dalc.RetrieveBlockHeadersRequest{DAHeight: daHeight})
 	if err != nil {
@@ -165,7 +165,7 @@ func (d *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, 
 	}
 }
 
-// RetrieveBlockDatas proxies RetrieveBlocks request to gRPC server.
+// RetrieveBlockDatas proxies RetrieveBlockDatas request to gRPC server.
 func (d *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, daHeight uint64) da.ResultRetrieveBlockDatas {
 	resp, err := d.client.RetrieveBlockDatas(ctx, &dalc.RetrieveBlockDatasRequest{DAHeight: daHeight})
 	if err != nil {

@@ -114,7 +114,7 @@ func (m *DataAvailabilityLayerClient) SubmitBlockHeader(ctx context.Context, hea
 	}
 }
 
-// SubmitBlockData submits the passed in block header to the DA layer.
+// SubmitBlockData submits the passed in block data to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
 func (m *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data *types.Data) da.ResultSubmitBlock {
@@ -146,13 +146,13 @@ func (m *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data 
 	}
 }
 
-// CheckBlockHeaderAvailability queries DA layer to check data availability of block corresponding to given header.
+// CheckBlockHeaderAvailability queries DA layer to check data availability of block header corresponding to given da height.
 func (m *DataAvailabilityLayerClient) CheckBlockHeaderAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
 	headersRes := m.RetrieveBlockHeaders(ctx, daHeight)
 	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: headersRes.Code}, DataAvailable: len(headersRes.Headers) > 0}
 }
 
-// CheckBlockDataAvailability queries DA layer to check data availability of block corresponding to given header.
+// CheckBlockDataAvailability queries DA layer to check data availability of block data corresponding to given da height.
 func (m *DataAvailabilityLayerClient) CheckBlockDataAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
 	datasRes := m.RetrieveBlockDatas(ctx, daHeight)
 	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: datasRes.Code}, DataAvailable: len(datasRes.Datas) > 0}

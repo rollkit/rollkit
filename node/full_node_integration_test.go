@@ -31,6 +31,11 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+var (
+	headerNamespaceID = types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8}
+	dataNamespaceID   = types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1}
+)
+
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -49,8 +54,8 @@ func TestAggregatorMode(t *testing.T) {
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:         1 * time.Second,
-		HeaderNamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
-		DataNamespaceID:   types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 7},
+		HeaderNamespaceID: headerNamespaceID,
+		DataNamespaceID:   dataNamespaceID,
 	}
 	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
@@ -150,8 +155,8 @@ func TestLazyAggregator(t *testing.T) {
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:         1 * time.Second,
-		HeaderNamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
-		DataNamespaceID:   types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 7},
+		HeaderNamespaceID: headerNamespaceID,
+		DataNamespaceID:   dataNamespaceID,
 	}
 
 	node, err := NewNode(context.Background(), config.NodeConfig{
@@ -476,7 +481,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, [8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Init(headerNamespaceID, dataNamespaceID, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	nodes[0], apps[0] = createNode(aggCtx, 0, isMalicious, true, dalc, keys, wg, t)
 	for i := 1; i < num; i++ {
@@ -498,8 +503,8 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	bmConfig := config.BlockManagerConfig{
 		DABlockTime:       100 * time.Millisecond,
 		BlockTime:         1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		HeaderNamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		DataNamespaceID:   types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 2},
+		HeaderNamespaceID: headerNamespaceID,
+		DataNamespaceID:   dataNamespaceID,
 		FraudProofs:       true,
 	}
 	for i := 0; i < len(keys); i++ {

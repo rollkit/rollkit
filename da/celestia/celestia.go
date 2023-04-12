@@ -197,7 +197,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockDataAvailability(ctx context.Con
 	}
 }
 
-// RetrieveBlockHeaders gets a batch of blocks from DA layer.
+// RetrieveBlockHeaders gets a batch of block headers from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlockHeaders {
 	headerBlobs, err := c.client.NamespacedData(ctx, c.headerNamespaceID, dataLayerHeight)
 	if err != nil {
@@ -245,7 +245,7 @@ func (c *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, 
 	}
 }
 
-// RetrieveBlocks gets a batch of blocks from DA layer.
+// RetrieveBlockDatas gets a batch of block datas from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlockDatas {
 	dataBlobs, err := c.client.NamespacedData(ctx, c.dataNamespaceID, dataLayerHeight)
 	if err != nil {
