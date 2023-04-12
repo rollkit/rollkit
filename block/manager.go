@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/celestiaorg/go-header"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -534,11 +535,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-		err = m.submitBlockToDA(ctx, block, false)
+		dataHash, err := m.submitBlockToDA(ctx, block, false)
 		if err != nil {
 			m.logger.Error("Failed to submit block to DA Layer")
 			return err
 		}
+		block.SignedHeader.Header.DataHash = dataHash
 
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
@@ -576,7 +578,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	err = m.submitBlockToDA(ctx, block, true)
+	_, err = m.submitBlockToDA(ctx, block, true)
 	if err != nil {
 		m.logger.Error("Failed to submit block to DA Layer")
 		return err
@@ -623,13 +625,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block, onlyHeader bool) error {
+func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block, onlyHeader bool) (header.Hash, error) {
 	m.logger.Info("submitting block to DA layer", "height", block.SignedHeader.Header.Height())
 
 	submitted := false
 	backoff := initialBackoff
+	var res da.ResultSubmitBlock
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		var res da.ResultSubmitBlock
 		if onlyHeader {
 			res = m.dalc.SubmitBlockHeader(ctx, &block.SignedHeader)
 		} else {
@@ -646,10 +648,10 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block, onlyH
 	}
 
 	if !submitted {
-		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+		return nil, fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
-	return nil
+	return res.Hash, nil
 }
 
 func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
