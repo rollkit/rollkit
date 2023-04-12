@@ -18,15 +18,23 @@ message DAResponse {
 	uint64 da_height = 3 [(gogoproto.customname) = "DAHeight"];
 }
 
-message SubmitBlockRequest {
-	rollkit.Block block = 1;
+message SubmitBlockHeaderRequest {
+	rollkit.SignedHeader header = 1;
+}
+
+message SubmitBlockDataRequest {
+	rollkit.Data data = 1;
 }
 
 message SubmitBlockResponse {
 	DAResponse result = 1;
 }
 
-message CheckBlockAvailabilityRequest {
+message CheckBlockHeaderAvailabilityRequest {
+	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
+}
+
+message CheckBlockDataAvailabilityRequest {
 	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
 }
 
@@ -35,17 +43,29 @@ message CheckBlockAvailabilityResponse {
 	bool data_available = 2;
 }
 
-message RetrieveBlocksRequest {
+message RetrieveBlockHeadersRequest {
 	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
 }
 
-message RetrieveBlocksResponse {
+message RetrieveBlockDatasRequest {
+	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
+}
+
+message RetrieveBlockHeadersResponse {
 	DAResponse result = 1;
-	repeated rollkit.Block blocks = 2;
+	repeated rollkit.SignedHeader headers = 2;
+}
+
+message RetrieveBlockDatasResponse {
+	DAResponse result = 1;
+	repeated rollkit.Data datas = 2;
 }
 
 service DALCService {
-	rpc SubmitBlock(SubmitBlockRequest) returns (SubmitBlockResponse) {}
-	rpc CheckBlockAvailability(CheckBlockAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
-	rpc RetrieveBlocks(RetrieveBlocksRequest) returns (RetrieveBlocksResponse) {}
+	rpc SubmitBlockHeader(SubmitBlockHeaderRequest) returns (SubmitBlockResponse) {}
+	rpc SubmitBlockData(SubmitBlockDataRequest) returns (SubmitBlockResponse) {}
+	rpc CheckBlockHeaderAvailability(CheckBlockHeaderAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
+	rpc CheckBlockDataAvailability(CheckBlockDataAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
+	rpc RetrieveBlockHeaders(RetrieveBlockHeadersRequest) returns (RetrieveBlockHeadersResponse) {}
+	rpc RetrieveBlockDatas(RetrieveBlockDatasRequest) returns (RetrieveBlockDatasResponse) {}
 }

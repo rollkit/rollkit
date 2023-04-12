@@ -665,7 +665,7 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, err := store.NewDefaultInMemoryKVStore()
 	require.Nil(err)
-	err = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	err = dalc.Init([8]byte{}, [8]byte{}, nil, ds, log.TestingLogger())
 	require.Nil(err)
 	err = dalc.Start()
 	require.Nil(err)

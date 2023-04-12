@@ -412,18 +412,24 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
-		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
+		headerResp, dataResp, fetchErr := m.fetchBlock(ctx, daHeight)
 		if fetchErr != nil {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			if blockResp.Code == da.StatusNotFound {
-				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
+			if headerResp.Code == da.StatusNotFound {
+				m.logger.Debug("no block header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
-			for _, block := range blockResp.Blocks {
-				m.blockInCh <- newBlockEvent{block, daHeight}
+			if dataResp.Code == da.StatusNotFound {
+				m.logger.Debug("no block data found", "daHeight", daHeight, "reason", dataResp.Message)
+				return nil
+			}
+			m.logger.Debug("retrieved potential blocks", "n", len(headerResp.Headers), "daHeight", daHeight)
+			// TODO (fix this): assumes both block header and data exists in the same da height
+			// Fix should cache the headers and data and then match to construct the block and send to channel
+			for i, header := range headerResp.Headers {
+				m.blockInCh <- newBlockEvent{&types.Block{SignedHeader: *header, Data: *dataResp.Datas[i]}, daHeight}
 			}
 			return nil
 		}
@@ -431,14 +437,18 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	return err
 }
 
-func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
+func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlockHeaders, da.ResultRetrieveBlockDatas, error) {
 	var err error
-	blockRes := m.retriever.RetrieveBlocks(ctx, daHeight)
-	switch blockRes.Code {
-	case da.StatusError:
-		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
+	headerRes := m.retriever.RetrieveBlockHeaders(ctx, daHeight)
+	if headerRes.Code == da.StatusError {
+		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
-	return blockRes, err
+
+	dataRes := m.retriever.RetrieveBlockDatas(ctx, daHeight)
+	if dataRes.Code == da.StatusError {
+		err = multierr.Append(err, fmt.Errorf("failed to retrieve block: %s", dataRes.Message))
+	}
+	return headerRes, dataRes, err
 }
 
 func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
@@ -524,6 +534,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
+		err = m.submitBlockToDA(ctx, block, false)
+		if err != nil {
+			m.logger.Error("Failed to submit block to DA Layer")
+			return err
+		}
+
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
@@ -560,7 +576,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	err = m.submitBlockToDA(ctx, block)
+	err = m.submitBlockToDA(ctx, block, true)
 	if err != nil {
 		m.logger.Error("Failed to submit block to DA Layer")
 		return err
@@ -607,13 +623,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
+func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block, onlyHeader bool) error {
 	m.logger.Info("submitting block to DA layer", "height", block.SignedHeader.Header.Height())
 
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlock(ctx, block)
+		var res da.ResultSubmitBlock
+		if onlyHeader {
+			res = m.dalc.SubmitBlockHeader(ctx, &block.SignedHeader)
+		} else {
+			res = m.dalc.SubmitBlockData(ctx, &block.Data)
+		}
 		if res.Code == da.StatusSuccess {
 			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.SignedHeader.Header.Height(), "daHeight", res.DAHeight)
 			submitted = true
@@ -625,7 +646,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	}
 
 	if !submitted {
-		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
 	return nil

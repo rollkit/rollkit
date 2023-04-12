@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	mux2 "github.com/gorilla/mux"
@@ -23,10 +24,12 @@ import (
 
 // Server mocks celestia-node HTTP API.
 type Server struct {
-	mock      *mockda.DataAvailabilityLayerClient
-	blockTime time.Duration
-	server    *http.Server
-	logger    log.Logger
+	mock              *mockda.DataAvailabilityLayerClient
+	blockTime         time.Duration
+	server            *http.Server
+	logger            log.Logger
+	headerNamespaceID string
+	dataNamespaceID   string
 }
 
 // NewServer creates new instance of Server.
@@ -44,7 +47,14 @@ func (s *Server) Start(listener net.Listener) error {
 	if err != nil {
 		return err
 	}
-	err = s.mock.Init([8]byte{}, []byte(s.blockTime.String()), kvStore, s.logger)
+
+	headerNamespaceID := types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
+	dataNamespaceID := types.NamespaceID{7, 6, 5, 4, 3, 2, 1, 0}
+
+	s.headerNamespaceID = hex.EncodeToString(headerNamespaceID[:])
+	s.dataNamespaceID = hex.EncodeToString(dataNamespaceID[:])
+
+	err = s.mock.Init(headerNamespaceID, dataNamespaceID, []byte(s.blockTime.String()), kvStore, s.logger)
 	if err != nil {
 		return err
 	}
@@ -85,19 +95,35 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	block := types.Block{}
-	blockData, err := hex.DecodeString(req.Data)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-	err = block.UnmarshalBinary(blockData)
+	data, err := hex.DecodeString(req.Data)
 	if err != nil {
 		s.writeError(w, err)
 		return
 	}
 
-	res := s.mock.SubmitBlock(r.Context(), &block)
+	var res da.ResultSubmitBlock
+	blockHeader := types.SignedHeader{}
+	blockData := types.Data{}
+
+	if strings.Compare(s.headerNamespaceID, req.NamespaceID) == 0 {
+		err = blockHeader.UnmarshalBinary(data)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		res = s.mock.SubmitBlockHeader(r.Context(), &blockHeader)
+	} else if strings.Compare(s.dataNamespaceID, req.NamespaceID) == 0 {
+		err = blockData.UnmarshalBinary(data)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		res = s.mock.SubmitBlockData(r.Context(), &blockData)
+	} else {
+		s.writeError(w, errors.New("unknown namespace to handle request"))
+		return
+	}
+
 	code := 0
 	if res.Code != da.StatusSuccess {
 		code = 3
@@ -123,25 +149,51 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := s.mock.RetrieveBlocks(r.Context(), height)
-	if res.Code != da.StatusSuccess {
-		s.writeError(w, errors.New(res.Message))
-		return
-	}
-
 	var nShares []NamespacedShare
-	for _, block := range res.Blocks {
-		blob, err := block.MarshalBinary()
-		if err != nil {
-			s.writeError(w, err)
+	var DAHeight uint64
+	namespaceId := mux2.Vars(r)["namespace"]
+	if strings.Compare(s.headerNamespaceID, namespaceId) == 0 {
+		res := s.mock.RetrieveBlockHeaders(r.Context(), height)
+		if res.Code != da.StatusSuccess {
+			s.writeError(w, errors.New(res.Message))
 			return
 		}
-		delimited, err := marshalDelimited(blob)
-		if err != nil {
-			s.writeError(w, err)
+
+		DAHeight = res.DAHeight
+		for _, header := range res.Headers {
+			blob, err := header.MarshalBinary()
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			delimited, err := marshalDelimited(blob)
+			if err != nil {
+				s.writeError(w, err)
+			}
+			nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
 		}
-		nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
+	} else {
+		res := s.mock.RetrieveBlockDatas(r.Context(), height)
+		if res.Code != da.StatusSuccess {
+			s.writeError(w, errors.New(res.Message))
+			return
+		}
+
+		DAHeight = res.DAHeight
+		for _, data := range res.Datas {
+			blob, err := data.MarshalBinary()
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			delimited, err := marshalDelimited(blob)
+			if err != nil {
+				s.writeError(w, err)
+			}
+			nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
+		}
 	}
+
 	shares := make([]Share, len(nShares))
 	for i := range nShares {
 		shares[i] = nShares[i].Share
@@ -149,7 +201,7 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(namespacedSharesResponse{
 		Shares: shares,
-		Height: res.DAHeight,
+		Height: DAHeight,
 	})
 	if err != nil {
 		s.writeError(w, err)
@@ -166,24 +218,46 @@ func (s *Server) data(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := s.mock.RetrieveBlocks(r.Context(), height)
-	if res.Code != da.StatusSuccess {
-		s.writeError(w, errors.New(res.Message))
-		return
-	}
-
-	data := make([][]byte, len(res.Blocks))
-	for i := range res.Blocks {
-		data[i], err = res.Blocks[i].MarshalBinary()
-		if err != nil {
-			s.writeError(w, err)
+	var DAHeight uint64
+	var data [][]byte
+	namespaceId := mux2.Vars(r)["namespace"]
+	if strings.Compare(s.headerNamespaceID, namespaceId) == 0 {
+		res := s.mock.RetrieveBlockHeaders(r.Context(), height)
+		if res.Code != da.StatusSuccess {
+			s.writeError(w, errors.New(res.Message))
 			return
+		}
+
+		DAHeight = res.DAHeight
+		data = make([][]byte, len(res.Headers))
+		for i := range res.Headers {
+			data[i], err = res.Headers[i].MarshalBinary()
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+		}
+	} else {
+		res := s.mock.RetrieveBlockDatas(r.Context(), height)
+		if res.Code != da.StatusSuccess {
+			s.writeError(w, errors.New(res.Message))
+			return
+		}
+
+		DAHeight = res.DAHeight
+		data = make([][]byte, len(res.Datas))
+		for i := range res.Datas {
+			data[i], err = res.Datas[i].MarshalBinary()
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
 		}
 	}
 
 	resp, err := json.Marshal(namespacedDataResponse{
 		Data:   data,
-		Height: res.DAHeight,
+		Height: DAHeight,
 	})
 	if err != nil {
 		s.writeError(w, err)

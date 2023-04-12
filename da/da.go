@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/log"
@@ -38,12 +39,12 @@ type BaseResult struct {
 	DAHeight uint64
 }
 
-// ResultSubmitBlock contains information returned from DA layer after block submission.
+// ResultSubmitBlock contains information returned from DA layer after block header/data submission.
 type ResultSubmitBlock struct {
 	BaseResult
 	// Not sure if this needs to be bubbled up to other
 	// parts of Rollkit.
-	// Hash hash.Hash
+	Hash header.Hash
 }
 
 // ResultCheckBlock contains information about block availability, returned from DA layer client.
@@ -54,19 +55,27 @@ type ResultCheckBlock struct {
 	DataAvailable bool
 }
 
-// ResultRetrieveBlocks contains batch of blocks returned from DA layer client.
-type ResultRetrieveBlocks struct {
+// ResultRetrieveBlockHeaders contains batch of block headers returned from DA layer client.
+type ResultRetrieveBlockHeaders struct {
 	BaseResult
-	// Block is the full block retrieved from Data Availability Layer.
+	// Header is the block header retrieved from Data Availability Layer.
 	// If Code is not equal to StatusSuccess, it has to be nil.
-	Blocks []*types.Block
+	Headers []*types.SignedHeader
+}
+
+// ResultRetrieveBlockDatas contains batch of block datas returned from DA layer client.
+type ResultRetrieveBlockDatas struct {
+	BaseResult
+	// Data is the block data retrieved from Data Availability Layer.
+	// If Code is not equal to StatusSuccess, it has to be nil.
+	Datas []*types.Data
 }
 
 // DataAvailabilityLayerClient defines generic interface for DA layer block submission.
 // It also contains life-cycle methods.
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error
+	Init(headerNamespaceID, dataNamespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error
 
 	// Start is called once, after Init. It's implementation should start operation of DataAvailabilityLayerClient.
 	Start() error
@@ -74,18 +83,29 @@ type DataAvailabilityLayerClient interface {
 	// Stop is called once, when DataAvailabilityLayerClient is no longer needed.
 	Stop() error
 
-	// SubmitBlock submits the passed in block to the DA layer.
+	// SubmitBlockHeader submits the passed in block header to the DA layer.
 	// This should create a transaction which (potentially)
 	// triggers a state transition in the DA layer.
-	SubmitBlock(ctx context.Context, block *types.Block) ResultSubmitBlock
+	SubmitBlockHeader(ctx context.Context, header *types.SignedHeader) ResultSubmitBlock
 
-	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
-	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
+	// SubmitBlockData submits the passed in block data to the DA layer.
+	// This should create a transaction which (potentially)
+	// triggers a state transition in the DA layer.
+	SubmitBlockData(ctx context.Context, data *types.Data) ResultSubmitBlock
+
+	// CheckBlockHeaderAvailability queries DA layer to check data availability of block header corresponding at given height.
+	CheckBlockHeaderAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
+
+	// CheckBlockDataAvailability queries DA layer to check data availability of block data corresponding at given height.
+	CheckBlockDataAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
 }
 
 // BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
 // block data from DA layer. This gives the ability to use it for block synchronization.
 type BlockRetriever interface {
-	// RetrieveBlocks returns blocks at given data layer height from data availability layer.
-	RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlocks
+	// RetrieveBlockHeaders returns block headers at given data layer height from data availability layer.
+	RetrieveBlockHeaders(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlockHeaders
+
+	// RetrieveBlockDatas returns block datas at given data layer height from data availability layer.
+	RetrieveBlockDatas(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlockDatas
 }

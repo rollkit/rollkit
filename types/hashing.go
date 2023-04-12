@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -39,4 +40,12 @@ func (h *Header) Hash() Hash {
 // Hash returns ABCI-compatible hash of a block.
 func (b *Block) Hash() Hash {
 	return b.SignedHeader.Header.Hash()
+}
+
+// Hash returns hash of the Data
+func (d *Data) Hash() (Hash, error) {
+	dBytes, err := d.MarshalBinary()
+	return merkle.HashFromByteSlices([][]byte{
+		dBytes,
+	}), err
 }
