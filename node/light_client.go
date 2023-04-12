@@ -45,6 +45,7 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 	// always request the proof
 	opts.Prove = true
 
+	c.node.Logger.Debug("Requesting query from RPC")
 	res, err := c.node.RPCService.ABCIQueryWithOptions(ctx, path, data, opts)
 	if err != nil {
 		return nil, err
@@ -73,6 +74,7 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 		return nil, errors.New("header not found at height")
 	}
 
+	c.node.Logger.Debug("Validating merkle proof...")
 	// Validate the value proof against the trusted header.
 	if resp.Value != nil {
 		// 1) build a Merkle key path from path and resp.Key
