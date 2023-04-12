@@ -132,6 +132,12 @@ func (m *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data 
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
+	// re-insert the hash to make sure the updated daHeight includes the header hash using which the data will be searched
+	err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(lastHeader.height)), lastHeader.hash[:])
+	if err != nil {
+		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+	}
+
 	err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(lastHeader.hash[:])+"/data"), blob)
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}

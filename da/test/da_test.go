@@ -33,6 +33,11 @@ const mockDaBlockTime = 100 * time.Millisecond
 var testHeaderNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 var testDataNamespaceID = types.NamespaceID{7, 6, 5, 4, 3, 2, 1, 0}
 
+type DAHeights struct {
+	header uint64
+	data   uint64
+}
+
 func TestLifecycle(t *testing.T) {
 	srv := startMockGRPCServ(t)
 	defer srv.GracefulStop()
@@ -226,46 +231,58 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
 	retriever := dalc.(da.BlockRetriever)
-	countAtHeight := make(map[uint64]int)
-	blocks := make(map[*types.Block]uint64)
+	countHeadersAtHeight := make(map[uint64]int)
+	countDatasAtHeight := make(map[uint64]int)
+	blocks := make(map[*types.Block]DAHeights)
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
+		heights := DAHeights{}
 		resp := dalc.SubmitBlockHeader(ctx, &b.SignedHeader)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
+		countHeadersAtHeight[resp.DAHeight]++
+		heights.header = resp.DAHeight
 		resp = dalc.SubmitBlockData(ctx, &b.Data)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
+		countDatasAtHeight[resp.DAHeight]++
+		heights.data = resp.DAHeight
+		// if the header and data are not at the same DA height
+		if heights.header != heights.data {
+			countHeadersAtHeight[resp.DAHeight]++
+			countDatasAtHeight[heights.header]++
+		}
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
-		countAtHeight[resp.DAHeight]++
-		blocks[b] = resp.DAHeight
+		blocks[b] = heights
 	}
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" last blocks
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
-	for h, cnt := range countAtHeight {
-		t.Log("Retrieving block, DA Height", h)
+	for h, cnt := range countHeadersAtHeight {
 		ret := retriever.RetrieveBlockHeaders(ctx, h)
+		t.Log("Count of headers at DA Height", h, "should be", len(ret.Headers), "but it is", cnt)
 		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Headers, h)
 		assert.Len(ret.Headers, cnt, h)
-
-		ret1 := retriever.RetrieveBlockDatas(ctx, h)
-		assert.Equal(da.StatusSuccess, ret1.Code, ret1.Message)
-		require.NotEmpty(ret1.Datas, h)
-		assert.Len(ret1.Datas, cnt, h)
+	}
+	for h, cnt := range countDatasAtHeight {
+		ret := retriever.RetrieveBlockDatas(ctx, h)
+		t.Log("Count of datas at DA Height", h, "should be", len(ret.Datas), "but it is", cnt)
+		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
+		require.NotEmpty(ret.Datas, h)
+		assert.Len(ret.Datas, cnt, h)
 	}
 
-	for b, h := range blocks {
-		ret := retriever.RetrieveBlockHeaders(ctx, h)
-		assert.Equal(da.StatusSuccess, ret.Code, h)
-		require.NotEmpty(ret.Headers, h)
-		assert.Contains(ret.Headers, &b.SignedHeader, h)
+	for b, heights := range blocks {
+		ret := retriever.RetrieveBlockHeaders(ctx, heights.header)
+		assert.Equal(da.StatusSuccess, ret.Code, heights.header)
+		require.NotEmpty(ret.Headers, heights.header)
+		assert.Contains(ret.Headers, &b.SignedHeader, heights.header)
 
-		ret1 := retriever.RetrieveBlockDatas(ctx, h)
-		assert.Equal(da.StatusSuccess, ret1.Code, h)
-		require.NotEmpty(ret1.Datas, h)
-		assert.Contains(ret1.Datas, &b.Data, h)
+		ret1 := retriever.RetrieveBlockDatas(ctx, heights.data)
+		assert.Equal(da.StatusSuccess, ret1.Code, heights.data)
+		require.NotEmpty(ret1.Datas, heights.data)
+		assert.Contains(ret1.Datas, &b.Data, heights.data)
 	}
 }
 
