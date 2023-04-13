@@ -246,11 +246,6 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		countDatasAtHeight[resp.DAHeight]++
 		heights.data = resp.DAHeight
-		// if the header and data are not at the same DA height
-		if heights.header != heights.data {
-			countHeadersAtHeight[resp.DAHeight]++
-			countDatasAtHeight[heights.header]++
-		}
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 		blocks[b] = heights
 	}
