@@ -11,17 +11,17 @@ import (
 )
 
 const (
-	flagAggregator     = "rollkit.aggregator"
-	flagDALayer        = "rollkit.da_layer"
-	flagDAConfig       = "rollkit.da_config"
-	flagBlockTime      = "rollkit.block_time"
-	flagDABlockTime    = "rollkit.da_block_time"
-	flagDAStartHeight  = "rollkit.da_start_height"
-	flagNamespaceID    = "rollkit.namespace_id"
-	flagFraudProofs    = "rollkit.experimental_insecure_fraud_proofs"
-	flagLight          = "rollkit.light"
-	flagTrustedHash    = "rollkit.trusted_hash"
-	flagLazyAggregator = "rollkit.lazy_aggregator"
+	FlagAggregator     = "rollkit.aggregator"
+	FlagDALayer        = "rollkit.da_layer"
+	FlagDAConfig       = "rollkit.da_config"
+	FlagBlockTime      = "rollkit.block_time"
+	FlagDABlockTime    = "rollkit.da_block_time"
+	FlagDAStartHeight  = "rollkit.da_start_height"
+	FlagNamespaceID    = "rollkit.namespace_id"
+	FlagFraudProofs    = "rollkit.experimental_insecure_fraud_proofs"
+	FlagLight          = "rollkit.light"
+	FlagTrustedHash    = "rollkit.trusted_hash"
+	FlagLazyAggregator = "rollkit.lazy_aggregator"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -62,22 +62,22 @@ type BlockManagerConfig struct {
 //
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
-	nc.Aggregator = v.GetBool(flagAggregator)
-	nc.DALayer = v.GetString(flagDALayer)
-	nc.DAConfig = v.GetString(flagDAConfig)
-	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
-	nc.DABlockTime = v.GetDuration(flagDABlockTime)
-	nc.BlockTime = v.GetDuration(flagBlockTime)
-	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
-	nsID := v.GetString(flagNamespaceID)
-	nc.FraudProofs = v.GetBool(flagFraudProofs)
-	nc.Light = v.GetBool(flagLight)
+	nc.Aggregator = v.GetBool(FlagAggregator)
+	nc.DALayer = v.GetString(FlagDALayer)
+	nc.DAConfig = v.GetString(FlagDAConfig)
+	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
+	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
+	nc.BlockTime = v.GetDuration(FlagBlockTime)
+	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
+	nsID := v.GetString(FlagNamespaceID)
+	nc.FraudProofs = v.GetBool(FlagFraudProofs)
+	nc.Light = v.GetBool(FlagLight)
 	bytes, err := hex.DecodeString(nsID)
 	if err != nil {
 		return err
 	}
 	copy(nc.NamespaceID[:], bytes)
-	nc.TrustedHash = v.GetString(flagTrustedHash)
+	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	return nil
 }
 
@@ -86,15 +86,15 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 // This function is called in cosmos-sdk.
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
-	cmd.Flags().Bool(flagAggregator, def.Aggregator, "run node in aggregator mode")
-	cmd.Flags().Bool(flagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().String(flagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
-	cmd.Flags().String(flagDAConfig, def.DAConfig, "Data Availability Layer Client config")
-	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
-	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
-	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
-	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
-	cmd.Flags().Bool(flagLight, def.Light, "run light client")
-	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
+	cmd.Flags().Bool(FlagAggregator, def.Aggregator, "run node in aggregator mode")
+	cmd.Flags().Bool(FlagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
+	cmd.Flags().String(FlagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
+	cmd.Flags().String(FlagDAConfig, def.DAConfig, "Data Availability Layer Client config")
+	cmd.Flags().Duration(FlagBlockTime, def.BlockTime, "block time (for aggregator mode)")
+	cmd.Flags().Duration(FlagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
+	cmd.Flags().BytesHex(FlagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
+	cmd.Flags().Bool(FlagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
+	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
+	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 }

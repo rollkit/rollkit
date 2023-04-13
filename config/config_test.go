@@ -21,12 +21,12 @@ func TestViperAndCobra(t *testing.T) {
 	v := viper.GetViper()
 	assert.NoError(v.BindPFlags(cmd.Flags()))
 
-	assert.NoError(cmd.Flags().Set(flagAggregator, "true"))
-	assert.NoError(cmd.Flags().Set(flagDALayer, "foobar"))
-	assert.NoError(cmd.Flags().Set(flagDAConfig, `{"json":true}`))
-	assert.NoError(cmd.Flags().Set(flagBlockTime, "1234s"))
-	assert.NoError(cmd.Flags().Set(flagNamespaceID, "0102030405060708"))
-	assert.NoError(cmd.Flags().Set(flagFraudProofs, "false"))
+	assert.NoError(cmd.Flags().Set(FlagAggregator, "true"))
+	assert.NoError(cmd.Flags().Set(FlagDALayer, "foobar"))
+	assert.NoError(cmd.Flags().Set(FlagDAConfig, `{"json":true}`))
+	assert.NoError(cmd.Flags().Set(FlagBlockTime, "1234s"))
+	assert.NoError(cmd.Flags().Set(FlagNamespaceID, "0102030405060708"))
+	assert.NoError(cmd.Flags().Set(FlagFraudProofs, "false"))
 
 	nc := DefaultNodeConfig
 	assert.NoError(nc.GetViperConfig(v))

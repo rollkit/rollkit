@@ -23,17 +23,17 @@ import (
 
 var (
 	genesisHash    []byte
-	aggregator     bool
-	lazyAggregator bool
-	daLayer        string
-	daConfig       string
-	blockTime      time.Duration
-	daBlockTime    time.Duration
-	daStartHeight  uint64
-	namespaceID    string
-	fraudProofs    bool
-	light          bool
-	trustedHash    string
+	aggregator     bool          = false
+	lazyAggregator bool          = false
+	daLayer        string        = "mock"
+	daConfig       string        = ""
+	blockTime      time.Duration = (30 * time.Second)
+	daBlockTime    time.Duration = (15 * time.Second)
+	daStartHeight  uint64        = 1
+	namespaceID    string        = "0000000000000000"
+	fraudProofs    bool          = false
+	light          bool          = false
+	trustedHash    string        = ""
 )
 
 // AddNodeFlags exposes some common configuration options on the command-line
@@ -77,17 +77,17 @@ func AddNodeFlags(cmd *cobra.Command) {
 		"database directory")
 
 	// Rollkit commands
-	cmd.Flags().BoolVar(&aggregator, "rollkit.aggregator", false, "run node in aggregator mode")
-	cmd.Flags().BoolVar(&lazyAggregator, "rollkit.lazy_aggregator", false, "wait for transactions, don't build empty blocks")
-	cmd.Flags().StringVar(&daLayer, "rollkit.da_layer", "mock", "Data Availability Layer Client name (mock or grpc")
-	cmd.Flags().StringVar(&daConfig, "rollkit.da_config", "", "Data Availability Layer Client config")
-	cmd.Flags().DurationVar(&blockTime, "rollkit.block_time", (30 * time.Second), "block time (for aggregator mode)")
-	cmd.Flags().DurationVar(&daBlockTime, "rollkit.da_block_time", (15 * time.Second), "DA chain block time (for syncing)")
-	cmd.Flags().Uint64Var(&daStartHeight, "rollkit.da_start_height", 1, "starting DA block height (for syncing)")
-	cmd.Flags().StringVar(&namespaceID, "rollkit.namespace_id", "0000000000000000", "namespace identifies (8 bytes in hex)")
-	cmd.Flags().BoolVar(&fraudProofs, "rollkit.experimental_insecure_fraud_proofs", false, "enable fraud proofs (experimental & insecure)")
-	cmd.Flags().BoolVar(&light, "rollkit.light", false, "run light client")
-	cmd.Flags().StringVar(&trustedHash, "rollkit.trusted_hash", "", "initial trusted hash to start the header exchange service")
+	cmd.Flags().BoolVar(&aggregator, rollconf.FlagAggregator, aggregator, "run node in aggregator mode")
+	cmd.Flags().BoolVar(&lazyAggregator, rollconf.FlagLazyAggregator, lazyAggregator, "wait for transactions, don't build empty blocks")
+	cmd.Flags().StringVar(&daLayer, rollconf.FlagDALayer, daLayer, "Data Availability Layer Client name (mock or grpc")
+	cmd.Flags().StringVar(&daConfig, rollconf.FlagDAConfig, daConfig, "Data Availability Layer Client config")
+	cmd.Flags().DurationVar(&blockTime, rollconf.FlagBlockTime, blockTime, "block time (for aggregator mode)")
+	cmd.Flags().DurationVar(&daBlockTime, rollconf.FlagDABlockTime, daBlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Uint64Var(&daStartHeight, rollconf.FlagDAStartHeight, daStartHeight, "starting DA block height (for syncing)")
+	cmd.Flags().StringVar(&namespaceID, rollconf.FlagNamespaceID, namespaceID, "namespace identifies (8 bytes in hex)")
+	cmd.Flags().BoolVar(&fraudProofs, rollconf.FlagFraudProofs, fraudProofs, "enable fraud proofs (experimental & insecure)")
+	cmd.Flags().BoolVar(&light, rollconf.FlagLight, light, "run light client")
+	cmd.Flags().StringVar(&trustedHash, rollconf.FlagTrustedHash, trustedHash, "initial trusted hash to start the header exchange service")
 }
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
