@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	goheader "github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/da"
@@ -22,17 +21,10 @@ type DataAvailabilityLayerClient struct {
 	logger            log.Logger
 	dalcKV            ds.Datastore
 	daHeight          uint64
-	lastHeader        atomic.Value
+	dataCounter       uint64
 	config            config
 	headerNamespaceID types.NamespaceID
 	dataNamespaceID   types.NamespaceID
-}
-
-// LastHeader stores the block header that is published to mock DA layer
-// to be used for publishing the block data to mock DA layer
-type LastHeader struct {
-	height int64
-	hash   goheader.Hash
 }
 
 const defaultBlockTime = 3 * time.Second
@@ -51,6 +43,7 @@ func (m *DataAvailabilityLayerClient) Init(headerNamespaceID, dataNamespaceID ty
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1
+	m.dataCounter = 1000000 // so that it doesn't overwrite the header heights
 	if len(config) > 0 {
 		var err error
 		m.config.BlockTime, err = time.ParseDuration(string(config))
@@ -87,7 +80,7 @@ func (m *DataAvailabilityLayerClient) Stop() error {
 func (m *DataAvailabilityLayerClient) SubmitBlockHeader(ctx context.Context, header *types.SignedHeader) da.ResultSubmitBlock {
 	daHeight := atomic.LoadUint64(&m.daHeight)
 	hash := header.Hash()
-	m.lastHeader.Store(LastHeader{height: header.Height(), hash: hash})
+
 	m.logger.Debug("Submitting block header to DA layer!", "height", header.Height(), "dataLayerHeight", daHeight)
 
 	blob, err := header.MarshalBinary()
@@ -119,13 +112,12 @@ func (m *DataAvailabilityLayerClient) SubmitBlockHeader(ctx context.Context, hea
 // triggers a state transition in the DA layer.
 func (m *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data *types.Data) da.ResultSubmitBlock {
 	daHeight := atomic.LoadUint64(&m.daHeight)
-	var lastHeader LastHeader
-	lastHeader, ok := m.lastHeader.Load().(LastHeader)
-	if !ok {
-		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: "could not load last header"}}
-	}
+	m.logger.Debug("Submitting block data to DA layer!", "dataLayerHeight", daHeight)
 
-	m.logger.Debug("Submitting block data to DA layer!", "height", lastHeader.height, "dataLayerHeight", daHeight)
+	hash, err := data.Hash()
+	if err != nil {
+		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+	}
 
 	blob, err := data.MarshalBinary()
 	if err != nil {
@@ -133,12 +125,13 @@ func (m *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data 
 	}
 
 	// re-insert the hash to make sure the updated daHeight includes the header hash using which the data will be searched
-	err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(lastHeader.height)), lastHeader.hash[:])
+	counter := atomic.AddUint64(&m.dataCounter, 1)
+	err = m.dalcKV.Put(ctx, getKey(daHeight, counter), hash[:])
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(lastHeader.hash[:])+"/data"), blob)
+	err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])+"/data"), blob)
 	if err != nil {
 		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
@@ -149,6 +142,7 @@ func (m *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data 
 			Message:  "OK",
 			DAHeight: daHeight,
 		},
+		Hash: hash,
 	}
 }
 
@@ -179,7 +173,8 @@ func (m *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, 
 	for result := range results.Next() {
 		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(result.Entry.Value)+"/header"))
 		if err != nil {
-			return da.ResultRetrieveBlockHeaders{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+			// it is okay to not find keys that are /data
+			continue
 		}
 
 		header := &types.SignedHeader{}
@@ -209,7 +204,8 @@ func (m *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, da
 	for result := range results.Next() {
 		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(result.Entry.Value)+"/data"))
 		if err != nil {
-			return da.ResultRetrieveBlockDatas{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+			// it is okay to not find keys that are /header
+			continue
 		}
 
 		data := &types.Data{}

@@ -434,7 +434,10 @@ func TestTx(t *testing.T) {
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+			BlockTime:         1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+			HeaderNamespaceID: headerNamespaceID,
+			DataNamespaceID:   dataNamespaceID,
+			DABlockTime:       100 * time.Millisecond,
 		}},
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
