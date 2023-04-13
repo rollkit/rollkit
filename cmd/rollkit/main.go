@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/libs/cli"
+
 	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
 )
 

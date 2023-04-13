@@ -7,9 +7,6 @@ import (
 	"os"
 	"time"
 
-	rollconf "github.com/rollkit/rollkit/config"
-	rollconv "github.com/rollkit/rollkit/conv"
-	rollnode "github.com/rollkit/rollkit/node"
 	"github.com/spf13/cobra"
 	tmCfg "github.com/tendermint/tendermint/config"
 	tmflags "github.com/tendermint/tendermint/libs/cli/flags"
@@ -19,6 +16,10 @@ import (
 	tmp2p "github.com/tendermint/tendermint/p2p"
 	privval "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
+
+	rollconf "github.com/rollkit/rollkit/config"
+	rollconv "github.com/rollkit/rollkit/conv"
+	rollnode "github.com/rollkit/rollkit/node"
 )
 
 var (
