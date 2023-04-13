@@ -290,6 +290,10 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 		return errors.New("LastResultsHash mismatch")
 	}
 
+	if !bytes.Equal(block.SignedHeader.Header.AggregatorsHash[:], state.Validators.Hash()) {
+		return errors.New("AggregatorsHash mismatch")
+	}
+
 	return nil
 }
 
