@@ -19,6 +19,15 @@ func (b *Block) ValidateBasic() error {
 		return err
 	}
 
+	dataHash, err := b.Data.Hash()
+	if err != nil {
+		return err
+	}
+
+	if bytes.Compare(dataHash[:], b.SignedHeader.DataHash[:]) != 0 {
+		return errors.New("dataHash from the header does not match with hash of the block's data")
+	}
+
 	return nil
 }
 

@@ -156,6 +156,9 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(block)
 	assert.Equal(int64(1), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 1)
+	dataHash, err := block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	// Update the signature on the block to current from last
 	headerBytes, _ := block.SignedHeader.Header.MarshalBinary()
@@ -182,6 +185,9 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(block)
 	assert.Equal(int64(2), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 3)
+	dataHash, err = block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	headerBytes, _ = block.SignedHeader.Header.MarshalBinary()
 	sig, _ = vKey.Sign(headerBytes)
