@@ -100,9 +100,9 @@ func (h *Header) Verify(untrst header.Header) error {
 				),
 			}
 		}
-		if !bytes.Equal(untrstH.NextAggregatorsHash[:], h.NextAggregatorsHash[:]) {
+		if !bytes.Equal(h.NextAggregatorsHash[:], untrstH.AggregatorsHash[:]) {
 			return &header.VerifyError{
-				Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+				Reason: fmt.Errorf("expected header next validators (%X) to match those from new header (%X)",
 					h.AggregatorsHash,
 					untrstH.AggregatorsHash,
 				),
