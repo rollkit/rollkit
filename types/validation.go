@@ -58,7 +58,7 @@ func (h *SignedHeader) ValidateBasic() error {
 	}
 
 	// Handle Based Rollup case
-	if h.Validators.IsNilOrEmpty() {
+	if len(h.Validators.Validators) == 0 {
 		return nil
 	}
 

@@ -56,14 +56,15 @@ func getRandomValidatorSet() *tmtypes.ValidatorSet {
 	}
 }
 
+var genesisValidatorKey = ed25519.GenPrivKey()
+
 // TODO: use n and return n validators
 func getGenesisValidatorSetWithSigner(n int) ([]tmtypes.GenesisValidator, crypto.PrivKey) {
-	validatorKey := ed25519.GenPrivKey()
 	nodeKey := &p2p.NodeKey{
-		PrivKey: validatorKey,
+		PrivKey: genesisValidatorKey,
 	}
 	signingKey, _ := conv.GetNodeKey(nodeKey)
-	pubKey := validatorKey.PubKey()
+	pubKey := genesisValidatorKey.PubKey()
 
 	genesisValidators := []tmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
