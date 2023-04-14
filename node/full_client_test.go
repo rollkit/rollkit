@@ -650,21 +650,16 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func TestValidatorSetHandling(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	waitCh := make(chan interface{})
-
-	vKeys := make([]tmcrypto.PrivKey, 2)
-	apps := make([]*mocks.Application, 2)
-	nodes := make([]*FullNode, 2)
+func createGenesisValidators(numNodes int, appCreator func(vKeyToRemove tmcrypto.PrivKey) *mocks.Application, require *require.Assertions) *FullClient {
+	vKeys := make([]tmcrypto.PrivKey, numNodes)
+	apps := make([]*mocks.Application, numNodes)
+	nodes := make([]*FullNode, numNodes)
 
 	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
 		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
-		apps[i] = createApp(vKeys[0], waitCh, require)
+		apps[i] = appCreator(vKeys[0])
 	}
 
 	dalc := &mockda.DataAvailabilityLayerClient{}
@@ -712,6 +707,39 @@ func TestValidatorSetHandling(t *testing.T) {
 		err := nodes[i].Start()
 		require.NoError(err)
 	}
+	return rpc
+}
+
+// Tests moving from two validators to one validator and then back to two validators
+func TestValidatorSetHandling(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	waitCh := make(chan interface{})
+
+	numNodes := 2
+	createApp := func(vKeyToRemove tmcrypto.PrivKey) *mocks.Application {
+		app := &mocks.Application{}
+		app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+		app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+		app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+		app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+
+		pbValKey, err := encoding.PubKeyToProto(vKeyToRemove.PubKey())
+		require.NoError(err)
+
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
+			waitCh <- nil
+		})
+		return app
+	}
+	rpc := createGenesisValidators(numNodes, createApp, require)
 
 	<-waitCh
 	<-waitCh
@@ -721,8 +749,8 @@ func TestValidatorSetHandling(t *testing.T) {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
-		assert.EqualValues(len(genesisValidators), vals.Total)
-		assert.Len(vals.Validators, len(genesisValidators))
+		assert.EqualValues(numNodes, vals.Total)
+		assert.Len(vals.Validators, numNodes)
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
@@ -731,8 +759,8 @@ func TestValidatorSetHandling(t *testing.T) {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
-		assert.EqualValues(len(genesisValidators)-1, vals.Total)
-		assert.Len(vals.Validators, len(genesisValidators)-1)
+		assert.EqualValues(numNodes-1, vals.Total)
+		assert.Len(vals.Validators, numNodes-1)
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
@@ -743,8 +771,8 @@ func TestValidatorSetHandling(t *testing.T) {
 		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
 		assert.NoError(err)
 		assert.NotNil(vals)
-		assert.EqualValues(len(genesisValidators), vals.Total)
-		assert.Len(vals.Validators, len(genesisValidators))
+		assert.EqualValues(numNodes, vals.Total)
+		assert.Len(vals.Validators, numNodes)
 		assert.EqualValues(vals.BlockHeight, h)
 	}
 
@@ -752,31 +780,72 @@ func TestValidatorSetHandling(t *testing.T) {
 	vals, err := rpc.Validators(context.Background(), nil, nil, nil)
 	assert.NoError(err)
 	assert.NotNil(vals)
-	assert.EqualValues(len(genesisValidators), vals.Total)
-	assert.Len(vals.Validators, len(genesisValidators))
+	assert.EqualValues(numNodes, vals.Total)
+	assert.Len(vals.Validators, numNodes)
 	assert.GreaterOrEqual(vals.BlockHeight, int64(9))
 }
 
-func createApp(keyToRemove tmcrypto.PrivKey, waitCh chan interface{}, require *require.Assertions) *mocks.Application {
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
-	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+// Tests moving from a centralized validator to empty validator set
+func TestValidatorSetHandlingBased(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
 
-	pbValKey, err := encoding.PubKeyToProto(keyToRemove.PubKey())
-	require.NoError(err)
+	waitCh := make(chan interface{})
 
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
-		waitCh <- nil
-	})
-	return app
+	numNodes := 1
+	createApp := func(vKeyToRemove tmcrypto.PrivKey) *mocks.Application {
+		app := &mocks.Application{}
+		app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+		app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+		app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+		app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
+
+		pbValKey, err := encoding.PubKeyToProto(vKeyToRemove.PubKey())
+		require.NoError(err)
+
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
+		app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
+			waitCh <- nil
+		})
+		return app
+	}
+
+	rpc := createGenesisValidators(numNodes, createApp, require)
+
+	<-waitCh
+
+	// test first blocks
+	for h := int64(1); h <= 3; h++ {
+		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
+		assert.NoError(err)
+		assert.NotNil(vals)
+		assert.EqualValues(numNodes, vals.Total)
+		assert.Len(vals.Validators, numNodes)
+		assert.EqualValues(vals.BlockHeight, h)
+	}
+
+	// 3rd EndBlock removes the first validator and makes the rollup based
+	for h := int64(4); h <= 9; h++ {
+		<-waitCh
+		vals, err := rpc.Validators(context.Background(), &h, nil, nil)
+		assert.NoError(err)
+		assert.NotNil(vals)
+		assert.EqualValues(numNodes-1, vals.Total)
+		assert.Len(vals.Validators, numNodes-1)
+		assert.EqualValues(vals.BlockHeight, h)
+	}
+
+	// check for "latest block"
+	<-waitCh
+	vals, err := rpc.Validators(context.Background(), nil, nil, nil)
+	assert.NoError(err)
+	assert.NotNil(vals)
+	assert.EqualValues(numNodes-1, vals.Total)
+	assert.Len(vals.Validators, numNodes-1)
+	assert.GreaterOrEqual(vals.BlockHeight, int64(9))
 }
 
 // copy-pasted from store/store_test.go

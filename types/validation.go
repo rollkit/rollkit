@@ -57,6 +57,11 @@ func (h *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
+	// Handle Based Rollup case
+	if len(h.Validators.Validators) == 0 {
+		return nil
+	}
+
 	err = h.Validators.ValidateBasic()
 	if err != nil {
 		return err
