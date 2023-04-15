@@ -35,8 +35,7 @@ func (c *LightClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, err
 
 // ABCIQuery queries for data from application.
 func (c *LightClient) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
-	// TODO: Enforce merkle proof verification
-	return c.node.RPCService.ABCIQuery(ctx, path, data)
+	return c.ABCIQueryWithOptions(ctx, path, data, rpcclient.DefaultABCIQueryOptions)
 }
 
 // ABCIQueryWithOptions queries for data from application.
@@ -105,7 +104,7 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
 func (c *LightClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-	// TODO: gossip to network
+	// TODO: gossip to network instead of offloading to RPC
 	return c.node.RPCService.BroadcastTxCommit(ctx, tx)
 }
 
@@ -113,6 +112,7 @@ func (c *LightClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctyp
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
 func (c *LightClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	// TODO: gossip to network instead of offloading to RPC
 	return c.node.RPCService.BroadcastTxAsync(ctx, tx)
 }
 
@@ -120,11 +120,13 @@ func (c *LightClient) BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctype
 // DeliverTx result.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
 func (c *LightClient) BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	// TODO: gossip to network instead of offloading to RPC
 	return c.node.RPCService.BroadcastTxSync(ctx, tx)
 }
 
 // Subscribe subscribe given subscriber to a query.
 func (c *LightClient) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
+	// TODO: gossip to network instead of offloading to RPC
 	return c.node.RPCService.Subscribe(ctx, subscriber, query, outCapacity...)
 }
 
