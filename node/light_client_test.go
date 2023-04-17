@@ -65,5 +65,5 @@ func TestTrustMinimizedQuery(t *testing.T) {
 	err = sequencer.Start()
 	require.NoError(t, err)
 	sequencerClient := sequencer.GetClient()
-	sequencerClient.BroadcastTxCommit(context.Background(), []byte("connor=cool"))
+	sequencerClient.BroadcastTxSync(context.Background(), []byte("connor=cool"))
 }
