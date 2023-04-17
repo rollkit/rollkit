@@ -224,6 +224,12 @@ func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal to protobuf: %w", err)
 	}
+	if len(pbValSet.Validators) == 0 {
+		return &tmtypes.ValidatorSet{
+			Validators: make([]*tmtypes.Validator, 0),
+			Proposer:   nil,
+		}, nil
+	}
 
 	return tmtypes.ValidatorSetFromProto(&pbValSet)
 }

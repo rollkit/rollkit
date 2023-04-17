@@ -564,8 +564,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	blockHeight := uint64(block.SignedHeader.Header.Height())
+
 	// Only update the stored height after successfully submitting to DA layer and committing to the DB
-	m.store.SetHeight(uint64(block.SignedHeader.Header.Height()))
+	m.store.SetHeight(blockHeight)
 
 	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
@@ -574,13 +576,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(uint64(block.SignedHeader.Header.Height()), responses)
+	err = m.store.SaveBlockResponses(blockHeight, responses)
 	if err != nil {
 		return err
 	}
 
 	// SaveValidators commits the DB tx
-	err = m.store.SaveValidators(uint64(block.SignedHeader.Header.Height()), m.lastState.Validators)
+	err = m.store.SaveValidators(blockHeight, m.lastState.Validators)
 	if err != nil {
 		return err
 	}
