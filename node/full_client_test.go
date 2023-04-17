@@ -650,7 +650,7 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func createGenesisValidators(numNodes int, appCreator func(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application, require *require.Assertions, waitCh chan interface{}) *FullClient {
+func createGenesisValidators(numNodes int, appCreator func(require *require.Assertions, vKeys []tmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application, require *require.Assertions, waitChs []chan interface{}) *FullClient {
 	vKeys := make([]tmcrypto.PrivKey, numNodes)
 	apps := make([]*mocks.Application, numNodes)
 	nodes := make([]*FullNode, numNodes)
@@ -659,7 +659,11 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
 		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
-		apps[i] = appCreator(require, vKeys[0], waitCh)
+	}
+
+	for i := 0; i < len(vKeys); i++ {
+		waitChs[i] = make(chan interface{})
+		apps[i] = appCreator(require, vKeys, waitChs[i])
 	}
 
 	dalc := &mockda.DataAvailabilityLayerClient{}
@@ -728,7 +732,7 @@ func checkValSetLatest(rpc *FullClient, assert *assert.Assertions, lastBlockHeig
 	assert.GreaterOrEqual(vals.BlockHeight, lastBlockHeight)
 }
 
-func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application {
+func createApp(require *require.Assertions, vKeys []tmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
@@ -737,6 +741,7 @@ func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, waitC
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 
+	vKeyToRemove := vKeys[0]
 	pbValKey, err := encoding.PubKeyToProto(vKeyToRemove.PubKey())
 	require.NoError(err)
 
@@ -755,13 +760,14 @@ func TestValidatorSetHandling(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	waitCh := make(chan interface{})
-
 	numNodes := 2
-	rpc := createGenesisValidators(numNodes, createApp, require, waitCh)
+	waitChs := make([]chan interface{}, numNodes)
 
-	<-waitCh
-	<-waitCh
+	rpc := createGenesisValidators(numNodes, createApp, require, waitChs)
+
+	for i := 0; i < numNodes; i++ {
+		<-waitChs[i]
+	}
 
 	// test first blocks
 	for h := int64(1); h <= 3; h++ {
@@ -775,8 +781,9 @@ func TestValidatorSetHandling(t *testing.T) {
 
 	// 5th EndBlock adds validator back
 	for h := int64(6); h <= 9; h++ {
-		<-waitCh
-		<-waitCh
+		for i := 0; i < numNodes; i++ {
+			<-waitChs[i]
+		}
 		checkValSet(rpc, assert, h, numNodes)
 	}
 
@@ -789,11 +796,11 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	waitCh := make(chan interface{})
 	numNodes := 1
-	rpc := createGenesisValidators(numNodes, createApp, require, waitCh)
+	waitChs := make([]chan interface{}, numNodes)
+	rpc := createGenesisValidators(numNodes, createApp, require, waitChs)
 
-	<-waitCh
+	<-waitChs[0]
 
 	// test first blocks
 	for h := int64(1); h <= 3; h++ {
@@ -802,12 +809,43 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 
 	// 3rd EndBlock removes the first validator and makes the rollup based
 	for h := int64(4); h <= 9; h++ {
-		<-waitCh
+		<-waitChs[0]
 		checkValSet(rpc, assert, h, numNodes-1)
 	}
 
 	// check for "latest block"
-	<-waitCh
+	<-waitChs[0]
+	checkValSetLatest(rpc, assert, 9, numNodes-1)
+}
+
+// Tests moving from a centralized validator to empty validator set
+func TestValidatorSetHandlingBasedBoundaries(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	N := 30
+	numNodes := N
+	waitChs := make([]chan interface{}, numNodes)
+	// appCreator := func(require *require.Assertions, vKeys []tmcrypto.PrivKey, waitCh chan interface{}) {
+
+	// }
+	rpc := createGenesisValidators(numNodes, createApp, require, waitChs)
+
+	<-waitChs[0]
+
+	// test first blocks
+	for h := int64(1); h <= 3; h++ {
+		checkValSet(rpc, assert, h, numNodes)
+	}
+
+	// 3rd EndBlock removes the first validator and makes the rollup based
+	for h := int64(4); h <= 9; h++ {
+		<-waitChs[0]
+		checkValSet(rpc, assert, h, numNodes-1)
+	}
+
+	// check for "latest block"
+	<-waitChs[0]
 	checkValSetLatest(rpc, assert, 9, numNodes-1)
 }
 
