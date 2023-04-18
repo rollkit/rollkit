@@ -107,8 +107,7 @@ func TestTrustMinimizedQuery(t *testing.T) {
 	assert.NoError(err)
 
 	q, err := lightClient.ABCIQueryWithOptions(context.Background(), "/store", []byte("connor"), tmclient.ABCIQueryOptions{
-		Height: 0,
-		Prove:  true,
+		Prove: true,
 	})
 	require.NoError(err)
 	fmt.Println(q)

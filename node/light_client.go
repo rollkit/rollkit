@@ -50,6 +50,8 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 		return nil, err
 	}
 	resp := res.Response
+	fmt.Println("got response:")
+	fmt.Println(resp)
 
 	// Validate the response.
 	if resp.IsErr() {
