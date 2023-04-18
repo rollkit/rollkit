@@ -24,6 +24,7 @@ import (
 
 var ErrFraudProofGenerated = errors.New("failed to ApplyBlock: halting node due to fraud")
 var ErrEmptyValSetGenerated = errors.New("applying the validator changes would result in empty set")
+var ErrAddingValidatorToBased = errors.New("cannot add validators to empty validator set")
 
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
@@ -227,6 +228,8 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 			nValSet.IncrementProposerPriority(1)
 		}
 		// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
+	} else if len(validatorUpdates) > 0 {
+		return state, ErrAddingValidatorToBased
 	}
 
 	s := types.State{
