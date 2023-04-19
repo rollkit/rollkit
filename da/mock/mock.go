@@ -154,8 +154,8 @@ func (m *DataAvailabilityLayerClient) CheckBlockHeaderAvailability(ctx context.C
 
 // CheckBlockDataAvailability queries DA layer to check data availability of block data corresponding to given da height.
 func (m *DataAvailabilityLayerClient) CheckBlockDataAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
-	datasRes := m.RetrieveBlockDatas(ctx, daHeight)
-	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: datasRes.Code}, DataAvailable: len(datasRes.Datas) > 0}
+	datasRes := m.RetrieveBlockData(ctx, daHeight)
+	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: datasRes.Code}, DataAvailable: len(datasRes.Data) > 0}
 }
 
 // RetrieveBlockHeaders returns block header at given height from data availability layer.
@@ -189,18 +189,18 @@ func (m *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, 
 	return da.ResultRetrieveBlockHeaders{BaseResult: da.BaseResult{Code: da.StatusSuccess}, Headers: headers}
 }
 
-// RetrieveBlockDatas returns block data at given height from data availability layer.
-func (m *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, daHeight uint64) da.ResultRetrieveBlockDatas {
+// RetrieveBlockData returns block data at given height from data availability layer.
+func (m *DataAvailabilityLayerClient) RetrieveBlockData(ctx context.Context, daHeight uint64) da.ResultRetrieveBlockData {
 	if daHeight >= atomic.LoadUint64(&m.daHeight) {
-		return da.ResultRetrieveBlockDatas{BaseResult: da.BaseResult{Code: da.StatusError, Message: "block not found"}}
+		return da.ResultRetrieveBlockData{BaseResult: da.BaseResult{Code: da.StatusError, Message: "block not found"}}
 	}
 
 	results, err := store.PrefixEntries(ctx, m.dalcKV, getPrefix(daHeight))
 	if err != nil {
-		return da.ResultRetrieveBlockDatas{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultRetrieveBlockData{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	var datas []*types.Data
+	var dataArr []*types.Data
 	for result := range results.Next() {
 		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(result.Entry.Value)+"/data"))
 		if err != nil {
@@ -211,13 +211,13 @@ func (m *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, da
 		data := &types.Data{}
 		err = data.UnmarshalBinary(blob)
 		if err != nil {
-			return da.ResultRetrieveBlockDatas{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+			return da.ResultRetrieveBlockData{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
 
-		datas = append(datas, data)
+		dataArr = append(dataArr, data)
 	}
 
-	return da.ResultRetrieveBlockDatas{BaseResult: da.BaseResult{Code: da.StatusSuccess}, Datas: datas}
+	return da.ResultRetrieveBlockData{BaseResult: da.BaseResult{Code: da.StatusSuccess}, Data: dataArr}
 }
 
 func getPrefix(daHeight uint64) string {

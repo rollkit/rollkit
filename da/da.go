@@ -63,12 +63,12 @@ type ResultRetrieveBlockHeaders struct {
 	Headers []*types.SignedHeader
 }
 
-// ResultRetrieveBlockDatas contains batch of block datas returned from DA layer client.
-type ResultRetrieveBlockDatas struct {
+// ResultRetrieveBlockData contains batch of block data returned from DA layer client.
+type ResultRetrieveBlockData struct {
 	BaseResult
 	// Data is the block data retrieved from Data Availability Layer.
 	// If Code is not equal to StatusSuccess, it has to be nil.
-	Datas []*types.Data
+	Data []*types.Data
 }
 
 // DataAvailabilityLayerClient defines generic interface for DA layer block submission.
@@ -106,6 +106,6 @@ type BlockRetriever interface {
 	// RetrieveBlockHeaders returns block headers at given data layer height from data availability layer.
 	RetrieveBlockHeaders(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlockHeaders
 
-	// RetrieveBlockDatas returns block datas at given data layer height from data availability layer.
-	RetrieveBlockDatas(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlockDatas
+	// RetrieveBlockData returns block data at given data layer height from data availability layer.
+	RetrieveBlockData(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlockData
 }

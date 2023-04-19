@@ -109,17 +109,17 @@ func (m *mockImpl) RetrieveBlockHeaders(ctx context.Context, request *dalc.Retri
 	}, nil
 }
 
-func (m *mockImpl) RetrieveBlockDatas(ctx context.Context, request *dalc.RetrieveBlockDatasRequest) (*dalc.RetrieveBlockDatasResponse, error) {
-	resp := m.mock.RetrieveBlockDatas(ctx, request.DAHeight)
-	datas := make([]*rollkit.Data, len(resp.Datas))
-	for i := range resp.Datas {
-		datas[i] = resp.Datas[i].ToProto()
+func (m *mockImpl) RetrieveBlockData(ctx context.Context, request *dalc.RetrieveBlockDataRequest) (*dalc.RetrieveBlockDataResponse, error) {
+	resp := m.mock.RetrieveBlockData(ctx, request.DAHeight)
+	dataArr := make([]*rollkit.Data, len(resp.Data))
+	for i := range resp.Data {
+		dataArr[i] = resp.Data[i].ToProto()
 	}
-	return &dalc.RetrieveBlockDatasResponse{
+	return &dalc.RetrieveBlockDataResponse{
 		Result: &dalc.DAResponse{
 			Code:    dalc.StatusCode(resp.Code),
 			Message: resp.Message,
 		},
-		Datas: datas,
+		Data: dataArr,
 	}, nil
 }

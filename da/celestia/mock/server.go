@@ -173,14 +173,14 @@ func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
 			nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
 		}
 	} else if strings.Compare(s.dataNamespaceID, namespaceId) == 0 {
-		res := s.mock.RetrieveBlockDatas(r.Context(), height)
+		res := s.mock.RetrieveBlockData(r.Context(), height)
 		if res.Code != da.StatusSuccess {
 			s.writeError(w, errors.New(res.Message))
 			return
 		}
 
 		DAHeight = res.DAHeight
-		for _, data := range res.Datas {
+		for _, data := range res.Data {
 			blob, err := data.MarshalBinary()
 			if err != nil {
 				s.writeError(w, err)
@@ -241,16 +241,16 @@ func (s *Server) data(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else if strings.Compare(s.dataNamespaceID, namespaceId) == 0 {
-		res := s.mock.RetrieveBlockDatas(r.Context(), height)
+		res := s.mock.RetrieveBlockData(r.Context(), height)
 		if res.Code != da.StatusSuccess {
 			s.writeError(w, errors.New(res.Message))
 			return
 		}
 
 		DAHeight = res.DAHeight
-		data = make([][]byte, len(res.Datas))
-		for i := range res.Datas {
-			data[i], err = res.Datas[i].MarshalBinary()
+		data = make([][]byte, len(res.Data))
+		for i := range res.Data {
+			data[i], err = res.Data[i].MarshalBinary()
 			if err != nil {
 				s.writeError(w, err)
 				return

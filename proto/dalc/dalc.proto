@@ -47,7 +47,7 @@ message RetrieveBlockHeadersRequest {
 	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
 }
 
-message RetrieveBlockDatasRequest {
+message RetrieveBlockDataRequest {
 	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
 }
 
@@ -56,9 +56,9 @@ message RetrieveBlockHeadersResponse {
 	repeated rollkit.SignedHeader headers = 2;
 }
 
-message RetrieveBlockDatasResponse {
+message RetrieveBlockDataResponse {
 	DAResponse result = 1;
-	repeated rollkit.Data datas = 2;
+	repeated rollkit.Data data = 2;
 }
 
 service DALCService {
@@ -67,5 +67,5 @@ service DALCService {
 	rpc CheckBlockHeaderAvailability(CheckBlockHeaderAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
 	rpc CheckBlockDataAvailability(CheckBlockDataAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
 	rpc RetrieveBlockHeaders(RetrieveBlockHeadersRequest) returns (RetrieveBlockHeadersResponse) {}
-	rpc RetrieveBlockDatas(RetrieveBlockDatasRequest) returns (RetrieveBlockDatasResponse) {}
+	rpc RetrieveBlockData(RetrieveBlockDataRequest) returns (RetrieveBlockDataResponse) {}
 }

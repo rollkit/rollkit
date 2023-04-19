@@ -232,7 +232,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	retriever := dalc.(da.BlockRetriever)
 	countHeadersAtHeight := make(map[uint64]int)
-	countDatasAtHeight := make(map[uint64]int)
+	countDataAtHeight := make(map[uint64]int)
 	blocks := make(map[*types.Block]DAHeights)
 
 	for i := uint64(0); i < 100; i++ {
@@ -244,7 +244,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		heights.header = resp.DAHeight
 		resp = dalc.SubmitBlockData(ctx, &b.Data)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
-		countDatasAtHeight[resp.DAHeight]++
+		countDataAtHeight[resp.DAHeight]++
 		heights.data = resp.DAHeight
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 		blocks[b] = heights
@@ -260,12 +260,12 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		require.NotEmpty(ret.Headers, h)
 		assert.Len(ret.Headers, cnt, h)
 	}
-	for h, cnt := range countDatasAtHeight {
-		ret := retriever.RetrieveBlockDatas(ctx, h)
-		t.Log("Count of datas at DA Height", h, "should be", len(ret.Datas), "but it is", cnt)
+	for h, cnt := range countDataAtHeight {
+		ret := retriever.RetrieveBlockData(ctx, h)
+		t.Log("Count of datas at DA Height", h, "should be", len(ret.Data), "but it is", cnt)
 		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
-		require.NotEmpty(ret.Datas, h)
-		assert.Len(ret.Datas, cnt, h)
+		require.NotEmpty(ret.Data, h)
+		assert.Len(ret.Data, cnt, h)
 	}
 
 	for b, heights := range blocks {
@@ -274,10 +274,10 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		require.NotEmpty(ret.Headers, heights.header)
 		assert.Contains(ret.Headers, &b.SignedHeader, heights.header)
 
-		ret1 := retriever.RetrieveBlockDatas(ctx, heights.data)
+		ret1 := retriever.RetrieveBlockData(ctx, heights.data)
 		assert.Equal(da.StatusSuccess, ret1.Code, heights.data)
-		require.NotEmpty(ret1.Datas, heights.data)
-		assert.Contains(ret1.Datas, &b.Data, heights.data)
+		require.NotEmpty(ret1.Data, heights.data)
+		assert.Contains(ret1.Data, &b.Data, heights.data)
 	}
 }
 

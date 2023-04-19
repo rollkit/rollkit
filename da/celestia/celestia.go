@@ -245,8 +245,8 @@ func (c *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, 
 	}
 }
 
-// RetrieveBlockDatas gets a batch of block datas from DA layer.
-func (c *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlockDatas {
+// RetrieveBlockData gets a batch of block datas from DA layer.
+func (c *DataAvailabilityLayerClient) RetrieveBlockData(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlockData {
 	dataBlobs, err := c.client.NamespacedData(ctx, c.dataNamespaceID, dataLayerHeight)
 	if err != nil {
 		var code da.StatusCode
@@ -255,7 +255,7 @@ func (c *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, da
 		} else {
 			code = da.StatusError
 		}
-		return da.ResultRetrieveBlockDatas{
+		return da.ResultRetrieveBlockData{
 			BaseResult: da.BaseResult{
 				Code:    code,
 				Message: err.Error(),
@@ -263,7 +263,7 @@ func (c *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, da
 		}
 	}
 
-	datas := make([]*types.Data, len(dataBlobs))
+	data := make([]*types.Data, len(dataBlobs))
 	for i, dataBlob := range dataBlobs {
 		var d pb.Data
 		err = proto.Unmarshal(dataBlob, &d)
@@ -272,10 +272,10 @@ func (c *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, da
 			continue
 		}
 
-		datas[i] = new(types.Data)
-		err := datas[i].FromProto(&d)
+		data[i] = new(types.Data)
+		err := data[i].FromProto(&d)
 		if err != nil {
-			return da.ResultRetrieveBlockDatas{
+			return da.ResultRetrieveBlockData{
 				BaseResult: da.BaseResult{
 					Code:    da.StatusError,
 					Message: err.Error(),
@@ -284,11 +284,11 @@ func (c *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, da
 		}
 	}
 
-	return da.ResultRetrieveBlockDatas{
+	return da.ResultRetrieveBlockData{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			DAHeight: dataLayerHeight,
 		},
-		Datas: datas,
+		Data: data,
 	}
 }

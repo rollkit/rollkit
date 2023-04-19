@@ -165,28 +165,28 @@ func (d *DataAvailabilityLayerClient) RetrieveBlockHeaders(ctx context.Context, 
 	}
 }
 
-// RetrieveBlockDatas proxies RetrieveBlockDatas request to gRPC server.
-func (d *DataAvailabilityLayerClient) RetrieveBlockDatas(ctx context.Context, daHeight uint64) da.ResultRetrieveBlockDatas {
-	resp, err := d.client.RetrieveBlockDatas(ctx, &dalc.RetrieveBlockDatasRequest{DAHeight: daHeight})
+// RetrieveBlockData proxies RetrieveBlockData request to gRPC server.
+func (d *DataAvailabilityLayerClient) RetrieveBlockData(ctx context.Context, daHeight uint64) da.ResultRetrieveBlockData {
+	resp, err := d.client.RetrieveBlockData(ctx, &dalc.RetrieveBlockDataRequest{DAHeight: daHeight})
 	if err != nil {
-		return da.ResultRetrieveBlockDatas{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		return da.ResultRetrieveBlockData{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 	}
 
-	datas := make([]*types.Data, len(resp.Datas))
-	for i, data := range resp.Datas {
+	dataArr := make([]*types.Data, len(resp.Data))
+	for i, data := range resp.Data {
 		var d types.Data
 		err = d.FromProto(data)
 		if err != nil {
-			return da.ResultRetrieveBlockDatas{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+			return da.ResultRetrieveBlockData{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
-		datas[i] = &d
+		dataArr[i] = &d
 	}
-	return da.ResultRetrieveBlockDatas{
+	return da.ResultRetrieveBlockData{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusCode(resp.Result.Code),
 			Message:  resp.Result.Message,
 			DAHeight: daHeight,
 		},
-		Datas: datas,
+		Data: dataArr,
 	}
 }

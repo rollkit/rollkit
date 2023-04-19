@@ -430,7 +430,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			// TODO (fix this): assumes both block header and data exists in the same da height
 			// Fix should cache the headers and data and then match to construct the block and send to channel
 			for i, header := range headerResp.Headers {
-				m.blockInCh <- newBlockEvent{&types.Block{SignedHeader: *header, Data: *dataResp.Datas[i]}, daHeight}
+				m.blockInCh <- newBlockEvent{&types.Block{SignedHeader: *header, Data: *dataResp.Data[i]}, daHeight}
 			}
 			return nil
 		}
@@ -438,14 +438,14 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	return err
 }
 
-func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlockHeaders, da.ResultRetrieveBlockDatas, error) {
+func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlockHeaders, da.ResultRetrieveBlockData, error) {
 	var err error
 	headerRes := m.retriever.RetrieveBlockHeaders(ctx, daHeight)
 	if headerRes.Code == da.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
 
-	dataRes := m.retriever.RetrieveBlockDatas(ctx, daHeight)
+	dataRes := m.retriever.RetrieveBlockData(ctx, daHeight)
 	if dataRes.Code == da.StatusError {
 		err = multierr.Append(err, fmt.Errorf("failed to retrieve block: %s", dataRes.Message))
 	}
