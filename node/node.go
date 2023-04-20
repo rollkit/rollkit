@@ -27,8 +27,8 @@ func NewNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	appClient abciclient.Client,
-	genesis *cmtypes.GenesisDoc,
+	appClient proxy.ClientCreator,
+	genesis *tmtypes.GenesisDoc,
 	logger log.Logger,
 ) (Node, error) {
 	if !conf.Light {
