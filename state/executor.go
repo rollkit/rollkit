@@ -23,6 +23,8 @@ import (
 )
 
 var ErrFraudProofGenerated = errors.New("failed to ApplyBlock: halting node due to fraud")
+var ErrEmptyValSetGenerated = errors.New("applying the validator changes would result in empty set")
+var ErrAddingValidatorToBased = errors.New("cannot add validators to empty validator set")
 
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
@@ -215,14 +217,24 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		if len(validatorUpdates) > 0 {
 			err := nValSet.UpdateWithChangeSet(validatorUpdates)
 			if err != nil {
-				return state, nil
+				if err.Error() != ErrEmptyValSetGenerated.Error() {
+					return state, err
+				}
+				nValSet = &tmtypes.ValidatorSet{
+					Validators: make([]*tmtypes.Validator, 0),
+					Proposer:   nil,
+				}
 			}
 			// Change results from this height but only applies to the next next height.
 			lastHeightValSetChanged = block.SignedHeader.Header.Height() + 1 + 1
 		}
 
+		if len(nValSet.Validators) > 0 {
+			nValSet.IncrementProposerPriority(1)
+		}
 		// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
-		nValSet.IncrementProposerPriority(1)
+	} else if len(validatorUpdates) > 0 {
+		return state, ErrAddingValidatorToBased
 	}
 
 	s := types.State{
@@ -236,7 +248,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,
-		Validators:                       state.NextValidators.Copy(),
+		Validators:                       nValSet,
 		LastValidators:                   state.Validators.Copy(),
 		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
@@ -293,6 +305,10 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 
 	if !bytes.Equal(block.SignedHeader.Header.LastResultsHash[:], state.LastResultsHash[:]) {
 		return errors.New("LastResultsHash mismatch")
+	}
+
+	if !bytes.Equal(block.SignedHeader.Header.AggregatorsHash[:], state.Validators.Hash()) {
+		return errors.New("AggregatorsHash mismatch")
 	}
 
 	return nil
@@ -451,7 +467,7 @@ func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginB
 }
 
 func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
-	lastABCICommit := abciconv.ToABCICommit(lastCommit)
+	lastABCICommit := abciconv.ToABCICommit(lastCommit, header.BaseHeader.Height, header.Hash())
 	if len(lastCommit.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
 		lastABCICommit.Signatures[0].Timestamp = header.Time()

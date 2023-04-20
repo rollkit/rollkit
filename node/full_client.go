@@ -68,7 +68,7 @@ func (n *FullNode) GetClient() rpcclient.Client {
 
 // ABCIInfo returns basic information about application state.
 func (c *FullClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := c.appClient().InfoSync(proxy.RequestInfo)
+	resInfo, err := c.appClient().Query().InfoSync(proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (c *FullClient) ABCIQuery(ctx context.Context, path string, data cmbytes.He
 
 // ABCIQueryWithOptions queries for data from application.
 func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.appClient().QuerySync(abci.RequestQuery{
+	resQuery, err := c.appClient().Query()QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -493,7 +493,7 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	if err != nil {
 		return nil, err
 	}
-	commit := abciconv.ToABCICommit(com)
+	commit := abciconv.ToABCICommit(com, heightValue, b.SignedHeader.Hash())
 	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
 		return nil, err
@@ -788,7 +788,7 @@ func (c *FullClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes
 //
 // If valid, the tx is automatically added to the mempool.
 func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := c.appClient().CheckTxSync(abci.RequestCheckTx{Tx: tx})
+	res, err := c.appClient().Mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
@@ -871,7 +871,7 @@ func (c *FullClient) resubscribe(subscriber string, q cmpubsub.Query) cmtypes.Su
 	}
 }
 
-func (c *FullClient) appClient() abcicli.Client {
+func (c *FullClient) appClient() proxy.AppConns {
 	return c.node.AppClient()
 }
 

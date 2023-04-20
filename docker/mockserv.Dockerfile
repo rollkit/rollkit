@@ -1,15 +1,15 @@
-FROM --platform=$BUILDPLATFORM golang:1.19-alpine AS build-env
+FROM --platform=$BUILDPLATFORM golang:1.20-alpine AS build-env
 
 # Set working directory for the build
-WORKDIR /src 
+WORKDIR /src
 
 COPY . .
 
-RUN go mod tidy -compat=1.19 && \ 
+RUN go mod tidy -compat=1.19 && \
     go build /src/da/grpc/mockserv/cmd/main.go
 
 # Final image
-FROM alpine
+FROM alpine:3.17.3
 
 WORKDIR /root
 

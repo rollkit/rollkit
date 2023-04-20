@@ -2,6 +2,7 @@ syntax = "proto3";
 package rollkit;
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
 import "tendermint/abci/types.proto";
+import "tendermint/types/validator.proto";
 
 // Version captures the consensus rules for processing a block in the blockchain,
 // including all blockchain data structures and the rules of the application's
@@ -27,7 +28,7 @@ message Header {
 
 	// Commit from aggregator(s) from the last block
 	bytes last_commit_hash = 5;
-	
+
 	// Block.Data root aka Transactions
 	bytes data_hash = 6;
 
@@ -49,15 +50,11 @@ message Header {
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	bytes proposer_address = 10;
 
-	// public key of the proposer so we can verify the signature
-	bytes proposer_public_key = 11;
-
-
 	// Hash of block aggregator set, at a time of block creation
-	bytes aggregators_hash = 12;
+	bytes aggregators_hash = 11;
 
 	// Chain ID the block belongs to
-	string chain_id = 13;
+	string chain_id = 12;
 }
 
 message Commit {
@@ -67,6 +64,7 @@ message Commit {
 message SignedHeader {
 	Header header = 1;
 	Commit commit = 2;
+	tendermint.types.ValidatorSet validators = 3;
 }
 
 message Data {
@@ -75,7 +73,7 @@ message Data {
 	repeated tendermint.abci.Misbehavior evidence = 3;
 }
 
-message Block {	
+message Block {
 	SignedHeader signed_header = 1;
 	Data data = 2;
 }

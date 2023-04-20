@@ -94,18 +94,24 @@ func newFullNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	appClient abciclient.Client,
+	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
+	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp.SetLogger(logger.With("module", "proxy"))
+	if err := proxyApp.Start(); err != nil {
+		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+	}
+
 	eventBus := cmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
 	}
 
-	var baseKV ds.TxnDatastore
 	var err error
+	var baseKV ds.TxnDatastore
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV, err = store.NewDefaultInMemoryKVStore()
@@ -140,12 +146,12 @@ func newFullNode(
 		return nil, err
 	}
 
-	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), appClient, 0)
+	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
 	mpIDs := newMempoolIDs()
 	mp.EnableTxsAvailable()
 
 	doneBuildingChannel := make(chan struct{})
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, appClient, dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel)
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel)
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -158,7 +164,7 @@ func newFullNode(
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
-		appClient:         appClient,
+		proxyApp:          proxyApp,
 		eventBus:          eventBus,
 		genesis:           genesis,
 		conf:              conf,
@@ -249,6 +255,7 @@ func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
 
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
+
 	n.Logger.Info("starting P2P client")
 	err := n.P2P.Start(n.ctx)
 	if err != nil {
@@ -319,8 +326,8 @@ func (n *FullNode) EventBus() *cmtypes.EventBus {
 }
 
 // AppClient returns ABCI proxy connections to communicate with application.
-func (n *FullNode) AppClient() abciclient.Client {
-	return n.appClient
+func (n *FullNode) AppClient() proxy.AppConns {
+	return n.proxyApp
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the

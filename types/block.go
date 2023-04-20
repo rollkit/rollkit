@@ -40,8 +40,6 @@ type EvidenceData struct {
 
 // Commit contains evidence of block creation.
 type Commit struct {
-	Height     uint64
-	HeaderHash Hash
 	Signatures []Signature // most of the time this is a single signature
 }
 
@@ -50,7 +48,8 @@ type Commit struct {
 // Used mostly for gossiping.
 type SignedHeader struct {
 	Header
-	Commit Commit
+	Commit     Commit
+	Validators *tmtypes.ValidatorSet
 }
 
 // Signature represents signature of block creator.

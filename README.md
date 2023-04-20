@@ -30,6 +30,10 @@ go test ./...
 To regenerate protobuf types:
 
 ```sh
+./proto/get_deps.sh
+```
+
+```sh
 ./proto/gen.sh
 ```
 

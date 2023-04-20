@@ -26,6 +26,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/conv"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/node"
 )
@@ -291,8 +292,17 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 		LastBlockAppHash: nil,
 	})
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, abciclient.NewLocalClient(nil, app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	validatorKey := ed25519.GenPrivKey()
+	nodeKey := &p2p.NodeKey{
+		PrivKey: validatorKey,
+	}
+	signingKey, _ := conv.GetNodeKey(nodeKey)
+	pubKey := validatorKey.PubKey()
+
+	genesisValidators := []tmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	}
+	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 

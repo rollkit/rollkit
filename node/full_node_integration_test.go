@@ -45,14 +45,13 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -147,8 +146,7 @@ func TestLazyAggregator(t *testing.T) {
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
@@ -159,7 +157,7 @@ func TestLazyAggregator(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 	err = node.Start()
@@ -172,22 +170,25 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(err)
 
+	// delay to ensure it waits for block 1 to be built
+	time.Sleep(1 * time.Second)
+
 	client := node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
 	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(1))
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(2))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
 	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(2))
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(3))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
 	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(3))
+	assert.Equal(node.(*FullNode).Store.Height(), uint64(4))
 
 }
 
@@ -533,7 +534,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		ctx = context.Background()
 	}
 
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
@@ -544,8 +545,8 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		},
 		keys[n],
 		signingKey,
-		abcicli.NewLocalClient(nil, app),
-		&cmtypes.GenesisDoc{ChainID: "test"},
+		proxy.NewLocalClientCreator(app),
+		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)

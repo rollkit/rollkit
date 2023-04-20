@@ -20,6 +20,8 @@ type Node interface {
 	IsRunning() bool
 }
 
+// Add Defaults?
+
 func NewNode(
 	ctx context.Context,
 	conf config.NodeConfig,
