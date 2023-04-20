@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cometbft/cometbft/libs/cli"
+	"github.com/tendermint/tendermint/libs/cli"
 
 	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
 )
