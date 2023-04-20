@@ -15,7 +15,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
+	cmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/state/txindex"
@@ -304,7 +304,7 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 	require.NoError(t, err)
 
 	// indexed fourth (to test we don't include txs with similar events)
-	// https://github.com/cometbft/cometbft/issues/2908
+	// https://github.com/tendermint/tendermint/issues/2908
 	txResult4 := txResultWithEvents([]abci.Event{
 		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number.id"), Value: string("1"), Index: true}}},
 	})
@@ -349,7 +349,7 @@ func benchmarkTxIndex(txsCount int64, b *testing.B) {
 	batch := txindex.NewBatch(txsCount)
 	txIndex := uint32(0)
 	for i := int64(0); i < txsCount; i++ {
-		tx := tmrand.Bytes(250)
+		tx := cmrand.Bytes(250)
 		txResult := &abci.TxResult{
 			Height: 1,
 			Index:  txIndex,
