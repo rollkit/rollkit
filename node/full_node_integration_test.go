@@ -16,7 +16,7 @@ import (
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/mock"
@@ -52,7 +52,7 @@ func TestAggregatorMode(t *testing.T) {
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -159,7 +159,7 @@ func TestLazyAggregator(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key, signingKey, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 	err = node.Start()
@@ -545,7 +545,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 		keys[n],
 		signingKey,
 		abcicli.NewLocalClient(nil, app),
-		&tmtypes.GenesisDoc{ChainID: "test"},
+		&cmtypes.GenesisDoc{ChainID: "test"},
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)

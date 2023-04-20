@@ -9,7 +9,7 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
@@ -43,7 +43,7 @@ func newLightNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	appClient abciclient.Client,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*LightNode, error) {
 	datastore, err := openDatastore(conf, logger)

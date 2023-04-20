@@ -2,8 +2,8 @@ package types
 
 import (
 	"github.com/cometbft/cometbft/crypto/merkle"
-	"github.com/cometbft/cometbft/crypto/tmhash"
-	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmhash "github.com/cometbft/cometbft/crypto/tmhash"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 )
 
 // Tx represents transactoin.
@@ -14,7 +14,7 @@ type Txs []Tx
 
 // Hash computes the TMHASH hash of the wire encoded transaction.
 func (tx Tx) Hash() []byte {
-	return tmhash.Sum(tx)
+	return cmhash.Sum(tx)
 }
 
 // Proof returns a simple merkle proof for this node.
@@ -37,7 +37,7 @@ func (txs Txs) Proof(i int) TxProof {
 
 // TxProof represents a Merkle proof of the presence of a transaction in the Merkle tree.
 type TxProof struct {
-	RootHash tmbytes.HexBytes `json:"root_hash"`
+	RootHash cmbytes.HexBytes `json:"root_hash"`
 	Data     Tx               `json:"data"`
 	Proof    merkle.Proof     `json:"proof"`
 }

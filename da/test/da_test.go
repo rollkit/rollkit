@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	tmlog "github.com/cometbft/cometbft/libs/log"
+	cmlog "github.com/cometbft/cometbft/libs/log"
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/celestia"
@@ -148,7 +148,7 @@ func TestRetrieve(t *testing.T) {
 func startMockGRPCServ(t *testing.T) *grpc.Server {
 	t.Helper()
 	conf := grpcda.DefaultConfig
-	logger := tmlog.NewTMLogger(os.Stdout)
+	logger := cmlog.NewTMLogger(os.Stdout)
 
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
 	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)

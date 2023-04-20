@@ -4,7 +4,7 @@ import (
 	"context"
 
 	bytes "github.com/cometbft/cometbft/libs/bytes"
-	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmtypes "github.com/cometbft/cometbft/libs/bytes"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
@@ -29,12 +29,12 @@ func (c *LightClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, err
 }
 
 // ABCIQuery queries for data from application.
-func (c *LightClient) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
+func (c *LightClient) ABCIQuery(ctx context.Context, path string, data cmtypes.HexBytes) (*ctypes.ResultABCIQuery, error) {
 	panic("Not implemented")
 }
 
 // ABCIQueryWithOptions queries for data from application.
-func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmtypes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	panic("Not implemented")
 }
 

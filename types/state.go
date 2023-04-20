@@ -5,9 +5,9 @@ import (
 	"time"
 
 	// TODO(tzdybal): copy to local project?
-	tmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
 )
@@ -16,8 +16,8 @@ import (
 // but leaves the Consensus.App version blank.
 // The Consensus.App version will be set during the Handshake, once
 // we hear from the app what protocol version it is running.
-var InitStateVersion = tmstate.Version{
-	Consensus: tmversion.Consensus{
+var InitStateVersion = cmstate.Version{
+	Consensus: cmversion.Consensus{
 		Block: version.BlockProtocol,
 		App:   0,
 	},
@@ -26,7 +26,7 @@ var InitStateVersion = tmstate.Version{
 
 // State contains information about current state of the blockchain.
 type State struct {
-	Version tmstate.Version
+	Version cmstate.Version
 
 	// immutable
 	ChainID       string
@@ -48,7 +48,7 @@ type State struct {
 
 	// Consensus parameters used for validating blocks.
 	// Changes returned by EndBlock and updated after Commit.
-	ConsensusParams                  tmproto.ConsensusParams
+	ConsensusParams                  cmproto.ConsensusParams
 	LastHeightConsensusParamsChanged int64
 
 	// Merkle root of the results from executing prev block
@@ -94,20 +94,20 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		LastValidators:              types.NewValidatorSet(nil),
 		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
-		ConsensusParams: tmproto.ConsensusParams{
-			Block: &tmproto.BlockParams{
+		ConsensusParams: cmproto.ConsensusParams{
+			Block: &cmproto.BlockParams{
 				MaxBytes: genDoc.ConsensusParams.Block.MaxBytes,
 				MaxGas:   genDoc.ConsensusParams.Block.MaxGas,
 			},
-			Evidence: &tmproto.EvidenceParams{
+			Evidence: &cmproto.EvidenceParams{
 				MaxAgeNumBlocks: genDoc.ConsensusParams.Evidence.MaxAgeNumBlocks,
 				MaxAgeDuration:  genDoc.ConsensusParams.Evidence.MaxAgeDuration,
 				MaxBytes:        genDoc.ConsensusParams.Evidence.MaxBytes,
 			},
-			Validator: &tmproto.ValidatorParams{
+			Validator: &cmproto.ValidatorParams{
 				PubKeyTypes: genDoc.ConsensusParams.Validator.PubKeyTypes,
 			},
-			Version: &tmproto.VersionParams{
+			Version: &cmproto.VersionParams{
 				App: genDoc.ConsensusParams.Version.App,
 			},
 		},

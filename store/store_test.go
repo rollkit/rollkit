@@ -8,9 +8,9 @@ import (
 
 	abcitypes "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	tmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/stretchr/testify/assert"
@@ -158,7 +158,7 @@ func TestBlockResponses(t *testing.T) {
 	kv, _ := NewDefaultInMemoryKVStore()
 	s := New(context.Background(), kv)
 
-	expected := &tmstate.ABCIResponses{
+	expected := &cmstate.ABCIResponses{
 		BeginBlock: &abcitypes.ResponseBeginBlock{
 			Events: []abcitypes.Event{{
 				Type: "test",
@@ -172,8 +172,8 @@ func TestBlockResponses(t *testing.T) {
 		DeliverTxs: nil,
 		EndBlock: &abcitypes.ResponseEndBlock{
 			ValidatorUpdates: nil,
-			ConsensusParamUpdates: &tmproto.ConsensusParams{
-				Block: &tmproto.BlockParams{
+			ConsensusParamUpdates: &cmproto.ConsensusParams{
+				Block: &cmproto.BlockParams{
 					MaxBytes: 12345,
 					MaxGas:   678909876,
 				},
@@ -231,11 +231,11 @@ func getRandomBytes(n int) []byte {
 }
 
 // TODO(tzdybal): extract to some common place
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
+func getRandomValidatorSet() *cmtypes.ValidatorSet {
 	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
+	return &cmtypes.ValidatorSet{
+		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*cmtypes.Validator{
 			{PubKey: pubKey, Address: pubKey.Address()},
 		},
 	}

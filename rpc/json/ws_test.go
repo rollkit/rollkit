@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/libs/log"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +43,7 @@ func TestWebSockets(t *testing.T) {
     "method": "subscribe",
     "id": 7,
     "params": {
-        "query": "tm.event='NewBlock'"
+        "query": "cm.event='NewBlock'"
     }
 }
 `))
@@ -63,7 +63,7 @@ func TestWebSockets(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(websocket.TextMessage, typ)
 	assert.NotEmpty(msg)
-	var payload tmtypes.EventDataNewBlock
+	var payload cmtypes.EventDataNewBlock
 	err = json.Unmarshal(msg, &payload)
 	assert.NoError(err)
 	assert.NotNil(payload.ResultBeginBlock)

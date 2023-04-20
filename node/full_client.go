@@ -11,15 +11,15 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
 	bytes "github.com/cometbft/cometbft/libs/bytes"
-	tmbytes "github.com/cometbft/cometbft/libs/bytes"
-	tmmath "github.com/cometbft/cometbft/libs/math"
-	tmpubsub "github.com/cometbft/cometbft/libs/pubsub"
-	tmquery "github.com/cometbft/cometbft/libs/pubsub/query"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmmath "github.com/cometbft/cometbft/libs/math"
+	cmpubsub "github.com/cometbft/cometbft/libs/pubsub"
+	cmquery "github.com/cometbft/cometbft/libs/pubsub/query"
 	corep2p "github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
 
 	rconfig "github.com/rollkit/rollkit/config"
@@ -47,7 +47,7 @@ var _ rpcclient.Client = &FullClient{}
 //
 // This is the type that is used in communication between cosmos-sdk app and Rollkit.
 type FullClient struct {
-	*tmtypes.EventBus
+	*cmtypes.EventBus
 	config *config.RPCConfig
 
 	node *FullNode
@@ -76,12 +76,12 @@ func (c *FullClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, erro
 }
 
 // ABCIQuery queries for data from application.
-func (c *FullClient) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
+func (c *FullClient) ABCIQuery(ctx context.Context, path string, data cmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
 	return c.ABCIQueryWithOptions(ctx, path, data, rpcclient.DefaultABCIQueryOptions)
 }
 
 // ABCIQueryWithOptions queries for data from application.
-func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	resQuery, err := c.appClient().QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
@@ -97,7 +97,7 @@ func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data
 
 // BroadcastTxCommit returns with the responses from CheckTx and DeliverTx.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_commit
-func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	// This implementation corresponds to Tendermints implementation from rpc/core/mempool.go.
 	// ctx.RemoteAddr godoc: If neither HTTPReq nor WSConn is set, an empty string is returned.
 	// This code is a local client, so we can assume that subscriber is ""
@@ -112,7 +112,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx tmtypes.Tx) (*cty
 	// Subscribe to tx being committed in block.
 	subCtx, cancel := context.WithTimeout(ctx, subscribeTimeout)
 	defer cancel()
-	q := tmtypes.EventQueryTxFor(tx)
+	q := cmtypes.EventQueryTxFor(tx)
 	deliverTxSub, err := c.EventBus.Subscribe(subCtx, subscriber, q)
 	if err != nil {
 		err = fmt.Errorf("failed to subscribe to tx: %w", err)
@@ -153,7 +153,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx tmtypes.Tx) (*cty
 	// Wait for the tx to be included in a block or timeout.
 	select {
 	case msg := <-deliverTxSub.Out(): // The tx was included in a block.
-		deliverTxRes := msg.Data().(tmtypes.EventDataTx)
+		deliverTxRes := msg.Data().(cmtypes.EventDataTx)
 		return &ctypes.ResultBroadcastTxCommit{
 			CheckTx:   *checkTxRes,
 			DeliverTx: deliverTxRes.Result,
@@ -188,7 +188,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx tmtypes.Tx) (*cty
 // BroadcastTxAsync returns right away, with no response. Does not wait for
 // CheckTx nor DeliverTx results.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_async
-func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
 	err := c.node.Mempool.CheckTx(tx, nil, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx tmtypes.Tx) (*ctyp
 // BroadcastTxSync returns with the response from CheckTx. Does not wait for
 // DeliverTx result.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
-func (c *FullClient) BroadcastTxSync(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *FullClient) BroadcastTxSync(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
 	resCh := make(chan *abci.Response, 1)
 	err := c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
 		resCh <- res
@@ -241,7 +241,7 @@ func (c *FullClient) BroadcastTxSync(ctx context.Context, tx tmtypes.Tx) (*ctype
 
 // Subscribe subscribe given subscriber to a query.
 func (c *FullClient) Subscribe(ctx context.Context, subscriber, query string, outCapacity ...int) (out <-chan ctypes.ResultEvent, err error) {
-	q, err := tmquery.New(query)
+	q, err := cmquery.New(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse query: %w", err)
 	}
@@ -251,7 +251,7 @@ func (c *FullClient) Subscribe(ctx context.Context, subscriber, query string, ou
 		outCap = outCapacity[0]
 	}
 
-	var sub tmtypes.Subscription
+	var sub cmtypes.Subscription
 	if outCap > 0 {
 		sub, err = c.EventBus.Subscribe(ctx, subscriber, q, outCap)
 	} else {
@@ -269,7 +269,7 @@ func (c *FullClient) Subscribe(ctx context.Context, subscriber, query string, ou
 
 // Unsubscribe unsubscribes given subscriber from a query.
 func (c *FullClient) Unsubscribe(ctx context.Context, subscriber, query string) error {
-	q, err := tmquery.New(query)
+	q, err := cmquery.New(query)
 	if err != nil {
 		return fmt.Errorf("failed to parse query: %w", err)
 	}
@@ -323,18 +323,18 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	}
 	c.Logger.Debug("BlockchainInfo", "maxHeight", maxHeight, "minHeight", minHeight)
 
-	blocks := make([]*tmtypes.BlockMeta, 0, maxHeight-minHeight+1)
+	blocks := make([]*cmtypes.BlockMeta, 0, maxHeight-minHeight+1)
 	for height := maxHeight; height >= minHeight; height-- {
 		block, err := c.node.Store.LoadBlock(uint64(height))
 		if err != nil {
 			return nil, err
 		}
 		if block != nil {
-			tmblockmeta, err := abciconv.ToABCIBlockMeta(block)
+			cmblockmeta, err := abciconv.ToABCIBlockMeta(block)
 			if err != nil {
 				return nil, err
 			}
-			blocks = append(blocks, tmblockmeta)
+			blocks = append(blocks, cmblockmeta)
 		}
 	}
 
@@ -385,20 +385,20 @@ func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctype
 	params := c.node.GetGenesis().ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),
-		ConsensusParams: tmtypes.ConsensusParams{
-			Block: tmtypes.BlockParams{
+		ConsensusParams: cmtypes.ConsensusParams{
+			Block: cmtypes.BlockParams{
 				MaxBytes: params.Block.MaxBytes,
 				MaxGas:   params.Block.MaxGas,
 			},
-			Evidence: tmtypes.EvidenceParams{
+			Evidence: cmtypes.EvidenceParams{
 				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
 				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
 				MaxBytes:        params.Evidence.MaxBytes,
 			},
-			Validator: tmtypes.ValidatorParams{
+			Validator: cmtypes.ValidatorParams{
 				PubKeyTypes: params.Validator.PubKeyTypes,
 			},
-			Version: tmtypes.VersionParams{
+			Version: cmtypes.VersionParams{
 				App: params.Version.App,
 			},
 		},
@@ -425,9 +425,9 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 		return nil, err
 	}
 	return &ctypes.ResultBlock{
-		BlockID: tmtypes.BlockID{
-			Hash: tmbytes.HexBytes(hash),
-			PartSetHeader: tmtypes.PartSetHeader{
+		BlockID: cmtypes.BlockID{
+			Hash: cmbytes.HexBytes(hash),
+			PartSetHeader: cmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
@@ -448,9 +448,9 @@ func (c *FullClient) BlockByHash(ctx context.Context, hash []byte) (*ctypes.Resu
 		return nil, err
 	}
 	return &ctypes.ResultBlock{
-		BlockID: tmtypes.BlockID{
+		BlockID: cmtypes.BlockID{
 			Hash: hash,
-			PartSetHeader: tmtypes.PartSetHeader{
+			PartSetHeader: cmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
@@ -518,7 +518,7 @@ func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, 
 	}
 
 	skipCount := validateSkipCount(page, perPage)
-	v := validators.Validators[skipCount : skipCount+tmmath.MinInt(perPage, totalCount-skipCount)]
+	v := validators.Validators[skipCount : skipCount+cmmath.MinInt(perPage, totalCount-skipCount)]
 	return &ctypes.ResultValidators{
 		BlockHeight: int64(height),
 		Validators:  v,
@@ -541,13 +541,13 @@ func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.R
 	height := res.Height
 	index := res.Index
 
-	var proof tmtypes.TxProof
+	var proof cmtypes.TxProof
 	if prove {
 		block, _ := c.node.Store.LoadBlock(uint64(height))
 		blockProof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
-		proof = tmtypes.TxProof{
+		proof = cmtypes.TxProof{
 			RootHash: blockProof.RootHash,
-			Data:     tmtypes.Tx(blockProof.Data),
+			Data:     cmtypes.Tx(blockProof.Data),
 			Proof:    blockProof.Proof,
 		}
 	}
@@ -564,7 +564,7 @@ func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.R
 
 // TxSearch returns detailed information about transactions matching query.
 func (c *FullClient) TxSearch(ctx context.Context, query string, prove bool, pagePtr, perPagePtr *int, orderBy string) (*ctypes.ResultTxSearch, error) {
-	q, err := tmquery.New(query)
+	q, err := cmquery.New(query)
 	if err != nil {
 		return nil, err
 	}
@@ -604,20 +604,20 @@ func (c *FullClient) TxSearch(ctx context.Context, query string, prove bool, pag
 	}
 
 	skipCount := validateSkipCount(page, perPage)
-	pageSize := tmmath.MinInt(perPage, totalCount-skipCount)
+	pageSize := cmmath.MinInt(perPage, totalCount-skipCount)
 
 	apiResults := make([]*ctypes.ResultTx, 0, pageSize)
 	for i := skipCount; i < skipCount+pageSize; i++ {
 		r := results[i]
 
-		var proof tmtypes.TxProof
+		var proof cmtypes.TxProof
 		/*if prove {
 			block := nil                               //env.BlockStore.LoadBlock(r.Height)
 			proof = block.Data.Txs.Proof(int(r.Index)) // XXX: overflow on 32-bit machines
 		}*/
 
 		apiResults = append(apiResults, &ctypes.ResultTx{
-			Hash:     tmtypes.Tx(r.Tx).Hash(),
+			Hash:     cmtypes.Tx(r.Tx).Hash(),
 			Height:   r.Height,
 			Index:    r.Index,
 			TxResult: r.Result,
@@ -632,7 +632,7 @@ func (c *FullClient) TxSearch(ctx context.Context, query string, prove bool, pag
 // BlockSearch defines a method to search for a paginated set of blocks by
 // BeginBlock and EndBlock event search criteria.
 func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPage *int, orderBy string) (*ctypes.ResultBlockSearch, error) {
-	q, err := tmquery.New(query)
+	q, err := cmquery.New(query)
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +667,7 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 	}
 
 	skipCount := validateSkipCount(pageVal, perPageVal)
-	pageSize := tmmath.MinInt(perPageVal, totalCount-skipCount)
+	pageSize := cmmath.MinInt(perPageVal, totalCount-skipCount)
 
 	// Fetch the blocks
 	blocks := make([]*ctypes.ResultBlock, 0, pageSize)
@@ -682,7 +682,7 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 		}
 		blocks = append(blocks, &ctypes.ResultBlock{
 			Block: block,
-			BlockID: tmtypes.BlockID{
+			BlockID: cmtypes.BlockID{
 				Hash: block.Hash(),
 			},
 		})
@@ -735,12 +735,12 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     tmbytes.HexBytes(latest.SignedHeader.Header.DataHash),
-			LatestAppHash:       tmbytes.HexBytes(latest.SignedHeader.Header.AppHash),
+			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.Header.DataHash),
+			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.Header.AppHash),
 			LatestBlockHeight:   latest.SignedHeader.Header.Height(),
 			LatestBlockTime:     latest.SignedHeader.Header.Time(),
-			EarliestBlockHash:   tmbytes.HexBytes(initial.SignedHeader.Header.DataHash),
-			EarliestAppHash:     tmbytes.HexBytes(initial.SignedHeader.Header.AppHash),
+			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.Header.DataHash),
+			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.Header.AppHash),
 			EarliestBlockHeight: initial.SignedHeader.Header.Height(),
 			EarliestBlockTime:   initial.SignedHeader.Header.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
@@ -755,7 +755,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 }
 
 // BroadcastEvidence is not yet implemented.
-func (c *FullClient) BroadcastEvidence(ctx context.Context, evidence tmtypes.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
+func (c *FullClient) BroadcastEvidence(ctx context.Context, evidence cmtypes.Evidence) (*ctypes.ResultBroadcastEvidence, error) {
 	return &ctypes.ResultBroadcastEvidence{
 		Hash: evidence.Hash(),
 	}, nil
@@ -787,7 +787,7 @@ func (c *FullClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes
 // CheckTx executes a new transaction against the application to determine its validity.
 //
 // If valid, the tx is automatically added to the mempool.
-func (c *FullClient) CheckTx(ctx context.Context, tx tmtypes.Tx) (*ctypes.ResultCheckTx, error) {
+func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultCheckTx, error) {
 	res, err := c.appClient().CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
@@ -822,7 +822,7 @@ func (c *FullClient) HeaderByHash(ctx context.Context, hash bytes.HexBytes) (*ct
 	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
 }
 
-func (c *FullClient) eventsRoutine(sub tmtypes.Subscription, subscriber string, q tmpubsub.Query, outc chan<- ctypes.ResultEvent) {
+func (c *FullClient) eventsRoutine(sub cmtypes.Subscription, subscriber string, q cmpubsub.Query, outc chan<- ctypes.ResultEvent) {
 	defer close(outc)
 	for {
 		select {
@@ -838,7 +838,7 @@ func (c *FullClient) eventsRoutine(sub tmtypes.Subscription, subscriber string, 
 				}
 			}
 		case <-sub.Cancelled():
-			if sub.Err() == tmpubsub.ErrUnsubscribed {
+			if sub.Err() == cmpubsub.ErrUnsubscribed {
 				return
 			}
 
@@ -854,7 +854,7 @@ func (c *FullClient) eventsRoutine(sub tmtypes.Subscription, subscriber string, 
 }
 
 // Try to resubscribe with exponential backoff.
-func (c *FullClient) resubscribe(subscriber string, q tmpubsub.Query) tmtypes.Subscription {
+func (c *FullClient) resubscribe(subscriber string, q cmpubsub.Query) cmtypes.Subscription {
 	attempts := 0
 	for {
 		if !c.IsRunning() {
@@ -886,7 +886,7 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 	return heightValue
 }
 
-func (rpc *FullClient) getBlockMeta(n int64) *tmtypes.BlockMeta {
+func (rpc *FullClient) getBlockMeta(n int64) *cmtypes.BlockMeta {
 	b, err := rpc.node.Store.LoadBlock(uint64(n))
 	if err != nil {
 		return nil
@@ -958,14 +958,14 @@ func filterMinMax(base, height, min, max, limit int64) (int64, int64, error) {
 	}
 
 	// limit max to the height
-	max = tmmath.MinInt64(height, max)
+	max = cmmath.MinInt64(height, max)
 
 	// limit min to the base
-	min = tmmath.MaxInt64(base, min)
+	min = cmmath.MaxInt64(base, min)
 
 	// limit min to within `limit` of max
 	// so the total number of blocks returned will be `limit`
-	min = tmmath.MaxInt64(min, max-limit+1)
+	min = cmmath.MaxInt64(min, max-limit+1)
 
 	if min > max {
 		return min, max, fmt.Errorf("%w: min height %d can't be greater than max height %d",

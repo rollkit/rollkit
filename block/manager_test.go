@@ -8,7 +8,7 @@ import (
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +21,7 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-	genesis := &tmtypes.GenesisDoc{
+	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
 	}
@@ -46,7 +46,7 @@ func TestInitialState(t *testing.T) {
 	cases := []struct {
 		name                    string
 		store                   store.Store
-		genesis                 *tmtypes.GenesisDoc
+		genesis                 *cmtypes.GenesisDoc
 		expectedInitialHeight   int64
 		expectedLastBlockHeight int64
 		expectedChainID         string
@@ -99,11 +99,11 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 }
 
 // copied from store_test.go
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
+func getRandomValidatorSet() *cmtypes.ValidatorSet {
 	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
+	return &cmtypes.ValidatorSet{
+		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*cmtypes.Validator{
 			{PubKey: pubKey, Address: pubKey.Address()},
 		},
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/go-header/sync"
 	goheadersync "github.com/celestiaorg/go-header/sync"
 	"github.com/cometbft/cometbft/libs/log"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -27,7 +27,7 @@ import (
 
 type HeaderExchangeService struct {
 	conf          config.NodeConfig
-	genesis       *tmtypes.GenesisDoc
+	genesis       *cmtypes.GenesisDoc
 	p2p           *p2p.Client
 	ex            *goheaderp2p.Exchange[*types.SignedHeader]
 	syncer        *sync.Syncer[*types.SignedHeader]
@@ -40,7 +40,7 @@ type HeaderExchangeService struct {
 	ctx    context.Context
 }
 
-func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderExchangeService, error) {
+func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderExchangeService, error) {
 	// store is TxnDatastore, but we require Batching, hence the type assertion
 	// note, the badger datastore impl that is used in the background implements both
 	storeBatch, ok := store.(ds.Batching)

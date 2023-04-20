@@ -15,9 +15,9 @@ import (
 	cfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/mempool"
 	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
@@ -49,10 +49,10 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 
 	state := types.State{}
 
-	state.ConsensusParams.Block = &tmproto.BlockParams{}
+	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
-	state.Validators = tmtypes.NewValidatorSet(nil)
+	state.Validators = cmtypes.NewValidatorSet(nil)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
@@ -116,30 +116,30 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	chainID := "test"
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
-	eventBus := tmtypes.NewEventBus()
+	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
 	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, eventBus, logger)
 
-	txQuery, err := query.New("tm.event='Tx'")
+	txQuery, err := query.New("cm.event='Tx'")
 	require.NoError(err)
 	txSub, err := eventBus.Subscribe(context.Background(), "test", txQuery, 1000)
 	require.NoError(err)
 	require.NotNil(txSub)
 
-	headerQuery, err := query.New("tm.event='NewBlockHeader'")
+	headerQuery, err := query.New("cm.event='NewBlockHeader'")
 	require.NoError(err)
 	headerSub, err := eventBus.Subscribe(context.Background(), "test", headerQuery, 100)
 	require.NoError(err)
 	require.NotNil(headerSub)
 
 	state := types.State{
-		NextValidators: tmtypes.NewValidatorSet(nil),
-		Validators:     tmtypes.NewValidatorSet(nil),
-		LastValidators: tmtypes.NewValidatorSet(nil),
+		NextValidators: cmtypes.NewValidatorSet(nil),
+		Validators:     cmtypes.NewValidatorSet(nil),
+		LastValidators: cmtypes.NewValidatorSet(nil),
 	}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
-	state.ConsensusParams.Block = &tmproto.BlockParams{}
+	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 
@@ -185,7 +185,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 		select {
 		case evt := <-txSub.Out():
 			cnt++
-			data, ok := evt.Data().(tmtypes.EventDataTx)
+			data, ok := evt.Data().(cmtypes.EventDataTx)
 			assert.True(ok)
 			assert.NotEmpty(data.Tx)
 			txs[data.Height]++
@@ -200,7 +200,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.EqualValues(2, len(headerSub.Out()))
 	for h := 1; h <= 2; h++ {
 		evt := <-headerSub.Out()
-		data, ok := evt.Data().(tmtypes.EventDataNewBlockHeader)
+		data, ok := evt.Data().(cmtypes.EventDataNewBlockHeader)
 		assert.True(ok)
 		if data.Header.Height == 2 {
 			assert.EqualValues(3, data.NumTxs)

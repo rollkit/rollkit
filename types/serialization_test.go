@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	tmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -104,8 +104,8 @@ func TestStateRoundTrip(t *testing.T) {
 				LastValidators: valSet,
 				Validators:     valSet,
 				NextValidators: valSet,
-				ConsensusParams: tmproto.ConsensusParams{
-					Block: &tmproto.BlockParams{
+				ConsensusParams: cmproto.ConsensusParams{
+					Block: &cmproto.BlockParams{
 						MaxBytes: 123,
 						MaxGas:   456,
 					},
@@ -115,8 +115,8 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			name: "with all fields set",
 			state: State{
-				Version: tmstate.Version{
-					Consensus: tmversion.Consensus{
+				Version: cmstate.Version{
+					Consensus: cmversion.Consensus{
 						Block: 123,
 						App:   456,
 					},
@@ -125,9 +125,9 @@ func TestStateRoundTrip(t *testing.T) {
 				ChainID:         "testchain",
 				InitialHeight:   987,
 				LastBlockHeight: 987654321,
-				LastBlockID: tmtypes.BlockID{
+				LastBlockID: cmtypes.BlockID{
 					Hash: nil,
-					PartSetHeader: tmtypes.PartSetHeader{
+					PartSetHeader: cmtypes.PartSetHeader{
 						Total: 0,
 						Hash:  nil,
 					},
@@ -138,20 +138,20 @@ func TestStateRoundTrip(t *testing.T) {
 				Validators:                  valSet,
 				LastValidators:              valSet,
 				LastHeightValidatorsChanged: 8272,
-				ConsensusParams: tmproto.ConsensusParams{
-					Block: &tmproto.BlockParams{
+				ConsensusParams: cmproto.ConsensusParams{
+					Block: &cmproto.BlockParams{
 						MaxBytes: 12345,
 						MaxGas:   6543234,
 					},
-					Evidence: &tmproto.EvidenceParams{
+					Evidence: &cmproto.EvidenceParams{
 						MaxAgeNumBlocks: 100,
 						MaxAgeDuration:  200,
 						MaxBytes:        300,
 					},
-					Validator: &tmproto.ValidatorParams{
+					Validator: &cmproto.ValidatorParams{
 						PubKeyTypes: []string{"secure", "more secure"},
 					},
-					Version: &tmproto.VersionParams{
+					Version: &cmproto.VersionParams{
 						App: 42,
 					},
 				},
@@ -188,11 +188,11 @@ func TestStateRoundTrip(t *testing.T) {
 }
 
 // copied from store_test.go
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
+func getRandomValidatorSet() *cmtypes.ValidatorSet {
 	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
+	return &cmtypes.ValidatorSet{
+		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*cmtypes.Validator{
 			{PubKey: pubKey, Address: pubKey.Address()},
 		},
 	}

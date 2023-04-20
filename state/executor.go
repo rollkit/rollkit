@@ -9,11 +9,11 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
-	tmbytes "github.com/cometbft/cometbft/libs/bytes"
-	tmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"go.uber.org/multierr"
 
 	abciconv "github.com/rollkit/rollkit/conv/abci"
@@ -33,7 +33,7 @@ type BlockExecutor struct {
 	mempool            mempool.Mempool
 	fraudProofsEnabled bool
 
-	eventBus *tmtypes.EventBus
+	eventBus *cmtypes.EventBus
 
 	logger log.Logger
 
@@ -42,7 +42,7 @@ type BlockExecutor struct {
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, fraudProofsEnabled bool, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, fraudProofsEnabled bool, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress:    proposerAddress,
 		namespaceID:        namespaceID,
@@ -57,35 +57,35 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 }
 
 // InitChain calls InitChainSync using consensus connection to app.
-func (e *BlockExecutor) InitChain(genesis *tmtypes.GenesisDoc) (*abci.ResponseInitChain, error) {
+func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseInitChain, error) {
 	params := genesis.ConsensusParams
 
-	validators := make([]*tmtypes.Validator, len(genesis.Validators))
+	validators := make([]*cmtypes.Validator, len(genesis.Validators))
 	for i, v := range genesis.Validators {
-		validators[i] = tmtypes.NewValidator(v.PubKey, v.Power)
+		validators[i] = cmtypes.NewValidator(v.PubKey, v.Power)
 	}
 
 	return e.proxyApp.InitChainSync(abci.RequestInitChain{
 		Time:    genesis.GenesisTime,
 		ChainId: genesis.ChainID,
-		ConsensusParams: &tmproto.ConsensusParams{
-			Block: &tmproto.BlockParams{
+		ConsensusParams: &cmproto.ConsensusParams{
+			Block: &cmproto.BlockParams{
 				MaxBytes: params.Block.MaxBytes,
 				MaxGas:   params.Block.MaxGas,
 			},
-			Evidence: &tmproto.EvidenceParams{
+			Evidence: &cmproto.EvidenceParams{
 				MaxAgeNumBlocks: params.Evidence.MaxAgeNumBlocks,
 				MaxAgeDuration:  params.Evidence.MaxAgeDuration,
 				MaxBytes:        params.Evidence.MaxBytes,
 			},
-			Validator: &tmproto.ValidatorParams{
+			Validator: &cmproto.ValidatorParams{
 				PubKeyTypes: params.Validator.PubKeyTypes,
 			},
-			Version: &tmproto.VersionParams{
+			Version: &cmproto.VersionParams{
 				App: params.Version.App,
 			},
 		},
-		Validators:    tmtypes.TM2PB.ValidatorUpdates(tmtypes.NewValidatorSet(validators)),
+		Validators:    cmtypes.TM2PB.ValidatorUpdates(cmtypes.NewValidatorSet(validators)),
 		AppStateBytes: genesis.AppState,
 		InitialHeight: genesis.InitialHeight,
 	})
@@ -134,7 +134,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 }
 
 // ApplyBlock validates and executes the block.
-func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *tmstate.ABCIResponses, error) {
+func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *cmstate.ABCIResponses, error) {
 	err := e.validate(state, block)
 	if err != nil {
 		return types.State{}, nil, err
@@ -157,12 +157,12 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return state, nil, fmt.Errorf("error in validator updates: %v", err)
 	}
 
-	validatorUpdates, err := tmtypes.PB2TM.ValidatorUpdates(abciValUpdates)
+	validatorUpdates, err := cmtypes.PB2TM.ValidatorUpdates(abciValUpdates)
 	if err != nil {
 		return state, nil, err
 	}
 	if len(validatorUpdates) > 0 {
-		e.logger.Debug("updates to validators", "updates", tmtypes.ValidatorListString(validatorUpdates))
+		e.logger.Debug("updates to validators", "updates", cmtypes.ValidatorListString(validatorUpdates))
 	}
 	if state.ConsensusParams.Block.MaxBytes == 0 {
 		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
@@ -177,7 +177,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 }
 
 // Commit commits the block
-func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *tmstate.ABCIResponses) ([]byte, uint64, error) {
+func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *cmstate.ABCIResponses) ([]byte, uint64, error) {
 	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
 	if err != nil {
 		return []byte{}, 0, err
@@ -207,7 +207,7 @@ func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedVa
 
 }
 
-func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
+func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *cmstate.ABCIResponses, validatorUpdates []*cmtypes.Validator) (types.State, error) {
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
 	// Rollkit can work without validators
@@ -231,8 +231,8 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		InitialHeight:   state.InitialHeight,
 		LastBlockHeight: block.SignedHeader.Header.Height(),
 		LastBlockTime:   block.SignedHeader.Header.Time(),
-		LastBlockID: tmtypes.BlockID{
-			Hash: tmbytes.HexBytes(block.SignedHeader.Header.Hash()),
+		LastBlockID: cmtypes.BlockID{
+			Hash: cmbytes.HexBytes(block.SignedHeader.Header.Hash()),
 			// for now, we don't care about part set headers
 		},
 		NextValidators:                   nValSet,
@@ -243,7 +243,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
 		AppHash:                          make(types.Hash, 32),
 	}
-	copy(s.LastResultsHash[:], tmtypes.NewResults(abciResponses.DeliverTxs).Hash())
+	copy(s.LastResultsHash[:], cmtypes.NewResults(abciResponses.DeliverTxs).Hash())
 
 	return s, nil
 }
@@ -298,8 +298,8 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 	return nil
 }
 
-func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *types.Block) (*tmstate.ABCIResponses, error) {
-	abciResponses := new(tmstate.ABCIResponses)
+func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *types.Block) (*cmstate.ABCIResponses, error) {
+	abciResponses := new(cmstate.ABCIResponses)
 	abciResponses.DeliverTxs = make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
 
 	txIdx := 0
@@ -459,7 +459,7 @@ func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *type
 	return lastABCICommit.Hash()
 }
 
-func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block, state types.State) error {
+func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.Block, state types.State) error {
 	if e.eventBus == nil {
 		return nil
 	}
@@ -470,25 +470,25 @@ func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.
 		return err
 	}
 
-	err = multierr.Append(err, e.eventBus.PublishEventNewBlock(tmtypes.EventDataNewBlock{
+	err = multierr.Append(err, e.eventBus.PublishEventNewBlock(cmtypes.EventDataNewBlock{
 		Block:            abciBlock,
 		ResultBeginBlock: *resp.BeginBlock,
 		ResultEndBlock:   *resp.EndBlock,
 	}))
-	err = multierr.Append(err, e.eventBus.PublishEventNewBlockHeader(tmtypes.EventDataNewBlockHeader{
+	err = multierr.Append(err, e.eventBus.PublishEventNewBlockHeader(cmtypes.EventDataNewBlockHeader{
 		Header:           abciBlock.Header,
 		NumTxs:           int64(len(abciBlock.Txs)),
 		ResultBeginBlock: *resp.BeginBlock,
 		ResultEndBlock:   *resp.EndBlock,
 	}))
 	for _, ev := range abciBlock.Evidence.Evidence {
-		err = multierr.Append(err, e.eventBus.PublishEventNewEvidence(tmtypes.EventDataNewEvidence{
+		err = multierr.Append(err, e.eventBus.PublishEventNewEvidence(cmtypes.EventDataNewEvidence{
 			Evidence: ev,
 			Height:   block.SignedHeader.Header.Height(),
 		}))
 	}
 	for i, dtx := range resp.DeliverTxs {
-		err = multierr.Append(err, e.eventBus.PublishEventTx(tmtypes.EventDataTx{
+		err = multierr.Append(err, e.eventBus.PublishEventTx(cmtypes.EventDataTx{
 			TxResult: abci.TxResult{
 				Height: block.SignedHeader.Header.Height(),
 				Index:  uint32(i),
@@ -508,7 +508,7 @@ func (e *BlockExecutor) getAppHash() ([]byte, error) {
 	return isrResp.AppHash, nil
 }
 
-func toRollkitTxs(txs tmtypes.Txs) types.Txs {
+func toRollkitTxs(txs cmtypes.Txs) types.Txs {
 	rollkitTxs := make(types.Txs, len(txs))
 	for i := range txs {
 		rollkitTxs[i] = []byte(txs[i])
@@ -516,8 +516,8 @@ func toRollkitTxs(txs tmtypes.Txs) types.Txs {
 	return rollkitTxs
 }
 
-func fromRollkitTxs(rollkitTxs types.Txs) tmtypes.Txs {
-	txs := make(tmtypes.Txs, len(rollkitTxs))
+func fromRollkitTxs(rollkitTxs types.Txs) cmtypes.Txs {
+	txs := make(cmtypes.Txs, len(rollkitTxs))
 	for i := range rollkitTxs {
 		txs[i] = []byte(rollkitTxs[i])
 	}
@@ -525,7 +525,7 @@ func fromRollkitTxs(rollkitTxs types.Txs) tmtypes.Txs {
 }
 
 func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
-	params *tmproto.ValidatorParams) error {
+	params *cmproto.ValidatorParams) error {
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.GetPower() < 0 {
 			return fmt.Errorf("voting power can't be negative %v", valUpdate)
@@ -541,7 +541,7 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 			return err
 		}
 
-		if !tmtypes.IsValidPubkeyType(tmtypes.ValidatorParams{PubKeyTypes: params.PubKeyTypes}, pk.Type()) {
+		if !cmtypes.IsValidPubkeyType(cmtypes.ValidatorParams{PubKeyTypes: params.PubKeyTypes}, pk.Type()) {
 			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
 				valUpdate, pk.Type())
 		}

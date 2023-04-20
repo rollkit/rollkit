@@ -18,7 +18,7 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -53,10 +53,10 @@ var _ Node = &FullNode{}
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
-	eventBus  *tmtypes.EventBus
+	eventBus  *cmtypes.EventBus
 	appClient abciclient.Client
 
-	genesis *tmtypes.GenesisDoc
+	genesis *cmtypes.GenesisDoc
 	// cache of chunked genesis data.
 	genChunks []string
 
@@ -95,10 +95,10 @@ func newFullNode(
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	appClient abciclient.Client,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
-	eventBus := tmtypes.NewEventBus()
+	eventBus := cmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -275,7 +275,7 @@ func (n *FullNode) OnStart() error {
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() *tmtypes.GenesisDoc {
+func (n *FullNode) GetGenesis() *cmtypes.GenesisDoc {
 	return n.genesis
 }
 
@@ -314,7 +314,7 @@ func (n *FullNode) GetLogger() log.Logger {
 }
 
 // EventBus gives access to Node's event bus.
-func (n *FullNode) EventBus() *tmtypes.EventBus {
+func (n *FullNode) EventBus() *cmtypes.EventBus {
 	return n.eventBus
 }
 
@@ -378,7 +378,7 @@ func createAndStartIndexerService(
 	ctx context.Context,
 	conf config.NodeConfig,
 	kvStore ds.TxnDatastore,
-	eventBus *tmtypes.EventBus,
+	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
 	var (

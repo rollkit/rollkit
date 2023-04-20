@@ -16,14 +16,14 @@ import (
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tconfig "github.com/cometbft/cometbft/config"
-	tmcrypto "github.com/cometbft/cometbft/crypto"
+	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -77,11 +77,11 @@ func TestCheckTx(t *testing.T) {
 func TestGenesisChunked(t *testing.T) {
 	assert := assert.New(t)
 
-	genDoc := &tmtypes.GenesisDoc{
+	genDoc := &cmtypes.GenesisDoc{
 		ChainID:       "test",
 		InitialHeight: int64(1),
 		AppHash:       []byte("test hash"),
-		Validators: []tmtypes.GenesisValidator{
+		Validators: []cmtypes.GenesisValidator{
 			{Address: bytes.HexBytes{}, Name: "test", Power: 1, PubKey: ed25519.GenPrivKey().PubKey()},
 		},
 	}
@@ -212,7 +212,7 @@ func TestBroadcastTxCommit(t *testing.T) {
 
 	go func() {
 		time.Sleep(mockTxProcessingTime)
-		err := rpc.node.EventBus().PublishEventTx(tmtypes.EventDataTx{TxResult: abci.TxResult{
+		err := rpc.node.EventBus().PublishEventTx(cmtypes.EventDataTx{TxResult: abci.TxResult{
 			Height: 1,
 			Index:  0,
 			Tx:     expectedTx,
@@ -410,7 +410,7 @@ func TestTx(t *testing.T) {
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
 		key, signingKey, abcicli.NewLocalClient(nil, mockApp),
-		&tmtypes.GenesisDoc{ChainID: "test"},
+		&cmtypes.GenesisDoc{ChainID: "test"},
 		log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
@@ -428,7 +428,7 @@ func TestTx(t *testing.T) {
 	err = rpc.node.Start()
 	require.NoError(err)
 
-	tx1 := tmtypes.Tx("tx1")
+	tx1 := cmtypes.Tx("tx1")
 	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
 	assert.NoError(err)
 	assert.NotNil(res)
@@ -441,7 +441,7 @@ func TestTx(t *testing.T) {
 	assert.EqualValues(tx1, resTx.Tx)
 	assert.EqualValues(res.Hash, resTx.Hash)
 
-	tx2 := tmtypes.Tx("tx2")
+	tx2 := cmtypes.Tx("tx2")
 	assert.Panics(func() {
 		resTx, errTx := rpc.Tx(context.Background(), tx2.Hash(), true)
 		assert.Nil(resTx)
@@ -450,19 +450,19 @@ func TestTx(t *testing.T) {
 }
 
 func TestUnconfirmedTxs(t *testing.T) {
-	tx1 := tmtypes.Tx("tx1")
-	tx2 := tmtypes.Tx("another tx")
+	tx1 := cmtypes.Tx("tx1")
+	tx2 := cmtypes.Tx("another tx")
 
 	cases := []struct {
 		name               string
-		txs                []tmtypes.Tx
+		txs                []cmtypes.Tx
 		expectedCount      int
 		expectedTotal      int
 		expectedTotalBytes int
 	}{
 		{"no txs", nil, 0, 0, 0},
-		{"one tx", []tmtypes.Tx{tx1}, 1, 1, len(tx1)},
-		{"two txs", []tmtypes.Tx{tx1, tx2}, 2, 2, len(tx1) + len(tx2)},
+		{"one tx", []cmtypes.Tx{tx1}, 1, 1, len(tx1)},
+		{"two txs", []cmtypes.Tx{tx1, tx2}, 2, 2, len(tx1) + len(tx2)},
 	}
 
 	for _, c := range cases {
@@ -513,8 +513,8 @@ func TestUnconfirmedTxsLimit(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 
-	tx1 := tmtypes.Tx("tx1")
-	tx2 := tmtypes.Tx("another tx")
+	tx1 := cmtypes.Tx("tx1")
+	tx2 := cmtypes.Tx("another tx")
 
 	res, err := rpc.BroadcastTxAsync(context.Background(), tx1)
 	assert.NoError(err)
@@ -574,26 +574,26 @@ func TestBlockchainInfo(t *testing.T) {
 		desc string
 		min  int64
 		max  int64
-		exp  []*tmtypes.BlockMeta
+		exp  []*cmtypes.BlockMeta
 		err  bool
 	}{
 		{
 			desc: "min = 1 and max = 5",
 			min:  1,
 			max:  5,
-			exp:  []*tmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 5)},
+			exp:  []*cmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 5)},
 			err:  false,
 		}, {
 			desc: "min height is 0",
 			min:  0,
 			max:  10,
-			exp:  []*tmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 10)},
+			exp:  []*cmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 10)},
 			err:  false,
 		}, {
 			desc: "max height is out of range",
 			min:  0,
 			max:  15,
-			exp:  []*tmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 10)},
+			exp:  []*cmtypes.BlockMeta{getBlockMeta(rpc, 1), getBlockMeta(rpc, 10)},
 			err:  false,
 		}, {
 			desc: "negative min height",
@@ -640,11 +640,11 @@ func TestValidatorSetHandling(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
-	vKeys := make([]tmcrypto.PrivKey, 4)
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	vKeys := make([]cmcrypto.PrivKey, 4)
+	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
+		genesisValidators[i] = cmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: "one"}
 	}
 
 	pbValKey, err := encoding.PubKeyToProto(vKeys[0].PubKey())
@@ -660,7 +660,7 @@ func TestValidatorSetHandling(t *testing.T) {
 		waitCh <- nil
 	})
 
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 10 * time.Millisecond}}, key, signingKey, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -748,12 +748,12 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 		block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 
-	tmprotoLC, err := tmtypes.CommitFromProto(&tmproto.Commit{})
+	cmprotoLC, err := cmtypes.CommitFromProto(&cmproto.Commit{})
 	if err != nil {
 		return nil
 	}
 	lastCommitHash := make(types.Hash, 32)
-	copy(lastCommitHash, tmprotoLC.Hash().Bytes())
+	copy(lastCommitHash, cmprotoLC.Hash().Bytes())
 	block.SignedHeader.Header.LastCommitHash = lastCommitHash
 
 	return block
@@ -770,7 +770,7 @@ func getRandomBytes(n int) []byte {
 	return data
 }
 
-func getBlockMeta(rpc *FullClient, n int64) *tmtypes.BlockMeta {
+func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
 	b, err := rpc.node.Store.LoadBlock(uint64(n))
 	if err != nil {
 		return nil
@@ -790,7 +790,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -805,8 +805,8 @@ func indexBlocks(t *testing.T, rpc *FullClient, heights []int64) {
 	t.Helper()
 
 	for _, h := range heights {
-		require.NoError(t, rpc.node.BlockIndexer.Index(tmtypes.EventDataNewBlockHeader{
-			Header: tmtypes.Header{Height: h},
+		require.NoError(t, rpc.node.BlockIndexer.Index(cmtypes.EventDataNewBlockHeader{
+			Header: cmtypes.Header{Height: h},
 			ResultBeginBlock: abci.ResponseBeginBlock{
 				Events: []abci.Event{
 					{
@@ -871,7 +871,7 @@ func TestMempool2Nodes(t *testing.T) {
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second,
 		},
-	}, key1, signingKey1, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, signingKey1, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -881,7 +881,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, abcicli.NewLocalClient(nil, app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, signingKey2, abcicli.NewLocalClient(nil, app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -933,18 +933,18 @@ func TestStatus(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
-	vKeys := make([]tmcrypto.PrivKey, 2)
-	validators := make([]*tmtypes.Validator, len(vKeys))
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	vKeys := make([]cmcrypto.PrivKey, 2)
+	validators := make([]*cmtypes.Validator, len(vKeys))
+	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &tmtypes.Validator{
+		validators[i] = &cmtypes.Validator{
 			Address:          vKeys[i].PubKey().Address(),
 			PubKey:           vKeys[i].PubKey(),
 			VotingPower:      int64(i + 100),
 			ProposerPriority: int64(i),
 		}
-		genesisValidators[i] = tmtypes.GenesisValidator{
+		genesisValidators[i] = cmtypes.GenesisValidator{
 			Address: vKeys[i].PubKey().Address(),
 			PubKey:  vKeys[i].PubKey(),
 			Power:   int64(i + 100),
@@ -967,7 +967,7 @@ func TestStatus(t *testing.T) {
 		key,
 		signingKey,
 		abcicli.NewLocalClient(nil, app),
-		&tmtypes.GenesisDoc{
+		&cmtypes.GenesisDoc{
 			ChainID:    "test",
 			Validators: genesisValidators,
 		},
@@ -976,7 +976,7 @@ func TestStatus(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	validatorSet := tmtypes.NewValidatorSet(validators)
+	validatorSet := cmtypes.NewValidatorSet(validators)
 	err = node.Store.SaveValidators(1, validatorSet)
 	require.NoError(err)
 	err = node.Store.SaveValidators(2, validatorSet)
@@ -1067,7 +1067,7 @@ func TestFutureGenesisTime(t *testing.T) {
 		}},
 		key, signingKey,
 		abcicli.NewLocalClient(nil, mockApp),
-		&tmtypes.GenesisDoc{
+		&cmtypes.GenesisDoc{
 			ChainID:       "test",
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,
