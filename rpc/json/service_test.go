@@ -17,11 +17,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	abciclient "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/p2p"
+	"github.com/cometbft/cometbft/proxy"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	"github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
@@ -299,10 +301,10 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	signingKey, _ := conv.GetNodeKey(nodeKey)
 	pubKey := validatorKey.PubKey()
 
-	genesisValidators := []tmtypes.GenesisValidator{
+	genesisValidators := []cmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
-	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 

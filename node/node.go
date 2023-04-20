@@ -5,8 +5,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	abciclient "github.com/cometbft/cometbft/abci/client"
 	"github.com/cometbft/cometbft/libs/log"
+	proxy "github.com/cometbft/cometbft/proxy"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
@@ -28,7 +28,7 @@ func NewNode(
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	appClient proxy.ClientCreator,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (Node, error) {
 	if !conf.Light {

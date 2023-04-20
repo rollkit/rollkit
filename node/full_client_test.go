@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
@@ -47,11 +46,11 @@ var expectedInfo = abci.ResponseInfo{
 var mockTxProcessingTime = 10 * time.Millisecond
 
 // TODO: accept argument for number of validators / proposer index
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
+func getRandomValidatorSet() *cmtypes.ValidatorSet {
 	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
+	return &cmtypes.ValidatorSet{
+		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*cmtypes.Validator{
 			{PubKey: pubKey, Address: pubKey.Address()},
 		},
 	}
@@ -60,14 +59,14 @@ func getRandomValidatorSet() *tmtypes.ValidatorSet {
 var genesisValidatorKey = ed25519.GenPrivKey()
 
 // TODO: use n and return n validators
-func getGenesisValidatorSetWithSigner(n int) ([]tmtypes.GenesisValidator, crypto.PrivKey) {
+func getGenesisValidatorSetWithSigner(n int) ([]cmtypes.GenesisValidator, crypto.PrivKey) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: genesisValidatorKey,
 	}
 	signingKey, _ := conv.GetNodeKey(nodeKey)
 	pubKey := genesisValidatorKey.PubKey()
 
-	genesisValidators := []tmtypes.GenesisValidator{
+	genesisValidators := []cmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
 	return genesisValidators, signingKey
@@ -651,15 +650,15 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func createGenesisValidators(numNodes int, appCreator func(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application, require *require.Assertions, waitCh chan interface{}) *FullClient {
-	vKeys := make([]tmcrypto.PrivKey, numNodes)
+func createGenesisValidators(numNodes int, appCreator func(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application, require *require.Assertions, waitCh chan interface{}) *FullClient {
+	vKeys := make([]cmcrypto.PrivKey, numNodes)
 	apps := make([]*mocks.Application, numNodes)
 	nodes := make([]*FullNode, numNodes)
 
-	genesisValidators := make([]tmtypes.GenesisValidator, len(vKeys))
+	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
+		genesisValidators[i] = cmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
 		apps[i] = appCreator(require, vKeys[0], waitCh)
 	}
 
@@ -690,7 +689,7 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 			signingKey,
 			signingKey,
 			proxy.NewLocalClientCreator(apps[i]),
-			&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+			&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 			log.TestingLogger(),
 		)
 		require.NoError(err)
@@ -729,7 +728,7 @@ func checkValSetLatest(rpc *FullClient, assert *assert.Assertions, lastBlockHeig
 	assert.GreaterOrEqual(vals.BlockHeight, lastBlockHeight)
 }
 
-func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application {
+func createApp(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, waitCh chan interface{}) *mocks.Application {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
@@ -892,7 +891,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -973,7 +972,7 @@ func TestMempool2Nodes(t *testing.T) {
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second,
 		},
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -983,7 +982,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -1069,7 +1068,7 @@ func TestStatus(t *testing.T) {
 		key,
 		signingKey,
 		proxy.NewLocalClientCreator(app),
-		&tmtypes.GenesisDoc{
+		&cmtypes.GenesisDoc{
 			ChainID:    "test",
 			Validators: genesisValidators,
 		},
@@ -1169,7 +1168,7 @@ func TestFutureGenesisTime(t *testing.T) {
 		}},
 		key, signingKey,
 		proxy.NewLocalClientCreator(mockApp),
-		&tmtypes.GenesisDoc{
+		&cmtypes.GenesisDoc{
 			ChainID:       "test",
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,

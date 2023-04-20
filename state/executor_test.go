@@ -13,6 +13,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -61,7 +62,7 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 			ProposerPriority: int64(1),
 		},
 	}
-	state.Validators = tmtypes.NewValidatorSet(validators)
+	state.Validators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
@@ -142,7 +143,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(headerSub)
 
 	vKey := ed25519.GenPrivKey()
-	validators := []*tmtypes.Validator{
+	validators := []*cmtypes.Validator{
 		{
 			Address:          vKey.PubKey().Address(),
 			PubKey:           vKey.PubKey(),
@@ -174,7 +175,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
+	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
@@ -199,7 +200,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
+	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)

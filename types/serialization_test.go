@@ -53,8 +53,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
 	pubKey2 := ed25519.GenPrivKey().PubKey()
-	validator1 := &tmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
-	validator2 := &tmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
+	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
+	validator2 := &cmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
 
 	cases := []struct {
 		name  string
@@ -67,8 +67,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				Commit: Commit{
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 				},
-				Validators: &tmtypes.ValidatorSet{
-					Validators: []*tmtypes.Validator{
+				Validators: &cmtypes.ValidatorSet{
+					Validators: []*cmtypes.Validator{
 						validator1,
 						validator2,
 					},

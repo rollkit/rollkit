@@ -7,7 +7,6 @@ import (
 	"sort"
 	"time"
 
-	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
 	bytes "github.com/cometbft/cometbft/libs/bytes"
@@ -82,7 +81,7 @@ func (c *FullClient) ABCIQuery(ctx context.Context, path string, data cmbytes.He
 
 // ABCIQueryWithOptions queries for data from application.
 func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.appClient().Query()QuerySync(abci.RequestQuery{
+	resQuery, err := c.appClient().Query().QuerySync(abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,

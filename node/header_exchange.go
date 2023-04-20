@@ -10,7 +10,6 @@ import (
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	"github.com/celestiaorg/go-header/sync"
-	goheadersync "github.com/celestiaorg/go-header/sync"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"

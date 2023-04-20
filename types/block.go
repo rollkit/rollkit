@@ -49,7 +49,7 @@ type Commit struct {
 type SignedHeader struct {
 	Header
 	Commit     Commit
-	Validators *tmtypes.ValidatorSet
+	Validators *cmtypes.ValidatorSet
 }
 
 // Signature represents signature of block creator.

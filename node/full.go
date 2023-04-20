@@ -12,12 +12,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
-	abciclient "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
+	proxy "github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/block"
@@ -53,8 +53,8 @@ var _ Node = &FullNode{}
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
-	eventBus  *cmtypes.EventBus
-	appClient abciclient.Client
+	eventBus *cmtypes.EventBus
+	proxyApp proxy.AppConns
 
 	genesis *cmtypes.GenesisDoc
 	// cache of chunked genesis data.
@@ -98,7 +98,7 @@ func newFullNode(
 	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)

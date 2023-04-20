@@ -220,8 +220,8 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 				if err.Error() != ErrEmptyValSetGenerated.Error() {
 					return state, err
 				}
-				nValSet = &tmtypes.ValidatorSet{
-					Validators: make([]*tmtypes.Validator, 0),
+				nValSet = &cmtypes.ValidatorSet{
+					Validators: make([]*cmtypes.Validator, 0),
 					Proposer:   nil,
 				}
 			}
