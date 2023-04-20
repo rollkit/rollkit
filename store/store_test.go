@@ -163,8 +163,8 @@ func TestBlockResponses(t *testing.T) {
 			Events: []abcitypes.Event{{
 				Type: "test",
 				Attributes: []abcitypes.EventAttribute{{
-					Key:   string([]byte("foo")),
-					Value: string([]byte("bar")),
+					Key:   string("foo"),
+					Value: string("bar"),
 					Index: false,
 				}},
 			}},
