@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -40,4 +42,20 @@ type TxProof struct {
 	RootHash tmbytes.HexBytes `json:"root_hash"`
 	Data     Tx               `json:"data"`
 	Proof    merkle.Proof     `json:"proof"`
+}
+
+func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]TxWithISRs, error) {
+	expectedLength := len(txs) + 2
+	if len(intermediateStateRoots.RawRootsList) != len(txs)+2 {
+		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedLength)
+	}
+	txsWithISRs := make([]TxWithISRs, 0)
+	for i, tx := range txs {
+		txsWithISRs = append(txsWithISRs, TxWithISRs{
+			preISR:  intermediateStateRoots.RawRootsList[i+1],
+			Tx:      tx,
+			postISR: intermediateStateRoots.RawRootsList[i+2],
+		})
+	}
+	return txsWithISRs, nil
 }
