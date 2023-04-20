@@ -130,13 +130,13 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(eventBus.Start())
 	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, eventBus, logger)
 
-	txQuery, err := query.New("cm.event='Tx'")
+	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
 	txSub, err := eventBus.Subscribe(context.Background(), "test", txQuery, 1000)
 	require.NoError(err)
 	require.NotNil(txSub)
 
-	headerQuery, err := query.New("cm.event='NewBlockHeader'")
+	headerQuery, err := query.New("tm.event='NewBlockHeader'")
 	require.NoError(err)
 	headerSub, err := eventBus.Subscribe(context.Background(), "test", headerQuery, 100)
 	require.NoError(err)

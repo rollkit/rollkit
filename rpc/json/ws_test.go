@@ -43,7 +43,7 @@ func TestWebSockets(t *testing.T) {
     "method": "subscribe",
     "id": 7,
     "params": {
-        "query": "cm.event='NewBlock'"
+        "query": "tm.event='NewBlock'"
     }
 }
 `))
