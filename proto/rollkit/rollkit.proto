@@ -77,3 +77,9 @@ message Block {
 	SignedHeader signed_header = 1;
 	Data data = 2;
 }
+
+message TxWithISRs {
+	bytes pre_isr = 1;
+	repeated bytes tx = 2;
+	bytes post_isr = 3;
+}

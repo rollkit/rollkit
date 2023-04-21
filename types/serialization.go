@@ -200,6 +200,12 @@ func (b *Block) FromProto(other *pb.Block) error {
 	return nil
 }
 
+func (t *TxWithISRs) FromProto(other *pb.TxWithISRs) error {
+	t.preISR = other.PreIsr
+	t.postISR = other.PostIsr
+	return nil
+}
+
 // ToProto converts Commit into protobuf representation and returns it.
 func (c *Commit) ToProto() *pb.Commit {
 	return &pb.Commit{

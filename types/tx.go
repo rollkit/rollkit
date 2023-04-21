@@ -52,9 +52,9 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]T
 	txsWithISRs := make([]TxWithISRs, 0)
 	for i, tx := range txs {
 		txsWithISRs = append(txsWithISRs, TxWithISRs{
-			preISR:  intermediateStateRoots.RawRootsList[i+1],
+			preISR:  intermediateStateRoots.RawRootsList[i],
 			Tx:      tx,
-			postISR: intermediateStateRoots.RawRootsList[i+2],
+			postISR: intermediateStateRoots.RawRootsList[i+1],
 		})
 	}
 	return txsWithISRs, nil
