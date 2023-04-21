@@ -13,9 +13,9 @@ func DelimLen(size uint64) int {
 	return binary.PutUvarint(lenBuf, size)
 }
 
-func isPowerOf2(v uint64) bool {
-	return v&(v-1) == 0 && v != 0
-}
+// func isPowerOf2(v uint64) bool {
+// 	return v&(v-1) == 0 && v != 0
+// }
 
 // func BlobsFromProto(blobs []core.Blob) ([]coretypes.Blob, error) {
 // 	result := make([]coretypes.Blob, len(blobs))
