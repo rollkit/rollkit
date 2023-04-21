@@ -60,9 +60,3 @@ type Signature []byte
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }
-
-type TxWithISRs struct {
-	preISR  []byte
-	Tx      Tx
-	postISR []byte
-}

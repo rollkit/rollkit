@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -44,17 +45,17 @@ type TxProof struct {
 	Proof    merkle.Proof     `json:"proof"`
 }
 
-func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]TxWithISRs, error) {
+func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]pb.TxWithISRs, error) {
 	expectedLength := len(txs) + 2
 	if len(intermediateStateRoots.RawRootsList) != len(txs)+2 {
 		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedLength)
 	}
-	txsWithISRs := make([]TxWithISRs, 0)
+	txsWithISRs := make([]pb.TxWithISRs, 0)
 	for i, tx := range txs {
-		txsWithISRs = append(txsWithISRs, TxWithISRs{
-			preISR:  intermediateStateRoots.RawRootsList[i],
+		txsWithISRs = append(txsWithISRs, pb.TxWithISRs{
+			PreIsr:  intermediateStateRoots.RawRootsList[i],
 			Tx:      tx,
-			postISR: intermediateStateRoots.RawRootsList[i+1],
+			PostIsr: intermediateStateRoots.RawRootsList[i+1],
 		})
 	}
 	return txsWithISRs, nil
