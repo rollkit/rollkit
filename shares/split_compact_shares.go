@@ -4,9 +4,10 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	coretypes "github.com/tendermint/tendermint/types"
+
 	"github.com/rollkit/rollkit/appconsts"
 	appns "github.com/rollkit/rollkit/namespace"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 type ShareRange struct {

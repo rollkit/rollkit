@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rollkit/rollkit/testfactory"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rollkit/rollkit/testfactory"
 )
 
 // func FuzzBlobSharesUsed(f *testing.F) {

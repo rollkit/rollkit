@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rollkit/rollkit/appconsts"
-	appns "github.com/rollkit/rollkit/namespace"
-	"github.com/rollkit/rollkit/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/rollkit/rollkit/appconsts"
+	appns "github.com/rollkit/rollkit/namespace"
+	"github.com/rollkit/rollkit/testfactory"
 )
 
 // ToTxs converts a raw slice of byte slices into a Txs type.

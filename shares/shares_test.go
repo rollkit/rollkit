@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rollkit/rollkit/appconsts"
 	appns "github.com/rollkit/rollkit/namespace"
-	"github.com/stretchr/testify/assert"
 )
 
 // // TestPadFirstIndexedBlob ensures that we are adding padding to the first share
