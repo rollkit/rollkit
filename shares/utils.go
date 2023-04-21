@@ -3,10 +3,7 @@ package shares
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
-	"math"
 
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -20,20 +17,20 @@ func isPowerOf2(v uint64) bool {
 	return v&(v-1) == 0 && v != 0
 }
 
-func BlobsFromProto(blobs []core.Blob) ([]coretypes.Blob, error) {
-	result := make([]coretypes.Blob, len(blobs))
-	for i, blob := range blobs {
-		if blob.ShareVersion > math.MaxUint8 {
-			return nil, fmt.Errorf("share version %d is too large to be a uint8", blob.ShareVersion)
-		}
-		result[i] = coretypes.Blob{
-			NamespaceID:  blob.NamespaceId,
-			Data:         blob.Data,
-			ShareVersion: uint8(blob.ShareVersion),
-		}
-	}
-	return result, nil
-}
+// func BlobsFromProto(blobs []core.Blob) ([]coretypes.Blob, error) {
+// 	result := make([]coretypes.Blob, len(blobs))
+// 	for i, blob := range blobs {
+// 		if blob.ShareVersion > math.MaxUint8 {
+// 			return nil, fmt.Errorf("share version %d is too large to be a uint8", blob.ShareVersion)
+// 		}
+// 		result[i] = coretypes.Blob{
+// 			NamespaceID:  blob.NamespaceId,
+// 			Data:         blob.Data,
+// 			ShareVersion: uint8(blob.ShareVersion),
+// 		}
+// 	}
+// 	return result, nil
+// }
 
 func TxsToBytes(txs coretypes.Txs) [][]byte {
 	e := make([][]byte, len(txs))

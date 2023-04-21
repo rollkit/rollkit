@@ -6,13 +6,40 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/rollkit/rollkit/appconsts"
+	appns "github.com/rollkit/rollkit/namespace"
+	"github.com/rollkit/rollkit/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+// ToTxs converts a raw slice of byte slices into a Txs type.
+func ToTxs(txs [][]byte) coretypes.Txs {
+	txBzs := make(coretypes.Txs, len(txs))
+	for i := 0; i < len(txs); i++ {
+		txBzs[i] = txs[i]
+	}
+	return txBzs
+}
+
+func SplitTxs(txs coretypes.Txs) (txShares []Share, err error) {
+	txWriter := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
+
+	for _, tx := range txs {
+		err = txWriter.WriteTx(tx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	txShares, _, err = txWriter.Export(0)
+	if err != nil {
+		return nil, err
+	}
+
+	return txShares, nil
+}
 
 func TestCompactShareSplitter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
@@ -27,7 +54,7 @@ func TestCompactShareSplitter(t *testing.T) {
 	require.NoError(t, err)
 
 	rawResTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
-	resTxs := coretypes.ToTxs(rawResTxs)
+	resTxs := ToTxs(rawResTxs)
 	require.NoError(t, err)
 
 	assert.Equal(t, txs, resTxs)
@@ -79,7 +106,7 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomTxs(tc.txCount, tc.txSize)
 
-			shares, _, _, err := SplitTxs(txs)
+			shares, err := SplitTxs(txs)
 			require.NoError(t, err)
 
 			parsedTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
@@ -97,7 +124,7 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomlySizedTxs(tc.txCount, tc.txSize)
 
-			txShares, _, _, err := SplitTxs(txs)
+			txShares, err := SplitTxs(txs)
 			require.NoError(t, err)
 			parsedTxs, err := parseCompactShares(txShares, appconsts.SupportedShareVersions)
 			if err != nil {
@@ -163,7 +190,7 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 	}
 
 	txs := testfactory.GenerateRandomTxs(2, appconsts.ContinuationCompactShareContentSize*4)
-	txShares, _, _, err := SplitTxs(txs)
+	txShares, err := SplitTxs(txs)
 	require.NoError(t, err)
 	rawShares := ToBytes(txShares)
 

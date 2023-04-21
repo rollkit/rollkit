@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/rollkit/rollkit/appconsts"
+	appns "github.com/rollkit/rollkit/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

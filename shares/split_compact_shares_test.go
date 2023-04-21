@@ -4,12 +4,23 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/rollkit/rollkit/appconsts"
+	appns "github.com/rollkit/rollkit/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+// fillShare returns a share filled with filler so that the share length
+// is equal to appconsts.ShareSize.
+func fillShare(share Share, filler byte) (paddedShare Share) {
+	return Share{data: append(share.data, bytes.Repeat([]byte{filler}, appconsts.ShareSize-len(share.data))...)}
+}
+
+// padShare returns a share padded with trailing zeros.
+func padShare(share Share) (paddedShare Share) {
+	return fillShare(share, 0)
+}
 
 func TestCount(t *testing.T) {
 	type testCase struct {

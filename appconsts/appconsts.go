@@ -1,10 +1,5 @@
 package appconsts
 
-import (
-	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/pkg/consts"
-)
-
 // These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
@@ -88,16 +83,18 @@ const (
 )
 
 var (
-	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
-	// if another hash.Hash should be used as a base hasher in the NMT.
-	NewBaseHashFunc = consts.NewBaseHashFunc
 
-	// DefaultCodec is the default codec creator used for data erasure.
-	DefaultCodec = rsmt2d.NewLeoRSCodec
+	// TODO: Consider commenting back in. Removed to reduce unneeded dependency
 
-	// DataCommitmentBlocksLimit is the limit to the number of blocks we can
-	// generate a data commitment for.
-	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
+	// // NewBaseHashFunc is the base hash function used by NMT. Change accordingly
+	// // if another hash.Hash should be used as a base hasher in the NMT.
+	// NewBaseHashFunc = consts.NewBaseHashFunc
+	// // DefaultCodec is the default codec creator used for data erasure.
+	// DefaultCodec = rsmt2d.NewLeoRSCodec
+
+	// // DataCommitmentBlocksLimit is the limit to the number of blocks we can
+	// // generate a data commitment for.
+	// DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}

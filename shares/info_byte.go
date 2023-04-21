@@ -3,7 +3,7 @@ package shares
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/rollkit/rollkit/appconsts"
 )
 
 // InfoByte is a byte with the following structure: the first 7 bits are
