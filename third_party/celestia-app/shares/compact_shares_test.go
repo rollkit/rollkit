@@ -15,24 +15,6 @@ import (
 	"github.com/rollkit/rollkit/third_party/celestia-app/testfactory"
 )
 
-func SplitTxs(txs coretypes.Txs) (txShares []Share, err error) {
-	txWriter := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
-
-	for _, tx := range txs {
-		err = txWriter.WriteTx(tx)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	txShares, _, err = txWriter.Export(0)
-	if err != nil {
-		return nil, err
-	}
-
-	return txShares, nil
-}
-
 func TestCompactShareSplitter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares

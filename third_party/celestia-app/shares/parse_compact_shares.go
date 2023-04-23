@@ -1,6 +1,14 @@
 package shares
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/rollkit/rollkit/libs/appconsts"
+)
+
+func ParseCompactShares(shares []Share) (data [][]byte, err error) {
+	return parseCompactShares(shares, appconsts.SupportedShareVersions)
+}
 
 // parseCompactShares returns data (transactions or intermediate state roots
 // based on the contents of rawShares and supportedShareVersions. If rawShares

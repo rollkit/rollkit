@@ -7,6 +7,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
+	"github.com/rollkit/rollkit/libs/celestia-app/shares"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
@@ -61,6 +62,36 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]p
 			Tx:      tx,
 			PostIsr: intermediateStateRoots.RawRootsList[i+1],
 		}
+	}
+	return txsWithISRs, nil
+}
+
+func TxsWithISRsToShares(txsWithISRs []pb.TxWithISRs) (txShares []shares.Share, err error) {
+	byteSlices := make([][]byte, len(txsWithISRs))
+	for i, txWithISR := range txsWithISRs {
+		byteSlices[i], err = txWithISR.Marshal()
+		if err != nil {
+			return nil, err
+		}
+	}
+	coreTxs := shares.TxsFromBytes(byteSlices)
+	txShares, err = shares.SplitTxs(coreTxs)
+	return txShares, err
+}
+
+func SharesToTxsWithISRs(txShares []shares.Share) (txsWithISRs []pb.TxWithISRs, err error) {
+	byteSlices, err := shares.ParseCompactShares(txShares)
+	if err != nil {
+		return nil, err
+	}
+	txsWithISRs = make([]pb.TxWithISRs, len(byteSlices))
+	for i, byteSlice := range byteSlices {
+		var txWithISR pb.TxWithISRs
+		err = txWithISR.Unmarshal(byteSlice)
+		if err != nil {
+			return nil, err
+		}
+		txsWithISRs[i] = txWithISR
 	}
 	return txsWithISRs, nil
 }
