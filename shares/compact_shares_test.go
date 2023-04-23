@@ -15,15 +15,6 @@ import (
 	"github.com/rollkit/rollkit/testfactory"
 )
 
-// ToTxs converts a raw slice of byte slices into a Txs type.
-func ToTxs(txs [][]byte) coretypes.Txs {
-	txBzs := make(coretypes.Txs, len(txs))
-	for i := 0; i < len(txs); i++ {
-		txBzs[i] = txs[i]
-	}
-	return txBzs
-}
-
 func SplitTxs(txs coretypes.Txs) (txShares []Share, err error) {
 	txWriter := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 
@@ -55,7 +46,7 @@ func TestCompactShareSplitter(t *testing.T) {
 	require.NoError(t, err)
 
 	rawResTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
-	resTxs := ToTxs(rawResTxs)
+	resTxs := TxsFromBytes(rawResTxs)
 	require.NoError(t, err)
 
 	assert.Equal(t, txs, resTxs)
