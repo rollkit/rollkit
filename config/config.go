@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -73,18 +74,12 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
 	nc.FraudProofs = v.GetBool(flagFraudProofs)
 	nc.Light = v.GetBool(flagLight)
-	nsID := v.GetString(flagHeaderNamespaceID)
-	bytes, err := hex.DecodeString(nsID)
-	if err != nil {
+	if err := getHexBytes(v, flagHeaderNamespaceID, nc.HeaderNamespaceID[:]); err != nil {
 		return err
 	}
-	copy(nc.HeaderNamespaceID[:], bytes)
-	nsID = v.GetString(flagDataNamespaceID)
-	bytes, err = hex.DecodeString(nsID)
-	if err != nil {
+	if err := getHexBytes(v, flagDataNamespaceID, nc.DataNamespaceID[:]); err != nil {
 		return err
 	}
-	copy(nc.DataNamespaceID[:], bytes)
 	nc.TrustedHash = v.GetString(flagTrustedHash)
 	return nil
 }
@@ -106,4 +101,18 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
+}
+
+func getHexBytes(v *viper.Viper, flag string, dst []byte) error {
+	str := v.GetString(flag)
+	bytes, err := hex.DecodeString(str)
+	if err != nil {
+		return err
+	}
+	if len(bytes) != len(types.NamespaceID{}) {
+		return fmt.Errorf("invalid length of namespace ID for '%s', expected: %d, got: %d",
+			flag, len(types.NamespaceID{}), len(bytes))
+	}
+	_ = copy(dst, bytes)
+	return nil
 }
