@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rollkit/rollkit/libs/appconsts"
 	appns "github.com/rollkit/rollkit/libs/namespace"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestShareSequenceRawData(t *testing.T) {
