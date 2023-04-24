@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/rollkit/rollkit/appconsts"
-	appns "github.com/rollkit/rollkit/namespace"
+	"github.com/rollkit/rollkit/libs/appconsts"
+	appns "github.com/rollkit/rollkit/libs/namespace"
 )
 
 // Share contains the raw share data (including namespace ID).

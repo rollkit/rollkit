@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/rollkit/rollkit/appconsts"
-	appns "github.com/rollkit/rollkit/namespace"
+	"github.com/rollkit/rollkit/libs/appconsts"
+	appns "github.com/rollkit/rollkit/libs/namespace"
 )
 
 type Builder struct {

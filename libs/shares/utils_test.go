@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rollkit/rollkit/testfactory"
+	"github.com/rollkit/rollkit/libs/testfactory"
 )
 
 // func FuzzBlobSharesUsed(f *testing.F) {

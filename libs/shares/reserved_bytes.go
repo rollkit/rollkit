@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/rollkit/rollkit/appconsts"
+	"github.com/rollkit/rollkit/libs/appconsts"
 )
 
 // NewReservedBytes returns a byte slice of length

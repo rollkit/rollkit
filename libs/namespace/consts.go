@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"math"
 
-	"github.com/rollkit/rollkit/appconsts"
+	"github.com/rollkit/rollkit/libs/appconsts"
 )
 
 const (

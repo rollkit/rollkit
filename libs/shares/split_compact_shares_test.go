@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/rollkit/rollkit/appconsts"
-	appns "github.com/rollkit/rollkit/namespace"
+	"github.com/rollkit/rollkit/libs/appconsts"
+	appns "github.com/rollkit/rollkit/libs/namespace"
 )
 
 // fillShare returns a share filled with filler so that the share length

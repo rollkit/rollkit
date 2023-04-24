@@ -6,8 +6,8 @@ import (
 
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/rollkit/rollkit/appconsts"
-	appns "github.com/rollkit/rollkit/namespace"
+	"github.com/rollkit/rollkit/libs/appconsts"
+	appns "github.com/rollkit/rollkit/libs/namespace"
 )
 
 type ShareRange struct {

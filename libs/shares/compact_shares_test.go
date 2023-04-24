@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/rollkit/rollkit/appconsts"
-	appns "github.com/rollkit/rollkit/namespace"
-	"github.com/rollkit/rollkit/testfactory"
+	"github.com/rollkit/rollkit/libs/appconsts"
+	appns "github.com/rollkit/rollkit/libs/namespace"
+	"github.com/rollkit/rollkit/libs/testfactory"
 )
 
 func SplitTxs(txs coretypes.Txs) (txShares []Share, err error) {
