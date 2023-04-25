@@ -107,6 +107,8 @@ github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/go-cnc v0.3.0 h1:eAVPNHGpx+2sBO7NZyQ1+VW8rzf6W4FQDlSq6aqSTsM=
 github.com/celestiaorg/go-cnc v0.3.0/go.mod h1:zYzvHudSd1iNPuHBMyvZ1YvWou5aT9JXgtch9Tkaf70=
+github.com/celestiaorg/go-fraud v0.1.0 h1:v6mZvlmf2J5ELZfPnrtmmOvKbaYIUs/erDWPO8NbZyY=
+github.com/celestiaorg/go-fraud v0.1.0/go.mod h1:yoNM35cKMAkt5Mi/Qx3Wi9bnPilLi8n6RpHZVglTUDs=
 github.com/celestiaorg/go-header v0.2.6 h1:f1Mlyu+EfDpkuzO3SWU5dow+ga2vLQ7hNuvsOe//z64=
 github.com/celestiaorg/go-header v0.2.6/go.mod h1:i9OpY70+PJ1xPw1IgMfF0Pk6vBD6VWPmjY3bgubJBcU=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
