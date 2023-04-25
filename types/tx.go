@@ -3,10 +3,11 @@ package types
 import (
 	"fmt"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // Tx represents transactoin.
