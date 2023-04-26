@@ -262,7 +262,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	}
 	for h, cnt := range countDataAtHeight {
 		ret := retriever.RetrieveBlockData(ctx, h)
-		t.Log("Count of datas at DA Height", h, "should be", len(ret.Data), "but it is", cnt)
+		t.Log("Count of data at DA Height", h, "should be", len(ret.Data), "but it is", cnt)
 		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Data, h)
 		assert.Len(ret.Data, cnt, h)

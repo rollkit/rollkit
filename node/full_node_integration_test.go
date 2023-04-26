@@ -502,7 +502,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 	bmConfig := config.BlockManagerConfig{
 		DABlockTime:       100 * time.Millisecond,
-		BlockTime:         1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		BlockTime:         500 * time.Millisecond, // blocks must be at least few milliseconds apart for adjacent headers to get different timestamps
 		HeaderNamespaceID: headerNamespaceID,
 		DataNamespaceID:   dataNamespaceID,
 		FraudProofs:       true,
