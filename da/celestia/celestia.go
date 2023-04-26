@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -129,9 +130,15 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	data, err := c.client.NamespacedData(ctx, c.namespaceID, dataLayerHeight)
 	if err != nil {
+		var code da.StatusCode
+		if strings.Contains(err.Error(), da.ErrDataNotFound.Error()) || strings.Contains(err.Error(), da.ErrEDSNotFound.Error()) {
+			code = da.StatusNotFound
+		} else {
+			code = da.StatusError
+		}
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
+				Code:    code,
 				Message: err.Error(),
 			},
 		}
