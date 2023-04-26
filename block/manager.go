@@ -417,6 +417,10 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
 		} else {
+			if blockResp.Code == da.StatusNotFound {
+				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
+				return nil
+			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
@@ -433,8 +437,6 @@ func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRet
 	switch blockRes.Code {
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
-	case da.StatusTimeout:
-		err = fmt.Errorf("timeout during retrieve block: %s", blockRes.Message)
 	}
 	return blockRes, err
 }
