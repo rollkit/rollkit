@@ -2,12 +2,17 @@ package da
 
 import (
 	"context"
+	"errors"
 
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
 )
+
+// ErrNotFound is used to indicated that requested data could not be found.
+var ErrDataNotFound = errors.New("data not found")
+var ErrEDSNotFound = errors.New("eds not found")
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
@@ -19,7 +24,7 @@ type StatusCode uint64
 const (
 	StatusUnknown StatusCode = iota
 	StatusSuccess
-	StatusTimeout
+	StatusNotFound
 	StatusError
 )
 
