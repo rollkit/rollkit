@@ -50,9 +50,9 @@ type TxProof struct {
 // to a slice of TxWithISRs. It assumes that the length of intermediateStateRoots is
 // equal to the length of txs + 2.
 func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]pb.TxWithISRs, error) {
-	expectedISRLength := len(txs) + 2
-	if len(intermediateStateRoots.RawRootsList) != expectedISRLength {
-		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRLength)
+	expectedISRListLength := len(txs) + 2
+	if len(intermediateStateRoots.RawRootsList) != expectedISRListLength {
+		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRListLength)
 	}
 	size := len(txs)
 	txsWithISRs := make([]pb.TxWithISRs, 0, size)
