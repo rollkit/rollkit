@@ -46,18 +46,22 @@ type TxProof struct {
 	Proof    merkle.Proof     `json:"proof"`
 }
 
+// ToTxsWithISRs converts a slice of transactions and a list of intermediate state roots
+// to a slice of TxWithISRs. It assumes that the length of intermediateStateRoots is
+// equal to the length of txs + 2.
 func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]pb.TxWithISRs, error) {
-	expectedLength := len(txs) + 2
-	if len(intermediateStateRoots.RawRootsList) != len(txs)+2 {
-		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedLength)
+	expectedISRLength := len(txs) + 2
+	if len(intermediateStateRoots.RawRootsList) != expectedISRLength {
+		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRLength)
 	}
-	txsWithISRs := make([]pb.TxWithISRs, 0)
+	size := len(txs)
+	txsWithISRs := make([]pb.TxWithISRs, 0, size)
 	for i, tx := range txs {
-		txsWithISRs = append(txsWithISRs, pb.TxWithISRs{
+		txsWithISRs[i] = pb.TxWithISRs{
 			PreIsr:  intermediateStateRoots.RawRootsList[i],
 			Tx:      tx,
 			PostIsr: intermediateStateRoots.RawRootsList[i+1],
-		})
+		}
 	}
 	return txsWithISRs, nil
 }
