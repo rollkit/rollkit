@@ -2,68 +2,32 @@ package rpc
 
 import (
 	"bytes"
-	"encoding/binary"
-	"encoding/json"
 	"fmt"
 
 	dbc "github.com/cosmos/cosmos-db"
 
-	iavlstore "cosmossdk.io/store/iavl"
+	ics23 "github.com/confio/ics23/go"
 	"github.com/cosmos/iavl"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/version"
 )
 
-var (
-	stateKey        = []byte("stateKey")
-	kvPairPrefixKey = []byte("kvPairKey:")
-
-	ProtocolVersion uint64 = 0x1
-)
-
 type State struct {
 	db      dbc.DB
-	tree    iavlstore.Tree
-	Size    int64  `json:"size"`
+	tree    iavl.Tree
 	Height  int64  `json:"height"`
 	AppHash []byte `json:"app_hash"`
 }
 
-func loadState(db dbc.DB) State {
+func initState(db dbc.DB) State {
 	var state State
-	state.db = db
-	stateBytes, err := db.Get(stateKey)
-	if err != nil {
-		panic(err)
-	}
+	var err error
 	state.tree, err = iavl.NewMutableTree(db, 10, false)
 	if err != nil {
 		panic(err)
 	}
-	if len(stateBytes) == 0 {
-		return state
-	}
-	err = json.Unmarshal(stateBytes, &state)
-	if err != nil {
-		panic(err)
-	}
 	return state
-}
-
-func saveState(state State) {
-	stateBytes, err := json.Marshal(state)
-	if err != nil {
-		panic(err)
-	}
-	err = state.db.Set(stateKey, stateBytes)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func prefixKey(key []byte) []byte {
-	return append(kvPairPrefixKey, key...)
 }
 
 //---------------------------------------------------
@@ -77,16 +41,16 @@ type Application struct {
 	RetainBlocks int64 // blocks to retain after commit (via ResponseCommit.RetainHeight)
 }
 
-func NewApplication() *Application {
-	state := loadState(dbc.NewMemDB())
+func NewKVApplication() *Application {
+	state := initState(dbc.NewMemDB())
 	return &Application{state: state}
 }
 
 func (app *Application) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
 	return types.ResponseInfo{
-		Data:             fmt.Sprintf("{\"size\":%v}", app.state.Size),
+		Data:             fmt.Sprintf("{\"apphash\":%v}", app.state.AppHash),
 		Version:          version.ABCIVersion,
-		AppVersion:       ProtocolVersion,
+		AppVersion:       1,
 		LastBlockHeight:  app.state.Height,
 		LastBlockAppHash: app.state.AppHash,
 	}
@@ -102,11 +66,10 @@ func (app *Application) DeliverTx(req types.RequestDeliverTx) types.ResponseDeli
 		key, value = req.Tx, req.Tx
 	}
 
-	err := app.state.db.Set(prefixKey(key), value)
+	_, err := app.state.tree.Set(key, value)
 	if err != nil {
 		panic(err)
 	}
-	app.state.Size++
 
 	events := []types.Event{
 		{
@@ -128,42 +91,21 @@ func (app *Application) CheckTx(req types.RequestCheckTx) types.ResponseCheckTx 
 }
 
 func (app *Application) Commit() types.ResponseCommit {
-	// Using a memdb - just return the big endian size of the db
-	appHash := make([]byte, 8)
-	binary.PutVarint(appHash, app.state.Size)
-	app.state.AppHash = appHash
-	app.state.Height++
-	saveState(app.state)
-
-	resp := types.ResponseCommit{Data: appHash}
-	if app.RetainBlocks > 0 && app.state.Height >= app.RetainBlocks {
-		resp.RetainHeight = app.state.Height - app.RetainBlocks + 1
+	appHash, err := app.state.tree.Hash()
+	if err != nil {
+		panic("couldn't get tree hash")
 	}
+	app.state.AppHash = appHash
+	app.state.Height += 1
+	resp := types.ResponseCommit{Data: app.state.AppHash}
 	return resp
 }
 
 // Returns an associated value or nil if missing.
 func (app *Application) Query(reqQuery types.RequestQuery) (resQuery types.ResponseQuery) {
-	if reqQuery.Prove {
-		value, err := app.state.db.Get(prefixKey(reqQuery.Data))
-		if err != nil {
-			panic(err)
-		}
-		if value == nil {
-			resQuery.Log = "does not exist"
-		} else {
-			resQuery.Log = "exists"
-		}
-		resQuery.Index = -1 // TODO make Proof return index
-		resQuery.Key = reqQuery.Data
-		resQuery.Value = value
-		resQuery.Height = app.state.Height
-
-		return
-	}
 
 	resQuery.Key = reqQuery.Data
-	value, err := app.state.db.Get(prefixKey(reqQuery.Data))
+	value, err := app.state.db.Get(reqQuery.Data)
 	if err != nil {
 		panic(err)
 	}
@@ -174,6 +116,33 @@ func (app *Application) Query(reqQuery types.RequestQuery) (resQuery types.Respo
 	}
 	resQuery.Value = value
 	resQuery.Height = app.state.Height
+
+	if reqQuery.Prove {
+		value, err := app.state.db.Get(reqQuery.Data)
+		if err != nil {
+			panic(err)
+		}
+		var proof ics23.CommitmentProof
+		if value == nil {
+			resQuery.Log = "does not exist"
+			proof, err = app.state.tree.GetNonMembershipProof(reqQuery.Data)
+			if err != nil {
+				panic("Error getting non membership proof")
+			}
+		} else {
+			resQuery.Log = "exists"
+			proof, err = app.state.tree.GetMembershipProof(reqQuery.Data)
+			if err != nil {
+				panic("Error getting membership proof")
+			}
+		}
+		resQuery.Index = -1 // TODO make Proof return index
+		resQuery.Key = reqQuery.Data
+		resQuery.Value = value
+		resQuery.Height = app.state.Height
+
+		return
+	}
 
 	return resQuery
 }
