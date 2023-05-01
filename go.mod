@@ -3,7 +3,6 @@ module github.com/rollkit/rollkit
 go 1.18
 
 require (
-	github.com/Workiva/go-datastructures v1.0.53
 	github.com/celestiaorg/go-cnc v0.3.0
 	github.com/celestiaorg/go-header v0.2.6
 	github.com/dgraph-io/badger/v3 v3.2103.5
