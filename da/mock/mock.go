@@ -142,7 +142,6 @@ func (m *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data 
 			Message:  "OK",
 			DAHeight: daHeight,
 		},
-		Hash: hash,
 	}
 }
 

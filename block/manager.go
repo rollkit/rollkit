@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/go-header"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -327,6 +326,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 	if b != nil && commit != nil {
 		m.logger.Info("Syncing block", "height", b.SignedHeader.Header.Height())
+		// Validate the received block before applying
+		if err := m.executor.Validate(m.lastState, b); err != nil {
+			return fmt.Errorf("failed to validate block: %w", err)
+		}
 		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -534,29 +537,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-
-		dataHash, err := m.submitBlockToDA(ctx, block, false)
-		if err != nil {
-			m.logger.Error("Failed to submit block to DA Layer")
-			return err
-		}
-		block.SignedHeader.Header.DataHash = dataHash
-
-		commit, err = m.getCommit(block.SignedHeader.Header)
-		if err != nil {
-			return err
-		}
-
-		// set the commit to current block's signed header
-		block.SignedHeader.Commit = *commit
-
-		block.SignedHeader.Validators = m.lastState.Validators
-
-		// SaveBlock commits the DB tx
-		err = m.store.SaveBlock(block, commit)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Apply the block but DONT commit
@@ -565,11 +545,24 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	if commit == nil {
-		commit, err = m.getCommit(block.SignedHeader.Header)
-		if err != nil {
-			return err
-		}
+	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
+	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
+	if err != nil {
+		return err
+	}
+
+	// Sign the block and set the commit to current block's signed header along with signers
+	commit, err = m.getCommit(block.SignedHeader.Header)
+	if err != nil {
+		return err
+	}
+
+	block.SignedHeader.Commit = *commit
+	block.SignedHeader.Validators = m.lastState.Validators
+
+	// Validate the created block before storing
+	if err := m.executor.Validate(m.lastState, block); err != nil {
+		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
 	// SaveBlock commits the DB tx
@@ -578,8 +571,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	_, err = m.submitBlockToDA(ctx, block, true)
-	if err != nil {
+	if err := m.submitBlockToDA(ctx, block); err != nil {
 		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
@@ -625,33 +617,44 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block, onlyHeader bool) (header.Hash, error) {
+func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
 	m.logger.Info("submitting block to DA layer", "height", block.SignedHeader.Header.Height())
 
 	submitted := false
 	backoff := initialBackoff
-	var res da.ResultSubmitBlock
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		if onlyHeader {
-			res = m.dalc.SubmitBlockHeader(ctx, &block.SignedHeader)
-		} else {
-			res = m.dalc.SubmitBlockData(ctx, &block.Data)
-		}
-		if res.Code == da.StatusSuccess {
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.SignedHeader.Header.Height(), "daHeight", res.DAHeight)
+		headerRes := m.dalc.SubmitBlockHeader(ctx, &block.SignedHeader)
+		dataRes := m.dalc.SubmitBlockData(ctx, &block.Data)
+		if headerRes.Code == da.StatusSuccess && dataRes.Code == da.StatusSuccess {
+			m.logger.Info(
+				"successfully submitted Rollkit block to DA layer",
+				"rollkitHeight",
+				block.SignedHeader.Header.Height(),
+				"daHeight of the block header",
+				headerRes.DAHeight,
+				"daHeight of the block data",
+				dataRes.DAHeight,
+			)
 			submitted = true
 		} else {
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			var errMsg string
+			if headerRes.Code == da.StatusError {
+				errMsg = headerRes.Message
+			}
+			if dataRes.Code == da.StatusError {
+				errMsg += "," + dataRes.Message
+			}
+			m.logger.Error("DA layer submission failed", "error", errMsg, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		}
 	}
 
 	if !submitted {
-		return nil, fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
-	return res.Hash, nil
+	return nil
 }
 
 func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {

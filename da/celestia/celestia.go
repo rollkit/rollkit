@@ -135,23 +135,12 @@ func (c *DataAvailabilityLayerClient) SubmitBlockData(ctx context.Context, data 
 		}
 	}
 
-	dataHash, err := data.Hash()
-	if err != nil {
-		return da.ResultSubmitBlock{
-			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
-	}
-
 	return da.ResultSubmitBlock{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			Message:  "tx hash: " + txResponse.TxHash,
 			DAHeight: uint64(txResponse.Height),
 		},
-		Hash: dataHash,
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/log"
@@ -44,7 +43,7 @@ type ResultSubmitBlock struct {
 	BaseResult
 	// Not sure if this needs to be bubbled up to other
 	// parts of Rollkit.
-	Hash header.Hash
+	// Hash header.Hash
 }
 
 // ResultCheckBlock contains information about block availability, returned from DA layer client.
