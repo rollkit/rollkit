@@ -3,13 +3,12 @@ package rpc
 import (
 	"bytes"
 
-	"cosmossdk.io/log"
-	"cosmossdk.io/store/iavl"
-	"cosmossdk.io/store/metrics"
-	storetypes "cosmossdk.io/store/types"
-	cmdb "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/store/iavl"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 var _ types.Application = (*Application)(nil)
@@ -20,15 +19,15 @@ type Application struct {
 	appHash []byte
 }
 
-func NewMerkleApp(log log.Logger) Application {
-	db := cmdb.NewMemDB()
+func NewMerkleApp() Application {
+	db := tmdb.NewMemDB()
 	key := storetypes.NewKVStoreKey("data")
 	commitID := storetypes.CommitID{
 		Version: 0,
 		Hash:    []byte(""),
 	}
-	metrics := metrics.NewNoOpMetrics()
-	store, err := iavl.LoadStore(db, log, key, commitID, false, 10, true, metrics)
+	log := log.NewNopLogger()
+	store, err := iavl.LoadStore(db, log, key, commitID, false, 10, true)
 	if err != nil {
 		panic("Unable to create IAVL store")
 	}

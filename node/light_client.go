@@ -20,12 +20,18 @@ var errNegOrZeroHeight = errors.New("negative or zero height")
 type LightClient struct {
 	types.EventBus
 	node *LightNode
+	prt  *merkle.ProofRuntime
 }
 
 func NewLightClient(node *LightNode) *LightClient {
 	return &LightClient{
 		node: node,
+		prt:  merkle.DefaultProofRuntime(),
 	}
+}
+
+func (c *LightClient) SetProofRuntime(prt *merkle.ProofRuntime) {
+	c.prt = prt
 }
 
 // ABCIInfo returns basic information about application state.
@@ -68,7 +74,6 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 	}
 
 	keyPathFn := tmlightrpc.DefaultMerkleKeyPathFn()
-	rt := merkle.DefaultProofRuntime()
 
 	header, err := c.node.hExService.headerStore.GetByHeight(ctx, uint64(opts.Height))
 	if err != nil {
@@ -89,12 +94,12 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 		}
 
 		// 2) verify value
-		err = rt.VerifyValue(resp.ProofOps, header.AppHash, kp.String(), resp.Value)
+		err = c.prt.VerifyValue(resp.ProofOps, header.AppHash, kp.String(), resp.Value)
 		if err != nil {
 			return nil, fmt.Errorf("verify value proof: %w", err)
 		}
 	} else { // OR validate the absence proof against the trusted header.
-		err = rt.VerifyAbsence(resp.ProofOps, header.AppHash, string(resp.Key))
+		err = c.prt.VerifyAbsence(resp.ProofOps, header.AppHash, string(resp.Key))
 		if err != nil {
 			return nil, fmt.Errorf("verify absence proof: %w", err)
 		}
