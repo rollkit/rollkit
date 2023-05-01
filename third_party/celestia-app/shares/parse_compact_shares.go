@@ -25,13 +25,14 @@ func parseCompactShares(shares []Share, supportedShareVersions []uint8) (data []
 	if err != nil {
 		return nil, err
 	}
-	if !seqStart {
-		return nil, errors.New("first share is not the start of a sequence")
-	}
 
 	err = validateShareVersions(shares, supportedShareVersions)
 	if err != nil {
 		return nil, err
+	}
+
+	if !seqStart {
+		return nil, errors.New("first share is not the start of a sequence")
 	}
 
 	rawData, err := extractRawData(shares)
@@ -81,7 +82,12 @@ func parseRawData(rawData []byte) (units [][]byte, err error) {
 // not contain the namespace ID, info byte, sequence length, or reserved bytes.
 func extractRawData(shares []Share) (rawData []byte, err error) {
 	for i := 0; i < len(shares); i++ {
-		raw, err := shares[i].RawData()
+		var raw []byte
+		if i == 0 {
+			raw, err = shares[i].RawDataUsingReserved()
+		} else {
+			raw, err = shares[i].RawData()
+		}
 		if err != nil {
 			return nil, err
 		}

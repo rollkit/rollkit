@@ -79,6 +79,17 @@ func TxsWithISRsToShares(txsWithISRs []pb.TxWithISRs) (txShares []shares.Share, 
 	return txShares, err
 }
 
+func SharesToPostableBytes(txShares []shares.Share) (postableData []byte, err error) {
+	for i := 0; i < len(txShares); i++ {
+		raw, err := txShares[i].RawDataWithReserved()
+		if err != nil {
+			return nil, err
+		}
+		postableData = append(postableData, raw...)
+	}
+	return postableData, nil
+}
+
 func SharesToTxsWithISRs(txShares []shares.Share) (txsWithISRs []pb.TxWithISRs, err error) {
 	byteSlices, err := shares.ParseCompactShares(txShares)
 	if err != nil {
