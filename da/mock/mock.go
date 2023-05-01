@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"math/rand"
 	"sync/atomic"
 	"time"
@@ -38,6 +39,9 @@ var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
 func (m *DataAvailabilityLayerClient) Init(headerNamespaceID, dataNamespaceID types.NamespaceID, config []byte, dalcKV ds.Datastore, logger log.Logger) error {
+	if headerNamespaceID == dataNamespaceID {
+		return errors.New("header and data namespaces must be different")
+	}
 	m.headerNamespaceID = headerNamespaceID
 	m.dataNamespaceID = dataNamespaceID
 	m.logger = logger
