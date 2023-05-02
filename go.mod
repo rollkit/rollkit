@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	cosmossdk.io/log v1.1.0
-	cosmossdk.io/store v0.1.0-alpha.1
 	github.com/celestiaorg/go-cnc v0.3.0
 	github.com/celestiaorg/go-header v0.2.4
 	github.com/cosmos/cosmos-db v1.0.0-rc.1
@@ -58,7 +57,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogoproto v1.4.8 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
-	github.com/cosmos/iavl v0.21.0-beta.1 // indirect
+	github.com/cosmos/iavl v0.19.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
@@ -180,7 +179,7 @@ require (
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tendermint/tm-db v0.6.7 // indirect
-	github.com/tidwall/btree v1.6.0 // indirect
+	github.com/tidwall/btree v1.5.0 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opencensus.io v0.24.0 // indirect
