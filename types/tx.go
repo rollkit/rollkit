@@ -48,18 +48,25 @@ type TxProof struct {
 
 // ToTxsWithISRs converts a slice of transactions and a list of intermediate state roots
 // to a slice of TxWithISRs. It assumes that the length of intermediateStateRoots is
-// equal to the length of txs + 2.
+// equal to the length of txs + 3. The first and last txWithISR correspond to BeginBlock and
+// EndBlock respectively.
 func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]pb.TxWithISRs, error) {
-	expectedISRListLength := len(txs) + 2
+	expectedISRListLength := len(txs) + 3
 	if len(intermediateStateRoots.RawRootsList) != expectedISRListLength {
 		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRListLength)
 	}
-	size := len(txs)
+	getTx := func(txs Txs, i int, size int) Tx {
+		if i == 0 || i == size-1 {
+			return nil
+		}
+		return txs[i]
+	}
+	size := expectedISRListLength - 1
 	txsWithISRs := make([]pb.TxWithISRs, 0, size)
-	for i, tx := range txs {
+	for i := 0; i < size; i++ {
 		txsWithISRs[i] = pb.TxWithISRs{
 			PreIsr:  intermediateStateRoots.RawRootsList[i],
-			Tx:      tx,
+			Tx:      getTx(txs, i, size),
 			PostIsr: intermediateStateRoots.RawRootsList[i+1],
 		}
 	}
