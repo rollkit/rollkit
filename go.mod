@@ -5,9 +5,9 @@ go 1.18
 require (
 	cosmossdk.io/log v1.1.0
 	github.com/celestiaorg/go-cnc v0.3.0
-	github.com/celestiaorg/go-header v0.2.4
 	github.com/cosmos/cosmos-db v1.0.0-rc.1
 	github.com/cosmos/cosmos-sdk v0.46.11
+	github.com/celestiaorg/go-header v0.2.6
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
 	github.com/gogo/protobuf v1.3.3
@@ -23,7 +23,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/prometheus/client_golang v1.15.0
-	github.com/rs/cors v1.8.3
+	github.com/rs/cors v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
