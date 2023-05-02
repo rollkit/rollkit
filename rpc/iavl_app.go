@@ -62,6 +62,6 @@ func (a *Application) Commit() types.ResponseCommit {
 	}
 }
 
-func (a *Application) Query(req types.RequestQuery) types.ResponseQuery {
+func (a Application) Query(req types.RequestQuery) types.ResponseQuery {
 	return a.store.(*iavl.Store).Query(req)
 }

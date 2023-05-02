@@ -14,7 +14,6 @@ import (
 	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/abci/example/kvstore"
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
@@ -43,7 +42,8 @@ func TestTrustMinimizedQuery(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	app := kvstore.NewApplication()
+	//app := kvstore.NewApplication()
+	app := NewMerkleApp()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -103,10 +103,10 @@ func TestTrustMinimizedQuery(t *testing.T) {
 	//assert.True(lightNode.IsRunning())
 	lightClient := lightNode.GetClient()
 
-	_, err = client.BroadcastTxCommit(context.Background(), []byte("connor=cool"))
+	_, err = client.BroadcastTxCommit(context.Background(), []byte("rollkit=cool"))
 	assert.NoError(err)
 
-	q, err := lightClient.ABCIQueryWithOptions(context.Background(), "/store", []byte("connor"), tmclient.ABCIQueryOptions{
+	q, err := lightClient.ABCIQueryWithOptions(context.Background(), "/", []byte("rollkit"), tmclient.ABCIQueryOptions{
 		Prove: true,
 	})
 	require.NoError(err)
