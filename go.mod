@@ -218,3 +218,5 @@ replace (
 )
 
 replace github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.7.3-no-fraud-proofs
+
+replace github.com/cosmos/cosmossdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.7.4-no-fraud-proofs

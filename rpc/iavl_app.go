@@ -19,7 +19,7 @@ type Application struct {
 	appHash []byte
 }
 
-func NewMerkleApp() Application {
+func NewMerkleApp() *Application {
 	db := tmdb.NewMemDB()
 	key := storetypes.NewKVStoreKey("data")
 	commitID := storetypes.CommitID{
@@ -32,7 +32,7 @@ func NewMerkleApp() Application {
 		panic("Unable to create IAVL store")
 	}
 	appHash := make([]byte, 8)
-	return Application{
+	return &Application{
 		store:   store,
 		appHash: appHash,
 	}
