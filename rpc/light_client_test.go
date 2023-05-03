@@ -53,10 +53,14 @@ func TestTrustMinimizedQuery(t *testing.T) {
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 
-	node, err := rollnode.NewNode(context.Background(), config.NodeConfig{
+	ctx, cancel := context.WithCancel(context.Background())
+	node, err := rollnode.NewNode(ctx, config.NodeConfig{
 		DALayer:            "mock",
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
+		P2P: config.P2PConfig{
+			ListenAddress: "/ip4/127.0.0.1/tcp/26656",
+		},
 		/*RPC: config.RPCConfig{
 			ListenAddress: "127.0.0.1:46657",
 		},*/
@@ -82,12 +86,15 @@ func TestTrustMinimizedQuery(t *testing.T) {
 	lightNodeConfig := config.LightNodeConfig{
 		UntrustedRPC: "http://127.0.0.1:26657",
 	}
-	lightNode, err := rollnode.NewNode(context.Background(), config.NodeConfig{
+	lightNode, err := rollnode.NewNode(ctx, config.NodeConfig{
 		DALayer:            "mock",
 		Aggregator:         false,
 		BlockManagerConfig: blockManagerConfig,
 		Light:              true,
 		LightNodeConfig:    lightNodeConfig,
+		P2P: config.P2PConfig{
+			Seeds: "/ip4/127.0.0.1/tcp/26656",
+		},
 		/*RPC: config.RPCConfig{
 			ListenAddress: "0.0.0.0",
 		},*/
@@ -103,12 +110,15 @@ func TestTrustMinimizedQuery(t *testing.T) {
 	//assert.True(lightNode.IsRunning())
 	lightClient := lightNode.GetClient()
 
-	_, err = client.BroadcastTxCommit(context.Background(), []byte("rollkit=cool"))
+	txResponse, err := client.BroadcastTxCommit(ctx, []byte("rollkit=cool"))
 	assert.NoError(err)
 
-	q, err := lightClient.ABCIQueryWithOptions(context.Background(), "/", []byte("rollkit"), tmclient.ABCIQueryOptions{
-		Prove: true,
+	q, err := lightClient.ABCIQueryWithOptions(ctx, "/key", []byte("rollkit"), tmclient.ABCIQueryOptions{
+		Prove:  true,
+		Height: txResponse.Height,
 	})
 	require.NoError(err)
+	fmt.Println("GOT QUERY RESULT")
 	fmt.Println(q)
+	cancel()
 }

@@ -75,6 +75,7 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 
 	keyPathFn := tmlightrpc.DefaultMerkleKeyPathFn()
 
+	fmt.Println("requesting height %i", uint64(opts.Height))
 	header, err := c.node.hExService.headerStore.GetByHeight(ctx, uint64(opts.Height))
 	if err != nil {
 		return nil, errors.New("header not found at height")

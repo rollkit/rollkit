@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/store/iavl"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -63,5 +64,7 @@ func (a *Application) Commit() types.ResponseCommit {
 }
 
 func (a Application) Query(req types.RequestQuery) types.ResponseQuery {
+	fmt.Println("Received query")
+	fmt.Println(req.Path)
 	return a.store.(*iavl.Store).Query(req)
 }
