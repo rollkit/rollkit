@@ -55,7 +55,7 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]p
 	if len(intermediateStateRoots.RawRootsList) != expectedISRListLength {
 		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRListLength)
 	}
-	txsWithISRs := make([]pb.TxWithISRs, 0, len(txs))
+	txsWithISRs := make([]pb.TxWithISRs, len(txs))
 	for i, tx := range txs {
 		txsWithISRs[i] = pb.TxWithISRs{
 			PreIsr:  intermediateStateRoots.RawRootsList[i],
