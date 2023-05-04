@@ -120,7 +120,7 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", BlockManagerConfig: blockManagerConfig}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
 
 	rpc := NewFullClient(n)
 
@@ -668,7 +668,7 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, err := store.NewDefaultInMemoryKVStore()
 	require.Nil(err)
-	err = dalc.Init([8]byte{}, [8]byte{}, nil, ds, log.TestingLogger())
+	err = dalc.Init(headerNamespaceID, dataNamespaceID, nil, ds, log.TestingLogger())
 	require.Nil(err)
 	err = dalc.Start()
 	require.Nil(err)
@@ -685,8 +685,10 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 				DALayer:    "mock",
 				Aggregator: true,
 				BlockManagerConfig: config.BlockManagerConfig{
-					BlockTime:   1 * time.Second,
-					DABlockTime: 100 * time.Millisecond,
+					BlockTime:         1 * time.Second,
+					DABlockTime:       100 * time.Millisecond,
+					HeaderNamespaceID: headerNamespaceID,
+					DataNamespaceID:   dataNamespaceID,
 				},
 			},
 			signingKey,
@@ -894,7 +896,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -972,15 +974,14 @@ func TestMempool2Nodes(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
-		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second,
-		},
+		BlockManagerConfig: blockManagerConfig,
 	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
 	node2, err := newFullNode(context.Background(), config.NodeConfig{
-		DALayer: "mock",
+		DALayer:            "mock",
+		BlockManagerConfig: blockManagerConfig,
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
@@ -1065,7 +1066,9 @@ func TestStatus(t *testing.T) {
 			},
 			Aggregator: true,
 			BlockManagerConfig: config.BlockManagerConfig{
-				BlockTime: 10 * time.Millisecond,
+				BlockTime:         10 * time.Millisecond,
+				HeaderNamespaceID: headerNamespaceID,
+				DataNamespaceID:   dataNamespaceID,
 			},
 		},
 		key,
@@ -1167,7 +1170,9 @@ func TestFutureGenesisTime(t *testing.T) {
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 200 * time.Millisecond,
+			BlockTime:         200 * time.Millisecond,
+			HeaderNamespaceID: headerNamespaceID,
+			DataNamespaceID:   dataNamespaceID,
 		}},
 		key, signingKey,
 		proxy.NewLocalClientCreator(mockApp),

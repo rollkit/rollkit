@@ -36,6 +36,12 @@ var (
 	dataNamespaceID   = types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1}
 )
 
+var blockManagerConfig = config.BlockManagerConfig{
+	BlockTime:         1 * time.Second,
+	HeaderNamespaceID: headerNamespaceID,
+	DataNamespaceID:   dataNamespaceID,
+}
+
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -52,11 +58,6 @@ func TestAggregatorMode(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:         1 * time.Second,
-		HeaderNamespaceID: headerNamespaceID,
-		DataNamespaceID:   dataNamespaceID,
-	}
 	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
@@ -153,11 +154,6 @@ func TestLazyAggregator(t *testing.T) {
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:         1 * time.Second,
-		HeaderNamespaceID: headerNamespaceID,
-		DataNamespaceID:   dataNamespaceID,
-	}
 
 	node, err := NewNode(context.Background(), config.NodeConfig{
 		DALayer:            "mock",
