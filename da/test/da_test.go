@@ -35,12 +35,22 @@ var testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
 func TestMain(m *testing.M) {
 	srv := startMockGRPCServ()
-	defer srv.GracefulStop()
+	if srv == nil {
+		os.Exit(1)
+	}
 
 	httpServer := startMockCelestiaNodeServer()
-	defer httpServer.Stop()
+	if httpServer == nil {
+		os.Exit(1)
+	}
 
-	os.Exit(m.Run())
+	exitCode := m.Run()
+
+	// teardown servers
+	srv.GracefulStop()
+	httpServer.Stop()
+
+	os.Exit(exitCode)
 }
 
 func TestLifecycle(t *testing.T) {
@@ -149,7 +159,8 @@ func startMockGRPCServ() *grpc.Server {
 	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return nil
 	}
 	go func() {
 		_ = srv.Serve(lis)
@@ -161,11 +172,13 @@ func startMockCelestiaNodeServer() *cmock.Server {
 	httpSrv := cmock.NewServer(mockDaBlockTime, tmlog.NewTMLogger(os.Stdout))
 	l, err := net.Listen("tcp4", "127.0.0.1:26658")
 	if err != nil {
-		panic(fmt.Errorf("failed to create listener for mock celestia-node RPC server, error: %w", err))
+		fmt.Println("failed to create listener for mock celestia-node RPC server, error: %w", err)
+		return nil
 	}
 	err = httpSrv.Start(l)
 	if err != nil {
-		panic("can't start mock celestia-node RPC server")
+		fmt.Println("can't start mock celestia-node RPC server")
+		return nil
 	}
 	return httpSrv
 }
