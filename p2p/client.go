@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	tmlog "github.com/tendermint/tendermint/libs/log"
+
 	"github.com/libp2p/go-libp2p/core/crypto"
 	cdiscovery "github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -382,13 +385,14 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 		return err
 	}
 
-	c.txGossiper, err = NewGossiper(c.host, c.ps, c.getTxTopic(), c.logger, WithValidator(c.txValidator))
+	logger := tmlog.NewTMLogger(os.Stdout)
+	c.txGossiper, err = NewGossiper(c.host, c.ps, c.getTxTopic(), logger, WithValidator(c.txValidator))
 	if err != nil {
 		return err
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
+	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), logger, WithValidator(c.headerValidator))
 	if err != nil {
 		return err
 	}
