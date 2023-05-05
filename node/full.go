@@ -173,7 +173,7 @@ func newFullNode(
 		},
 		mainKV,
 		true,
-		types.StateFraudProof,
+		types.StateFraudProofType,
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -288,7 +288,7 @@ func (n *FullNode) OnStart() error {
 
 	// since p2p pubsub and host are required to create ProofService,
 	// we have to delay the construction until Start and use the help of ProofServiceFactory
-	n.fraudService = n.proofServiceFactory.Start()
+	n.fraudService = n.proofServiceFactory.CreateProofService()
 	if err = n.fraudService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}

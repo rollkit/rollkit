@@ -26,8 +26,7 @@ func NewProofServiceFactory(c *p2p.Client, getter fraud.HeaderFetcher, ds datast
 	}
 }
 
-// OnStart is a part of Service interface.
-func (factory *ProofServiceFactory) Start() *fraudserv.ProofService {
+func (factory *ProofServiceFactory) CreateProofService() *fraudserv.ProofService {
 	return fraudserv.NewProofService(
 		factory.client.PubSub(),
 		factory.client.Host(),

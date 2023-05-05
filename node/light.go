@@ -79,7 +79,7 @@ func newLightNode(
 		},
 		datastore,
 		true,
-		types.StateFraudProof,
+		types.StateFraudProofType,
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -119,7 +119,7 @@ func (ln *LightNode) OnStart() error {
 		return fmt.Errorf("error while starting header exchange service: %w", err)
 	}
 
-	ln.fraudService = ln.proofServiceFactory.Start()
+	ln.fraudService = ln.proofServiceFactory.CreateProofService()
 	if err := ln.fraudService.Start(ln.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
