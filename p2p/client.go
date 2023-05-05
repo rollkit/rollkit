@@ -386,13 +386,13 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 
 	logger := tmlog.NewTMLogger(os.Stdout)
-	c.txGossiper, err = NewGossiper(c.host, c.ps, c.getTxTopic(), logger, WithValidator(c.txValidator))
+	c.txGossiper, err = NewGossiper(c.host, c.ps, c.getTxTopic(), logger.With("module", "tx-gossip"), WithValidator(c.txValidator))
 	if err != nil {
 		return err
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), logger, WithValidator(c.headerValidator))
+	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), logger.With("module", "header-gossip"), WithValidator(c.headerValidator))
 	if err != nil {
 		return err
 	}
