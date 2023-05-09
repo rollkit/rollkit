@@ -255,7 +255,7 @@ func (m *Manager) ProcessFraudProof(fraudProofService *fraudserv.ProofService, c
 		return
 	}
 
-	// continously process the fraud proofs received via subscription
+	// continuously process the fraud proofs received via subscription
 	for {
 		proof, err := sub.Proof(ctx)
 		if err != nil {

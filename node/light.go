@@ -151,7 +151,7 @@ func (ln *LightNode) ProcessFraudProof() {
 		return
 	}
 
-	// continously process the fraud proofs received via subscription
+	// continuously process the fraud proofs received via subscription
 	for {
 		proof, err := sub.Proof(ln.ctx)
 		if err != nil {
