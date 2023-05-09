@@ -250,6 +250,10 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 }
 
+func (m *Manager) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
+	m.executor.SetFraudProofService(fraudProofServ)
+}
+
 func (m *Manager) ProcessFraudProof(fraudProofService *fraudserv.ProofService, ctx context.Context, cancel context.CancelFunc) {
 	// subscribe to state fraud proof
 	sub, err := fraudProofService.Subscribe(types.StateFraudProofType)

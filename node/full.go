@@ -292,6 +292,7 @@ func (n *FullNode) OnStart() error {
 	if err = n.fraudService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
+	n.blockManager.SetFraudProofService(n.fraudService)
 
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
