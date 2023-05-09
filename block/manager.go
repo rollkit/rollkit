@@ -61,8 +61,6 @@ type Manager struct {
 
 	HeaderCh chan *types.SignedHeader
 
-	FraudProofInCh chan *abci.FraudProof
-
 	blockInCh chan newBlockEvent
 	syncCache map[uint64]*types.Block
 
@@ -154,7 +152,6 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
-		FraudProofInCh:    make(chan *abci.FraudProof, 100),
 		retrieveMtx:       new(sync.Mutex),
 		lastStateMtx:      new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
@@ -180,10 +177,6 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.dalc = dalc
 	m.retriever = dalc.(da.BlockRetriever)
-}
-
-func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
-	return m.executor.FraudProofOutCh
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.

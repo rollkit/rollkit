@@ -40,8 +40,7 @@ type BlockExecutor struct {
 
 	logger log.Logger
 
-	FraudProofOutCh chan *abci.FraudProof
-	fraudService    *fraudserv.ProofService
+	fraudService *fraudserv.ProofService
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
@@ -56,7 +55,6 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 		fraudProofsEnabled: fraudProofsEnabled,
 		eventBus:           eventBus,
 		logger:             logger,
-		FraudProofOutCh:    make(chan *abci.FraudProof),
 	}
 }
 

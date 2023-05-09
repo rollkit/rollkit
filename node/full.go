@@ -203,7 +203,6 @@ func newFullNode(
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	node.P2P.SetTxValidator(node.newTxValidator())
-	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
 }
@@ -248,27 +247,6 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
-func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
-	for {
-		select {
-		case fraudProof := <-n.blockManager.GetFraudProofOutChan():
-			n.Logger.Info("generated fraud proof: ", fraudProof.String())
-			fraudProofBytes, err := fraudProof.Marshal()
-			if err != nil {
-				panic(fmt.Errorf("failed to serialize fraud proof: %w", err))
-			}
-			n.Logger.Info("gossipping fraud proof...")
-			err = n.P2P.GossipFraudProof(context.Background(), fraudProofBytes)
-			if err != nil {
-				n.Logger.Error("failed to gossip fraud proof", "error", err)
-			}
-			_ = n.Stop()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
 
@@ -302,7 +280,6 @@ func (n *FullNode) OnStart() error {
 	go n.blockManager.ProcessFraudProof(n.fraudService, n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
-	go n.fraudProofPublishLoop(n.ctx)
 
 	return nil
 }
@@ -383,23 +360,6 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 		checkTxResp := res.GetCheckTx()
 
 		return checkTxResp.Code == abci.CodeTypeOK
-	}
-}
-
-// newFraudProofValidator returns a pubsub validator that validates a fraud proof and forwards
-// it to be verified
-func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
-	return func(fraudProofMsg *p2p.GossipMessage) bool {
-		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		fraudProof := abci.FraudProof{}
-		err := fraudProof.Unmarshal(fraudProofMsg.Data)
-		if err != nil {
-			n.Logger.Error("failed to deserialize fraud proof", "error", err)
-			return false
-		}
-		// TODO(manav): Add validation checks for fraud proof here
-		n.blockManager.FraudProofInCh <- &fraudProof
-		return true
 	}
 }
 
