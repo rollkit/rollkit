@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/celestiaorg/go-fraud/fraudserv"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -249,6 +250,51 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 }
 
+func (m *Manager) ProcessFraudProof(fraudProofService *fraudserv.ProofService, ctx context.Context, cancel context.CancelFunc) {
+	// subscribe to state fraud proof
+	sub, err := fraudProofService.Subscribe(types.StateFraudProofType)
+	if err != nil {
+		m.logger.Error("failed to subscribe to fraud proof gossip", "error", err)
+		return
+	}
+
+	// continously process the fraud proofs received via subscription
+	for {
+		proof, err := sub.Proof(ctx)
+		if err != nil {
+			m.logger.Error("failed to receive gossiped fraud proof", "error", err)
+			return
+		}
+
+		// only handle the state fraud proofs for now
+		fraudProof, ok := proof.(*types.StateFraudProof)
+		if !ok {
+			m.logger.Error("unexpected type received for state fraud proof", "error", err)
+			return
+		}
+		m.logger.Debug("fraud proof received",
+			"block height", fraudProof.BlockHeight,
+			"pre-state app hash", fraudProof.PreStateAppHash,
+			"expected valid app hash", fraudProof.ExpectedValidAppHash,
+			"length of state witness", len(fraudProof.StateWitness),
+		)
+		// TODO(light-client): Set up a new cosmos-sdk app
+		// TODO: Add fraud proof window validation
+
+		success, err := m.executor.VerifyFraudProof(&fraudProof.FraudProof, fraudProof.ExpectedValidAppHash)
+		if err != nil {
+			m.logger.Error("failed to verify fraud proof", "error", err)
+			continue
+		}
+		if success {
+			// halt chain
+			m.logger.Info("verified fraud proof, halting chain")
+			cancel()
+			return
+		}
+	}
+}
+
 // SyncLoop is responsible for syncing blocks.
 //
 // SyncLoop processes headers gossiped in P2p network to know what's the latest block height,
@@ -277,28 +323,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
-		case fraudProof := <-m.FraudProofInCh:
-			m.logger.Debug("fraud proof received",
-				"block height", fraudProof.BlockHeight,
-				"pre-state app hash", fraudProof.PreStateAppHash,
-				"expected valid app hash", fraudProof.ExpectedValidAppHash,
-				"length of state witness", len(fraudProof.StateWitness),
-			)
-			// TODO(light-client): Set up a new cosmos-sdk app
-			// TODO: Add fraud proof window validation
-
-			success, err := m.executor.VerifyFraudProof(fraudProof, fraudProof.ExpectedValidAppHash)
-			if err != nil {
-				m.logger.Error("failed to verify fraud proof", "error", err)
-				continue
-			}
-			if success {
-				// halt chain
-				m.logger.Info("verified fraud proof, halting chain")
-				cancel()
-				return
-			}
-
 		case <-ctx.Done():
 			return
 		}
