@@ -30,7 +30,15 @@ func TestTxWithISRSerializationRoundtrip(t *testing.T) {
 	require.NoError(err)
 	require.NotEmpty(txShares)
 
-	newTxsWithISRs, err := SharesToTxsWithISRs(txShares)
+	txBytes, err := SharesToPostableBytes(txShares)
+	require.NoError(err)
+	require.NotEmpty(txBytes)
+
+	newTxShares, err := PostableBytesToShares(txBytes)
+	require.NoError(err)
+	require.NotEmpty(newTxShares)
+
+	newTxsWithISRs, err := SharesToTxsWithISRs(newTxShares)
 	require.NoError(err)
 	require.NotEmpty(txsWithISRs)
 

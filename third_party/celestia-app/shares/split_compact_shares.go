@@ -51,6 +51,25 @@ func NewCompactShareSplitter(ns appns.Namespace, shareVersion uint8) *CompactSha
 	}
 }
 
+// NewCompactShareSplitterWithIsCompactFalse returns a CompactShareSplitter using the provided
+// namespace and shareVersion. Also, sets isCompact in the builder to false.
+func NewCompactShareSplitterWithIsCompactFalse(ns appns.Namespace, shareVersion uint8) *CompactShareSplitter {
+	builder := NewBuilder(ns, shareVersion, true)
+	builder.isCompactShare = false
+	sb, err := builder.Init()
+	if err != nil {
+		panic(err)
+	}
+
+	return &CompactShareSplitter{
+		shares:       []Share{},
+		namespace:    ns,
+		shareVersion: shareVersion,
+		shareRanges:  map[coretypes.TxKey]ShareRange{},
+		shareBuilder: sb,
+	}
+}
+
 // WriteTx adds the delimited data for the provided tx to the underlying compact
 // share splitter.
 func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) error {
@@ -69,6 +88,36 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) error {
 	css.shareRanges[tx.Key()] = ShareRange{
 		Start: startShare,
 		End:   endShare,
+	}
+	return nil
+}
+
+// write adds the delimited data to the underlying compact shares.
+func (css *CompactShareSplitter) WriteWithNoReservedBytes(rawData []byte) error {
+	if css.done {
+		// remove the last element
+		if !css.shareBuilder.IsEmptyShare() {
+			css.shares = css.shares[:len(css.shares)-1]
+		}
+		css.done = false
+	}
+
+	for {
+		rawDataLeftOver := css.shareBuilder.AddData(rawData)
+		if rawDataLeftOver == nil {
+			break
+		}
+		if err := css.stackPending(); err != nil {
+			return err
+		}
+
+		rawData = rawDataLeftOver
+	}
+
+	if css.shareBuilder.AvailableBytes() == 0 {
+		if err := css.stackPending(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
