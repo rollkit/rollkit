@@ -95,7 +95,6 @@ func newLightNode(
 
 	node.P2P.SetTxValidator(node.falseValidator())
 	node.P2P.SetHeaderValidator(node.falseValidator())
-	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
 
@@ -124,6 +123,8 @@ func (ln *LightNode) OnStart() error {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
 
+	go ln.ProcessFraudProof()
+
 	return nil
 }
 
@@ -142,28 +143,46 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 	}
 }
 
-func (ln *LightNode) newFraudProofValidator() p2p.GossipValidator {
-	return func(fraudProofMsg *p2p.GossipMessage) bool {
-		ln.Logger.Info("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		fraudProof := abci.FraudProof{}
-		err := fraudProof.Unmarshal(fraudProofMsg.Data)
+func (ln *LightNode) ProcessFraudProof() {
+	// subscribe to state fraud proof
+	sub, err := ln.fraudService.Subscribe(types.StateFraudProofType)
+	if err != nil {
+		ln.Logger.Error("failed to subscribe to fraud proof gossip", "error", err)
+		return
+	}
+
+	// continously process the fraud proofs received via subscription
+	for {
+		proof, err := sub.Proof(ln.ctx)
 		if err != nil {
-			ln.Logger.Error("failed to deserialize fraud proof", "error", err)
-			return false
+			ln.Logger.Error("failed to receive gossiped fraud proof", "error", err)
+			return
 		}
 
+		// only handle the state fraud proofs for now
+		fraudProof, ok := proof.(*types.StateFraudProof)
+		if !ok {
+			ln.Logger.Error("unexpected type received for state fraud proof", "error", err)
+			return
+		}
+		ln.Logger.Debug("fraud proof received",
+			"block height", fraudProof.BlockHeight,
+			"pre-state app hash", fraudProof.PreStateAppHash,
+			"expected valid app hash", fraudProof.ExpectedValidAppHash,
+			"length of state witness", len(fraudProof.StateWitness),
+		)
+
 		resp, err := ln.proxyApp.Consensus().VerifyFraudProofSync(abci.RequestVerifyFraudProof{
-			FraudProof:           &fraudProof,
+			FraudProof:           &fraudProof.FraudProof,
 			ExpectedValidAppHash: fraudProof.ExpectedValidAppHash,
 		})
 		if err != nil {
-			return false
+			ln.Logger.Error("failed to verify fraud proof", "error", err)
+			continue
 		}
 
 		if resp.Success {
 			panic("received valid fraud proof! halting light client")
 		}
-
-		return false
 	}
 }
