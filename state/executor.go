@@ -373,7 +373,9 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 				return err
 			}
 			// Gossip Fraud Proof
-			e.fraudService.Broadcast(ctx, &types.StateFraudProof{FraudProof: *fraudProof})
+			if err := e.fraudService.Broadcast(ctx, &types.StateFraudProof{FraudProof: *fraudProof}); err != nil {
+				return fmt.Errorf("failed to broadcast fraud proof: %w", err)
+			}
 			return ErrFraudProofGenerated
 		}
 		currentIsrIndex++
