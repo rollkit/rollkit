@@ -7,7 +7,6 @@ A modular framework for rollups, with an ABCI-compatible client interface.
 [![Go Report Card](https://goreportcard.com/badge/github.com/rollkit/rollkit)](https://goreportcard.com/report/github.com/rollkit/rollkit)
 [![codecov](https://codecov.io/gh/rollkit/rollkit/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/rollkit/rollkit)
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
-[![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
 
 ## Building From Source
 
