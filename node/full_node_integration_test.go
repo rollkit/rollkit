@@ -365,8 +365,8 @@ func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 		},
 		keys[2],
 		proxy.NewLocalClientCreator(app),
-		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-		log.TestingLogger().With("lightNode"),
+		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators, InitialHeight: 1},
+		log.TestingLogger().With("lightNode", 3),
 	)
 	require.NoError(err)
 

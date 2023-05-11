@@ -113,6 +113,7 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 
 // OnStart is a part of Service interface.
 func (hExService *HeaderExchangeService) Start() error {
+	hExService.logger.Debug("STARTING hExService")
 	var err error
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := hExService.p2p.PubSub()
