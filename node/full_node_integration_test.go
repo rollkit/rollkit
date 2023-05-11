@@ -605,3 +605,63 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 
 	return node, app
 }
+
+func createLightNode(ctx context.Context, n int, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*LightNode, *mocks.Application) {
+	t.Helper()
+	require := require.New(t)
+	// nodes will listen on consecutive ports on local interface
+	// random connections to other nodes will be added
+	startPort := 10000
+	p2pConfig := config.P2PConfig{
+		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
+	}
+	bmConfig := config.BlockManagerConfig{
+		DABlockTime: 100 * time.Millisecond,
+		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		FraudProofs: true,
+	}
+	for i := 0; i < len(keys); i++ {
+		if i == n {
+			continue
+		}
+		r := i
+		id, err := peer.IDFromPrivateKey(keys[r])
+		require.NoError(err)
+		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+r) + "/p2p/" + id.Pretty() + ","
+	}
+	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
+
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
+		wg.Done()
+	})
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	node, err := newLightNode(
+		ctx,
+		config.NodeConfig{
+			P2P:                p2pConfig,
+			DALayer:            "mock",
+			Light:              true,
+			BlockManagerConfig: bmConfig,
+		},
+		keys[n],
+		signingKey,
+		proxy.NewLocalClientCreator(app),
+		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+		log.TestingLogger().With("node", n))
+	require.NoError(err)
+	require.NotNil(node)
+
+	return node, app
+}
