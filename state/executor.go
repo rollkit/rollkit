@@ -125,7 +125,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 		Data: types.Data{
 			Txs:                    toRollkitTxs(mempoolTxs),
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
-			Evidence:               types.EvidenceData{Evidence: nil},
+			// Note: Temporarily remove Evidence #896
+			// Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
 	block.SignedHeader.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.SignedHeader.Header)

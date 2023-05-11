@@ -1,8 +1,6 @@
 package types
 
 import (
-	abci "github.com/tendermint/tendermint/abci/types"
-
 	"github.com/tendermint/tendermint/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
@@ -183,7 +181,8 @@ func (d *Data) ToProto() *pb.Data {
 	return &pb.Data{
 		Txs:                    txsToByteSlices(d.Txs),
 		IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
-		Evidence:               evidenceToProto(d.Evidence),
+		// Note: Temporarily remove Evidence #896
+		// Evidence:               evidenceToProto(d.Evidence),
 	}
 }
 
@@ -195,7 +194,8 @@ func (b *Block) FromProto(other *pb.Block) error {
 	}
 	b.Data.Txs = byteSlicesToTxs(other.Data.Txs)
 	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
-	b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
+	// Note: Temporarily remove Evidence #896
+	// b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
 
 	return nil
 }
@@ -302,22 +302,24 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 	return txs
 }
 
-func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
-	var ret []*abci.Evidence
-	for _, e := range evidence.Evidence {
-		for i := range e.ABCI() {
-			ae := e.ABCI()[i]
-			ret = append(ret, &ae)
-		}
-	}
-	return ret
-}
+// Note: Temporarily remove Evidence #896
 
-func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
-	var ret EvidenceData
-	// TODO(tzdybal): right now Evidence is just an interface without implementations
-	return ret
-}
+// func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
+// 	var ret []*abci.Evidence
+// 	for _, e := range evidence.Evidence {
+// 		for i := range e.ABCI() {
+// 			ae := e.ABCI()[i]
+// 			ret = append(ret, &ae)
+// 		}
+// 	}
+// 	return ret
+// }
+
+// func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
+// 	var ret EvidenceData
+// 	// TODO(tzdybal): right now Evidence is just an interface without implementations
+// 	return ret
+// }
 
 func signaturesToByteSlices(sigs []Signature) [][]byte {
 	if sigs == nil {
