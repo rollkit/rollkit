@@ -196,7 +196,7 @@ func TestHeaderExchange(t *testing.T) {
 	testSingleAggreatorSingleFullNode(t)
 	testSingleAggreatorTwoFullNode(t)
 	testSingleAggreatorSingleFullNodeTrustedHash(t)
-	testSingleAggreatorSingleFullNodeSingleLightNode(t)
+	TestSingleAggreatorSingleFullNodeSingleLightNode(t)
 }
 
 func testSingleAggreatorSingleFullNode(t *testing.T) {
@@ -305,40 +305,88 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	assert.Equal(n1h, n2h, "heights must match")
 }
 
-func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
+func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
 	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
-	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
 
-	node1 := nodes[0]
-	node2 := nodes[1]
-	node3 := nodes[2]
+	num := 3
+	keys := make([]crypto.PrivKey, num)
+	for i := 0; i < num; i++ {
+		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
+	}
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	ds, _ := store.NewDefaultInMemoryKVStore()
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Start()
+	sequencer, _ := createNode(aggCtx, 0, false, true, dalc, keys, &wg, t)
+	fullNode, _ := createNode(ctx, 1, false, false, dalc, keys, &wg, t)
 
-	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
-	require.NoError(node2.Start())
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: []byte{1, 2, 3, 4}})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
+		wg.Done()
+	})
+	genesisValidators, _ := getGenesisValidatorSetWithSigner(1)
+	bmConfig := config.BlockManagerConfig{
+		DABlockTime: 100 * time.Millisecond,
+		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		FraudProofs: true,
+	}
+	p2pConfig := config.P2PConfig{
+		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(10002),
+	}
+	for i := 0; i < len(keys); i++ {
+		if i == 3 {
+			continue
+		}
+		r := i
+		id, err := peer.IDFromPrivateKey(keys[r])
+		require.NoError(err)
+		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(10000+r) + "/p2p/" + id.Pretty() + ","
+	}
+	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
+	lightNode, err := newLightNode(
+		ctx,
+		config.NodeConfig{
+			P2P:                p2pConfig,
+			DALayer:            "mock",
+			Aggregator:         false,
+			BlockManagerConfig: bmConfig,
+		},
+		keys[2],
+		proxy.NewLocalClientCreator(app),
+		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+		log.TestingLogger().With("lightNode"),
+	)
+	require.NoError(err)
 
-	node3.conf.Light = true
-	require.NoError(node3.Start())
+	require.NoError(sequencer.Start())
+	require.NoError(fullNode.Start())
+	require.NoError(lightNode.Start())
 
 	time.Sleep(3 * time.Second)
 
-	n1h := node1.hExService.headerStore.Height()
+	n1h := sequencer.hExService.headerStore.Height()
 	aggCancel()
-	require.NoError(node1.Stop())
+	require.NoError(sequencer.Stop())
 
 	time.Sleep(3 * time.Second)
 
-	n2h := node2.hExService.headerStore.Height()
-	n3h := node3.hExService.headerStore.Height()
+	n2h := fullNode.hExService.headerStore.Height()
+	n3h := lightNode.hExService.headerStore.Height()
 	cancel()
-	require.NoError(node2.Stop())
-	require.NoError(node3.Stop())
+	require.NoError(fullNode.Stop())
+	require.NoError(lightNode.Stop())
 
 	assert.Equal(n1h, n2h, "heights must match")
 	assert.Equal(n1h, n3h, "heights must match")
