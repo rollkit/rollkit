@@ -12,7 +12,7 @@ func TestTxWithISRSerializationRoundtrip(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	txs := make(Txs, 50)
+	txs := make(Txs, 1000)
 	ISRs := IntermediateStateRoots{
 		RawRootsList: make([][]byte, len(txs)+1),
 	}

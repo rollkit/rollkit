@@ -107,7 +107,7 @@ func (css *CompactShareSplitter) WriteWithNoReservedBytes(rawData []byte) error 
 		if rawDataLeftOver == nil {
 			break
 		}
-		if err := css.stackPending(); err != nil {
+		if err := css.stackPendingWithIsCompactFalse(); err != nil {
 			return err
 		}
 
@@ -115,7 +115,7 @@ func (css *CompactShareSplitter) WriteWithNoReservedBytes(rawData []byte) error 
 	}
 
 	if css.shareBuilder.AvailableBytes() == 0 {
-		if err := css.stackPending(); err != nil {
+		if err := css.stackPendingWithIsCompactFalse(); err != nil {
 			return err
 		}
 	}
@@ -166,6 +166,21 @@ func (css *CompactShareSplitter) stackPending() error {
 
 	// Now we need to create a new builder
 	css.shareBuilder, err = NewBuilder(css.namespace, css.shareVersion, false).Init()
+	return err
+}
+
+// stackPending will build & add the pending share to accumulated shares
+func (css *CompactShareSplitter) stackPendingWithIsCompactFalse() error {
+	pendingShare, err := css.shareBuilder.Build()
+	if err != nil {
+		return err
+	}
+	css.shares = append(css.shares, *pendingShare)
+
+	// Now we need to create a new builder
+	builder := NewBuilder(css.namespace, css.shareVersion, false)
+	builder.isCompactShare = false
+	css.shareBuilder, err = builder.Init()
 	return err
 }
 
