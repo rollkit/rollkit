@@ -345,6 +345,14 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		}
 	})
 
+	if e.fraudProofsEnabled {
+		isr, err := e.getAppHash()
+		if err != nil {
+			return nil, err
+		}
+		ISRs = append(ISRs, isr)
+	}
+
 	genAndGossipFraudProofIfNeeded := func(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (err error) {
 		if !e.fraudProofsEnabled {
 			return nil
@@ -376,15 +384,6 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	}
 	abciHeader.ChainID = e.chainID
 	abciHeader.ValidatorsHash = state.Validators.Hash()
-
-	if e.fraudProofsEnabled {
-		isr, err := e.getAppHash()
-		if err != nil {
-			return nil, err
-		}
-		ISRs = append(ISRs, isr)
-	}
-
 	beginBlockRequest := abci.RequestBeginBlock{
 		Hash:   hash[:],
 		Header: abciHeader,
