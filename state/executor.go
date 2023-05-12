@@ -322,7 +322,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrIndex := 0
 
 	if e.fraudProofsEnabled && currentIsrs != nil {
-		expectedLength := len(block.Data.Txs) + 2
+		expectedLength := len(block.Data.Txs) + 3
 		// BeginBlock + DeliverTxs + EndBlock
 		if len(currentIsrs) != expectedLength {
 			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
@@ -376,6 +376,15 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	}
 	abciHeader.ChainID = e.chainID
 	abciHeader.ValidatorsHash = state.Validators.Hash()
+
+	if e.fraudProofsEnabled {
+		isr, err := e.getAppHash()
+		if err != nil {
+			return nil, err
+		}
+		ISRs = append(ISRs, isr)
+	}
+
 	beginBlockRequest := abci.RequestBeginBlock{
 		Hash:   hash[:],
 		Header: abciHeader,
