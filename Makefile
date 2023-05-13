@@ -17,14 +17,26 @@ cover:
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test `go list ./...`
+	@go test -count=1 `go list ./...`
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
-	@go test -race `go list ./...`
+	@go test -race -count=1 `go list ./...`
 .PHONY: test-unit-race
+
+## clean: clean testcache
+clean:
+	@echo "--> Clearing testcache"
+	@go clean --testcache
+.PHONY: clean
+
+### test-all: Run tests with and without data race
+test-all:
+	@$(MAKE) test-unit
+	@$(MAKE) test-unit-race
+.PHONY: test-all
 
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
