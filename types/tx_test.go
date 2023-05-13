@@ -5,9 +5,10 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/rollkit/rollkit/types/pb/rollkit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 func TestTxWithISRSerializationRoundtrip(t *testing.T) {
@@ -79,8 +80,8 @@ func TestTxWithISRSerializationOutOfContextRoundtrip(t *testing.T) {
 	assert.Equal(txsWithISRs, newTxsWithISRs)
 
 	for i := 0; i < 1000; i++ {
-		numShares := rand.Int() % len(txShares)
-		startShare := rand.Int() % (len(txShares) - numShares + 1)
+		numShares := rand.Int() % len(txShares)                    //nolint: gosec
+		startShare := rand.Int() % (len(txShares) - numShares + 1) //nolint: gosec
 		newTxsWithISRs, err := SharesToTxsWithISRs(txShares[startShare : startShare+numShares])
 		require.NoError(err)
 		assert.True(checkSubArray(txsWithISRs, newTxsWithISRs))
