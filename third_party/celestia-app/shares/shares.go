@@ -201,6 +201,11 @@ func (s *Share) RawDataUsingReserved() (rawData []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// This means share is the last share and does not have any transaction beginning in it
+	if rawDataStartIndexUsingReserved == 0 {
+		return []byte{}, nil
+	}
 	if len(s.data) < rawDataStartIndexUsingReserved {
 		return rawData, fmt.Errorf("share %s is too short to contain raw data", s)
 	}

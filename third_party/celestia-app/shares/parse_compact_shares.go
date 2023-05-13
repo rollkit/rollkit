@@ -1,8 +1,6 @@
 package shares
 
 import (
-	"errors"
-
 	"github.com/rollkit/rollkit/libs/appconsts"
 )
 
@@ -21,19 +19,23 @@ func parseCompactShares(shares []Share, supportedShareVersions []uint8) (data []
 		return nil, nil
 	}
 
-	seqStart, err := shares[0].IsSequenceStart()
-	if err != nil {
-		return nil, err
-	}
+	// out of context shares are supported
+
+	// seqStart, err := shares[0].IsSequenceStart()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	err = validateShareVersions(shares, supportedShareVersions)
 	if err != nil {
 		return nil, err
 	}
 
-	if !seqStart {
-		return nil, errors.New("first share is not the start of a sequence")
-	}
+	// out of context shares are supported
+
+	// if !seqStart {
+	// 	return nil, errors.New("first share is not the start of a sequence")
+	// }
 
 	rawData, err := extractRawData(shares)
 	if err != nil {
@@ -70,7 +72,7 @@ func parseRawData(rawData []byte) (units [][]byte, err error) {
 		if err != nil {
 			return nil, err
 		}
-		if unitLen == 0 {
+		if unitLen == 0 || unitLen > uint64(len(actualData)) {
 			return units, nil
 		}
 		rawData = actualData[unitLen:]
