@@ -7,12 +7,24 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
 .PHONY: help
 
+## clean: clean testcache
+clean:
+	@echo "--> Clearing testcache"
+	@go clean --testcache
+.PHONY: clean
+
 ## cover: generate to code coverage report.
 cover:
 	@echo "--> Generating Code Coverage"
 	@go install github.com/ory/go-acc@latest
 	@go-acc -o coverage.txt `go list ./...`
 .PHONY: cover
+
+## lint: runs go linter
+lint:
+	@echo "--> Linting Golang files"
+	@golangci-lint run
+.PHONY: lint
 
 ## test-unit: Running unit tests
 test-unit:
@@ -25,12 +37,6 @@ test-unit-race:
 	@echo "--> Running unit tests with data race detector"
 	@go test -race -count=1 `go list ./...`
 .PHONY: test-unit-race
-
-## clean: clean testcache
-clean:
-	@echo "--> Clearing testcache"
-	@go clean --testcache
-.PHONY: clean
 
 ### test-all: Run tests with and without data race
 test-all:
