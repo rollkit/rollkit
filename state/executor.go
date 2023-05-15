@@ -322,8 +322,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrIndex := 0
 
 	if e.fraudProofsEnabled && currentIsrs != nil {
-		expectedLength := len(block.Data.Txs) + 3
-		// BeginBlock + DeliverTxs + EndBlock
+		expectedLength := len(block.Data.Txs) + 3 // before BeginBlock, after BeginBlock, after every Tx, after EndBlock
 		if len(currentIsrs) != expectedLength {
 			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
 		}
