@@ -745,7 +745,7 @@ func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, wg *s
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(6)
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
 		wg.Done()
 	}).Once()
@@ -794,6 +794,8 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 	rpc := createGenesisValidators(numNodes, createApp, require, &wg)
 
 	wg.Wait()
+
+	time.Sleep(100 * time.Millisecond)
 
 	// test first blocks
 	for h := int64(1); h <= 3; h++ {
