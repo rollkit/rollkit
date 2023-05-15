@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -19,19 +20,25 @@ var errNegOrZeroHeight = errors.New("negative or zero height")
 
 type LightClient struct {
 	types.EventBus
-	node *LightNode
-	prt  *merkle.ProofRuntime
+	node      *LightNode
+	prt       *merkle.ProofRuntime
+	keyPathFn tmlightrpc.KeyPathFunc
 }
 
 func NewLightClient(node *LightNode) *LightClient {
 	return &LightClient{
-		node: node,
-		prt:  merkle.DefaultProofRuntime(),
+		node:      node,
+		prt:       merkle.DefaultProofRuntime(),
+		keyPathFn: tmlightrpc.DefaultMerkleKeyPathFn(),
 	}
 }
 
 func (c *LightClient) SetProofRuntime(prt *merkle.ProofRuntime) {
 	c.prt = prt
+}
+
+func (c *LightClient) SetKeyPathFn(keyPathFn tmlightrpc.KeyPathFunc) {
+	c.keyPathFn = keyPathFn
 }
 
 // ABCIInfo returns basic information about application state.
@@ -73,23 +80,32 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 		return nil, errNegOrZeroHeight
 	}
 
-	keyPathFn := tmlightrpc.DefaultMerkleKeyPathFn()
+	//keyPathFn := tmlightrpc.DefaultMerkleKeyPathFn()
 
-	fmt.Println("requesting height %i", uint64(opts.Height))
-	header, err := c.node.hExService.headerStore.GetByHeight(ctx, uint64(opts.Height))
+	fmt.Println("requesting height ", uint64(opts.Height))
+	timeoutCtx, timeoutCancel := context.WithCancel(ctx)
+
+	go func() {
+		time.Sleep(3 * time.Second)
+		c.node.Logger.Error("Timed out request!")
+		timeoutCancel()
+	}()
+
+	header, err := c.node.hExService.headerStore.GetByHeight(timeoutCtx, uint64(opts.Height))
 	if err != nil {
-		return nil, errors.New("header not found at height")
+		c.node.Logger.Error("error getting header", err)
+		//return nil, fmt.Errorf("error getting header: %w", err)
 	}
 
 	c.node.Logger.Debug("Validating merkle proof...")
 	// Validate the value proof against the trusted header.
 	if resp.Value != nil {
 		// 1) build a Merkle key path from path and resp.Key
-		if keyPathFn == nil {
+		if c.keyPathFn == nil {
 			return nil, errors.New("please configure Client with KeyPathFn option")
 		}
 
-		kp, err := keyPathFn(path, resp.Key)
+		kp, err := c.keyPathFn(path, resp.Key)
 		if err != nil {
 			return nil, fmt.Errorf("can't build merkle key path: %w", err)
 		}

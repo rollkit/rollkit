@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/conv"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
@@ -98,7 +100,11 @@ func TestTrustMinimizedQuery(t *testing.T) {
 		/*RPC: config.RPCConfig{
 			ListenAddress: "0.0.0.0",
 		},*/
-	}, key2, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key2, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{
+		ChainID:       "test",
+		Validators:    genesisValidators,
+		InitialHeight: 1,
+	}, log.TestingLogger())
 	//assert.False(lightNode.IsRunning())
 	assert.NoError(err)
 	err = lightNode.Start()
@@ -108,7 +114,14 @@ func TestTrustMinimizedQuery(t *testing.T) {
 		assert.NoError(err)
 	}()
 	//assert.True(lightNode.IsRunning())
-	lightClient := lightNode.GetClient()
+	lightClient := lightNode.GetClient().(*rollnode.LightClient)
+	decoder := merkle.NewProofRuntime()
+	decoder.RegisterOpDecoder("ics23:iavl", storetypes.CommitmentOpDecoder)
+	lightClient.SetProofRuntime(decoder)
+	lightClient.SetKeyPathFn(func(path string, key []byte) (merkle.KeyPath, error) {
+		kP := merkle.KeyPath{}
+		kP.AppendKey([]byte("/"))
+	})
 
 	txResponse, err := client.BroadcastTxCommit(ctx, []byte("rollkit=cool"))
 	assert.NoError(err)
