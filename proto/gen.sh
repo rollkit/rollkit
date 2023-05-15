@@ -8,8 +8,6 @@ cd $SCRIPT_DIR
 rm -rf $TARGET_DIR/*
 docker run -v $PWD:/workspace --workdir /workspace tendermintdev/docker-build-proto sh ./proto/protoc.sh
 
-rm -rf ./proto/tendermint
-
 cp -r ./proto/pb/* $TARGET_DIR/
 
 rm -rf $TARGET_DIR/tendermint
