@@ -20,10 +20,17 @@ cover:
 	@go-acc -o coverage.txt `go list ./...`
 .PHONY: cover
 
-## lint: runs go linter
+## lint: Run linters golangci-lint and markdownlint.
 lint:
-	@echo "--> Linting Golang files"
+	@echo "--> Running golangci-lint"
 	@golangci-lint run
+	@echo "--> Running markdownlint"
+	@markdownlint --config .markdownlint.yaml '**/*.md'
+	@echo "--> Running hadolint"
+	@hadolint docker/mockserv.Dockerfile
+	@echo "--> Running yamllint"
+	@yamllint --no-warnings . -c .yamllint.yml
+
 .PHONY: lint
 
 ## test-unit: Running unit tests
