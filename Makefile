@@ -36,7 +36,7 @@ lint:
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test -count=1 `go list ./...`
+	@go test `go list ./...`
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
