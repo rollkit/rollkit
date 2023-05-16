@@ -16,7 +16,7 @@ jobs:
       pull-requests: write
     with:
       run-labels: true
-      labels-to-add: 'needs-grooming'
+      labels-to-add: "needs-grooming"
       run-projects: true
       project-url: https://github.com/orgs/rollkit/projects/7
 
@@ -37,6 +37,8 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
+    # ignore dependabot PRs
+    if: ${{ github.actor != 'dependabot[bot]' }}
     steps:
       - name: Set issue url and creator login
         if: ${{ github.event.issue }}
