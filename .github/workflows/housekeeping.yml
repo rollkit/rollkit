@@ -8,6 +8,7 @@ on:
 
 jobs:
   project:
+    if: ${{ github.actor != 'dependabot[bot]' }}
     name: Add issues and PRs to project and add grooming label
     uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
@@ -32,13 +33,13 @@ jobs:
       run-auto-request-review: true
 
   auto-add-assignee:
+    if: ${{ github.actor != 'dependabot[bot]' }}
     name: Assign issue and PR to creator
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
     # ignore dependabot PRs
-    if: ${{ github.actor != 'dependabot[bot]' }}
     steps:
       - name: Set issue url and creator login
         if: ${{ github.event.issue }}
