@@ -329,16 +329,7 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	lightNode, _ := createNode(
-		ctx,
-		2,
-		false,
-		false,
-		true,
-		keys,
-		&wg,
-		t,
-	)
+	lightNode, _ := createNode(ctx, 2, false, false, true, keys, &wg, t)
 
 	require.NoError(sequencer.Start())
 	require.NoError(fullNode.Start())
@@ -501,9 +492,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, app := createNode(ctx, i, isMalicious, false, false, keys, wg, t)
-		nodes[i] = node.(*FullNode)
-		apps[i] = app
+		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, wg, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
