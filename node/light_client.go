@@ -91,10 +91,11 @@ func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, dat
 		timeoutCancel()
 	}()
 
+	c.node.Logger.Debug("Requesting header. Current Height: ", c.node.hExService.headerStore.Height())
 	header, err := c.node.hExService.headerStore.GetByHeight(timeoutCtx, uint64(opts.Height))
 	if err != nil {
-		c.node.Logger.Error("error getting header", err)
-		//return nil, fmt.Errorf("error getting header: %w", err)
+		//c.node.Logger.Error("error getting header", err)
+		return nil, fmt.Errorf("error getting header: %w", err)
 	}
 
 	c.node.Logger.Debug("Validating merkle proof...")

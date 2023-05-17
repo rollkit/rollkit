@@ -63,10 +63,11 @@ func TestTrustMinimizedQuery(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/26656",
 		},
-		/*RPC: config.RPCConfig{
-			ListenAddress: "127.0.0.1:46657",
-		},*/
-	}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{
+		ChainID:       "test",
+		Validators:    genesisValidators,
+		InitialHeight: 1,
+	}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 	err = node.Start()
@@ -97,9 +98,6 @@ func TestTrustMinimizedQuery(t *testing.T) {
 		P2P: config.P2PConfig{
 			Seeds: "/ip4/127.0.0.1/tcp/26656",
 		},
-		/*RPC: config.RPCConfig{
-			ListenAddress: "0.0.0.0",
-		},*/
 	}, key2, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{
 		ChainID:       "test",
 		Validators:    genesisValidators,
@@ -120,7 +118,9 @@ func TestTrustMinimizedQuery(t *testing.T) {
 	lightClient.SetProofRuntime(decoder)
 	lightClient.SetKeyPathFn(func(path string, key []byte) (merkle.KeyPath, error) {
 		kP := merkle.KeyPath{}
-		kP.AppendKey([]byte("/"))
+		kP.AppendKey([]byte("/"), merkle.KeyEncodingURL)
+		kP.AppendKey([]byte(key), merkle.KeyEncodingURL)
+		return kP, nil
 	})
 
 	txResponse, err := client.BroadcastTxCommit(ctx, []byte("rollkit=cool"))
