@@ -1,7 +1,6 @@
 syntax = "proto3";
 package rollkit;
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
-import "tendermint/abci/types.proto";
 import "tendermint/types/validator.proto";
 
 // Version captures the consensus rules for processing a block in the blockchain,
