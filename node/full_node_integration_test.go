@@ -23,7 +23,6 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/p2p"
@@ -322,53 +321,24 @@ func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	sequencer, _ := createNode(aggCtx, 0, false, true, dalc, keys, &wg, t)
-	fullNode, _ := createNode(ctx, 1, false, false, dalc, keys, &wg, t)
+	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, &wg, t)
+	fullNode, _ := createNode(ctx, 1, false, false, false, keys, &wg, t)
 
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: []byte{1, 2, 3, 4}})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
-		wg.Done()
-	})
-	genesisValidators, _ := getGenesisValidatorSetWithSigner(1)
-	bmConfig := config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		FraudProofs: true,
-	}
-	p2pConfig := config.P2PConfig{
-		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(10002),
-	}
-	for i := 0; i < len(keys); i++ {
-		if i == 3 {
-			continue
-		}
-		r := i
-		id, err := peer.IDFromPrivateKey(keys[r])
-		require.NoError(err)
-		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(10000+r) + "/p2p/" + id.Pretty() + ","
-	}
-	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
-	lightNode, err := newLightNode(
+	sequencer.(*FullNode).dalc = dalc
+	sequencer.(*FullNode).blockManager.SetDALC(dalc)
+	fullNode.(*FullNode).dalc = dalc
+	fullNode.(*FullNode).blockManager.SetDALC(dalc)
+
+	lightNode, _ := createNode(
 		ctx,
-		config.NodeConfig{
-			P2P:                p2pConfig,
-			DALayer:            "mock",
-			Aggregator:         false,
-			BlockManagerConfig: bmConfig,
-		},
-		keys[2],
-		proxy.NewLocalClientCreator(app),
-		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators, InitialHeight: 1},
-		log.TestingLogger().With("lightNode", 3),
+		2,
+		false,
+		false,
+		true,
+		keys,
+		&wg,
+		t,
 	)
-	require.NoError(err)
 
 	require.NoError(sequencer.Start())
 	require.NoError(fullNode.Start())
@@ -376,14 +346,14 @@ func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 
 	time.Sleep(3 * time.Second)
 
-	n1h := sequencer.hExService.headerStore.Height()
+	n1h := sequencer.(*FullNode).hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(sequencer.Stop())
 
 	time.Sleep(3 * time.Second)
 
-	n2h := fullNode.hExService.headerStore.Height()
-	n3h := lightNode.hExService.headerStore.Height()
+	n2h := fullNode.(*FullNode).hExService.headerStore.Height()
+	n3h := lightNode.(*LightNode).hExService.headerStore.Height()
 	cancel()
 	require.NoError(fullNode.Stop())
 	require.NoError(lightNode.Stop())
@@ -524,15 +494,25 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	nodes[0], apps[0] = createNode(aggCtx, 0, isMalicious, true, dalc, keys, wg, t)
+	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, wg, t)
+	apps[0] = app
+	nodes[0] = node.(*FullNode)
+	// use same, common DALC, so nodes can share data
+	nodes[0].dalc = dalc
+	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		nodes[i], apps[i] = createNode(ctx, i, isMalicious, false, dalc, keys, wg, t)
+		node, app := createNode(ctx, i, isMalicious, false, false, keys, wg, t)
+		nodes[i] = node.(*FullNode)
+		apps[i] = app
+		nodes[i] = node.(*FullNode)
+		nodes[i].dalc = dalc
+		nodes[i].blockManager.SetDALC(dalc)
 	}
 
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*FullNode, *mocks.Application) {
+func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -583,25 +563,26 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	node, err := newFullNode(
+	genesis := &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
+	if isLight {
+		genesis.InitialHeight = 1
+	}
+	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
 			P2P:                p2pConfig,
 			DALayer:            "mock",
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
+			Light:              isLight,
 		},
 		keys[n],
 		signingKey,
 		proxy.NewLocalClientCreator(app),
-		&tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+		genesis,
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
-
-	// use same, common DALC, so nodes can share data
-	node.dalc = dalc
-	node.blockManager.SetDALC(dalc)
 
 	return node, app
 }
