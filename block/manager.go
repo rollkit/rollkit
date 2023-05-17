@@ -254,6 +254,7 @@ func (m *Manager) ProcessFraudProof(fraudProofService *fraudserv.ProofService, c
 		m.logger.Error("failed to subscribe to fraud proof gossip", "error", err)
 		return
 	}
+	defer sub.Cancel()
 
 	// continuously process the fraud proofs received via subscription
 	for {
