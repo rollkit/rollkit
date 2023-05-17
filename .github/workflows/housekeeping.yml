@@ -8,6 +8,8 @@ on:
 
 jobs:
   project:
+    # ignore dependabot PRs
+    if: ${{ github.actor != 'dependabot[bot]' }}
     name: Add issues and PRs to project and add grooming label
     uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
@@ -16,7 +18,7 @@ jobs:
       pull-requests: write
     with:
       run-labels: true
-      labels-to-add: 'needs-grooming'
+      labels-to-add: "needs-grooming"
       run-projects: true
       project-url: https://github.com/orgs/rollkit/projects/7
 
@@ -32,6 +34,8 @@ jobs:
       run-auto-request-review: true
 
   auto-add-assignee:
+    # ignore dependabot PRs
+    if: ${{ github.actor != 'dependabot[bot]' }}
     name: Assign issue and PR to creator
     runs-on: ubuntu-latest
     permissions:
