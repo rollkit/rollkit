@@ -553,10 +553,8 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	genesis := &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
-	if isLight {
-		// TODO: need to investigate why this needs to be done for light nodes
-		genesis.InitialHeight = 1
-	}
+	// TODO: need to investigate why this needs to be done for light nodes
+	genesis.InitialHeight = 1
 	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
