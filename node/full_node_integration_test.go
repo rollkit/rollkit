@@ -195,7 +195,7 @@ func TestHeaderExchange(t *testing.T) {
 	testSingleAggreatorSingleFullNode(t)
 	testSingleAggreatorTwoFullNode(t)
 	testSingleAggreatorSingleFullNodeTrustedHash(t)
-	TestSingleAggreatorSingleFullNodeSingleLightNode(t)
+	testSingleAggreatorSingleFullNodeSingleLightNode(t)
 }
 
 func testSingleAggreatorSingleFullNode(t *testing.T) {
@@ -304,7 +304,7 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	assert.Equal(n1h, n2h, "heights must match")
 }
 
-func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
+func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
