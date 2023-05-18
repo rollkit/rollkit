@@ -472,7 +472,7 @@ func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 
 func TestFraudProofService(t *testing.T) {
 	testSingleAggreatorSingleFullNodeFraudProofGossip(t)
-	// testSingleAggreatorTwoFullNodeFraudProofSync(t)
+	testSingleAggreatorTwoFullNodeFraudProofSync(t)
 }
 
 // TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
