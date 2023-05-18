@@ -92,9 +92,14 @@ func (g *Gossiper) Publish(ctx context.Context, data []byte) error {
 func (g *Gossiper) ProcessMessages(ctx context.Context) {
 	for {
 		_, err := g.sub.Next(ctx)
-		if err != nil {
-			g.logger.Error("failed to read message", "error", err)
+		select {
+		case <-ctx.Done():
 			return
+		default:
+			if err != nil {
+				g.logger.Error("failed to read message", "error", err)
+				return
+			}
 		}
 		// Logic is handled in validator
 	}

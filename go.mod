@@ -5,6 +5,7 @@ go 1.18
 require (
 	cosmossdk.io/log v1.1.0
 	github.com/celestiaorg/go-cnc v0.3.0
+	github.com/celestiaorg/go-fraud v0.1.0
 	github.com/celestiaorg/go-header v0.2.6
 	github.com/cosmos/cosmos-db v1.0.0-rc.1
 	github.com/cosmos/cosmos-sdk v0.46.11
@@ -22,7 +23,7 @@ require (
 	github.com/libp2p/go-libp2p-kad-dht v0.23.0
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.9.0
-	github.com/prometheus/client_golang v1.15.0
+	github.com/prometheus/client_golang v1.15.1
 	github.com/rs/cors v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.15.0
@@ -30,7 +31,7 @@ require (
 	github.com/tendermint/tendermint v0.34.27
 	github.com/tendermint/tm-db v0.6.7
 	go.uber.org/multierr v1.11.0
-	golang.org/x/net v0.9.0
+	golang.org/x/net v0.10.0
 	google.golang.org/grpc v1.52.0
 	google.golang.org/protobuf v1.30.0
 )
@@ -198,7 +199,7 @@ require (
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	gonum.org/v1/gonum v0.11.0 // indirect

@@ -1,0 +1,75 @@
+name: Housekeeping
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  project:
+    # ignore dependabot PRs
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    name: Add issues and PRs to project and add grooming label
+    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    secrets: inherit
+    permissions:
+      issues: write
+      pull-requests: write
+    with:
+      run-labels: true
+      labels-to-add: "needs-grooming"
+      run-projects: true
+      project-url: https://github.com/orgs/rollkit/projects/7
+
+  auto-add-reviewer:
+    name: Auto add reviewer to PR
+    if: github.event.pull_request
+    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    secrets: inherit
+    permissions:
+      issues: write
+      pull-requests: write
+    with:
+      run-auto-request-review: true
+
+  auto-add-assignee:
+    # ignore dependabot PRs
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    name: Assign issue and PR to creator
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Set issue url and creator login
+        if: ${{ github.event.issue }}
+        run: |
+          echo "ISSUE=${{ github.event.issue.html_url }}" >> $GITHUB_ENV
+          echo "CREATOR=${{ github.event.issue.user.login }}" >> $GITHUB_ENV
+      - name: Set pull_request url and creator login
+        if: ${{ github.event.pull_request }}
+        # yamllint disable rule:line-length
+        run: |
+          echo "PR=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
+          echo "CREATOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
+        # yamllint enable rule:line-length
+      - name: Assign issue to creator (issue)
+        if: ${{ github.event.issue }}
+        run: gh issue edit ${{ env.ISSUE }} --add-assignee ${{ env.CREATOR }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Assign issue to creator (PR)
+        if: ${{ github.event.pull_request }}
+        run: gh pr edit ${{ env.PR }} --add-assignee ${{ env.CREATOR }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  required-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mheap/github-action-required-labels@v4
+        with:
+          mode: minimum
+          count: 1
+          labels: "T:enhancement, T:documentation, T:code-hygiene, T:bug, T:adr, T:sdk, T:testing, T:question, T:dependencies, T:spec-and-docs, T:da-integration, T:dev-usability-and-ux" # yamllint disable-line rule:line-length

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -18,6 +20,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 var _ Node = &LightNode{}
@@ -30,7 +33,9 @@ type LightNode struct {
 	proxyApp   proxy.AppConns
 	RPCService *remoterpc.HTTP
 
-	hExService *HeaderExchangeService
+	hExService          *HeaderExchangeService
+	fraudService        *fraudserv.ProofService
+	proofServiceFactory ProofServiceFactory
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -73,16 +78,26 @@ func newLightNode(
 	if err != nil {
 		return nil, fmt.Errorf("unable to create JSON RPC client to remote full node: %v", err)
 	}
+	fraudProofFactory := NewProofServiceFactory(
+		client,
+		func(ctx context.Context, u uint64) (header.Header, error) {
+			return headerExchangeService.headerStore.GetByHeight(ctx, u)
+		},
+		datastore,
+		true,
+		types.StateFraudProofType,
+	)
 
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &LightNode{
-		P2P:        client,
-		proxyApp:   proxyApp,
-		hExService: headerExchangeService,
-		cancel:     cancel,
-		ctx:        ctx,
-		RPCService: remoteRpc,
+		P2P:                 client,
+		proxyApp:            proxyApp,
+		hExService:          headerExchangeService,
+		proofServiceFactory: fraudProofFactory,
+		cancel:              cancel,
+		ctx:                 ctx,
+		RPCService:          remoteRpc,
 	}
 
 	node.P2P.SetTxValidator(node.falseValidator())
@@ -109,6 +124,11 @@ func (ln *LightNode) OnStart() error {
 
 	if err := ln.hExService.Start(); err != nil {
 		return fmt.Errorf("error while starting header exchange service: %w", err)
+	}
+
+	ln.fraudService = ln.proofServiceFactory.CreateProofService()
+	if err := ln.fraudService.Start(ln.ctx); err != nil {
+		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
 
 	return nil
