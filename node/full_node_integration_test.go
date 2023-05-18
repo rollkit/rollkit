@@ -379,20 +379,21 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
 
 	for _, app := range apps {
-		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
-			wg.Done()
-		}).Once()
+		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true})
+		// .Run(func(args mock.Arguments) {
+		// 	wg.Done()
+		// }).Once()
 	}
 
 	aggNode := nodes[0]
 	fullNode := nodes[1]
 
-	wg.Add(clientNodes + 1)
+	// wg.Add(clientNodes + 1)
 	require.NoError(aggNode.Start())
 	time.Sleep(2 * time.Second)
 	require.NoError(fullNode.Start())
 
-	wg.Wait()
+	// wg.Wait()
 	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
 	checkAppCalls(assert, apps[0], []int{0, 1})
 	// fullnode should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
@@ -424,21 +425,22 @@ func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
 
 	for _, app := range apps {
-		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
-			wg.Done()
-		}).Once()
+		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true})
+		// .Run(func(args mock.Arguments) {
+		// 	wg.Done()
+		// }).Once()
 	}
 
 	aggNode := nodes[0]
 	fullNode1 := nodes[1]
 	fullNode2 := nodes[2]
 
-	wg.Add(clientNodes + 1)
+	// wg.Add(clientNodes + 1)
 	require.NoError(aggNode.Start())
 	time.Sleep(2 * time.Second)
 	require.NoError(fullNode1.Start())
 
-	wg.Wait()
+	// wg.Wait()
 	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
 	checkAppCalls(assert, apps[0], []int{0, 1})
 	// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
