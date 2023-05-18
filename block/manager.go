@@ -360,7 +360,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
-		m.store.SetHeight(uint64(b.SignedHeader.Header.Height()))
 
 		err = m.store.SaveBlockResponses(uint64(b.SignedHeader.Header.Height()), responses)
 		if err != nil {
@@ -372,6 +371,8 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return err
 		}
+
+		m.store.SetHeight(uint64(b.SignedHeader.Header.Height()))
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -590,9 +591,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	blockHeight := uint64(block.SignedHeader.Header.Height())
 
-	// Only update the stored height after successfully submitting to DA layer and committing to the DB
-	m.store.SetHeight(blockHeight)
-
 	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
@@ -610,6 +608,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Only update the stored height after successfully submitting to DA layer and committing to the DB
+	m.store.SetHeight(blockHeight)
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
