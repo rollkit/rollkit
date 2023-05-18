@@ -382,9 +382,9 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	cancel()
 	require.NoError(node2.Stop())
 
-	assert.Greater(len(n1Frauds), 0, "number of fraud proofs gossiped should be greater than 0")
-	assert.Greater(len(n2Frauds), 0, "number of fraud proofs gossiped should be greater than 0")
-	assert.Equal(n1Frauds, n2Frauds, "number of fraud proofs gossiped between nodes must match")
+	assert.Equal(len(n1Frauds), 1, "number of fraud proofs received via gossip should be 1")
+	assert.Equal(len(n2Frauds), 1, "number of fraud proofs received via gossip should be 1")
+	assert.Equal(n1Frauds, n2Frauds, "the received fraud proofs after gossip must match")
 }
 
 func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {

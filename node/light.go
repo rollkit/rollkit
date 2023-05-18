@@ -79,7 +79,7 @@ func newLightNode(
 		},
 		datastore,
 		true,
-		types.StateFraudProofType,
+		genesis.ChainID,
 	)
 
 	ctx, cancel := context.WithCancel(ctx)

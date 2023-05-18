@@ -34,7 +34,6 @@ import (
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -173,7 +172,7 @@ func newFullNode(
 		},
 		mainKV,
 		true,
-		types.StateFraudProofType,
+		genesis.ChainID,
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
