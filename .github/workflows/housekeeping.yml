@@ -66,12 +66,13 @@ jobs:
           echo "PR=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
           echo "CREATOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
         # yamllint enable rule:line-length
-      - name: Assign issue to creator (issue)
+      # TODO: Does it make sense to always auto assign the issue to the creator?
+      - name: Assign issue to creator
         if: ${{ github.event.issue }}
         run: gh issue edit ${{ env.ISSUE }} --add-assignee ${{ env.CREATOR }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Assign issue to creator (PR)
+      - name: Assign PR to creator
         if: ${{ github.event.pull_request }}
         run: gh pr edit ${{ env.PR }} --add-assignee ${{ env.CREATOR }}
         env:
