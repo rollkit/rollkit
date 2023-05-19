@@ -18,7 +18,7 @@ jobs:
       pull-requests: write
     with:
       run-labels: true
-      labels-to-add: "needs-grooming"
+      labels-to-add: "needs-triage"
       run-projects: true
       project-url: https://github.com/orgs/rollkit/projects/7
 
