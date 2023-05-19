@@ -7,10 +7,9 @@ on:
     types: [opened]
 
 jobs:
-  project:
-    # ignore dependabot PRs
-    if: ${{ github.actor != 'dependabot[bot]' }}
-    name: Add issues and PRs to project and add grooming label
+  issue-management:
+    if: ${{ github.event == 'issues' }}
+    name: Add issues to project and add triage label
     uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
     permissions:
@@ -19,6 +18,19 @@ jobs:
     with:
       run-labels: true
       labels-to-add: "needs-triage"
+      run-projects: true
+      project-url: https://github.com/orgs/rollkit/projects/7
+
+  add-pr-to-project:
+    # ignore dependabot PRs
+    if: ${{ github.event == 'pull_request_target' && github.actor != 'dependabot[bot]' }}
+    name: Add PRs to project
+    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    secrets: inherit
+    permissions:
+      issues: write
+      pull-requests: write
+    with:
       run-projects: true
       project-url: https://github.com/orgs/rollkit/projects/7
 
