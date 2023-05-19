@@ -282,7 +282,9 @@ func (n *FullNode) OnStart() error {
 	go func(ctx context.Context) {
 		select {
 		case <-ctx.Done():
-			n.Stop()
+			if err = n.Stop(); err != nil {
+				n.Logger.Error("errors while stopping node:", "errors", err)
+			}
 		default:
 		}
 	}(n.ctx)
