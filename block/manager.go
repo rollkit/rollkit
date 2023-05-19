@@ -258,7 +258,7 @@ func (m *Manager) ProcessFraudProof(fraudProofService *fraudserv.ProofService, c
 
 	// continuously process the fraud proofs received via subscription
 	for {
-		// sub.Proof is a blocking call that only returns on proof recieved or context ended
+		// sub.Proof is a blocking call that only returns on proof received or context ended
 		proof, err := sub.Proof(ctx)
 		if err != nil {
 			m.logger.Error("failed to receive gossiped fraud proof", "error", err)
