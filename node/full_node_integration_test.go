@@ -454,8 +454,6 @@ func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 	wg.Add(1)
 	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
 	require.NoError(fullNode2.Start())
-	// allow syncer to catch up before querying the fraud store
-	time.Sleep(1 * time.Second)
 
 	wg.Wait()
 	// fullnode2 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls

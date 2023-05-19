@@ -279,15 +279,6 @@ func (n *FullNode) OnStart() error {
 	go n.blockManager.ProcessFraudProof(n.fraudService, n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
-	go func(ctx context.Context) {
-		select {
-		case <-ctx.Done():
-			if err = n.Stop(); err != nil {
-				n.Logger.Error("errors while stopping node:", "errors", err)
-			}
-		default:
-		}
-	}(n.ctx)
 	return nil
 }
 
