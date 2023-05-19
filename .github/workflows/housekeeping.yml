@@ -8,7 +8,7 @@ on:
 
 jobs:
   issue-management:
-    if: ${{ github.event == 'issues' }}
+    if: ${{ github.event.issue }}
     name: Add issues to project and add triage label
     uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
@@ -23,7 +23,7 @@ jobs:
 
   add-pr-to-project:
     # ignore dependabot PRs
-    if: ${{ github.event == 'pull_request_target' && github.actor != 'dependabot[bot]' }}
+    if: ${{ github.event.pull_request && github.actor != 'dependabot[bot]' }}
     name: Add PRs to project
     uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
