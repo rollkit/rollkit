@@ -19,7 +19,7 @@ require (
 	github.com/ipfs/go-ds-badger3 v0.0.2
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.26.3
-	github.com/libp2p/go-libp2p-core v0.15.1
+	github.com/libp2p/go-libp2p-core v0.20.1
 	github.com/libp2p/go-libp2p-kad-dht v0.23.0
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.9.0

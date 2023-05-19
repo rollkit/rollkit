@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"crypto/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,10 +12,12 @@ import (
 	"testing"
 	"time"
 
+	mockda "github.com/rollkit/rollkit/da/mock"
 	//storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/store"
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/rollkit/rollkit/conv"
@@ -23,6 +26,7 @@ import (
 
 	//"github.com/stretchr/testify/assert"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	//tmconfig "github.com/tendermint/tendermint/config"
@@ -35,6 +39,29 @@ import (
 	//tmclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
+
+func TestQuery(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+
+	num := 3
+	keys := make([]crypto.PrivKey, num)
+	for i := 0; i < num; i++ {
+		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
+	}
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	ds, _ := store.NewDefaultInMemoryKVStore()
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Start()
+	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, &wg, t)
+	sequencer.(*rollnode.FullNode).dalc = dalc
+	sequencer.(*rollnode.FullNode).blockManager.SetDALC(dalc)
+
+}
 
 var genesisValidatorKey = ed25519.GenPrivKey()
 
