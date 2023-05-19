@@ -276,7 +276,7 @@ func (n *FullNode) OnStart() error {
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
 	}
-	go n.blockManager.ProcessFraudProof(n.fraudService, n.ctx, n.cancel)
+	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
 	return nil

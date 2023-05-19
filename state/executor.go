@@ -40,7 +40,7 @@ type BlockExecutor struct {
 
 	logger log.Logger
 
-	fraudService *fraudserv.ProofService
+	FraudService *fraudserv.ProofService
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
@@ -205,7 +205,7 @@ func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedVa
 }
 
 func (e *BlockExecutor) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
-	e.fraudService = fraudProofServ
+	e.FraudService = fraudProofServ
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
@@ -373,7 +373,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 				return err
 			}
 			// Gossip Fraud Proof
-			if err := e.fraudService.Broadcast(ctx, &types.StateFraudProof{FraudProof: *fraudProof}); err != nil {
+			if err := e.FraudService.Broadcast(ctx, &types.StateFraudProof{FraudProof: *fraudProof}); err != nil {
 				return fmt.Errorf("failed to broadcast fraud proof: %w", err)
 			}
 			return ErrFraudProofGenerated

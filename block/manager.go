@@ -247,9 +247,9 @@ func (m *Manager) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
 	m.executor.SetFraudProofService(fraudProofServ)
 }
 
-func (m *Manager) ProcessFraudProof(fraudProofService *fraudserv.ProofService, ctx context.Context, cancel context.CancelFunc) {
+func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFunc) {
 	// subscribe to state fraud proof
-	sub, err := fraudProofService.Subscribe(types.StateFraudProofType)
+	sub, err := m.executor.FraudService.Subscribe(types.StateFraudProofType)
 	if err != nil {
 		m.logger.Error("failed to subscribe to fraud proof gossip", "error", err)
 		return
