@@ -279,7 +279,13 @@ func (n *FullNode) OnStart() error {
 	go n.blockManager.ProcessFraudProof(n.fraudService, n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
-
+	go func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			n.Stop()
+		default:
+		}
+	}(n.ctx)
 	return nil
 }
 
@@ -304,6 +310,7 @@ func (n *FullNode) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	err = multierr.Append(err, n.hExService.Stop())
+	err = multierr.Append(err, n.fraudService.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
