@@ -99,6 +99,23 @@ func ParseDelimiter(input []byte) (inputWithoutLenDelimiter []byte, unitLen uint
 	return input[n:], dataLen, nil
 }
 
+// ParseTxs collects all of the transactions from the shares provided
+func ParseTxs(shares []Share) (coretypes.Txs, error) {
+	// parse the shares
+	rawTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
+	if err != nil {
+		return nil, err
+	}
+
+	// convert to the Tx type
+	txs := make(coretypes.Txs, len(rawTxs))
+	for i := 0; i < len(txs); i++ {
+		txs[i] = coretypes.Tx(rawTxs[i])
+	}
+
+	return txs, nil
+}
+
 func SplitTxs(txs coretypes.Txs) (txShares []Share, err error) {
 	txWriter := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 

@@ -161,8 +161,7 @@ func (s *Share) ToBytes() []byte {
 	return s.data
 }
 
-// RawDataWithReserved returns the raw share data including the reserved bytes. The raw share data does not contain the
-// namespace ID, info byte, or sequence length.
+// RawDataWithReserved returns the raw share data including the reserved bytes. The raw share data does not contain the namespace ID, info byte, or sequence length.
 func (s *Share) RawDataWithReserved() (rawData []byte, err error) {
 	if len(s.data) < s.rawDataStartIndexWithReserved() {
 		return rawData, fmt.Errorf("share %s is too short to contain raw data", s)
@@ -213,14 +212,16 @@ func (s *Share) RawDataUsingReserved() (rawData []byte, err error) {
 	return s.data[rawDataStartIndexUsingReserved:], nil
 }
 
+// rawDataStartIndexUsingReserved returns the start index of raw data while accounting for
+// reserved bytes, if it exists in the share.
 func (s *Share) rawDataStartIndexUsingReserved() (int, error) {
 	isStart, err := s.IsSequenceStart()
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	isCompact, err := s.IsCompactShare()
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
 	index := appconsts.NamespaceSize + appconsts.ShareInfoBytes
@@ -228,16 +229,12 @@ func (s *Share) rawDataStartIndexUsingReserved() (int, error) {
 		index += appconsts.SequenceLenBytes
 	}
 
-	if !isStart && isCompact {
+	if isCompact {
 		reservedBytes, err := ParseReservedBytes(s.data[index : index+appconsts.CompactShareReservedBytes])
 		if err != nil {
 			return 0, err
 		}
 		return int(reservedBytes), nil
-	}
-
-	if isCompact {
-		index += appconsts.CompactShareReservedBytes
 	}
 	return index, nil
 }

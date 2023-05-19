@@ -1,6 +1,8 @@
 package testfactory
 
 import (
+	"bytes"
+	"math/rand"
 	mrand "math/rand"
 
 	"github.com/cometbft/cometbft/types"
@@ -29,4 +31,29 @@ func GenerateRandomTxs(count, size int) types.Txs {
 		txs[i] = tx
 	}
 	return txs
+}
+
+// GetRandomSubSlice returns two integers representing a randomly sized range in the interval [0, size]
+func GetRandomSubSlice(size int) (start int, length int) {
+	length = rand.Intn(size + 1)
+	start = rand.Intn(size - length + 1)
+	return start, length
+}
+
+// CheckSubArray returns whether subTxList is a subarray of txList
+func CheckSubArray(txList []types.Tx, subTxList []types.Tx) bool {
+	for i := 0; i <= len(txList)-len(subTxList); i++ {
+		j := 0
+		for j = 0; j < len(subTxList); j++ {
+			tx := txList[i+j]
+			subTx := subTxList[j]
+			if !bytes.Equal([]byte(tx), []byte(subTx)) {
+				break
+			}
+		}
+		if j == len(subTxList) {
+			return true
+		}
+	}
+	return false
 }
