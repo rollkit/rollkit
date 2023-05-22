@@ -11,7 +11,7 @@ jobs:
     # ignore dependabot PRs
     if: ${{ github.actor != 'dependabot[bot]' }}
     name: Add issues and PRs to project and add grooming label
-    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
     permissions:
       issues: write
@@ -25,7 +25,7 @@ jobs:
   auto-add-reviewer:
     name: Auto add reviewer to PR
     if: github.event.pull_request
-    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
     permissions:
       issues: write
