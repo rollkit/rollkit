@@ -38,8 +38,8 @@ func ParseConfig(cmd *cobra.Command) (*tmcfg.Config, error) {
 	}
 
 	var home string
-	if os.Getenv("RKHOME") != "" {
-		home = os.Getenv("RKHOME")
+	if h := os.Getenv("RKHOME"); h != "" {
+		home = h
 	} else {
 		home, err = cmd.Flags().GetString(cli.HomeFlag)
 		if err != nil {
@@ -59,6 +59,7 @@ func ParseConfig(cmd *cobra.Command) (*tmcfg.Config, error) {
 var RootCmd = &cobra.Command{
 	Use:   "rollkit",
 	Short: "A modular framework for rollups, with an ABCI-compatible client interface.",
+	Long:  "Rollkit-cli uses the environment variable `RKHOME` to point to a file path where the node keys, config, and data will be stored. If a path is not specified for RKHOME, the rollkit command will create a folder `~/.rollkit` where it will store said data.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		if cmd.Name() == VersionCmd.Name() {
 			return nil
@@ -69,10 +70,6 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
-		// if config.LogFormat == cfg.LogFormatJSON {
-		// 	logger = log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout))
-		// }
-
 		if tendermintConfig.LogFormat == tmcfg.LogFormatJSON {
 			logger = log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout))
 		}
@@ -81,11 +78,6 @@ var RootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
-		// logger, err = tmflags.ParseLogLevel(config.LogLevel, logger, cfg.DefaultLogLevel)
-		// if err != nil {
-		// 	return err
-		// }
 
 		if viper.GetBool(cli.TraceFlag) {
 			logger = log.NewTracingLogger(logger)

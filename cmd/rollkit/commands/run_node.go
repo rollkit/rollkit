@@ -57,14 +57,11 @@ func AddNodeFlags(cmd *cobra.Command) {
 	// rpc flags
 	cmd.Flags().String("rpc.laddr", tendermintConfig.RPC.ListenAddress, "RPC listen address. Port required")
 
-	// TODO (Ferret-san): determine what other parts of the RPC config can/should be set with flags
-
 	// p2p flags
 	cmd.Flags().String(
 		"p2p.laddr",
 		tendermintConfig.P2P.ListenAddress,
-		"node listen address. (0.0.0.0:0 means any interface, any port)")
-	// TODO (Ferret-san): determine what other parts of the p2p config can/should be set with flags
+		"node listen address.")
 
 	// db flags
 	// Would be cool if rollkit supported different DB backends

@@ -2,12 +2,11 @@ package commands
 
 import (
 	"fmt"
+	"math/rand"
 
 	"github.com/spf13/cobra"
 
-	tmcfg "github.com/tendermint/tendermint/config"
 	tmos "github.com/tendermint/tendermint/libs/os"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/types"
@@ -21,16 +20,12 @@ var InitFilesCmd = &cobra.Command{
 	RunE:  initFiles,
 }
 
-func initFiles(cmd *cobra.Command, args []string) error {
-	return initFilesWithConfig(tendermintConfig)
-}
-
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
 // note that such a change would also require changing the cosmos-sdk
-func initFilesWithConfig(config *tmcfg.Config) error {
+func initFiles(cmd *cobra.Command, args []string) error {
 	// private validator
-	privValKeyFile := config.PrivValidatorKeyFile()
-	privValStateFile := config.PrivValidatorStateFile()
+	privValKeyFile := tendermintConfig.PrivValidatorKeyFile()
+	privValStateFile := tendermintConfig.PrivValidatorStateFile()
 	var pv *privval.FilePV
 	if tmos.FileExists(privValKeyFile) {
 		pv = privval.LoadFilePV(privValKeyFile, privValStateFile)
@@ -43,7 +38,7 @@ func initFilesWithConfig(config *tmcfg.Config) error {
 			"stateFile", privValStateFile)
 	}
 
-	nodeKeyFile := config.NodeKeyFile()
+	nodeKeyFile := tendermintConfig.NodeKeyFile()
 	if tmos.FileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
@@ -54,12 +49,12 @@ func initFilesWithConfig(config *tmcfg.Config) error {
 	}
 
 	// genesis file
-	genFile := config.GenesisFile()
+	genFile := tendermintConfig.GenesisFile()
 	if tmos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
 		genDoc := types.GenesisDoc{
-			ChainID:         fmt.Sprintf("test-rollup-%v", tmrand.Str(6)),
+			ChainID:         fmt.Sprintf("test-rollup-%08x", rand.Uint32()),
 			GenesisTime:     tmtime.Now(),
 			ConsensusParams: types.DefaultConsensusParams(),
 		}
