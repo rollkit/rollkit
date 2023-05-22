@@ -218,7 +218,7 @@ func newP2PExchange(
 ) (*goheaderp2p.Exchange[*types.SignedHeader], error) {
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
-		goheaderp2p.WithChainID[goheaderp2p.ClientParameters](chainID),
+		goheaderp2p.WithChainID(chainID),
 	)
 	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
 }

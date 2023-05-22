@@ -1,9 +1,13 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // Tx represents transactoin.
@@ -40,4 +44,23 @@ type TxProof struct {
 	RootHash tmbytes.HexBytes `json:"root_hash"`
 	Data     Tx               `json:"data"`
 	Proof    merkle.Proof     `json:"proof"`
+}
+
+// ToTxsWithISRs converts a slice of transactions and a list of intermediate state roots
+// to a slice of TxWithISRs. Note that the length of intermediateStateRoots is
+// equal to the length of txs + 1.
+func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]pb.TxWithISRs, error) {
+	expectedISRListLength := len(txs) + 1
+	if len(intermediateStateRoots.RawRootsList) != expectedISRListLength {
+		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRListLength)
+	}
+	txsWithISRs := make([]pb.TxWithISRs, 0, len(txs))
+	for i, tx := range txs {
+		txsWithISRs[i] = pb.TxWithISRs{
+			PreIsr:  intermediateStateRoots.RawRootsList[i],
+			Tx:      tx,
+			PostIsr: intermediateStateRoots.RawRootsList[i+1],
+		}
+	}
+	return txsWithISRs, nil
 }
