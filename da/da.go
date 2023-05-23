@@ -3,16 +3,18 @@ package da
 import (
 	"context"
 	"errors"
-
 	ds "github.com/ipfs/go-datastore"
-
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
 )
 
-// ErrNotFound is used to indicated that requested data could not be found.
-var ErrDataNotFound = errors.New("data not found")
-var ErrEDSNotFound = errors.New("eds not found")
+var (
+	// ErrDataNotFound is used to indicated that requested data failed to be retrieved.
+	ErrDataNotFound = errors.New("data not found")
+	// ErrNamespaceNotFound is used to indicate that the block contains data, but not for the requested namespace.
+	ErrNamespaceNotFound = errors.New("namespace not found in data")
+	ErrEDSNotFound       = errors.New("eds not found")
+)
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
