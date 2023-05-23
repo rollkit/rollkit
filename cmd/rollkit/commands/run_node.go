@@ -20,6 +20,7 @@ import (
 	rollconf "github.com/rollkit/rollkit/config"
 	rollconv "github.com/rollkit/rollkit/conv"
 	rollnode "github.com/rollkit/rollkit/node"
+	rollrpc "github.com/rollkit/rollkit/rpc"
 )
 
 var (
@@ -132,7 +133,6 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Lazy Aggregator: ", lazyAggregator)
 			rollkitConfig := rollconf.NodeConfig{
 				Aggregator: aggregator,
 				BlockManagerConfig: rollconf.BlockManagerConfig{
@@ -156,8 +156,6 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Tendermint Config: ", tendermintConfig)
-			fmt.Println("Rollkit Config: ", rollkitConfig)
 			rollnode, err := rollnode.NewNode(
 				context.Background(),
 				rollkitConfig,
@@ -170,6 +168,12 @@ func NewRunNodeCmd() *cobra.Command {
 
 			if err != nil {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
+			}
+
+			server := rollrpc.NewServer(rollnode, tendermintConfig.RPC, logger)
+			err = server.Start()
+			if err != nil {
+				return err
 			}
 
 			if err := rollnode.Start(); err != nil {
