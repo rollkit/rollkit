@@ -353,21 +353,6 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	assert.Equal(n1h, n3h, "heights must match")
 }
 
-func checkAppCalls(assert *assert.Assertions, app *mocks.Application, expected []int) {
-	generateFraudProofCnt := 0
-	verifyFraudProofCnt := 0
-	for _, call := range app.Calls {
-		switch call.Method {
-		case "GenerateFraudProof":
-			generateFraudProofCnt++
-		case "VerifyFraudProof":
-			verifyFraudProofCnt++
-		}
-	}
-	assert.Equal(expected[0], generateFraudProofCnt)
-	assert.Equal(expected[1], verifyFraudProofCnt)
-}
-
 func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -394,9 +379,11 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 
 	wg.Wait()
 	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	checkAppCalls(assert, apps[0], []int{0, 1})
+	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
+	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 	// fullnode should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	checkAppCalls(assert, apps[1], []int{1, 1})
+	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 
 	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
 	require.NoError(err)
@@ -440,9 +427,11 @@ func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 
 	wg.Wait()
 	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	checkAppCalls(assert, apps[0], []int{0, 1})
+	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
+	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 	// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	checkAppCalls(assert, apps[1], []int{1, 1})
+	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 
 	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
 	require.NoError(err)
@@ -457,7 +446,8 @@ func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 
 	wg.Wait()
 	// fullnode2 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	checkAppCalls(assert, apps[2], []int{1, 1})
+	apps[2].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[2].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 
 	n3Frauds, err := fullNode2.fraudService.Get(aggCtx, types.StateFraudProofType)
 	require.NoError(err)
