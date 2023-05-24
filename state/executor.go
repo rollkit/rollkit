@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/go-fraud/fraudserv"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -39,7 +40,7 @@ type BlockExecutor struct {
 
 	logger log.Logger
 
-	FraudProofOutCh chan *abci.FraudProof
+	FraudService *fraudserv.ProofService
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
@@ -54,7 +55,6 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 		fraudProofsEnabled: fraudProofsEnabled,
 		eventBus:           eventBus,
 		logger:             logger,
-		FraudProofOutCh:    make(chan *abci.FraudProof),
 	}
 }
 
@@ -125,7 +125,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 		Data: types.Data{
 			Txs:                    toRollkitTxs(mempoolTxs),
 			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
-			Evidence:               types.EvidenceData{Evidence: nil},
+			// Note: Temporarily remove Evidence #896
+			// Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
 	block.SignedHeader.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.SignedHeader.Header)
@@ -201,7 +202,10 @@ func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedVa
 		return false, err
 	}
 	return resp.Success, nil
+}
 
+func (e *BlockExecutor) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
+	e.FraudService = fraudProofServ
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
@@ -321,8 +325,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrIndex := 0
 
 	if e.fraudProofsEnabled && currentIsrs != nil {
-		expectedLength := len(block.Data.Txs) + 2
-		// BeginBlock + DeliverTxs + EndBlock
+		expectedLength := len(block.Data.Txs) + 3 // before BeginBlock, after BeginBlock, after every Tx, after EndBlock
 		if len(currentIsrs) != expectedLength {
 			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
 		}
@@ -344,6 +347,15 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		}
 	})
 
+	if e.fraudProofsEnabled {
+		isr, err := e.getAppHash()
+		if err != nil {
+			return nil, err
+		}
+		ISRs = append(ISRs, isr)
+		currentIsrIndex++
+	}
+
 	genAndGossipFraudProofIfNeeded := func(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (err error) {
 		if !e.fraudProofsEnabled {
 			return nil
@@ -361,7 +373,9 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 				return err
 			}
 			// Gossip Fraud Proof
-			e.FraudProofOutCh <- fraudProof
+			if err := e.FraudService.Broadcast(ctx, &types.StateFraudProof{FraudProof: *fraudProof}); err != nil {
+				return fmt.Errorf("failed to broadcast fraud proof: %w", err)
+			}
 			return ErrFraudProofGenerated
 		}
 		currentIsrIndex++

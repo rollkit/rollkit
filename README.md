@@ -1,13 +1,12 @@
 # Rollkit
 
-A modular framework for rollups, with an ABCI-compatible client interface.
+A modular framework for rollups, with an ABCI-compatible client interface. For more in-depth information about Rollkit, please visit our [website](https://rollkit.dev).
 
 [![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
 [![golangci-lint](https://github.com/rollkit/rollkit/actions/workflows/lint.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/lint.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rollkit/rollkit)](https://goreportcard.com/report/github.com/rollkit/rollkit)
 [![codecov](https://codecov.io/gh/rollkit/rollkit/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/rollkit/rollkit)
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
-[![Twitter Follow](https://img.shields.io/twitter/follow/CelestiaOrg?style=social)](https://twitter.com/CelestiaOrg)
 
 ## Building From Source
 
@@ -21,20 +20,34 @@ cd rollkit
 go build -v ./...
 ```
 
-To test:
+### Tools
+
+1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
+1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
+1. Install [hadolint](https://github.com/hadolint/hadolint)
+1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
+
+## Helpful Commands
 
 ```sh
-go test ./...
-```
+# Run unit tests
+make test-unit
 
-To regenerate protobuf types:
+# Run unit tests with the data race detector
+make test-unit-race
 
-```sh
-./proto/get_deps.sh
-```
+# Run tests with and without the data race detector
+make test-all
 
-```sh
-./proto/gen.sh
+# Generate protobuf files (requires Docker)
+make proto-gen
+
+# Run linters (requires golangci-lint, markdownlint, hadolint, and yamllint)
+make lint
+
+# Lint protobuf files (requires Docker and buf)
+make proto-lint
+
 ```
 
 ## Contributing

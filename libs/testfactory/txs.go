@@ -9,7 +9,7 @@ import (
 func GenerateRandomlySizedTxs(count, maxSize int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
-		size := mrand.Intn(maxSize)
+		size := mrand.Intn(maxSize) //nolint:gosec
 		if size == 0 {
 			size = 1
 		}
@@ -22,7 +22,7 @@ func GenerateRandomTxs(count, size int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
 		tx := make([]byte, size)
-		_, err := mrand.Read(tx)
+		_, err := mrand.Read(tx) //nolint:gosec
 		if err != nil {
 			panic(err)
 		}
