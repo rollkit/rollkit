@@ -353,6 +353,118 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	assert.Equal(n1h, n3h, "heights must match")
 }
 
+func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 1
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+
+	for _, app := range apps {
+		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
+			wg.Done()
+		}).Once()
+	}
+
+	aggNode := nodes[0]
+	fullNode := nodes[1]
+
+	wg.Add(clientNodes + 1)
+	require.NoError(aggNode.Start())
+	time.Sleep(2 * time.Second)
+	require.NoError(fullNode.Start())
+
+	wg.Wait()
+	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
+	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+	// fullnode should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+
+	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	aggCancel()
+	require.NoError(aggNode.Stop())
+
+	n2Frauds, err := fullNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	cancel()
+	require.NoError(fullNode.Stop())
+
+	assert.Equal(len(n1Frauds), 1, "number of fraud proofs received via gossip should be 1")
+	assert.Equal(len(n2Frauds), 1, "number of fraud proofs received via gossip should be 1")
+	assert.Equal(n1Frauds, n2Frauds, "the received fraud proofs after gossip must match")
+}
+
+func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 2
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+
+	for _, app := range apps {
+		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
+			wg.Done()
+		}).Once()
+	}
+
+	aggNode := nodes[0]
+	fullNode1 := nodes[1]
+	fullNode2 := nodes[2]
+
+	wg.Add(clientNodes)
+	require.NoError(aggNode.Start())
+	time.Sleep(2 * time.Second)
+	require.NoError(fullNode1.Start())
+
+	wg.Wait()
+	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
+	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+	// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+
+	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+
+	n2Frauds, err := fullNode1.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	assert.Equal(n1Frauds, n2Frauds, "number of fraud proofs gossiped between nodes must match")
+
+	wg.Add(1)
+	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
+	require.NoError(fullNode2.Start())
+
+	wg.Wait()
+	// fullnode2 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[2].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[2].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+
+	n3Frauds, err := fullNode2.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	assert.Equal(n1Frauds, n3Frauds, "number of fraud proofs gossiped between nodes must match")
+
+	aggCancel()
+	require.NoError(aggNode.Stop())
+	cancel()
+	require.NoError(fullNode1.Stop())
+	require.NoError(fullNode2.Stop())
+}
+
+func TestFraudProofService(t *testing.T) {
+	testSingleAggreatorSingleFullNodeFraudProofGossip(t)
+	testSingleAggreatorTwoFullNodeFraudProofSync(t)
+}
+
 // TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
 // TestFraudProofTrigger setups a network of nodes, with single malicious aggregator and multiple producers.
 // Aggregator node should produce malicious blocks, nodes should detect fraud, and generate fraud proofs
@@ -542,7 +654,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	}
 
 	if isMalicious && !aggregator {
-		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{}})
+		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{BlockHeight: 1, FraudulentBeginBlock: &abci.RequestBeginBlock{Hash: []byte("123")}, ExpectedValidAppHash: nonMaliciousAppHash}})
 	}
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
 		wg.Done()
