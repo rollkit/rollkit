@@ -41,8 +41,6 @@ const (
 
 	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
 	headerTopicSuffix = "-header"
-
-	fraudProofTopicSuffix = "-fraudProof"
 )
 
 // Client is a P2P client, implemented with libp2p.
@@ -66,9 +64,6 @@ type Client struct {
 
 	headerGossiper  *Gossiper
 	headerValidator GossipValidator
-
-	fraudProofGossiper  *Gossiper
-	fraudProofValidator GossipValidator
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -162,7 +157,6 @@ func (c *Client) Close() error {
 	return multierr.Combine(
 		c.txGossiper.Close(),
 		c.headerGossiper.Close(),
-		c.fraudProofGossiper.Close(),
 		c.dht.Close(),
 		c.host.Close(),
 	)
@@ -188,17 +182,6 @@ func (c *Client) GossipSignedHeader(ctx context.Context, headerBytes []byte) err
 // SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
 func (c *Client) SetHeaderValidator(validator GossipValidator) {
 	c.headerValidator = validator
-}
-
-// GossipHeader sends a fraud proof to the P2P network.
-func (c *Client) GossipFraudProof(ctx context.Context, fraudProof []byte) error {
-	c.logger.Debug("Gossiping fraud proof", "len", len(fraudProof))
-	return c.fraudProofGossiper.Publish(ctx, fraudProof)
-}
-
-// SetFraudProofValidator sets the callback function, that will be invoked after a fraud proof is received from P2P network.
-func (c *Client) SetFraudProofValidator(validator GossipValidator) {
-	c.fraudProofValidator = validator
 }
 
 // Addrs returns listen addresses of Client.
@@ -395,13 +378,6 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 	go c.headerGossiper.ProcessMessages(ctx)
 
-	c.fraudProofGossiper, err = NewGossiper(c.host, c.ps, c.getFraudProofTopic(), c.logger,
-		WithValidator(c.fraudProofValidator))
-	if err != nil {
-		return err
-	}
-	go c.fraudProofGossiper.ProcessMessages(ctx)
-
 	return nil
 }
 
@@ -442,8 +418,4 @@ func (c *Client) getTxTopic() string {
 
 func (c *Client) getHeaderTopic() string {
 	return c.getNamespace() + headerTopicSuffix
-}
-
-func (c *Client) getFraudProofTopic() string {
-	return c.getNamespace() + fraudProofTopicSuffix
 }

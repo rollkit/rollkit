@@ -34,7 +34,6 @@ import (
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -173,7 +172,7 @@ func newFullNode(
 		},
 		mainKV,
 		true,
-		types.StateFraudProofType,
+		genesis.ChainID,
 	)
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -203,7 +202,6 @@ func newFullNode(
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	node.P2P.SetTxValidator(node.newTxValidator())
-	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
 }
@@ -248,27 +246,6 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
-func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
-	for {
-		select {
-		case fraudProof := <-n.blockManager.GetFraudProofOutChan():
-			n.Logger.Info("generated fraud proof: ", fraudProof.String())
-			fraudProofBytes, err := fraudProof.Marshal()
-			if err != nil {
-				panic(fmt.Errorf("failed to serialize fraud proof: %w", err))
-			}
-			n.Logger.Info("gossipping fraud proof...")
-			err = n.P2P.GossipFraudProof(context.Background(), fraudProofBytes)
-			if err != nil {
-				n.Logger.Error("failed to gossip fraud proof", "error", err)
-			}
-			_ = n.Stop()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
 
@@ -292,16 +269,16 @@ func (n *FullNode) OnStart() error {
 	if err = n.fraudService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
+	n.blockManager.SetFraudProofService(n.fraudService)
 
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
 	}
+	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
-	go n.fraudProofPublishLoop(n.ctx)
-
 	return nil
 }
 
@@ -326,6 +303,7 @@ func (n *FullNode) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	err = multierr.Append(err, n.hExService.Stop())
+	err = multierr.Append(err, n.fraudService.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
@@ -381,23 +359,6 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 		checkTxResp := res.GetCheckTx()
 
 		return checkTxResp.Code == abci.CodeTypeOK
-	}
-}
-
-// newFraudProofValidator returns a pubsub validator that validates a fraud proof and forwards
-// it to be verified
-func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
-	return func(fraudProofMsg *p2p.GossipMessage) bool {
-		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		fraudProof := abci.FraudProof{}
-		err := fraudProof.Unmarshal(fraudProofMsg.Data)
-		if err != nil {
-			n.Logger.Error("failed to deserialize fraud proof", "error", err)
-			return false
-		}
-		// TODO(manav): Add validation checks for fraud proof here
-		n.blockManager.FraudProofInCh <- &fraudProof
-		return true
 	}
 }
 

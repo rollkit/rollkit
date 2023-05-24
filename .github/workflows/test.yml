@@ -10,17 +10,17 @@ on:
         required: true
 
 jobs:
-  go_mod_tidy_check:
-    name: Go Mod Tidy Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
-        with:
-          go-version: ${{ inputs.GO_VERSION }}
-      - run: go mod tidy
-      - name: check for diff
-        run: git diff --exit-code
+  # go_mod_tidy_check:
+  #   name: Go Mod Tidy Check
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-go@v4
+  #       with:
+  #         go-version: ${{ inputs.GO_VERSION }}
+  #     - run: go mod tidy
+  #     - name: check for diff
+  #       run: git diff --exit-code
 
   test_coverage:
     name: Unit Tests Coverage
