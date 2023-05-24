@@ -35,8 +35,8 @@ func GenerateRandomTxs(count, size int) types.Txs {
 
 // GetRandomSubSlice returns two integers representing a randomly sized range in the interval [0, size]
 func GetRandomSubSlice(size int) (start int, length int) {
-	length = rand.Intn(size + 1)
-	start = rand.Intn(size - length + 1)
+	length = rand.Intn(size + 1)         //nolint:gosec
+	start = rand.Intn(size - length + 1) //nolint:gosec
 	return start, length
 }
 
