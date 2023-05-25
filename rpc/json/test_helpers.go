@@ -7,10 +7,6 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/conv"
-	"github.com/rollkit/rollkit/mocks"
-	"github.com/rollkit/rollkit/node"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -20,6 +16,11 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/conv"
+	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/node"
 )
 
 // copied from rpc
