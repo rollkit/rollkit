@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"time"
 
+	tmlog "github.com/tendermint/tendermint/libs/log"
+	"google.golang.org/grpc"
+
 	cmock "github.com/rollkit/rollkit/da/celestia/mock"
 	grpcda "github.com/rollkit/rollkit/da/grpc"
 	"github.com/rollkit/rollkit/da/grpc/mockserv"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	"google.golang.org/grpc"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond
