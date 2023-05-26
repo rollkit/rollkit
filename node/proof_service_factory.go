@@ -13,16 +13,16 @@ type ProofServiceFactory struct {
 	getter        fraud.HeaderFetcher
 	ds            datastore.Datastore
 	syncerEnabled bool
-	proofType     fraud.ProofType
+	networkID     string
 }
 
-func NewProofServiceFactory(c *p2p.Client, getter fraud.HeaderFetcher, ds datastore.Datastore, syncerEnabled bool, proofType fraud.ProofType) ProofServiceFactory {
+func NewProofServiceFactory(c *p2p.Client, getter fraud.HeaderFetcher, ds datastore.Datastore, syncerEnabled bool, networkID string) ProofServiceFactory {
 	return ProofServiceFactory{
 		client:        c,
 		getter:        getter,
 		ds:            ds,
 		syncerEnabled: syncerEnabled,
-		proofType:     proofType,
+		networkID:     networkID,
 	}
 }
 
@@ -33,6 +33,6 @@ func (factory *ProofServiceFactory) CreateProofService() *fraudserv.ProofService
 		factory.getter,
 		factory.ds,
 		factory.syncerEnabled,
-		factory.proofType.String(),
+		factory.networkID,
 	)
 }
