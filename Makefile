@@ -45,7 +45,7 @@ test-unit-race:
 	@go test -race -count=1 `go list ./...`
 .PHONY: test-unit-race
 
-### test-all: Run tests with and without data race
+## test-all: Run tests with and without data race
 test-all:
 	@$(MAKE) test-unit
 	@$(MAKE) test-unit-race

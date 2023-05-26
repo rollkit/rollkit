@@ -94,7 +94,6 @@ func newLightNode(
 	}
 
 	node.P2P.SetTxValidator(node.falseValidator())
-	node.P2P.SetHeaderValidator(node.falseValidator())
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
 
