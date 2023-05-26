@@ -38,9 +38,6 @@ const (
 
 	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
 	txTopicSuffix = "-tx"
-
-	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
-	headerTopicSuffix = "-header"
 )
 
 // Client is a P2P client, implemented with libp2p.
@@ -393,8 +390,4 @@ func (c *Client) getNamespace() string {
 
 func (c *Client) getTxTopic() string {
 	return c.getNamespace() + txTopicSuffix
-}
-
-func (c *Client) getHeaderTopic() string {
-	return c.getNamespace() + headerTopicSuffix
 }
