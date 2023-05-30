@@ -38,9 +38,6 @@ const (
 
 	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
 	txTopicSuffix = "-tx"
-
-	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
-	headerTopicSuffix = "-header"
 )
 
 // Client is a P2P client, implemented with libp2p.
@@ -61,9 +58,6 @@ type Client struct {
 
 	txGossiper  *Gossiper
 	txValidator GossipValidator
-
-	headerGossiper  *Gossiper
-	headerValidator GossipValidator
 
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
@@ -156,7 +150,6 @@ func (c *Client) Close() error {
 
 	return multierr.Combine(
 		c.txGossiper.Close(),
-		c.headerGossiper.Close(),
 		c.dht.Close(),
 		c.host.Close(),
 	)
@@ -171,17 +164,6 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 // SetTxValidator sets the callback function, that will be invoked during message gossiping.
 func (c *Client) SetTxValidator(val GossipValidator) {
 	c.txValidator = val
-}
-
-// GossipSignedHeader sends the block header to the P2P network.
-func (c *Client) GossipSignedHeader(ctx context.Context, headerBytes []byte) error {
-	c.logger.Debug("Gossiping block header", "len", len(headerBytes))
-	return c.headerGossiper.Publish(ctx, headerBytes)
-}
-
-// SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
-func (c *Client) SetHeaderValidator(validator GossipValidator) {
-	c.headerValidator = validator
 }
 
 // Addrs returns listen addresses of Client.
@@ -372,12 +354,6 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	}
 	go c.txGossiper.ProcessMessages(ctx)
 
-	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
-	if err != nil {
-		return err
-	}
-	go c.headerGossiper.ProcessMessages(ctx)
-
 	return nil
 }
 
@@ -414,8 +390,4 @@ func (c *Client) getNamespace() string {
 
 func (c *Client) getTxTopic() string {
 	return c.getNamespace() + txTopicSuffix
-}
-
-func (c *Client) getHeaderTopic() string {
-	return c.getNamespace() + headerTopicSuffix
 }
