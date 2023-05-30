@@ -3,9 +3,10 @@ package store
 import (
 	"math/rand"
 
-	"github.com/rollkit/rollkit/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/rollkit/rollkit/types"
 )
 
 func getRandomBlock(height uint64, nTxs int) *types.Block {
