@@ -2,10 +2,11 @@ package node
 
 import (
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/rollkit/rollkit/conv"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/rollkit/rollkit/conv"
 )
 
 var genesisValidatorKey = ed25519.GenPrivKey()
