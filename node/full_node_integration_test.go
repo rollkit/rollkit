@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -520,3 +522,167 @@ func TestFraudProofService(t *testing.T) {
 		}
 	}
 } */
+
+// Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
+func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, &wg, t)
+	startNodes(nodes, &wg, t)
+	aggCancel()
+	time.Sleep(100 * time.Millisecond)
+	for _, n := range nodes {
+		require.NoError(t, n.Stop())
+	}
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+	return nodes, apps
+}
+
+// Starts the given nodes using the given wait group to synchronize them
+// and wait for them to gossip transactions
+func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
+	numNodes := len(nodes)
+	wg.Add((numNodes) * (numNodes - 1))
+
+	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
+	require.NoError(t, nodes[0].Start())
+	time.Sleep(1 * time.Second)
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(t, nodes[i].Start())
+	}
+
+	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
+	time.Sleep(1 * time.Second)
+
+	for i := 1; i < len(nodes); i++ {
+		data := strconv.Itoa(i) + time.Now().String()
+		require.NoError(t, nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
+	}
+
+	timeout := time.NewTimer(time.Second * 30)
+	doneChan := make(chan struct{})
+	go func() {
+		defer close(doneChan)
+		wg.Wait()
+	}()
+	select {
+	case <-doneChan:
+	case <-timeout.C:
+		t.FailNow()
+	}
+}
+
+// Creates the given number of nodes the given nodes using the given wait group to synchornize them
+func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*FullNode, []*mocks.Application) {
+	t.Helper()
+
+	if aggCtx == nil {
+		aggCtx = context.Background()
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// create keys first, as they are required for P2P connections
+	keys := make([]crypto.PrivKey, num)
+	for i := 0; i < num; i++ {
+		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
+	}
+
+	nodes := make([]*FullNode, num)
+	apps := make([]*mocks.Application, num)
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	ds, _ := store.NewDefaultInMemoryKVStore()
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Start()
+	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, wg, t)
+	apps[0] = app
+	nodes[0] = node.(*FullNode)
+	// use same, common DALC, so nodes can share data
+	nodes[0].dalc = dalc
+	nodes[0].blockManager.SetDALC(dalc)
+	for i := 1; i < num; i++ {
+		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, wg, t)
+		nodes[i] = node.(*FullNode)
+		nodes[i].dalc = dalc
+		nodes[i].blockManager.SetDALC(dalc)
+	}
+
+	return nodes, apps
+}
+
+func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (Node, *mocks.Application) {
+	t.Helper()
+	require := require.New(t)
+	// nodes will listen on consecutive ports on local interface
+	// random connections to other nodes will be added
+	startPort := 10000
+	p2pConfig := config.P2PConfig{
+		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
+	}
+	bmConfig := config.BlockManagerConfig{
+		DABlockTime: 100 * time.Millisecond,
+		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		FraudProofs: true,
+	}
+	for i := 0; i < len(keys); i++ {
+		if i == n {
+			continue
+		}
+		r := i
+		id, err := peer.IDFromPrivateKey(keys[r])
+		require.NoError(err)
+		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+r) + "/p2p/" + id.Pretty() + ","
+	}
+	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
+
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	maliciousAppHash := []byte{9, 8, 7, 6}
+	nonMaliciousAppHash := []byte{1, 2, 3, 4}
+	if isMalicious && aggregator {
+		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: maliciousAppHash})
+	} else {
+		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: nonMaliciousAppHash})
+	}
+
+	if isMalicious && !aggregator {
+		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{BlockHeight: 1, FraudulentBeginBlock: &abci.RequestBeginBlock{Hash: []byte("123")}, ExpectedValidAppHash: nonMaliciousAppHash}})
+	}
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
+		wg.Done()
+	})
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesis := &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
+	// TODO: need to investigate why this needs to be done for light nodes
+	genesis.InitialHeight = 1
+	node, err := NewNode(
+		ctx,
+		config.NodeConfig{
+			P2P:                p2pConfig,
+			DALayer:            "mock",
+			Aggregator:         aggregator,
+			BlockManagerConfig: bmConfig,
+			Light:              isLight,
+		},
+		keys[n],
+		signingKey,
+		proxy.NewLocalClientCreator(app),
+		genesis,
+		log.TestingLogger().With("node", n))
+	require.NoError(err)
+	require.NotNil(node)
+
+	return node, app
+}
