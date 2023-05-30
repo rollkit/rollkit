@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rollkit/rollkit/mempool"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/abci/example/code"
 	"github.com/tendermint/tendermint/abci/example/kvstore"
@@ -19,6 +18,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/rollkit/rollkit/mempool"
 )
 
 // application extends the KV store application by overriding CheckTx to provide

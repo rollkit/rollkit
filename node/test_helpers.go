@@ -12,16 +12,14 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	abciconv "github.com/rollkit/rollkit/conv/abci"
-	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/tendermint/tendermint/crypto/encoding"
 
+	abciconv "github.com/rollkit/rollkit/conv/abci"
+	"github.com/rollkit/rollkit/types"
+
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/rollkit/rollkit/conv"
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/mocks"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -29,11 +27,16 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/conv"
+	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/mocks"
+
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proxy"
+
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/store"
 )
 
 var expectedInfo = abci.ResponseInfo{
