@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/go-fraud/fraudserv"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -39,7 +40,7 @@ type BlockExecutor struct {
 
 	logger log.Logger
 
-	FraudProofOutCh chan *abci.FraudProof
+	FraudService *fraudserv.ProofService
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
@@ -54,7 +55,6 @@ func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID strin
 		fraudProofsEnabled: fraudProofsEnabled,
 		eventBus:           eventBus,
 		logger:             logger,
-		FraudProofOutCh:    make(chan *abci.FraudProof),
 	}
 }
 
@@ -202,7 +202,10 @@ func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedVa
 		return false, err
 	}
 	return resp.Success, nil
+}
 
+func (e *BlockExecutor) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
+	e.FraudService = fraudProofServ
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
@@ -370,7 +373,9 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 				return err
 			}
 			// Gossip Fraud Proof
-			e.FraudProofOutCh <- fraudProof
+			if err := e.FraudService.Broadcast(ctx, &types.StateFraudProof{FraudProof: *fraudProof}); err != nil {
+				return fmt.Errorf("failed to broadcast fraud proof: %w", err)
+			}
 			return ErrFraudProofGenerated
 		}
 		currentIsrIndex++
