@@ -61,18 +61,6 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 	}, nil
 }
 
-func (hExService *HeaderExchangeService) initOrAppendHeaderStore(ctx context.Context, header *types.SignedHeader) error {
-	var err error
-
-	// Init the header store if first block, else append to store
-	if header.Height() == hExService.genesis.InitialHeight {
-		err = hExService.headerStore.Init(ctx, header)
-	} else {
-		err = hExService.headerStore.Append(ctx, header)
-	}
-	return err
-}
-
 func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.SignedHeader) error {
 	if err := hExService.headerStore.Init(ctx, initial); err != nil {
 		return err
@@ -93,14 +81,13 @@ func (hExService *HeaderExchangeService) tryInitHeaderStoreAndStartSyncer(ctx co
 }
 
 func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
-	// Init the header store if first block, else append to store
-	if err := hExService.initOrAppendHeaderStore(ctx, signedHeader); err != nil {
-		hExService.logger.Error("failed to write block header to header store", "error", err)
-	}
-
-	// For genesis header, start the syncer
+	// For genesis header initialize the store and start the syncer
 	if signedHeader.Height() == hExService.genesis.InitialHeight {
 		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
+			hExService.logger.Error("failed to initialize header store", "error", err)
+		}
+
+		if err := hExService.syncer.Start(hExService.ctx); err != nil {
 			hExService.logger.Error("failed to start syncer after initializing header store", "error", err)
 		}
 	}
