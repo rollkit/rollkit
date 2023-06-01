@@ -22,7 +22,7 @@ jobs:
   #     - name: check for diff
   #       run: git diff --exit-code
 
-  test_coverage:
+  unit_test:
     name: Unit Tests Coverage
     runs-on: ubuntu-latest
     steps:
