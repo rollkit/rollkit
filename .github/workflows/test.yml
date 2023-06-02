@@ -22,7 +22,7 @@ jobs:
   #     - name: check for diff
   #       run: git diff --exit-code
 
-  test_coverage:
+  unit_test:
     name: Unit Tests Coverage
     runs-on: ubuntu-latest
     steps:
@@ -32,22 +32,12 @@ jobs:
         with:
           go-version: ${{ inputs.GO_VERSION }}
       - name: Test & Coverage
-        run: make cover
-      - uses: codecov/codecov-action@v3.1.4
-        with:
-          file: ./coverage.txt
-
-  unit_test:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: set up go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ inputs.GO_VERSION }}
-      - name: execute test run
         run: make test-unit
+      - name: upload coverage
+        uses: codecov/codecov-action@v3.1.3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.txt
 
   unit_race_test:
     name: Run Unit Tests with Race Detector
