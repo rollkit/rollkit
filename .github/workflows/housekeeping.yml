@@ -25,7 +25,7 @@ jobs:
     # ignore dependabot PRs
     if: ${{ github.event.pull_request && github.actor != 'dependabot[bot]' }}
     name: Add PRs to project
-    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.2.0
     secrets: inherit
     permissions:
       issues: write
