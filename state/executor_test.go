@@ -24,7 +24,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
+func doTestCreateBlock(t *testing.T, StateFraudProofEnabled bool) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -40,7 +40,7 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), StateFraudProofEnabled, nil, logger)
 
 	state := types.State{}
 	state.ConsensusParams.Block.MaxBytes = 100
@@ -80,15 +80,15 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	assert.Len(block.Data.Txs, 2)
 }
 
-func TestCreateBlockWithFraudProofsDisabled(t *testing.T) {
+func TestCreateBlockWithStateFraudProofDisabled(t *testing.T) {
 	doTestCreateBlock(t, false)
 }
 
-func TestCreateBlockWithFraudProofsEnabled(t *testing.T) {
+func TestCreateBlockWithStateFraudProofEnabled(t *testing.T) {
 	doTestCreateBlock(t, true)
 }
 
-func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
+func doTestApplyBlock(t *testing.T, StateFraudProofEnabled bool) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -120,7 +120,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	eventBus := tmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), StateFraudProofEnabled, eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -233,10 +233,10 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	}
 }
 
-func TestApplyBlockWithFraudProofsDisabled(t *testing.T) {
+func TestApplyBlockWithStateFraudProofDisabled(t *testing.T) {
 	doTestApplyBlock(t, false)
 }
 
-func TestApplyBlockWithFraudProofsEnabled(t *testing.T) {
+func TestApplyBlockWithStateFraudProofEnabled(t *testing.T) {
 	doTestApplyBlock(t, true)
 }

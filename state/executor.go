@@ -29,12 +29,12 @@ var ErrAddingValidatorToBased = errors.New("cannot add validators to empty valid
 
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
-	proposerAddress    []byte
-	namespaceID        types.NamespaceID
-	chainID            string
-	proxyApp           proxy.AppConnConsensus
-	mempool            mempool.Mempool
-	fraudProofsEnabled bool
+	proposerAddress        []byte
+	namespaceID            types.NamespaceID
+	chainID                string
+	proxyApp               proxy.AppConnConsensus
+	mempool                mempool.Mempool
+	StateFraudProofEnabled bool
 
 	eventBus *tmtypes.EventBus
 
@@ -45,16 +45,16 @@ type BlockExecutor struct {
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, fraudProofsEnabled bool, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, StateFraudProofEnabled bool, eventBus *tmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
-		proposerAddress:    proposerAddress,
-		namespaceID:        namespaceID,
-		chainID:            chainID,
-		proxyApp:           proxyApp,
-		mempool:            mempool,
-		fraudProofsEnabled: fraudProofsEnabled,
-		eventBus:           eventBus,
-		logger:             logger,
+		proposerAddress:        proposerAddress,
+		namespaceID:            namespaceID,
+		chainID:                chainID,
+		proxyApp:               proxyApp,
+		mempool:                mempool,
+		StateFraudProofEnabled: StateFraudProofEnabled,
+		eventBus:               eventBus,
+		logger:                 logger,
 	}
 }
 
@@ -192,7 +192,7 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 }
 
 func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedValidAppHash []byte) (bool, error) {
-	resp, err := e.proxyApp.VerifyFraudProofSync(
+	resp, err := e.proxyApp.VerifyStateFraudProofync(
 		abci.RequestVerifyFraudProof{
 			FraudProof:           fraudProof,
 			ExpectedValidAppHash: expectedValidAppHash,
@@ -204,8 +204,8 @@ func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedVa
 	return resp.Success, nil
 }
 
-func (e *BlockExecutor) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
-	e.FraudService = fraudProofServ
+func (e *BlockExecutor) SetStateFraudProofervice(StateFraudProoferv *fraudserv.ProofService) {
+	e.FraudService = StateFraudProoferv
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *tmstate.ABCIResponses, validatorUpdates []*tmtypes.Validator) (types.State, error) {
@@ -324,7 +324,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	currentIsrs := block.Data.IntermediateStateRoots.RawRootsList
 	currentIsrIndex := 0
 
-	if e.fraudProofsEnabled && currentIsrs != nil {
+	if e.StateFraudProofEnabled && currentIsrs != nil {
 		expectedLength := len(block.Data.Txs) + 3 // before BeginBlock, after BeginBlock, after every Tx, after EndBlock
 		if len(currentIsrs) != expectedLength {
 			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
@@ -347,7 +347,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		}
 	})
 
-	if e.fraudProofsEnabled {
+	if e.StateFraudProofEnabled {
 		isr, err := e.getAppHash()
 		if err != nil {
 			return nil, err
@@ -357,7 +357,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	}
 
 	genAndGossipFraudProofIfNeeded := func(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (err error) {
-		if !e.fraudProofsEnabled {
+		if !e.StateFraudProofEnabled {
 			return nil
 		}
 		isr, err := e.getAppHash()
@@ -433,7 +433,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	if e.fraudProofsEnabled && block.Data.IntermediateStateRoots.RawRootsList == nil {
+	if e.StateFraudProofEnabled && block.Data.IntermediateStateRoots.RawRootsList == nil {
 		// Block producer: Initial ISRs generated here
 		block.Data.IntermediateStateRoots.RawRootsList = ISRs
 	}
@@ -465,7 +465,7 @@ func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginB
 			generateFraudProofRequest.EndBlockRequest = endBlockRequest
 		}
 	}
-	resp, err := e.proxyApp.GenerateFraudProofSync(generateFraudProofRequest)
+	resp, err := e.proxyApp.GenerateStateFraudProofync(generateFraudProofRequest)
 	if err != nil {
 		return nil, err
 	}

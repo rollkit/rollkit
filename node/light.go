@@ -171,7 +171,7 @@ func (ln *LightNode) ProcessFraudProof() {
 			"length of state witness", len(fraudProof.StateWitness),
 		)
 
-		resp, err := ln.proxyApp.Consensus().VerifyFraudProofSync(abci.RequestVerifyFraudProof{
+		resp, err := ln.proxyApp.Consensus().VerifyStateFraudProofync(abci.RequestVerifyFraudProof{
 			FraudProof:           &fraudProof.FraudProof,
 			ExpectedValidAppHash: fraudProof.ExpectedValidAppHash,
 		})

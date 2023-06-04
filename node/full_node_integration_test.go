@@ -400,7 +400,7 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	assert.Equal(n1Frauds, n2Frauds, "the received fraud proofs after gossip must match")
 }
 
-func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
+func testSingleAggreatorTwoFullNodeStateFraudProofync(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -460,9 +460,9 @@ func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 	require.NoError(fullNode2.Stop())
 }
 
-func TestFraudProofService(t *testing.T) {
+func TestStateFraudProofervice(t *testing.T) {
 	testSingleAggreatorSingleFullNodeFraudProofGossip(t)
-	testSingleAggreatorTwoFullNodeFraudProofSync(t)
+	testSingleAggreatorTwoFullNodeStateFraudProofync(t)
 }
 
 // TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
@@ -623,10 +623,10 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
 	bmConfig := config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		FraudProofs: true,
+		DABlockTime:     100 * time.Millisecond,
+		BlockTime:       1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		NamespaceID:     types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		StateFraudProof: true,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {

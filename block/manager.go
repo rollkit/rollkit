@@ -119,7 +119,7 @@ func NewManager(
 		conf.DABlockTime = defaultDABlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.StateFraudProof, eventBus, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -243,8 +243,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 }
 
-func (m *Manager) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
-	m.executor.SetFraudProofService(fraudProofServ)
+func (m *Manager) SetStateFraudProofervice(StateFraudProoferv *fraudserv.ProofService) {
+	m.executor.SetStateFraudProofervice(StateFraudProoferv)
 }
 
 func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFunc) {
