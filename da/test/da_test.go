@@ -53,7 +53,19 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init(testNamespaceID, []byte{}, nil, test.NewLogger(t))
+	conf := []byte{}
+	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
+		conf = []byte(mockDaBlockTime.String())
+	}
+	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
+		config := celestia.Config{
+			BaseURL:  "http://localhost:26658",
+			Timeout:  30 * time.Second,
+			GasLimit: 3000000,
+		}
+		conf, _ = json.Marshal(config)
+	}
+	err := dalc.Init(testNamespaceID, conf, nil, test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
