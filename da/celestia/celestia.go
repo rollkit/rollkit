@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
@@ -84,7 +85,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	txResponse, err := c.client.SubmitPFB(ctx, c.namespaceID, blob, c.config.Fee, c.config.GasLimit)
+	txResponse, err := c.rpc.State.SubmitPayForBlob(ctx, c.namespaceID[:], blob, math.NewInt(c.config.Fee), c.config.GasLimit)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
