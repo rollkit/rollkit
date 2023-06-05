@@ -11,7 +11,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/go-cnc"
-	client "github.com/rollkit/celestia-openrpc"
 
 	openrpc "github.com/rollkit/celestia-openrpc"
 
@@ -20,8 +19,6 @@ import (
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
-
-var _ = client.Client{}
 
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
@@ -63,6 +60,9 @@ func (c *DataAvailabilityLayerClient) Start() error {
 	c.logger.Info("starting Celestia Data Availability Layer Client", "baseURL", c.config.BaseURL)
 	var err error
 	c.client, err = cnc.NewClient(c.config.BaseURL, cnc.WithTimeout(c.config.Timeout))
+	if err != nil {
+		return err
+	}
 	return err
 }
 
