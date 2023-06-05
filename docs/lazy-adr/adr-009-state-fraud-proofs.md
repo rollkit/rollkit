@@ -23,13 +23,13 @@ Note that Rollkit State Fraud Proofs are still a work in progress and will requi
 
 List of caveats and required modifications to push State Fraud Proofs towards completion:
 
-* Add ability for light nodes to receive and verify state fraud proofs.
-* Add inclusion proofs over transactions so fraud proof verifiers have knowledge over which rollup transaction is being fraud proven.
-* Check for badly formatted underlying rollup data before verifying state transition inside the State Machine.
-* Limit number of state witnesses permissible in a state fraud proof since state keys accessed by a transaction can be limited by the state machine.
-* Write end to end network tests covering different scenarios that can occur in case of state fraud proof submission by a full node.
-* Support for multiple sequencers, in which case, fraud proof detection works the same as described above.
-* Support more ABCI-compatible State Machines, in addition to the Cosmos SDK state machine.
+- Add ability for light nodes to receive and verify state fraud proofs.
+- Add inclusion proofs over transactions so fraud proof verifiers have knowledge over which rollup transaction is being fraud proven.
+- Check for badly formatted underlying rollup data before verifying state transition inside the State Machine.
+- Limit number of state witnesses permissible in a state fraud proof since state keys accessed by a transaction can be limited by the state machine.
+- Write end to end network tests covering different scenarios that can occur in case of state fraud proof submission by a full node.
+- Support for multiple sequencers, in which case, fraud proof detection works the same as described above.
+- Support more ABCI-compatible State Machines, in addition to the Cosmos SDK state machine.
 
 ![State Fraud Proofs](./figures/state_fraud_proofs.png)
 
@@ -166,7 +166,7 @@ message ResponseGenerateFraudProof {
 }
 ```
 
-Note that currently the only underlying store supported by Cosmos SDK is the Merkle IAVL+ tree. As part of generating state witnesses, we added preliminary support for Deep Subtrees to this library [here](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x). It enables import and export of partial state and adds tracing to IAVL trees. Note that documentation and exploring optimizations of Deep Subtrees is a work in progress. 
+Note that currently the only underlying store supported by Cosmos SDK is the Merkle IAVL+ tree. As part of generating state witnesses, we added preliminary support for Deep Subtrees to this library [here](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x). It enables import and export of partial state and adds tracing to IAVL trees. Note that documentation and exploring optimizations of Deep Subtrees is a work in progress.
 
 ### Gossiping Fraud Proofs
 
@@ -180,7 +180,7 @@ There are four stages of verification that must occur for a Fraud Proof. The fir
 
 #### **Stage One**
 
-Verify that both the `appHash` (ISR) and the fraudulent state transition in the `FraudProof` exist as part of a block published on the DA layer within a specified fraud proof window.
+Verify that both the `appHash` (ISR) and the fraudulent state transition in the `FraudProof` exist as part of a block published on the DA layer within a specified fraud proof window. This involves verifying that share containing the block is posted on Celestia via a Blob Inclusion Proof.
 
 #### **Stage Two**
 
@@ -245,8 +245,10 @@ Proposed
 <!--- ### Neutral -->
 
 ## Working Branches
+
 A prototype implementation of the above design is available in the following working branches:
- - [Rollkit](https://github.com/rollkit/rollkit/releases/tag/v0.6.0): Contains fraud proof detection and gossiping logic. As fraud proofs are currently a work in progress, this logic can be toggled using a flag `--rollmint.experimental_insecure_fraud_proofs`. By default, this flag is set to `false`.
+
+- [Rollkit](https://github.com/rollkit/rollkit/releases/tag/v0.6.0): Contains fraud proof detection and gossiping logic. As fraud proofs are currently a work in progress, this logic can be toggled using a flag `--rollkit.experimental_insecure_fraud_proofs`. By default, this flag is set to `false`.
 - [Cosmos-SDK](https://github.com/rollkit/cosmos-sdk/tree/manav/fraudproof_iavl_prototype): Implements the new ABCI methods described.
 - [Tendermint](https://github.com/rollkit/tendermint/tree/abci_fraud_proofs): Contains modifications to the ABCI interface described.
 - [IAVL](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x): Adds support for Deep Subtrees and tracing.
