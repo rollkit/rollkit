@@ -12,7 +12,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/go-cnc"
-
 	openrpc "github.com/rollkit/celestia-openrpc"
 
 	"github.com/rollkit/rollkit/da"
@@ -23,7 +22,7 @@ import (
 
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
-	_      *openrpc.Client
+	rpc    *openrpc.Client
 	client *cnc.Client
 
 	namespaceID types.NamespaceID
@@ -36,16 +35,15 @@ var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Config stores Celestia DALC configuration parameters.
 type Config struct {
-	BaseURL  string        `json:"base_url"`
-	Timeout  time.Duration `json:"timeout"`
-	Fee      int64         `json:"fee"`
-	GasLimit uint64        `json:"gas_limit"`
+	AuthToken string        `json:"auth_token"`
+	BaseURL   string        `json:"base_url"`
+	Timeout   time.Duration `json:"timeout"`
+	Fee       int64         `json:"fee"`
+	GasLimit  uint64        `json:"gas_limit"`
 }
 
 // Init initializes DataAvailabilityLayerClient instance.
-func (c *DataAvailabilityLayerClient) Init(
-	namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger,
-) error {
+func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
 	c.namespaceID = namespaceID
 	c.logger = logger
 
@@ -64,6 +62,8 @@ func (c *DataAvailabilityLayerClient) Start() error {
 	if err != nil {
 		return err
 	}
+	ctx := context.Background()
+	c.rpc, err = openrpc.NewClient(ctx, c.config.BaseURL, c.config.AuthToken)
 	return err
 }
 
@@ -115,12 +115,18 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block at given height.
-func (c *DataAvailabilityLayerClient) CheckBlockAvailability(
-	ctx context.Context, dataLayerHeight uint64,
-) da.ResultCheckBlock {
-	shares, err := c.client.NamespacedShares(ctx, c.namespaceID, dataLayerHeight)
-	code := dataRequestErrorToStatus(err)
-	if code != da.StatusSuccess {
+func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) da.ResultCheckBlock {
+	header, err := c.rpc.Header.GetByHeight(ctx, dataLayerHeight)
+	if err != nil {
+		return da.ResultCheckBlock{
+			BaseResult: da.BaseResult{
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+		}
+	}
+	err = c.rpc.Share.SharesAvailable(ctx, header.DAH)
+	if err != nil {
 		return da.ResultCheckBlock{
 			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
@@ -134,41 +140,61 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(
 			Code:     da.StatusSuccess,
 			DAHeight: dataLayerHeight,
 		},
-		DataAvailable: len(shares) > 0,
+		DataAvailable: err == nil,
 	}
 }
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
-func (c *DataAvailabilityLayerClient) RetrieveBlocks(
-	ctx context.Context, dataLayerHeight uint64,
-) da.ResultRetrieveBlocks {
-	data, err := c.client.NamespacedData(ctx, c.namespaceID, dataLayerHeight)
-	status := dataRequestErrorToStatus(err)
-	if status != da.StatusSuccess {
+func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
+	header, err := c.rpc.Header.GetByHeight(ctx, dataLayerHeight)
+	if err != nil {
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
-				Code:    status,
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+		}
+	}
+	rows, err := c.rpc.Share.GetSharesByNamespace(ctx, header.DAH, c.namespaceID[:])
+	if err != nil {
+		var code da.StatusCode
+		if strings.Contains(err.Error(), da.ErrDataNotFound.Error()) || strings.Contains(err.Error(), da.ErrEDSNotFound.Error()) {
+			code = da.StatusNotFound
+		} else {
+			code = da.StatusError
+		}
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:    code,
 				Message: err.Error(),
 			},
 		}
 	}
 
-	blocks := make([]*types.Block, len(data))
-	for i, msg := range data {
-		var block pb.Block
-		err = proto.Unmarshal(msg, &block)
-		if err != nil {
-			c.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
-			continue
+	size := 0
+	for _, row := range rows {
+		for _, share := range row.Shares {
+			size += len(share)
 		}
-		blocks[i] = new(types.Block)
-		err := blocks[i].FromProto(&block)
-		if err != nil {
-			return da.ResultRetrieveBlocks{
-				BaseResult: da.BaseResult{
-					Code:    da.StatusError,
-					Message: err.Error(),
-				},
+	}
+	blocks := make([]*types.Block, size)
+	for i, row := range rows {
+		for _, share := range row.Shares {
+			var block pb.Block
+			err = proto.Unmarshal(share, &block)
+			if err != nil {
+				c.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
+				continue
+			}
+			blocks[i] = new(types.Block)
+			err := blocks[i].FromProto(&block)
+			if err != nil {
+				return da.ResultRetrieveBlocks{
+					BaseResult: da.BaseResult{
+						Code:    da.StatusError,
+						Message: err.Error(),
+					},
+				}
 			}
 		}
 	}
@@ -182,18 +208,19 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(
 	}
 }
 
+
 func dataRequestErrorToStatus(err error) da.StatusCode {
-	switch {
-	case err == nil,
-		// ErrNamespaceNotFound is a success because it means no retries are necessary, the
-		// namespace doesn't exist in the block.
-		// TODO: Once node implements non-inclusion proofs, ErrNamespaceNotFound needs to be verified
-		strings.Contains(err.Error(), da.ErrNamespaceNotFound.Error()):
-		return da.StatusSuccess
-	case strings.Contains(err.Error(), da.ErrDataNotFound.Error()),
-		strings.Contains(err.Error(), da.ErrEDSNotFound.Error()):
-		return da.StatusNotFound
-	default:
-		return da.StatusError
-	}
+       switch {
+       case err == nil,
+               // ErrNamespaceNotFound is a success because it means no retries are necessary, the
+               // namespace doesn't exist in the block.
+               // TODO: Once node implements non-inclusion proofs, ErrNamespaceNotFound needs to be verified
+               strings.Contains(err.Error(), da.ErrNamespaceNotFound.Error()):
+               return da.StatusSuccess
+       case strings.Contains(err.Error(), da.ErrDataNotFound.Error()),
+               strings.Contains(err.Error(), da.ErrEDSNotFound.Error()):
+               return da.StatusNotFound
+       default:
+               return da.StatusError
+       }
 }
