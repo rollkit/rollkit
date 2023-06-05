@@ -3,6 +3,7 @@ module github.com/rollkit/rollkit
 go 1.18
 
 require (
+	cosmossdk.io/math v1.0.1
 	github.com/celestiaorg/go-cnc v0.3.0
 	github.com/celestiaorg/go-fraud v0.1.1
 	github.com/celestiaorg/go-header v0.2.9
@@ -34,7 +35,6 @@ require (
 )
 
 require (
-	cosmossdk.io/math v1.0.1 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
