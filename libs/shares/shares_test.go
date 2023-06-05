@@ -218,7 +218,6 @@ func TestRawData(t *testing.T) {
 
 func TestIsCompactShare(t *testing.T) {
 	type testCase struct {
-		name  string
 		share Share
 		want  bool
 	}
@@ -230,17 +229,17 @@ func TestIsCompactShare(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:  "tx share",
+			// "tx share",
 			share: Share{data: txShare},
 			want:  true,
 		},
 		{
-			name:  "pfb tx share",
+			// "pfb tx share",
 			share: Share{data: pfbTxShare},
 			want:  true,
 		},
 		{
-			name:  "blob share",
+			// "blob share",
 			share: Share{data: blobShare},
 			want:  false,
 		},
