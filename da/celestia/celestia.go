@@ -11,6 +11,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/go-cnc"
+	client "github.com/rollkit/celestia-openrpc"
 
 	openrpc "github.com/rollkit/celestia-openrpc"
 
@@ -19,6 +20,8 @@ import (
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
+
+var _ = client.Client{}
 
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
