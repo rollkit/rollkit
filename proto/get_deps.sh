@@ -2,7 +2,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-CM_VERSION="rollkit/v0.37.0"
+CM_VERSION="rollkit/v0.37.1"
 CM_PROTO_URL=https://raw.githubusercontent.com/rollkit/cometbft/$CM_VERSION/proto/tendermint
 
 CM_PROTO_FILES=(

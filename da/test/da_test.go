@@ -169,7 +169,7 @@ func startMockGRPCServ() *grpc.Server {
 }
 
 func startMockCelestiaNodeServer() *cmock.Server {
-	httpSrv := cmock.NewServer(mockDaBlockTime, tmlog.NewTMLogger(os.Stdout))
+	httpSrv := cmock.NewServer(mockDaBlockTime, cmlog.NewTMLogger(os.Stdout))
 	l, err := net.Listen("tcp4", "127.0.0.1:26658")
 	if err != nil {
 		fmt.Println("failed to create listener for mock celestia-node RPC server, error: %w", err)

@@ -3,9 +3,9 @@ package types
 import (
 	"fmt"
 
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/crypto/tmhash"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/crypto/tmhash"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -41,7 +41,7 @@ func (txs Txs) Proof(i int) TxProof {
 
 // TxProof represents a Merkle proof of the presence of a transaction in the Merkle tree.
 type TxProof struct {
-	RootHash tmbytes.HexBytes `json:"root_hash"`
+	RootHash cmbytes.HexBytes `json:"root_hash"`
 	Data     Tx               `json:"data"`
 	Proof    merkle.Proof     `json:"proof"`
 }

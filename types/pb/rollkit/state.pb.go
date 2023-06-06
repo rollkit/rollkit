@@ -5,11 +5,11 @@ package rollkit
 
 import (
 	fmt "fmt"
+	state "github.com/cometbft/cometbft/proto/tendermint/state"
+	types "github.com/cometbft/cometbft/proto/tendermint/types"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
-	state "github.com/tendermint/tendermint/proto/tendermint/state"
-	types "github.com/tendermint/tendermint/proto/tendermint/types"
 	_ "google.golang.org/protobuf/types/known/timestamppb"
 	io "io"
 	math "math"

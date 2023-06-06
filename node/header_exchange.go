@@ -32,7 +32,7 @@ type SyncerStatus struct {
 
 type HeaderExchangeService struct {
 	conf         config.NodeConfig
-	genesis      *tmtypes.GenesisDoc
+	genesis      *cmtypes.GenesisDoc
 	p2p          *p2p.Client
 	ex           *goheaderp2p.Exchange[*types.SignedHeader]
 	syncer       *goheadersync.Syncer[*types.SignedHeader]

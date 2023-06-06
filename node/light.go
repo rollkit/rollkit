@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/go-fraud/fraudserv"
 	"github.com/celestiaorg/go-header"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	proxy "github.com/cometbft/cometbft/proxy"

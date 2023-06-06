@@ -10,6 +10,11 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-fraud/fraudserv"
+	abci "github.com/cometbft/cometbft/abci/types"
+	cmcrypto "github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/proxy"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
