@@ -1,9 +1,13 @@
 package types
 
 import (
-	"github.com/cometbft/cometbft/crypto/merkle"
-	cmhash "github.com/cometbft/cometbft/crypto/tmhash"
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	"fmt"
+
+	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/tendermint/tendermint/crypto/tmhash"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // Tx represents transactoin.
@@ -14,7 +18,7 @@ type Txs []Tx
 
 // Hash computes the TMHASH hash of the wire encoded transaction.
 func (tx Tx) Hash() []byte {
-	return cmhash.Sum(tx)
+	return tmhash.Sum(tx)
 }
 
 // Proof returns a simple merkle proof for this node.
@@ -37,7 +41,26 @@ func (txs Txs) Proof(i int) TxProof {
 
 // TxProof represents a Merkle proof of the presence of a transaction in the Merkle tree.
 type TxProof struct {
-	RootHash cmbytes.HexBytes `json:"root_hash"`
+	RootHash tmbytes.HexBytes `json:"root_hash"`
 	Data     Tx               `json:"data"`
 	Proof    merkle.Proof     `json:"proof"`
+}
+
+// ToTxsWithISRs converts a slice of transactions and a list of intermediate state roots
+// to a slice of TxWithISRs. Note that the length of intermediateStateRoots is
+// equal to the length of txs + 1.
+func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]pb.TxWithISRs, error) {
+	expectedISRListLength := len(txs) + 1
+	if len(intermediateStateRoots.RawRootsList) != expectedISRListLength {
+		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRListLength)
+	}
+	txsWithISRs := make([]pb.TxWithISRs, 0, len(txs))
+	for i, tx := range txs {
+		txsWithISRs[i] = pb.TxWithISRs{
+			PreIsr:  intermediateStateRoots.RawRootsList[i],
+			Tx:      tx,
+			PostIsr: intermediateStateRoots.RawRootsList[i+1],
+		}
+	}
+	return txsWithISRs, nil
 }

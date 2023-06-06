@@ -79,7 +79,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				Txs:                    nil,
 				IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
 				// TODO(tzdybal): update when we have actual evidence types
-				Evidence: EvidenceData{Evidence: nil},
+				// Note: Temporarily remove Evidence #896
+				// Evidence: EvidenceData{Evidence: nil},
 			},
 		}},
 	}

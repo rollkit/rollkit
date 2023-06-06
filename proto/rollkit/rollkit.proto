@@ -1,7 +1,6 @@
 syntax = "proto3";
 package rollkit;
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
-import "tendermint/abci/types.proto";
 import "tendermint/types/validator.proto";
 
 // Version captures the consensus rules for processing a block in the blockchain,
@@ -70,10 +69,15 @@ message SignedHeader {
 message Data {
 	repeated bytes txs = 1;
 	repeated bytes intermediate_state_roots = 2;
-	repeated tendermint.abci.Misbehavior evidence = 3;
 }
 
 message Block {
 	SignedHeader signed_header = 1;
 	Data data = 2;
+}
+
+message TxWithISRs {
+	bytes pre_isr = 1;
+	bytes tx = 2;
+	bytes post_isr = 3;
 }

@@ -1,31 +1,64 @@
-name: Build and Test
+# Tests / Code Coverage workflow
+# This workflow is triggered by ci_release.yml workflow
+name: Tests / Code Coverage
 on:
-  push:
-    tags:
-      - v*
-    branches:
-      - main
-  pull_request:
-jobs:
+  workflow_call:
+    inputs:
+      GO_VERSION:
+        description: "Go version to use"
+        type: string
+        required: true
 
-  build:
+jobs:
+  go_mod_tidy_check:
+    name: Go Mod Tidy Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.GO_VERSION }}
+      - run: go mod tidy
+      - name: check for diff
+        run: git diff --exit-code
 
-      - name: Set up Go
+  unit_test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.19
-
-      - name: Build
-        run: go build -v ./...
-
-      - name: Test & Coverage
-        run: |
-          go install github.com/ory/go-acc@v0.2.6
-          go-acc -o coverage.txt ./... -- -v --race
-
-      - uses: codecov/codecov-action@v3
+          go-version: ${{ inputs.GO_VERSION }}
+      - name: Run unit test
+        run: make test-unit
+      - name: upload coverage report
+        uses: codecov/codecov-action@v3.1.3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
+
+  unit_race_test:
+    name: Run Unit Tests with Race Detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.GO_VERSION }}
+      - name: execute test run
+        run: make test-unit-race
+
+  integration_test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.GO_VERSION }}
+      - name: Integration Tests
+        run: echo "No integration tests yet"

@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -76,7 +78,9 @@ type FullNode struct {
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
-	hExService *HeaderExchangeService
+	hExService          *HeaderExchangeService
+	fraudService        *fraudserv.ProofService
+	proofServiceFactory ProofServiceFactory
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -161,33 +165,43 @@ func newFullNode(
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
+	fraudProofFactory := NewProofServiceFactory(
+		client,
+		func(ctx context.Context, u uint64) (header.Header, error) {
+			return headerExchangeService.headerStore.GetByHeight(ctx, u)
+		},
+		mainKV,
+		true,
+		genesis.ChainID,
+	)
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
-		proxyApp:          proxyApp,
-		eventBus:          eventBus,
-		genesis:           genesis,
-		conf:              conf,
-		P2P:               client,
-		blockManager:      blockManager,
-		dalc:              dalc,
-		Mempool:           mp,
-		mempoolIDs:        mpIDs,
-		incomingTxCh:      make(chan *p2p.GossipMessage),
-		Store:             s,
-		TxIndexer:         txIndexer,
-		IndexerService:    indexerService,
-		BlockIndexer:      blockIndexer,
-		hExService:        headerExchangeService,
-		ctx:               ctx,
-		cancel:            cancel,
-		DoneBuildingBlock: doneBuildingChannel,
+		proxyApp:            proxyApp,
+		eventBus:            eventBus,
+		genesis:             genesis,
+		conf:                conf,
+		P2P:                 client,
+		blockManager:        blockManager,
+		dalc:                dalc,
+		Mempool:             mp,
+		mempoolIDs:          mpIDs,
+		incomingTxCh:        make(chan *p2p.GossipMessage),
+		Store:               s,
+		TxIndexer:           txIndexer,
+		IndexerService:      indexerService,
+		BlockIndexer:        blockIndexer,
+		hExService:          headerExchangeService,
+		proofServiceFactory: fraudProofFactory,
+		ctx:                 ctx,
+		cancel:              cancel,
+		DoneBuildingBlock:   doneBuildingChannel,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	node.P2P.SetTxValidator(node.newTxValidator())
-	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
 }
@@ -232,27 +246,6 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
-func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
-	for {
-		select {
-		case fraudProof := <-n.blockManager.GetFraudProofOutChan():
-			n.Logger.Info("generated fraud proof: ", fraudProof.String())
-			fraudProofBytes, err := fraudProof.Marshal()
-			if err != nil {
-				panic(fmt.Errorf("failed to serialize fraud proof: %w", err))
-			}
-			n.Logger.Info("gossipping fraud proof...")
-			err = n.P2P.GossipFraudProof(context.Background(), fraudProofBytes)
-			if err != nil {
-				n.Logger.Error("failed to gossip fraud proof", "error", err)
-			}
-			_ = n.Stop()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
 
@@ -269,15 +262,23 @@ func (n *FullNode) OnStart() error {
 	if err = n.dalc.Start(); err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
+
+	// since p2p pubsub and host are required to create ProofService,
+	// we have to delay the construction until Start and use the help of ProofServiceFactory
+	n.fraudService = n.proofServiceFactory.CreateProofService()
+	if err = n.fraudService.Start(n.ctx); err != nil {
+		return fmt.Errorf("error while starting fraud exchange service: %w", err)
+	}
+	n.blockManager.SetFraudProofService(n.fraudService)
+
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
 	}
+	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
-	go n.fraudProofPublishLoop(n.ctx)
-
 	return nil
 }
 
@@ -302,6 +303,7 @@ func (n *FullNode) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	err = multierr.Append(err, n.hExService.Stop())
+	err = multierr.Append(err, n.fraudService.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
@@ -357,23 +359,6 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 		checkTxResp := res.GetCheckTx()
 
 		return checkTxResp.Code == abci.CodeTypeOK
-	}
-}
-
-// newFraudProofValidator returns a pubsub validator that validates a fraud proof and forwards
-// it to be verified
-func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
-	return func(fraudProofMsg *p2p.GossipMessage) bool {
-		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		fraudProof := abci.FraudProof{}
-		err := fraudProof.Unmarshal(fraudProofMsg.Data)
-		if err != nil {
-			n.Logger.Error("failed to deserialize fraud proof", "error", err)
-			return false
-		}
-		// TODO(manav): Add validation checks for fraud proof here
-		n.blockManager.FraudProofInCh <- &fraudProof
-		return true
 	}
 }
 

@@ -5,11 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
-	"github.com/celestiaorg/go-header/sync"
+	goheadersync "github.com/celestiaorg/go-header/sync"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -24,16 +25,21 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+type SyncerStatus struct {
+	started bool
+	m       sync.Mutex
+}
+
 type HeaderExchangeService struct {
-	conf          config.NodeConfig
-	genesis       *cmtypes.GenesisDoc
-	p2p           *p2p.Client
-	ex            *goheaderp2p.Exchange[*types.SignedHeader]
-	syncer        *sync.Syncer[*types.SignedHeader]
-	sub           *goheaderp2p.Subscriber[*types.SignedHeader]
-	p2pServer     *goheaderp2p.ExchangeServer[*types.SignedHeader]
-	headerStore   *goheaderstore.Store[*types.SignedHeader]
-	syncerStarted bool
+	conf         config.NodeConfig
+	genesis      *tmtypes.GenesisDoc
+	p2p          *p2p.Client
+	ex           *goheaderp2p.Exchange[*types.SignedHeader]
+	syncer       *goheadersync.Syncer[*types.SignedHeader]
+	sub          *goheaderp2p.Subscriber[*types.SignedHeader]
+	p2pServer    *goheaderp2p.ExchangeServer[*types.SignedHeader]
+	headerStore  *goheaderstore.Store[*types.SignedHeader]
+	syncerStatus *SyncerStatus
 
 	logger log.Logger
 	ctx    context.Context
@@ -52,25 +58,14 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 	}
 
 	return &HeaderExchangeService{
-		conf:        conf,
-		genesis:     genesis,
-		p2p:         p2p,
-		ctx:         ctx,
-		headerStore: ss,
-		logger:      logger,
+		conf:         conf,
+		genesis:      genesis,
+		p2p:          p2p,
+		ctx:          ctx,
+		headerStore:  ss,
+		logger:       logger,
+		syncerStatus: new(SyncerStatus),
 	}, nil
-}
-
-func (hExService *HeaderExchangeService) initOrAppendHeaderStore(ctx context.Context, header *types.SignedHeader) error {
-	var err error
-
-	// Init the header store if first block, else append to store
-	if header.Height() == hExService.genesis.InitialHeight {
-		err = hExService.headerStore.Init(ctx, header)
-	} else {
-		err = hExService.headerStore.Append(ctx, header)
-	}
-	return err
 }
 
 func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.SignedHeader) error {
@@ -80,7 +75,9 @@ func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx conte
 	if err := hExService.syncer.Start(hExService.ctx); err != nil {
 		return err
 	}
-	hExService.syncerStarted = true
+	hExService.syncerStatus.m.Lock()
+	defer hExService.syncerStatus.m.Unlock()
+	hExService.syncerStatus.started = true
 	return nil
 }
 
@@ -93,14 +90,13 @@ func (hExService *HeaderExchangeService) tryInitHeaderStoreAndStartSyncer(ctx co
 }
 
 func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
-	// Init the header store if first block, else append to store
-	if err := hExService.initOrAppendHeaderStore(ctx, signedHeader); err != nil {
-		hExService.logger.Error("failed to write block header to header store", "error", err)
-	}
-
-	// For genesis header, start the syncer
+	// For genesis header initialize the store and start the syncer
 	if signedHeader.Height() == hExService.genesis.InitialHeight {
 		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
+			hExService.logger.Error("failed to initialize header store", "error", err)
+		}
+
+		if err := hExService.syncer.Start(hExService.ctx); err != nil {
 			hExService.logger.Error("failed to start syncer after initializing header store", "error", err)
 		}
 	}
@@ -144,7 +140,7 @@ func (hExService *HeaderExchangeService) Start() error {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, sync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
+	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, goheadersync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
 		return err
 	}
 
@@ -153,7 +149,7 @@ func (hExService *HeaderExchangeService) Start() error {
 		if err := hExService.syncer.Start(hExService.ctx); err != nil {
 			return fmt.Errorf("error while starting the syncer: %w", err)
 		}
-		hExService.syncerStarted = true
+		hExService.syncerStatus.started = true
 		return nil
 	}
 
@@ -190,7 +186,9 @@ func (hExService *HeaderExchangeService) Stop() error {
 	err = multierr.Append(err, hExService.p2pServer.Stop(hExService.ctx))
 	err = multierr.Append(err, hExService.ex.Stop(hExService.ctx))
 	err = multierr.Append(err, hExService.sub.Stop(hExService.ctx))
-	if !hExService.conf.Aggregator && hExService.syncerStarted {
+	hExService.syncerStatus.m.Lock()
+	defer hExService.syncerStatus.m.Unlock()
+	if hExService.syncerStatus.started {
 		err = multierr.Append(err, hExService.syncer.Stop(hExService.ctx))
 	}
 	return err
@@ -218,7 +216,7 @@ func newP2PExchange(
 ) (*goheaderp2p.Exchange[*types.SignedHeader], error) {
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
-		goheaderp2p.WithChainID[goheaderp2p.ClientParameters](chainID),
+		goheaderp2p.WithChainID(chainID),
 	)
 	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
 }
@@ -228,7 +226,7 @@ func newSyncer(
 	ex header.Exchange[*types.SignedHeader],
 	store header.Store[*types.SignedHeader],
 	sub header.Subscriber[*types.SignedHeader],
-	opt sync.Options,
-) (*sync.Syncer[*types.SignedHeader], error) {
-	return sync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
+	opt goheadersync.Options,
+) (*goheadersync.Syncer[*types.SignedHeader], error) {
+	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
 }

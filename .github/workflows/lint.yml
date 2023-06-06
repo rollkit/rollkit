@@ -1,14 +1,13 @@
-# lint runs all linters in this repository. This workflow is run on every pull
-# request and push to main.
+# lint runs all linters in this repository
+# This workflow is triggered by ci_release.yml workflow
 name: lint
 on:
-  push:
-    tags:
-      - v*
-    branches:
-      - main
-  pull_request:
   workflow_call:
+    inputs:
+      GO_VERSION:
+        description: 'Go version to use'
+        type: string
+        required: true
 
 jobs:
   golangci-lint:
@@ -18,7 +17,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version: ${{ inputs.GO_VERSION }}
         # This steps sets the GIT_DIFF environment variable to true
         # if files defined in PATTERS changed
       - uses: technote-space/get-diff-action@v6.1.2
@@ -31,14 +30,14 @@ jobs:
             go.sum
       - uses: golangci/golangci-lint-action@v3.4.0
         with:
-          version: v1.50.1
+          version: latest
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.1.1 # yamllint disable-line rule:line-length
+    uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.1.1 # yamllint disable-line rule:line-length
     with:
       dockerfile: docker/mockserv.Dockerfile
 
@@ -46,10 +45,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.1.1
+      - uses: rollkit/.github/.github/actions/yamllint@v0.1.1
 
   markdown-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/markdown-lint@v0.1.1
+      - uses: rollkit/.github/.github/actions/markdown-lint@v0.1.1
+
+  protobuf-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - run: make proto-gen
+      - run: make proto-lint

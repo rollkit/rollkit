@@ -4,7 +4,6 @@ option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
-import "tendermint/abci/types.proto";
 import "tendermint/types/types.proto";
 import "tendermint/types/validator.proto";
 import "tendermint/types/params.proto";

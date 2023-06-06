@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net"
 	"os"
@@ -32,10 +33,27 @@ const mockDaBlockTime = 100 * time.Millisecond
 
 var testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
-func TestLifecycle(t *testing.T) {
-	srv := startMockGRPCServ(t)
-	defer srv.GracefulStop()
+func TestMain(m *testing.M) {
+	srv := startMockGRPCServ()
+	if srv == nil {
+		os.Exit(1)
+	}
 
+	httpServer := startMockCelestiaNodeServer()
+	if httpServer == nil {
+		os.Exit(1)
+	}
+
+	exitCode := m.Run()
+
+	// teardown servers
+	srv.GracefulStop()
+	httpServer.Stop()
+
+	os.Exit(exitCode)
+}
+
+func TestLifecycle(t *testing.T) {
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestLifecycle(t, registry.GetClient(dalc))
@@ -57,12 +75,6 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestDALC(t *testing.T) {
-	grpcServer := startMockGRPCServ(t)
-	defer grpcServer.GracefulStop()
-
-	httpServer := startMockCelestiaNodeServer(t)
-	defer httpServer.Stop()
-
 	for _, dalc := range registry.RegisteredClients() {
 		t.Run(dalc, func(t *testing.T) {
 			doTestDALC(t, registry.GetClient(dalc))
@@ -128,12 +140,6 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 }
 
 func TestRetrieve(t *testing.T) {
-	grpcServer := startMockGRPCServ(t)
-	defer grpcServer.GracefulStop()
-
-	httpServer := startMockCelestiaNodeServer(t)
-	defer httpServer.Stop()
-
 	for _, client := range registry.RegisteredClients() {
 		t.Run(client, func(t *testing.T) {
 			dalc := registry.GetClient(client)
@@ -145,8 +151,7 @@ func TestRetrieve(t *testing.T) {
 	}
 }
 
-func startMockGRPCServ(t *testing.T) *grpc.Server {
-	t.Helper()
+func startMockGRPCServ() *grpc.Server {
 	conf := grpcda.DefaultConfig
 	logger := cmlog.NewTMLogger(os.Stdout)
 
@@ -154,7 +159,8 @@ func startMockGRPCServ(t *testing.T) *grpc.Server {
 	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
-		t.Fatal(err)
+		fmt.Println(err)
+		return nil
 	}
 	go func() {
 		_ = srv.Serve(lis)
@@ -162,16 +168,17 @@ func startMockGRPCServ(t *testing.T) *grpc.Server {
 	return srv
 }
 
-func startMockCelestiaNodeServer(t *testing.T) *cmock.Server {
-	t.Helper()
-	httpSrv := cmock.NewServer(mockDaBlockTime, test.NewLogger(t))
+func startMockCelestiaNodeServer() *cmock.Server {
+	httpSrv := cmock.NewServer(mockDaBlockTime, tmlog.NewTMLogger(os.Stdout))
 	l, err := net.Listen("tcp4", "127.0.0.1:26658")
 	if err != nil {
-		t.Fatal("failed to create listener for mock celestia-node RPC server", "error", err)
+		fmt.Println("failed to create listener for mock celestia-node RPC server, error: %w", err)
+		return nil
 	}
 	err = httpSrv.Start(l)
 	if err != nil {
-		t.Fatal("can't start mock celestia-node RPC server")
+		fmt.Println("can't start mock celestia-node RPC server")
+		return nil
 	}
 	return httpSrv
 }

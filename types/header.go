@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"encoding"
 	"fmt"
 	"time"
@@ -86,19 +85,19 @@ func (h *Header) Verify(untrst header.Header) error {
 	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
 		return &header.VerifyError{Reason: err}
 	}
-	// perform actual verification
-	if untrstH.Height() == h.Height()+1 {
-		// Check the validator hashes are the same in the case headers are adjacent
-		// TODO: next validator set is not available
-		if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
-			return &header.VerifyError{
-				Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-					h.AggregatorsHash,
-					untrstH.AggregatorsHash,
-				),
-			}
-		}
-	}
+
+	// Check the validator hashes are the same in the case headers are adjacent
+	// TODO: next validator set is not available, disable this check until NextValidatorHash is enabled
+	// if untrstH.Height() == h.Height()+1 {
+	// if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
+	// 	return &header.VerifyError{
+	// 		Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
+	// 			h.AggregatorsHash,
+	// 			untrstH.AggregatorsHash,
+	// 		),
+	// 	}
+	// }
+	// }
 
 	// TODO: There must be a way to verify non-adjacent headers
 	// Ensure that untrusted commit has enough of trusted commit's power.

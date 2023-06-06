@@ -30,7 +30,8 @@ var _ encoding.BinaryUnmarshaler = &Block{}
 type Data struct {
 	Txs                    Txs
 	IntermediateStateRoots IntermediateStateRoots
-	Evidence               EvidenceData
+	// Note: Temporarily remove Evidence #896
+	// Evidence               EvidenceData
 }
 
 // EvidenceData defines how evidence is stored in block.

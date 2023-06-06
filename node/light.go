@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/celestiaorg/go-fraud/fraudserv"
+	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	proxy "github.com/cometbft/cometbft/proxy"
@@ -17,6 +18,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 var _ Node = &LightNode{}
@@ -28,7 +30,9 @@ type LightNode struct {
 
 	proxyApp proxy.AppConns
 
-	hExService *HeaderExchangeService
+	hExService          *HeaderExchangeService
+	fraudService        *fraudserv.ProofService
+	proofServiceFactory ProofServiceFactory
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -67,19 +71,28 @@ func newLightNode(
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
+	fraudProofFactory := NewProofServiceFactory(
+		client,
+		func(ctx context.Context, u uint64) (header.Header, error) {
+			return headerExchangeService.headerStore.GetByHeight(ctx, u)
+		},
+		datastore,
+		true,
+		genesis.ChainID,
+	)
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &LightNode{
-		P2P:        client,
-		proxyApp:   proxyApp,
-		hExService: headerExchangeService,
-		cancel:     cancel,
-		ctx:        ctx,
+		P2P:                 client,
+		proxyApp:            proxyApp,
+		hExService:          headerExchangeService,
+		proofServiceFactory: fraudProofFactory,
+		cancel:              cancel,
+		ctx:                 ctx,
 	}
 
 	node.P2P.SetTxValidator(node.falseValidator())
-	node.P2P.SetHeaderValidator(node.falseValidator())
-	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
 
@@ -103,6 +116,13 @@ func (ln *LightNode) OnStart() error {
 		return fmt.Errorf("error while starting header exchange service: %w", err)
 	}
 
+	ln.fraudService = ln.proofServiceFactory.CreateProofService()
+	if err := ln.fraudService.Start(ln.ctx); err != nil {
+		return fmt.Errorf("error while starting fraud exchange service: %w", err)
+	}
+
+	go ln.ProcessFraudProof()
+
 	return nil
 }
 
@@ -121,28 +141,46 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 	}
 }
 
-func (ln *LightNode) newFraudProofValidator() p2p.GossipValidator {
-	return func(fraudProofMsg *p2p.GossipMessage) bool {
-		ln.Logger.Info("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		fraudProof := abci.FraudProof{}
-		err := fraudProof.Unmarshal(fraudProofMsg.Data)
+func (ln *LightNode) ProcessFraudProof() {
+	// subscribe to state fraud proof
+	sub, err := ln.fraudService.Subscribe(types.StateFraudProofType)
+	if err != nil {
+		ln.Logger.Error("failed to subscribe to fraud proof gossip", "error", err)
+		return
+	}
+
+	// continuously process the fraud proofs received via subscription
+	for {
+		proof, err := sub.Proof(ln.ctx)
 		if err != nil {
-			ln.Logger.Error("failed to deserialize fraud proof", "error", err)
-			return false
+			ln.Logger.Error("failed to receive gossiped fraud proof", "error", err)
+			return
 		}
 
+		// only handle the state fraud proofs for now
+		fraudProof, ok := proof.(*types.StateFraudProof)
+		if !ok {
+			ln.Logger.Error("unexpected type received for state fraud proof", "error", err)
+			return
+		}
+		ln.Logger.Debug("fraud proof received",
+			"block height", fraudProof.BlockHeight,
+			"pre-state app hash", fraudProof.PreStateAppHash,
+			"expected valid app hash", fraudProof.ExpectedValidAppHash,
+			"length of state witness", len(fraudProof.StateWitness),
+		)
+
 		resp, err := ln.proxyApp.Consensus().VerifyFraudProofSync(abci.RequestVerifyFraudProof{
-			FraudProof:           &fraudProof,
+			FraudProof:           &fraudProof.FraudProof,
 			ExpectedValidAppHash: fraudProof.ExpectedValidAppHash,
 		})
 		if err != nil {
-			return false
+			ln.Logger.Error("failed to verify fraud proof", "error", err)
+			continue
 		}
 
 		if resp.Success {
 			panic("received valid fraud proof! halting light client")
 		}
-
-		return false
 	}
 }

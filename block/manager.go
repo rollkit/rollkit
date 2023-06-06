@@ -9,11 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/merkle"
-	"github.com/cometbft/cometbft/proxy"
-	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/celestiaorg/go-fraud/fraudserv"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
@@ -59,8 +55,6 @@ type Manager struct {
 	daHeight uint64
 
 	HeaderCh chan *types.SignedHeader
-
-	FraudProofInCh chan *abci.FraudProof
 
 	blockInCh chan newBlockEvent
 	syncCache map[uint64]*types.Block
@@ -153,7 +147,6 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
-		FraudProofInCh:    make(chan *abci.FraudProof, 100),
 		retrieveMtx:       new(sync.Mutex),
 		lastStateMtx:      new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
@@ -179,10 +172,6 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.dalc = dalc
 	m.retriever = dalc.(da.BlockRetriever)
-}
-
-func (m *Manager) GetFraudProofOutChan() chan *abci.FraudProof {
-	return m.executor.FraudProofOutCh
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
@@ -249,6 +238,57 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 }
 
+func (m *Manager) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
+	m.executor.SetFraudProofService(fraudProofServ)
+}
+
+func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFunc) {
+	// subscribe to state fraud proof
+	sub, err := m.executor.FraudService.Subscribe(types.StateFraudProofType)
+	if err != nil {
+		m.logger.Error("failed to subscribe to fraud proof gossip", "error", err)
+		return
+	}
+	defer sub.Cancel()
+
+	// continuously process the fraud proofs received via subscription
+	for {
+		// sub.Proof is a blocking call that only returns on proof received or context ended
+		proof, err := sub.Proof(ctx)
+		if err != nil {
+			m.logger.Error("failed to receive gossiped fraud proof", "error", err)
+			return
+		}
+
+		// only handle the state fraud proofs for now
+		fraudProof, ok := proof.(*types.StateFraudProof)
+		if !ok {
+			m.logger.Error("unexpected type received for state fraud proof", "error", err)
+			return
+		}
+		m.logger.Debug("fraud proof received",
+			"block height", fraudProof.BlockHeight,
+			"pre-state app hash", fraudProof.PreStateAppHash,
+			"expected valid app hash", fraudProof.ExpectedValidAppHash,
+			"length of state witness", len(fraudProof.StateWitness),
+		)
+		// TODO(light-client): Set up a new cosmos-sdk app
+		// TODO: Add fraud proof window validation
+
+		success, err := m.executor.VerifyFraudProof(&fraudProof.FraudProof, fraudProof.ExpectedValidAppHash)
+		if err != nil {
+			m.logger.Error("failed to verify fraud proof", "error", err)
+			continue
+		}
+		if success {
+			// halt chain
+			m.logger.Info("verified fraud proof, halting chain")
+			cancel()
+			return
+		}
+	}
+}
+
 // SyncLoop is responsible for syncing blocks.
 //
 // SyncLoop processes headers gossiped in P2p network to know what's the latest block height,
@@ -277,28 +317,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
-		case fraudProof := <-m.FraudProofInCh:
-			m.logger.Debug("fraud proof received",
-				"block height", fraudProof.BlockHeight,
-				"pre-state app hash", fraudProof.PreStateAppHash,
-				"expected valid app hash", fraudProof.ExpectedValidAppHash,
-				"length of state witness", len(fraudProof.StateWitness),
-			)
-			// TODO(light-client): Set up a new cosmos-sdk app
-			// TODO: Add fraud proof window validation
-
-			success, err := m.executor.VerifyFraudProof(fraudProof, fraudProof.ExpectedValidAppHash)
-			if err != nil {
-				m.logger.Error("failed to verify fraud proof", "error", err)
-				continue
-			}
-			if success {
-				// halt chain
-				m.logger.Info("verified fraud proof, halting chain")
-				cancel()
-				return
-			}
-
 		case <-ctx.Done():
 			return
 		}
@@ -338,7 +356,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
-		m.store.SetHeight(uint64(b.SignedHeader.Header.Height()))
 
 		err = m.store.SaveBlockResponses(uint64(b.SignedHeader.Header.Height()), responses)
 		if err != nil {
@@ -350,6 +367,8 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return err
 		}
+
+		m.store.SetHeight(uint64(b.SignedHeader.Header.Height()))
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -417,6 +436,10 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
 		} else {
+			if blockResp.Code == da.StatusNotFound {
+				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
+				return nil
+			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
@@ -433,8 +456,6 @@ func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRet
 	switch blockRes.Code {
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
-	case da.StatusTimeout:
-		err = fmt.Errorf("timeout during retrieve block: %s", blockRes.Message)
 	}
 	return blockRes, err
 }
@@ -566,9 +587,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	blockHeight := uint64(block.SignedHeader.Header.Height())
 
-	// Only update the stored height after successfully submitting to DA layer and committing to the DB
-	m.store.SetHeight(blockHeight)
-
 	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
@@ -586,6 +604,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Only update the stored height after successfully submitting to DA layer and committing to the DB
+	m.store.SetHeight(blockHeight)
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock

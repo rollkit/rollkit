@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/p2p"
@@ -312,36 +311,158 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
-	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
 
-	node1 := nodes[0]
-	node2 := nodes[1]
-	node3 := nodes[2]
+	num := 3
+	keys := make([]crypto.PrivKey, num)
+	for i := 0; i < num; i++ {
+		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
+	}
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	ds, _ := store.NewDefaultInMemoryKVStore()
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Start()
+	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, &wg, t)
+	fullNode, _ := createNode(ctx, 1, false, false, false, keys, &wg, t)
 
-	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
-	require.NoError(node2.Start())
+	sequencer.(*FullNode).dalc = dalc
+	sequencer.(*FullNode).blockManager.SetDALC(dalc)
+	fullNode.(*FullNode).dalc = dalc
+	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	node3.conf.Light = true
-	require.NoError(node3.Start())
+	lightNode, _ := createNode(ctx, 2, false, false, true, keys, &wg, t)
+
+	require.NoError(sequencer.Start())
+	require.NoError(fullNode.Start())
+	require.NoError(lightNode.Start())
 
 	time.Sleep(3 * time.Second)
 
-	n1h := node1.hExService.headerStore.Height()
+	n1h := sequencer.(*FullNode).hExService.headerStore.Height()
 	aggCancel()
-	require.NoError(node1.Stop())
+	require.NoError(sequencer.Stop())
 
 	time.Sleep(3 * time.Second)
 
-	n2h := node2.hExService.headerStore.Height()
-	n3h := node3.hExService.headerStore.Height()
+	n2h := fullNode.(*FullNode).hExService.headerStore.Height()
+	n3h := lightNode.(*LightNode).hExService.headerStore.Height()
 	cancel()
-	require.NoError(node2.Stop())
-	require.NoError(node3.Stop())
+	require.NoError(fullNode.Stop())
+	require.NoError(lightNode.Stop())
 
 	assert.Equal(n1h, n2h, "heights must match")
 	assert.Equal(n1h, n3h, "heights must match")
+}
+
+func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 1
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+
+	for _, app := range apps {
+		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
+			wg.Done()
+		}).Once()
+	}
+
+	aggNode := nodes[0]
+	fullNode := nodes[1]
+
+	wg.Add(clientNodes + 1)
+	require.NoError(aggNode.Start())
+	time.Sleep(2 * time.Second)
+	require.NoError(fullNode.Start())
+
+	wg.Wait()
+	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
+	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+	// fullnode should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+
+	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	aggCancel()
+	require.NoError(aggNode.Stop())
+
+	n2Frauds, err := fullNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	cancel()
+	require.NoError(fullNode.Stop())
+
+	assert.Equal(len(n1Frauds), 1, "number of fraud proofs received via gossip should be 1")
+	assert.Equal(len(n2Frauds), 1, "number of fraud proofs received via gossip should be 1")
+	assert.Equal(n1Frauds, n2Frauds, "the received fraud proofs after gossip must match")
+}
+
+func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	var wg sync.WaitGroup
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 2
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+
+	for _, app := range apps {
+		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
+			wg.Done()
+		}).Once()
+	}
+
+	aggNode := nodes[0]
+	fullNode1 := nodes[1]
+	fullNode2 := nodes[2]
+
+	wg.Add(clientNodes)
+	require.NoError(aggNode.Start())
+	time.Sleep(2 * time.Second)
+	require.NoError(fullNode1.Start())
+
+	wg.Wait()
+	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
+	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+	// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+
+	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+
+	n2Frauds, err := fullNode1.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	assert.Equal(n1Frauds, n2Frauds, "number of fraud proofs gossiped between nodes must match")
+
+	wg.Add(1)
+	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
+	require.NoError(fullNode2.Start())
+
+	wg.Wait()
+	// fullnode2 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[2].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[2].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+
+	n3Frauds, err := fullNode2.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	assert.Equal(n1Frauds, n3Frauds, "number of fraud proofs gossiped between nodes must match")
+
+	aggCancel()
+	require.NoError(aggNode.Stop())
+	cancel()
+	require.NoError(fullNode1.Stop())
+	require.NoError(fullNode2.Stop())
+}
+
+func TestFraudProofService(t *testing.T) {
+	testSingleAggreatorSingleFullNodeFraudProofGossip(t)
+	testSingleAggreatorTwoFullNodeFraudProofSync(t)
 }
 
 // TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
@@ -476,15 +597,23 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	nodes[0], apps[0] = createNode(aggCtx, 0, isMalicious, true, dalc, keys, wg, t)
+	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, wg, t)
+	apps[0] = app
+	nodes[0] = node.(*FullNode)
+	// use same, common DALC, so nodes can share data
+	nodes[0].dalc = dalc
+	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		nodes[i], apps[i] = createNode(ctx, i, isMalicious, false, dalc, keys, wg, t)
+		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, wg, t)
+		nodes[i] = node.(*FullNode)
+		nodes[i].dalc = dalc
+		nodes[i].blockManager.SetDALC(dalc)
 	}
 
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, dalc da.DataAvailabilityLayerClient, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (*FullNode, *mocks.Application) {
+func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -525,7 +654,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 
 	if isMalicious && !aggregator {
-		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{}})
+		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{BlockHeight: 1, FraudulentBeginBlock: &abci.RequestBeginBlock{Hash: []byte("123")}, ExpectedValidAppHash: nonMaliciousAppHash}})
 	}
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
 		wg.Done()
@@ -535,25 +664,25 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, d
 	}
 
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	node, err := newFullNode(
+	genesis := &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
+	// TODO: need to investigate why this needs to be done for light nodes
+	genesis.InitialHeight = 1
+	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
 			P2P:                p2pConfig,
 			DALayer:            "mock",
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
+			Light:              isLight,
 		},
 		keys[n],
 		signingKey,
 		proxy.NewLocalClientCreator(app),
-		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+		genesis,
 		log.TestingLogger().With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
-
-	// use same, common DALC, so nodes can share data
-	node.dalc = dalc
-	node.blockManager.SetDALC(dalc)
 
 	return node, app
 }
