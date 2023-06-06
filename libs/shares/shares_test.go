@@ -246,9 +246,11 @@ func TestIsCompactShare(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got, err := tc.share.IsCompactShare()
-		assert.NoError(t, err)
-		assert.Equal(t, tc.want, got)
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.share.IsCompactShare()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
 	}
 }
 
