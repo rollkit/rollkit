@@ -41,8 +41,8 @@ func TestInfoByteErrors(t *testing.T) {
 	notBlobStart := false
 
 	type testCase struct {
-		version         uint8
-		isSequenceStart bool
+		version uint8
+		bool
 	}
 
 	tests := []testCase{
