@@ -37,10 +37,8 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(err)
 	require.NotNil(client)
 
-	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
-
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
+	executor := NewBlockExecutor([]byte("test address"), "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
 
 	state := types.State{}
 	state.ConsensusParams.Block.MaxBytes = 100
@@ -114,13 +112,12 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(err)
 	require.NotNil(client)
 
-	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	chainID := "test"
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	eventBus := tmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -159,6 +156,9 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(block)
 	assert.Equal(int64(1), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 1)
+	dataHash, err := block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	// Update the signature on the block to current from last
 	headerBytes, _ := block.SignedHeader.Header.MarshalBinary()
@@ -185,6 +185,9 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(block)
 	assert.Equal(int64(2), block.SignedHeader.Header.Height())
 	assert.Len(block.Data.Txs, 3)
+	dataHash, err = block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	headerBytes, _ = block.SignedHeader.Header.MarshalBinary()
 	sig, _ = vKey.Sign(headerBytes)

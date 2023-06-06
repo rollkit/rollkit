@@ -30,6 +30,17 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+var (
+	headerNamespaceID = types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8}
+	dataNamespaceID   = types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1}
+)
+
+var blockManagerConfig = config.BlockManagerConfig{
+	BlockTime:         1 * time.Second,
+	HeaderNamespaceID: headerNamespaceID,
+	DataNamespaceID:   dataNamespaceID,
+}
+
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -46,10 +57,6 @@ func TestAggregatorMode(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
-	}
 	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
@@ -146,10 +153,6 @@ func TestLazyAggregator(t *testing.T) {
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
-	}
 
 	node, err := NewNode(context.Background(), config.NodeConfig{
 		DALayer:            "mock",
@@ -595,7 +598,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Init(headerNamespaceID, dataNamespaceID, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, wg, t)
 	apps[0] = app
@@ -623,10 +626,11 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
 	bmConfig := config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		FraudProofs: true,
+		DABlockTime:       100 * time.Millisecond,
+		BlockTime:         500 * time.Millisecond, // blocks must be at least few milliseconds apart for adjacent headers to get different timestamps
+		HeaderNamespaceID: headerNamespaceID,
+		DataNamespaceID:   dataNamespaceID,
+		FraudProofs:       true,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {

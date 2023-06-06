@@ -119,7 +119,7 @@ func NewManager(
 		conf.DABlockTime = defaultDABlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -349,6 +349,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 	if b != nil && commit != nil {
 		m.logger.Info("Syncing block", "height", b.SignedHeader.Header.Height())
+		// Validate the received block before applying
+		if err := m.executor.Validate(m.lastState, b); err != nil {
+			return fmt.Errorf("failed to validate block: %w", err)
+		}
 		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -436,18 +440,24 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
-		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
+		headerResp, dataResp, fetchErr := m.fetchBlock(ctx, daHeight)
 		if fetchErr != nil {
 			err = multierr.Append(err, fetchErr)
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			if blockResp.Code == da.StatusNotFound {
-				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
+			if headerResp.Code == da.StatusNotFound {
+				m.logger.Debug("no block header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
-			for _, block := range blockResp.Blocks {
-				m.blockInCh <- newBlockEvent{block, daHeight}
+			if dataResp.Code == da.StatusNotFound {
+				m.logger.Debug("no block data found", "daHeight", daHeight, "reason", dataResp.Message)
+				return nil
+			}
+			m.logger.Debug("retrieved potential blocks", "n", len(headerResp.Headers), "daHeight", daHeight)
+			// TODO (fix this): assumes both block header and data exists in the same da height
+			// Fix should cache the headers and data and then match to construct the block and send to channel
+			for i, header := range headerResp.Headers {
+				m.blockInCh <- newBlockEvent{&types.Block{SignedHeader: *header, Data: *dataResp.Data[i]}, daHeight}
 			}
 			return nil
 		}
@@ -455,14 +465,18 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	return err
 }
 
-func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
+func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlockHeaders, da.ResultRetrieveBlockData, error) {
 	var err error
-	blockRes := m.retriever.RetrieveBlocks(ctx, daHeight)
-	switch blockRes.Code {
-	case da.StatusError:
-		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
+	headerRes := m.retriever.RetrieveBlockHeaders(ctx, daHeight)
+	if headerRes.Code == da.StatusError {
+		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
-	return blockRes, err
+
+	dataRes := m.retriever.RetrieveBlockData(ctx, daHeight)
+	if dataRes.Code == da.StatusError {
+		err = multierr.Append(err, fmt.Errorf("failed to retrieve block: %s", dataRes.Message))
+	}
+	return headerRes, dataRes, err
 }
 
 func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
@@ -547,22 +561,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-
-		commit, err = m.getCommit(block.SignedHeader.Header)
-		if err != nil {
-			return err
-		}
-
-		// set the commit to current block's signed header
-		block.SignedHeader.Commit = *commit
-
-		block.SignedHeader.Validators = m.lastState.Validators
-
-		// SaveBlock commits the DB tx
-		err = m.store.SaveBlock(block, commit)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Apply the block but DONT commit
@@ -571,11 +569,24 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	if commit == nil {
-		commit, err = m.getCommit(block.SignedHeader.Header)
-		if err != nil {
-			return err
-		}
+	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
+	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
+	if err != nil {
+		return err
+	}
+
+	// Sign the block and set the commit to current block's signed header along with signers
+	commit, err = m.getCommit(block.SignedHeader.Header)
+	if err != nil {
+		return err
+	}
+
+	block.SignedHeader.Commit = *commit
+	block.SignedHeader.Validators = m.lastState.Validators
+
+	// Validate the created block before storing
+	if err := m.executor.Validate(m.lastState, block); err != nil {
+		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
 	// SaveBlock commits the DB tx
@@ -584,8 +595,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	err = m.submitBlockToDA(ctx, block)
-	if err != nil {
+	if err := m.submitBlockToDA(ctx, block); err != nil {
 		m.logger.Error("Failed to submit block to DA Layer")
 		return err
 	}
@@ -637,19 +647,35 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlock(ctx, block)
-		if res.Code == da.StatusSuccess {
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.SignedHeader.Header.Height(), "daHeight", res.DAHeight)
+		headerRes := m.dalc.SubmitBlockHeader(ctx, &block.SignedHeader)
+		dataRes := m.dalc.SubmitBlockData(ctx, &block.Data)
+		if headerRes.Code == da.StatusSuccess && dataRes.Code == da.StatusSuccess {
+			m.logger.Info(
+				"successfully submitted Rollkit block to DA layer",
+				"rollkitHeight",
+				block.SignedHeader.Header.Height(),
+				"daHeight of the block header",
+				headerRes.DAHeight,
+				"daHeight of the block data",
+				dataRes.DAHeight,
+			)
 			submitted = true
 		} else {
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			var errMsg string
+			if headerRes.Code == da.StatusError {
+				errMsg = headerRes.Message
+			}
+			if dataRes.Code == da.StatusError {
+				errMsg += "," + dataRes.Message
+			}
+			m.logger.Error("DA layer submission failed", "error", errMsg, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		}
 	}
 
 	if !submitted {
-		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
 	return nil

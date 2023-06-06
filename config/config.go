@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -11,17 +12,18 @@ import (
 )
 
 const (
-	flagAggregator     = "rollkit.aggregator"
-	flagDALayer        = "rollkit.da_layer"
-	flagDAConfig       = "rollkit.da_config"
-	flagBlockTime      = "rollkit.block_time"
-	flagDABlockTime    = "rollkit.da_block_time"
-	flagDAStartHeight  = "rollkit.da_start_height"
-	flagNamespaceID    = "rollkit.namespace_id"
-	flagFraudProofs    = "rollkit.experimental_insecure_fraud_proofs"
-	flagLight          = "rollkit.light"
-	flagTrustedHash    = "rollkit.trusted_hash"
-	flagLazyAggregator = "rollkit.lazy_aggregator"
+	flagAggregator        = "rollkit.aggregator"
+	flagDALayer           = "rollkit.da_layer"
+	flagDAConfig          = "rollkit.da_config"
+	flagBlockTime         = "rollkit.block_time"
+	flagDABlockTime       = "rollkit.da_block_time"
+	flagDAStartHeight     = "rollkit.da_start_height"
+	flagHeaderNamespaceID = "rollkit.header_namespace_id"
+	flagDataNamespaceID   = "rollkit.data_namespace_id"
+	flagFraudProofs       = "rollkit.experimental_insecure_fraud_proofs"
+	flagLight             = "rollkit.light"
+	flagTrustedHash       = "rollkit.trusted_hash"
+	flagLazyAggregator    = "rollkit.lazy_aggregator"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -53,9 +55,10 @@ type BlockManagerConfig struct {
 	// DABlockTime informs about block time of underlying data availability layer
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
-	DAStartHeight uint64            `mapstructure:"da_start_height"`
-	NamespaceID   types.NamespaceID `mapstructure:"namespace_id"`
-	FraudProofs   bool              `mapstructure:"fraud_proofs"`
+	DAStartHeight     uint64            `mapstructure:"da_start_height"`
+	HeaderNamespaceID types.NamespaceID `mapstructure:"header_namespace_id"`
+	DataNamespaceID   types.NamespaceID `mapstructure:"data_namespace_id"`
+	FraudProofs       bool              `mapstructure:"fraud_proofs"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.
@@ -69,14 +72,14 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DABlockTime = v.GetDuration(flagDABlockTime)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
-	nsID := v.GetString(flagNamespaceID)
 	nc.FraudProofs = v.GetBool(flagFraudProofs)
 	nc.Light = v.GetBool(flagLight)
-	bytes, err := hex.DecodeString(nsID)
-	if err != nil {
+	if err := getHexBytes(v, flagHeaderNamespaceID, nc.HeaderNamespaceID[:]); err != nil {
 		return err
 	}
-	copy(nc.NamespaceID[:], bytes)
+	if err := getHexBytes(v, flagDataNamespaceID, nc.DataNamespaceID[:]); err != nil {
+		return err
+	}
 	nc.TrustedHash = v.GetString(flagTrustedHash)
 	return nil
 }
@@ -93,8 +96,23 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
+	cmd.Flags().BytesHex(flagHeaderNamespaceID, def.HeaderNamespaceID[:], "header namespace identifier (8 bytes in hex)")
+	cmd.Flags().BytesHex(flagDataNamespaceID, def.DataNamespaceID[:], "data namespace identifier (8 bytes in hex)")
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
+}
+
+func getHexBytes(v *viper.Viper, flag string, dst []byte) error {
+	str := v.GetString(flag)
+	bytes, err := hex.DecodeString(str)
+	if err != nil {
+		return err
+	}
+	if len(bytes) != len(types.NamespaceID{}) {
+		return fmt.Errorf("invalid length of namespace ID for '%s', expected: %d, got: %d",
+			flag, len(types.NamespaceID{}), len(bytes))
+	}
+	_ = copy(dst, bytes)
+	return nil
 }
