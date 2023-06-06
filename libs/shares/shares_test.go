@@ -220,6 +220,7 @@ func TestIsCompactShare(t *testing.T) {
 	type testCase struct {
 		share Share
 		want  bool
+		name  string
 	}
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
@@ -229,17 +230,17 @@ func TestIsCompactShare(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			// "tx share",
+			name:  "tx share",
 			share: Share{data: txShare},
 			want:  true,
 		},
 		{
-			// "pfb tx share",
+			name:  "pfb tx share",
 			share: Share{data: pfbTxShare},
 			want:  true,
 		},
 		{
-			// "blob share",
+			name:  "blob share",
 			share: Share{data: blobShare},
 			want:  false,
 		},
