@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,12 +15,43 @@ import (
 
 	"github.com/celestiaorg/go-cnc"
 
+	"github.com/rollkit/celestia-openrpc/types/sdk"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
+
+type ErrorCode int
+
+type respError struct {
+	Code    ErrorCode       `json:"code"`
+	Message string          `json:"message"`
+	Meta    json.RawMessage `json:"meta,omitempty"`
+}
+
+func (e *respError) Error() string {
+	if e.Code >= -32768 && e.Code <= -32000 {
+		return fmt.Sprintf("RPC error (%d): %s", e.Code, e.Message)
+	}
+	return e.Message
+}
+
+type request struct {
+	Jsonrpc string            `json:"jsonrpc"`
+	ID      interface{}       `json:"id,omitempty"`
+	Method  string            `json:"method"`
+	Params  json.RawMessage   `json:"params"`
+	Meta    map[string]string `json:"meta,omitempty"`
+}
+
+type response struct {
+	Jsonrpc string      `json:"jsonrpc"`
+	Result  interface{} `json:"result,omitempty"`
+	ID      interface{} `json:"id"`
+	Error   *respError  `json:"error,omitempty"`
+}
 
 // Server mocks celestia-node HTTP API.
 type Server struct {
@@ -70,11 +102,57 @@ func (s *Server) Stop() {
 
 func (s *Server) getHandler() http.Handler {
 	mux := mux2.NewRouter()
+	mux.HandleFunc("/", s.rpc).Methods(http.MethodPost)
 	mux.HandleFunc("/submit_pfb", s.submit).Methods(http.MethodPost)
 	mux.HandleFunc("/namespaced_shares/{namespace}/height/{height}", s.shares).Methods(http.MethodGet)
 	mux.HandleFunc("/namespaced_data/{namespace}/height/{height}", s.data).Methods(http.MethodGet)
 
 	return mux
+}
+
+func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
+    var req request
+    err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		s.writeError(w, err)
+		return
+	}
+	switch req.Method {
+		case "state.SubmitPayForBlob":
+			var params [][]byte
+			json.Unmarshal(req.Params, &params)
+			if len(params) != 4 {
+				s.writeError(w, errors.New("expected 4 params"))
+				return
+			}
+			block := types.Block{}
+			blockData := params[1]
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			err = block.UnmarshalBinary(blockData)
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+
+			res := s.mock.SubmitBlock(r.Context(), &block)
+			resp := &response{
+				Jsonrpc: "2.0",
+				Result:  &sdk.TxResponse{
+					Height: int64(res.DAHeight),
+				},
+				ID:      req.ID,
+				Error:   nil,
+			}
+			bytes, err := json.Marshal(resp)
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			s.writeResponse(w, bytes)
+	}
 }
 
 func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
