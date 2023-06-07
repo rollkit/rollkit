@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
 
+	"github.com/rollkit/celestia-openrpc/types/core"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
@@ -18,8 +20,12 @@ import (
 // DataAvailabilityLayerClient is intended only for usage in tests.
 // It does actually ensures DA - it stores data in-memory.
 type DataAvailabilityLayerClient struct {
-	logger   log.Logger
-	dalcKV   ds.Datastore
+	logger log.Logger
+	dalcKV ds.Datastore
+
+	daHeaders     map[uint64]*core.DataAvailabilityHeader
+	daHeadersLock sync.Mutex
+
 	daHeight uint64
 	config   config
 }
@@ -33,11 +39,37 @@ type config struct {
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
+func getRandomHeader() *core.DataAvailabilityHeader {
+	randRowsRoots := [32][]byte{}
+	for i := 0; i < 32; i++ {
+		for j := 0; j < 32; j++ {
+			rand.Read(randRowsRoots[i])
+		}
+	}
+	randColumnRoots := [32][]byte{}
+	for i := 0; i < 32; i++ {
+		for j := 0; j < 32; j++ {
+			rand.Read(randColumnRoots[i])
+		}
+	}
+	return &core.DataAvailabilityHeader{
+		RowsRoots:   randRowsRoots[:],
+		ColumnRoots: randColumnRoots[:],
+	}
+
+}
+
 // Init is called once to allow DA client to read configuration and initialize resources.
 func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV ds.Datastore, logger log.Logger) error {
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1
+	m.daHeaders = make(map[uint64]*core.DataAvailabilityHeader)
+
+	m.daHeadersLock.Lock()
+	m.daHeaders[m.daHeight] = getRandomHeader()
+	m.daHeadersLock.Unlock()
+
 	if len(config) > 0 {
 		var err error
 		m.config.BlockTime, err = time.ParseDuration(string(config))
@@ -66,6 +98,14 @@ func (m *DataAvailabilityLayerClient) Start() error {
 func (m *DataAvailabilityLayerClient) Stop() error {
 	m.logger.Debug("Mock Data Availability Layer Client stopped")
 	return nil
+}
+
+// GetHeaderByHeight returns the header at the given height.
+func (m *DataAvailabilityLayerClient) GetHeaderByHeight(height uint64) *core.DataAvailabilityHeader {
+	m.daHeadersLock.Lock()
+	dah := m.daHeaders[height]
+	m.daHeadersLock.Unlock()
+	return dah
 }
 
 // SubmitBlock submits the passed in block to the DA layer.
@@ -146,4 +186,8 @@ func getKey(daHeight uint64, height uint64) ds.Key {
 func (m *DataAvailabilityLayerClient) updateDAHeight() {
 	blockStep := rand.Uint64()%10 + 1 //nolint:gosec
 	atomic.AddUint64(&m.daHeight, blockStep)
+	m.daHeadersLock.Lock()
+	m.daHeaders[m.daHeight] = getRandomHeader()
+	m.daHeadersLock.Unlock()
+
 }

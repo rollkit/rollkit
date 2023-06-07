@@ -15,6 +15,8 @@ import (
 
 	"github.com/celestiaorg/go-cnc"
 
+	"github.com/rollkit/celestia-openrpc/types/core"
+	"github.com/rollkit/celestia-openrpc/types/header"
 	"github.com/rollkit/celestia-openrpc/types/sdk"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
@@ -111,47 +113,79 @@ func (s *Server) getHandler() http.Handler {
 }
 
 func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
-    var req request
-    err := json.NewDecoder(r.Body).Decode(&req)
+	var req request
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		s.writeError(w, err)
 		return
 	}
 	switch req.Method {
-		case "state.SubmitPayForBlob":
-			var params [][]byte
-			json.Unmarshal(req.Params, &params)
-			if len(params) != 4 {
-				s.writeError(w, errors.New("expected 4 params"))
-				return
-			}
-			block := types.Block{}
-			blockData := params[1]
-			if err != nil {
-				s.writeError(w, err)
-				return
-			}
-			err = block.UnmarshalBinary(blockData)
-			if err != nil {
-				s.writeError(w, err)
-				return
-			}
+	case "header.GetByHeight":
+		var params []uint64
+		json.Unmarshal(req.Params, &params)
+		dah := s.mock.GetHeaderByHeight(params[0])
+		resp := &response{
+			Jsonrpc: "2.0",
+			Result: header.ExtendedHeader{
+				DAH:          dah,
+			},
+			ID:    req.ID,
+			Error: nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
+	case "share.SharesAvailable":
+		var params []core.DataAvailabilityHeader
+		json.Unmarshal(req.Params, &params)
+		resp := &response{
+			Jsonrpc: "2.0",
+			ID:    req.ID,
+			Error: nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
+	case "state.SubmitPayForBlob":
+		var params [][]byte
+		json.Unmarshal(req.Params, &params)
+		if len(params) != 4 {
+			s.writeError(w, errors.New("expected 4 params"))
+			return
+		}
+		block := types.Block{}
+		blockData := params[1]
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		err = block.UnmarshalBinary(blockData)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
 
-			res := s.mock.SubmitBlock(r.Context(), &block)
-			resp := &response{
-				Jsonrpc: "2.0",
-				Result:  &sdk.TxResponse{
-					Height: int64(res.DAHeight),
-				},
-				ID:      req.ID,
-				Error:   nil,
-			}
-			bytes, err := json.Marshal(resp)
-			if err != nil {
-				s.writeError(w, err)
-				return
-			}
-			s.writeResponse(w, bytes)
+		res := s.mock.SubmitBlock(r.Context(), &block)
+		resp := &response{
+			Jsonrpc: "2.0",
+			Result: &sdk.TxResponse{
+				Height: int64(res.DAHeight),
+			},
+			ID:    req.ID,
+			Error: nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
 	}
 }
 
