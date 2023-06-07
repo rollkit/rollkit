@@ -7,6 +7,7 @@ require (
 	github.com/celestiaorg/go-fraud v0.1.0
 	github.com/celestiaorg/go-header v0.2.6
 	github.com/cometbft/cometbft v0.37.0
+	github.com/creachadair/taskgroup v0.3.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
 	github.com/gogo/protobuf v1.3.3
@@ -155,8 +156,6 @@ require (
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
-	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
-	github.com/tendermint/tm-db v0.6.6 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opencensus.io v0.24.0 // indirect
