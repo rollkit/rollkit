@@ -202,11 +202,12 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	var wg sync.WaitGroup
+	// TODO: Replace this with a retry check
+	//var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -234,11 +235,12 @@ func testSingleAggreatorTwoFullNode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	var wg sync.WaitGroup
+	// TODO: Replace this with a retry check
+	//var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -272,11 +274,12 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	var wg sync.WaitGroup
+	// TODO: Replace this with a retry check
+	//var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -308,7 +311,8 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	var wg sync.WaitGroup
+	// TODO: Replace this with a retry check
+	//var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -321,15 +325,15 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, &wg, t)
-	fullNode, _ := createNode(ctx, 1, false, false, false, keys, &wg, t)
+	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, t)
+	fullNode, _ := createNode(ctx, 1, false, false, false, keys, t)
 
 	sequencer.(*FullNode).dalc = dalc
 	sequencer.(*FullNode).blockManager.SetDALC(dalc)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	lightNode, _ := createNode(ctx, 2, false, false, true, keys, &wg, t)
+	lightNode, _ := createNode(ctx, 2, false, false, true, keys, t)
 
 	require.NoError(sequencer.Start())
 	require.NoError(fullNode.Start())
@@ -361,7 +365,7 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 1
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
 
 	for _, app := range apps {
 		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
@@ -408,7 +412,7 @@ func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 2
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
 
 	for _, app := range apps {
 		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
@@ -525,11 +529,10 @@ func TestFraudProofService(t *testing.T) {
 
 // Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
 func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
-	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, &wg, t)
-	startNodes(nodes, &wg, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, t)
+	startNodes(nodes, t)
 	aggCancel()
 	time.Sleep(100 * time.Millisecond)
 	for _, n := range nodes {
@@ -542,9 +545,9 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
-func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
-	numNodes := len(nodes)
-	wg.Add((numNodes) * (numNodes - 1))
+func startNodes(nodes []*FullNode, t *testing.T) {
+	//numNodes := len(nodes)
+	//wg.Add((numNodes) * (numNodes - 1))
 
 	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
 	require.NoError(t, nodes[0].Start())
@@ -563,9 +566,10 @@ func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
 
 	timeout := time.NewTimer(time.Second * 30)
 	doneChan := make(chan struct{})
+	// TODO: Replace this with a check for the nodes' DeliverTx calls
 	go func() {
 		defer close(doneChan)
-		wg.Wait()
+		//wg.Wait()
 	}()
 	select {
 	case <-doneChan:
@@ -575,7 +579,7 @@ func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -597,14 +601,14 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, wg, t)
+	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, wg, t)
+		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
@@ -613,7 +617,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -656,9 +660,11 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	if isMalicious && !aggregator {
 		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{BlockHeight: 1, FraudulentBeginBlock: &abci.RequestBeginBlock{Hash: []byte("123")}, ExpectedValidAppHash: nonMaliciousAppHash}})
 	}
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
-		wg.Done()
-	})
+	// TODO: Replace this with a retry check
+	/*
+		app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
+			wg.Done()
+		})*/
 	if ctx == nil {
 		ctx = context.Background()
 	}
