@@ -28,6 +28,8 @@ import (
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
+
+	testutils "github.com/celestiaorg/utils/test"
 )
 
 func TestAggregatorMode(t *testing.T) {
@@ -545,7 +547,7 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
-func startNodes(nodes []*FullNode, t *testing.T) {
+func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	//numNodes := len(nodes)
 	//wg.Add((numNodes) * (numNodes - 1))
 
@@ -569,6 +571,15 @@ func startNodes(nodes []*FullNode, t *testing.T) {
 	// TODO: Replace this with a check for the nodes' DeliverTx calls
 	go func() {
 		defer close(doneChan)
+		testutils.Retry(300, 100*time.Millisecond, func() error {
+			for i := 1; i < len(nodes); i++ {
+				//require.NoError(t, nodes[i].Start())
+				app := nodes[i].proxyApp.(mocks.Application)
+				if countFunctionCalls(nodes[i].proxyApp, "DeliverTx") < 0 {
+
+				}
+			}
+		})
 		//wg.Wait()
 	}()
 	select {

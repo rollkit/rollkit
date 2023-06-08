@@ -7,9 +7,20 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/conv"
+	"github.com/rollkit/rollkit/mocks"
 )
 
 var genesisValidatorKey = ed25519.GenPrivKey()
+
+func countFunctionCalls(app *mocks.Application, functionName string) uint {
+	var count uint = 0
+	for _, call := range app.Calls {
+		if call.Method == functionName {
+			count++
+		}
+	}
+	return count
+}
 
 // TODO: use n and return n validators
 func getGenesisValidatorSetWithSigner(n int) ([]tmtypes.GenesisValidator, crypto.PrivKey) {
