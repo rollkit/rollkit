@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/rollkit/rollkit/da"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rollkit/rollkit/da"
 )
 
 func TestDataRequestErrorToStatus(t *testing.T) {
