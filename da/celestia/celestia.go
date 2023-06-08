@@ -12,6 +12,8 @@ import (
 
 	"github.com/celestiaorg/go-cnc"
 
+	openrpc "github.com/rollkit/celestia-openrpc"
+
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
@@ -20,6 +22,7 @@ import (
 
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
+	_      *openrpc.Client
 	client *cnc.Client
 
 	namespaceID types.NamespaceID
