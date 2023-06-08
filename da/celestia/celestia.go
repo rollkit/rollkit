@@ -125,6 +125,15 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 			},
 		}
 	}
+	if header.DAH == nil {
+		return da.ResultCheckBlock{
+			BaseResult: da.BaseResult{
+				Code:     da.StatusSuccess,
+				DAHeight: dataLayerHeight,
+			},
+			DataAvailable: false,
+		}
+	}
 	err = c.rpc.Share.SharesAvailable(ctx, header.DAH)
 	if err != nil {
 		return da.ResultCheckBlock{
@@ -134,13 +143,12 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 			},
 		}
 	}
-
 	return da.ResultCheckBlock{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			DAHeight: dataLayerHeight,
 		},
-		DataAvailable: err == nil,
+		DataAvailable: true,
 	}
 }
 
@@ -208,19 +216,18 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLa
 	}
 }
 
-
 func dataRequestErrorToStatus(err error) da.StatusCode {
-       switch {
-       case err == nil,
-               // ErrNamespaceNotFound is a success because it means no retries are necessary, the
-               // namespace doesn't exist in the block.
-               // TODO: Once node implements non-inclusion proofs, ErrNamespaceNotFound needs to be verified
-               strings.Contains(err.Error(), da.ErrNamespaceNotFound.Error()):
-               return da.StatusSuccess
-       case strings.Contains(err.Error(), da.ErrDataNotFound.Error()),
-               strings.Contains(err.Error(), da.ErrEDSNotFound.Error()):
-               return da.StatusNotFound
-       default:
-               return da.StatusError
-       }
+	switch {
+	case err == nil,
+		// ErrNamespaceNotFound is a success because it means no retries are necessary, the
+		// namespace doesn't exist in the block.
+		// TODO: Once node implements non-inclusion proofs, ErrNamespaceNotFound needs to be verified
+		strings.Contains(err.Error(), da.ErrNamespaceNotFound.Error()):
+		return da.StatusSuccess
+	case strings.Contains(err.Error(), da.ErrDataNotFound.Error()),
+		strings.Contains(err.Error(), da.ErrEDSNotFound.Error()):
+		return da.StatusNotFound
+	default:
+		return da.StatusError
+	}
 }

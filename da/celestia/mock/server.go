@@ -127,7 +127,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		resp := &response{
 			Jsonrpc: "2.0",
 			Result: header.ExtendedHeader{
-				DAH:          dah,
+				DAH: dah,
 			},
 			ID:    req.ID,
 			Error: nil,
@@ -143,8 +143,8 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(req.Params, &params)
 		resp := &response{
 			Jsonrpc: "2.0",
-			ID:    req.ID,
-			Error: nil,
+			ID:      req.ID,
+			Error:   nil,
 		}
 		bytes, err := json.Marshal(resp)
 		if err != nil {

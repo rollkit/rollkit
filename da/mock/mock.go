@@ -39,22 +39,24 @@ type config struct {
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
-func getRandomHeader() *core.DataAvailabilityHeader {
-	randRowsRoots := [32][]byte{}
-	for i := 0; i < 32; i++ {
-		for j := 0; j < 32; j++ {
-			rand.Read(randRowsRoots[i])
+func getRandomHeader(size int) *core.DataAvailabilityHeader {
+	randRowsRoots := make([][]byte, size)
+	for i := 0; i < size; i++ {
+		for j := 0; j < size; j++ {
+			randRowsRoots[i] = make([]byte, size)
+			rand.Read(randRowsRoots[i][:])
 		}
 	}
-	randColumnRoots := [32][]byte{}
-	for i := 0; i < 32; i++ {
-		for j := 0; j < 32; j++ {
-			rand.Read(randColumnRoots[i])
+	randColumnRoots := make([][]byte, size)
+	for i := 0; i < size; i++ {
+		for j := 0; j < size; j++ {
+			randColumnRoots[i] = make([]byte, size)
+			rand.Read(randColumnRoots[i][:])
 		}
 	}
 	return &core.DataAvailabilityHeader{
-		RowsRoots:   randRowsRoots[:],
-		ColumnRoots: randColumnRoots[:],
+		RowsRoots:   randRowsRoots,
+		ColumnRoots: randColumnRoots,
 	}
 
 }
@@ -67,7 +69,7 @@ func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, d
 	m.daHeaders = make(map[uint64]*core.DataAvailabilityHeader)
 
 	m.daHeadersLock.Lock()
-	m.daHeaders[m.daHeight] = getRandomHeader()
+	m.daHeaders[m.daHeight] = getRandomHeader(8)
 	m.daHeadersLock.Unlock()
 
 	if len(config) > 0 {
@@ -187,7 +189,7 @@ func (m *DataAvailabilityLayerClient) updateDAHeight() {
 	blockStep := rand.Uint64()%10 + 1 //nolint:gosec
 	atomic.AddUint64(&m.daHeight, blockStep)
 	m.daHeadersLock.Lock()
-	m.daHeaders[m.daHeight] = getRandomHeader()
+	m.daHeaders[m.daHeight] = getRandomHeader(8)
 	m.daHeadersLock.Unlock()
 
 }
