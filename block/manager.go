@@ -258,42 +258,30 @@ func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFu
 	}
 	defer sub.Cancel()
 
-	// continuously process the fraud proofs received via subscription
-	for {
-		// sub.Proof is a blocking call that only returns on proof received or context ended
-		proof, err := sub.Proof(ctx)
-		if err != nil {
-			m.logger.Error("failed to receive gossiped fraud proof", "error", err)
-			return
-		}
-
-		// only handle the state fraud proofs for now
-		fraudProof, ok := proof.(*types.StateFraudProof)
-		if !ok {
-			m.logger.Error("unexpected type received for state fraud proof", "error", err)
-			return
-		}
-		m.logger.Debug("fraud proof received",
-			"block height", fraudProof.BlockHeight,
-			"pre-state app hash", fraudProof.PreStateAppHash,
-			"expected valid app hash", fraudProof.ExpectedValidAppHash,
-			"length of state witness", len(fraudProof.StateWitness),
-		)
-		// TODO(light-client): Set up a new cosmos-sdk app
-		// TODO: Add fraud proof window validation
-
-		success, err := m.executor.VerifyFraudProof(&fraudProof.FraudProof, fraudProof.ExpectedValidAppHash)
-		if err != nil {
-			m.logger.Error("failed to verify fraud proof", "error", err)
-			continue
-		}
-		if success {
-			// halt chain
-			m.logger.Info("verified fraud proof, halting chain")
-			cancel()
-			return
-		}
+	// blocks until a valid fraud proof is received via subscription
+	// sub.Proof is a blocking call that only returns on proof received or context ended
+	proof, err := sub.Proof(ctx)
+	if err != nil {
+		m.logger.Error("failed to receive gossiped fraud proof", "error", err)
+		return
 	}
+
+	// only handle the state fraud proofs for now
+	fraudProof, ok := proof.(*types.StateFraudProof)
+	if !ok {
+		m.logger.Error("unexpected type received for state fraud proof", "error", err)
+		return
+	}
+	m.logger.Debug("fraud proof received",
+		"block height", fraudProof.BlockHeight,
+		"pre-state app hash", fraudProof.PreStateAppHash,
+		"expected valid app hash", fraudProof.ExpectedValidAppHash,
+		"length of state witness", len(fraudProof.StateWitness),
+	)
+
+	// halt chain
+	m.logger.Info("verified fraud proof, halting chain")
+	cancel()
 }
 
 // SyncLoop is responsible for syncing blocks.

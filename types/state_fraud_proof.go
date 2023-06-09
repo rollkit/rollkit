@@ -1,6 +1,8 @@
 package types
 
 import (
+	"errors"
+
 	"github.com/celestiaorg/go-header"
 	abci "github.com/tendermint/tendermint/abci/types"
 
@@ -31,8 +33,14 @@ func (fp *StateFraudProof) Height() uint64 {
 	return uint64(fp.BlockHeight)
 }
 
-func (fp *StateFraudProof) Validate(header.Header) error {
-	// TODO (ganesh): fill this later
+func (fp *StateFraudProof) Validate(header header.Header, verifier fraud.StateMachineVerifier) error {
+	status, err := verifier(fp)
+	if err != nil {
+		return err
+	}
+	if !status {
+		return errors.New("failed to verify fraud proof")
+	}
 	return nil
 }
 

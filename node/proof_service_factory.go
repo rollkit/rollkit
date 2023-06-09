@@ -11,15 +11,17 @@ import (
 type ProofServiceFactory struct {
 	client        *p2p.Client
 	getter        fraud.HeaderFetcher
+	smVerifier    fraud.StateMachineVerifier
 	ds            datastore.Datastore
 	syncerEnabled bool
 	networkID     string
 }
 
-func NewProofServiceFactory(c *p2p.Client, getter fraud.HeaderFetcher, ds datastore.Datastore, syncerEnabled bool, networkID string) ProofServiceFactory {
+func NewProofServiceFactory(c *p2p.Client, getter fraud.HeaderFetcher, smVerifier fraud.StateMachineVerifier, ds datastore.Datastore, syncerEnabled bool, networkID string) ProofServiceFactory {
 	return ProofServiceFactory{
 		client:        c,
 		getter:        getter,
+		smVerifier:    smVerifier,
 		ds:            ds,
 		syncerEnabled: syncerEnabled,
 		networkID:     networkID,
@@ -31,6 +33,7 @@ func (factory *ProofServiceFactory) CreateProofService() *fraudserv.ProofService
 		factory.client.PubSub(),
 		factory.client.Host(),
 		factory.getter,
+		factory.smVerifier,
 		factory.ds,
 		factory.syncerEnabled,
 		factory.networkID,
