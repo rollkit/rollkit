@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	mrand "math/rand"
 	"strconv"
@@ -534,7 +535,7 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, t)
-	startNodes(nodes, t)
+	startNodes(nodes, apps, t)
 	aggCancel()
 	time.Sleep(100 * time.Millisecond)
 	for _, n := range nodes {
@@ -571,14 +572,17 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	// TODO: Replace this with a check for the nodes' DeliverTx calls
 	go func() {
 		defer close(doneChan)
+		numRetries := 0
 		testutils.Retry(300, 100*time.Millisecond, func() error {
-			for i := 1; i < len(nodes); i++ {
-				//require.NoError(t, nodes[i].Start())
-				app := nodes[i].proxyApp.(mocks.Application)
-				if countFunctionCalls(nodes[i].proxyApp, "DeliverTx") < 0 {
-
+			numRetries++
+			for i := 0; i < len(apps); i++ {
+				app := apps[i]
+				count := countFunctionCalls(app, "DeliverTx")
+				if count < 1 {
+					return errors.New("not ready yet")
 				}
 			}
+			return nil
 		})
 		//wg.Wait()
 	}()
@@ -660,6 +664,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	maliciousAppHash := []byte{9, 8, 7, 6}
 	nonMaliciousAppHash := []byte{1, 2, 3, 4}
 	if isMalicious && aggregator {
