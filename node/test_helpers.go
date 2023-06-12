@@ -1,25 +1,38 @@
 package node
 
 import (
+	"fmt"
+	"testing"
+
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/conv"
-	"github.com/rollkit/rollkit/mocks"
 )
 
 var genesisValidatorKey = ed25519.GenPrivKey()
 
-func countFunctionCalls(app *mocks.Application, functionName string) uint {
-	var count uint = 0
-	for _, call := range app.Calls {
-		if call.Method == functionName {
-			count++
-		}
-	}
-	return count
+type MockTester struct {
+	t *testing.T
+}
+
+func (m MockTester) Fail() {
+	fmt.Println("Failed")
+}
+
+func (m MockTester) FailNow() {
+	fmt.Println("MockTester FailNow called")
+}
+
+func (m MockTester) Logf(format string, args ...interface{}) {
+	fmt.Println("MockTester Logf called")
+}
+
+func (m MockTester) Errorf(format string, args ...interface{}) {
+	//fmt.Printf(format, args...)
+	fmt.Println("Errorf called")
 }
 
 // TODO: use n and return n validators

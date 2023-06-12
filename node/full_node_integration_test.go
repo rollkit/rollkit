@@ -572,14 +572,13 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	// TODO: Replace this with a check for the nodes' DeliverTx calls
 	go func() {
 		defer close(doneChan)
-		numRetries := 0
+		m := MockTester{t: t}
+		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
 		testutils.Retry(300, 100*time.Millisecond, func() error {
-			numRetries++
 			for i := 0; i < len(apps); i++ {
-				app := apps[i]
-				count := countFunctionCalls(app, "DeliverTx")
-				if count < 1 {
-					return errors.New("not ready yet")
+				fmt.Println("Retrying...")
+				if !apps[i].AssertCalled(m, "DeliverTx", matcher) {
+					return errors.New("DeliverTx hasn't been called yet")
 				}
 			}
 			return nil
