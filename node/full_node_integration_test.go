@@ -572,9 +572,12 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	// TODO: Replace this with a check for the nodes' DeliverTx calls
 	go func() {
 		defer close(doneChan)
+		// create a MockTester, to catch the Failed asserts from the Mock package
 		m := MockTester{t: t}
+		// We don't nedd to check any specific arguments to DeliverTx
+		// so just use a function that returns "true" for matching the args
 		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
-		testutils.Retry(300, 100*time.Millisecond, func() error {
+		err := testutils.Retry(300, 100*time.Millisecond, func() error {
 			for i := 0; i < len(apps); i++ {
 				fmt.Println("Retrying...")
 				if !apps[i].AssertCalled(m, "DeliverTx", matcher) {
@@ -583,7 +586,8 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 			}
 			return nil
 		})
-		//wg.Wait()
+		assert := assert.New(t)
+		assert.NoError(err)
 	}()
 	select {
 	case <-doneChan:
