@@ -25,7 +25,7 @@ type DataAvailabilityLayerClient struct {
 	_      *openrpc.Client
 	client *cnc.Client
 
-	namespaceID types.NamespaceID
+	namespaceID cnc.Namespace
 	config      Config
 	logger      log.Logger
 }
@@ -43,7 +43,7 @@ type Config struct {
 
 // Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(
-	namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger,
+	namespaceID cnc.Namespace, config []byte, kvStore ds.Datastore, logger log.Logger,
 ) error {
 	c.namespaceID = namespaceID
 	c.logger = logger

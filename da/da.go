@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/celestiaorg/go-cnc"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/log"
@@ -70,7 +71,7 @@ type ResultRetrieveBlocks struct {
 // It also contains life-cycle methods.
 type DataAvailabilityLayerClient interface {
 	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error
+	Init(namespaceID cnc.Namespace, config []byte, kvStore ds.Datastore, logger log.Logger) error
 
 	// Start is called once, after Init. It's implementation should start operation of DataAvailabilityLayerClient.
 	Start() error

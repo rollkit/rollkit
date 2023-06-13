@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/celestiaorg/go-cnc"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/da"
@@ -42,7 +43,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init sets the configuration options.
-func (d *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, _ ds.Datastore, logger log.Logger) error {
+func (d *DataAvailabilityLayerClient) Init(_ cnc.Namespace, config []byte, _ ds.Datastore, logger log.Logger) error {
 	d.logger = logger
 	if len(config) == 0 {
 		d.config = DefaultConfig

@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/da"
@@ -34,7 +35,7 @@ var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
 // Init is called once to allow DA client to read configuration and initialize resources.
-func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV ds.Datastore, logger log.Logger) error {
+func (m *DataAvailabilityLayerClient) Init(_ cnc.Namespace, config []byte, dalcKV ds.Datastore, logger log.Logger) error {
 	m.logger = logger
 	m.dalcKV = dalcKV
 	m.daHeight = 1
