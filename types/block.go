@@ -2,7 +2,10 @@ package types
 
 import (
 	"encoding"
+	"fmt"
+	"time"
 
+	"github.com/celestiaorg/go-header"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
@@ -60,4 +63,47 @@ type Signature []byte
 // They are required for fraud proofs.
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
+}
+
+func (b *Block) New() header.Header {
+	return new(Block)
+}
+
+func (b *Block) IsZero() bool {
+	return b == nil
+}
+
+func (b *Block) ChainID() string {
+	return b.SignedHeader.BaseHeader.ChainID
+}
+
+func (b *Block) Height() int64 {
+	return int64(b.SignedHeader.BaseHeader.Height)
+}
+
+func (b *Block) LastHeader() Hash {
+	return b.SignedHeader.LastHeaderHash[:]
+}
+
+func (b *Block) Time() time.Time {
+	return time.Unix(int64(b.SignedHeader.BaseHeader.Time), 0)
+}
+
+func (b *Block) Verify(untrst header.Header) error {
+	//TODO: Update with new header verify method
+	untrstH, ok := untrst.(*Header)
+	if !ok {
+		// if the header type is wrong, something very bad is going on
+		// and is a programmer bug
+		panic(fmt.Errorf("%T is not of type %T", untrst, &b.SignedHeader.Header))
+	}
+	// sanity check fields
+	if err := verifyNewHeaderAndVals(&b.SignedHeader.Header, untrstH); err != nil {
+		return &header.VerifyError{Reason: err}
+	}
+	return nil
+}
+
+func (h *Block) Validate() error {
+	return h.ValidateBasic()
 }
