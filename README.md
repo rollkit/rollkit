@@ -25,11 +25,12 @@ go build -v ./...
 While Rollkit is a modular framework that aims to be compatible with a wide
 range of data availability layers, settlement layers, and execution
 environments, the most supported development environment is building on Celestia
-as a data availability layer. 
+as a data availability layer.
 
 ### Building On Celestia
 
 There are currently 2 ways to build on Celestia:
+
 1. Using a local development environment with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
 1. Using the Arabica or Mocha Celestia testnet
 
