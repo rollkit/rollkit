@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -48,7 +49,7 @@ func TestAggregatorMode(t *testing.T) {
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		NamespaceID: cnc.MustNewV0([]byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8}),
 	}
 	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
@@ -148,7 +149,7 @@ func TestLazyAggregator(t *testing.T) {
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		NamespaceID: cnc.MustNewV0([]byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8}),
 	}
 
 	node, err := NewNode(context.Background(), config.NodeConfig{
@@ -319,7 +320,7 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	}
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Init(cnc.Namespace{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, &wg, t)
 	fullNode, _ := createNode(ctx, 1, false, false, false, keys, &wg, t)
@@ -595,7 +596,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Init(cnc.Namespace{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, wg, t)
 	apps[0] = app
@@ -625,7 +626,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	bmConfig := config.BlockManagerConfig{
 		DABlockTime: 100 * time.Millisecond,
 		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		NamespaceID: cnc.MustNewV0([]byte{8, 7, 6, 5, 4, 3, 2, 1, 0, 0}),
 		FraudProofs: true,
 	}
 	for i := 0; i < len(keys); i++ {

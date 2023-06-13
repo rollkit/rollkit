@@ -6,8 +6,6 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
-type NamespaceID [8]byte
-
 // Version captures the consensus rules for processing a block in the blockchain,
 // including all blockchain data structures and the rules of the application's
 // state transition machine.

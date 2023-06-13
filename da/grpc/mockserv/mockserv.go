@@ -3,6 +3,7 @@ package mockserv
 import (
 	"context"
 
+	"github.com/celestiaorg/go-cnc"
 	ds "github.com/ipfs/go-datastore"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
@@ -18,7 +19,7 @@ import (
 func GetServer(kv ds.Datastore, conf grpcda.Config, mockConfig []byte, logger tmlog.Logger) *grpc.Server {
 	srv := grpc.NewServer()
 	mockImpl := &mockImpl{}
-	err := mockImpl.mock.Init([8]byte{}, mockConfig, kv, logger)
+	err := mockImpl.mock.Init(cnc.Namespace{}, mockConfig, kv, logger)
 	if err != nil {
 		logger.Error("failed to initialize mock DALC", "error", err)
 		panic(err)

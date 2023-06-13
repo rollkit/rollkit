@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -780,7 +781,7 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, err := store.NewDefaultInMemoryKVStore()
 	require.Nil(err)
-	err = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	err = dalc.Init(cnc.Namespace{}, nil, ds, log.TestingLogger())
 	require.Nil(err)
 	err = dalc.Start()
 	require.Nil(err)

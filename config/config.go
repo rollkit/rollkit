@@ -4,10 +4,9 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/rollkit/rollkit/types"
 )
 
 const (
@@ -53,9 +52,9 @@ type BlockManagerConfig struct {
 	// DABlockTime informs about block time of underlying data availability layer
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
-	DAStartHeight uint64            `mapstructure:"da_start_height"`
-	NamespaceID   types.NamespaceID `mapstructure:"namespace_id"`
-	FraudProofs   bool              `mapstructure:"fraud_proofs"`
+	DAStartHeight uint64        `mapstructure:"da_start_height"`
+	NamespaceID   cnc.Namespace `mapstructure:"namespace_id"`
+	FraudProofs   bool          `mapstructure:"fraud_proofs"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.
@@ -76,7 +75,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	if err != nil {
 		return err
 	}
-	copy(nc.NamespaceID[:], bytes)
+	nc.NamespaceID = cnc.MustNewV0(bytes)
 	nc.TrustedHash = v.GetString(flagTrustedHash)
 	return nil
 }
@@ -93,7 +92,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
+	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID.ID, "namespace identifies (8 bytes in hex)")
 	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")

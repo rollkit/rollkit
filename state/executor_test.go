@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,7 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(err)
 	require.NotNil(client)
 
-	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
+	nsID := cnc.MustNewV0([]byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8})
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
 	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
@@ -114,7 +115,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NoError(err)
 	require.NotNil(client)
 
-	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
+	nsID := cnc.MustNewV0([]byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8})
 	chainID := "test"
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)

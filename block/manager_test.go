@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,7 +73,7 @@ func TestInitialState(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	conf := config.BlockManagerConfig{
 		BlockTime:   10 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		NamespaceID: cnc.MustNewV0([]byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8}),
 	}
 
 	for _, c := range cases {
@@ -93,7 +94,7 @@ func TestInitialState(t *testing.T) {
 
 func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	_ = dalc.Init([8]byte{}, nil, nil, logger)
+	_ = dalc.Init(cnc.Namespace{}, nil, nil, logger)
 	_ = dalc.Start()
 	return dalc
 }

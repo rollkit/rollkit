@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,7 +21,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-var testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
+var testNamespaceID = cnc.MustNewV0([]byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8})
 
 func TestMain(m *testing.M) {
 	srv := startMockGRPCServ()

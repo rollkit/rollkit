@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/celestiaorg/go-cnc"
 )
 
 const (
@@ -22,7 +22,7 @@ var DefaultNodeConfig = NodeConfig{
 	LazyAggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
 		BlockTime:   30 * time.Second,
-		NamespaceID: types.NamespaceID{},
+		NamespaceID: cnc.Namespace{},
 		FraudProofs: false,
 	},
 	DALayer:  "mock",

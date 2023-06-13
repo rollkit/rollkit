@@ -44,7 +44,7 @@ func (s *Server) Start(listener net.Listener) error {
 	if err != nil {
 		return err
 	}
-	err = s.mock.Init([8]byte{}, []byte(s.blockTime.String()), kvStore, s.logger)
+	err = s.mock.Init(cnc.Namespace{}, []byte(s.blockTime.String()), kvStore, s.logger)
 	if err != nil {
 		return err
 	}
