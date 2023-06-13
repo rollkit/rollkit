@@ -169,7 +169,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		}
 		resp := &response{
 			Jsonrpc: "2.0",
-			Result: share.NamespacedShares{row},
+			Result:  share.NamespacedShares{row},
 			ID:      req.ID,
 			Error:   nil,
 		}

@@ -45,14 +45,14 @@ func getRandomHeader(size int) *core.DataAvailabilityHeader {
 	for i := 0; i < size; i++ {
 		for j := 0; j < size; j++ {
 			randRowsRoots[i] = make([]byte, size)
-			rand.Read(randRowsRoots[i][:])
+			rand.Read(randRowsRoots[i][:]) //nolint:gosec
 		}
 	}
 	randColumnRoots := make([][]byte, size)
 	for i := 0; i < size; i++ {
 		for j := 0; j < size; j++ {
 			randColumnRoots[i] = make([]byte, size)
-			rand.Read(randColumnRoots[i][:])
+			rand.Read(randColumnRoots[i][:]) //nolint:gosec
 		}
 	}
 	return &core.DataAvailabilityHeader{

@@ -12,6 +12,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/celestiaorg/go-cnc"
+
 	openrpc "github.com/rollkit/celestia-openrpc"
 
 	"github.com/rollkit/rollkit/da"
