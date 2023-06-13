@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"math/rand"
@@ -24,7 +25,7 @@ type DataAvailabilityLayerClient struct {
 	dalcKV ds.Datastore
 
 	daHeaders     map[uint64]*core.DataAvailabilityHeader
-	daHeadersLock sync.Mutex
+	daHeadersLock sync.RWMutex
 
 	daHeight uint64
 	config   config
@@ -104,10 +105,40 @@ func (m *DataAvailabilityLayerClient) Stop() error {
 
 // GetHeaderByHeight returns the header at the given height.
 func (m *DataAvailabilityLayerClient) GetHeaderByHeight(height uint64) *core.DataAvailabilityHeader {
-	m.daHeadersLock.Lock()
+	m.daHeadersLock.RLock()
 	dah := m.daHeaders[height]
-	m.daHeadersLock.Unlock()
+	m.daHeadersLock.RUnlock()
 	return dah
+}
+
+func isEqual(headerA, headerB *core.DataAvailabilityHeader) bool {
+	if len(headerA.RowsRoots) != len(headerB.RowsRoots) {
+		return false
+	}
+	if len(headerA.ColumnRoots) != len(headerB.ColumnRoots) {
+		return false
+	}
+	for i, row := range headerA.RowsRoots {
+		if !bytes.Equal(row, headerB.RowsRoots[i]) {
+			return false
+		}
+	}
+	for i, col := range headerA.ColumnRoots {
+		if !bytes.Equal(col, headerB.ColumnRoots[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// GetHeightByHeader returns the height for the given header.
+func (m *DataAvailabilityLayerClient) GetHeightByHeader(dah *core.DataAvailabilityHeader) uint64 {
+	for height, header := range m.daHeaders {
+		if isEqual(header, dah) {
+			return height
+		}
+	}
+	return 0
 }
 
 // SubmitBlock submits the passed in block to the DA layer.

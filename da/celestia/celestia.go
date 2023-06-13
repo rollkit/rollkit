@@ -181,13 +181,11 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLa
 
 	size := 0
 	for _, row := range rows {
-		for _, share := range row.Shares {
-			size += len(share)
-		}
+		size += len(row.Shares)
 	}
 	blocks := make([]*types.Block, size)
-	for i, row := range rows {
-		for _, share := range row.Shares {
+	for _, row := range rows {
+		for i, share := range row.Shares {
 			var block pb.Block
 			err = proto.Unmarshal(share, &block)
 			if err != nil {

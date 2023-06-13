@@ -18,6 +18,7 @@ import (
 	"github.com/rollkit/celestia-openrpc/types/core"
 	"github.com/rollkit/celestia-openrpc/types/header"
 	"github.com/rollkit/celestia-openrpc/types/sdk"
+	"github.com/rollkit/celestia-openrpc/types/share"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
@@ -143,6 +144,32 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(req.Params, &params)
 		resp := &response{
 			Jsonrpc: "2.0",
+			ID:      req.ID,
+			Error:   nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
+	case "share.GetSharesByNamespace":
+		var params []core.DataAvailabilityHeader
+		json.Unmarshal(req.Params, &params)
+		height := s.mock.GetHeightByHeader(&params[0])
+		block := s.mock.RetrieveBlocks(r.Context(), height)
+		row := share.NamespacedRow{}
+		for _, block := range block.Blocks {
+			share, err := block.MarshalBinary()
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			row.Shares = append(row.Shares, share)
+		}
+		resp := &response{
+			Jsonrpc: "2.0",
+			Result: share.NamespacedShares{row},
 			ID:      req.ID,
 			Error:   nil,
 		}
