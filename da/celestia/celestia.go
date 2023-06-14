@@ -12,9 +12,10 @@ import (
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/celestia-openrpc/types/blob"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
