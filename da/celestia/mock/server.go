@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -122,9 +123,13 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 	}
 	switch req.Method {
 	case "header.GetByHeight":
-		var params []uint64
-		json.Unmarshal(req.Params, &params)
-		dah := s.mock.GetHeaderByHeight(params[0])
+		var params []interface{}
+		err := json.Unmarshal(req.Params, &params)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		dah := s.mock.GetHeaderByHeight(uint64(params[0].(float64)))
 		resp := &response{
 			Jsonrpc: "2.0",
 			Result: header.ExtendedHeader{
@@ -140,8 +145,6 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		}
 		s.writeResponse(w, bytes)
 	case "share.SharesAvailable":
-		var params []core.DataAvailabilityHeader
-		json.Unmarshal(req.Params, &params)
 		resp := &response{
 			Jsonrpc: "2.0",
 			ID:      req.ID,
@@ -154,9 +157,31 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		}
 		s.writeResponse(w, bytes)
 	case "share.GetSharesByNamespace":
-		var params []core.DataAvailabilityHeader
-		json.Unmarshal(req.Params, &params)
-		height := s.mock.GetHeightByHeader(&params[0])
+		var params []interface{}
+		err := json.Unmarshal(req.Params, &params)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		header := &core.DataAvailabilityHeader{}
+		dah := params[0].(map[string]interface{})
+		for _, rowRoot := range dah["row_roots"].([]interface{}) {
+			root, err := base64.StdEncoding.DecodeString(rowRoot.(string))
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			header.RowsRoots = append(header.RowsRoots, root)
+		}
+		for _, colRoot := range dah["column_roots"].([]interface{}) {
+			root, err := base64.StdEncoding.DecodeString(colRoot.(string))
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			header.ColumnRoots = append(header.ColumnRoots, root)
+		}
+		height := s.mock.GetHeightByHeader(header)
 		block := s.mock.RetrieveBlocks(r.Context(), height)
 		row := share.NamespacedRow{}
 		for _, block := range block.Blocks {
@@ -180,14 +205,19 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		}
 		s.writeResponse(w, bytes)
 	case "state.SubmitPayForBlob":
-		var params [][]byte
-		json.Unmarshal(req.Params, &params)
+		var params []interface{}
+		err := json.Unmarshal(req.Params, &params)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
 		if len(params) != 4 {
 			s.writeError(w, errors.New("expected 4 params"))
 			return
 		}
 		block := types.Block{}
-		blockData := params[1]
+		blockBase64 := params[1].(string)
+		blockData, err := base64.StdEncoding.DecodeString(blockBase64)
 		if err != nil {
 			s.writeError(w, err)
 			return
