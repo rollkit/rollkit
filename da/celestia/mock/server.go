@@ -3,7 +3,6 @@ package mock
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,13 +13,10 @@ import (
 
 	mux2 "github.com/gorilla/mux"
 
-	"github.com/celestiaorg/go-cnc"
-
 	"github.com/rollkit/celestia-openrpc/types/core"
 	"github.com/rollkit/celestia-openrpc/types/header"
 	"github.com/rollkit/celestia-openrpc/types/sdk"
 	"github.com/rollkit/celestia-openrpc/types/share"
-	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
@@ -107,9 +103,6 @@ func (s *Server) Stop() {
 func (s *Server) getHandler() http.Handler {
 	mux := mux2.NewRouter()
 	mux.HandleFunc("/", s.rpc).Methods(http.MethodPost)
-	mux.HandleFunc("/submit_pfb", s.submit).Methods(http.MethodPost)
-	mux.HandleFunc("/namespaced_shares/{namespace}/height/{height}", s.shares).Methods(http.MethodGet)
-	mux.HandleFunc("/namespaced_data/{namespace}/height/{height}", s.data).Methods(http.MethodGet)
 
 	return mux
 }
@@ -244,122 +237,6 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		}
 		s.writeResponse(w, bytes)
 	}
-}
-
-func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
-	req := cnc.SubmitPFBRequest{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	block := types.Block{}
-	blockData, err := hex.DecodeString(req.Data)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-	err = block.UnmarshalBinary(blockData)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	res := s.mock.SubmitBlock(r.Context(), &block)
-	code := 0
-	if res.Code != da.StatusSuccess {
-		code = 3
-	}
-
-	resp, err := json.Marshal(cnc.TxResponse{
-		Height: int64(res.DAHeight),
-		Code:   uint32(code),
-		RawLog: res.Message,
-	})
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	s.writeResponse(w, resp)
-}
-
-func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
-	height, err := parseHeight(r)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	res := s.mock.RetrieveBlocks(r.Context(), height)
-	if res.Code != da.StatusSuccess {
-		s.writeError(w, errors.New(res.Message))
-		return
-	}
-
-	var nShares []NamespacedShare
-	for _, block := range res.Blocks {
-		blob, err := block.MarshalBinary()
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		delimited, err := marshalDelimited(blob)
-		if err != nil {
-			s.writeError(w, err)
-		}
-		nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
-	}
-	shares := make([]Share, len(nShares))
-	for i := range nShares {
-		shares[i] = nShares[i].Share
-	}
-
-	resp, err := json.Marshal(namespacedSharesResponse{
-		Shares: shares,
-		Height: res.DAHeight,
-	})
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	s.writeResponse(w, resp)
-}
-
-func (s *Server) data(w http.ResponseWriter, r *http.Request) {
-	height, err := parseHeight(r)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	res := s.mock.RetrieveBlocks(r.Context(), height)
-	if res.Code != da.StatusSuccess {
-		s.writeError(w, errors.New(res.Message))
-		return
-	}
-
-	data := make([][]byte, len(res.Blocks))
-	for i := range res.Blocks {
-		data[i], err = res.Blocks[i].MarshalBinary()
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-	}
-
-	resp, err := json.Marshal(namespacedDataResponse{
-		Data:   data,
-		Height: res.DAHeight,
-	})
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	s.writeResponse(w, resp)
 }
 
 func parseHeight(r *http.Request) (uint64, error) {
