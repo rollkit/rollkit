@@ -30,7 +30,6 @@ import (
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 
-	"github.com/celestiaorg/go-fraud"
 	testutils "github.com/celestiaorg/utils/test"
 )
 
@@ -409,85 +408,57 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 }
 
 func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
-
-	m := MockTester{t: t}
-	mockAssert := assert.New(m)
+	assert := assert.New(t)
 	require := require.New(t)
 
+	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 2
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
 
 	for _, app := range apps {
-		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true})
+		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
+			wg.Done()
+		}).Once()
 	}
 
 	aggNode := nodes[0]
 	fullNode1 := nodes[1]
 	fullNode2 := nodes[2]
 
+	wg.Add(clientNodes)
 	require.NoError(aggNode.Start())
 	time.Sleep(2 * time.Second)
 	require.NoError(fullNode1.Start())
 
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		fmt.Println("Retrying...")
-		// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
-		if !apps[0].AssertNumberOfCalls(m, "GenerateFraudProof", 0) ||
-			!apps[0].AssertNumberOfCalls(m, "VerifyFraudProof", 1) ||
-			// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-			!apps[1].AssertNumberOfCalls(m, "GenerateFraudProof", 1) ||
-			!apps[1].AssertNumberOfCalls(m, "VerifyFraudProof", 1) {
-			return errors.New("Waiting for calls...")
-		}
-		return nil
-	}))
+	wg.Wait()
+	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
+	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
+	// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
+	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 
-	var n1Frauds []fraud.Proof
-	var n2Frauds []fraud.Proof
-	var err error
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Frauds, err = aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
-		if err != nil {
-			return err
-		}
-		n2Frauds, err = fullNode1.fraudService.Get(aggCtx, types.StateFraudProofType)
-		if err != nil {
-			return err
-		}
-		if !mockAssert.Equal(n1Frauds, n2Frauds) {
-			return errors.New("Fraud proofs not equal")
-		}
-		return nil
-	}))
+	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
 
+	n2Frauds, err := fullNode1.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	assert.Equal(n1Frauds, n2Frauds, "number of fraud proofs gossiped between nodes must match")
+
+	wg.Add(1)
+	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
 	require.NoError(fullNode2.Start())
 
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		if !apps[2].AssertNumberOfCalls(m, "VerifyFraudProof", 1) {
-			return errors.New("No VerifyFraudProof calls")
-		}
-		return nil
-	}))
-	//wg.Wait()
-
+	wg.Wait()
 	// fullnode2 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		if !apps[2].AssertNumberOfCalls(m, "GenerateFraudProof", 1) ||
-			!apps[2].AssertNumberOfCalls(m, "VerifyFraudProof", 1) {
-			return errors.New("Waiting for GenerateFraudProof and VerifyFraudProof")
-		}
+	apps[2].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
+	apps[2].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 
-		n3Frauds, err := fullNode2.fraudService.Get(aggCtx, types.StateFraudProofType)
-		if err != nil {
-			return err
-		}
-		if !mockAssert.Equal(n1Frauds, n3Frauds, "number of fraud proofs gossiped between nodes must match") {
-			return errors.New("n1Frauds and n3Frauds not equal")
-		}
-		return nil
-	}))
+	n3Frauds, err := fullNode2.fraudService.Get(aggCtx, types.StateFraudProofType)
+	require.NoError(err)
+	assert.Equal(n1Frauds, n3Frauds, "number of fraud proofs gossiped between nodes must match")
 
 	aggCancel()
 	require.NoError(aggNode.Stop())
@@ -615,7 +586,8 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 			}
 			return nil
 		})
-		require.NoError(t, err)
+		assert := assert.New(t)
+		assert.NoError(err)
 	}()
 	select {
 	case <-doneChan:
