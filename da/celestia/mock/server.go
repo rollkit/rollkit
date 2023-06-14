@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	mux2 "github.com/gorilla/mux"
@@ -237,16 +236,6 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		}
 		s.writeResponse(w, bytes)
 	}
-}
-
-func parseHeight(r *http.Request) (uint64, error) {
-	vars := mux2.Vars(r)
-
-	height, err := strconv.ParseUint(vars["height"], 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return height, nil
 }
 
 func (s *Server) writeResponse(w http.ResponseWriter, payload []byte) {
