@@ -13,6 +13,8 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	openrpc "github.com/rollkit/celestia-openrpc"
+	"github.com/rollkit/celestia-openrpc/types/blob"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
@@ -72,7 +74,7 @@ func (c *DataAvailabilityLayerClient) Stop() error {
 
 // SubmitBlock submits a block to DA layer.
 func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
-	blob, err := block.MarshalBinary()
+	data, err := block.MarshalBinary()
 	if err != nil {
 		return da.ResultSubmitBlock{
 			BaseResult: da.BaseResult{
@@ -82,7 +84,19 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	txResponse, err := c.rpc.State.SubmitPayForBlob(ctx, c.namespaceID[:], blob, math.NewInt(c.config.Fee), c.config.GasLimit)
+	blobs := []*blob.Blob{
+		{
+			Blob: tmproto.Blob{
+				NamespaceId:      c.namespaceID[:],
+				Data:             data,
+				ShareVersion:     0,
+				NamespaceVersion: 0,
+			},
+			Commitment: []byte{},
+		},
+	}
+
+	txResponse, err := c.rpc.State.SubmitPayForBlob(ctx, math.NewInt(c.config.Fee), c.config.GasLimit, blobs)
 
 	if err != nil {
 		return da.ResultSubmitBlock{
