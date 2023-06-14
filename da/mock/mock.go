@@ -227,7 +227,7 @@ func (m *DataAvailabilityLayerClient) updateDAHeight() {
 	blockStep := rand.Uint64()%10 + 1 //nolint:gosec
 	atomic.AddUint64(&m.daHeight, blockStep)
 	m.daHeadersLock.Lock()
-	m.daHeaders[m.daHeight] = getRandomHeader(8)
+	m.daHeaders[atomic.LoadUint64(&m.daHeight)] = getRandomHeader(8)
 	m.daHeadersLock.Unlock()
 
 }
