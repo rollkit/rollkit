@@ -6,9 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rollkit/rollkit/store"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/rollkit/rollkit/store"
 )
 
 func intInSlice(a int, list []int) bool {
