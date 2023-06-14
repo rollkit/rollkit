@@ -133,7 +133,14 @@ func isEqual(headerA, headerB *core.DataAvailabilityHeader) bool {
 
 // GetHeightByHeader returns the height for the given header.
 func (m *DataAvailabilityLayerClient) GetHeightByHeader(dah *core.DataAvailabilityHeader) uint64 {
-	for height, header := range m.daHeaders {
+	daHeight := atomic.LoadUint64(&m.daHeight)
+	for height := uint64(0); height < daHeight; height++ {
+		m.daHeadersLock.RLock()
+		header, ok := m.daHeaders[height]
+		m.daHeadersLock.RUnlock()
+		if !ok {
+			continue
+		}
 		if isEqual(header, dah) {
 			return height
 		}
