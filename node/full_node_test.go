@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"testing"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
+
+	testutils "github.com/celestiaorg/utils/test"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mempool"
@@ -47,7 +50,6 @@ func TestStartup(t *testing.T) {
 }
 
 func TestMempoolDirectly(t *testing.T) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	app := &mocks.Application{}
@@ -84,7 +86,10 @@ func TestMempoolDirectly(t *testing.T) {
 	})
 	require.NoError(err)
 
-	time.Sleep(1 * time.Second)
-
-	assert.Equal(int64(4*len("tx*")), node.Mempool.SizeBytes())
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		if int64(4*len("tx*")) == node.Mempool.SizeBytes() {
+			return nil
+		}
+		return fmt.Errorf("expected size %v, got size %v", int64(4*len("tx*")), node.Mempool.SizeBytes())
+	}))
 }
