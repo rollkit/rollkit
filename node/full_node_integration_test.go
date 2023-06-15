@@ -210,7 +210,7 @@ func TestLazyAggregator(t *testing.T) {
 
 func TestHeaderExchange(t *testing.T) {
 	testSingleAggreatorSingleFullNode(t)
-	TestSingleAggreatorTwoFullNode(t)
+	testSingleAggreatorTwoFullNode(t)
 	testSingleAggreatorSingleFullNodeTrustedHash(t)
 	testSingleAggreatorSingleFullNodeSingleLightNode(t)
 }
@@ -233,23 +233,16 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 
 	require.NoError(waitForAtLeastNBlocks(node2, 2))
 
-	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(node1.Stop())
 
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		n2h := node2.hExService.headerStore.Height()
-		if n1h != n2h {
-			return errors.New("Waiting for heights to be equal...")
-		} else {
-			return nil
-		}
-	}))
+	require.NoError(verifyNodesSynced(node1, node2))
+
 	cancel()
 	require.NoError(node2.Stop())
 }
 
-func TestSingleAggreatorTwoFullNode(t *testing.T) {
+func testSingleAggreatorTwoFullNode(t *testing.T) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -278,11 +271,8 @@ func TestSingleAggreatorTwoFullNode(t *testing.T) {
 }
 
 func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
-	assert := assert.New(t)
 	require := require.New(t)
 
-	// TODO: Replace this with a retry check
-	//var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 1
@@ -292,26 +282,23 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	node2 := nodes[1]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+
+	require.NoError(waitForFirstBlock(node1))
+
 	// Get the trusted hash from node1 and pass it to node2 config
 	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
 	require.NoError(err)
 	node2.conf.TrustedHash = trustedHash.Hash().String()
 	require.NoError(node2.Start())
 
-	time.Sleep(3 * time.Second)
+	require.NoError(waitForAtLeastNBlocks(node1, 2))
 
-	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(node1.Stop())
 
-	time.Sleep(3 * time.Second)
-
-	n2h := node2.hExService.headerStore.Height()
+	require.NoError(verifyNodesSynced(node1, node2))
 	cancel()
 	require.NoError(node2.Stop())
-
-	assert.Equal(n1h, n2h, "heights must match")
 }
 
 func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
