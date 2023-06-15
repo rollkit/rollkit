@@ -172,7 +172,7 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(err)
 
-	require.NoError(waitForFirstBlock(node))
+	require.NoError(waitForFirstBlock(node.(*FullNode)))
 
 	client := node.GetClient()
 

@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -38,16 +37,12 @@ func (m MockTester) Errorf(format string, args ...interface{}) {
 	fmt.Println("Errorf called")
 }
 
-func waitForFirstBlock(node Node) error {
+func waitForFirstBlock(node *FullNode) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		fn, ok := node.(*FullNode)
-		if !ok {
-			return errors.New("must provide a FullNode instance")
-		}
-		if fn.Store.Height() >= 1 {
+		if node.Store.Height() >= 1 {
 			return nil
 		}
-		return fmt.Errorf("node at height %v, expected >= 1", fn.Store.Height())
+		return fmt.Errorf("node at height %v, expected >= 1", node.Store.Height())
 	})
 }
 
