@@ -84,7 +84,7 @@ func (bExService *BlockExchangeService) tryInitBlockStoreAndStartSyncer(ctx cont
 }
 
 func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) {
-	// For genesis header initialize the store and start the syncer
+	// For genesis block initialize the store and start the syncer
 	if block.Height() == bExService.genesis.InitialHeight {
 		if err := bExService.blockStore.Init(ctx, block); err != nil {
 			bExService.logger.Error("failed to initialize block store", "error", err)
@@ -97,7 +97,7 @@ func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx contex
 
 	// Broadcast for subscribers
 	if err := bExService.sub.Broadcast(ctx, block); err != nil {
-		bExService.logger.Error("failed to broadcast block header", "error", err)
+		bExService.logger.Error("failed to broadcast block", "error", err)
 	}
 }
 
@@ -115,7 +115,7 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	if err = bExService.blockStore.Start(bExService.ctx); err != nil {
-		return fmt.Errorf("error while starting header store: %w", err)
+		return fmt.Errorf("error while starting block store: %w", err)
 	}
 
 	_, _, network := bExService.p2p.Info()
@@ -138,7 +138,7 @@ func (bExService *BlockExchangeService) Start() error {
 		return err
 	}
 
-	// Check if the headerstore is not initialized and try initializing
+	// Check if the blockStore is not initialized and try initializing
 	if bExService.blockStore.Height() > 0 {
 		if err := bExService.syncer.Start(bExService.ctx); err != nil {
 			return fmt.Errorf("error while starting the syncer: %w", err)
@@ -147,25 +147,25 @@ func (bExService *BlockExchangeService) Start() error {
 		return nil
 	}
 
-	// Look to see if trusted hash is passed, if not get the genesis header
+	// Look to see if trusted hash is passed, if not get the genesis block
 	var trustedBlock *types.Block
-	// Try fetching the trusted header from peers if exists
+	// Try fetching the trusted block from peers if exists
 	if len(peerIDs) > 0 {
 		if bExService.conf.TrustedHash != "" {
 			trustedHashBytes, err := hex.DecodeString(bExService.conf.TrustedHash)
 			if err != nil {
-				return fmt.Errorf("failed to parse the trusted hash for initializing the headerstore: %w", err)
+				return fmt.Errorf("failed to parse the trusted hash for initializing the blockstore: %w", err)
 			}
 
 			if trustedBlock, err = bExService.ex.Get(bExService.ctx, header.Hash(trustedHashBytes)); err != nil {
-				return fmt.Errorf("failed to fetch the trusted header for initializing the headerstore: %w", err)
+				return fmt.Errorf("failed to fetch the trusted block for initializing the blockStore: %w", err)
 			}
 		} else {
-			// Try fetching the genesis header if available, otherwise fallback to signed headers
+			// Try fetching the genesis block if available, otherwise fallback to blocks
 			if trustedBlock, err = bExService.ex.GetByHeight(bExService.ctx, uint64(bExService.genesis.InitialHeight)); err != nil {
-				// Full/light nodes have to wait for aggregator to publish the genesis header
-				// proposing aggregator can init the store and start the syncer when the first header is published
-				bExService.logger.Info("failed to fetch the genesis header", "error", err)
+				// Full/light nodes have to wait for aggregator to publish the genesis block
+				// proposing aggregator can init the store and start the syncer when the first block is published
+				bExService.logger.Info("failed to fetch the genesis block", "error", err)
 			}
 		}
 	}
