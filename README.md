@@ -41,7 +41,6 @@ There are currently 2 ways to build on Celestia:
 | local-celestia-devnet | v0.8.1     | v0.10.4       | v0.13.3      |
 | arabica               | v0.8.2-rc0 | v0.11.0-rc2   | v1.0.0-rc0   |
 
-
 | rollkit/cosmos-sdk                          | rollkit/cometbft                   | rollkit    |
 |---------------------------------------------|------------------------------------|------------|
 | v0.46.13-rollkit-v0.8.1-no-fraud-proofs     | v0.0.0-20230524013049-75272ebaee38 | v0.8.1     |
