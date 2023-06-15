@@ -78,7 +78,7 @@ func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context
 func (bExService *BlockExchangeService) tryInitBlockStoreAndStartSyncer(ctx context.Context, trustedBlock *types.Block) {
 	if trustedBlock != nil {
 		if err := bExService.initBlockStoreAndStartSyncer(ctx, trustedBlock); err != nil {
-			bExService.logger.Error("failed to initialize the headerstore and start syncer", "error", err)
+			bExService.logger.Error("failed to initialize the blockstore and start syncer", "error", err)
 		}
 	}
 }
@@ -106,7 +106,7 @@ func (bExService *BlockExchangeService) Start() error {
 	var err error
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := bExService.p2p.PubSub()
-	bExService.sub = goheaderp2p.NewSubscriber[*types.Block](ps, pubsub.DefaultMsgIdFn, bExService.genesis.ChainID)
+	bExService.sub = goheaderp2p.NewSubscriber[*types.Block](ps, pubsub.DefaultMsgIdFn, bExService.genesis.ChainID+"-block")
 	if err = bExService.sub.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -127,7 +127,7 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	peerIDs := bExService.p2p.PeerIDs()
-	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, network, bExService.genesis.ChainID, bExService.p2p.ConnectionGater()); err != nil {
+	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, network, bExService.genesis.ChainID+"-block", bExService.p2p.ConnectionGater()); err != nil {
 		return err
 	}
 	if err = bExService.ex.Start(bExService.ctx); err != nil {
