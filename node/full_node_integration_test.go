@@ -150,7 +150,7 @@ func TestLazyAggregator(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
+		BlockTime:   1 * time.Millisecond,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 
@@ -172,25 +172,49 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(err)
 
-	// delay to ensure it waits for block 1 to be built
-	time.Sleep(1 * time.Second)
+	// wait for 1st block to be built
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		fn, ok := node.(*FullNode)
+		assert.Equal(ok, true)
+		if fn.Store.Height() >= 1 {
+			return nil
+		} else {
+			fmt.Println("Retrying...")
+			return errors.New("awaiting first block...")
+		}
+	}))
 
 	client := node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
-	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(2))
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		if node.(*FullNode).Store.Height() == uint64(2) {
+			return nil
+		} else {
+			return errors.New("waiting for height == 2")
+		}
+	}))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
-	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(3))
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		if node.(*FullNode).Store.Height() == uint64(3) {
+			return nil
+		} else {
+			return errors.New("waiting for height == 3")
+		}
+	}))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
-	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(4))
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		if node.(*FullNode).Store.Height() == uint64(4) {
+			return nil
+		} else {
+			return errors.New("waiting for height == 4")
+		}
+	}))
 
 }
 
@@ -569,7 +593,6 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 
 	timeout := time.NewTimer(time.Second * 30)
 	doneChan := make(chan struct{})
-	// TODO: Replace this with a check for the nodes' DeliverTx calls
 	go func() {
 		defer close(doneChan)
 		// create a MockTester, to catch the Failed asserts from the Mock package
