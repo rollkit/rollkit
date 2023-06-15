@@ -34,6 +34,22 @@ There are currently 2 ways to build on Celestia:
 1. Using a local development environment with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
 1. Using the Arabica or Mocha Celestia testnet
 
+#### Compatibility
+
+| network               | rollkit    | celestia-node | celestia-app |
+|-----------------------|------------|---------------|--------------|
+| local-celestia-devnet | v0.8.1     | v0.10.4       | v0.13.3      |
+| arabica               | v0.8.2-rc0 | v0.11.0-rc2   | v1.0.0-rc0   |
+
+
+| rollkit/cosmos-sdk                          | rollkit/cometbft                   | rollkit    |
+|---------------------------------------------|------------------------------------|------------|
+| v0.46.13-rollkit-v0.8.1-no-fraud-proofs     | v0.0.0-20230524013049-75272ebaee38 | v0.8.1     |
+| v0.45.16-rollkit-v0.8.1-no-fraud-proofs     | v0.0.0-20230524013001-2968c8b8b121 | v0.8.1     |
+|                                             |                                    |            |
+| v0.46.13-rollkit-v0.8.2-rc0-no-fraud-proofs | v0.0.0-20230524013049-75272ebaee38 | v0.8.2-rc0 |
+| v0.45.16-rollkit-v0.8.2-rc0-no-fraud-proofs | v0.0.0-20230524013001-2968c8b8b121 | v0.8.2-rc0 |
+
 #### Local Development Environment
 
 The current Rollkit v0.8.1 release is compatible with the
