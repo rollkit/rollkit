@@ -172,17 +172,7 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(err)
 
-	// wait for 1st block to be built
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		fn, ok := node.(*FullNode)
-		assert.Equal(ok, true)
-		if fn.Store.Height() >= 1 {
-			return nil
-		} else {
-			fmt.Println("Retrying...")
-			return errors.New("awaiting first block...")
-		}
-	}))
+	waitForFirstBlock(assert, require, node)
 
 	client := node.GetClient()
 
@@ -229,8 +219,6 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	// TODO: Replace this with a retry check
-	//var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 	clientNodes := 1
@@ -240,22 +228,26 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 	node2 := nodes[1]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+
+	waitForFirstBlock(assert, require, node1)
 	require.NoError(node2.Start())
 
-	time.Sleep(3 * time.Second)
+	waitForAtLeastNBlocks(assert, require, node2, 2)
 
 	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(node1.Stop())
 
-	time.Sleep(3 * time.Second)
-
-	n2h := node2.hExService.headerStore.Height()
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		n2h := node2.hExService.headerStore.Height()
+		if n1h != n2h {
+			return errors.New("Waiting for heights to be equal...")
+		} else {
+			return nil
+		}
+	}))
 	cancel()
 	require.NoError(node2.Stop())
-
-	assert.Equal(n1h, n2h, "heights must match")
 }
 
 func testSingleAggreatorTwoFullNode(t *testing.T) {
