@@ -332,14 +332,7 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require.NoError(fullNode.Start())
 	require.NoError(lightNode.Start())
 
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		n3h := sequencer.(*FullNode).hExService.headerStore.Height()
-		if n3h >= 2 {
-			return nil
-		} else {
-			return errors.New("waiting for a few blocks...")
-		}
-	}))
+	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2))
 
 	n1h := sequencer.(*FullNode).hExService.headerStore.Height()
 	aggCancel()
@@ -381,7 +374,7 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 
 	wg.Add(clientNodes + 1)
 	require.NoError(aggNode.Start())
-	time.Sleep(2 * time.Second)
+	require.NoError(waitForAtLeastNBlocks(aggNode, 2))
 	require.NoError(fullNode.Start())
 
 	wg.Wait()
@@ -554,13 +547,14 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 
 	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
 	require.NoError(t, nodes[0].Start())
-	time.Sleep(1 * time.Second)
+	require.NoError(t, waitForFirstBlock(nodes[0]))
 	for i := 1; i < len(nodes); i++ {
 		require.NoError(t, nodes[i].Start())
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
-	time.Sleep(1 * time.Second)
+	//time.Sleep(1 * time.Second)
+	require.NoError(t, waitForAtLeastNBlocks(nodes[1], 2))
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
@@ -678,11 +672,6 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	if isMalicious && !aggregator {
 		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{BlockHeight: 1, FraudulentBeginBlock: &abci.RequestBeginBlock{Hash: []byte("123")}, ExpectedValidAppHash: nonMaliciousAppHash}})
 	}
-	// TODO: Replace this with a retry check
-	/*
-		app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
-			wg.Done()
-		})*/
 	if ctx == nil {
 		ctx = context.Background()
 	}
