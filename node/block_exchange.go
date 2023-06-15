@@ -39,24 +39,24 @@ type BlockExchangeService struct {
 	ctx    context.Context
 }
 
-func NewBlockExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderExchangeService, error) {
+func NewBlockExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*BlockExchangeService, error) {
 	// store is TxnDatastore, but we require Batching, hence the type assertion
 	// note, the badger datastore impl that is used in the background implements both
 	storeBatch, ok := store.(ds.Batching)
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	ss, err := goheaderstore.NewStore[*types.SignedHeader](storeBatch)
+	ss, err := goheaderstore.NewStore[*types.Block](storeBatch)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize the header store: %w", err)
+		return nil, fmt.Errorf("failed to initialize the block store: %w", err)
 	}
 
-	return &HeaderExchangeService{
+	return &BlockExchangeService{
 		conf:         conf,
 		genesis:      genesis,
 		p2p:          p2p,
 		ctx:          ctx,
-		headerStore:  ss,
+		blockStore:   ss,
 		logger:       logger,
 		syncerStatus: new(SyncerStatus),
 	}, nil
@@ -83,20 +83,20 @@ func (bExService *BlockExchangeService) tryInitBlockStoreAndStartSyncer(ctx cont
 	}
 }
 
-func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
+func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) {
 	// For genesis header initialize the store and start the syncer
-	if signedHeader.Height() == bExService.genesis.InitialHeight {
-		if err := bExService.blockStore.Init(ctx, signedHeader); err != nil {
-			bExService.logger.Error("failed to initialize header store", "error", err)
+	if block.Height() == bExService.genesis.InitialHeight {
+		if err := bExService.blockStore.Init(ctx, block); err != nil {
+			bExService.logger.Error("failed to initialize block store", "error", err)
 		}
 
 		if err := bExService.syncer.Start(bExService.ctx); err != nil {
-			bExService.logger.Error("failed to start syncer after initializing header store", "error", err)
+			bExService.logger.Error("failed to start syncer after initializing block store", "error", err)
 		}
 	}
 
 	// Broadcast for subscribers
-	if err := bExService.sub.Broadcast(ctx, signedHeader); err != nil {
+	if err := bExService.sub.Broadcast(ctx, block); err != nil {
 		bExService.logger.Error("failed to broadcast block header", "error", err)
 	}
 }
@@ -106,7 +106,7 @@ func (bExService *BlockExchangeService) Start() error {
 	var err error
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := bExService.p2p.PubSub()
-	bExService.sub = goheaderp2p.NewSubscriber[*types.SignedHeader](ps, pubsub.DefaultMsgIdFn, bExService.genesis.ChainID)
+	bExService.sub = goheaderp2p.NewSubscriber[*types.Block](ps, pubsub.DefaultMsgIdFn, bExService.genesis.ChainID)
 	if err = bExService.sub.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -119,7 +119,7 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	_, _, network := bExService.p2p.Info()
-	if bExService.p2pServer, err = newP2PServer(bExService.p2p.Host(), bExService.blockStore, network); err != nil {
+	if bExService.p2pServer, err = newBlockP2PServer(bExService.p2p.Host(), bExService.blockStore, network); err != nil {
 		return err
 	}
 	if err = bExService.p2pServer.Start(bExService.ctx); err != nil {
@@ -127,14 +127,14 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	peerIDs := bExService.p2p.PeerIDs()
-	if bExService.ex, err = newP2PExchange(bExService.p2p.Host(), peerIDs, network, bExService.genesis.ChainID, bExService.p2p.ConnectionGater()); err != nil {
+	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, network, bExService.genesis.ChainID, bExService.p2p.ConnectionGater()); err != nil {
 		return err
 	}
 	if err = bExService.ex.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	if bExService.syncer, err = newSyncer(bExService.ex, bExService.blockStore, bExService.sub, goheadersync.WithBlockTime(bExService.conf.BlockTime)); err != nil {
+	if bExService.syncer, err = newBlockSyncer(bExService.ex, bExService.blockStore, bExService.sub, goheadersync.WithBlockTime(bExService.conf.BlockTime)); err != nil {
 		return err
 	}
 
@@ -148,7 +148,7 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	// Look to see if trusted hash is passed, if not get the genesis header
-	var trustedHeader *types.SignedHeader
+	var trustedBlock *types.Block
 	// Try fetching the trusted header from peers if exists
 	if len(peerIDs) > 0 {
 		if bExService.conf.TrustedHash != "" {
@@ -157,12 +157,12 @@ func (bExService *BlockExchangeService) Start() error {
 				return fmt.Errorf("failed to parse the trusted hash for initializing the headerstore: %w", err)
 			}
 
-			if trustedHeader, err = bExService.ex.Get(bExService.ctx, header.Hash(trustedHashBytes)); err != nil {
+			if trustedBlock, err = bExService.ex.Get(bExService.ctx, header.Hash(trustedHashBytes)); err != nil {
 				return fmt.Errorf("failed to fetch the trusted header for initializing the headerstore: %w", err)
 			}
 		} else {
 			// Try fetching the genesis header if available, otherwise fallback to signed headers
-			if trustedHeader, err = bExService.ex.GetByHeight(bExService.ctx, uint64(bExService.genesis.InitialHeight)); err != nil {
+			if trustedBlock, err = bExService.ex.GetByHeight(bExService.ctx, uint64(bExService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis header
 				// proposing aggregator can init the store and start the syncer when the first header is published
 				bExService.logger.Info("failed to fetch the genesis header", "error", err)
@@ -191,14 +191,14 @@ func (bExService *BlockExchangeService) Stop() error {
 // newBlockP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
 func newBlockP2PServer(
 	host host.Host,
-	store *goheaderstore.Store[*types.SignedHeader],
+	store *goheaderstore.Store[*types.Block],
 	network string,
 	opts ...goheaderp2p.Option[goheaderp2p.ServerParameters],
-) (*goheaderp2p.ExchangeServer[*types.SignedHeader], error) {
+) (*goheaderp2p.ExchangeServer[*types.Block], error) {
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
 	)
-	return goheaderp2p.NewExchangeServer[*types.SignedHeader](host, store, opts...)
+	return goheaderp2p.NewExchangeServer[*types.Block](host, store, opts...)
 }
 
 func newBlockP2PExchange(
@@ -207,20 +207,20 @@ func newBlockP2PExchange(
 	network, chainID string,
 	conngater *conngater.BasicConnectionGater,
 	opts ...goheaderp2p.Option[goheaderp2p.ClientParameters],
-) (*goheaderp2p.Exchange[*types.SignedHeader], error) {
+) (*goheaderp2p.Exchange[*types.Block], error) {
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
 		goheaderp2p.WithChainID(chainID),
 	)
-	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
+	return goheaderp2p.NewExchange[*types.Block](host, peers, conngater, opts...)
 }
 
-// newBlockSyncer constructs new Syncer for headers.
+// newBlockSyncer constructs new Syncer for blocks.
 func newBlockSyncer(
-	ex header.Exchange[*types.SignedHeader],
-	store header.Store[*types.SignedHeader],
-	sub header.Subscriber[*types.SignedHeader],
+	ex header.Exchange[*types.Block],
+	store header.Store[*types.Block],
+	sub header.Subscriber[*types.Block],
 	opt goheadersync.Options,
-) (*goheadersync.Syncer[*types.SignedHeader], error) {
-	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
+) (*goheadersync.Syncer[*types.Block], error) {
+	return goheadersync.NewSyncer[*types.Block](ex, store, sub, opt)
 }

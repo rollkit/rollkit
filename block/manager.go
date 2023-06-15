@@ -60,6 +60,7 @@ type Manager struct {
 	daHeight uint64
 
 	HeaderCh chan *types.SignedHeader
+	BlockCh  chan *types.Block
 
 	blockInCh chan newBlockEvent
 	syncCache map[uint64]*types.Block
