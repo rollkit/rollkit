@@ -335,7 +335,6 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 }
 
 func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	// TODO: Replace this with a retry check
@@ -366,22 +365,32 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require.NoError(fullNode.Start())
 	require.NoError(lightNode.Start())
 
-	time.Sleep(3 * time.Second)
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		n3h := sequencer.(*FullNode).hExService.headerStore.Height()
+		if n3h >= 2 {
+			return nil
+		} else {
+			return errors.New("waiting for a few blocks...")
+		}
+	}))
 
 	n1h := sequencer.(*FullNode).hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(sequencer.Stop())
 
-	time.Sleep(3 * time.Second)
-
-	n2h := fullNode.(*FullNode).hExService.headerStore.Height()
-	n3h := lightNode.(*LightNode).hExService.headerStore.Height()
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		n2h := fullNode.(*FullNode).hExService.headerStore.Height()
+		n3h := lightNode.(*LightNode).hExService.headerStore.Height()
+		if n1h != n2h ||
+			n1h != n3h {
+			return errors.New("Waiting for header heights to be equal")
+		} else {
+			return nil
+		}
+	}))
 	cancel()
 	require.NoError(fullNode.Stop())
 	require.NoError(lightNode.Stop())
-
-	assert.Equal(n1h, n2h, "heights must match")
-	assert.Equal(n1h, n3h, "heights must match")
 }
 
 func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
