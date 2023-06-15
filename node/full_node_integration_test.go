@@ -172,7 +172,7 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(err)
 
-	waitForFirstBlock(assert, require, node)
+	require.NoError(waitForFirstBlock(node))
 
 	client := node.GetClient()
 
@@ -210,13 +210,12 @@ func TestLazyAggregator(t *testing.T) {
 
 func TestHeaderExchange(t *testing.T) {
 	testSingleAggreatorSingleFullNode(t)
-	testSingleAggreatorTwoFullNode(t)
+	TestSingleAggreatorTwoFullNode(t)
 	testSingleAggreatorSingleFullNodeTrustedHash(t)
 	testSingleAggreatorSingleFullNodeSingleLightNode(t)
 }
 
 func testSingleAggreatorSingleFullNode(t *testing.T) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -229,10 +228,10 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 
 	require.NoError(node1.Start())
 
-	waitForFirstBlock(assert, require, node1)
+	require.NoError(waitForFirstBlock(node1))
 	require.NoError(node2.Start())
 
-	waitForAtLeastNBlocks(assert, require, node2, 2)
+	require.NoError(waitForAtLeastNBlocks(node2, 2))
 
 	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
@@ -250,8 +249,7 @@ func testSingleAggreatorSingleFullNode(t *testing.T) {
 	require.NoError(node2.Stop())
 }
 
-func testSingleAggreatorTwoFullNode(t *testing.T) {
-	assert := assert.New(t)
+func TestSingleAggreatorTwoFullNode(t *testing.T) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -264,26 +262,16 @@ func testSingleAggreatorTwoFullNode(t *testing.T) {
 	node3 := nodes[2]
 
 	require.NoError(node1.Start())
-	waitForFirstBlock(assert, require, node1)
+	require.NoError(waitForFirstBlock(node1))
 	require.NoError(node2.Start())
 	require.NoError(node3.Start())
 
-	waitForAtLeastNBlocks(assert, require, node2, 2)
+	require.NoError(waitForAtLeastNBlocks(node2, 2))
 
-	n1h := node1.hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(node1.Stop())
 
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		n2h := node2.hExService.headerStore.Height()
-		n3h := node3.hExService.headerStore.Height()
-		if n1h != n2h ||
-			n1h != n3h {
-			return errors.New("Waiting for heights to be equal")
-		} else {
-			return nil
-		}
-	}))
+	require.NoError(verifyNodesSynced(node1, node2))
 	cancel()
 	require.NoError(node2.Stop())
 	require.NoError(node3.Stop())
