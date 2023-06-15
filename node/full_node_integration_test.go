@@ -407,7 +407,7 @@ func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	assert.Equal(n1Frauds, n2Frauds, "the received fraud proofs after gossip must match")
 }
 
-func TestSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
+func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -469,7 +469,7 @@ func TestSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
 
 func TestFraudProofService(t *testing.T) {
 	testSingleAggreatorSingleFullNodeFraudProofGossip(t)
-	TestSingleAggreatorTwoFullNodeFraudProofSync(t)
+	testSingleAggreatorTwoFullNodeFraudProofSync(t)
 }
 
 // TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
