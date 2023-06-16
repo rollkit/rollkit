@@ -12,7 +12,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	rpcproto "github.com/rollkit/celestia-openrpc/proto/blob/rollkit"
 
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/celestia-openrpc/types/blob"
@@ -87,7 +87,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 
 	blobs := []*blob.Blob{
 		{
-			Blob: tmproto.Blob{
+			Blob: rpcproto.Blob{
 				NamespaceId:      c.namespaceID[:],
 				Data:             data,
 				ShareVersion:     0,
