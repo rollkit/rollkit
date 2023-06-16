@@ -119,7 +119,7 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	_, _, network := bExService.p2p.Info()
-	if bExService.p2pServer, err = newBlockP2PServer(bExService.p2p.Host(), bExService.blockStore, network); err != nil {
+	if bExService.p2pServer, err = newBlockP2PServer(bExService.p2p.Host(), bExService.blockStore, network+"-block"); err != nil {
 		return err
 	}
 	if err = bExService.p2pServer.Start(bExService.ctx); err != nil {
@@ -127,7 +127,7 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	peerIDs := bExService.p2p.PeerIDs()
-	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, network, bExService.genesis.ChainID+"-block", bExService.p2p.ConnectionGater()); err != nil {
+	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, network+"-block", bExService.genesis.ChainID+"-block", bExService.p2p.ConnectionGater()); err != nil {
 		return err
 	}
 	if err = bExService.ex.Start(bExService.ctx); err != nil {
