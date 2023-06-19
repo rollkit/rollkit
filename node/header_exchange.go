@@ -40,6 +40,12 @@ type HeaderExchangeService struct {
 }
 
 func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderExchangeService, error) {
+	if genesis == nil {
+		return nil, errors.New("genesis doc cannot be nil")
+	}
+	if p2p == nil {
+		return nil, errors.New("p2p client cannot be nil")
+	}
 	// store is TxnDatastore, but we require Batching, hence the type assertion
 	// note, the badger datastore impl that is used in the background implements both
 	storeBatch, ok := store.(ds.Batching)
