@@ -63,6 +63,9 @@ func NewBlockExchangeService(ctx context.Context, store ds.TxnDatastore, conf co
 }
 
 func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context.Context, initial *types.Block) error {
+	if initial == nil {
+		return fmt.Errorf("failed to initialize the blockstore and start syncer")
+	}
 	if err := bExService.blockStore.Init(ctx, initial); err != nil {
 		return err
 	}
@@ -73,14 +76,6 @@ func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context
 	defer bExService.syncerStatus.m.Unlock()
 	bExService.syncerStatus.started = true
 	return nil
-}
-
-func (bExService *BlockExchangeService) tryInitBlockStoreAndStartSyncer(ctx context.Context, trustedBlock *types.Block) {
-	if trustedBlock != nil {
-		if err := bExService.initBlockStoreAndStartSyncer(ctx, trustedBlock); err != nil {
-			bExService.logger.Error("failed to initialize the blockstore and start syncer", "error", err)
-		}
-	}
 }
 
 func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) {
@@ -169,7 +164,12 @@ func (bExService *BlockExchangeService) Start() error {
 			}
 		}
 	}
-	go bExService.tryInitBlockStoreAndStartSyncer(bExService.ctx, trustedBlock)
+	if trustedBlock != nil {
+		err := bExService.initBlockStoreAndStartSyncer(bExService.ctx, trustedBlock)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

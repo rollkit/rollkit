@@ -63,6 +63,9 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 }
 
 func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.SignedHeader) error {
+	if initial == nil {
+		return fmt.Errorf("failed to initialize the headerstore and start syncer")
+	}
 	if err := hExService.headerStore.Init(ctx, initial); err != nil {
 		return err
 	}
@@ -75,14 +78,6 @@ func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx conte
 	return nil
 }
 
-func (hExService *HeaderExchangeService) tryInitHeaderStoreAndStartSyncer(ctx context.Context, trustedHeader *types.SignedHeader) {
-	if trustedHeader != nil {
-		if err := hExService.initHeaderStoreAndStartSyncer(ctx, trustedHeader); err != nil {
-			hExService.logger.Error("failed to initialize the headerstore and start syncer", "error", err)
-		}
-	}
-}
-
 func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
 	// For genesis header initialize the store and start the syncer
 	if signedHeader.Height() == hExService.genesis.InitialHeight {
@@ -93,6 +88,9 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 		if err := hExService.syncer.Start(hExService.ctx); err != nil {
 			hExService.logger.Error("failed to start syncer after initializing header store", "error", err)
 		}
+		hExService.syncerStatus.m.Lock()
+		defer hExService.syncerStatus.m.Unlock()
+		hExService.syncerStatus.started = true
 	}
 
 	// Broadcast for subscribers
@@ -169,7 +167,12 @@ func (hExService *HeaderExchangeService) Start() error {
 			}
 		}
 	}
-	go hExService.tryInitHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
+	if trustedHeader != nil {
+		err := hExService.initHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
