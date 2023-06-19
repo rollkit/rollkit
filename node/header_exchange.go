@@ -24,6 +24,9 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+// P2P Exchange Service for header that implements the go-header interface.
+// Contains a header store where synced headers are stored.
+// Uses the go-header library for handling all P2P logic.
 type HeaderExchangeService struct {
 	conf         config.NodeConfig
 	genesis      *tmtypes.GenesisDoc
