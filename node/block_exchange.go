@@ -72,21 +72,21 @@ func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context
 	if err := bExService.syncer.Start(bExService.ctx); err != nil {
 		return err
 	}
-	bExService.syncerStatus.m.Lock()
-	defer bExService.syncerStatus.m.Unlock()
-	bExService.syncerStatus.started = true
+	bExService.syncerStatus.setStarted()
 	return nil
 }
 
-func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) {
+// Initialize block store if needed and broadcasts provided block.
+// Note: Only returns an error in case block store can't be initialized. Logs error if there's one while broadcasting.
+func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
 	// For genesis block initialize the store and start the syncer
 	if block.Height() == bExService.genesis.InitialHeight {
 		if err := bExService.blockStore.Init(ctx, block); err != nil {
-			bExService.logger.Error("failed to initialize block store", "error", err)
+			return fmt.Errorf("failed to initialize block store")
 		}
 
 		if err := bExService.syncer.Start(bExService.ctx); err != nil {
-			bExService.logger.Error("failed to start syncer after initializing block store", "error", err)
+			return fmt.Errorf("failed to start syncer after initializing block store")
 		}
 	}
 
@@ -94,51 +94,55 @@ func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx contex
 	if err := bExService.sub.Broadcast(ctx, block); err != nil {
 		bExService.logger.Error("failed to broadcast block", "error", err)
 	}
+	return nil
+}
+
+func (bExService *BlockExchangeService) isInitialized() bool {
+	return bExService.blockStore.Height() > 0
 }
 
 // OnStart is a part of Service interface.
 func (bExService *BlockExchangeService) Start() error {
-	var err error
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := bExService.p2p.PubSub()
 	bExService.sub = goheaderp2p.NewSubscriber[*types.Block](ps, pubsub.DefaultMsgIdFn, bExService.genesis.ChainID+"-block")
-	if err = bExService.sub.Start(bExService.ctx); err != nil {
+	if err := bExService.sub.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
 	if _, err := bExService.sub.Subscribe(); err != nil {
 		return fmt.Errorf("error while subscribing: %w", err)
 	}
 
-	if err = bExService.blockStore.Start(bExService.ctx); err != nil {
+	if err := bExService.blockStore.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting block store: %w", err)
 	}
 
 	_, _, network := bExService.p2p.Info()
+	var err error
 	if bExService.p2pServer, err = newBlockP2PServer(bExService.p2p.Host(), bExService.blockStore, network+"-block"); err != nil {
-		return err
+		return fmt.Errorf("error while creating p2p server: %w", err)
 	}
-	if err = bExService.p2pServer.Start(bExService.ctx); err != nil {
+	if err := bExService.p2pServer.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting p2p server: %w", err)
 	}
 
 	peerIDs := bExService.p2p.PeerIDs()
 	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, network+"-block", bExService.genesis.ChainID+"-block", bExService.p2p.ConnectionGater()); err != nil {
-		return err
+		return fmt.Errorf("error while creating exchange: %w", err)
 	}
-	if err = bExService.ex.Start(bExService.ctx); err != nil {
+	if err := bExService.ex.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
 	if bExService.syncer, err = newBlockSyncer(bExService.ex, bExService.blockStore, bExService.sub, goheadersync.WithBlockTime(bExService.conf.BlockTime)); err != nil {
-		return err
+		return fmt.Errorf("error while creating syncer: %w", err)
 	}
 
-	// Check if the blockStore is not initialized and try initializing
-	if bExService.blockStore.Height() > 0 {
+	if bExService.isInitialized() {
 		if err := bExService.syncer.Start(bExService.ctx); err != nil {
 			return fmt.Errorf("error while starting the syncer: %w", err)
 		}
-		bExService.syncerStatus.started = true
+		bExService.syncerStatus.setStarted()
 		return nil
 	}
 
@@ -164,14 +168,10 @@ func (bExService *BlockExchangeService) Start() error {
 			}
 		}
 	}
-	if trustedBlock != nil {
-		err := bExService.initBlockStoreAndStartSyncer(bExService.ctx, trustedBlock)
-		if err != nil {
-			return err
-		}
+	if trustedBlock == nil {
+		return nil
 	}
-
-	return nil
+	return bExService.initBlockStoreAndStartSyncer(bExService.ctx, trustedBlock)
 }
 
 // OnStop is a part of Service interface.
@@ -180,9 +180,7 @@ func (bExService *BlockExchangeService) Stop() error {
 	err = multierr.Append(err, bExService.p2pServer.Stop(bExService.ctx))
 	err = multierr.Append(err, bExService.ex.Stop(bExService.ctx))
 	err = multierr.Append(err, bExService.sub.Stop(bExService.ctx))
-	bExService.syncerStatus.m.Lock()
-	defer bExService.syncerStatus.m.Unlock()
-	if bExService.syncerStatus.started {
+	if bExService.syncerStatus.getStarted() {
 		err = multierr.Append(err, bExService.syncer.Stop(bExService.ctx))
 	}
 	return err
