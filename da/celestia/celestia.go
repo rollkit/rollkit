@@ -15,10 +15,11 @@ import (
 
 	rpcproto "github.com/rollkit/celestia-openrpc/proto/blob/rollkit"
 
+	"github.com/celestiaorg/nmt/namespace"
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/celestia-openrpc/types/blob"
-	"github.com/rollkit/celestia-openrpc/types/namespace"
 
+	appns "github.com/rollkit/celestia-openrpc/types/namespace"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
@@ -29,9 +30,9 @@ import (
 type DataAvailabilityLayerClient struct {
 	rpc *openrpc.Client
 
-	namespaceID types.NamespaceID
-	config      Config
-	logger      log.Logger
+	namespace appns.Namespace
+	config    Config
+	logger    log.Logger
 }
 
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
@@ -50,7 +51,7 @@ type Config struct {
 
 // Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
-	c.namespaceID = namespaceID
+	c.namespace = appns.MustNewV0(namespaceID[:])
 	c.logger = logger
 
 	if len(config) > 0 {
@@ -90,7 +91,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 	blobs := []*blob.Blob{
 		{
 			Blob: rpcproto.Blob{
-				NamespaceId:      c.namespaceID[:],
+				NamespaceId:      c.namespace.Bytes(),
 				Data:             data,
 				ShareVersion:     0,
 				NamespaceVersion: 0,
@@ -179,8 +180,8 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	c.logger.Debug("querying GetAll blobs with params", "height", dataLayerHeight, "namespace", hex.EncodeToString(append([]byte{0x00}, c.namespaceID[:]...)))
-	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []namespace.ID{append([]byte{0x00}, c.namespaceID[:]...)})
+	c.logger.Debug("querying GetAll blobs with params", "height", dataLayerHeight, "namespace", hex.EncodeToString(c.namespace.Bytes()))
+	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []namespace.ID{c.namespace.ID})
 	status := dataRequestErrorToStatus(err)
 	if status != da.StatusSuccess {
 		return da.ResultRetrieveBlocks{
