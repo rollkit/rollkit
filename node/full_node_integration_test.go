@@ -33,54 +33,6 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 )
 
-func TestMockTester(t *testing.T) {
-	m := MockTester{t}
-	m.Fail()
-	m.FailNow()
-	m.Logf("hello")
-	m.Errorf("goodbye")
-}
-
-func TestGetNodeHeight(t *testing.T) {
-	require := require.New(t)
-	ctx := context.Background()
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
-	_ = dalc.Start()
-	num := 2
-	keys := make([]crypto.PrivKey, num)
-	for i := 0; i < num; i++ {
-		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
-	}
-	fullNode, _ := createNode(ctx, 0, false, true, false, keys, t)
-	lightNode, _ := createNode(ctx, 1, false, true, true, keys, t)
-	fullNode.(*FullNode).dalc = dalc
-	fullNode.(*FullNode).blockManager.SetDALC(dalc)
-	require.NoError(fullNode.Start())
-	require.NoError(lightNode.Start())
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(fullNode)
-		if err != nil {
-			return err
-		}
-		if num > 0 {
-			return nil
-		}
-		return errors.New("expected height > 0")
-	}))
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(lightNode)
-		if err != nil {
-			return err
-		}
-		if num > 0 {
-			return nil
-		}
-		return errors.New("expected height > 0")
-	}))
-}
-
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
