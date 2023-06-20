@@ -51,7 +51,8 @@ type Config struct {
 
 // Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
-	c.namespace = appns.MustNewV0(namespaceID[:])
+	// FIXME: prefix 2 zero bytes for compat
+	c.namespace = appns.MustNewV0(append([]byte{0x00, 0x00}, namespaceID[:]...))
 	c.logger = logger
 
 	if len(config) > 0 {
@@ -91,7 +92,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 	blobs := []*blob.Blob{
 		{
 			Blob: rpcproto.Blob{
-				NamespaceId:      c.namespace.Bytes(),
+				NamespaceId:      c.namespace.ID,
 				Data:             data,
 				ShareVersion:     0,
 				NamespaceVersion: 0,
@@ -181,7 +182,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	c.logger.Debug("querying GetAll blobs with params", "height", dataLayerHeight, "namespace", hex.EncodeToString(c.namespace.Bytes()))
-	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []namespace.ID{c.namespace.ID})
+	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []namespace.ID{c.namespace.Bytes()})
 	status := dataRequestErrorToStatus(err)
 	if status != da.StatusSuccess {
 		return da.ResultRetrieveBlocks{
