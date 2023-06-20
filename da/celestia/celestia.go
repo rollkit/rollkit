@@ -16,6 +16,7 @@ import (
 	rpcproto "github.com/rollkit/celestia-openrpc/proto/blob/rollkit"
 
 	"github.com/celestiaorg/nmt/namespace"
+
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/celestia-openrpc/types/blob"
 
