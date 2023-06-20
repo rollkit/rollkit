@@ -69,9 +69,12 @@ func verifyNodesSynced(node1, node2 *FullNode) error {
 	})
 }
 
-func waitForAtLeastNBlocks(node *FullNode, n int) error {
+func waitForAtLeastNBlocks(node Node, n int) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		nHeight := node.Store.Height()
+		nHeight, err := getNodeHeight(node)
+		if err != nil {
+			return err
+		}
 		if nHeight >= uint64(n) {
 			return nil
 		}

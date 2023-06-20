@@ -33,6 +33,14 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 )
 
+func TestMockTester(t *testing.T) {
+	m := MockTester{t}
+	m.Fail()
+	m.FailNow()
+	m.Logf("hello")
+	m.Errorf("goodbye")
+}
+
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
