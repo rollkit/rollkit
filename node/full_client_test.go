@@ -3,12 +3,14 @@ package node
 import (
 	"context"
 	crand "crypto/rand"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
 	"time"
 
+	testutils "github.com/celestiaorg/utils/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -764,7 +766,7 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func createGenesisValidators(numNodes int, appCreator func(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application, require *require.Assertions, wg *sync.WaitGroup) *FullClient {
+func createGenesisValidators(numNodes int, appCreator func(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey) *mocks.Application, require *require.Assertions) (*FullClient, *mocks.Application) {
 	vKeys := make([]tmcrypto.PrivKey, numNodes)
 	apps := make([]*mocks.Application, numNodes)
 	nodes := make([]*FullNode, numNodes)
@@ -773,8 +775,7 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
 		genesisValidators[i] = tmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
-		apps[i] = appCreator(require, vKeys[0], wg)
-		wg.Add(1)
+		apps[i] = appCreator(require, vKeys[0])
 	}
 
 	dalc := &mockda.DataAvailabilityLayerClient{}
@@ -822,7 +823,7 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 		err := nodes[i].Start()
 		require.NoError(err)
 	}
-	return rpc
+	return rpc, apps[0]
 }
 
 func checkValSet(rpc *FullClient, assert *assert.Assertions, h int64, expectedValCount int) {
@@ -843,7 +844,7 @@ func checkValSetLatest(rpc *FullClient, assert *assert.Assertions, lastBlockHeig
 	assert.GreaterOrEqual(vals.BlockHeight, lastBlockHeight)
 }
 
-func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application {
+func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey) *mocks.Application {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
@@ -860,9 +861,7 @@ func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, wg *s
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
-		wg.Done()
-	}).Once()
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	return app
 }
@@ -872,12 +871,16 @@ func TestValidatorSetHandling(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	var wg sync.WaitGroup
-
 	numNodes := 2
-	rpc := createGenesisValidators(numNodes, createApp, require, &wg)
+	rpc, app := createGenesisValidators(numNodes, createApp, require)
 
-	wg.Wait()
+	m := MockTester{t: t}
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		if app.AssertNumberOfCalls(m, "EndBlock", 11) {
+			return nil
+		}
+		return errors.New("EndBlock not called 11 times")
+	}))
 
 	// test first blocks
 	for h := int64(1); h <= 3; h++ {
@@ -903,11 +906,16 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	var wg sync.WaitGroup
 	numNodes := 1
-	rpc := createGenesisValidators(numNodes, createApp, require, &wg)
+	rpc, app := createGenesisValidators(numNodes, createApp, require)
 
-	wg.Wait()
+	m := MockTester{t: t}
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		if app.AssertNumberOfCalls(m, "EndBlock", 11) {
+			return nil
+		}
+		return errors.New("EndBlock not called 11 times")
+	}))
 
 	time.Sleep(100 * time.Millisecond)
 
