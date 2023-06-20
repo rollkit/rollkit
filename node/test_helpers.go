@@ -1,6 +1,7 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -41,10 +42,26 @@ func waitForFirstBlock(node *FullNode) error {
 	return waitForAtLeastNBlocks(node, 1)
 }
 
+func getNodeHeight(node Node) (uint64, error) {
+	if fn, ok := node.(*FullNode); ok {
+		return fn.hExService.conf.DAStartHeight, nil
+	}
+	if ln, ok := node.(*LightNode); ok {
+		return ln.hExService.conf.DAStartHeight, nil
+	}
+	return 0, errors.New("not a full or light node")
+}
+
 func verifyNodesSynced(node1, node2 *FullNode) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height := node1.Store.Height()
-		n2Height := node2.Store.Height()
+		n1Height, err := getNodeHeight(node1)
+		if err != nil {
+			return err
+		}
+		n2Height, err := getNodeHeight(node2)
+		if err != nil {
+			return err
+		}
 		if n1Height == n2Height {
 			return nil
 		}
