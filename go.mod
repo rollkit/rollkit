@@ -22,7 +22,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.10.0
 	github.com/prometheus/client_golang v1.16.0
-	github.com/rollkit/celestia-openrpc v0.0.0-20230531022214-505ff801e818
+	github.com/rollkit/celestia-openrpc v0.0.0-20230621010435-2e19c34780dc
 	github.com/rs/cors v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
@@ -41,7 +41,6 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.15.0 // indirect
 	github.com/celestiaorg/rsmt2d v0.9.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

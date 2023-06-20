@@ -12,10 +12,9 @@ import (
 
 	mux2 "github.com/gorilla/mux"
 
-	"github.com/rollkit/celestia-openrpc/types/core"
+	"github.com/rollkit/celestia-openrpc/types/blob"
 	"github.com/rollkit/celestia-openrpc/types/header"
 	"github.com/rollkit/celestia-openrpc/types/sdk"
-	"github.com/rollkit/celestia-openrpc/types/share"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
@@ -121,7 +120,8 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, err)
 			return
 		}
-		dah := s.mock.GetHeaderByHeight(uint64(params[0].(float64)))
+		height := uint64(params[0].(float64))
+		dah := s.mock.GetHeaderByHeight(height)
 		resp := &response{
 			Jsonrpc: "2.0",
 			Result: header.ExtendedHeader{
@@ -129,6 +129,37 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			},
 			ID:    req.ID,
 			Error: nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
+	case "blob.GetAll":
+		var params []interface{}
+		err := json.Unmarshal(req.Params, &params)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		height := params[0].(float64)
+		block := s.mock.RetrieveBlocks(r.Context(), uint64(height))
+		blobs := make([]blob.Blob, len(block.Blocks))
+		for i, block := range block.Blocks {
+			data, err := block.MarshalBinary()
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			blobs[i].Data = data
+
+		}
+		resp := &response{
+			Jsonrpc: "2.0",
+			Result:  blobs,
+			ID:      req.ID,
+			Error:   nil,
 		}
 		bytes, err := json.Marshal(resp)
 		if err != nil {
@@ -148,54 +179,6 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.writeResponse(w, bytes)
-	case "share.GetSharesByNamespace":
-		var params []interface{}
-		err := json.Unmarshal(req.Params, &params)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		header := &core.DataAvailabilityHeader{}
-		dah := params[0].(map[string]interface{})
-		for _, rowRoot := range dah["row_roots"].([]interface{}) {
-			root, err := base64.StdEncoding.DecodeString(rowRoot.(string))
-			if err != nil {
-				s.writeError(w, err)
-				return
-			}
-			header.RowsRoots = append(header.RowsRoots, root)
-		}
-		for _, colRoot := range dah["column_roots"].([]interface{}) {
-			root, err := base64.StdEncoding.DecodeString(colRoot.(string))
-			if err != nil {
-				s.writeError(w, err)
-				return
-			}
-			header.ColumnRoots = append(header.ColumnRoots, root)
-		}
-		height := s.mock.GetHeightByHeader(header)
-		block := s.mock.RetrieveBlocks(r.Context(), height)
-		row := share.NamespacedRow{}
-		for _, block := range block.Blocks {
-			share, err := block.MarshalBinary()
-			if err != nil {
-				s.writeError(w, err)
-				return
-			}
-			row.Shares = append(row.Shares, share)
-		}
-		resp := &response{
-			Jsonrpc: "2.0",
-			Result:  share.NamespacedShares{row},
-			ID:      req.ID,
-			Error:   nil,
-		}
-		bytes, err := json.Marshal(resp)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		s.writeResponse(w, bytes)
 	case "state.SubmitPayForBlob":
 		var params []interface{}
 		err := json.Unmarshal(req.Params, &params)
@@ -203,12 +186,12 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, err)
 			return
 		}
-		if len(params) != 4 {
-			s.writeError(w, errors.New("expected 4 params"))
+		if len(params) != 3 {
+			s.writeError(w, errors.New("expected 3 params"))
 			return
 		}
 		block := types.Block{}
-		blockBase64 := params[1].(string)
+		blockBase64 := params[2].([]interface{})[0].(map[string]interface{})["data"].(string)
 		blockData, err := base64.StdEncoding.DecodeString(blockBase64)
 		if err != nil {
 			s.writeError(w, err)

@@ -86,8 +86,8 @@ github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBT
 github.com/btcsuite/btcd v0.0.0-20190523000118-16327141da8c/go.mod h1:3J08xEfcugPacsc34/LKRU2yO7YmuT8yt28J8k2+rrI=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.21.0-beta/go.mod h1:ZSWyehm27aAuS9bvkATT+Xte3hjHZ+MRgMY/8NJ7K94=
+github.com/btcsuite/btcd v0.22.0-beta h1:LTDpDKUM5EeOFBPM8IXpinEcmZ6FWfNZbE3lfrfdnWo=
 github.com/btcsuite/btcd v0.22.0-beta/go.mod h1:9n5ntfhhHQBIhUvlhDvD3Qg6fRUj4jkN0VB8L8svzOA=
-github.com/btcsuite/btcd v0.22.1 h1:CnwP9LM/M9xuRrGSCGeMVs9iv09uMqwsVX7EeIpgV2c=
 github.com/btcsuite/btcd/btcec/v2 v2.3.2 h1:5n0X6hX0Zk+6omWcihdYvdAlGf2DfasC0GMf7DClJ3U=
 github.com/btcsuite/btcd/btcec/v2 v2.3.2/go.mod h1:zYzJ8etWJQIv1Ogk7OzpWjowwOdXY1W/17j2MW85J04=
 github.com/btcsuite/btcd/btcutil v1.1.3 h1:xfbtw8lwpp0G6NwSHb+UE67ryTFHJAiNuipusjXSohQ=
@@ -116,8 +116,8 @@ github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
-github.com/celestiaorg/nmt v0.15.0 h1:ID9QlMIeP6WK/iiGcfnYLu2qqVIq0UYe/dc3TVPt6EA=
-github.com/celestiaorg/nmt v0.15.0/go.mod h1:GfwIvQPhUakn1modWxJ+rv8dUjJzuXg5H+MLFM1o7nY=
+github.com/celestiaorg/nmt v0.16.0 h1:4CX6d1Uwf1C+tGcAWskPve0HCDTnI4Ey8ffjiDwcGH0=
+github.com/celestiaorg/nmt v0.16.0/go.mod h1:GfwIvQPhUakn1modWxJ+rv8dUjJzuXg5H+MLFM1o7nY=
 github.com/celestiaorg/rsmt2d v0.9.0 h1:kon78I748ZqjNzI8OAqPN+2EImuZuanj/6gTh8brX3o=
 github.com/celestiaorg/rsmt2d v0.9.0/go.mod h1:E06nDxfoeBDltWRvTR9dLviiUZI5/6mLXAuhSJzz3Iw=
 github.com/celestiaorg/utils v0.1.0 h1:WsP3O8jF7jKRgLNFmlDCwdThwOFMFxg0MnqhkLFVxPo=
@@ -927,9 +927,9 @@ github.com/regen-network/protobuf v1.3.2-alpha.regen.4 h1:c9jEnU+xm6vqyrQe3M94UF
 github.com/regen-network/protobuf v1.3.2-alpha.regen.4/go.mod h1:/J8/bR1T/NXyIdQDLUaq15LjNE83nRzkyrLAMcPewig=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
-github.com/rogpeppe/go-internal v1.9.0 h1:73kH8U+JUqXU8lRuOHeVHaa/SZPifC7BkcraZVejAe8=
-github.com/rollkit/celestia-openrpc v0.0.0-20230531022214-505ff801e818 h1:L7WGAGjCO01pKGmnFCm3cVs+kjga1okEsy1s5J0doR0=
-github.com/rollkit/celestia-openrpc v0.0.0-20230531022214-505ff801e818/go.mod h1:eDBRyA4NoVLTGRXUxMb50/sW456UIptRAqixUqocg3Q=
+github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
+github.com/rollkit/celestia-openrpc v0.0.0-20230621010435-2e19c34780dc h1:Sjvl4erORxNIeQQ3eisNiqOz27+HgspkfMJi3kXIE3I=
+github.com/rollkit/celestia-openrpc v0.0.0-20230621010435-2e19c34780dc/go.mod h1:uBkgsBOYQTUcns/yCBREfMKWfH2miXeJBTvbER5pzmo=
 github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121 h1:kMzxCUzXcdk318N/G2E7U0GXrq6yqczjFRs2RZvIUeE=
 github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121/go.mod h1:Xc6G7GTlHAjeH3l5H8WibF/YrcCR6iDgAGrXVWkMwiU=
 github.com/rs/cors v1.9.0 h1:l9HGsTsHJcvW14Nk7J9KFz8bzeAWXn3CG6bgt7LsrAE=
