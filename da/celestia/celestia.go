@@ -155,7 +155,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 	}
 	err = c.rpc.Share.SharesAvailable(ctx, header.DAH)
 	if err != nil {
-		if err.Error() == ErrNotAvailable.Error() {
+		if strings.Contains(err.Error(), ErrNotAvailable.Error()) {
 			return da.ResultCheckBlock{
 				BaseResult: da.BaseResult{
 					Code:     da.StatusSuccess,
