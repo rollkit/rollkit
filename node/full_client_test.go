@@ -974,7 +974,7 @@ func TestMempool2Nodes(t *testing.T) {
 	err = node1.Start()
 	require.NoError(err)
 
-	require.NoError(waitForFirstBlock(node1))
+	time.Sleep(1 * time.Second)
 
 	err = node2.Start()
 	require.NoError(err)

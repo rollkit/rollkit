@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -38,20 +37,19 @@ func (m MockTester) Errorf(format string, args ...interface{}) {
 	fmt.Println("Errorf called")
 }
 
-func waitForFirstBlock(node Node) error {
-	return waitForAtLeastNBlocks(node, 1)
+func waitForFirstBlock(node *FullNode) error {
+	return testutils.Retry(300, 100*time.Millisecond, func() error {
+		if node.Store.Height() >= 1 {
+			return nil
+		}
+		return fmt.Errorf("node at height %v, expected >= 1", node.Store.Height())
+	})
 }
 
-func verifyNodesSynced(node1, node2 Node) error {
+func verifyNodesSynced(node1, node2 *FullNode) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1)
-		if err != nil {
-			return err
-		}
-		n2Height, err := getNodeHeight(node2)
-		if err != nil {
-			return err
-		}
+		n1Height := node1.Store.Height()
+		n2Height := node2.Store.Height()
 		if n1Height == n2Height {
 			return nil
 		}
@@ -59,22 +57,9 @@ func verifyNodesSynced(node1, node2 Node) error {
 	})
 }
 
-func getNodeHeight(node Node) (uint64, error) {
-	if fn, ok := node.(*FullNode); ok {
-		return fn.hExService.headerStore.Height(), nil
-	}
-	if ln, ok := node.(*LightNode); ok {
-		return ln.hExService.headerStore.Height(), nil
-	}
-	return 0, errors.New("not a full node or light node")
-}
-
-func waitForAtLeastNBlocks(node Node, n int) error {
-	nHeight, err := getNodeHeight(node)
-	if err != nil {
-		return err
-	}
+func waitForAtLeastNBlocks(node *FullNode, n int) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
+		nHeight := node.Store.Height()
 		if nHeight >= uint64(n) {
 			return nil
 		}
