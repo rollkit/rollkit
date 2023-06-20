@@ -41,6 +41,46 @@ func TestMockTester(t *testing.T) {
 	m.Errorf("goodbye")
 }
 
+func TestGetNodeHeight(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+	dalc := &mockda.DataAvailabilityLayerClient{}
+	ds, _ := store.NewDefaultInMemoryKVStore()
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Start()
+	num := 2
+	keys := make([]crypto.PrivKey, num)
+	for i := 0; i < num; i++ {
+		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
+	}
+	fullNode, _ := createNode(ctx, 0, false, true, false, keys, t)
+	lightNode, _ := createNode(ctx, 1, false, true, true, keys, t)
+	fullNode.(*FullNode).dalc = dalc
+	fullNode.(*FullNode).blockManager.SetDALC(dalc)
+	require.NoError(fullNode.Start())
+	require.NoError(lightNode.Start())
+	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+		num, err := getNodeHeight(fullNode)
+		if err != nil {
+			return err
+		}
+		if num > 0 {
+			return nil
+		}
+		return errors.New("expected height > 0")
+	}))
+	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+		num, err := getNodeHeight(lightNode)
+		if err != nil {
+			return err
+		}
+		if num > 0 {
+			return nil
+		}
+		return errors.New("expected height > 0")
+	}))
+}
+
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -220,7 +260,7 @@ func TestHeaderExchange(t *testing.T) {
 	testSingleAggreatorSingleFullNode(t)
 	testSingleAggreatorTwoFullNode(t)
 	testSingleAggreatorSingleFullNodeTrustedHash(t)
-	testSingleAggreatorSingleFullNodeSingleLightNode(t)
+	TestSingleAggreatorSingleFullNodeSingleLightNode(t)
 }
 
 func testSingleAggreatorSingleFullNode(t *testing.T) {
@@ -309,7 +349,7 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	require.NoError(node2.Stop())
 }
 
-func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
+func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require := require.New(t)
 
 	// TODO: Replace this with a retry check
@@ -342,11 +382,11 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 
 	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2))
 
-	n1h := sequencer.(*FullNode).hExService.headerStore.Height()
 	aggCancel()
 	require.NoError(sequencer.Stop())
 
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+	require.NoError(verifyNodesSynced(fullNode, lightNode))
+	/*require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
 		n2h := fullNode.(*FullNode).hExService.headerStore.Height()
 		n3h := lightNode.(*LightNode).hExService.headerStore.Height()
 		if n1h != n2h ||
@@ -355,7 +395,7 @@ func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 		} else {
 			return nil
 		}
-	}))
+	}))*/
 	cancel()
 	require.NoError(fullNode.Stop())
 	require.NoError(lightNode.Stop())

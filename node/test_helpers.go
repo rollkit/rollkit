@@ -52,7 +52,7 @@ func getNodeHeight(node Node) (uint64, error) {
 	return 0, errors.New("not a full or light node")
 }
 
-func verifyNodesSynced(node1, node2 *FullNode) error {
+func verifyNodesSynced(node1, node2 Node) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
 		n1Height, err := getNodeHeight(node1)
 		if err != nil {
