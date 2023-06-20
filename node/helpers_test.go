@@ -9,10 +9,11 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/store"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
+
+	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/store"
 )
 
 func TestMockTester(t *testing.T) {
