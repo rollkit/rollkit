@@ -13,8 +13,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
-	rpcproto "github.com/rollkit/celestia-openrpc/proto/blob/rollkit"
-
 	"github.com/celestiaorg/nmt/namespace"
 
 	openrpc "github.com/rollkit/celestia-openrpc"
@@ -92,13 +90,10 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 
 	blobs := []*blob.Blob{
 		{
-			Blob: rpcproto.Blob{
-				NamespaceId:      c.namespace.ID,
-				Data:             data,
-				ShareVersion:     0,
-				NamespaceVersion: 0,
-			},
-			Commitment: []byte{},
+			Namespace:        c.namespace.ID,
+			Data:             data,
+			ShareVersion:     0,
+			NamespaceVersion: uint32(c.namespace.Version),
 		},
 	}
 
