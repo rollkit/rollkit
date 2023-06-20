@@ -311,7 +311,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	}
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([28]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, t)
 	fullNode, _ := createNode(ctx, 1, false, false, false, keys, t)
@@ -533,7 +533,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *test
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([28]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, t)
 	apps[0] = app

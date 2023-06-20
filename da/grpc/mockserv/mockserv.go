@@ -18,7 +18,7 @@ import (
 func GetServer(kv ds.Datastore, conf grpcda.Config, mockConfig []byte, logger tmlog.Logger) *grpc.Server {
 	srv := grpc.NewServer()
 	mockImpl := &mockImpl{}
-	err := mockImpl.mock.Init([28]byte{}, mockConfig, kv, logger)
+	err := mockImpl.mock.Init([8]byte{}, mockConfig, kv, logger)
 	if err != nil {
 		logger.Error("failed to initialize mock DALC", "error", err)
 		panic(err)
