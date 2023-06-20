@@ -2,6 +2,7 @@ package celestia
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/celestia-openrpc/types/blob"
+	"github.com/rollkit/celestia-openrpc/types/namespace"
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
@@ -108,6 +110,8 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
+	c.logger.Debug("suucessfully submitted PayForBlob transaction", "height", txResponse.Height, "hash", txResponse.TxHash)
+
 	if txResponse.Code != 0 {
 		return da.ResultSubmitBlock{
 			BaseResult: da.BaseResult{
@@ -175,53 +179,34 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	header, err := c.rpc.Header.GetByHeight(ctx, dataLayerHeight)
-	if err != nil {
+	c.logger.Debug("querying GetAll blobs with params", "height", dataLayerHeight, "namespace", hex.EncodeToString(append([]byte{0x00}, c.namespaceID[:]...)))
+	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []namespace.ID{append([]byte{0x00}, c.namespaceID[:]...)})
+	status := dataRequestErrorToStatus(err)
+	if status != da.StatusSuccess {
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
-	}
-	rows, err := c.rpc.Share.GetSharesByNamespace(ctx, header.DAH, c.namespaceID[:])
-	if err != nil {
-		var code da.StatusCode
-		if strings.Contains(err.Error(), da.ErrDataNotFound.Error()) || strings.Contains(err.Error(), da.ErrEDSNotFound.Error()) {
-			code = da.StatusNotFound
-		} else {
-			code = da.StatusError
-		}
-		return da.ResultRetrieveBlocks{
-			BaseResult: da.BaseResult{
-				Code:    code,
+				Code:    status,
 				Message: err.Error(),
 			},
 		}
 	}
 
-	size := 0
-	for _, row := range rows {
-		size += len(row.Shares)
-	}
-	blocks := make([]*types.Block, size)
-	for _, row := range rows {
-		for i, share := range row.Shares {
-			var block pb.Block
-			err = proto.Unmarshal(share, &block)
-			if err != nil {
-				c.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
-				continue
-			}
-			blocks[i] = new(types.Block)
-			err := blocks[i].FromProto(&block)
-			if err != nil {
-				return da.ResultRetrieveBlocks{
-					BaseResult: da.BaseResult{
-						Code:    da.StatusError,
-						Message: err.Error(),
-					},
-				}
+	blocks := make([]*types.Block, len(blobs))
+	for i, blob := range blobs {
+		var block pb.Block
+		err = proto.Unmarshal(blob.Data, &block)
+		if err != nil {
+			c.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
+			continue
+		}
+		blocks[i] = new(types.Block)
+		err := blocks[i].FromProto(&block)
+		if err != nil {
+			return da.ResultRetrieveBlocks{
+				BaseResult: da.BaseResult{
+					Code:    da.StatusError,
+					Message: err.Error(),
+				},
 			}
 		}
 	}
