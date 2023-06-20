@@ -44,10 +44,10 @@ func waitForFirstBlock(node *FullNode) error {
 
 func getNodeHeight(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.hExService.conf.DAStartHeight, nil
+		return fn.hExService.headerStore.Height(), nil
 	}
 	if ln, ok := node.(*LightNode); ok {
-		return ln.hExService.conf.DAStartHeight, nil
+		return ln.hExService.headerStore.Height(), nil
 	}
 	return 0, errors.New("not a full or light node")
 }
