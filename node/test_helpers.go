@@ -38,12 +38,7 @@ func (m MockTester) Errorf(format string, args ...interface{}) {
 }
 
 func waitForFirstBlock(node *FullNode) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		if node.Store.Height() >= 1 {
-			return nil
-		}
-		return fmt.Errorf("node at height %v, expected >= 1", node.Store.Height())
-	})
+	return waitForAtLeastNBlocks(node, 1)
 }
 
 func verifyNodesSynced(node1, node2 *FullNode) error {
