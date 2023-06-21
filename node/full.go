@@ -300,7 +300,7 @@ func (n *FullNode) OnStart() error {
 	// since p2p pubsub and host are required to create ProofService,
 	// we have to delay the construction until Start and use the help of ProofServiceFactory
 	n.fraudService = n.proofServiceFactory.CreateProofService()
-	n.fraudService.AddVerifier(types.StateFraudProofType, func(fraudProof fraud.Proof) (bool, error) {
+	if err := n.fraudService.AddVerifier(types.StateFraudProofType, func(fraudProof fraud.Proof) (bool, error) {
 		stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
 		if !ok {
 			return false, errors.New("unknown fraud proof")
@@ -315,7 +315,9 @@ func (n *FullNode) OnStart() error {
 			return false, err
 		}
 		return resp.Success, nil
-	})
+	}); err != nil {
+		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
+	}
 	if err = n.fraudService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}

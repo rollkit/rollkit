@@ -120,7 +120,7 @@ func (ln *LightNode) OnStart() error {
 	}
 
 	ln.fraudService = ln.proofServiceFactory.CreateProofService()
-	ln.fraudService.AddVerifier(types.StateFraudProofType, func(fraudProof fraud.Proof) (bool, error) {
+	if err := ln.fraudService.AddVerifier(types.StateFraudProofType, func(fraudProof fraud.Proof) (bool, error) {
 		stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
 		if !ok {
 			return false, errors.New("unknown fraud proof")
@@ -135,7 +135,9 @@ func (ln *LightNode) OnStart() error {
 			return false, err
 		}
 		return resp.Success, nil
-	})
+	}); err != nil {
+		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
+	}
 	if err := ln.fraudService.Start(ln.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
