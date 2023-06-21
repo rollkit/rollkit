@@ -34,7 +34,7 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 		return errors.New("Last header hash does not match hash of previous header")
 	}
 	if !bytes.Equal(untrstH.LastCommitHash[:], sH.getLastCommitHash()) {
-		return errors.New("Last header hash does not match hash of previous header")
+		return errors.New("Last commit hash does not match hash of previous header")
 	}
 	return sH.Header.Verify(&untrstH.Header)
 }
