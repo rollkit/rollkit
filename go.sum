@@ -930,6 +930,8 @@ github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/rollkit/celestia-openrpc v0.0.0-20230621010435-2e19c34780dc h1:Sjvl4erORxNIeQQ3eisNiqOz27+HgspkfMJi3kXIE3I=
 github.com/rollkit/celestia-openrpc v0.0.0-20230621010435-2e19c34780dc/go.mod h1:uBkgsBOYQTUcns/yCBREfMKWfH2miXeJBTvbER5pzmo=
+github.com/rollkit/celestia-openrpc v0.0.0-20230621014209-3cba21838ded h1:JkviRAd6PyZqQ/bGBLOR8cCKQUiCgF8Zoz6xjm4NLs0=
+github.com/rollkit/celestia-openrpc v0.0.0-20230621014209-3cba21838ded/go.mod h1:uBkgsBOYQTUcns/yCBREfMKWfH2miXeJBTvbER5pzmo=
 github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121 h1:kMzxCUzXcdk318N/G2E7U0GXrq6yqczjFRs2RZvIUeE=
 github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121/go.mod h1:Xc6G7GTlHAjeH3l5H8WibF/YrcCR6iDgAGrXVWkMwiU=
 github.com/rs/cors v1.9.0 h1:l9HGsTsHJcvW14Nk7J9KFz8bzeAWXn3CG6bgt7LsrAE=
