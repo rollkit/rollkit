@@ -178,13 +178,7 @@ func TestLazyAggregator(t *testing.T) {
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		if node.(*FullNode).Store.Height() == uint64(2) {
-			return nil
-		} else {
-			return errors.New("waiting for height == 2")
-		}
-	}))
+	require.NoError(waitForAtLeastNBlocks(node, 2))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
