@@ -189,7 +189,7 @@ func (bExService *BlockExchangeService) Stop() error {
 	err = multierr.Append(err, bExService.p2pServer.Stop(bExService.ctx))
 	err = multierr.Append(err, bExService.ex.Stop(bExService.ctx))
 	err = multierr.Append(err, bExService.sub.Stop(bExService.ctx))
-	if bExService.syncerStatus.getStarted() {
+	if bExService.syncerStatus.isStarted() {
 		err = multierr.Append(err, bExService.syncer.Stop(bExService.ctx))
 	}
 	return err

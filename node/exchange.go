@@ -17,7 +17,7 @@ func (syncerStatus *SyncerStatus) setStarted() {
 	syncerStatus.started = true
 }
 
-func (syncerStatus *SyncerStatus) getStarted() bool {
+func (syncerStatus *SyncerStatus) isStarted() bool {
 	syncerStatus.m.Lock()
 	defer syncerStatus.m.Unlock()
 	return syncerStatus.started
