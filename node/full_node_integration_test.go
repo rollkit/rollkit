@@ -298,8 +298,6 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require := require.New(t)
 
-	// TODO: Replace this with a retry check
-	//var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
 
