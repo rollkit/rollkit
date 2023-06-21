@@ -92,17 +92,9 @@ func (h *Header) Verify(untrst header.Header) error {
 	// perform actual verification
 	if untrstH.Height() == h.Height()+1 {
 		// Check the validator hashes are the same in the case headers are adjacent
-		if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
+		if !bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]) {
 			return &header.VerifyError{
 				Reason: fmt.Errorf("expected old header validators (%X) to match those from new header (%X)",
-					h.AggregatorsHash,
-					untrstH.AggregatorsHash,
-				),
-			}
-		}
-		if !bytes.Equal(h.NextAggregatorsHash[:], untrstH.AggregatorsHash[:]) {
-			return &header.VerifyError{
-				Reason: fmt.Errorf("expected header next validators (%X) to match those from new header (%X)",
 					h.AggregatorsHash,
 					untrstH.AggregatorsHash,
 				),
