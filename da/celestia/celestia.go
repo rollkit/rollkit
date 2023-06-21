@@ -13,10 +13,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/celestiaorg/nmt/namespace"
-
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/celestia-openrpc/types/blob"
+	"github.com/rollkit/celestia-openrpc/types/share"
 
 	appns "github.com/rollkit/celestia-openrpc/types/namespace"
 	"github.com/rollkit/rollkit/da"
@@ -50,8 +49,14 @@ type Config struct {
 
 // Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
-	// FIXME: prefix 2 zero bytes for compat
-	c.namespace = appns.MustNewV0(append([]byte{0x00, 0x00}, namespaceID[:]...))
+	// TODO: replace types.NamespceID with share.Namespace; accept [8]byte NamespaceID for compat
+	namespaceBytes := make([]byte, appns.NamespaceSize)
+	copy(namespaceBytes[len(namespaceBytes)-len(namespaceID):], namespaceID[:])
+	namespace, err := share.NamespaceFromBytes(namespaceBytes)
+	if err != nil {
+		return err
+	}
+	c.namespace = namespace.ToAppNamespace()
 	c.logger = logger
 
 	if len(config) > 0 {
@@ -88,17 +93,19 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	blobs := []*blob.Blob{
-		{
-			Namespace:        c.namespace.ID,
-			Data:             data,
-			ShareVersion:     0,
-			NamespaceVersion: uint32(c.namespace.Version),
-		},
+	blockBlob, err := blob.NewBlob(c.namespace, data, 0)
+	if err != nil {
+		return da.ResultSubmitBlock{
+			BaseResult: da.BaseResult{
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+		}
 	}
 
-	txResponse, err := c.rpc.State.SubmitPayForBlob(ctx, math.NewInt(c.config.Fee), c.config.GasLimit, blobs)
+	blobs := []*blob.Blob{blockBlob}
 
+	txResponse, err := c.rpc.State.SubmitPayForBlob(ctx, math.NewInt(c.config.Fee), c.config.GasLimit, blobs)
 	if err != nil {
 		return da.ResultSubmitBlock{
 			BaseResult: da.BaseResult{
@@ -178,7 +185,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	c.logger.Debug("querying GetAll blobs with params", "height", dataLayerHeight, "namespace", hex.EncodeToString(c.namespace.Bytes()))
-	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []namespace.ID{c.namespace.Bytes()})
+	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []share.Namespace{c.namespace.Bytes()})
 	status := dataRequestErrorToStatus(err)
 	if status != da.StatusSuccess {
 		return da.ResultRetrieveBlocks{
