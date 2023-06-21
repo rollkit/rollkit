@@ -173,22 +173,6 @@ func newFullNode(
 		func(ctx context.Context, u uint64) (header.Header, error) {
 			return headerExchangeService.headerStore.GetByHeight(ctx, u)
 		},
-		func(fraudProof fraud.Proof) (bool, error) {
-			stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
-			if !ok {
-				return false, errors.New("unknown fraud proof")
-			}
-			resp, err := proxyApp.Consensus().VerifyFraudProofSync(
-				abci.RequestVerifyFraudProof{
-					FraudProof:           &stateFraudProof.FraudProof,
-					ExpectedValidAppHash: stateFraudProof.ExpectedValidAppHash,
-				},
-			)
-			if err != nil {
-				return false, err
-			}
-			return resp.Success, nil
-		},
 		mainKV,
 		true,
 		genesis.ChainID,
@@ -316,6 +300,22 @@ func (n *FullNode) OnStart() error {
 	// since p2p pubsub and host are required to create ProofService,
 	// we have to delay the construction until Start and use the help of ProofServiceFactory
 	n.fraudService = n.proofServiceFactory.CreateProofService()
+	n.fraudService.AddVerifier(types.StateFraudProofType, func(fraudProof fraud.Proof) (bool, error) {
+		stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
+		if !ok {
+			return false, errors.New("unknown fraud proof")
+		}
+		resp, err := n.proxyApp.Consensus().VerifyFraudProofSync(
+			abci.RequestVerifyFraudProof{
+				FraudProof:           &stateFraudProof.FraudProof,
+				ExpectedValidAppHash: stateFraudProof.ExpectedValidAppHash,
+			},
+		)
+		if err != nil {
+			return false, err
+		}
+		return resp.Success, nil
+	})
 	if err = n.fraudService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}

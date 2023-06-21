@@ -188,7 +188,7 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/go-fraud => github.com/gupadhyaya/go-fraud v0.0.0-20230609002714-4d3e4cf1806c
+	github.com/celestiaorg/go-fraud => github.com/gupadhyaya/go-fraud v0.0.0-20230621023811-b8f79a4e3eee
 	github.com/celestiaorg/go-header => github.com/celestiaorg/go-header v0.2.6
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	// github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d

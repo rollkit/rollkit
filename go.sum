@@ -388,8 +388,8 @@ github.com/grpc-ecosystem/grpc-gateway v1.9.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t
 github.com/gtank/merlin v0.1.1 h1:eQ90iG7K9pOhtereWsmyRJ6RAwcP4tHTDBHXNg+u5is=
 github.com/gtank/merlin v0.1.1/go.mod h1:T86dnYJhcGOh5BjZFCJWTDeTK7XW8uE+E21Cy/bIQ+s=
 github.com/gtank/ristretto255 v0.1.2 h1:JEqUCPA1NvLq5DwYtuzigd7ss8fwbYay9fi4/5uMzcc=
-github.com/gupadhyaya/go-fraud v0.0.0-20230609002714-4d3e4cf1806c h1:Ho3AgXIldQ0fDJRJqyvdarRtf0I5MIa+ekzQCDfAq5g=
-github.com/gupadhyaya/go-fraud v0.0.0-20230609002714-4d3e4cf1806c/go.mod h1:yoNM35cKMAkt5Mi/Qx3Wi9bnPilLi8n6RpHZVglTUDs=
+github.com/gupadhyaya/go-fraud v0.0.0-20230621023811-b8f79a4e3eee h1:iIJIta/lJqj+wJR3yxHvKUsXnLMXyQoK8bd2arZXgxs=
+github.com/gupadhyaya/go-fraud v0.0.0-20230621023811-b8f79a4e3eee/go.mod h1:yoNM35cKMAkt5Mi/Qx3Wi9bnPilLi8n6RpHZVglTUDs=
 github.com/gxed/hashland/keccakpg v0.0.1/go.mod h1:kRzw3HkwxFU1mpmPP8v1WyQzwdGfmKFJ6tItnhQ67kU=
 github.com/gxed/hashland/murmur3 v0.0.1/go.mod h1:KjXop02n4/ckmZSnY2+HKcLud/tcmvhST0bie/0lS48=
 github.com/hashicorp/consul/api v1.3.0/go.mod h1:MmDNSzIMUjNpY/mQ398R4bk2FnqQLoPndWW5VkKPlCE=
