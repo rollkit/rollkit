@@ -6,7 +6,8 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
-	abciconv "github.com/rollkit/rollkit/conv/abci"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func (sH *SignedHeader) New() header.Header {
@@ -41,7 +42,22 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 var _ header.Header = &SignedHeader{}
 
 func (sH *SignedHeader) getLastCommitHash() []byte {
-	lastABCICommit := abciconv.ToABCICommit(sH.Commit, sH.BaseHeader.Height, sH.Hash())
+	lastABCICommit := tmtypes.Commit{
+		Height: int64(sH.BaseHeader.Height),
+		Round:  0,
+		BlockID: tmtypes.BlockID{
+			Hash:          tmbytes.HexBytes(sH.Hash()),
+			PartSetHeader: tmtypes.PartSetHeader{},
+		},
+	}
+	for _, sig := range sH.Commit.Signatures {
+		commitSig := tmtypes.CommitSig{
+			BlockIDFlag: tmtypes.BlockIDFlagCommit,
+			Signature:   sig,
+		}
+		lastABCICommit.Signatures = append(lastABCICommit.Signatures, commitSig)
+	}
+
 	if len(sH.Commit.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = sH.ProposerAddress
 		lastABCICommit.Signatures[0].Timestamp = sH.Time()
