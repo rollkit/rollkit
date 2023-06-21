@@ -332,16 +332,6 @@ func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require.NoError(sequencer.Stop())
 
 	require.NoError(verifyNodesSynced(fullNode, lightNode))
-	/*require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		n2h := fullNode.(*FullNode).hExService.headerStore.Height()
-		n3h := lightNode.(*LightNode).hExService.headerStore.Height()
-		if n1h != n2h ||
-			n1h != n3h {
-			return errors.New("Waiting for header heights to be equal")
-		} else {
-			return nil
-		}
-	}))*/
 	cancel()
 	require.NoError(fullNode.Stop())
 	require.NoError(lightNode.Stop())
@@ -536,8 +526,6 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
 func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
-	//numNodes := len(nodes)
-	//wg.Add((numNodes) * (numNodes - 1))
 
 	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
 	require.NoError(t, nodes[0].Start())
@@ -547,7 +535,6 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
-	//time.Sleep(1 * time.Second)
 	require.NoError(t, waitForAtLeastNBlocks(nodes[1], 2))
 
 	for i := 1; i < len(nodes); i++ {
@@ -566,7 +553,6 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
 		err := testutils.Retry(300, 100*time.Millisecond, func() error {
 			for i := 0; i < len(apps); i++ {
-				fmt.Println("Retrying...")
 				if !apps[i].AssertCalled(m, "DeliverTx", matcher) {
 					return errors.New("DeliverTx hasn't been called yet")
 				}
