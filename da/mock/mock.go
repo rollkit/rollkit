@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 
+	"github.com/rollkit/celestia-openrpc/test/sharetest"
 	"github.com/rollkit/celestia-openrpc/types/core"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
@@ -40,28 +42,6 @@ type config struct {
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
 
-func getRandomHeader(size int) *core.DataAvailabilityHeader {
-	randRowsRoots := make([][]byte, size)
-	for i := 0; i < size; i++ {
-		for j := 0; j < size; j++ {
-			randRowsRoots[i] = make([]byte, size)
-			rand.Read(randRowsRoots[i][:]) //nolint:gosec
-		}
-	}
-	randColumnRoots := make([][]byte, size)
-	for i := 0; i < size; i++ {
-		for j := 0; j < size; j++ {
-			randColumnRoots[i] = make([]byte, size)
-			rand.Read(randColumnRoots[i][:]) //nolint:gosec
-		}
-	}
-	return &core.DataAvailabilityHeader{
-		RowsRoots:   randRowsRoots,
-		ColumnRoots: randColumnRoots,
-	}
-
-}
-
 // Init is called once to allow DA client to read configuration and initialize resources.
 func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, dalcKV ds.Datastore, logger log.Logger) error {
 	m.logger = logger
@@ -70,7 +50,12 @@ func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, d
 	m.daHeaders = make(map[uint64]*core.DataAvailabilityHeader)
 
 	m.daHeadersLock.Lock()
-	m.daHeaders[m.daHeight] = getRandomHeader(8)
+	eds, err := sharetest.RandEDS(4)
+	if err != nil {
+		return err
+	}
+	dah := core.NewDataAvailabilityHeader(eds)
+	m.daHeaders[m.daHeight] = &dah
 	m.daHeadersLock.Unlock()
 
 	if len(config) > 0 {
@@ -112,14 +97,14 @@ func (m *DataAvailabilityLayerClient) GetHeaderByHeight(height uint64) *core.Dat
 }
 
 func isEqual(headerA, headerB *core.DataAvailabilityHeader) bool {
-	if len(headerA.RowsRoots) != len(headerB.RowsRoots) {
+	if len(headerA.RowRoots) != len(headerB.RowRoots) {
 		return false
 	}
 	if len(headerA.ColumnRoots) != len(headerB.ColumnRoots) {
 		return false
 	}
-	for i, row := range headerA.RowsRoots {
-		if !bytes.Equal(row, headerB.RowsRoots[i]) {
+	for i, row := range headerA.RowRoots {
+		if !bytes.Equal(row, headerB.RowRoots[i]) {
 			return false
 		}
 	}
@@ -227,7 +212,12 @@ func (m *DataAvailabilityLayerClient) updateDAHeight() {
 	blockStep := rand.Uint64()%10 + 1 //nolint:gosec
 	atomic.AddUint64(&m.daHeight, blockStep)
 	m.daHeadersLock.Lock()
-	m.daHeaders[atomic.LoadUint64(&m.daHeight)] = getRandomHeader(8)
+	eds, err := sharetest.RandEDS(4)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	dah := core.NewDataAvailabilityHeader(eds)
+	m.daHeaders[atomic.LoadUint64(&m.daHeight)] = &dah
 	m.daHeadersLock.Unlock()
-
 }

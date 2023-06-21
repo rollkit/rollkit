@@ -36,6 +36,8 @@ cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohl
 cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RXyy7KQOVs=
 cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9ullr3+Kg0=
 cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3fOKtUw0Xmo=
+cosmossdk.io/errors v1.0.0-beta.7 h1:gypHW76pTQGVnHKo6QBkb4yFOJjC+sUGRc5Al3Odj1w=
+cosmossdk.io/errors v1.0.0-beta.7/go.mod h1:mz6FQMJRku4bY7aqS/Gwfcmr/ue91roMEKAmDUDpBfE=
 cosmossdk.io/math v1.0.1 h1:Qx3ifyOPaMLNH/89WeZFH268yCvU4xEcnPLu3sJqPPg=
 cosmossdk.io/math v1.0.1/go.mod h1:Ygz4wBHrgc7g0N+8+MrnTfS9LLn9aaTGa9hKopuym5k=
 dmitri.shuralyov.com/app/changes v0.0.0-20180602232624-0a106ad413e3/go.mod h1:Yl+fi1br7+Rr3LqpNJf1/uxUdtRUV+Tnj0o93V2B9MU=
@@ -930,6 +932,10 @@ github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/rollkit/celestia-openrpc v0.0.0-20230621014209-3cba21838ded h1:JkviRAd6PyZqQ/bGBLOR8cCKQUiCgF8Zoz6xjm4NLs0=
 github.com/rollkit/celestia-openrpc v0.0.0-20230621014209-3cba21838ded/go.mod h1:uBkgsBOYQTUcns/yCBREfMKWfH2miXeJBTvbER5pzmo=
+github.com/rollkit/celestia-openrpc v0.0.0-20230621233629-81a21d976a06 h1:VvGRoDFAF1+UDu2TJInvq4rmo6D/wYDzXuHGRhaXCkM=
+github.com/rollkit/celestia-openrpc v0.0.0-20230621233629-81a21d976a06/go.mod h1:n31qUUhZbluO2lHR3c0f1W/7i+9ZVFpBK8bnDfTvMj4=
+github.com/rollkit/celestia-openrpc v0.0.0-20230622003215-88d390e1649b h1:xa3joCElVmEVtLsNHdbjojNDMP1y/tQeyiQK1JYsCb4=
+github.com/rollkit/celestia-openrpc v0.0.0-20230622003215-88d390e1649b/go.mod h1:n31qUUhZbluO2lHR3c0f1W/7i+9ZVFpBK8bnDfTvMj4=
 github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121 h1:kMzxCUzXcdk318N/G2E7U0GXrq6yqczjFRs2RZvIUeE=
 github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121/go.mod h1:Xc6G7GTlHAjeH3l5H8WibF/YrcCR6iDgAGrXVWkMwiU=
 github.com/rs/cors v1.9.0 h1:l9HGsTsHJcvW14Nk7J9KFz8bzeAWXn3CG6bgt7LsrAE=
