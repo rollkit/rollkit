@@ -32,6 +32,7 @@ func (fp *StateFraudProof) Height() uint64 {
 }
 
 func (fp *StateFraudProof) Validate(header header.Header) error {
+	// TODO (ganesh): fill this later
 	return nil
 }
 
