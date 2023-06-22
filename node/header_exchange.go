@@ -28,14 +28,15 @@ import (
 // Contains a header store where synced headers are stored.
 // Uses the go-header library for handling all P2P logic.
 type HeaderExchangeService struct {
-	conf         config.NodeConfig
-	genesis      *tmtypes.GenesisDoc
-	p2p          *p2p.Client
-	ex           *goheaderp2p.Exchange[*types.SignedHeader]
+	conf        config.NodeConfig
+	genesis     *tmtypes.GenesisDoc
+	p2p         *p2p.Client
+	ex          *goheaderp2p.Exchange[*types.SignedHeader]
+	sub         *goheaderp2p.Subscriber[*types.SignedHeader]
+	p2pServer   *goheaderp2p.ExchangeServer[*types.SignedHeader]
+	headerStore *goheaderstore.Store[*types.SignedHeader]
+
 	syncer       *goheadersync.Syncer[*types.SignedHeader]
-	sub          *goheaderp2p.Subscriber[*types.SignedHeader]
-	p2pServer    *goheaderp2p.ExchangeServer[*types.SignedHeader]
-	headerStore  *goheaderstore.Store[*types.SignedHeader]
 	syncerStatus *SyncerStatus
 
 	logger log.Logger
@@ -78,10 +79,9 @@ func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx conte
 	if err := hExService.headerStore.Init(ctx, initial); err != nil {
 		return err
 	}
-	if err := hExService.syncer.Start(hExService.ctx); err != nil {
+	if err := hExService.StartSyncer(); err != nil {
 		return err
 	}
-	hExService.syncerStatus.setStarted()
 	return nil
 }
 
@@ -94,10 +94,9 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 			return fmt.Errorf("failed to initialize header store")
 		}
 
-		if err := hExService.syncer.Start(hExService.ctx); err != nil {
+		if err := hExService.StartSyncer(); err != nil {
 			return fmt.Errorf("failed to start syncer after initializing header store")
 		}
-		hExService.syncerStatus.setStarted()
 	}
 
 	// Broadcast for subscribers
@@ -149,10 +148,9 @@ func (hExService *HeaderExchangeService) Start() error {
 	}
 
 	if hExService.isInitialized() {
-		if err := hExService.syncer.Start(hExService.ctx); err != nil {
+		if err := hExService.StartSyncer(); err != nil {
 			return fmt.Errorf("error while starting the syncer: %w", err)
 		}
-		hExService.syncerStatus.setStarted()
 		return nil
 	}
 
@@ -190,7 +188,7 @@ func (hExService *HeaderExchangeService) Stop() error {
 	err = multierr.Append(err, hExService.p2pServer.Stop(hExService.ctx))
 	err = multierr.Append(err, hExService.ex.Stop(hExService.ctx))
 	err = multierr.Append(err, hExService.sub.Stop(hExService.ctx))
-	if hExService.syncerStatus.getStarted() {
+	if hExService.syncerStatus.isStarted() {
 		err = multierr.Append(err, hExService.syncer.Stop(hExService.ctx))
 	}
 	return err
@@ -231,4 +229,18 @@ func newSyncer(
 	opt goheadersync.Options,
 ) (*goheadersync.Syncer[*types.SignedHeader], error) {
 	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
+}
+
+func (hExService *HeaderExchangeService) StartSyncer() error {
+	hExService.syncerStatus.m.Lock()
+	defer hExService.syncerStatus.m.Unlock()
+	if hExService.syncerStatus.started {
+		return nil
+	}
+	err := hExService.syncer.Start(hExService.ctx)
+	if err != nil {
+		return err
+	}
+	hExService.syncerStatus.started = true
+	return nil
 }
