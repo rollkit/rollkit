@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
@@ -28,13 +27,21 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	}
 	err := untrstH.ValidateBasic()
 	if err != nil {
-		return err
+		return &header.VerifyError{
+			Reason: err,
+		}
 	}
-	if !bytes.Equal(untrstH.LastHeaderHash[:], sH.Header.Hash()) {
-		return errors.New("Last header hash does not match hash of previous header")
+	sHHash := sH.Header.Hash()
+	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
+		return &header.VerifyError{
+			Reason: fmt.Errorf("Last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
+		}
 	}
-	if !bytes.Equal(untrstH.LastCommitHash[:], sH.getLastCommitHash()) {
-		return errors.New("Last commit hash does not match hash of previous header")
+	sHLastCommitHash := sH.getLastCommitHash()
+	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
+		return &header.VerifyError{
+			Reason: fmt.Errorf("Last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
+		}
 	}
 	return sH.Header.Verify(&untrstH.Header)
 }
@@ -43,7 +50,7 @@ var _ header.Header = &SignedHeader{}
 
 func (sH *SignedHeader) getLastCommitHash() []byte {
 	lastABCICommit := tmtypes.Commit{
-		Height: int64(sH.Height()),
+		Height: sH.Height(),
 		Round:  0,
 		BlockID: tmtypes.BlockID{
 			Hash:          tmbytes.HexBytes(sH.Hash()),
