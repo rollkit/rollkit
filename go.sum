@@ -930,10 +930,6 @@ github.com/regen-network/protobuf v1.3.2-alpha.regen.4/go.mod h1:/J8/bR1T/NXyIdQ
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
-github.com/rollkit/celestia-openrpc v0.0.0-20230621014209-3cba21838ded h1:JkviRAd6PyZqQ/bGBLOR8cCKQUiCgF8Zoz6xjm4NLs0=
-github.com/rollkit/celestia-openrpc v0.0.0-20230621014209-3cba21838ded/go.mod h1:uBkgsBOYQTUcns/yCBREfMKWfH2miXeJBTvbER5pzmo=
-github.com/rollkit/celestia-openrpc v0.0.0-20230621233629-81a21d976a06 h1:VvGRoDFAF1+UDu2TJInvq4rmo6D/wYDzXuHGRhaXCkM=
-github.com/rollkit/celestia-openrpc v0.0.0-20230621233629-81a21d976a06/go.mod h1:n31qUUhZbluO2lHR3c0f1W/7i+9ZVFpBK8bnDfTvMj4=
 github.com/rollkit/celestia-openrpc v0.0.0-20230622003215-88d390e1649b h1:xa3joCElVmEVtLsNHdbjojNDMP1y/tQeyiQK1JYsCb4=
 github.com/rollkit/celestia-openrpc v0.0.0-20230622003215-88d390e1649b/go.mod h1:n31qUUhZbluO2lHR3c0f1W/7i+9ZVFpBK8bnDfTvMj4=
 github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121 h1:kMzxCUzXcdk318N/G2E7U0GXrq6yqczjFRs2RZvIUeE=
