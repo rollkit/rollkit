@@ -43,7 +43,7 @@ var _ header.Header = &SignedHeader{}
 
 func (sH *SignedHeader) getLastCommitHash() []byte {
 	lastABCICommit := tmtypes.Commit{
-		Height: int64(sH.BaseHeader.Height),
+		Height: int64(sH.Height()),
 		Round:  0,
 		BlockID: tmtypes.BlockID{
 			Hash:          tmbytes.HexBytes(sH.Hash()),
