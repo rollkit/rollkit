@@ -31,7 +31,7 @@ func (fp *StateFraudProof) Height() uint64 {
 	return uint64(fp.BlockHeight)
 }
 
-func (fp *StateFraudProof) Validate(header header.Header) error {
+func (fp *StateFraudProof) Validate(header.Header) error {
 	// TODO (ganesh): fill this later
 	return nil
 }
