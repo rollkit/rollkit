@@ -98,12 +98,12 @@ func (b *Block) Verify(untrst header.Header) error {
 		panic(fmt.Errorf("%T is not of type %T", untrst, &b))
 	}
 	// sanity check fields
-	if err := untrstB.ValidateBasic(); err != nil {
+	if err := verifyNewHeaderAndVals(&b.SignedHeader.Header, &untrstB.SignedHeader.Header); err != nil {
 		return &header.VerifyError{Reason: err}
 	}
 	return nil
 }
 
-func (h *Block) Validate() error {
-	return h.ValidateBasic()
+func (b *Block) Validate() error {
+	return b.ValidateBasic()
 }
