@@ -49,10 +49,7 @@ type Config struct {
 
 // Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
-	// TODO: replace types.NamespceID with share.Namespace; accept [8]byte NamespaceID for compat
-	namespaceBytes := make([]byte, appns.NamespaceSize)
-	copy(namespaceBytes[len(namespaceBytes)-len(namespaceID):], namespaceID[:])
-	namespace, err := share.NamespaceFromBytes(namespaceBytes)
+	namespace, err := share.NewNamespaceV0(namespaceID[:])
 	if err != nil {
 		return err
 	}
