@@ -32,10 +32,11 @@ type BlockExchangeService struct {
 	genesis      *tmtypes.GenesisDoc
 	p2p          *p2p.Client
 	ex           *goheaderp2p.Exchange[*types.Block]
-	syncer       *goheadersync.Syncer[*types.Block]
 	sub          *goheaderp2p.Subscriber[*types.Block]
 	p2pServer    *goheaderp2p.ExchangeServer[*types.Block]
 	blockStore   *goheaderstore.Store[*types.Block]
+	
+	syncer       *goheadersync.Syncer[*types.Block]
 	syncerStatus *SyncerStatus
 
 	logger log.Logger
