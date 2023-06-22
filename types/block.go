@@ -74,19 +74,19 @@ func (b *Block) IsZero() bool {
 }
 
 func (b *Block) ChainID() string {
-	return b.SignedHeader.BaseHeader.ChainID
+	return b.SignedHeader.ChainID()
 }
 
 func (b *Block) Height() int64 {
-	return int64(b.SignedHeader.BaseHeader.Height)
+	return b.SignedHeader.Height()
 }
 
 func (b *Block) LastHeader() Hash {
-	return b.SignedHeader.LastHeaderHash[:]
+	return b.SignedHeader.LastHeader()
 }
 
 func (b *Block) Time() time.Time {
-	return time.Unix(int64(b.SignedHeader.BaseHeader.Time), 0)
+	return b.SignedHeader.Time()
 }
 
 func (b *Block) Verify(untrst header.Header) error {
