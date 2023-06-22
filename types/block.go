@@ -91,14 +91,14 @@ func (b *Block) Time() time.Time {
 
 func (b *Block) Verify(untrst header.Header) error {
 	//TODO: Update with new header verify method
-	untrstH, ok := untrst.(*Header)
+	untrstB, ok := untrst.(*Block)
 	if !ok {
 		// if the header type is wrong, something very bad is going on
 		// and is a programmer bug
-		panic(fmt.Errorf("%T is not of type %T", untrst, &b.SignedHeader.Header))
+		panic(fmt.Errorf("%T is not of type %T", untrst, &b))
 	}
 	// sanity check fields
-	if err := verifyNewHeaderAndVals(&b.SignedHeader.Header, untrstH); err != nil {
+	if err := untrstB.ValidateBasic(); err != nil {
 		return &header.VerifyError{Reason: err}
 	}
 	return nil
