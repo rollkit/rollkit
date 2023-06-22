@@ -28,14 +28,14 @@ import (
 // Contains a block store where synced blocks are stored.
 // Uses the go-header library for handling all P2P logic.
 type BlockExchangeService struct {
-	conf         config.NodeConfig
-	genesis      *tmtypes.GenesisDoc
-	p2p          *p2p.Client
-	ex           *goheaderp2p.Exchange[*types.Block]
-	sub          *goheaderp2p.Subscriber[*types.Block]
-	p2pServer    *goheaderp2p.ExchangeServer[*types.Block]
-	blockStore   *goheaderstore.Store[*types.Block]
-	
+	conf       config.NodeConfig
+	genesis    *tmtypes.GenesisDoc
+	p2p        *p2p.Client
+	ex         *goheaderp2p.Exchange[*types.Block]
+	sub        *goheaderp2p.Subscriber[*types.Block]
+	p2pServer  *goheaderp2p.ExchangeServer[*types.Block]
+	blockStore *goheaderstore.Store[*types.Block]
+
 	syncer       *goheadersync.Syncer[*types.Block]
 	syncerStatus *SyncerStatus
 

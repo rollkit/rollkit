@@ -8,11 +8,11 @@ import (
 // the status of the syncer in them.
 type SyncerStatus struct {
 	started bool
-	m       sync.Mutex
+	m       sync.RWMutex
 }
 
 func (syncerStatus *SyncerStatus) isStarted() bool {
-	syncerStatus.m.Lock()
-	defer syncerStatus.m.Unlock()
+	syncerStatus.m.RLock()
+	defer syncerStatus.m.RUnlock()
 	return syncerStatus.started
 }

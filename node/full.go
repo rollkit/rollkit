@@ -249,6 +249,7 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 			err := n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
 			if err != nil {
 				// failed to init or start headerstore
+				n.Logger.Error(err.Error())
 				return
 			}
 		case <-ctx.Done():
@@ -264,6 +265,7 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 			err := n.bExService.writeToBlockStoreAndBroadcast(ctx, block)
 			if err != nil {
 				// failed to init or start blockstore
+				n.Logger.Error(err.Error())
 				return
 			}
 		case <-ctx.Done():
