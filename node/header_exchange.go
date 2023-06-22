@@ -172,14 +172,13 @@ func (hExService *HeaderExchangeService) Start() error {
 			if trustedHeader, err = hExService.ex.GetByHeight(hExService.ctx, uint64(hExService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis header
 				// proposing aggregator can init the store and start the syncer when the first header is published
-				hExService.logger.Info("failed to fetch the genesis header", "error", err)
+				return fmt.Errorf("failed to fetch the genesis header: %w", err)
 			}
 		}
+		return hExService.initHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
+
 	}
-	if trustedHeader == nil {
-		return nil
-	}
-	return hExService.initHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
+	return nil
 }
 
 // OnStop is a part of Service interface.

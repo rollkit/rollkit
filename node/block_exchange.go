@@ -172,14 +172,12 @@ func (bExService *BlockExchangeService) Start() error {
 			if trustedBlock, err = bExService.ex.GetByHeight(bExService.ctx, uint64(bExService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis block
 				// proposing aggregator can init the store and start the syncer when the first block is published
-				bExService.logger.Info("failed to fetch the genesis block", "error", err)
+				return fmt.Errorf("failed to fetch the genesis block: %w", err)
 			}
 		}
+		return bExService.initBlockStoreAndStartSyncer(bExService.ctx, trustedBlock)
 	}
-	if trustedBlock == nil {
-		return nil
-	}
-	return bExService.initBlockStoreAndStartSyncer(bExService.ctx, trustedBlock)
+	return nil
 }
 
 // OnStop is a part of Service interface.
