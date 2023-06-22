@@ -79,10 +79,9 @@ func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context
 	if err := bExService.blockStore.Init(ctx, initial); err != nil {
 		return err
 	}
-	if err := bExService.syncer.Start(bExService.ctx); err != nil {
+	if err := bExService.StartSyncer(); err != nil {
 		return err
 	}
-	bExService.syncerStatus.setStarted()
 	return nil
 }
 
@@ -95,7 +94,7 @@ func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx contex
 			return fmt.Errorf("failed to initialize block store")
 		}
 
-		if err := bExService.syncer.Start(bExService.ctx); err != nil {
+		if err := bExService.StartSyncer(); err != nil {
 			return fmt.Errorf("failed to start syncer after initializing block store")
 		}
 	}
@@ -149,10 +148,9 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	if bExService.isInitialized() {
-		if err := bExService.syncer.Start(bExService.ctx); err != nil {
+		if err := bExService.StartSyncer(); err != nil {
 			return fmt.Errorf("error while starting the syncer: %w", err)
 		}
-		bExService.syncerStatus.setStarted()
 		return nil // can return here since syncer is initialized
 	}
 
@@ -231,4 +229,18 @@ func newBlockSyncer(
 	opt goheadersync.Options,
 ) (*goheadersync.Syncer[*types.Block], error) {
 	return goheadersync.NewSyncer[*types.Block](ex, store, sub, opt)
+}
+
+func (bExService *BlockExchangeService) StartSyncer() error {
+	bExService.syncerStatus.m.Lock()
+	defer bExService.syncerStatus.m.Unlock()
+	if bExService.syncerStatus.started {
+		return nil
+	}
+	err := bExService.syncer.Start(bExService.ctx)
+	if err != nil {
+		return err
+	}
+	bExService.syncerStatus.started = true
+	return nil
 }

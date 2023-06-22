@@ -11,12 +11,6 @@ type SyncerStatus struct {
 	m       sync.Mutex
 }
 
-func (syncerStatus *SyncerStatus) setStarted() {
-	syncerStatus.m.Lock()
-	defer syncerStatus.m.Unlock()
-	syncerStatus.started = true
-}
-
 func (syncerStatus *SyncerStatus) isStarted() bool {
 	syncerStatus.m.Lock()
 	defer syncerStatus.m.Unlock()
