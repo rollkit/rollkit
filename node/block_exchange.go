@@ -114,7 +114,8 @@ func (bExService *BlockExchangeService) isInitialized() bool {
 func (bExService *BlockExchangeService) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := bExService.p2p.PubSub()
-	bExService.sub = goheaderp2p.NewSubscriber[*types.Block](ps, pubsub.DefaultMsgIdFn, bExService.genesis.ChainID+"-block")
+	ChainIDBlock := bExService.genesis.ChainID + "-block"
+	bExService.sub = goheaderp2p.NewSubscriber[*types.Block](ps, pubsub.DefaultMsgIdFn, ChainIDBlock)
 	if err := bExService.sub.Start(bExService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -127,8 +128,9 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	_, _, network := bExService.p2p.Info()
+	networkIDBlock := network + "-block"
 	var err error
-	if bExService.p2pServer, err = newBlockP2PServer(bExService.p2p.Host(), bExService.blockStore, network+"-block"); err != nil {
+	if bExService.p2pServer, err = newBlockP2PServer(bExService.p2p.Host(), bExService.blockStore, networkIDBlock); err != nil {
 		return fmt.Errorf("error while creating p2p server: %w", err)
 	}
 	if err := bExService.p2pServer.Start(bExService.ctx); err != nil {
@@ -136,7 +138,7 @@ func (bExService *BlockExchangeService) Start() error {
 	}
 
 	peerIDs := bExService.p2p.PeerIDs()
-	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, network+"-block", bExService.genesis.ChainID+"-block", bExService.p2p.ConnectionGater()); err != nil {
+	if bExService.ex, err = newBlockP2PExchange(bExService.p2p.Host(), peerIDs, networkIDBlock, ChainIDBlock, bExService.p2p.ConnectionGater()); err != nil {
 		return fmt.Errorf("error while creating exchange: %w", err)
 	}
 	if err := bExService.ex.Start(bExService.ctx); err != nil {
