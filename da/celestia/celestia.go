@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -35,8 +34,6 @@ type DataAvailabilityLayerClient struct {
 
 var _ da.DataAvailabilityLayerClient = &DataAvailabilityLayerClient{}
 var _ da.BlockRetriever = &DataAvailabilityLayerClient{}
-
-var ErrNotAvailable = errors.New("share: data not available")
 
 // Config stores Celestia DALC configuration parameters.
 type Config struct {
@@ -154,7 +151,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 	}
 	err = c.rpc.Share.SharesAvailable(ctx, header.DAH)
 	if err != nil {
-		if strings.Contains(err.Error(), ErrNotAvailable.Error()) {
+		if strings.Contains(err.Error(), share.ErrNotAvailable.Error()) {
 			return da.ResultCheckBlock{
 				BaseResult: da.BaseResult{
 					Code:     da.StatusSuccess,
