@@ -38,11 +38,14 @@ func (m MockTester) Errorf(format string, args ...interface{}) {
 	fmt.Println("Errorf called")
 }
 
-func waitForFirstBlock(node *FullNode) error {
-	return waitForAtLeastNBlocks(node, 1)
+func waitForFirstBlock(node *FullNode, useBlockExchange bool) error {
+	return waitForAtLeastNBlocks(node, 1, useBlockExchange)
 }
 
-func getNodeHeight(node Node) (uint64, error) {
+func getNodeHeight(node Node, useBlockExchange bool) (uint64, error) {
+	if useBlockExchange {
+		return getNodeHeightFromBlock(node)
+	}
 	if fn, ok := node.(*FullNode); ok {
 		return fn.hExService.headerStore.Height(), nil
 	}
@@ -52,13 +55,20 @@ func getNodeHeight(node Node) (uint64, error) {
 	return 0, errors.New("not a full or light node")
 }
 
-func verifyNodesSynced(node1, node2 Node) error {
+func getNodeHeightFromBlock(node Node) (uint64, error) {
+	if fn, ok := node.(*FullNode); ok {
+		return fn.bExService.blockStore.Height(), nil
+	}
+	return 0, errors.New("not a full or light node")
+}
+
+func verifyNodesSynced(node1, node2 Node, useBlockExchange bool) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1)
+		n1Height, err := getNodeHeight(node1, useBlockExchange)
 		if err != nil {
 			return err
 		}
-		n2Height, err := getNodeHeight(node2)
+		n2Height, err := getNodeHeight(node2, useBlockExchange)
 		if err != nil {
 			return err
 		}
@@ -69,9 +79,9 @@ func verifyNodesSynced(node1, node2 Node) error {
 	})
 }
 
-func waitForAtLeastNBlocks(node Node, n int) error {
+func waitForAtLeastNBlocks(node Node, n int, useBlockExchange bool) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		nHeight, err := getNodeHeight(node)
+		nHeight, err := getNodeHeight(node, useBlockExchange)
 		if err != nil {
 			return err
 		}
