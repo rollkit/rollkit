@@ -59,7 +59,7 @@ func getNodeHeightFromBlock(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.bExService.blockStore.Height(), nil
 	}
-	return 0, errors.New("not a full or light node")
+	return 0, errors.New("not a full node")
 }
 
 func verifyNodesSynced(node1, node2 Node, useBlockExchange bool) error {
