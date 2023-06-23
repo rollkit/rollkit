@@ -188,6 +188,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/go-header => github.com/gupadhyaya/go-header v0.0.0-20230623130312-b9d75475a548
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	// github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
 	github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121

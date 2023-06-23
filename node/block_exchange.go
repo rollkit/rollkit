@@ -56,7 +56,7 @@ func NewBlockExchangeService(ctx context.Context, store ds.TxnDatastore, conf co
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	ss, err := goheaderstore.NewStore[*types.Block](storeBatch)
+	ss, err := goheaderstore.NewStore[*types.Block](storeBatch, goheaderstore.WithStorePrefix("blockEx"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize the block store: %w", err)
 	}

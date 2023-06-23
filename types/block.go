@@ -74,7 +74,7 @@ func (b *Block) IsZero() bool {
 }
 
 func (b *Block) ChainID() string {
-	return b.SignedHeader.ChainID()
+	return b.SignedHeader.ChainID() + "-block"
 }
 
 func (b *Block) Height() int64 {
