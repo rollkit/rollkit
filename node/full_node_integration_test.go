@@ -201,7 +201,7 @@ func TestHeaderExchange(t *testing.T) {
 	testSingleAggreatorSingleFullNode(t)
 	testSingleAggreatorTwoFullNode(t)
 	testSingleAggreatorSingleFullNodeTrustedHash(t)
-	TestSingleAggreatorSingleFullNodeSingleLightNode(t)
+	testSingleAggreatorSingleFullNodeSingleLightNode(t)
 }
 
 func testSingleAggreatorSingleFullNode(t *testing.T) {
@@ -290,7 +290,7 @@ func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
 	require.NoError(node2.Stop())
 }
 
-func TestSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
+func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
