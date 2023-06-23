@@ -195,14 +195,13 @@ func TestBlockExchange(t *testing.T) {
 	testSingleAggregatorSingleFullNode(t, true)
 	testSingleAggregatorTwoFullNode(t, true)
 	testSingleAggregatorSingleFullNodeTrustedHash(t, true)
-	testSingleAggregatorSingleFullNodeSingleLightNode(t, true)
 }
 
 func TestHeaderExchange(t *testing.T) {
 	testSingleAggregatorSingleFullNode(t, false)
 	testSingleAggregatorTwoFullNode(t, false)
 	testSingleAggregatorSingleFullNodeTrustedHash(t, false)
-	testSingleAggregatorSingleFullNodeSingleLightNode(t, false)
+	testSingleAggregatorSingleFullNodeSingleLightNode(t)
 }
 
 func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
@@ -286,12 +285,12 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 	aggCancel()
 	require.NoError(node1.Stop())
 
-	require.NoError(verifyNodesSynced(node1, node2, false))
+	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
 	cancel()
 	require.NoError(node2.Stop())
 }
 
-func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T, useBlockExchange bool) {
+func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -320,7 +319,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T, useBlockExc
 	require.NoError(fullNode.Start())
 	require.NoError(lightNode.Start())
 
-	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, useBlockExchange))
+	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, false))
 
 	aggCancel()
 	require.NoError(sequencer.Stop())
