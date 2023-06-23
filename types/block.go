@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding"
+	"errors"
 
 	tmtypes "github.com/tendermint/tendermint/types"
 )
@@ -60,4 +61,33 @@ type Signature []byte
 // They are required for fraud proofs.
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
+}
+
+// ValidateBasic performs basic validation of block data.
+// Actually it's a placeholder, because nothing is checked.
+func (d *Data) ValidateBasic() error {
+	return nil
+}
+
+// ValidateBasic performs basic validation of a commit.
+func (c *Commit) ValidateBasic() error {
+	if len(c.Signatures) == 0 {
+		return errors.New("no signatures")
+	}
+	return nil
+}
+
+// ValidateBasic performs basic validation of a block.
+func (b *Block) ValidateBasic() error {
+	err := b.SignedHeader.ValidateBasic()
+	if err != nil {
+		return err
+	}
+
+	err = b.Data.ValidateBasic()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
