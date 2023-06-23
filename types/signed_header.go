@@ -58,13 +58,14 @@ func (sH *SignedHeader) getLastCommitHash() []byte {
 			Hash:          tmbytes.HexBytes(sH.Hash()),
 			PartSetHeader: tmtypes.PartSetHeader{},
 		},
+		Signatures: make([]tmtypes.CommitSig, 0, len(sH.Commit.Signatures)),
 	}
-	for _, sig := range sH.Commit.Signatures {
+	for i, sig := range sH.Commit.Signatures {
 		commitSig := tmtypes.CommitSig{
 			BlockIDFlag: tmtypes.BlockIDFlagCommit,
 			Signature:   sig,
 		}
-		lastABCICommit.Signatures = append(lastABCICommit.Signatures, commitSig)
+		lastABCICommit.Signatures[i] = commitSig
 	}
 
 	// We don't submit a multiple signature scheme so there can only be one signature
