@@ -6,6 +6,7 @@ require (
 	github.com/celestiaorg/go-cnc v0.3.0
 	github.com/celestiaorg/go-fraud v0.1.0
 	github.com/celestiaorg/go-header v0.2.8
+	github.com/celestiaorg/utils v0.1.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
 	github.com/gogo/protobuf v1.3.3
