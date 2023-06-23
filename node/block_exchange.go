@@ -153,7 +153,7 @@ func (bExService *BlockExchangeService) Start() error {
 		if err := bExService.StartSyncer(); err != nil {
 			return fmt.Errorf("error while starting the syncer: %w", err)
 		}
-		return nil // can return here since syncer is initialized
+		return nil
 	}
 
 	// Look to see if trusted hash is passed, if not get the genesis block
