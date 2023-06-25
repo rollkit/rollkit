@@ -129,7 +129,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			// Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
-	block.SignedHeader.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.SignedHeader.Header)
+	block.SignedHeader.Header.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.Header.LastHeaderHash = lastHeaderHash
 	block.SignedHeader.Header.AggregatorsHash = state.Validators.Hash()
 
@@ -475,7 +475,7 @@ func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginB
 	return resp.FraudProof, nil
 }
 
-func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
+func (e *BlockExecutor) getCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
 	lastABCICommit := lastCommit.ToABCICommit(int64(header.BaseHeader.Height), header.Hash())
 	if len(lastCommit.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress

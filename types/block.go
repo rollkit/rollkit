@@ -88,6 +88,16 @@ func (c *Commit) ToABCICommit(height int64, hash Hash) *tmtypes.Commit {
 	return &tmCommit
 }
 
+func (c *Commit) GetCommitHash(header *Header, proposerAddress []byte) []byte {
+	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash())
+	// Rollkit does not support a multi signature scheme so there can only be one signature
+	if len(c.Signatures) == 1 {
+		lastABCICommit.Signatures[0].ValidatorAddress = proposerAddress
+		lastABCICommit.Signatures[0].Timestamp = header.Time()
+	}
+	return lastABCICommit.Hash()
+}
+
 // ValidateBasic performs basic validation of block data.
 // Actually it's a placeholder, because nothing is checked.
 func (d *Data) ValidateBasic() error {

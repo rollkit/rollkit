@@ -37,7 +37,7 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 			Reason: fmt.Errorf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
 		}
 	}
-	sHLastCommitHash := sH.getLastCommitHash()
+	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
 			Reason: fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
@@ -47,16 +47,6 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 }
 
 var _ header.Header = &SignedHeader{}
-
-func (sH *SignedHeader) getLastCommitHash() []byte {
-	lastABCICommit := sH.Commit.ToABCICommit(sH.Height(), sH.Hash())
-	// Rollkit does not support a multi signature scheme so there can only be one signature
-	if len(sH.Commit.Signatures) == 1 {
-		lastABCICommit.Signatures[0].ValidatorAddress = sH.ProposerAddress
-		lastABCICommit.Signatures[0].Timestamp = sH.Time()
-	}
-	return lastABCICommit.Hash()
-}
 
 // ValidateBasic performs basic validation of a signed header.
 func (h *SignedHeader) ValidateBasic() error {
