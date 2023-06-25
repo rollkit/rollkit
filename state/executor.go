@@ -475,15 +475,6 @@ func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginB
 	return resp.FraudProof, nil
 }
 
-func (e *BlockExecutor) getCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
-	lastABCICommit := lastCommit.ToABCICommit(int64(header.BaseHeader.Height), header.Hash())
-	if len(lastCommit.Signatures) == 1 {
-		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
-		lastABCICommit.Signatures[0].Timestamp = header.Time()
-	}
-	return lastABCICommit.Hash()
-}
-
 func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block, state types.State) error {
 	if e.eventBus == nil {
 		return nil
