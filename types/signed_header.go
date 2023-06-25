@@ -58,7 +58,7 @@ func (sH *SignedHeader) getLastCommitHash() []byte {
 			Hash:          tmbytes.HexBytes(sH.Hash()),
 			PartSetHeader: tmtypes.PartSetHeader{},
 		},
-		Signatures: make([]tmtypes.CommitSig, 0, len(sH.Commit.Signatures)),
+		Signatures: make([]tmtypes.CommitSig, len(sH.Commit.Signatures)),
 	}
 	for i, sig := range sH.Commit.Signatures {
 		commitSig := tmtypes.CommitSig{
