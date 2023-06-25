@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"errors"
 
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
@@ -61,6 +62,30 @@ type Signature []byte
 // They are required for fraud proofs.
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
+}
+
+// ToABCICommit converts Rollkit commit into commit format defined by ABCI.
+// This function only converts fields that are available in Rollkit commit.
+// Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
+func (c *Commit) ToABCICommit(height int64, hash Hash) *tmtypes.Commit {
+	tmCommit := tmtypes.Commit{
+		Height: height,
+		Round:  0,
+		BlockID: tmtypes.BlockID{
+			Hash:          tmbytes.HexBytes(hash),
+			PartSetHeader: tmtypes.PartSetHeader{},
+		},
+		Signatures: make([]tmtypes.CommitSig, len(c.Signatures)),
+	}
+	for i, sig := range c.Signatures {
+		commitSig := tmtypes.CommitSig{
+			BlockIDFlag: tmtypes.BlockIDFlagCommit,
+			Signature:   sig,
+		}
+		tmCommit.Signatures[i] = commitSig
+	}
+
+	return &tmCommit
 }
 
 // ValidateBasic performs basic validation of block data.

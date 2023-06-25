@@ -7,8 +7,6 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func (sH *SignedHeader) New() header.Header {
@@ -51,23 +49,7 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 var _ header.Header = &SignedHeader{}
 
 func (sH *SignedHeader) getLastCommitHash() []byte {
-	lastABCICommit := tmtypes.Commit{
-		Height: sH.Height(),
-		Round:  0,
-		BlockID: tmtypes.BlockID{
-			Hash:          tmbytes.HexBytes(sH.Hash()),
-			PartSetHeader: tmtypes.PartSetHeader{},
-		},
-		Signatures: make([]tmtypes.CommitSig, len(sH.Commit.Signatures)),
-	}
-	for i, sig := range sH.Commit.Signatures {
-		commitSig := tmtypes.CommitSig{
-			BlockIDFlag: tmtypes.BlockIDFlagCommit,
-			Signature:   sig,
-		}
-		lastABCICommit.Signatures[i] = commitSig
-	}
-
+	lastABCICommit := sH.Commit.ToABCICommit(sH.Height(), sH.Hash())
 	// Rollkit does not support a multi signature scheme so there can only be one signature
 	if len(sH.Commit.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = sH.ProposerAddress
