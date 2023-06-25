@@ -68,7 +68,7 @@ func (sH *SignedHeader) getLastCommitHash() []byte {
 		lastABCICommit.Signatures[i] = commitSig
 	}
 
-	// We don't submit a multiple signature scheme so there can only be one signature
+	// Rollkit does not support a multi signature scheme so there can only be one signature
 	if len(sH.Commit.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = sH.ProposerAddress
 		lastABCICommit.Signatures[0].Timestamp = sH.Time()
