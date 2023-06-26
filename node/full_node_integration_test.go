@@ -153,7 +153,7 @@ func TestLazyAggregator(t *testing.T) {
 		// requires min 150ms between the genesis header time and
 		// syncer to find the genesis header, otherwise it will
 		// skip it as not recent
-		BlockTime:   150 * time.Millisecond,
+		BlockTime:   350 * time.Millisecond,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 
