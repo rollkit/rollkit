@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/celestiaorg/go-cnc v0.3.0
-	github.com/celestiaorg/go-fraud v0.1.0
+	github.com/celestiaorg/go-fraud v0.1.1
 	github.com/celestiaorg/go-header v0.2.9
 	github.com/celestiaorg/utils v0.1.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
