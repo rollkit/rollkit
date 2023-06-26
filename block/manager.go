@@ -60,6 +60,7 @@ type Manager struct {
 	daHeight uint64
 
 	HeaderCh chan *types.SignedHeader
+	BlockCh  chan *types.Block
 
 	blockInCh chan newBlockEvent
 	syncCache map[uint64]*types.Block
@@ -151,6 +152,7 @@ func NewManager(
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, 100),
+		BlockCh:           make(chan *types.Block, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
 		retrieveMtx:       new(sync.Mutex),
 		lastStateMtx:      new(sync.Mutex),
@@ -625,6 +627,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Publish header to channel so that header exchange service can broadcast
 	m.HeaderCh <- &block.SignedHeader
+
+	// Publish block to channel so that block exchange service can broadcast
+	m.BlockCh <- block
 
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", block.SignedHeader.Height())
 

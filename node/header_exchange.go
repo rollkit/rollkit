@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
@@ -24,11 +23,6 @@ import (
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/types"
 )
-
-type SyncerStatus struct {
-	started bool
-	m       sync.Mutex
-}
 
 type HeaderExchangeService struct {
 	conf         config.NodeConfig

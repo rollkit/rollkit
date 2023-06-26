@@ -79,6 +79,7 @@ type FullNode struct {
 	IndexerService *txindex.IndexerService
 
 	hExService          *HeaderExchangeService
+	bExService          *BlockExchangeService
 	fraudService        *fraudserv.ProofService
 	proofServiceFactory ProofServiceFactory
 
@@ -175,6 +176,11 @@ func newFullNode(
 		genesis.ChainID,
 	)
 
+	blockExchangeService, err := NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
+	if err != nil {
+		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
@@ -193,6 +199,7 @@ func newFullNode(
 		IndexerService:      indexerService,
 		BlockIndexer:        blockIndexer,
 		hExService:          headerExchangeService,
+		bExService:          blockExchangeService,
 		proofServiceFactory: fraudProofFactory,
 		ctx:                 ctx,
 		cancel:              cancel,
@@ -246,6 +253,22 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
+func (n *FullNode) blockPublishLoop(ctx context.Context) {
+	for {
+		select {
+		case block := <-n.blockManager.BlockCh:
+			err := n.bExService.writeToBlockStoreAndBroadcast(ctx, block)
+			if err != nil {
+				// failed to init or start blockstore
+				n.Logger.Error(err.Error())
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
 
@@ -257,6 +280,10 @@ func (n *FullNode) OnStart() error {
 
 	if err = n.hExService.Start(); err != nil {
 		return fmt.Errorf("error while starting header exchange service: %w", err)
+	}
+
+	if err = n.bExService.Start(); err != nil {
+		return fmt.Errorf("error while starting block exchange service: %w", err)
 	}
 
 	if err = n.dalc.Start(); err != nil {
@@ -275,6 +302,7 @@ func (n *FullNode) OnStart() error {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
+		go n.blockPublishLoop(n.ctx)
 	}
 	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
@@ -303,6 +331,7 @@ func (n *FullNode) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	err = multierr.Append(err, n.hExService.Stop())
+	err = multierr.Append(err, n.bExService.Stop())
 	err = multierr.Append(err, n.fraudService.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
