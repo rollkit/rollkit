@@ -95,7 +95,7 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 		}
 
 		if err := hExService.StartSyncer(); err != nil {
-			return fmt.Errorf("failed to start syncer after initializing header store")
+			return fmt.Errorf("failed to start syncer after initializing header store: %w", err)
 		}
 	}
 
