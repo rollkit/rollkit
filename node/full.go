@@ -53,6 +53,25 @@ const (
 
 var _ Node = &FullNode{}
 
+var VerifierFn = func(proxyApp proxy.AppConns) func(fraudProof fraud.Proof) (bool, error) {
+	return func(fraudProof fraud.Proof) (bool, error) {
+		stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
+		if !ok {
+			return false, errors.New("unknown fraud proof")
+		}
+		resp, err := proxyApp.Consensus().VerifyFraudProofSync(
+			abci.RequestVerifyFraudProof{
+				FraudProof:           &stateFraudProof.FraudProof,
+				ExpectedValidAppHash: stateFraudProof.ExpectedValidAppHash,
+			},
+		)
+		if err != nil {
+			return false, err
+		}
+		return resp.Success, nil
+	}
+}
+
 // FullNode represents a client node in Rollkit network.
 // It connects all the components and orchestrates their work.
 type FullNode struct {
@@ -300,22 +319,7 @@ func (n *FullNode) OnStart() error {
 	// since p2p pubsub and host are required to create ProofService,
 	// we have to delay the construction until Start and use the help of ProofServiceFactory
 	n.fraudService = n.proofServiceFactory.CreateProofService()
-	if err := n.fraudService.AddVerifier(types.StateFraudProofType, func(fraudProof fraud.Proof) (bool, error) {
-		stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
-		if !ok {
-			return false, errors.New("unknown fraud proof")
-		}
-		resp, err := n.proxyApp.Consensus().VerifyFraudProofSync(
-			abci.RequestVerifyFraudProof{
-				FraudProof:           &stateFraudProof.FraudProof,
-				ExpectedValidAppHash: stateFraudProof.ExpectedValidAppHash,
-			},
-		)
-		if err != nil {
-			return false, err
-		}
-		return resp.Success, nil
-	}); err != nil {
+	if err := n.fraudService.AddVerifier(types.StateFraudProofType, VerifierFn(n.proxyApp)); err != nil {
 		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
 	}
 	if err = n.fraudService.Start(n.ctx); err != nil {

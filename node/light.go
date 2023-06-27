@@ -2,10 +2,8 @@ package node
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/go-fraud/fraudserv"
 	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
@@ -120,22 +118,7 @@ func (ln *LightNode) OnStart() error {
 	}
 
 	ln.fraudService = ln.proofServiceFactory.CreateProofService()
-	if err := ln.fraudService.AddVerifier(types.StateFraudProofType, func(fraudProof fraud.Proof) (bool, error) {
-		stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
-		if !ok {
-			return false, errors.New("unknown fraud proof")
-		}
-		resp, err := ln.proxyApp.Consensus().VerifyFraudProofSync(
-			abci.RequestVerifyFraudProof{
-				FraudProof:           &stateFraudProof.FraudProof,
-				ExpectedValidAppHash: stateFraudProof.ExpectedValidAppHash,
-			},
-		)
-		if err != nil {
-			return false, err
-		}
-		return resp.Success, nil
-	}); err != nil {
+	if err := ln.fraudService.AddVerifier(types.StateFraudProofType, VerifierFn(ln.proxyApp)); err != nil {
 		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
 	}
 	if err := ln.fraudService.Start(ln.ctx); err != nil {
