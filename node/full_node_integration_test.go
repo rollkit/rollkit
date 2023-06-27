@@ -150,7 +150,15 @@ func TestLazyAggregator(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Millisecond,
+		// After the genesis header is published, the syncer is started
+		// which takes little longer (due to initialization) and the syncer
+		// tries to retrieve the genesis header and check that is it recent
+		// (genesis header time is not older than current minus 1.5x blocktime)
+		// to allow sufficient time for syncer initialization, we cannot set
+		// the blocktime too short. in future, we can add a configuration
+		// in go-header syncer initialization to not rely on blocktime, but the
+		// config variable
+		BlockTime:   500 * time.Millisecond,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
 	}
 

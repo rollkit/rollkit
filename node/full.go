@@ -246,7 +246,12 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderCh:
-			n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			err := n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			if err != nil {
+				// failed to init or start headerstore
+				n.Logger.Error(err.Error())
+				return
+			}
 		case <-ctx.Done():
 			return
 		}
