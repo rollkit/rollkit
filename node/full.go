@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/go-fraud/fraudserv"
 	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
@@ -52,25 +51,6 @@ const (
 )
 
 var _ Node = &FullNode{}
-
-var VerifierFn = func(proxyApp proxy.AppConns) func(fraudProof fraud.Proof) (bool, error) {
-	return func(fraudProof fraud.Proof) (bool, error) {
-		stateFraudProof, ok := fraudProof.(*types.StateFraudProof)
-		if !ok {
-			return false, errors.New("unknown fraud proof")
-		}
-		resp, err := proxyApp.Consensus().VerifyFraudProofSync(
-			abci.RequestVerifyFraudProof{
-				FraudProof:           &stateFraudProof.FraudProof,
-				ExpectedValidAppHash: stateFraudProof.ExpectedValidAppHash,
-			},
-		)
-		if err != nil {
-			return false, err
-		}
-		return resp.Success, nil
-	}
-}
 
 // FullNode represents a client node in Rollkit network.
 // It connects all the components and orchestrates their work.
