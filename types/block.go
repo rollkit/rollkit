@@ -114,15 +114,11 @@ func (c *Commit) ValidateBasic() error {
 
 // ValidateBasic performs basic validation of a block.
 func (b *Block) ValidateBasic() error {
-	err := b.SignedHeader.ValidateBasic()
-	if err != nil {
+	if err := b.SignedHeader.ValidateBasic(); err != nil {
 		return err
 	}
-
-	err = b.Data.ValidateBasic()
-	if err != nil {
+	if err := b.Data.ValidateBasic(); err != nil {
 		return err
 	}
-
 	return nil
 }

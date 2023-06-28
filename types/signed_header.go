@@ -25,8 +25,7 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 		// and is a programmer bug
 		panic(fmt.Errorf("%T is not of type %T", untrst, untrstH))
 	}
-	err := untrstH.ValidateBasic()
-	if err != nil {
+	if err := untrstH.ValidateBasic(); err != nil {
 		return &header.VerifyError{
 			Reason: err,
 		}
@@ -50,13 +49,11 @@ var _ header.Header = &SignedHeader{}
 
 // ValidateBasic performs basic validation of a signed header.
 func (h *SignedHeader) ValidateBasic() error {
-	err := h.Header.ValidateBasic()
-	if err != nil {
+	if err := h.Header.ValidateBasic(); err != nil {
 		return err
 	}
 
-	err = h.Commit.ValidateBasic()
-	if err != nil {
+	if err := h.Commit.ValidateBasic(); err != nil {
 		return err
 	}
 
@@ -65,8 +62,7 @@ func (h *SignedHeader) ValidateBasic() error {
 		return nil
 	}
 
-	err = h.Validators.ValidateBasic()
-	if err != nil {
+	if err := h.Validators.ValidateBasic(); err != nil {
 		return err
 	}
 
