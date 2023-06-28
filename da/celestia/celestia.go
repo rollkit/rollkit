@@ -228,7 +228,8 @@ func dataRequestErrorToStatus(err error) da.StatusCode {
 		strings.Contains(err.Error(), da.ErrNamespaceNotFound.Error()):
 		return da.StatusSuccess
 	case strings.Contains(err.Error(), da.ErrDataNotFound.Error()),
-		strings.Contains(err.Error(), da.ErrEDSNotFound.Error()):
+		strings.Contains(err.Error(), da.ErrEDSNotFound.Error()),
+		strings.Contains(err.Error(), da.ErrBlobNotFound.Error()):
 		return da.StatusNotFound
 	default:
 		return da.StatusError
