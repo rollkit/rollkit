@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/celestiaorg/go-cnc v0.3.0
-	github.com/celestiaorg/go-fraud v0.1.0
-	github.com/celestiaorg/go-header v0.2.8
+	github.com/celestiaorg/go-fraud v0.1.1
+	github.com/celestiaorg/go-header v0.2.9
 	github.com/celestiaorg/utils v0.1.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
@@ -30,7 +30,7 @@ require (
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.11.0
 	google.golang.org/grpc v1.55.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 )
 
 require (
