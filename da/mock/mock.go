@@ -49,12 +49,12 @@ func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, d
 	m.daHeight = 1
 	m.daHeaders = make(map[uint64]*core.DataAvailabilityHeader)
 
-	m.daHeadersLock.Lock()
 	eds, err := sharetest.RandEDS(4)
 	if err != nil {
 		return err
 	}
 	dah := core.NewDataAvailabilityHeader(eds)
+	m.daHeadersLock.Lock()
 	m.daHeaders[m.daHeight] = &dah
 	m.daHeadersLock.Unlock()
 
@@ -211,13 +211,13 @@ func getKey(daHeight uint64, height uint64) ds.Key {
 func (m *DataAvailabilityLayerClient) updateDAHeight() {
 	blockStep := rand.Uint64()%10 + 1 //nolint:gosec
 	atomic.AddUint64(&m.daHeight, blockStep)
-	m.daHeadersLock.Lock()
 	eds, err := sharetest.RandEDS(4)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	dah := core.NewDataAvailabilityHeader(eds)
+	m.daHeadersLock.Lock()
 	m.daHeaders[atomic.LoadUint64(&m.daHeight)] = &dah
-	m.daHeadersLock.Unlock()
+	defer m.daHeadersLock.Unlock()
 }

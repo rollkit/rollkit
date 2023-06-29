@@ -105,6 +105,25 @@ func (s *Server) getHandler() http.Handler {
 	return mux
 }
 
+func (s *Server) parseParams(w http.ResponseWriter, req request) []interface{} {
+	var params []interface{}
+	err := json.Unmarshal(req.Params, &params)
+	if err != nil {
+		s.writeError(w, err)
+		return nil
+	}
+	return params
+}
+
+func (s *Server) returnResponse(w http.ResponseWriter, resp *response) {
+	bytes, err := json.Marshal(resp)
+	if err != nil {
+		s.writeError(w, err)
+		return
+	}
+	s.writeResponse(w, bytes)
+}
+
 func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 	var req request
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -114,12 +133,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 	}
 	switch req.Method {
 	case "header.GetByHeight":
-		var params []interface{}
-		err := json.Unmarshal(req.Params, &params)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
+		params := s.parseParams(w, req)
 		height := uint64(params[0].(float64))
 		dah := s.mock.GetHeaderByHeight(height)
 		resp := &response{
@@ -130,19 +144,9 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			ID:    req.ID,
 			Error: nil,
 		}
-		bytes, err := json.Marshal(resp)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		s.writeResponse(w, bytes)
+		s.returnResponse(w, resp)
 	case "blob.GetAll":
-		var params []interface{}
-		err := json.Unmarshal(req.Params, &params)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
+		params := s.parseParams(w, req)
 		height := params[0].(float64)
 		block := s.mock.RetrieveBlocks(r.Context(), uint64(height))
 		blobs := make([]blob.Blob, len(block.Blocks))
@@ -161,31 +165,16 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			ID:      req.ID,
 			Error:   nil,
 		}
-		bytes, err := json.Marshal(resp)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		s.writeResponse(w, bytes)
+		s.returnResponse(w, resp)
 	case "share.SharesAvailable":
 		resp := &response{
 			Jsonrpc: "2.0",
 			ID:      req.ID,
 			Error:   nil,
 		}
-		bytes, err := json.Marshal(resp)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		s.writeResponse(w, bytes)
+		s.returnResponse(w, resp)
 	case "state.SubmitPayForBlob":
-		var params []interface{}
-		err := json.Unmarshal(req.Params, &params)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
+		params := s.parseParams(w, req)
 		if len(params) != 3 {
 			s.writeError(w, errors.New("expected 3 params"))
 			return
@@ -212,12 +201,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			ID:    req.ID,
 			Error: nil,
 		}
-		bytes, err := json.Marshal(resp)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		s.writeResponse(w, bytes)
+		s.returnResponse(w, resp)
 	}
 }
 

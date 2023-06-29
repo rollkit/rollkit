@@ -109,7 +109,9 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	c.logger.Debug("suucessfully submitted PayForBlob transaction", "height", txResponse.Height, "hash", txResponse.TxHash)
+	c.logger.Debug("successfully submitted PayForBlob transaction",
+		"fee", c.config.Fee, "gasLimit", c.config.GasLimit,
+		"daHeight", txResponse.Height, "daTxHash", txResponse.TxHash)
 
 	if txResponse.Code != 0 {
 		return da.ResultSubmitBlock{
@@ -178,7 +180,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	c.logger.Debug("querying GetAll blobs with params", "height", dataLayerHeight, "namespace", hex.EncodeToString(c.namespace.Bytes()))
+	c.logger.Debug("trying to retrieve blob using Blob.GetAll", "daHeight", dataLayerHeight, "namespace", hex.EncodeToString(c.namespace.Bytes()))
 	blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []share.Namespace{c.namespace.Bytes()})
 	status := dataRequestErrorToStatus(err)
 	if status != da.StatusSuccess {
