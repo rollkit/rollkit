@@ -13,20 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/p2p"
-	"github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
-	"github.com/libp2p/go-libp2p/core/crypto"
-
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/conv"
-	"github.com/rollkit/rollkit/mocks"
-	"github.com/rollkit/rollkit/node"
 )
 
 func TestHandlerMapping(t *testing.T) {

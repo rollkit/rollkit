@@ -6,10 +6,8 @@ import (
 	"testing"
 
 	abcitypes "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/stretchr/testify/assert"
@@ -192,51 +190,4 @@ func TestBlockResponses(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(resp)
 	assert.Equal(expected, resp)
-}
-
-func getRandomBlock(height uint64, nTxs int) *types.Block {
-	block := &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				BaseHeader: types.BaseHeader{
-					Height: height,
-				},
-				AggregatorsHash: make([]byte, 32),
-			}},
-		Data: types.Data{
-			Txs: make(types.Txs, nTxs),
-			IntermediateStateRoots: types.IntermediateStateRoots{
-				RawRootsList: make([][]byte, nTxs),
-			},
-		},
-	}
-
-	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = getRandomTx()
-		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
-	}
-
-	return block
-}
-
-func getRandomTx() types.Tx {
-	size := rand.Int()%100 + 100 //nolint:gosec
-	return types.Tx(getRandomBytes(size))
-}
-
-func getRandomBytes(n int) []byte {
-	data := make([]byte, n)
-	_, _ = rand.Read(data) //nolint:gosec
-	return data
-}
-
-// TODO(tzdybal): extract to some common place
-func getRandomValidatorSet() *cmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
-		},
-	}
 }

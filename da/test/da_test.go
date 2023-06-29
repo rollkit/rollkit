@@ -3,8 +3,11 @@ package test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/rand"
+	"net"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,6 +19,9 @@ import (
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/celestia"
+	cmock "github.com/rollkit/rollkit/da/celestia/mock"
+	grpcda "github.com/rollkit/rollkit/da/grpc"
+	"github.com/rollkit/rollkit/da/grpc/mockserv"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/da/registry"
 	"github.com/rollkit/rollkit/log/test"

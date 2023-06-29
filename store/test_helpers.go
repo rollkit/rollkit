@@ -3,8 +3,8 @@ package store
 import (
 	"math/rand"
 
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	tmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/types"
 )

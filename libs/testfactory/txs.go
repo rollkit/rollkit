@@ -3,7 +3,7 @@ package testfactory
 import (
 	mrand "math/rand"
 
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 )
 
 func GenerateRandomlySizedTxs(count, maxSize int) types.Txs {

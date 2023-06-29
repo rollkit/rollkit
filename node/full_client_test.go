@@ -92,12 +92,12 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 		block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 
-	tmprotoLC, err := tmtypes.CommitFromProto(&tmproto.Commit{})
+	cmprotoLC, err := cmtypes.CommitFromProto(&cmproto.Commit{})
 	if err != nil {
 		return nil
 	}
 	lastCommitHash := make(types.Hash, 32)
-	copy(lastCommitHash, tmprotoLC.Hash().Bytes())
+	copy(lastCommitHash, cmprotoLC.Hash().Bytes())
 	block.SignedHeader.Header.LastCommitHash = lastCommitHash
 
 	block.SignedHeader.Validators = getRandomValidatorSet()
@@ -116,7 +116,7 @@ func getRandomBytes(n int) []byte {
 	return data
 }
 
-func getBlockMeta(rpc *FullClient, n int64) *tmtypes.BlockMeta {
+func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
 	b, err := rpc.node.Store.LoadBlock(uint64(n))
 	if err != nil {
 		return nil
@@ -136,7 +136,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -151,16 +151,16 @@ func indexBlocks(t *testing.T, rpc *FullClient, heights []int64) {
 	t.Helper()
 
 	for _, h := range heights {
-		require.NoError(t, rpc.node.BlockIndexer.Index(tmtypes.EventDataNewBlockHeader{
-			Header: tmtypes.Header{Height: h},
+		require.NoError(t, rpc.node.BlockIndexer.Index(cmtypes.EventDataNewBlockHeader{
+			Header: cmtypes.Header{Height: h},
 			ResultBeginBlock: abci.ResponseBeginBlock{
 				Events: []abci.Event{
 					{
 						Type: "begin_event",
 						Attributes: []abci.EventAttribute{
 							{
-								Key:   []byte("proposer"),
-								Value: []byte("FCAA001"),
+								Key:   "proposer",
+								Value: "FCAA001",
 								Index: true,
 							},
 						},
@@ -173,8 +173,8 @@ func indexBlocks(t *testing.T, rpc *FullClient, heights []int64) {
 						Type: "end_event",
 						Attributes: []abci.EventAttribute{
 							{
-								Key:   []byte("foo"),
-								Value: []byte(fmt.Sprintf("%d", h)),
+								Key:   "foo",
+								Value: fmt.Sprintf("%d", h),
 								Index: true,
 							},
 						},

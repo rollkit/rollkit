@@ -802,7 +802,7 @@ func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultH
 func (c *FullClient) HeaderByHash(ctx context.Context, hash bytes.HexBytes) (*ctypes.ResultHeader, error) {
 	// N.B. The hash parameter is HexBytes so that the reflective parameter
 	// decoding logic in the HTTP service will correctly translate from JSON.
-	// See https://github.com/tendermint/tendermint/issues/6802 for context.
+	// See https://github.com/cometbft/cometbft/issues/6802 for context.
 
 	block, err := c.node.Store.LoadBlockByHash(types.Hash(hash))
 	if err != nil {
