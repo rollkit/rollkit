@@ -12,6 +12,8 @@ import (
 
 	"github.com/celestiaorg/go-cnc"
 
+	openrpc "github.com/rollkit/celestia-openrpc"
+
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
@@ -20,6 +22,7 @@ import (
 
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
+	_      *openrpc.Client
 	client *cnc.Client
 
 	namespaceID types.NamespaceID
@@ -39,7 +42,9 @@ type Config struct {
 }
 
 // Init initializes DataAvailabilityLayerClient instance.
-func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
+func (c *DataAvailabilityLayerClient) Init(
+	namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger,
+) error {
 	c.namespaceID = namespaceID
 	c.logger = logger
 
@@ -106,9 +111,12 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 }
 
 // CheckBlockAvailability queries DA layer to check data availability of block at given height.
-func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) da.ResultCheckBlock {
+func (c *DataAvailabilityLayerClient) CheckBlockAvailability(
+	ctx context.Context, dataLayerHeight uint64,
+) da.ResultCheckBlock {
 	shares, err := c.client.NamespacedShares(ctx, c.namespaceID, dataLayerHeight)
-	if err != nil {
+	code := dataRequestErrorToStatus(err)
+	if code != da.StatusSuccess {
 		return da.ResultCheckBlock{
 			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
@@ -127,18 +135,15 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 }
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
-func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
+func (c *DataAvailabilityLayerClient) RetrieveBlocks(
+	ctx context.Context, dataLayerHeight uint64,
+) da.ResultRetrieveBlocks {
 	data, err := c.client.NamespacedData(ctx, c.namespaceID, dataLayerHeight)
-	if err != nil {
-		var code da.StatusCode
-		if strings.Contains(err.Error(), da.ErrDataNotFound.Error()) || strings.Contains(err.Error(), da.ErrEDSNotFound.Error()) {
-			code = da.StatusNotFound
-		} else {
-			code = da.StatusError
-		}
+	status := dataRequestErrorToStatus(err)
+	if status != da.StatusSuccess {
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
-				Code:    code,
+				Code:    status,
 				Message: err.Error(),
 			},
 		}
@@ -170,5 +175,21 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLa
 			DAHeight: dataLayerHeight,
 		},
 		Blocks: blocks,
+	}
+}
+
+func dataRequestErrorToStatus(err error) da.StatusCode {
+	switch {
+	case err == nil,
+		// ErrNamespaceNotFound is a success because it means no retries are necessary, the
+		// namespace doesn't exist in the block.
+		// TODO: Once node implements non-inclusion proofs, ErrNamespaceNotFound needs to be verified
+		strings.Contains(err.Error(), da.ErrNamespaceNotFound.Error()):
+		return da.StatusSuccess
+	case strings.Contains(err.Error(), da.ErrDataNotFound.Error()),
+		strings.Contains(err.Error(), da.ErrEDSNotFound.Error()):
+		return da.StatusNotFound
+	default:
+		return da.StatusError
 	}
 }

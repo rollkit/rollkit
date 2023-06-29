@@ -56,20 +56,134 @@ func getRandomValidatorSet() *cmtypes.ValidatorSet {
 	}
 }
 
-var genesisValidatorKey = ed25519.GenPrivKey()
+// copy-pasted from store/store_test.go
+func getRandomBlock(height uint64, nTxs int) *types.Block {
+	return getRandomBlockWithProposer(height, nTxs, getRandomBytes(20))
+}
 
-// TODO: use n and return n validators
-func getGenesisValidatorSetWithSigner(n int) ([]cmtypes.GenesisValidator, crypto.PrivKey) {
-	nodeKey := &p2p.NodeKey{
-		PrivKey: genesisValidatorKey,
+func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
+	block := &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: types.Header{
+				BaseHeader: types.BaseHeader{
+					Height: height,
+				},
+				Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
+				ProposerAddress: proposerAddr,
+				AggregatorsHash: make([]byte, 32),
+			}},
+		Data: types.Data{
+			Txs: make(types.Txs, nTxs),
+			IntermediateStateRoots: types.IntermediateStateRoots{
+				RawRootsList: make([][]byte, nTxs),
+			},
+		},
 	}
-	signingKey, _ := conv.GetNodeKey(nodeKey)
-	pubKey := genesisValidatorKey.PubKey()
+	block.SignedHeader.Header.AppHash = getRandomBytes(32)
 
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	for i := 0; i < nTxs; i++ {
+		block.Data.Txs[i] = getRandomTx()
+		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
 	}
-	return genesisValidators, signingKey
+
+	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
+	if nTxs == 0 {
+		block.Data.Txs = nil
+		block.Data.IntermediateStateRoots.RawRootsList = nil
+	}
+
+	tmprotoLC, err := tmtypes.CommitFromProto(&tmproto.Commit{})
+	if err != nil {
+		return nil
+	}
+	lastCommitHash := make(types.Hash, 32)
+	copy(lastCommitHash, tmprotoLC.Hash().Bytes())
+	block.SignedHeader.Header.LastCommitHash = lastCommitHash
+
+	block.SignedHeader.Validators = getRandomValidatorSet()
+
+	return block
+}
+
+func getRandomTx() types.Tx {
+	size := rand.Int()%100 + 100 //nolint:gosec
+	return types.Tx(getRandomBytes(size))
+}
+
+func getRandomBytes(n int) []byte {
+	data := make([]byte, n)
+	_, _ = crand.Read(data)
+	return data
+}
+
+func getBlockMeta(rpc *FullClient, n int64) *tmtypes.BlockMeta {
+	b, err := rpc.node.Store.LoadBlock(uint64(n))
+	if err != nil {
+		return nil
+	}
+	bmeta, err := abciconv.ToABCIBlockMeta(b)
+	if err != nil {
+		return nil
+	}
+
+	return bmeta
+}
+
+func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
+	t.Helper()
+	require := require.New(t)
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node)
+
+	rpc := NewFullClient(node)
+	require.NotNil(rpc)
+
+	return app, rpc
+}
+
+// From state/indexer/block/kv/kv_test
+func indexBlocks(t *testing.T, rpc *FullClient, heights []int64) {
+	t.Helper()
+
+	for _, h := range heights {
+		require.NoError(t, rpc.node.BlockIndexer.Index(tmtypes.EventDataNewBlockHeader{
+			Header: tmtypes.Header{Height: h},
+			ResultBeginBlock: abci.ResponseBeginBlock{
+				Events: []abci.Event{
+					{
+						Type: "begin_event",
+						Attributes: []abci.EventAttribute{
+							{
+								Key:   []byte("proposer"),
+								Value: []byte("FCAA001"),
+								Index: true,
+							},
+						},
+					},
+				},
+			},
+			ResultEndBlock: abci.ResponseEndBlock{
+				Events: []abci.Event{
+					{
+						Type: "end_event",
+						Attributes: []abci.EventAttribute{
+							{
+								Key:   []byte("foo"),
+								Value: []byte(fmt.Sprintf("%d", h)),
+								Index: true,
+							},
+						},
+					},
+				},
+			},
+		}))
+	}
+
 }
 
 func TestConnectionGetter(t *testing.T) {
@@ -811,135 +925,6 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 	checkValSetLatest(rpc, assert, 9, numNodes-1)
 }
 
-// copy-pasted from store/store_test.go
-func getRandomBlock(height uint64, nTxs int) *types.Block {
-	return getRandomBlockWithProposer(height, nTxs, getRandomBytes(20))
-}
-
-func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
-	block := &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				BaseHeader: types.BaseHeader{
-					Height: height,
-				},
-				Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
-				ProposerAddress: proposerAddr,
-				AggregatorsHash: make([]byte, 32),
-			}},
-		Data: types.Data{
-			Txs: make(types.Txs, nTxs),
-			IntermediateStateRoots: types.IntermediateStateRoots{
-				RawRootsList: make([][]byte, nTxs),
-			},
-		},
-	}
-	block.SignedHeader.Header.AppHash = getRandomBytes(32)
-
-	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = getRandomTx()
-		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
-	}
-
-	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
-	if nTxs == 0 {
-		block.Data.Txs = nil
-		block.Data.IntermediateStateRoots.RawRootsList = nil
-	}
-
-	cmprotoLC, err := cmtypes.CommitFromProto(&cmproto.Commit{})
-	if err != nil {
-		return nil
-	}
-	lastCommitHash := make(types.Hash, 32)
-	copy(lastCommitHash, cmprotoLC.Hash().Bytes())
-	block.SignedHeader.Header.LastCommitHash = lastCommitHash
-
-	block.SignedHeader.Validators = getRandomValidatorSet()
-
-	return block
-}
-
-func getRandomTx() types.Tx {
-	size := rand.Int()%100 + 100 //nolint:gosec
-	return types.Tx(getRandomBytes(size))
-}
-
-func getRandomBytes(n int) []byte {
-	data := make([]byte, n)
-	_, _ = crand.Read(data)
-	return data
-}
-
-func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.LoadBlock(uint64(n))
-	if err != nil {
-		return nil
-	}
-	bmeta, err := abciconv.ToABCIBlockMeta(b)
-	if err != nil {
-		return nil
-	}
-
-	return bmeta
-}
-
-func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
-	t.Helper()
-	require := require.New(t)
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
-
-	rpc := NewFullClient(node)
-	require.NotNil(rpc)
-
-	return app, rpc
-}
-
-// From state/indexer/block/kv/kv_test
-func indexBlocks(t *testing.T, rpc *FullClient, heights []int64) {
-	t.Helper()
-
-	for _, h := range heights {
-		require.NoError(t, rpc.node.BlockIndexer.Index(cmtypes.EventDataNewBlockHeader{
-			Header: cmtypes.Header{Height: h},
-			ResultBeginBlock: abci.ResponseBeginBlock{
-				Events: []abci.Event{
-					{
-						Type: "begin_event",
-						Attributes: []abci.EventAttribute{
-							{
-								Key:   string("proposer"),
-								Value: string("FCAA001"),
-								Index: true,
-							},
-						},
-					},
-				},
-			},
-			ResultEndBlock: abci.ResponseEndBlock{
-				Events: []abci.Event{
-					{
-						Type: "end_event",
-						Attributes: []abci.EventAttribute{
-							{
-								Key:   string("foo"),
-								Value: string(fmt.Sprintf("%d", h)),
-								Index: true,
-							},
-						},
-					},
-				},
-			},
-		}))
-	}
-
-}
 func TestMempool2Nodes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)

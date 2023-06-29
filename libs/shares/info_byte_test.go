@@ -37,19 +37,15 @@ func TestInfoByte(t *testing.T) {
 }
 
 func TestInfoByteErrors(t *testing.T) {
-	blobStart := true
-	notBlobStart := false
-
 	type testCase struct {
 		version uint8
-		bool
 	}
 
 	tests := []testCase{
-		{128, notBlobStart},
-		{255, notBlobStart},
-		{128, blobStart},
-		{255, blobStart},
+		{128},
+		{255},
+		{128},
+		{255},
 	}
 
 	for _, test := range tests {

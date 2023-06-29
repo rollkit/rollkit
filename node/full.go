@@ -34,6 +34,7 @@ import (
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -79,6 +80,7 @@ type FullNode struct {
 	IndexerService *txindex.IndexerService
 
 	hExService          *HeaderExchangeService
+	bExService          *BlockExchangeService
 	fraudService        *fraudserv.ProofService
 	proofServiceFactory ProofServiceFactory
 
@@ -175,6 +177,11 @@ func newFullNode(
 		genesis.ChainID,
 	)
 
+	blockExchangeService, err := NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
+	if err != nil {
+		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
@@ -193,6 +200,7 @@ func newFullNode(
 		IndexerService:      indexerService,
 		BlockIndexer:        blockIndexer,
 		hExService:          headerExchangeService,
+		bExService:          blockExchangeService,
 		proofServiceFactory: fraudProofFactory,
 		ctx:                 ctx,
 		cancel:              cancel,
@@ -239,7 +247,28 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderCh:
-			n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			err := n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			if err != nil {
+				// failed to init or start headerstore
+				n.Logger.Error(err.Error())
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (n *FullNode) blockPublishLoop(ctx context.Context) {
+	for {
+		select {
+		case block := <-n.blockManager.BlockCh:
+			err := n.bExService.writeToBlockStoreAndBroadcast(ctx, block)
+			if err != nil {
+				// failed to init or start blockstore
+				n.Logger.Error(err.Error())
+				return
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -259,6 +288,10 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting header exchange service: %w", err)
 	}
 
+	if err = n.bExService.Start(); err != nil {
+		return fmt.Errorf("error while starting block exchange service: %w", err)
+	}
+
 	if err = n.dalc.Start(); err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
@@ -266,6 +299,9 @@ func (n *FullNode) OnStart() error {
 	// since p2p pubsub and host are required to create ProofService,
 	// we have to delay the construction until Start and use the help of ProofServiceFactory
 	n.fraudService = n.proofServiceFactory.CreateProofService()
+	if err := n.fraudService.AddVerifier(types.StateFraudProofType, VerifierFn(n.proxyApp)); err != nil {
+		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
+	}
 	if err = n.fraudService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
@@ -275,6 +311,7 @@ func (n *FullNode) OnStart() error {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
+		go n.blockPublishLoop(n.ctx)
 	}
 	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
@@ -303,6 +340,7 @@ func (n *FullNode) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	err = multierr.Append(err, n.hExService.Stop())
+	err = multierr.Append(err, n.bExService.Stop())
 	err = multierr.Append(err, n.fraudService.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }

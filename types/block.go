@@ -2,7 +2,10 @@ package types
 
 import (
 	"encoding"
+	"fmt"
+	"time"
 
+	"github.com/celestiaorg/go-header"
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
@@ -60,4 +63,47 @@ type Signature []byte
 // They are required for fraud proofs.
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
+}
+
+func (b *Block) New() header.Header {
+	return new(Block)
+}
+
+func (b *Block) IsZero() bool {
+	return b == nil
+}
+
+func (b *Block) ChainID() string {
+	return b.SignedHeader.ChainID() + "-block"
+}
+
+func (b *Block) Height() int64 {
+	return b.SignedHeader.Height()
+}
+
+func (b *Block) LastHeader() Hash {
+	return b.SignedHeader.LastHeader()
+}
+
+func (b *Block) Time() time.Time {
+	return b.SignedHeader.Time()
+}
+
+func (b *Block) Verify(untrst header.Header) error {
+	//TODO: Update with new header verify method
+	untrstB, ok := untrst.(*Block)
+	if !ok {
+		// if the header type is wrong, something very bad is going on
+		// and is a programmer bug
+		panic(fmt.Errorf("%T is not of type %T", untrst, &b))
+	}
+	// sanity check fields
+	if err := verifyNewHeaderAndVals(&b.SignedHeader.Header, &untrstB.SignedHeader.Header); err != nil {
+		return &header.VerifyError{Reason: err}
+	}
+	return nil
+}
+
+func (b *Block) Validate() error {
+	return b.ValidateBasic()
 }

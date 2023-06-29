@@ -118,6 +118,9 @@ func (ln *LightNode) OnStart() error {
 	}
 
 	ln.fraudService = ln.proofServiceFactory.CreateProofService()
+	if err := ln.fraudService.AddVerifier(types.StateFraudProofType, VerifierFn(ln.proxyApp)); err != nil {
+		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
+	}
 	if err := ln.fraudService.Start(ln.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}

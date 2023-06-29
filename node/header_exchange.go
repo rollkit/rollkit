@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/celestiaorg/go-header"
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
@@ -18,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
@@ -25,34 +25,39 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-type SyncerStatus struct {
-	started bool
-	m       sync.Mutex
-}
-
+// P2P Exchange Service for header that implements the go-header interface.
+// Contains a header store where synced headers are stored.
+// Uses the go-header library for handling all P2P logic.
 type HeaderExchangeService struct {
-	conf         config.NodeConfig
-	genesis      *cmtypes.GenesisDoc
-	p2p          *p2p.Client
-	ex           *goheaderp2p.Exchange[*types.SignedHeader]
+	conf        config.NodeConfig
+	genesis     *cmtypes.GenesisDoc
+	p2p         *p2p.Client
+	ex          *goheaderp2p.Exchange[*types.SignedHeader]
+	sub         *goheaderp2p.Subscriber[*types.SignedHeader]
+	p2pServer   *goheaderp2p.ExchangeServer[*types.SignedHeader]
+	headerStore *goheaderstore.Store[*types.SignedHeader]
+
 	syncer       *goheadersync.Syncer[*types.SignedHeader]
-	sub          *goheaderp2p.Subscriber[*types.SignedHeader]
-	p2pServer    *goheaderp2p.ExchangeServer[*types.SignedHeader]
-	headerStore  *goheaderstore.Store[*types.SignedHeader]
 	syncerStatus *SyncerStatus
 
 	logger log.Logger
 	ctx    context.Context
 }
 
-func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderExchangeService, error) {
+func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *tmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderExchangeService, error) {
+	if genesis == nil {
+		return nil, errors.New("genesis doc cannot be nil")
+	}
+	if p2p == nil {
+		return nil, errors.New("p2p client cannot be nil")
+	}
 	// store is TxnDatastore, but we require Batching, hence the type assertion
 	// note, the badger datastore impl that is used in the background implements both
 	storeBatch, ok := store.(ds.Batching)
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	ss, err := goheaderstore.NewStore[*types.SignedHeader](storeBatch)
+	ss, err := goheaderstore.NewStore[*types.SignedHeader](storeBatch, goheaderstore.WithStorePrefix("headerEx"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize the header store: %w", err)
 	}
@@ -69,35 +74,29 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 }
 
 func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.SignedHeader) error {
+	if initial == nil {
+		return fmt.Errorf("failed to initialize the headerstore and start syncer")
+	}
 	if err := hExService.headerStore.Init(ctx, initial); err != nil {
 		return err
 	}
-	if err := hExService.syncer.Start(hExService.ctx); err != nil {
+	if err := hExService.StartSyncer(); err != nil {
 		return err
 	}
-	hExService.syncerStatus.m.Lock()
-	defer hExService.syncerStatus.m.Unlock()
-	hExService.syncerStatus.started = true
 	return nil
 }
 
-func (hExService *HeaderExchangeService) tryInitHeaderStoreAndStartSyncer(ctx context.Context, trustedHeader *types.SignedHeader) {
-	if trustedHeader != nil {
-		if err := hExService.initHeaderStoreAndStartSyncer(ctx, trustedHeader); err != nil {
-			hExService.logger.Error("failed to initialize the headerstore and start syncer", "error", err)
-		}
-	}
-}
-
-func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) {
+// Initialize header store if needed and broadcasts provided header.
+// Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
+func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
 	// For genesis header initialize the store and start the syncer
 	if signedHeader.Height() == hExService.genesis.InitialHeight {
 		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
-			hExService.logger.Error("failed to initialize header store", "error", err)
+			return fmt.Errorf("failed to initialize header store")
 		}
 
-		if err := hExService.syncer.Start(hExService.ctx); err != nil {
-			hExService.logger.Error("failed to start syncer after initializing header store", "error", err)
+		if err := hExService.StartSyncer(); err != nil {
+			return fmt.Errorf("failed to start syncer after initializing header store: %w", err)
 		}
 	}
 
@@ -105,51 +104,54 @@ func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx cont
 	if err := hExService.sub.Broadcast(ctx, signedHeader); err != nil {
 		hExService.logger.Error("failed to broadcast block header", "error", err)
 	}
+	return nil
+}
+
+func (hExService *HeaderExchangeService) isInitialized() bool {
+	return hExService.headerStore.Height() > 0
 }
 
 // OnStart is a part of Service interface.
 func (hExService *HeaderExchangeService) Start() error {
-	var err error
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := hExService.p2p.PubSub()
 	hExService.sub = goheaderp2p.NewSubscriber[*types.SignedHeader](ps, pubsub.DefaultMsgIdFn, hExService.genesis.ChainID)
-	if err = hExService.sub.Start(hExService.ctx); err != nil {
+	if err := hExService.sub.Start(hExService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
 	if _, err := hExService.sub.Subscribe(); err != nil {
 		return fmt.Errorf("error while subscribing: %w", err)
 	}
 
-	if err = hExService.headerStore.Start(hExService.ctx); err != nil {
+	if err := hExService.headerStore.Start(hExService.ctx); err != nil {
 		return fmt.Errorf("error while starting header store: %w", err)
 	}
 
 	_, _, network := hExService.p2p.Info()
+	var err error
 	if hExService.p2pServer, err = newP2PServer(hExService.p2p.Host(), hExService.headerStore, network); err != nil {
-		return err
+		return fmt.Errorf("error while creating p2p server: %w", err)
 	}
-	if err = hExService.p2pServer.Start(hExService.ctx); err != nil {
+	if err := hExService.p2pServer.Start(hExService.ctx); err != nil {
 		return fmt.Errorf("error while starting p2p server: %w", err)
 	}
 
 	peerIDs := hExService.p2p.PeerIDs()
 	if hExService.ex, err = newP2PExchange(hExService.p2p.Host(), peerIDs, network, hExService.genesis.ChainID, hExService.p2p.ConnectionGater()); err != nil {
-		return err
+		return fmt.Errorf("error while creating exchange: %w", err)
 	}
-	if err = hExService.ex.Start(hExService.ctx); err != nil {
+	if err := hExService.ex.Start(hExService.ctx); err != nil {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
 	if hExService.syncer, err = newSyncer(hExService.ex, hExService.headerStore, hExService.sub, goheadersync.WithBlockTime(hExService.conf.BlockTime)); err != nil {
-		return err
+		return fmt.Errorf("error while creating syncer: %w", err)
 	}
 
-	// Check if the headerstore is not initialized and try initializing
-	if hExService.headerStore.Height() > 0 {
-		if err := hExService.syncer.Start(hExService.ctx); err != nil {
+	if hExService.isInitialized() {
+		if err := hExService.StartSyncer(); err != nil {
 			return fmt.Errorf("error while starting the syncer: %w", err)
 		}
-		hExService.syncerStatus.started = true
 		return nil
 	}
 
@@ -171,12 +173,12 @@ func (hExService *HeaderExchangeService) Start() error {
 			if trustedHeader, err = hExService.ex.GetByHeight(hExService.ctx, uint64(hExService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis header
 				// proposing aggregator can init the store and start the syncer when the first header is published
-				hExService.logger.Info("failed to fetch the genesis header", "error", err)
+				return fmt.Errorf("failed to fetch the genesis header: %w", err)
 			}
 		}
-	}
-	go hExService.tryInitHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
+		return hExService.initHeaderStoreAndStartSyncer(hExService.ctx, trustedHeader)
 
+	}
 	return nil
 }
 
@@ -186,9 +188,7 @@ func (hExService *HeaderExchangeService) Stop() error {
 	err = multierr.Append(err, hExService.p2pServer.Stop(hExService.ctx))
 	err = multierr.Append(err, hExService.ex.Stop(hExService.ctx))
 	err = multierr.Append(err, hExService.sub.Stop(hExService.ctx))
-	hExService.syncerStatus.m.Lock()
-	defer hExService.syncerStatus.m.Unlock()
-	if hExService.syncerStatus.started {
+	if hExService.syncerStatus.isStarted() {
 		err = multierr.Append(err, hExService.syncer.Stop(hExService.ctx))
 	}
 	return err
@@ -229,4 +229,18 @@ func newSyncer(
 	opt goheadersync.Options,
 ) (*goheadersync.Syncer[*types.SignedHeader], error) {
 	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
+}
+
+func (hExService *HeaderExchangeService) StartSyncer() error {
+	hExService.syncerStatus.m.Lock()
+	defer hExService.syncerStatus.m.Unlock()
+	if hExService.syncerStatus.started {
+		return nil
+	}
+	err := hExService.syncer.Start(hExService.ctx)
+	if err != nil {
+		return err
+	}
+	hExService.syncerStatus.started = true
+	return nil
 }

@@ -33,6 +33,12 @@ lint:
 
 .PHONY: lint
 
+## fmt: Run fixes for linters. Currently only markdownlint.
+fmt:
+	@echo "--> Formatting markdownlint"
+	@markdownlint --config .markdownlint.yaml '**/*.md' -f
+.PHONY: fmt
+
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
