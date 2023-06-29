@@ -21,7 +21,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.10.0
 	github.com/prometheus/client_golang v1.16.0
-	github.com/rollkit/celestia-openrpc v0.0.0-20230629184435-2b59ae8ef93a
+	github.com/rollkit/celestia-openrpc v0.0.0-20230629210517-fa7ee3a3524b
 	github.com/rs/cors v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
