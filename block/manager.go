@@ -595,7 +595,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveValidators commits the DB tx
+	m.lastStateMtx.Lock()
 	err = m.store.SaveValidators(blockHeight, m.lastState.Validators)
+	m.lastStateMtx.Unlock()
 	if err != nil {
 		return err
 	}
