@@ -6,6 +6,8 @@ require (
 	cosmossdk.io/math v1.0.1
 	github.com/celestiaorg/go-fraud v0.1.1
 	github.com/celestiaorg/go-header v0.2.9
+	github.com/celestiaorg/nmt v0.16.0
+	github.com/celestiaorg/rsmt2d v0.9.0
 	github.com/celestiaorg/utils v0.1.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
@@ -21,7 +23,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.10.0
 	github.com/prometheus/client_golang v1.16.0
-	github.com/rollkit/celestia-openrpc v0.0.0-20230629210517-fa7ee3a3524b
+	github.com/rollkit/celestia-openrpc v0.0.0-20230630003557-7d6761386823
 	github.com/rs/cors v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
@@ -41,8 +43,6 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.16.0 // indirect
-	github.com/celestiaorg/rsmt2d v0.9.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cometbft/cometbft-db v0.8.0 // indirect
@@ -192,3 +192,5 @@ replace (
 	github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
+
+replace github.com/rollkit/celestia-openrpc => ../celestia-openrpc
