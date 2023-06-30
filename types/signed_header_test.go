@@ -3,22 +3,26 @@ package types
 import (
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVerify(t *testing.T) {
-	trusted, err := GetRandomSignedHeader()
+	trusted, privKey, err := GetRandomSignedHeader()
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	untrustedAdj, err := GetNextRandomHeader(trusted, privKey)
 	require.NoError(t, err)
 	tests := []struct {
 		prepare func() *SignedHeader
 		err     bool
 	}{
-		// {
-		// 	prepare: func() libhead.Header { return untrustedAdj },
-		// 	err:     false,
-		// },
+		{
+			prepare: func() *SignedHeader { return untrustedAdj },
+			err:     false,
+		},
 		// {
 		// 	prepare: func() libhead.Header {
 		// 		return untrustedNonAdj

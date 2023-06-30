@@ -25,7 +25,7 @@ func GetRandomValidatorSetWithPrivKey() (*tmtypes.ValidatorSet, ed25519.PrivKey)
 	}, privKey
 }
 
-func GetRandomSignedHeader() (*SignedHeader, error) {
+func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
 		Header: Header{
@@ -52,10 +52,45 @@ func GetRandomSignedHeader() (*SignedHeader, error) {
 	}
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	signedHeader.Commit = *commit
-	return signedHeader, nil
+	return signedHeader, privKey, nil
+}
+
+func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*SignedHeader, error) {
+	valSet := signedHeader.Validators
+	newSignedHeader := &SignedHeader{
+		Header: Header{
+			Version: Version{
+				Block: InitStateVersion.Consensus.Block,
+				App:   InitStateVersion.Consensus.App,
+			},
+
+			BaseHeader: BaseHeader{
+				ChainID: "test",
+				Height:  uint64(signedHeader.Height() + 1),
+				Time:    uint64(time.Now().Unix()),
+			},
+			LastHeaderHash:  signedHeader.Hash(),
+			DataHash:        GetRandomBytes(32),
+			ConsensusHash:   GetRandomBytes(32),
+			AppHash:         GetRandomBytes(32),
+			LastResultsHash: GetRandomBytes(32),
+			ProposerAddress: valSet.Proposer.Address,
+			AggregatorsHash: valSet.Hash(),
+		},
+		Validators: valSet,
+	}
+	newSignedHeader.Header.LastCommitHash = signedHeader.Commit.GetCommitHash(
+		&newSignedHeader.Header, signedHeader.ProposerAddress,
+	)
+	commit, err := getCommit(newSignedHeader.Header, privKey)
+	if err != nil {
+		return nil, err
+	}
+	newSignedHeader.Commit = *commit
+	return newSignedHeader, nil
 }
 
 func GetRandomTx() Tx {
