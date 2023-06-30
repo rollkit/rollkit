@@ -23,71 +23,72 @@ func TestVerify(t *testing.T) {
 			prepare: func() *SignedHeader { return untrustedAdj },
 			err:     false,
 		},
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		return untrustedNonAdj
-		// 	},
-		// 	err: false,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrusted := *untrustedAdj
-		// 		untrusted.ValidatorsHash = tmrand.Bytes(32)
-		// 		return &untrusted
-		// 	},
-		// 	err: true,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrusted := *untrustedNonAdj
-		// 		untrusted.Commit = NewTestSuite(t, 2).Commit(RandRawHeader(t))
-		// 		return &untrusted
-		// 	},
-		// 	err: true,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrusted := *untrustedAdj
-		// 		untrusted.RawHeader.LastBlockID.Hash = tmrand.Bytes(32)
-		// 		return &untrusted
-		// 	},
-		// 	err: true,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrustedAdj.RawHeader.Time = untrustedAdj.RawHeader.Time.Add(time.Minute)
-		// 		return untrustedAdj
-		// 	},
-		// 	err: true,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrustedAdj.RawHeader.Time = untrustedAdj.RawHeader.Time.Truncate(time.Hour)
-		// 		return untrustedAdj
-		// 	},
-		// 	err: true,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrustedAdj.RawHeader.ChainID = "toaster"
-		// 		return untrustedAdj
-		// 	},
-		// 	err: true,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrustedAdj.RawHeader.Height++
-		// 		return untrustedAdj
-		// 	},
-		// 	err: true,
-		// },
-		// {
-		// 	prepare: func() libhead.Header {
-		// 		untrustedAdj.RawHeader.Version.App = appconsts.LatestVersion + 1
-		// 		return untrustedAdj
-		// 	},
-		// 	err: true,
-		// },
+		{
+			prepare: func() *SignedHeader {
+				untrusted := *untrustedAdj
+				untrusted.AggregatorsHash = GetRandomBytes(32)
+				return &untrusted
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrusted := *untrustedAdj
+				untrusted.LastHeaderHash = GetRandomBytes(32)
+				return &untrusted
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrusted := *untrustedAdj
+				untrusted.LastCommitHash = GetRandomBytes(32)
+				return &untrusted
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrustedAdj.Header.BaseHeader.Height++
+				return untrustedAdj
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Truncate(time.Hour).Unix())
+				return untrustedAdj
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Add(time.Minute).Unix())
+				return untrustedAdj
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrustedAdj.BaseHeader.ChainID = "toaster"
+				return untrustedAdj
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrustedAdj.Version.App = untrustedAdj.Version.App + 1
+				return untrustedAdj
+			},
+			err: true,
+		},
+		{
+			prepare: func() *SignedHeader {
+				untrustedAdj.ProposerAddress = nil
+				return untrustedAdj
+			},
+			err: true,
+		},
 	}
 
 	for i, test := range tests {
