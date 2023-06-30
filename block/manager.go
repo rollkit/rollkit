@@ -13,6 +13,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/proxy"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -531,7 +533,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		block = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		commit, err = m.getCommit(block.SignedHeader.Header)
@@ -552,7 +554,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Apply the block but DONT commit
-	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
 		return err
 	}
@@ -670,6 +672,17 @@ func (m *Manager) getLastStateValidators() *tmtypes.ValidatorSet {
 	return m.lastState.Validators
 }
 
+func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) *types.Block {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+	return m.executor.CreateBlock(height, lastCommit, lastHeaderHash, m.lastState)
+}
+
+func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *tmstate.ABCIResponses, error) {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+	return m.executor.ApplyBlock(ctx, m.lastState, block)
+}
 func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
