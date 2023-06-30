@@ -45,13 +45,14 @@ type newBlockEvent struct {
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
 	lastState types.State
+	// lastStateMtx is used by lastState
+	lastStateMtx *sync.Mutex
+	store        store.Store
 
-	conf    config.BlockManagerConfig
-	genesis *tmtypes.GenesisDoc
-
+	conf        config.BlockManagerConfig
+	genesis     *tmtypes.GenesisDoc
 	proposerKey crypto.PrivKey
 
-	store    store.Store
 	executor *state.BlockExecutor
 
 	dalc      da.DataAvailabilityLayerClient
@@ -59,9 +60,8 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
-	HeaderCh chan *types.SignedHeader
-	BlockCh  chan *types.Block
-
+	HeaderCh  chan *types.SignedHeader
+	BlockCh   chan *types.Block
 	blockInCh chan newBlockEvent
 	syncCache map[uint64]*types.Block
 
@@ -69,8 +69,6 @@ type Manager struct {
 	retrieveMtx *sync.Mutex
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
 	retrieveCond *sync.Cond
-
-	lastStateMtx *sync.Mutex
 
 	logger log.Logger
 
@@ -358,7 +356,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		// SaveValidators commits the DB tx
-		err = m.store.SaveValidators(uint64(b.SignedHeader.Header.Height()), m.lastState.Validators)
+		err = m.saveValidatorsToStore(uint64(b.SignedHeader.Header.Height()))
 		if err != nil {
 			return err
 		}
@@ -368,10 +366,8 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
-		m.lastStateMtx.Lock()
-		m.lastState = newState
-		m.lastStateMtx.Unlock()
-		err = m.store.UpdateState(m.lastState)
+		m.updateLastState(newState)
+		err = m.store.UpdateState(newState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
@@ -479,6 +475,8 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 }
 
 func (m *Manager) IsProposer() (bool, error) {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
 	// if proposer is not set, assume self proposer
 	if m.lastState.Validators.Proposer == nil {
 		return true, nil
@@ -499,9 +497,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 
-	m.lastStateMtx.Lock()
 	isProposer, err := m.IsProposer()
-	m.lastStateMtx.Unlock()
 	if err != nil {
 		return fmt.Errorf("error while checking for proposer: %w", err)
 	}
@@ -546,7 +542,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
-		block.SignedHeader.Validators = m.lastState.Validators
+		block.SignedHeader.Validators = m.getLastStateValidators()
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
@@ -595,9 +591,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveValidators commits the DB tx
-	m.lastStateMtx.Lock()
-	err = m.store.SaveValidators(blockHeight, m.lastState.Validators)
-	m.lastStateMtx.Unlock()
+	err = m.saveValidatorsToStore(blockHeight)
 	if err != nil {
 		return err
 	}
@@ -607,10 +601,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
-	m.lastState = newState
+	m.updateLastState(newState)
 
 	// UpdateState commits the DB tx
-	err = m.store.UpdateState(m.lastState)
+	err = m.store.UpdateState(newState)
 	if err != nil {
 		return err
 	}
@@ -656,6 +650,24 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 		backoff = m.conf.DABlockTime
 	}
 	return backoff
+}
+
+func (m *Manager) updateLastState(s types.State) {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+	m.lastState = s
+}
+
+func (m *Manager) saveValidatorsToStore(height uint64) error {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+	return m.store.SaveValidators(height, m.lastState.Validators)
+}
+
+func (m *Manager) getLastStateValidators() *tmtypes.ValidatorSet {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+	return m.lastState.Validators
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {
