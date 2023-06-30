@@ -9,7 +9,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -29,9 +28,9 @@ func TestInitialState(t *testing.T) {
 		ChainID:         "state id",
 		InitialHeight:   123,
 		LastBlockHeight: 128,
-		LastValidators:  getRandomValidatorSet(),
-		Validators:      getRandomValidatorSet(),
-		NextValidators:  getRandomValidatorSet(),
+		LastValidators:  types.GetRandomValidatorSet(),
+		Validators:      types.GetRandomValidatorSet(),
+		NextValidators:  types.GetRandomValidatorSet(),
 	}
 
 	ctx := context.Background()
@@ -96,15 +95,4 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 	_ = dalc.Init([8]byte{}, nil, nil, logger)
 	_ = dalc.Start()
 	return dalc
-}
-
-// copied from store_test.go
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
-		},
-	}
 }

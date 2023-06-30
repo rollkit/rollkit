@@ -4,7 +4,6 @@ import (
 	"context"
 	crand "crypto/rand"
 	"fmt"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -45,20 +44,9 @@ var expectedInfo = abci.ResponseInfo{
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
-// TODO: accept argument for number of validators / proposer index
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
-		},
-	}
-}
-
 // copy-pasted from store/store_test.go
 func getRandomBlock(height uint64, nTxs int) *types.Block {
-	return getRandomBlockWithProposer(height, nTxs, getRandomBytes(20))
+	return getRandomBlockWithProposer(height, nTxs, types.GetRandomBytes(20))
 }
 
 func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
@@ -79,11 +67,11 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 			},
 		},
 	}
-	block.SignedHeader.Header.AppHash = getRandomBytes(32)
+	block.SignedHeader.Header.AppHash = types.GetRandomBytes(32)
 
 	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = getRandomTx()
-		block.Data.IntermediateStateRoots.RawRootsList[i] = getRandomBytes(32)
+		block.Data.Txs[i] = types.GetRandomTx()
+		block.Data.IntermediateStateRoots.RawRootsList[i] = types.GetRandomBytes(32)
 	}
 
 	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
@@ -100,20 +88,9 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 	copy(lastCommitHash, tmprotoLC.Hash().Bytes())
 	block.SignedHeader.Header.LastCommitHash = lastCommitHash
 
-	block.SignedHeader.Validators = getRandomValidatorSet()
+	block.SignedHeader.Validators = types.GetRandomValidatorSet()
 
 	return block
-}
-
-func getRandomTx() types.Tx {
-	size := rand.Int()%100 + 100 //nolint:gosec
-	return types.Tx(getRandomBytes(size))
-}
-
-func getRandomBytes(n int) []byte {
-	data := make([]byte, n)
-	_, _ = crand.Read(data)
-	return data
 }
 
 func getBlockMeta(rpc *FullClient, n int64) *tmtypes.BlockMeta {
