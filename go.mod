@@ -3,7 +3,7 @@ module github.com/rollkit/rollkit
 go 1.18
 
 require (
-	github.com/celestiaorg/go-cnc v0.3.0
+	github.com/celestiaorg/go-cnc v0.4.2
 	github.com/celestiaorg/go-fraud v0.1.1
 	github.com/celestiaorg/go-header v0.2.9
 	github.com/celestiaorg/utils v0.1.0

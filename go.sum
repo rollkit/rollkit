@@ -106,8 +106,8 @@ github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtE
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/go-cnc v0.3.0 h1:eAVPNHGpx+2sBO7NZyQ1+VW8rzf6W4FQDlSq6aqSTsM=
-github.com/celestiaorg/go-cnc v0.3.0/go.mod h1:zYzvHudSd1iNPuHBMyvZ1YvWou5aT9JXgtch9Tkaf70=
+github.com/celestiaorg/go-cnc v0.4.2 h1:7ixf3tevMB7Lvz2mbyRG0ZOK+8qoPm7wNhdgpi8VreU=
+github.com/celestiaorg/go-cnc v0.4.2/go.mod h1:zYzvHudSd1iNPuHBMyvZ1YvWou5aT9JXgtch9Tkaf70=
 github.com/celestiaorg/go-fraud v0.1.1 h1:XZdA5yvkOruoyzrZXVxk1kJ9SbkhJI2aZ+k60+xhbbk=
 github.com/celestiaorg/go-fraud v0.1.1/go.mod h1:yoNM35cKMAkt5Mi/Qx3Wi9bnPilLi8n6RpHZVglTUDs=
 github.com/celestiaorg/go-header v0.2.9 h1:18aFlkUgnSbEI7SU9PBqdwRu9XEKWRsmRiB72u8Mz/k=
