@@ -2,8 +2,12 @@ package types
 
 import (
 	"encoding"
+	"errors"
+
 	"fmt"
 	"time"
+
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 
 	"github.com/celestiaorg/go-header"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -63,6 +67,65 @@ type Signature []byte
 // They are required for fraud proofs.
 type IntermediateStateRoots struct {
 	RawRootsList [][]byte
+}
+
+// ToABCICommit converts Rollkit commit into commit format defined by ABCI.
+// This function only converts fields that are available in Rollkit commit.
+// Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
+func (c *Commit) ToABCICommit(height int64, hash Hash) *tmtypes.Commit {
+	tmCommit := tmtypes.Commit{
+		Height: height,
+		Round:  0,
+		BlockID: tmtypes.BlockID{
+			Hash:          tmbytes.HexBytes(hash),
+			PartSetHeader: tmtypes.PartSetHeader{},
+		},
+		Signatures: make([]tmtypes.CommitSig, len(c.Signatures)),
+	}
+	for i, sig := range c.Signatures {
+		commitSig := tmtypes.CommitSig{
+			BlockIDFlag: tmtypes.BlockIDFlagCommit,
+			Signature:   sig,
+		}
+		tmCommit.Signatures[i] = commitSig
+	}
+
+	return &tmCommit
+}
+
+func (c *Commit) GetCommitHash(header *Header, proposerAddress []byte) []byte {
+	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash())
+	// Rollkit does not support a multi signature scheme so there can only be one signature
+	if len(c.Signatures) == 1 {
+		lastABCICommit.Signatures[0].ValidatorAddress = proposerAddress
+		lastABCICommit.Signatures[0].Timestamp = header.Time()
+	}
+	return lastABCICommit.Hash()
+}
+
+// ValidateBasic performs basic validation of block data.
+// Actually it's a placeholder, because nothing is checked.
+func (d *Data) ValidateBasic() error {
+	return nil
+}
+
+// ValidateBasic performs basic validation of a commit.
+func (c *Commit) ValidateBasic() error {
+	if len(c.Signatures) == 0 {
+		return errors.New("no signatures")
+	}
+	return nil
+}
+
+// ValidateBasic performs basic validation of a block.
+func (b *Block) ValidateBasic() error {
+	if err := b.SignedHeader.ValidateBasic(); err != nil {
+		return err
+	}
+	if err := b.Data.ValidateBasic(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *Block) New() header.Header {

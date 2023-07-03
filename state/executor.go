@@ -129,7 +129,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			// Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
-	block.SignedHeader.Header.LastCommitHash = e.getLastCommitHash(lastCommit, &block.SignedHeader.Header)
+	block.SignedHeader.Header.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.Header.LastHeaderHash = lastHeaderHash
 	block.SignedHeader.Header.AggregatorsHash = state.Validators.Hash()
 
@@ -473,15 +473,6 @@ func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginB
 		return nil, fmt.Errorf("fraud proof generation failed")
 	}
 	return resp.FraudProof, nil
-}
-
-func (e *BlockExecutor) getLastCommitHash(lastCommit *types.Commit, header *types.Header) []byte {
-	lastABCICommit := abciconv.ToABCICommit(lastCommit, header.BaseHeader.Height, header.Hash())
-	if len(lastCommit.Signatures) == 1 {
-		lastABCICommit.Signatures[0].ValidatorAddress = e.proposerAddress
-		lastABCICommit.Signatures[0].Timestamp = header.Time()
-	}
-	return lastABCICommit.Hash()
 }
 
 func (e *BlockExecutor) publishEvents(resp *tmstate.ABCIResponses, block *types.Block, state types.State) error {

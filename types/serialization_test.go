@@ -104,7 +104,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	valSet := getRandomValidatorSet()
+	valSet := GetRandomValidatorSet()
 
 	cases := []struct {
 		name  string
@@ -198,16 +198,5 @@ func TestStateRoundTrip(t *testing.T) {
 
 			assert.Equal(c.state, newState)
 		})
-	}
-}
-
-// copied from store_test.go
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
-		},
 	}
 }
