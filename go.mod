@@ -191,5 +191,3 @@ replace (
 	github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
-
-replace github.com/rollkit/celestia-openrpc => ../celestia-openrpc
