@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 
+	"github.com/rollkit/celestia-openrpc/types/appconsts"
 	"github.com/rollkit/celestia-openrpc/types/namespace"
 	"github.com/rollkit/celestia-openrpc/types/share"
 )
@@ -154,9 +155,9 @@ func RandShares(total int) ([]share.Share, error) {
 	var r = rand.New(rand.NewSource(time.Now().Unix())) //nolint:gosec
 	shares := make([]share.Share, total)
 	for i := range shares {
-		shr := make([]byte, share.ShareSize)
-		copy(shr[:share.NamespaceSize], RandNamespace())
-		_, err := r.Read(shr[share.NamespaceSize:])
+		shr := make([]byte, appconsts.ShareSize)
+		copy(shr[:appconsts.NamespaceSize], RandNamespace())
+		_, err := r.Read(shr[appconsts.NamespaceSize:])
 		if err != nil {
 			return nil, err
 		}
@@ -173,8 +174,8 @@ func RandNamespace() share.Namespace {
 	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)
 	r.Read(rb) // nolint:gosec
 	for {
-		namespace, _ := share.NewNamespaceV0(rb)
-		if err := namespace.ValidateDataNamespace(); err != nil {
+		namespace, _ := share.NewBlobNamespaceV0(rb)
+		if err := namespace.ValidateForData(); err != nil {
 			continue
 		}
 		return namespace

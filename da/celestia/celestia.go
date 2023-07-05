@@ -46,7 +46,7 @@ type Config struct {
 
 // Init initializes DataAvailabilityLayerClient instance.
 func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
-	namespace, err := share.NewNamespaceV0(namespaceID[:])
+	namespace, err := share.NewBlobNamespaceV0(namespaceID[:])
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	blockBlob, err := blob.NewBlob(c.namespace, data, 0)
+	blockBlob, err := blob.NewBlobV0(c.namespace.Bytes(), data)
 	if err != nil {
 		return da.ResultSubmitBlock{
 			BaseResult: da.BaseResult{
