@@ -16,7 +16,7 @@ import (
 	"github.com/rollkit/celestia-openrpc/types/blob"
 	"github.com/rollkit/celestia-openrpc/types/share"
 
-	appns "github.com/rollkit/celestia-openrpc/types/namespace"
+	openrpcns "github.com/rollkit/celestia-openrpc/types/namespace"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
@@ -27,7 +27,7 @@ import (
 type DataAvailabilityLayerClient struct {
 	rpc *openrpc.Client
 
-	namespace appns.Namespace
+	namespace openrpcns.Namespace
 	config    Config
 	logger    log.Logger
 }
@@ -64,8 +64,7 @@ func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config
 func (c *DataAvailabilityLayerClient) Start() error {
 	c.logger.Info("starting Celestia Data Availability Layer Client", "baseURL", c.config.BaseURL)
 	var err error
-	ctx := context.Background()
-	c.rpc, err = openrpc.NewClient(ctx, c.config.BaseURL, c.config.AuthToken)
+	c.rpc, err = openrpc.NewClient(context.Background(), c.config.BaseURL, c.config.AuthToken)
 	return err
 }
 
