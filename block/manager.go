@@ -48,7 +48,7 @@ type newBlockEvent struct {
 type Manager struct {
 	lastState types.State
 	// lastStateMtx is used by lastState
-	lastStateMtx *sync.Mutex
+	lastStateMtx *sync.RWMutex
 	store        store.Store
 
 	conf        config.BlockManagerConfig
@@ -155,7 +155,7 @@ func NewManager(
 		BlockCh:           make(chan *types.Block, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
 		retrieveMtx:       new(sync.Mutex),
-		lastStateMtx:      new(sync.Mutex),
+		lastStateMtx:      new(sync.RWMutex),
 		syncCache:         make(map[uint64]*types.Block),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
@@ -339,7 +339,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 	if b != nil && commit != nil {
 		m.logger.Info("Syncing block", "height", b.SignedHeader.Header.Height())
-		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
+		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
@@ -477,8 +477,8 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 }
 
 func (m *Manager) IsProposer() (bool, error) {
-	m.lastStateMtx.Lock()
-	defer m.lastStateMtx.Unlock()
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	// if proposer is not set, assume self proposer
 	if m.lastState.Validators.Proposer == nil {
 		return true, nil
@@ -661,26 +661,26 @@ func (m *Manager) updateLastState(s types.State) {
 }
 
 func (m *Manager) saveValidatorsToStore(height uint64) error {
-	m.lastStateMtx.Lock()
-	defer m.lastStateMtx.Unlock()
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	return m.store.SaveValidators(height, m.lastState.Validators)
 }
 
 func (m *Manager) getLastStateValidators() *tmtypes.ValidatorSet {
-	m.lastStateMtx.Lock()
-	defer m.lastStateMtx.Unlock()
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	return m.lastState.Validators
 }
 
 func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) *types.Block {
-	m.lastStateMtx.Lock()
-	defer m.lastStateMtx.Unlock()
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	return m.executor.CreateBlock(height, lastCommit, lastHeaderHash, m.lastState)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *tmstate.ABCIResponses, error) {
-	m.lastStateMtx.Lock()
-	defer m.lastStateMtx.Unlock()
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	return m.executor.ApplyBlock(ctx, m.lastState, block)
 }
 func updateState(s *types.State, res *abci.ResponseInitChain) {
