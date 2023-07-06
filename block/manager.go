@@ -368,8 +368,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
-		m.updateLastState(newState)
-		err = m.store.UpdateState(newState)
+		err = m.updateState(newState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
@@ -603,10 +602,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
-	m.updateLastState(newState)
-
-	// UpdateState commits the DB tx
-	err = m.store.UpdateState(newState)
+	// updateState also commits the DB tx
+	err = m.updateState(newState)
 	if err != nil {
 		return err
 	}
@@ -654,10 +651,16 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
-func (m *Manager) updateLastState(s types.State) {
+// Updates the state stored in manager's store along the manager's lastState
+func (m *Manager) updateState(s types.State) error {
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
+	err := m.store.UpdateState(s)
+	if err != nil {
+		return err
+	}
 	m.lastState = s
+	return nil
 }
 
 func (m *Manager) saveValidatorsToStore(height uint64) error {
