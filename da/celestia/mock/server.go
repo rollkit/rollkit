@@ -15,7 +15,6 @@ import (
 	"github.com/rollkit/celestia-openrpc/types/blob"
 	"github.com/rollkit/celestia-openrpc/types/header"
 	"github.com/rollkit/celestia-openrpc/types/sdk"
-	"github.com/rollkit/celestia-openrpc/types/share"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
@@ -145,15 +144,16 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		height := params[0].(float64)
+		nsBase64 := params[1].([]interface{})[0].(string)
+		ns, err := base64.StdEncoding.DecodeString(nsBase64)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
 		block := s.mock.RetrieveBlocks(r.Context(), uint64(height))
 		var blobs []blob.Blob
 		for _, block := range block.Blocks {
 			data, err := block.MarshalBinary()
-			if err != nil {
-				s.writeError(w, err)
-				return
-			}
-			ns, err := share.NewBlobNamespaceV0([]byte{0x00, 0x01, 0x02, 0x03, 0x04})
 			if err != nil {
 				s.writeError(w, err)
 				return
