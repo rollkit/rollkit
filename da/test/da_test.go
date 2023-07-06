@@ -20,7 +20,15 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-var testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
+var (
+	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
+
+	testConfig = celestia.Config{
+		BaseURL:  "http://localhost:26658",
+		Timeout:  30 * time.Second,
+		GasLimit: 3000000,
+	}
+)
 
 func TestMain(m *testing.M) {
 	srv := startMockGRPCServ()
@@ -53,7 +61,14 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init(testNamespaceID, []byte{}, nil, test.NewLogger(t))
+	conf := []byte{}
+	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
+		conf = []byte(mockDaBlockTime.String())
+	}
+	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
+		conf, _ = json.Marshal(testConfig)
+	}
+	err := dalc.Init(testNamespaceID, conf, nil, test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -82,12 +97,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
-		config := celestia.Config{
-			BaseURL:  "http://localhost:26658",
-			Timeout:  30 * time.Second,
-			GasLimit: 3000000,
-		}
-		conf, _ = json.Marshal(config)
+		conf, _ = json.Marshal(testConfig)
 	}
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
 	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewLogger(t))
@@ -151,12 +161,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
-		config := celestia.Config{
-			BaseURL:  "http://localhost:26658",
-			Timeout:  30 * time.Second,
-			GasLimit: 3000000,
-		}
-		conf, _ = json.Marshal(config)
+		conf, _ = json.Marshal(testConfig)
 	}
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
 	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewLogger(t))
