@@ -120,6 +120,10 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, err)
 			return
 		}
+		if len(params) != 1 {
+			s.writeError(w, errors.New("expected 1 param: height (uint64)"))
+			return
+		}
 		height := uint64(params[0].(float64))
 		dah := s.mock.GetHeaderByHeight(height)
 		resp := &response{
@@ -141,6 +145,10 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		err := json.Unmarshal(req.Params, &params)
 		if err != nil {
 			s.writeError(w, err)
+			return
+		}
+		if len(params) != 2 {
+			s.writeError(w, errors.New("expected 2 params: height (uint64), namespace (base64 string)"))
 			return
 		}
 		height := params[0].(float64)
@@ -197,7 +205,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if len(params) != 3 {
-			s.writeError(w, errors.New("expected 3 params"))
+			s.writeError(w, errors.New("expected 3 params: fee (uint64), gaslimit (uint64), data (base64 string)"))
 			return
 		}
 		block := types.Block{}
