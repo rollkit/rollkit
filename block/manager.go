@@ -31,6 +31,9 @@ import (
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
 const defaultDABlockTime = 30 * time.Second
 
+// defaultBlockTime is used only if BlockTime is not configured for manager
+const defaultBlockTime = 1 * time.Second
+
 // maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
@@ -126,6 +129,11 @@ func NewManager(
 	if conf.DABlockTime == 0 {
 		logger.Info("WARNING: using default DA block time", "DABlockTime", defaultDABlockTime)
 		conf.DABlockTime = defaultDABlockTime
+	}
+
+	if conf.BlockTime == 0 {
+		logger.Info("WARNING: using default block time", "BlockTime", defaultBlockTime)
+		conf.BlockTime = defaultBlockTime
 	}
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
