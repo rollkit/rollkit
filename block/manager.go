@@ -405,8 +405,7 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 	// blockStoreCond can be signalled in completely async manner, and goroutine below
 	// works as some kind of "buffer" for those signals
 	waitCh := make(chan interface{})
-	lastBlockHeight, lastBlock, block := 0, &types.Block{}, &types.Block{}
-	lastBlock = nil
+	lastBlockStoreHeight := uint64(0)
 	go func() {
 		for {
 			m.blockStoreMtx.Lock()
@@ -424,17 +423,16 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			for {
 				blockStoreHeight := m.blockStore.Height()
 				m.logger.Debug("blockStore", "height", blockStoreHeight)
-				if blockStoreHeight > uint64(lastBlockHeight) {
-					block, err := m.getBlockFromBlockStore(ctx, m.blockStore)
+				if blockStoreHeight > lastBlockStoreHeight {
+					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight, blockStoreHeight)
 					if err != nil {
-						m.logger.Error("failed to get block from Block Store", "blockHeight", m.store.Height(), "errors", err.Error())
+						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
 					}
-					if lastBlock != nil && !bytes.Equal(lastBlock.Hash(), block.Hash()) {
-						fmt.Printf("blockStoreHeight: %d, lastBlockStoreHeight: %d\n", blockStoreHeight, lastBlockHeight)
+					for _, block := range blocks {
+						fmt.Println("Block Height", block.Height())
 					}
 				}
-				lastBlockHeight = int(m.blockStore.Height())
-				lastBlock = block
+				lastBlockStoreHeight = blockStoreHeight
 			}
 		case <-ctx.Done():
 			return
@@ -466,24 +464,12 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			for {
 				daHeight := atomic.LoadUint64(&m.daHeight)
 				m.logger.Debug("retrieve", "daHeight", daHeight)
-				blockStoreHeight := m.blockStore.Height()
-				if blockStoreHeight > uint64(lastBlockHeight) {
-					block, err := m.getBlockFromBlockStore(ctx, m.blockStore)
-					if err != nil {
-						m.logger.Error("failed to get block from Block Store", "blockHeight", m.store.Height(), "errors", err.Error())
-					}
-					if lastBlock != nil && !bytes.Equal(lastBlock.Hash(), block.Hash()) {
-						fmt.Printf("blockStoreHeight: %d, lastBlockStoreHeight: %d\n", blockStoreHeight, lastBlockHeight)
-					}
-				}
 				err := m.processNextDABlock(ctx)
 				if err != nil {
 					m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 					break
 				}
 				atomic.AddUint64(&m.daHeight, 1)
-				lastBlockHeight = int(m.blockStore.Height())
-				lastBlock = block
 			}
 		case <-ctx.Done():
 			return
@@ -491,13 +477,19 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) getBlockFromBlockStore(ctx context.Context, blockStore *goheaderstore.Store[*types.Block]) (*types.Block, error) {
-	storeHeight := m.store.Height()
-	block, err := blockStore.GetByHeight(ctx, storeHeight)
-	if err != nil {
-		return nil, err
+func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Block, error) {
+	if startHeight >= endHeight {
+		return nil, fmt.Errorf("startHeight (%d) is greater or equal to endHeight (%d)", startHeight, endHeight)
 	}
-	return block, nil
+	blocks := make([]*types.Block, endHeight-startHeight)
+	for i := startHeight; i < endHeight; i++ {
+		block, err := m.blockStore.GetByHeight(ctx, i)
+		if err != nil {
+			return nil, err
+		}
+		blocks[i-startHeight] = block
+	}
+	return blocks, nil
 }
 
 func (m *Manager) processNextDABlock(ctx context.Context) error {
