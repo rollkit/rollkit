@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
 	"github.com/celestiaorg/go-header"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -72,19 +72,19 @@ type IntermediateStateRoots struct {
 // ToABCICommit converts Rollkit commit into commit format defined by ABCI.
 // This function only converts fields that are available in Rollkit commit.
 // Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
-func (c *Commit) ToABCICommit(height int64, hash Hash) *tmtypes.Commit {
-	tmCommit := tmtypes.Commit{
+func (c *Commit) ToABCICommit(height int64, hash Hash) *cmtypes.Commit {
+	tmCommit := cmtypes.Commit{
 		Height: height,
 		Round:  0,
-		BlockID: tmtypes.BlockID{
-			Hash:          tmbytes.HexBytes(hash),
-			PartSetHeader: tmtypes.PartSetHeader{},
+		BlockID: cmtypes.BlockID{
+			Hash:          cmbytes.HexBytes(hash),
+			PartSetHeader: cmtypes.PartSetHeader{},
 		},
-		Signatures: make([]tmtypes.CommitSig, len(c.Signatures)),
+		Signatures: make([]cmtypes.CommitSig, len(c.Signatures)),
 	}
 	for i, sig := range c.Signatures {
-		commitSig := tmtypes.CommitSig{
-			BlockIDFlag: tmtypes.BlockIDFlagCommit,
+		commitSig := cmtypes.CommitSig{
+			BlockIDFlag: cmtypes.BlockIDFlagCommit,
 			Signature:   sig,
 		}
 		tmCommit.Signatures[i] = commitSig
