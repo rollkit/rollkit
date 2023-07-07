@@ -38,40 +38,28 @@ There are currently 2 ways to build on Celestia:
 
 | network               | rollkit    | celestia-node | celestia-app |
 |-----------------------|------------|---------------|--------------|
-| local-celestia-devnet | v0.8.1     | v0.10.4       | v0.13.3      |
-| arabica               | v0.8.2-rc0 | v0.11.0-rc2   | v1.0.0-rc0   |
+| local-celestia-devnet | v0.9.0     | v0.11.0-rc6   | v1.0.0-rc7   |
+| arabica               | v0.9.0     | v0.11.0-rc6   | v1.0.0-rc7   |
 
 | rollkit/cosmos-sdk                          | rollkit/cometbft                   | rollkit    |
 |---------------------------------------------|------------------------------------|------------|
-| v0.46.13-rollkit-v0.8.1-no-fraud-proofs     | v0.0.0-20230524013049-75272ebaee38 | v0.8.1     |
-| v0.45.16-rollkit-v0.8.1-no-fraud-proofs     | v0.0.0-20230524013001-2968c8b8b121 | v0.8.1     |
-|                                             |                                    |            |
-| v0.46.13-rollkit-v0.8.2-rc0-no-fraud-proofs | v0.0.0-20230524013049-75272ebaee38 | v0.8.2-rc0 |
-| v0.45.16-rollkit-v0.8.2-rc0-no-fraud-proofs | v0.0.0-20230524013001-2968c8b8b121 | v0.8.2-rc0 |
+| v0.46.13-rollkit-v0.9.0-no-fraud-proofs     | v0.0.0-20230524013049-75272ebaee38 | v0.9.0     |
+| v0.45.16-rollkit-v0.9.0-no-fraud-proofs     | v0.0.0-20230524013001-2968c8b8b121 | v0.9.0     |
 
 #### Local Development Environment
 
-The current Rollkit v0.8.1 release is compatible with the
+The Rollkit v0.9.0 release is compatible with the
 [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
-v0.10.4 release. This version combination is compatible with
-[celesita-app](https://github.com/celestiaorg/celestia-app) v0.13.3 and
-[celestia-node](https://github.com/celestiaorg/celestia-node) v0.10.4.
-
-For more information see the [release
-notes](https://github.com/rollkit/local-celestia-devnet/releases/tag/v0.10.4)
-for v0.10.4 of local-celestia-devnet.
+[oolong](https://github.com/rollkit/local-celestia-devnet/releases) release. This version combination is compatible with
+[celesita-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+[celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
 
 #### Arabica and Mocha Testnets
 
-> :warning: **Rollkit v0.8.1 is not compatible with latest releases of Arabica and Mocha.** :warning:
+The Rollkit v0.9.0 release is compatible with [Arabica](https://docs.celestia.org/nodes/arabica-devnet/) devnet which is running [celesita-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+[celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
 
-Arabica compatibility is currently under development on the `arabica` branch of
-the rollkit repo. If you are need to test or build on Arabica, please reach out
-the Rollkit team and track the progress of the `arabica` branch and the
-v0.8.2-rcx releases.
-
-The key updates to making Rollkit compatible with Arabica and Mocha are making
-Rollkit compatible with celestia-app v1.0.0-rcX and celestia-node v0.11.0-rcX.
+> :warning: **Rollkit v0.9.0 is not tested for compatibility with latest releases of Mocha.** :warning:
 
 ### Tools
 
