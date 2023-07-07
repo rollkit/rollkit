@@ -110,10 +110,6 @@ func (bExService *BlockExchangeService) isInitialized() bool {
 	return bExService.blockStore.Height() > 0
 }
 
-func (bExService *BlockExchangeService) getBlockStore() *goheaderstore.Store[*types.Block] {
-	return bExService.blockStore
-}
-
 // OnStart is a part of Service interface.
 func (bExService *BlockExchangeService) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start

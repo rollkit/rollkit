@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-fraud/fraudserv"
+	goheaderstore "github.com/celestiaorg/go-header/store"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
@@ -62,7 +63,9 @@ type Manager struct {
 	HeaderCh chan *types.SignedHeader
 	BlockCh  chan *types.Block
 
-	blockInCh chan newBlockEvent
+	blockInCh  chan newBlockEvent
+	blockStore *goheaderstore.Store[*types.Block]
+
 	syncCache map[uint64]*types.Block
 
 	// retrieveMtx is used by retrieveCond
@@ -173,6 +176,11 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 		return nil, err
 	}
 	return tmcrypto.AddressHash(rawKey), nil
+}
+
+// SetBlockStore is used to set Block Store used by Manager.
+func (m *Manager) SetBlockStore(blockStore *goheaderstore.Store[*types.Block]) {
+	m.blockStore = blockStore
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.

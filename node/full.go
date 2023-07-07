@@ -182,6 +182,8 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
 	}
 
+	blockManager.SetBlockStore(blockExchangeService.blockStore)
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
