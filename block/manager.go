@@ -437,7 +437,7 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
 					}
 					for _, block := range blocks {
-						fmt.Println("Block Height", block.Height())
+						m.logger.Info("Block Height", block.Height())
 					}
 				}
 				lastBlockStoreHeight = blockStoreHeight
@@ -724,7 +724,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	}
 
 	if !submitted {
-		return fmt.Errorf("Failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
 
 	return nil
