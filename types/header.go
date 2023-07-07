@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding"
+	"errors"
 	"fmt"
 	"time"
 
@@ -140,6 +141,15 @@ func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
 			untrusted.Time(),
 			time.Now(),
 			maxClockDrift)
+	}
+
+	return nil
+}
+
+// ValidateBasic performs basic validation of a header.
+func (h *Header) ValidateBasic() error {
+	if len(h.ProposerAddress) == 0 {
+		return errors.New("no proposer address")
 	}
 
 	return nil

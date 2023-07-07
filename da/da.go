@@ -15,6 +15,7 @@ var (
 	ErrDataNotFound = errors.New("data not found")
 	// ErrNamespaceNotFound is used to indicate that the block contains data, but not for the requested namespace.
 	ErrNamespaceNotFound = errors.New("namespace not found in data")
+	ErrBlobNotFound      = errors.New("blob: not found")
 	ErrEDSNotFound       = errors.New("eds not found")
 )
 

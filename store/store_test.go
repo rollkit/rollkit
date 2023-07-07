@@ -102,7 +102,7 @@ func TestStoreLoad(t *testing.T) {
 				for _, block := range c.blocks {
 					commit := &types.Commit{}
 					block.SignedHeader.Commit = *lastCommit
-					block.SignedHeader.Validators = getRandomValidatorSet()
+					block.SignedHeader.Validators = types.GetRandomValidatorSet()
 					err := bstore.SaveBlock(block, commit)
 					require.NoError(err)
 					lastCommit = commit
@@ -128,7 +128,7 @@ func TestRestart(t *testing.T) {
 
 	assert := assert.New(t)
 
-	validatorSet := getRandomValidatorSet()
+	validatorSet := types.GetRandomValidatorSet()
 
 	ctx := context.Background()
 	kv, _ := NewDefaultInMemoryKVStore()

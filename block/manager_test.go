@@ -29,9 +29,9 @@ func TestInitialState(t *testing.T) {
 		ChainID:         "state id",
 		InitialHeight:   123,
 		LastBlockHeight: 128,
-		LastValidators:  getRandomValidatorSet(),
-		Validators:      getRandomValidatorSet(),
-		NextValidators:  getRandomValidatorSet(),
+		LastValidators:  types.GetRandomValidatorSet(),
+		Validators:      types.GetRandomValidatorSet(),
+		NextValidators:  types.GetRandomValidatorSet(),
 	}
 
 	ctx := context.Background()
@@ -96,15 +96,4 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 	_ = dalc.Init([8]byte{}, nil, nil, logger)
 	_ = dalc.Start()
 	return dalc
-}
-
-// copied from store_test.go
-func getRandomValidatorSet() *cmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
-		},
-	}
 }

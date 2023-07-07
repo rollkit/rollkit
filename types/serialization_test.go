@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -53,8 +53,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
 	pubKey2 := ed25519.GenPrivKey().PubKey()
-	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
-	validator2 := &cmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
+	validator1 := &tmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
+	validator2 := &tmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
 
 	cases := []struct {
 		name  string
@@ -67,8 +67,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				Commit: Commit{
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 				},
-				Validators: &cmtypes.ValidatorSet{
-					Validators: []*cmtypes.Validator{
+				Validators: &tmtypes.ValidatorSet{
+					Validators: []*tmtypes.Validator{
 						validator1,
 						validator2,
 					},
@@ -104,7 +104,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	valSet := getRandomValidatorSet()
+	valSet := GetRandomValidatorSet()
 
 	cases := []struct {
 		name  string
@@ -116,10 +116,11 @@ func TestStateRoundTrip(t *testing.T) {
 				LastValidators: valSet,
 				Validators:     valSet,
 				NextValidators: valSet,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 123,
-						MaxGas:   456,
+				ConsensusParams: tmproto.ConsensusParams{
+					Block: tmproto.BlockParams{
+						MaxBytes:   123,
+						MaxGas:     456,
+						TimeIotaMs: 789,
 					},
 				},
 			},
@@ -127,8 +128,8 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			name: "with all fields set",
 			state: State{
-				Version: cmstate.Version{
-					Consensus: cmversion.Consensus{
+				Version: tmstate.Version{
+					Consensus: tmversion.Consensus{
 						Block: 123,
 						App:   456,
 					},
@@ -137,9 +138,9 @@ func TestStateRoundTrip(t *testing.T) {
 				ChainID:         "testchain",
 				InitialHeight:   987,
 				LastBlockHeight: 987654321,
-				LastBlockID: cmtypes.BlockID{
+				LastBlockID: tmtypes.BlockID{
 					Hash: nil,
-					PartSetHeader: cmtypes.PartSetHeader{
+					PartSetHeader: tmtypes.PartSetHeader{
 						Total: 0,
 						Hash:  nil,
 					},
@@ -150,21 +151,22 @@ func TestStateRoundTrip(t *testing.T) {
 				Validators:                  valSet,
 				LastValidators:              valSet,
 				LastHeightValidatorsChanged: 8272,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 12345,
-						MaxGas:   6543234,
+				ConsensusParams: tmproto.ConsensusParams{
+					Block: tmproto.BlockParams{
+						MaxBytes:   12345,
+						MaxGas:     6543234,
+						TimeIotaMs: 235,
 					},
-					Evidence: &cmproto.EvidenceParams{
+					Evidence: tmproto.EvidenceParams{
 						MaxAgeNumBlocks: 100,
 						MaxAgeDuration:  200,
 						MaxBytes:        300,
 					},
-					Validator: &cmproto.ValidatorParams{
+					Validator: tmproto.ValidatorParams{
 						PubKeyTypes: []string{"secure", "more secure"},
 					},
-					Version: &cmproto.VersionParams{
-						App: 42,
+					Version: tmproto.VersionParams{
+						AppVersion: 42,
 					},
 				},
 				LastHeightConsensusParamsChanged: 12345,
@@ -196,16 +198,5 @@ func TestStateRoundTrip(t *testing.T) {
 
 			assert.Equal(c.state, newState)
 		})
-	}
-}
-
-// copied from store_test.go
-func getRandomValidatorSet() *cmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
-		},
 	}
 }
