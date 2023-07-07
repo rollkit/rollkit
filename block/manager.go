@@ -395,6 +395,8 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	// retrieveCond can be signalled in completely async manner, and goroutine below
 	// works as some kind of "buffer" for those signals
 	waitCh := make(chan interface{})
+	lastBlockHeight, lastBlock, block := 0, &types.Block{}, &types.Block{}
+	lastBlock = nil
 	go func() {
 		for {
 			m.retrieveMtx.Lock()
@@ -413,17 +415,38 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			for {
 				daHeight := atomic.LoadUint64(&m.daHeight)
 				m.logger.Debug("retrieve", "daHeight", daHeight)
+				blockStoreHeight := m.blockStore.Height()
+				if blockStoreHeight > uint64(lastBlockHeight) {
+					block, err := m.getBlockFromBlockStore(ctx, m.blockStore)
+					if err != nil {
+						m.logger.Error("failed to get block from Block Store", "blockHeight", m.store.Height(), "errors", err.Error())
+					}
+					if lastBlock != nil && !bytes.Equal(lastBlock.Hash(), block.Hash()) {
+						fmt.Printf("blockStoreHeight: %d, lastBlockStoreHeight: %d\n", blockStoreHeight, lastBlockHeight)
+					}
+				}
 				err := m.processNextDABlock(ctx)
 				if err != nil {
 					m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 					break
 				}
 				atomic.AddUint64(&m.daHeight, 1)
+				lastBlockHeight = int(m.blockStore.Height())
+				lastBlock = block
 			}
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func (m *Manager) getBlockFromBlockStore(ctx context.Context, blockStore *goheaderstore.Store[*types.Block]) (*types.Block, error) {
+	storeHeight := m.store.Height()
+	block, err := blockStore.GetByHeight(ctx, storeHeight)
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }
 
 func (m *Manager) processNextDABlock(ctx context.Context) error {
