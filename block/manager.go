@@ -68,6 +68,11 @@ type Manager struct {
 
 	syncCache map[uint64]*types.Block
 
+	// blockStoreMtx is used by blockStoreCond
+	blockStoreMtx *sync.Mutex
+	// blockStoreCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve blocks from blockStore
+	blockStoreCond *sync.Cond
+
 	// retrieveMtx is used by retrieveCond
 	retrieveMtx *sync.Mutex
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
@@ -157,6 +162,7 @@ func NewManager(
 		HeaderCh:          make(chan *types.SignedHeader, 100),
 		BlockCh:           make(chan *types.Block, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
+		blockStoreMtx:     new(sync.Mutex),
 		retrieveMtx:       new(sync.Mutex),
 		lastStateMtx:      new(sync.Mutex),
 		syncCache:         make(map[uint64]*types.Block),
@@ -166,6 +172,7 @@ func NewManager(
 		buildingBlock:     false,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
+	agg.blockStoreCond = sync.NewCond(agg.blockStoreMtx)
 
 	return agg, nil
 }
@@ -298,10 +305,13 @@ func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFu
 // block data is retrieved from DA layer.
 func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
+	blockTicker := time.NewTicker(m.conf.BlockTime)
 	for {
 		select {
 		case <-daTicker.C:
 			m.retrieveCond.Signal()
+		case <-blockTicker.C:
+			m.blockStoreCond.Signal()
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -389,14 +399,55 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	return nil
 }
 
+// BlockStoreRetrieveLoop is responsible for retrieving blocks from the Block Store.
+func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
+	// waitCh is used to signal the block store retrieve loop, that it should check block store for new blocks
+	// blockStoreCond can be signalled in completely async manner, and goroutine below
+	// works as some kind of "buffer" for those signals
+	waitCh := make(chan interface{})
+	lastBlockHeight, lastBlock, block := 0, &types.Block{}, &types.Block{}
+	lastBlock = nil
+	go func() {
+		for {
+			m.blockStoreMtx.Lock()
+			m.blockStoreCond.Wait()
+			waitCh <- nil
+			m.blockStoreMtx.Unlock()
+			if ctx.Err() != nil {
+				return
+			}
+		}
+	}()
+	for {
+		select {
+		case <-waitCh:
+			for {
+				blockStoreHeight := m.blockStore.Height()
+				m.logger.Debug("blockStore", "height", blockStoreHeight)
+				if blockStoreHeight > uint64(lastBlockHeight) {
+					block, err := m.getBlockFromBlockStore(ctx, m.blockStore)
+					if err != nil {
+						m.logger.Error("failed to get block from Block Store", "blockHeight", m.store.Height(), "errors", err.Error())
+					}
+					if lastBlock != nil && !bytes.Equal(lastBlock.Hash(), block.Hash()) {
+						fmt.Printf("blockStoreHeight: %d, lastBlockStoreHeight: %d\n", blockStoreHeight, lastBlockHeight)
+					}
+				}
+				lastBlockHeight = int(m.blockStore.Height())
+				lastBlock = block
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
 	// waitCh is used to signal the retrieve loop, that it should process next blocks
 	// retrieveCond can be signalled in completely async manner, and goroutine below
 	// works as some kind of "buffer" for those signals
 	waitCh := make(chan interface{})
-	lastBlockHeight, lastBlock, block := 0, &types.Block{}, &types.Block{}
-	lastBlock = nil
 	go func() {
 		for {
 			m.retrieveMtx.Lock()
