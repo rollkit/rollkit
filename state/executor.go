@@ -150,12 +150,8 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 	}
 
 	abciValUpdates := resp.EndBlock.ValidatorUpdates
-	protoState, err := state.ToProto()
-	if err != nil {
-		return types.State{}, nil, err
-	}
 
-	err = validateValidatorUpdates(abciValUpdates, protoState.ConsensusParams.Validator)
+	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
 	if err != nil {
 		return state, nil, fmt.Errorf("error in validator updates: %v", err)
 	}
