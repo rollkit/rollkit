@@ -51,12 +51,12 @@ There are currently 2 ways to build on Celestia:
 The Rollkit v0.9.0 release is compatible with the
 [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
 [oolong](https://github.com/rollkit/local-celestia-devnet/releases) release. This version combination is compatible with
-[celesita-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+[celestia-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
 [celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
 
 #### Arabica and Mocha Testnets
 
-The Rollkit v0.9.0 release is compatible with [Arabica](https://docs.celestia.org/nodes/arabica-devnet/) devnet which is running [celesita-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+The Rollkit v0.9.0 release is compatible with [Arabica](https://docs.celestia.org/nodes/arabica-devnet/) devnet which is running [celestia-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
 [celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
 
 > :warning: **Rollkit v0.9.0 is not tested for compatibility with latest releases of Mocha.** :warning:
