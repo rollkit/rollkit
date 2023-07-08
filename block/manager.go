@@ -532,9 +532,9 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			for _, block := range blockResp.Blocks {
 				blockHash := block.Hash().String()
 				m.isBlockHardConfirmed[blockHash] = true
-				if !m.isBlockWithHashSeen[blockHash] {
-					m.blockInCh <- newBlockEvent{block, daHeight}
-				}
+				// if !m.isBlockWithHashSeen[blockHash] {
+				m.blockInCh <- newBlockEvent{block, daHeight}
+				// }
 			}
 			return nil
 		}
