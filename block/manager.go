@@ -69,9 +69,10 @@ type Manager struct {
 	blockInCh  chan newBlockEvent
 	blockStore *goheaderstore.Store[*types.Block]
 
-	syncCache            map[uint64]*types.Block
-	isBlockWithHashSeen  map[string]bool
-	isBlockHardConfirmed map[string]bool
+	syncCache              map[uint64]*types.Block
+	isBlockWithHashSeen    map[string]bool
+	isBlockWithHashSeenMtx *sync.RWMutex
+	isBlockHardConfirmed   map[string]bool
 
 	// blockStoreMtx is used by blockStoreCond
 	blockStoreMtx *sync.Mutex
@@ -169,19 +170,20 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:             make(chan *types.SignedHeader, 100),
-		BlockCh:              make(chan *types.Block, 100),
-		blockInCh:            make(chan newBlockEvent, 100),
-		blockStoreMtx:        new(sync.Mutex),
-		retrieveMtx:          new(sync.Mutex),
-		lastStateMtx:         new(sync.Mutex),
-		syncCache:            make(map[uint64]*types.Block),
-		isBlockWithHashSeen:  make(map[string]bool),
-		isBlockHardConfirmed: make(map[string]bool),
-		logger:               logger,
-		txsAvailable:         txsAvailableCh,
-		doneBuildingBlock:    doneBuildingCh,
-		buildingBlock:        false,
+		HeaderCh:               make(chan *types.SignedHeader, 100),
+		BlockCh:                make(chan *types.Block, 100),
+		blockInCh:              make(chan newBlockEvent, 100),
+		blockStoreMtx:          new(sync.Mutex),
+		retrieveMtx:            new(sync.Mutex),
+		lastStateMtx:           new(sync.Mutex),
+		syncCache:              make(map[uint64]*types.Block),
+		isBlockWithHashSeen:    make(map[string]bool),
+		isBlockWithHashSeenMtx: new(sync.RWMutex),
+		isBlockHardConfirmed:   make(map[string]bool),
+		logger:                 logger,
+		txsAvailable:           txsAvailableCh,
+		doneBuildingBlock:      doneBuildingCh,
+		buildingBlock:          false,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 	agg.blockStoreCond = sync.NewCond(agg.blockStoreMtx)
@@ -333,11 +335,12 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", blockHash,
 			)
-			if m.isBlockWithHashSeen[blockHash] {
+			if m.isBlockSeen(blockHash) {
 				m.logger.Debug("block already seen", "height", block.SignedHeader.Header.Height(), "block hash", blockHash)
 				continue
 			}
 			m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = block
+
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
@@ -347,11 +350,23 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
-			m.isBlockWithHashSeen[blockHash] = true
+			m.setBlockSeen(blockHash)
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func (m *Manager) isBlockSeen(blockHash string) bool {
+	m.isBlockWithHashSeenMtx.RLock()
+	defer m.isBlockWithHashSeenMtx.RUnlock()
+	return m.isBlockWithHashSeen[blockHash]
+}
+
+func (m *Manager) setBlockSeen(blockHash string) {
+	m.isBlockWithHashSeenMtx.Lock()
+	defer m.isBlockWithHashSeenMtx.Unlock()
+	m.isBlockWithHashSeen[blockHash] = true
 }
 
 // trySyncNextBlock tries to progress one step (one block) in sync process.
@@ -532,9 +547,9 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			for _, block := range blockResp.Blocks {
 				blockHash := block.Hash().String()
 				m.isBlockHardConfirmed[blockHash] = true
-				// if !m.isBlockWithHashSeen[blockHash] {
-				m.blockInCh <- newBlockEvent{block, daHeight}
-				// }
+				if !m.isBlockSeen(blockHash) {
+					m.blockInCh <- newBlockEvent{block, daHeight}
+				}
 			}
 			return nil
 		}
