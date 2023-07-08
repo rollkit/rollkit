@@ -317,7 +317,7 @@ func (n *FullNode) OnStart() error {
 	}
 	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
-	// go n.blockManager.BlockStoreRetrieveLoop(n.ctx)
+	go n.blockManager.BlockStoreRetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
 	return nil
 }

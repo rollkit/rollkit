@@ -69,7 +69,9 @@ type Manager struct {
 	blockInCh  chan newBlockEvent
 	blockStore *goheaderstore.Store[*types.Block]
 
-	syncCache map[uint64]*types.Block
+	syncCache            map[uint64]*types.Block
+	isBlockWithHashSeen  map[string]bool
+	isBlockHardConfirmed map[string]bool
 
 	// blockStoreMtx is used by blockStoreCond
 	blockStoreMtx *sync.Mutex
@@ -167,17 +169,19 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:          make(chan *types.SignedHeader, 100),
-		BlockCh:           make(chan *types.Block, 100),
-		blockInCh:         make(chan newBlockEvent, 100),
-		blockStoreMtx:     new(sync.Mutex),
-		retrieveMtx:       new(sync.Mutex),
-		lastStateMtx:      new(sync.Mutex),
-		syncCache:         make(map[uint64]*types.Block),
-		logger:            logger,
-		txsAvailable:      txsAvailableCh,
-		doneBuildingBlock: doneBuildingCh,
-		buildingBlock:     false,
+		HeaderCh:             make(chan *types.SignedHeader, 100),
+		BlockCh:              make(chan *types.Block, 100),
+		blockInCh:            make(chan newBlockEvent, 100),
+		blockStoreMtx:        new(sync.Mutex),
+		retrieveMtx:          new(sync.Mutex),
+		lastStateMtx:         new(sync.Mutex),
+		syncCache:            make(map[uint64]*types.Block),
+		isBlockWithHashSeen:  make(map[string]bool),
+		isBlockHardConfirmed: make(map[string]bool),
+		logger:               logger,
+		txsAvailable:         txsAvailableCh,
+		doneBuildingBlock:    doneBuildingCh,
+		buildingBlock:        false,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 	agg.blockStoreCond = sync.NewCond(agg.blockStoreMtx)
@@ -323,13 +327,18 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
+			blockHash := block.Hash().String()
 			m.logger.Debug("block body retrieved from DALC",
 				"height", block.SignedHeader.Header.Height(),
 				"daHeight", daHeight,
-				"hash", block.Hash(),
+				"hash", blockHash,
 			)
+			if m.isBlockWithHashSeen[blockHash] {
+				m.logger.Debug("block already seen", "height", block.SignedHeader.Header.Height(), "block hash", blockHash)
+				continue
+			}
+			m.isBlockWithHashSeen[blockHash] = true
 			m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = block
-			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil && err.Error() == fmt.Errorf("failed to ApplyBlock: %w", state.ErrFraudProofGenerated).Error() {
@@ -437,7 +446,7 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
 					}
 					for _, block := range blocks {
-						m.logger.Info("Block Height", block.Height())
+						m.blockInCh <- newBlockEvent{block, m.daHeight}
 					}
 				}
 				lastBlockStoreHeight = blockStoreHeight
@@ -520,6 +529,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
+				m.isBlockHardConfirmed[block.Hash().String()] = true
 			}
 			return nil
 		}
