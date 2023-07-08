@@ -337,15 +337,16 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	defer func() {
 		require.NoError(dalc.Stop())
 	}()
-	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, t)
-	fullNode, _ := createNode(ctx, 1, false, false, false, keys, t)
+	bmConfig := getBMConfig()
+	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, bmConfig, t)
+	fullNode, _ := createNode(ctx, 1, false, false, false, keys, bmConfig, t)
 
 	sequencer.(*FullNode).dalc = dalc
 	sequencer.(*FullNode).blockManager.SetDALC(dalc)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	lightNode, _ := createNode(ctx, 2, false, false, true, keys, t)
+	lightNode, _ := createNode(ctx, 2, false, false, true, keys, bmConfig, t)
 
 	require.NoError(sequencer.Start())
 	defer func() {
@@ -568,14 +569,15 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *test
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, t)
+	bmConfig := getBMConfig()
+	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, bmConfig, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, t)
+		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, bmConfig, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
@@ -584,7 +586,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *test
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -592,12 +594,6 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	startPort := 10000
 	p2pConfig := config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
-	}
-	bmConfig := config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		FraudProofs: true,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {

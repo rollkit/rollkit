@@ -12,7 +12,9 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	tmtypes "github.com/tendermint/tendermint/types"
 
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/conv"
+	"github.com/rollkit/rollkit/types"
 )
 
 var genesisValidatorKey = ed25519.GenPrivKey()
@@ -40,6 +42,15 @@ func (m MockTester) Errorf(format string, args ...interface{}) {
 
 func waitForFirstBlock(node *FullNode, useBlockExchange bool) error {
 	return waitForAtLeastNBlocks(node, 1, useBlockExchange)
+}
+
+func getBMConfig() config.BlockManagerConfig {
+	return config.BlockManagerConfig{
+		DABlockTime: 100 * time.Millisecond,
+		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
+		FraudProofs: true,
+	}
 }
 
 func getNodeHeight(node Node, useBlockExchange bool) (uint64, error) {
