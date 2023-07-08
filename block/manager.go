@@ -337,8 +337,8 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				m.logger.Debug("block already seen", "height", block.SignedHeader.Header.Height(), "block hash", blockHash)
 				continue
 			}
-			m.isBlockWithHashSeen[blockHash] = true
 			m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = block
+			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil && err.Error() == fmt.Errorf("failed to ApplyBlock: %w", state.ErrFraudProofGenerated).Error() {
@@ -347,6 +347,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
+			m.isBlockWithHashSeen[blockHash] = true
 		case <-ctx.Done():
 			return
 		}
@@ -444,6 +445,7 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight, blockStoreHeight)
 					if err != nil {
 						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
+						break
 					}
 					for _, block := range blocks {
 						m.blockInCh <- newBlockEvent{block, m.daHeight}
@@ -495,11 +497,11 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 }
 
 func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Block, error) {
-	if startHeight >= endHeight {
-		return nil, fmt.Errorf("startHeight (%d) is greater or equal to endHeight (%d)", startHeight, endHeight)
+	if startHeight > endHeight {
+		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
 	}
 	blocks := make([]*types.Block, endHeight-startHeight)
-	for i := startHeight; i < endHeight; i++ {
+	for i := startHeight; i <= endHeight; i++ {
 		block, err := m.blockStore.GetByHeight(ctx, i)
 		if err != nil {
 			return nil, err
@@ -528,8 +530,11 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
-				m.blockInCh <- newBlockEvent{block, daHeight}
-				m.isBlockHardConfirmed[block.Hash().String()] = true
+				blockHash := block.Hash().String()
+				m.isBlockHardConfirmed[blockHash] = true
+				if !m.isBlockWithHashSeen[blockHash] {
+					m.blockInCh <- newBlockEvent{block, daHeight}
+				}
 			}
 			return nil
 		}
