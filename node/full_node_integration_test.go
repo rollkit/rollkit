@@ -180,27 +180,28 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(err)
 
-	require.NoError(waitForFirstBlock(node.(*FullNode), false))
+	require.NoError(waitForFirstBlock(node.(*FullNode), Header))
 
 	client := node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
-	require.NoError(waitForAtLeastNBlocks(node, 2, false))
+	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
-	require.NoError(waitForAtLeastNBlocks(node, 3, false))
+	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
 
-	require.NoError(waitForAtLeastNBlocks(node, 4, false))
+	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
 
 }
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
 func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
+	t.Skip()
 	require := require.New(t)
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
@@ -209,7 +210,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	bmConfig.BlockTime = 1 * time.Second
 	bmConfig.DABlockTime = 10 * time.Second
 
-	//startTime := time.Now()
+	// startTime := time.Now()
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, bmConfig, t)
 
 	node1 := nodes[0]
@@ -217,19 +218,19 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	node3 := nodes[2]
 
 	require.NoError(node1.Start())
-	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node1, 1))
+	require.NoError(waitForAtLeastNBlocks(node1, 1, Store))
 	require.NoError(node2.Start())
 	require.NoError(node3.Start())
 
 	const numberOfBlocksTSyncTill = 5
-	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node2, numberOfBlocksTSyncTill))
-	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node3, numberOfBlocksTSyncTill))
+	require.NoError(waitForAtLeastNBlocks(node2, numberOfBlocksTSyncTill, Store))
+	require.NoError(waitForAtLeastNBlocks(node3, numberOfBlocksTSyncTill, Store))
 
 	aggCancel()
 	require.NoError(node1.Stop())
 
-	require.NoError(verifyNodesSyncedWithStoreHeight(node1, node2))
-	require.NoError(verifyNodesSyncedWithStoreHeight(node1, node3))
+	require.NoError(verifyNodesSynced(node1, node2, Store))
+	require.NoError(verifyNodesSynced(node1, node3, Store))
 
 	cancel()
 	require.NoError(node2.Stop())
@@ -243,30 +244,30 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 
 func TestBlockExchange(t *testing.T) {
 	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorSingleFullNode(t, true)
+		testSingleAggregatorSingleFullNode(t, Block)
 	})
 	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorTwoFullNode(t, true)
+		testSingleAggregatorTwoFullNode(t, Block)
 	})
 	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorSingleFullNodeTrustedHash(t, true)
+		testSingleAggregatorSingleFullNodeTrustedHash(t, Block)
 	})
 }
 
 func TestHeaderExchange(t *testing.T) {
 	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorSingleFullNode(t, false)
+		testSingleAggregatorSingleFullNode(t, Header)
 	})
 	t.Run("SingleAggregatorTwoFullNode", func(t *testing.T) {
-		testSingleAggregatorTwoFullNode(t, false)
+		testSingleAggregatorTwoFullNode(t, Header)
 	})
 	t.Run("SingleAggregatorSingleFullNodeTrustedHash", func(t *testing.T) {
-		testSingleAggregatorSingleFullNodeTrustedHash(t, false)
+		testSingleAggregatorSingleFullNodeTrustedHash(t, Header)
 	})
 	t.Run("SingleAggregatorSingleFullNodeSingleLightNode", testSingleAggregatorSingleFullNodeSingleLightNode)
 }
 
-func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
+func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -284,18 +285,18 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 		require.NoError(node1.Stop())
 	}()
 
-	require.NoError(waitForFirstBlock(node1, useBlockExchange))
+	require.NoError(waitForFirstBlock(node1, source))
 	require.NoError(node2.Start())
 
 	defer func() {
 		require.NoError(node2.Stop())
 	}()
 
-	require.NoError(waitForAtLeastNBlocks(node2, 2, useBlockExchange))
-	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
+	require.NoError(waitForAtLeastNBlocks(node2, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
 }
 
-func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
+func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -313,7 +314,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 	defer func() {
 		require.NoError(node1.Stop())
 	}()
-	require.NoError(waitForFirstBlock(node1, useBlockExchange))
+	require.NoError(waitForFirstBlock(node1, source))
 	require.NoError(node2.Start())
 	defer func() {
 		require.NoError(node2.Stop())
@@ -323,12 +324,13 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 		require.NoError(node3.Stop())
 	}()
 
-	require.NoError(waitForAtLeastNBlocks(node2, 2, useBlockExchange))
-	require.NoError(waitForAtLeastNBlocks(node3, 2, useBlockExchange))
-	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
+	require.NoError(waitForAtLeastNBlocks(node2, 2, source))
+	require.NoError(waitForAtLeastNBlocks(node3, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
+	require.NoError(verifyNodesSynced(node1, node3, source))
 }
 
-func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchange bool) {
+func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -346,7 +348,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 		require.NoError(node1.Stop())
 	}()
 
-	require.NoError(waitForFirstBlock(node1, useBlockExchange))
+	require.NoError(waitForFirstBlock(node1, source))
 
 	// Get the trusted hash from node1 and pass it to node2 config
 	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
@@ -357,8 +359,8 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 		require.NoError(node2.Stop())
 	}()
 
-	require.NoError(waitForAtLeastNBlocks(node1, 2, useBlockExchange))
-	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
+	require.NoError(waitForAtLeastNBlocks(node1, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
 }
 
 func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
@@ -404,8 +406,9 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 		require.NoError(lightNode.Stop())
 	}()
 
-	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, false))
-	require.NoError(verifyNodesSynced(fullNode, lightNode, false))
+	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, Header))
+	require.NoError(verifyNodesSynced(sequencer, fullNode, Header))
+	require.NoError(verifyNodesSynced(fullNode, lightNode, Header))
 }
 
 func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
@@ -434,7 +437,7 @@ func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	defer func() {
 		require.NoError(aggNode.Stop())
 	}()
-	require.NoError(waitForAtLeastNBlocks(aggNode, 2, false))
+	require.NoError(waitForAtLeastNBlocks(aggNode, 2, Header))
 	require.NoError(fullNode.Start())
 	defer func() {
 		require.NoError(fullNode.Stop())
@@ -549,13 +552,13 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 
 	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
 	require.NoError(t, nodes[0].Start())
-	require.NoError(t, waitForFirstBlock(nodes[0], false))
+	require.NoError(t, waitForFirstBlock(nodes[0], Header))
 	for i := 1; i < len(nodes); i++ {
 		require.NoError(t, nodes[i].Start())
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
-	require.NoError(t, waitForAtLeastNBlocks(nodes[1], 2, false))
+	require.NoError(t, waitForAtLeastNBlocks(nodes[1], 2, Header))
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()

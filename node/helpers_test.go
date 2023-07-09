@@ -56,7 +56,7 @@ func TestGetNodeHeight(t *testing.T) {
 	}()
 
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(fullNode, false)
+		num, err := getNodeHeight(fullNode, Header)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func TestGetNodeHeight(t *testing.T) {
 		return errors.New("expected height > 0")
 	}))
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(lightNode, false)
+		num, err := getNodeHeight(lightNode, Header)
 		if err != nil {
 			return err
 		}

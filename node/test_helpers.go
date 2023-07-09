@@ -17,6 +17,14 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+type Source int
+
+const (
+	Header Source = iota
+	Block
+	Store
+)
+
 var genesisValidatorKey = ed25519.GenPrivKey()
 
 type MockTester struct {
@@ -40,8 +48,8 @@ func (m MockTester) Errorf(format string, args ...interface{}) {
 	fmt.Println("Errorf called")
 }
 
-func waitForFirstBlock(node *FullNode, useBlockExchange bool) error {
-	return waitForAtLeastNBlocks(node, 1, useBlockExchange)
+func waitForFirstBlock(node *FullNode, source Source) error {
+	return waitForAtLeastNBlocks(node, 1, source)
 }
 
 func getBMConfig() config.BlockManagerConfig {
@@ -53,10 +61,19 @@ func getBMConfig() config.BlockManagerConfig {
 	}
 }
 
-func getNodeHeight(node Node, useBlockExchange bool) (uint64, error) {
-	if useBlockExchange {
+func getNodeHeight(node Node, source Source) (uint64, error) {
+	if source == Header {
+		return getNodeHeightFromHeader(node)
+	} else if source == Block {
 		return getNodeHeightFromBlock(node)
+	} else if source == Store {
+		return getNodeHeightFromStore(node)
+	} else {
+		return 0, errors.New("invalid source")
 	}
+}
+
+func getNodeHeightFromHeader(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.hExService.headerStore.Height(), nil
 	}
@@ -80,13 +97,13 @@ func getNodeHeightFromStore(node Node) (uint64, error) {
 	return 0, errors.New("not a full node")
 }
 
-func verifyNodesSynced(node1, node2 Node, useBlockExchange bool) error {
+func verifyNodesSynced(node1, node2 Node, source Source) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1, useBlockExchange)
+		n1Height, err := getNodeHeight(node1, source)
 		if err != nil {
 			return err
 		}
-		n2Height, err := getNodeHeight(node2, useBlockExchange)
+		n2Height, err := getNodeHeight(node2, source)
 		if err != nil {
 			return err
 		}
@@ -97,9 +114,9 @@ func verifyNodesSynced(node1, node2 Node, useBlockExchange bool) error {
 	})
 }
 
-func waitForAtLeastNBlocks(node Node, n int, useBlockExchange bool) error {
+func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		nHeight, err := getNodeHeight(node, useBlockExchange)
+		nHeight, err := getNodeHeight(node, source)
 		if err != nil {
 			return err
 		}
@@ -107,36 +124,6 @@ func waitForAtLeastNBlocks(node Node, n int, useBlockExchange bool) error {
 			return nil
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
-	})
-}
-
-func waitForAtLeastNBlocksWithStoreHeight(node Node, n int) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		nHeight, err := getNodeHeightFromStore(node)
-		if err != nil {
-			return err
-		}
-		if nHeight >= uint64(n) {
-			return nil
-		}
-		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
-	})
-}
-
-func verifyNodesSyncedWithStoreHeight(node1, node2 Node) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeightFromStore(node1)
-		if err != nil {
-			return err
-		}
-		n2Height, err := getNodeHeightFromStore(node2)
-		if err != nil {
-			return err
-		}
-		if n1Height == n2Height {
-			return nil
-		}
-		return fmt.Errorf("nodes not synced: node1 at height %v, node2 at height %v", n1Height, n2Height)
 	})
 }
 
