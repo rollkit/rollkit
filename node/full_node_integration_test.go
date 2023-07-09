@@ -199,6 +199,7 @@ func TestLazyAggregator(t *testing.T) {
 
 }
 
+// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
 func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require := require.New(t)
 
@@ -207,7 +208,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	clientNodes := 2
 	bmConfig := getBMConfig()
 	bmConfig.BlockTime = 1 * time.Second
-	bmConfig.DABlockTime = 5 * time.Second
+	bmConfig.DABlockTime = 10 * time.Second
 
 	startTime := time.Now()
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, bmConfig, t)
@@ -221,8 +222,9 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require.NoError(node2.Start())
 	require.NoError(node3.Start())
 
-	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node2, 2))
-	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node3, 2))
+	const numberOfBlocksTSyncTill = 5
+	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node2, numberOfBlocksTSyncTill))
+	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node3, numberOfBlocksTSyncTill))
 
 	aggCancel()
 	require.NoError(node1.Stop())
@@ -235,7 +237,9 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require.NoError(node3.Stop())
 
 	endTime := time.Now()
-	require.True(endTime.Sub(startTime) < 2*time.Second)
+	duration := endTime.Sub(startTime)
+	expectedDuration := numberOfBlocksTSyncTill * time.Second // numberOfBlocksTSyncTill * BlockTime (1 second)
+	require.True(duration <= expectedDuration)
 }
 
 func TestBlockExchange(t *testing.T) {
