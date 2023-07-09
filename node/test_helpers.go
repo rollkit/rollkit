@@ -73,6 +73,13 @@ func getNodeHeightFromBlock(node Node) (uint64, error) {
 	return 0, errors.New("not a full node")
 }
 
+func getNodeHeightFromStore(node Node) (uint64, error) {
+	if fn, ok := node.(*FullNode); ok {
+		return fn.blockManager.GetStoreHeight(), nil
+	}
+	return 0, errors.New("not a full node")
+}
+
 func verifyNodesSynced(node1, node2 Node, useBlockExchange bool) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
 		n1Height, err := getNodeHeight(node1, useBlockExchange)
@@ -100,6 +107,36 @@ func waitForAtLeastNBlocks(node Node, n int, useBlockExchange bool) error {
 			return nil
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
+	})
+}
+
+func waitForAtLeastNBlocksWithStoreHeight(node Node, n int) error {
+	return testutils.Retry(300, 100*time.Millisecond, func() error {
+		nHeight, err := getNodeHeightFromStore(node)
+		if err != nil {
+			return err
+		}
+		if nHeight >= uint64(n) {
+			return nil
+		}
+		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
+	})
+}
+
+func verifyNodesSyncedWithStoreHeight(node1, node2 Node) error {
+	return testutils.Retry(300, 100*time.Millisecond, func() error {
+		n1Height, err := getNodeHeightFromStore(node1)
+		if err != nil {
+			return err
+		}
+		n2Height, err := getNodeHeightFromStore(node2)
+		if err != nil {
+			return err
+		}
+		if n1Height == n2Height {
+			return nil
+		}
+		return fmt.Errorf("nodes not synced: node1 at height %v, node2 at height %v", n1Height, n2Height)
 	})
 }
 

@@ -199,6 +199,37 @@ func TestLazyAggregator(t *testing.T) {
 
 }
 
+func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
+	require := require.New(t)
+
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	clientNodes := 2
+	bmConfig := getBMConfig()
+	bmConfig.BlockTime = 1 * time.Second
+	bmConfig.DABlockTime = 5 * time.Second
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, bmConfig, t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+	node3 := nodes[2]
+
+	require.NoError(node1.Start())
+	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node1, 1))
+	require.NoError(node2.Start())
+	require.NoError(node3.Start())
+
+	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node2, 2))
+
+	aggCancel()
+	require.NoError(node1.Stop())
+
+	require.NoError(verifyNodesSyncedWithStoreHeight(node1, node2))
+	cancel()
+	require.NoError(node2.Stop())
+	require.NoError(node3.Stop())
+}
+
 func TestBlockExchange(t *testing.T) {
 	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
 		testSingleAggregatorSingleFullNode(t, true)
@@ -232,7 +263,7 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -261,7 +292,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -293,7 +324,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -375,7 +406,7 @@ func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 1
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, getBMConfig(), t)
 
 	for _, app := range apps {
 		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
@@ -426,7 +457,7 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, getBMConfig(), t)
 
 	for _, app := range apps {
 		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
@@ -490,7 +521,7 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, getBMConfig(), t)
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
@@ -547,7 +578,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, bmConfig config.BlockManagerConfig, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -569,7 +600,6 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *test
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	bmConfig := getBMConfig()
 	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, bmConfig, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)

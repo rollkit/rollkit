@@ -210,6 +210,11 @@ func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
 	m.retriever = dalc.(da.BlockRetriever)
 }
 
+// GetStoreHeight returns the manager's store height
+func (m *Manager) GetStoreHeight() uint64 {
+	return m.store.Height()
+}
+
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	initialHeight := uint64(m.genesis.InitialHeight)
@@ -341,7 +346,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			}
 			m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = block
 
-			m.retrieveCond.Signal()
+			m.blockStoreCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil && err.Error() == fmt.Errorf("failed to ApplyBlock: %w", state.ErrFraudProofGenerated).Error() {
@@ -457,6 +462,9 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 				blockStoreHeight := m.blockStore.Height()
 				m.logger.Debug("blockStore", "height", blockStoreHeight)
 				if blockStoreHeight > lastBlockStoreHeight {
+					if lastBlockStoreHeight == 0 {
+						lastBlockStoreHeight = 1
+					}
 					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight, blockStoreHeight)
 					if err != nil {
 						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
@@ -472,6 +480,21 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Block, error) {
+	if startHeight > endHeight {
+		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
+	}
+	blocks := make([]*types.Block, endHeight-startHeight+1)
+	for i := startHeight; i <= endHeight; i++ {
+		block, err := m.blockStore.GetByHeight(ctx, i)
+		if err != nil {
+			return nil, err
+		}
+		blocks[i-startHeight] = block
+	}
+	return blocks, nil
 }
 
 // RetrieveLoop is responsible for interacting with DA layer.
@@ -509,21 +532,6 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			return
 		}
 	}
-}
-
-func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Block, error) {
-	if startHeight > endHeight {
-		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
-	}
-	blocks := make([]*types.Block, endHeight-startHeight)
-	for i := startHeight; i <= endHeight; i++ {
-		block, err := m.blockStore.GetByHeight(ctx, i)
-		if err != nil {
-			return nil, err
-		}
-		blocks[i-startHeight] = block
-	}
-	return blocks, nil
 }
 
 func (m *Manager) processNextDABlock(ctx context.Context) error {
