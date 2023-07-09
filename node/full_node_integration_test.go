@@ -208,6 +208,8 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	bmConfig := getBMConfig()
 	bmConfig.BlockTime = 1 * time.Second
 	bmConfig.DABlockTime = 5 * time.Second
+
+	startTime := time.Now()
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, bmConfig, t)
 
 	node1 := nodes[0]
@@ -220,14 +222,20 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require.NoError(node3.Start())
 
 	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node2, 2))
+	require.NoError(waitForAtLeastNBlocksWithStoreHeight(node3, 2))
 
 	aggCancel()
 	require.NoError(node1.Stop())
 
 	require.NoError(verifyNodesSyncedWithStoreHeight(node1, node2))
+	require.NoError(verifyNodesSyncedWithStoreHeight(node1, node3))
+
 	cancel()
 	require.NoError(node2.Stop())
 	require.NoError(node3.Stop())
+
+	endTime := time.Now()
+	require.True(endTime.Sub(startTime) < 2*time.Second)
 }
 
 func TestBlockExchange(t *testing.T) {
@@ -313,6 +321,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 	}()
 
 	require.NoError(waitForAtLeastNBlocks(node2, 2, useBlockExchange))
+	require.NoError(waitForAtLeastNBlocks(node3, 2, useBlockExchange))
 	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
 }
 
