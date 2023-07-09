@@ -201,7 +201,6 @@ func TestLazyAggregator(t *testing.T) {
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
 func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
-	t.Skip()
 	require := require.New(t)
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(context.Background())
@@ -571,7 +570,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 		defer close(doneChan)
 		// create a MockTester, to catch the Failed asserts from the Mock package
 		m := MockTester{t: t}
-		// We don't nedd to check any specific arguments to DeliverTx
+		// We don't need to check any specific arguments to DeliverTx
 		// so just use a function that returns "true" for matching the args
 		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
 		err := testutils.Retry(300, 100*time.Millisecond, func() error {
