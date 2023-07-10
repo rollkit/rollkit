@@ -192,7 +192,7 @@ require (
 )
 
 replace (
-	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230606024132-52d0ee463ea2
+	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.37.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
