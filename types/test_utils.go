@@ -100,7 +100,7 @@ func GetRandomTx() Tx {
 
 func GetRandomBytes(n int) []byte {
 	data := make([]byte, n)
-	_, _ = rand.Read(data) //nolint:gosec
+	_, _ = rand.Read(data) //nolint:gosec,staticcheck
 	return data
 }
 
