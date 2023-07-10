@@ -458,8 +458,9 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
 						break
 					}
+					daHeight := atomic.LoadUint64(&m.daHeight)
 					for _, block := range blocks {
-						m.blockInCh <- newBlockEvent{block, m.daHeight}
+						m.blockInCh <- newBlockEvent{block, daHeight}
 					}
 				}
 				lastBlockStoreHeight = blockStoreHeight
