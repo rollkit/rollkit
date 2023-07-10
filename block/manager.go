@@ -353,8 +353,9 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			}
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
+			} else {
+				m.isBlockWithHashSeen[blockHash] = true
 			}
-			m.isBlockWithHashSeen[blockHash] = true
 		case <-ctx.Done():
 			return
 		}
@@ -449,9 +450,9 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 				blockStoreHeight := m.blockStore.Height()
 				m.logger.Debug("blockStore", "height", blockStoreHeight)
 				if blockStoreHeight > lastBlockStoreHeight {
-					// if lastBlockStoreHeight == 0 {
-					// 	lastBlockStoreHeight = 1
-					// }
+					if lastBlockStoreHeight == 0 {
+						lastBlockStoreHeight = 1
+					}
 					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight, blockStoreHeight)
 					if err != nil {
 						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
