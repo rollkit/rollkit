@@ -45,7 +45,7 @@ func TestClientStartup(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewLogger(t))
+				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewFileLogger(t))
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -63,7 +63,7 @@ func TestBootstrapping(t *testing.T) {
 	//log.SetDebugLogging()
 
 	assert := assert.New(t)
-	logger := test.NewLogger(t)
+	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -83,7 +83,7 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewLogger(t)
+	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -103,7 +103,7 @@ func TestDiscovery(t *testing.T) {
 
 func TestGossiping(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewLogger(t)
+	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

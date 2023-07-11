@@ -2,11 +2,85 @@ package test
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sync"
 	"testing"
+
+	"github.com/tendermint/tendermint/libs/log"
 )
 
 // TODO(tzdybal): move to some common place
+
+// FileLogger is a simple, thread-safe logger that logs to a tempFile and is
+// intended for use in testing.
+type FileLogger struct {
+	kv      []interface{}
+	logFile *os.File
+	T       *testing.T
+	mtx     *sync.Mutex
+}
+
+// NewLogger create a Logger using the name of the test as the filename.
+func NewFileLogger(t *testing.T) *FileLogger {
+	return NewFileLoggerCustom(t, t.Name())
+}
+
+// NewLoggerCustom create a Logger using the given filename.
+func NewFileLoggerCustom(t *testing.T, fileName string) *FileLogger {
+	logFile, err := ioutil.TempFile("", fileName)
+	if err != nil {
+		panic(err)
+	}
+	t.Cleanup(func() {
+		logFile.Close()
+	})
+	return &FileLogger{
+		kv:      []interface{}{},
+		logFile: logFile,
+		T:       t,
+		mtx:     new(sync.Mutex),
+	}
+}
+
+// Debug prints a debug message.
+func (f *FileLogger) Debug(msg string, keyvals ...interface{}) {
+	f.T.Helper()
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	kvs := append(f.kv, keyvals...)
+	f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"DEBUG: " + msg}, kvs...)...))
+}
+
+// Info prints an info message.
+func (f *FileLogger) Info(msg string, keyvals ...interface{}) {
+	f.T.Helper()
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	kvs := append(f.kv, keyvals...)
+	f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"INFO: " + msg}, kvs...)...))
+}
+
+// Error prints an error message.
+func (f *FileLogger) Error(msg string, keyvals ...interface{}) {
+	f.T.Helper()
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	kvs := append(f.kv, keyvals...)
+	f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"ERROR: " + msg}, kvs...)...))
+}
+
+// With returns a new Logger with the given keyvals added.
+func (f *FileLogger) With(keyvals ...interface{}) log.Logger {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	return &FileLogger{
+		kv:      append(f.kv, keyvals...),
+		logFile: f.logFile,
+		T:       f.T,
+		mtx:     new(sync.Mutex),
+	}
+}
 
 // Logger is a simple, yet thread-safe, logger intended for use in unit tests.
 type Logger struct {

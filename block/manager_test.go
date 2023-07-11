@@ -15,6 +15,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/log/test"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
@@ -77,7 +78,7 @@ func TestInitialState(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			logger := log.TestingLogger()
+			logger := test.NewFileLogger(t)
 			dalc := getMockDALC(logger)
 			dumbChan := make(chan struct{})
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)

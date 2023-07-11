@@ -25,6 +25,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/log/test"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
@@ -616,7 +617,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 		signingKey,
 		proxy.NewLocalClientCreator(app),
 		genesis,
-		log.TestingLogger().With("node", n))
+		test.NewFileLogger(t).With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
 
