@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -23,7 +24,9 @@ type FileLogger struct {
 
 // NewLogger create a Logger using the name of the test as the filename.
 func NewFileLogger(t *testing.T) *FileLogger {
-	return NewFileLoggerCustom(t, t.Name())
+	// Use the test name but strip out any slashes since they are not
+	// allowed in filenames.
+	return NewFileLoggerCustom(t, strings.ReplaceAll(t.Name(), "/", "_"))
 }
 
 // NewLoggerCustom create a Logger using the given filename.
@@ -33,7 +36,7 @@ func NewFileLoggerCustom(t *testing.T, fileName string) *FileLogger {
 		panic(err)
 	}
 	t.Cleanup(func() {
-		logFile.Close()
+		_ = logFile.Close()
 	})
 	return &FileLogger{
 		kv:      []interface{}{},
@@ -49,7 +52,7 @@ func (f *FileLogger) Debug(msg string, keyvals ...interface{}) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	kvs := append(f.kv, keyvals...)
-	f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"DEBUG: " + msg}, kvs...)...))
+	_, _ = f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"DEBUG: " + msg}, kvs...)...))
 }
 
 // Info prints an info message.
@@ -58,7 +61,7 @@ func (f *FileLogger) Info(msg string, keyvals ...interface{}) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	kvs := append(f.kv, keyvals...)
-	f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"INFO: " + msg}, kvs...)...))
+	_, _ = f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"INFO: " + msg}, kvs...)...))
 }
 
 // Error prints an error message.
@@ -67,7 +70,7 @@ func (f *FileLogger) Error(msg string, keyvals ...interface{}) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	kvs := append(f.kv, keyvals...)
-	f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"ERROR: " + msg}, kvs...)...))
+	_, _ = f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"ERROR: " + msg}, kvs...)...))
 }
 
 // With returns a new Logger with the given keyvals added.
