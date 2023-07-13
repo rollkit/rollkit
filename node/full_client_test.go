@@ -114,7 +114,8 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	ctx := context.Background()
+	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -894,6 +895,7 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 	numNodes := 1
 	rpc, nodes := createGenesisValidators(numNodes, createApp, require, &wg)
 	defer func() {
+		assert.NoError(rpc.node.dalc.Stop())
 		for _, node := range nodes {
 			assert.NoError(node.Stop())
 		}
@@ -939,8 +941,10 @@ func TestMempool2Nodes(t *testing.T) {
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// make node1 an aggregator, so that node2 can start gracefully
-	node1, err := newFullNode(context.Background(), config.NodeConfig{
+	node1, err := newFullNode(ctx, config.NodeConfig{
 		Aggregator: true,
 		DALayer:    "mock",
 		P2P: config.P2PConfig{
@@ -953,7 +957,7 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node1)
 
-	node2, err := newFullNode(context.Background(), config.NodeConfig{
+	node2, err := newFullNode(ctx, config.NodeConfig{
 		DALayer: "mock",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
@@ -977,23 +981,23 @@ func TestMempool2Nodes(t *testing.T) {
 	}()
 
 	time.Sleep(1 * time.Second)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer timeoutCancel()
 
 	local := NewFullClient(node1)
 	require.NotNil(local)
 
 	// broadcast the bad Tx, this should not be propogated or added to the local mempool
-	resp, err := local.BroadcastTxSync(ctx, []byte("bad"))
+	resp, err := local.BroadcastTxSync(timeoutCtx, []byte("bad"))
 	assert.NoError(err)
 	assert.NotNil(resp)
 	// broadcast the good Tx, this should be propogated and added to the local mempool
-	resp, err = local.BroadcastTxSync(ctx, []byte("good"))
+	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
 	assert.NoError(err)
 	assert.NotNil(resp)
 	// broadcast the good Tx again in the same block, this should not be propogated and
 	// added to the local mempool
-	resp, err = local.BroadcastTxSync(ctx, []byte("good"))
+	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
 	assert.Error(err)
 	assert.Nil(resp)
 
@@ -1148,7 +1152,9 @@ func TestFutureGenesisTime(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
-	node, err := newFullNode(context.Background(), config.NodeConfig{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, err := newFullNode(ctx, config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{

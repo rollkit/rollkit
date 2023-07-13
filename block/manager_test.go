@@ -33,7 +33,8 @@ func TestInitialState(t *testing.T) {
 		NextValidators:  types.GetRandomValidatorSet(),
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(ctx, es)
 
