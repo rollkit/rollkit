@@ -33,6 +33,9 @@ func TestGetNodeHeight(t *testing.T) {
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
+	defer func() {
+		assert.NoError(dalc.Stop())
+	}()
 	num := 2
 	keys := make([]crypto.PrivKey, num)
 	for i := 0; i < num; i++ {

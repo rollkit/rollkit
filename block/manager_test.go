@@ -79,6 +79,9 @@ func TestInitialState(t *testing.T) {
 			assert := assert.New(t)
 			logger := log.TestingLogger()
 			dalc := getMockDALC(logger)
+			defer func() {
+				assert.NoError(dalc.Stop())
+			}()
 			dumbChan := make(chan struct{})
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)
 			assert.NoError(err)
