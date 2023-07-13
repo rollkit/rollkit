@@ -333,7 +333,7 @@ func TestBroadcastTxCommit(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(rpc.node.Stop())
+		require.NoError(rpc.node.Stop())
 	}()
 	go func() {
 		time.Sleep(mockTxProcessingTime)
@@ -367,7 +367,7 @@ func TestGetBlock(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(rpc.node.Stop())
+		require.NoError(rpc.node.Stop())
 	}()
 	block := getRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
@@ -393,7 +393,7 @@ func TestGetCommit(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(rpc.node.Stop())
+		require.NoError(rpc.node.Stop())
 	}()
 	for _, b := range blocks {
 		err = rpc.node.Store.SaveBlock(b, &types.Commit{})
@@ -488,7 +488,7 @@ func TestGetBlockByHash(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(rpc.node.Stop())
+		require.NoError(rpc.node.Stop())
 	}()
 	block := getRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
@@ -544,7 +544,7 @@ func TestTx(t *testing.T) {
 	err = rpc.node.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(rpc.node.Stop())
+		require.NoError(rpc.node.Stop())
 	}()
 	tx1 := tmtypes.Tx("tx1")
 	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
@@ -595,7 +595,7 @@ func TestUnconfirmedTxs(t *testing.T) {
 			err := rpc.node.Start()
 			require.NoError(err)
 			defer func() {
-				assert.NoError(rpc.node.Stop())
+				require.NoError(rpc.node.Stop())
 			}()
 
 			for _, tx := range c.txs {
@@ -634,7 +634,7 @@ func TestUnconfirmedTxsLimit(t *testing.T) {
 	err := rpc.node.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(rpc.node.Stop())
+		require.NoError(rpc.node.Stop())
 	}()
 
 	tx1 := tmtypes.Tx("tx1")
@@ -967,12 +967,12 @@ func TestMempool2Nodes(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	defer func() {
-		assert.NoError(node1.Stop())
+		require.NoError(node1.Stop())
 	}()
 	err = node2.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(node2.Stop())
+		require.NoError(node2.Stop())
 	}()
 
 	time.Sleep(1 * time.Second)
@@ -1081,7 +1081,7 @@ func TestStatus(t *testing.T) {
 	err = node.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(node.Stop())
+		require.NoError(node.Stop())
 	}()
 
 	resp, err := rpc.Status(context.Background())
@@ -1171,7 +1171,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	require.NoError(err)
 
 	defer func() {
-		assert.NoError(node.Stop())
+		require.NoError(node.Stop())
 	}()
 	wg.Wait()
 

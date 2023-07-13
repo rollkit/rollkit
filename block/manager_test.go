@@ -81,7 +81,7 @@ func TestInitialState(t *testing.T) {
 			logger := log.TestingLogger()
 			dalc := getMockDALC(logger)
 			defer func() {
-				assert.NoError(dalc.Stop())
+				require.NoError(t, dalc.Stop())
 			}()
 			dumbChan := make(chan struct{})
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)

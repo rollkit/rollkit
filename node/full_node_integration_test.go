@@ -64,7 +64,7 @@ func TestAggregatorMode(t *testing.T) {
 	err = node.Start()
 	assert.NoError(err)
 	defer func() {
-		assert.NoError(node.Stop())
+		require.NoError(node.Stop())
 	}()
 	assert.True(node.IsRunning())
 
@@ -174,7 +174,7 @@ func TestLazyAggregator(t *testing.T) {
 	err = node.Start()
 	assert.NoError(err)
 	defer func() {
-		assert.NoError(node.Stop())
+		require.NoError(node.Stop())
 	}()
 	assert.True(node.IsRunning())
 
@@ -225,7 +225,6 @@ func TestHeaderExchange(t *testing.T) {
 }
 
 func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -240,14 +239,14 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 
 	require.NoError(node1.Start())
 	defer func() {
-		assert.NoError(node1.Stop())
+		require.NoError(node1.Stop())
 	}()
 
 	require.NoError(waitForFirstBlock(node1, useBlockExchange))
 	require.NoError(node2.Start())
 
 	defer func() {
-		assert.NoError(node2.Stop())
+		require.NoError(node2.Stop())
 	}()
 
 	require.NoError(waitForAtLeastNBlocks(node2, 2, useBlockExchange))
@@ -255,7 +254,6 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 }
 
 func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -271,16 +269,16 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 
 	require.NoError(node1.Start())
 	defer func() {
-		assert.NoError(node1.Stop())
+		require.NoError(node1.Stop())
 	}()
 	require.NoError(waitForFirstBlock(node1, useBlockExchange))
 	require.NoError(node2.Start())
 	defer func() {
-		assert.NoError(node2.Stop())
+		require.NoError(node2.Stop())
 	}()
 	require.NoError(node3.Start())
 	defer func() {
-		assert.NoError(node3.Stop())
+		require.NoError(node3.Stop())
 	}()
 
 	require.NoError(waitForAtLeastNBlocks(node2, 2, useBlockExchange))
@@ -288,7 +286,6 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 }
 
 func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchange bool) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -303,7 +300,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 
 	require.NoError(node1.Start())
 	defer func() {
-		assert.NoError(node1.Stop())
+		require.NoError(node1.Stop())
 	}()
 
 	require.NoError(waitForFirstBlock(node1, useBlockExchange))
@@ -314,7 +311,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 	node2.conf.TrustedHash = trustedHash.Hash().String()
 	require.NoError(node2.Start())
 	defer func() {
-		assert.NoError(node2.Stop())
+		require.NoError(node2.Stop())
 	}()
 
 	require.NoError(waitForAtLeastNBlocks(node1, 2, useBlockExchange))
@@ -322,7 +319,6 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 }
 
 func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
@@ -339,7 +335,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	defer func() {
-		assert.NoError(dalc.Stop())
+		require.NoError(dalc.Stop())
 	}()
 	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, t)
 	fullNode, _ := createNode(ctx, 1, false, false, false, keys, t)
@@ -353,15 +349,15 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 
 	require.NoError(sequencer.Start())
 	defer func() {
-		assert.NoError(sequencer.Stop())
+		require.NoError(sequencer.Stop())
 	}()
 	require.NoError(fullNode.Start())
 	defer func() {
-		assert.NoError(fullNode.Stop())
+		require.NoError(fullNode.Stop())
 	}()
 	require.NoError(lightNode.Start())
 	defer func() {
-		assert.NoError(lightNode.Stop())
+		require.NoError(lightNode.Stop())
 	}()
 
 	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, false))
@@ -392,12 +388,12 @@ func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	wg.Add(clientNodes + 1)
 	require.NoError(aggNode.Start())
 	defer func() {
-		assert.NoError(aggNode.Stop())
+		require.NoError(aggNode.Stop())
 	}()
 	require.NoError(waitForAtLeastNBlocks(aggNode, 2, false))
 	require.NoError(fullNode.Start())
 	defer func() {
-		assert.NoError(fullNode.Stop())
+		require.NoError(fullNode.Stop())
 	}()
 
 	wg.Wait()
@@ -444,11 +440,11 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 	wg.Add(clientNodes)
 	require.NoError(aggNode.Start())
 	defer func() {
-		assert.NoError(aggNode.Stop())
+		require.NoError(aggNode.Stop())
 	}()
 	require.NoError(fullNode1.Start())
 	defer func() {
-		assert.NoError(fullNode1.Stop())
+		require.NoError(fullNode1.Stop())
 	}()
 	wg.Wait()
 	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
@@ -469,7 +465,7 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
 	require.NoError(fullNode2.Start())
 	defer func() {
-		assert.NoError(fullNode2.Stop())
+		require.NoError(fullNode2.Stop())
 	}()
 
 	wg.Wait()
@@ -497,8 +493,7 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
-			err := n.Stop()
-			assert.NoError(t, err)
+			require.NoError(t, n.Stop())
 		}
 	}()
 	return nodes, apps

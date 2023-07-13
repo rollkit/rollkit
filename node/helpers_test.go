@@ -9,7 +9,6 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -26,7 +25,6 @@ func TestMockTester(t *testing.T) {
 }
 
 func TestGetNodeHeight(t *testing.T) {
-	assert := assert.New(t)
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -35,7 +33,7 @@ func TestGetNodeHeight(t *testing.T) {
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	defer func() {
-		assert.NoError(dalc.Stop())
+		require.NoError(dalc.Stop())
 	}()
 	num := 2
 	keys := make([]crypto.PrivKey, num)
@@ -48,12 +46,12 @@ func TestGetNodeHeight(t *testing.T) {
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 	require.NoError(fullNode.Start())
 	defer func() {
-		assert.NoError(fullNode.Stop())
+		require.NoError(fullNode.Stop())
 	}()
 
 	require.NoError(lightNode.Start())
 	defer func() {
-		assert.NoError(lightNode.Stop())
+		require.NoError(lightNode.Stop())
 	}()
 
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {

@@ -59,7 +59,6 @@ func TestLifecycle(t *testing.T) {
 }
 
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
-	assert := assert.New(t)
 	require := require.New(t)
 
 	conf := []byte{}
@@ -76,7 +75,7 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require.NoError(err)
 
 	defer func() {
-		assert.NoError(dalc.Stop())
+		require.NoError(dalc.Stop())
 	}()
 }
 
@@ -109,7 +108,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	err = dalc.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(dalc.Stop())
+		require.NoError(dalc.Stop())
 	}()
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
@@ -177,7 +176,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	err = dalc.Start()
 	require.NoError(err)
 	defer func() {
-		assert.NoError(dalc.Stop())
+		require.NoError(dalc.Stop())
 	}()
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
