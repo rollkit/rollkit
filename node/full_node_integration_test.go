@@ -449,10 +449,10 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
 	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 
-	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	n1Frauds, err := aggNode.fraudService.Get(ctx, types.StateFraudProofType)
 	require.NoError(err)
 
-	n2Frauds, err := fullNode1.fraudService.Get(aggCtx, types.StateFraudProofType)
+	n2Frauds, err := fullNode1.fraudService.Get(ctx, types.StateFraudProofType)
 	require.NoError(err)
 	assert.Equal(n1Frauds, n2Frauds, "number of fraud proofs gossiped between nodes must match")
 
@@ -470,7 +470,7 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 	apps[2].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
 	apps[2].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
 
-	n3Frauds, err := fullNode2.fraudService.Get(aggCtx, types.StateFraudProofType)
+	n3Frauds, err := fullNode2.fraudService.Get(ctx, types.StateFraudProofType)
 	require.NoError(err)
 	assert.Equal(n1Frauds, n3Frauds, "number of fraud proofs gossiped between nodes must match")
 }
