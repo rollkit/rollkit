@@ -52,7 +52,10 @@ func (f *FileLogger) Debug(msg string, keyvals ...interface{}) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	kvs := append(f.kv, keyvals...)
-	_, _ = f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"DEBUG: " + msg}, kvs...)...))
+	_, err := f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"DEBUG: " + msg}, kvs...)...))
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Info prints an info message.
@@ -61,7 +64,10 @@ func (f *FileLogger) Info(msg string, keyvals ...interface{}) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	kvs := append(f.kv, keyvals...)
-	_, _ = f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"INFO: " + msg}, kvs...)...))
+	_, err := f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"INFO: " + msg}, kvs...)...))
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Error prints an error message.
@@ -70,7 +76,10 @@ func (f *FileLogger) Error(msg string, keyvals ...interface{}) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	kvs := append(f.kv, keyvals...)
-	_, _ = f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"ERROR: " + msg}, kvs...)...))
+	_, err := f.logFile.WriteString(fmt.Sprintln(append([]interface{}{"ERROR: " + msg}, kvs...)...))
+	if err != nil {
+		panic(err)
+	}
 }
 
 // With returns a new Logger with the given keyvals added.
