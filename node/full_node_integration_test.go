@@ -200,16 +200,28 @@ func TestLazyAggregator(t *testing.T) {
 }
 
 func TestBlockExchange(t *testing.T) {
-	testSingleAggregatorSingleFullNode(t, true)
-	testSingleAggregatorTwoFullNode(t, true)
-	testSingleAggregatorSingleFullNodeTrustedHash(t, true)
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNode(t, true)
+	})
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorTwoFullNode(t, true)
+	})
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNodeTrustedHash(t, true)
+	})
 }
 
 func TestHeaderExchange(t *testing.T) {
-	testSingleAggregatorSingleFullNode(t, false)
-	testSingleAggregatorTwoFullNode(t, false)
-	testSingleAggregatorSingleFullNodeTrustedHash(t, false)
-	testSingleAggregatorSingleFullNodeSingleLightNode(t)
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNode(t, false)
+	})
+	t.Run("SingleAggregatorTwoFullNode", func(t *testing.T) {
+		testSingleAggregatorTwoFullNode(t, false)
+	})
+	t.Run("SingleAggregatorSingleFullNodeTrustedHash", func(t *testing.T) {
+		testSingleAggregatorSingleFullNodeTrustedHash(t, false)
+	})
+	t.Run("SingleAggregatorSingleFullNodeSingleLightNode", testSingleAggregatorSingleFullNodeSingleLightNode)
 }
 
 func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
@@ -446,8 +458,8 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 }
 
 func TestFraudProofService(t *testing.T) {
-	testSingleAggregatorSingleFullNodeFraudProofGossip(t)
-	testSingleAggregatorTwoFullNodeFraudProofSync(t)
+	t.Run("SingleAggregatorSingleFullNodeFraudProofGossip", testSingleAggregatorSingleFullNodeFraudProofGossip)
+	t.Run("SingleAggregatorTwoFullNodeFraudProofSync", testSingleAggregatorTwoFullNodeFraudProofSync)
 }
 
 // Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
