@@ -747,7 +747,9 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func createGenesisValidators(numNodes int, appCreator func(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application, require *require.Assertions, wg *sync.WaitGroup) (*FullClient, []*FullNode) {
+func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application, wg *sync.WaitGroup) *FullClient {
+	t.Helper()
+	require := require.New(t)
 	vKeys := make([]tmcrypto.PrivKey, numNodes)
 	apps := make([]*mocks.Application, numNodes)
 	nodes := make([]*FullNode, numNodes)
@@ -767,6 +769,9 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 	require.Nil(err)
 	err = dalc.Start()
 	require.Nil(err)
+	t.Cleanup(func() {
+		require.NoError(dalc.Stop())
+	})
 
 	for i := 0; i < len(nodes); i++ {
 		nodeKey := &p2p.NodeKey{
@@ -802,10 +807,15 @@ func createGenesisValidators(numNodes int, appCreator func(require *require.Asse
 	require.NotNil(rpc)
 
 	for i := 0; i < len(nodes); i++ {
+		node := nodes[i]
 		err := nodes[i].Start()
 		require.NoError(err)
+
+		t.Cleanup(func() {
+			require.NoError(node.Stop())
+		})
 	}
-	return rpc, nodes
+	return rpc
 }
 
 func checkValSet(rpc *FullClient, assert *assert.Assertions, h int64, expectedValCount int) {
@@ -853,18 +863,11 @@ func createApp(require *require.Assertions, vKeyToRemove tmcrypto.PrivKey, wg *s
 // Tests moving from two validators to one validator and then back to two validators
 func TestValidatorSetHandling(t *testing.T) {
 	assert := assert.New(t)
-	require := require.New(t)
 
 	var wg sync.WaitGroup
 
 	numNodes := 2
-	rpc, nodes := createGenesisValidators(numNodes, createApp, require, &wg)
-	defer func() {
-		assert.NoError(rpc.node.dalc.Stop())
-		for _, node := range nodes {
-			assert.NoError(node.Stop())
-		}
-	}()
+	rpc := createGenesisValidators(t, numNodes, createApp, &wg)
 	wg.Wait()
 
 	// test first blocks
@@ -889,17 +892,9 @@ func TestValidatorSetHandling(t *testing.T) {
 // Tests moving from a centralized validator to empty validator set
 func TestValidatorSetHandlingBased(t *testing.T) {
 	assert := assert.New(t)
-	require := require.New(t)
-
 	var wg sync.WaitGroup
 	numNodes := 1
-	rpc, nodes := createGenesisValidators(numNodes, createApp, require, &wg)
-	defer func() {
-		assert.NoError(rpc.node.dalc.Stop())
-		for _, node := range nodes {
-			assert.NoError(node.Stop())
-		}
-	}()
+	rpc := createGenesisValidators(t, numNodes, createApp, &wg)
 
 	wg.Wait()
 
