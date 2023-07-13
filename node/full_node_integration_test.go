@@ -451,8 +451,12 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 }
 
 func TestFraudProofService(t *testing.T) {
-	testSingleAggregatorSingleFullNodeFraudProofGossip(t)
-	testSingleAggregatorTwoFullNodeFraudProofSync(t)
+	t.Run("SingleAggregatorSingleFullNodeFraudProofGossip", func(t *testing.T) {
+		testSingleAggregatorSingleFullNodeFraudProofGossip(t)
+	})
+	t.Run("SingleAggregatorTwoFullNodeFraudProofSync", func(t *testing.T) {
+		testSingleAggregatorTwoFullNodeFraudProofSync(t)
+	})
 }
 
 // Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
