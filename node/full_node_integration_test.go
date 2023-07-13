@@ -217,7 +217,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	node3 := nodes[2]
 
 	require.NoError(node1.Start())
-	require.NoError(waitForAtLeastNBlocks(node1, 1, Store))
+	require.NoError(waitForFirstBlock(node1, Store))
 	require.NoError(node2.Start())
 	require.NoError(node3.Start())
 
