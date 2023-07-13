@@ -70,9 +70,7 @@ func TestAggregatorMode(t *testing.T) {
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
 	ctx, cancel := context.WithCancel(context.TODO())
-	defer func() {
-		cancel()
-	}()
+	defer cancel()
 	go func() {
 		for {
 			select {
@@ -230,7 +228,9 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientNodes := 1
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
 
@@ -239,7 +239,6 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 
 	require.NoError(node1.Start())
 	defer func() {
-		aggCancel()
 		assert.NoError(node1.Stop())
 	}()
 
@@ -247,7 +246,6 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 	require.NoError(node2.Start())
 
 	defer func() {
-		cancel()
 		assert.NoError(node2.Stop())
 	}()
 
@@ -260,7 +258,9 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientNodes := 2
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
 
@@ -270,7 +270,6 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 
 	require.NoError(node1.Start())
 	defer func() {
-		aggCancel()
 		assert.NoError(node1.Stop())
 	}()
 	require.NoError(waitForFirstBlock(node1, useBlockExchange))
@@ -280,7 +279,6 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 	}()
 	require.NoError(node3.Start())
 	defer func() {
-		cancel()
 		assert.NoError(node3.Stop())
 	}()
 
@@ -293,7 +291,9 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientNodes := 1
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
 
@@ -302,7 +302,6 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 
 	require.NoError(node1.Start())
 	defer func() {
-		aggCancel()
 		assert.NoError(node1.Stop())
 	}()
 
@@ -314,7 +313,6 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 	node2.conf.TrustedHash = trustedHash.Hash().String()
 	require.NoError(node2.Start())
 	defer func() {
-		cancel()
 		assert.NoError(node2.Stop())
 	}()
 
@@ -327,8 +325,9 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
-
+	defer cancel()
 	num := 3
 	keys := make([]crypto.PrivKey, num)
 	for i := 0; i < num; i++ {
@@ -353,7 +352,6 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 
 	require.NoError(sequencer.Start())
 	defer func() {
-		aggCancel()
 		assert.NoError(sequencer.Stop())
 	}()
 	require.NoError(fullNode.Start())
@@ -362,7 +360,6 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	}()
 	require.NoError(lightNode.Start())
 	defer func() {
-		cancel()
 		assert.NoError(lightNode.Stop())
 	}()
 
@@ -376,7 +373,9 @@ func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
 
 	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientNodes := 1
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
 
@@ -392,13 +391,11 @@ func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	wg.Add(clientNodes + 1)
 	require.NoError(aggNode.Start())
 	defer func() {
-		aggCancel()
 		assert.NoError(aggNode.Stop())
 	}()
 	require.NoError(waitForAtLeastNBlocks(aggNode, 2, false))
 	require.NoError(fullNode.Start())
 	defer func() {
-		cancel()
 		assert.NoError(fullNode.Stop())
 	}()
 
@@ -427,7 +424,9 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 
 	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientNodes := 2
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
 
@@ -444,7 +443,6 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 	wg.Add(clientNodes)
 	require.NoError(aggNode.Start())
 	defer func() {
-		aggCancel()
 		assert.NoError(aggNode.Stop())
 	}()
 	require.NoError(fullNode1.Start())
@@ -470,7 +468,6 @@ func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
 	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
 	require.NoError(fullNode2.Start())
 	defer func() {
-		cancel()
 		assert.NoError(fullNode2.Stop())
 	}()
 
@@ -492,7 +489,9 @@ func TestFraudProofService(t *testing.T) {
 // Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
 func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, t)
 	startNodes(nodes, apps, t)
 	defer func() {
@@ -500,8 +499,6 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 			err := n.Stop()
 			assert.NoError(t, err)
 		}
-		aggCancel()
-		cancel()
 	}()
 	return nodes, apps
 }

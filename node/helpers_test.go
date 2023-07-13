@@ -29,6 +29,7 @@ func TestGetNodeHeight(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
@@ -48,7 +49,6 @@ func TestGetNodeHeight(t *testing.T) {
 	require.NoError(fullNode.Start())
 	require.NoError(lightNode.Start())
 	defer func() {
-		cancel()
 		assert.NoError(fullNode.Stop())
 		assert.NoError(lightNode.Stop())
 	}()
