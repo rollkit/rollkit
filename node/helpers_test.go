@@ -47,11 +47,15 @@ func TestGetNodeHeight(t *testing.T) {
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 	require.NoError(fullNode.Start())
-	require.NoError(lightNode.Start())
 	defer func() {
 		assert.NoError(fullNode.Stop())
+	}()
+
+	require.NoError(lightNode.Start())
+	defer func() {
 		assert.NoError(lightNode.Stop())
 	}()
+
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
 		num, err := getNodeHeight(fullNode, false)
 		if err != nil {

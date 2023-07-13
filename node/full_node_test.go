@@ -45,8 +45,7 @@ func TestStartup(t *testing.T) {
 	err = node.Start()
 	assert.NoError(err)
 	defer func() {
-		err := node.Stop()
-		assert.NoError(err)
+		assert.NoError(node.Stop())
 	}()
 	assert.True(node.IsRunning())
 }
