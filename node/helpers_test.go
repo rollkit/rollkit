@@ -9,6 +9,7 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -25,6 +26,7 @@ func TestMockTester(t *testing.T) {
 }
 
 func TestGetNodeHeight(t *testing.T) {
+	assert := assert.New(t)
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	dalc := &mockda.DataAvailabilityLayerClient{}
@@ -44,8 +46,8 @@ func TestGetNodeHeight(t *testing.T) {
 	require.NoError(lightNode.Start())
 	defer func() {
 		cancel()
-		fullNode.Stop()
-		lightNode.Stop()
+		assert.NoError(fullNode.Stop())
+		assert.NoError(lightNode.Stop())
 	}()
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
 		num, err := getNodeHeight(fullNode, false)
