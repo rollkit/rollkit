@@ -25,9 +25,10 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"go.uber.org/multierr"
 
+	tmcrypto "github.com/tendermint/tendermint/crypto"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/log"
-	tmcrypto "github.com/tendermint/tendermint/crypto"
 )
 
 // TODO(tzdybal): refactor to configuration parameters
