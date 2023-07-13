@@ -223,7 +223,9 @@ func TestGenesisChunked(t *testing.T) {
 
 	err = rpc.node.Start()
 	require.NoError(t, err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	expectedID = 0
 	gc2, err := rpc.GenesisChunked(context.Background(), expectedID)
 	gotID := gc2.ChunkNumber
@@ -246,7 +248,9 @@ func TestBroadcastTxAsync(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(t, err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	res, err := rpc.BroadcastTxAsync(context.Background(), expectedTx)
 	assert.NoError(err)
 	assert.NotNil(res)
@@ -256,9 +260,6 @@ func TestBroadcastTxAsync(t *testing.T) {
 	assert.Empty(res.Codespace)
 	assert.NotEmpty(res.Hash)
 	mockApp.AssertExpectations(t)
-
-	err = rpc.node.Stop()
-	require.NoError(t, err)
 }
 
 func TestBroadcastTxSync(t *testing.T) {
@@ -280,7 +281,9 @@ func TestBroadcastTxSync(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(t, err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedResponse)
 
 	res, err := rpc.BroadcastTxSync(context.Background(), expectedTx)
@@ -292,9 +295,6 @@ func TestBroadcastTxSync(t *testing.T) {
 	assert.Equal(expectedResponse.Codespace, res.Codespace)
 	assert.NotEmpty(res.Hash)
 	mockApp.AssertExpectations(t)
-
-	err = rpc.node.Stop()
-	require.NoError(t, err)
 }
 
 func TestBroadcastTxCommit(t *testing.T) {
@@ -331,7 +331,9 @@ func TestBroadcastTxCommit(t *testing.T) {
 	// in order to broadcast, the node must be started
 	err := rpc.node.Start()
 	require.NoError(err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	go func() {
 		time.Sleep(mockTxProcessingTime)
 		err := rpc.node.EventBus().PublishEventTx(tmtypes.EventDataTx{TxResult: abci.TxResult{
@@ -349,9 +351,6 @@ func TestBroadcastTxCommit(t *testing.T) {
 	assert.Equal(expectedCheckResp, res.CheckTx)
 	assert.Equal(expectedDeliverResp, res.DeliverTx)
 	mockApp.AssertExpectations(t)
-
-	err = rpc.node.Stop()
-	require.NoError(err)
 }
 
 func TestGetBlock(t *testing.T) {
@@ -366,7 +365,9 @@ func TestGetBlock(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	block := getRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	rpc.node.Store.SetHeight(uint64(block.SignedHeader.Header.Height()))
@@ -377,9 +378,6 @@ func TestGetBlock(t *testing.T) {
 	require.NotNil(blockResp)
 
 	assert.NotNil(blockResp.Block)
-
-	err = rpc.node.Stop()
-	require.NoError(err)
 }
 
 func TestGetCommit(t *testing.T) {
@@ -393,7 +391,9 @@ func TestGetCommit(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	for _, b := range blocks {
 		err = rpc.node.Store.SaveBlock(b, &types.Commit{})
 		rpc.node.Store.SetHeight(uint64(b.SignedHeader.Header.Height()))
@@ -415,9 +415,6 @@ func TestGetCommit(t *testing.T) {
 		require.NotNil(commit)
 		assert.Equal(blocks[3].SignedHeader.Header.Height(), commit.Height)
 	})
-
-	err = rpc.node.Stop()
-	require.NoError(err)
 }
 
 func TestBlockSearch(t *testing.T) {
@@ -489,7 +486,9 @@ func TestGetBlockByHash(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	block := getRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	require.NoError(err)
@@ -509,9 +508,6 @@ func TestGetBlockByHash(t *testing.T) {
 	require.NotNil(blockResp)
 
 	assert.NotNil(blockResp.Block)
-
-	err = rpc.node.Stop()
-	require.NoError(err)
 }
 
 func TestTx(t *testing.T) {
@@ -546,7 +542,9 @@ func TestTx(t *testing.T) {
 
 	err = rpc.node.Start()
 	require.NoError(err)
-
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 	tx1 := tmtypes.Tx("tx1")
 	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
 	assert.NoError(err)
@@ -595,6 +593,9 @@ func TestUnconfirmedTxs(t *testing.T) {
 
 			err := rpc.node.Start()
 			require.NoError(err)
+			defer func() {
+				assert.NoError(rpc.node.Stop())
+			}()
 
 			for _, tx := range c.txs {
 				res, err := rpc.BroadcastTxAsync(context.Background(), tx)
@@ -631,6 +632,9 @@ func TestUnconfirmedTxsLimit(t *testing.T) {
 
 	err := rpc.node.Start()
 	require.NoError(err)
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
 
 	tx1 := tmtypes.Tx("tx1")
 	tx2 := tmtypes.Tx("another tx")
@@ -1063,6 +1067,9 @@ func TestStatus(t *testing.T) {
 
 	err = node.Start()
 	require.NoError(err)
+	defer func() {
+		assert.NoError(node.Stop())
+	}()
 
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)
@@ -1148,6 +1155,9 @@ func TestFutureGenesisTime(t *testing.T) {
 	err = node.Start()
 	require.NoError(err)
 
+	defer func() {
+		assert.NoError(node.Stop())
+	}()
 	wg.Wait()
 
 	assert.True(beginBlockTime.After(genesisTime))

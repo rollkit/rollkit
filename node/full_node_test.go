@@ -50,6 +50,7 @@ func TestStartup(t *testing.T) {
 }
 
 func TestMempoolDirectly(t *testing.T) {
+	assert := assert.New(t)
 	require := require.New(t)
 
 	app := &mocks.Application{}
@@ -65,6 +66,9 @@ func TestMempoolDirectly(t *testing.T) {
 
 	err = node.Start()
 	require.NoError(err)
+	defer func() {
+		assert.NoError(node.Stop())
+	}()
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
