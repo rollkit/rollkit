@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/log"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
 )
 
 // TODO(tzdybal): refactor to configuration parameters
@@ -187,7 +189,11 @@ func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
 
 // Info returns client ID, ListenAddr, and Network info
 func (c *Client) Info() (p2p.ID, string, string) {
-	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
+	rawKey, err := c.privKey.GetPublic().Raw()
+	if err != nil {
+		c.logger.Error("failed to extract raw bytes from p2p key", "error", err)
+	}
+	return p2p.ID(hex.EncodeToString(tmcrypto.AddressHash(rawKey))), c.conf.ListenAddress, c.chainID
 }
 
 // PeerConnection describe basic information about P2P connection.
