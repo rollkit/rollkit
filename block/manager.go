@@ -464,10 +464,7 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 				blockStoreHeight := m.blockStore.Height()
 				m.logger.Debug("blockStore", "height", blockStoreHeight)
 				if blockStoreHeight > lastBlockStoreHeight {
-					if lastBlockStoreHeight == 0 {
-						lastBlockStoreHeight = 1
-					}
-					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight, blockStoreHeight)
+					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
 					if err != nil {
 						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
 						break
@@ -488,6 +485,9 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Block, error) {
 	if startHeight > endHeight {
 		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
+	}
+	if startHeight == 0 {
+		startHeight++
 	}
 	blocks := make([]*types.Block, endHeight-startHeight+1)
 	for i := startHeight; i <= endHeight; i++ {
