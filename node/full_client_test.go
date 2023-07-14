@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	crand "crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"testing"
@@ -1099,6 +1100,10 @@ func TestStatus(t *testing.T) {
 		res := resp.NodeInfo.Other.TxIndex == tc.other.TxIndex
 		assert.Equal(tc.expected, res, tc)
 	}
+	// check that NodeInfo DefaultNodeID matches the ID derived from p2p key
+	rawKey, err := key.GetPublic().Raw()
+	assert.NoError(err)
+	assert.Equal(p2p.ID(hex.EncodeToString(tmcrypto.AddressHash(rawKey))), resp.NodeInfo.DefaultNodeID)
 }
 
 func TestFutureGenesisTime(t *testing.T) {
