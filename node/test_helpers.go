@@ -62,13 +62,14 @@ func getBMConfig() config.BlockManagerConfig {
 }
 
 func getNodeHeight(node Node, source Source) (uint64, error) {
-	if source == Header {
+	switch source {
+	case Header:
 		return getNodeHeightFromHeader(node)
-	} else if source == Block {
+	case Block:
 		return getNodeHeightFromBlock(node)
-	} else if source == Store {
+	case Store:
 		return getNodeHeightFromStore(node)
-	} else {
+	default:
 		return 0, errors.New("invalid source")
 	}
 }
