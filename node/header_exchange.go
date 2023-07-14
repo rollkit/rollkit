@@ -126,8 +126,11 @@ func (hExService *HeaderExchangeService) Start() error {
 		return fmt.Errorf("error while starting header store: %w", err)
 	}
 
-	_, _, network := hExService.p2p.Info()
 	var err error
+	_, _, network, err := hExService.p2p.Info()
+	if err != nil {
+		return fmt.Errorf("error while fetching the network: %w", err)
+	}
 	if hExService.p2pServer, err = newP2PServer(hExService.p2p.Host(), hExService.headerStore, network); err != nil {
 		return fmt.Errorf("error while creating p2p server: %w", err)
 	}

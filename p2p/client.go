@@ -189,12 +189,12 @@ func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
 }
 
 // Info returns client ID, ListenAddr, and Network info
-func (c *Client) Info() (p2p.ID, string, string) {
+func (c *Client) Info() (p2p.ID, string, string, error) {
 	rawKey, err := c.privKey.GetPublic().Raw()
 	if err != nil {
-		c.logger.Error("failed to extract raw bytes from p2p key", "error", err)
+		return "", "", "", err
 	}
-	return p2p.ID(hex.EncodeToString(tmcrypto.AddressHash(rawKey))), c.conf.ListenAddress, c.chainID
+	return p2p.ID(hex.EncodeToString(tmcrypto.AddressHash(rawKey))), c.conf.ListenAddress, c.chainID, nil
 }
 
 // PeerConnection describe basic information about P2P connection.
