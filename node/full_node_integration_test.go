@@ -493,7 +493,7 @@ func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*Fu
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
-			require.NoError(t, n.Stop())
+			assert.NoError(t, n.Stop())
 		}
 	}()
 	return nodes, apps
