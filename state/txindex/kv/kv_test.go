@@ -74,9 +74,9 @@ func TestTxSearch(t *testing.T) {
 	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("1"), Index: true}}},
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("owner"), Value: string("Ivan"), Index: true}}},
-		{Type: "", Attributes: []abci.EventAttribute{{Key: string("not_allowed"), Value: string("Vlad"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "Ivan", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Vlad", Index: true}}},
 	})
 	hash := types.Tx(txResult.Tx).Hash()
 
@@ -149,9 +149,9 @@ func TestTxSearchWithCancelation(t *testing.T) {
 	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("1"), Index: true}}},
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("owner"), Value: string("Ivan"), Index: true}}},
-		{Type: "", Attributes: []abci.EventAttribute{{Key: string("not_allowed"), Value: string("Vlad"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "owner", Value: "Ivan", Index: true}}},
+		{Type: "", Attributes: []abci.EventAttribute{{Key: "not_allowed", Value: "Vlad", Index: true}}},
 	})
 	err := indexer.Index(txResult)
 	require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 
 	// index tx using events indexing (composite key)
 	txResult1 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("1"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
 	})
 	hash1 := types.Tx(txResult1.Tx).Hash()
 
@@ -249,8 +249,8 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("1"), Index: true}}},
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("2"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "2", Index: true}}},
 	})
 
 	err := indexer.Index(txResult)
@@ -273,7 +273,7 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 
 	// indexed first, but bigger height (to test the order of transactions)
 	txResult := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("1"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "1", Index: true}}},
 	})
 
 	txResult.Tx = types.Tx("Bob's account")
@@ -284,7 +284,7 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 
 	// indexed second, but smaller height (to test the order of transactions)
 	txResult2 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("2"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "2", Index: true}}},
 	})
 	txResult2.Tx = types.Tx("Alice's account")
 	txResult2.Height = 1
@@ -295,7 +295,7 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 
 	// indexed third (to test the order of transactions)
 	txResult3 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number"), Value: string("3"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number", Value: "3", Index: true}}},
 	})
 	txResult3.Tx = types.Tx("Jack's account")
 	txResult3.Height = 1
@@ -306,7 +306,7 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 	// indexed fourth (to test we don't include txs with similar events)
 	// https://github.com/cometbft/cometbft/issues/2908
 	txResult4 := txResultWithEvents([]abci.Event{
-		{Type: "account", Attributes: []abci.EventAttribute{{Key: string("number.id"), Value: string("1"), Index: true}}},
+		{Type: "account", Attributes: []abci.EventAttribute{{Key: "number.id", Value: "1", Index: true}}},
 	})
 	txResult4.Tx = types.Tx("Mike's account")
 	txResult4.Height = 2
