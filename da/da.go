@@ -83,9 +83,6 @@ type DataAvailabilityLayerClient interface {
 	// This should create a transaction which (potentially)
 	// triggers a state transition in the DA layer.
 	SubmitBlock(ctx context.Context, block *types.Block) ResultSubmitBlock
-
-	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
-	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
 }
 
 // BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve

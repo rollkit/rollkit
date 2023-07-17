@@ -26,15 +26,6 @@ message SubmitBlockResponse {
 	DAResponse result = 1;
 }
 
-message CheckBlockAvailabilityRequest {
-	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
-}
-
-message CheckBlockAvailabilityResponse {
-	DAResponse result = 1;
-	bool data_available = 2;
-}
-
 message RetrieveBlocksRequest {
 	uint64 da_height = 1 [(gogoproto.customname) = "DAHeight"];
 }
@@ -46,6 +37,5 @@ message RetrieveBlocksResponse {
 
 service DALCService {
 	rpc SubmitBlock(SubmitBlockRequest) returns (SubmitBlockResponse) {}
-	rpc CheckBlockAvailability(CheckBlockAvailabilityRequest) returns (CheckBlockAvailabilityResponse) {}
 	rpc RetrieveBlocks(RetrieveBlocksRequest) returns (RetrieveBlocksResponse) {}
 }
