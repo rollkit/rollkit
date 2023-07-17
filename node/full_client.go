@@ -717,7 +717,10 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		state.Version.Consensus.Block,
 		state.Version.Consensus.App,
 	)
-	id, addr, network := c.node.P2P.Info()
+	id, addr, network, err := c.node.P2P.Info()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load node p2p2 info: %w", err)
+	}
 	txIndexerStatus := "on"
 
 	result := &ctypes.ResultStatus{

@@ -251,6 +251,7 @@ func (m *Manager) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
 }
 
 func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFunc) {
+	defer cancel()
 	// subscribe to state fraud proof
 	sub, err := m.executor.FraudService.Subscribe(types.StateFraudProofType)
 	if err != nil {
@@ -282,7 +283,6 @@ func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFu
 
 	// halt chain
 	m.logger.Info("verified fraud proof, halting chain")
-	cancel()
 }
 
 // SyncLoop is responsible for syncing blocks.

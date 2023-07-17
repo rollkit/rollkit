@@ -20,7 +20,15 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-var testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
+var (
+	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
+
+	testConfig = celestia.Config{
+		BaseURL:  "http://localhost:26658",
+		Timeout:  30 * time.Second,
+		GasLimit: 3000000,
+	}
+)
 
 func TestMain(m *testing.M) {
 	srv := startMockGRPCServ()
@@ -53,14 +61,22 @@ func TestLifecycle(t *testing.T) {
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 
-	err := dalc.Init(testNamespaceID, []byte{}, nil, test.NewLogger(t))
+	conf := []byte{}
+	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
+		conf = []byte(mockDaBlockTime.String())
+	}
+	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
+		conf, _ = json.Marshal(testConfig)
+	}
+	err := dalc.Init(testNamespaceID, conf, nil, test.NewLogger(t))
 	require.NoError(err)
 
 	err = dalc.Start()
 	require.NoError(err)
 
-	err = dalc.Stop()
-	require.NoError(err)
+	defer func() {
+		require.NoError(dalc.Stop())
+	}()
 }
 
 func TestDALC(t *testing.T) {
@@ -74,7 +90,8 @@ func TestDALC(t *testing.T) {
 func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	require := require.New(t)
 	assert := assert.New(t)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
@@ -82,12 +99,7 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
-		config := celestia.Config{
-			BaseURL:  "http://localhost:26658",
-			Timeout:  30 * time.Second,
-			GasLimit: 3000000,
-		}
-		conf, _ = json.Marshal(config)
+		conf, _ = json.Marshal(testConfig)
 	}
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
 	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewLogger(t))
@@ -95,6 +107,9 @@ func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	err = dalc.Start()
 	require.NoError(err)
+	defer func() {
+		require.NoError(dalc.Stop())
+	}()
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
@@ -141,7 +156,8 @@ func TestRetrieve(t *testing.T) {
 }
 
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -151,12 +167,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
-		config := celestia.Config{
-			BaseURL:  "http://localhost:26658",
-			Timeout:  30 * time.Second,
-			GasLimit: 3000000,
-		}
-		conf, _ = json.Marshal(config)
+		conf, _ = json.Marshal(testConfig)
 	}
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
 	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewLogger(t))
@@ -164,6 +175,9 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	err = dalc.Start()
 	require.NoError(err)
+	defer func() {
+		require.NoError(dalc.Stop())
+	}()
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)

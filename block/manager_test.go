@@ -33,7 +33,8 @@ func TestInitialState(t *testing.T) {
 		NextValidators:  types.GetRandomValidatorSet(),
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(ctx, es)
 
@@ -79,6 +80,9 @@ func TestInitialState(t *testing.T) {
 			assert := assert.New(t)
 			logger := log.TestingLogger()
 			dalc := getMockDALC(logger)
+			defer func() {
+				require.NoError(t, dalc.Stop())
+			}()
 			dumbChan := make(chan struct{})
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)
 			assert.NoError(err)
