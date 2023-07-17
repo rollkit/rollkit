@@ -21,7 +21,7 @@ require (
 	github.com/libp2p/go-libp2p v0.27.3
 	github.com/libp2p/go-libp2p-kad-dht v0.23.0
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
-	github.com/multiformats/go-multiaddr v0.10.0
+	github.com/multiformats/go-multiaddr v0.10.1
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rollkit/celestia-openrpc v0.1.0
 	github.com/rs/cors v1.9.0
