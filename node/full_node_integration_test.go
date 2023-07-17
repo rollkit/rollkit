@@ -453,7 +453,7 @@ func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
 	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
 	require.NoError(err)
 
-	n2Frauds, err := fullNode.fraudService.Get(aggCtx, types.StateFraudProofType)
+	n2Frauds, err := fullNode.fraudService.Get(ctx, types.StateFraudProofType)
 	require.NoError(err)
 
 	assert.Equal(len(n1Frauds), 1, "number of fraud proofs received via gossip should be 1")
