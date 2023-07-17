@@ -27,7 +27,7 @@ cover:
 .PHONY: cover
 
 ## lint: Run linters golangci-lint and markdownlint.
-lint:
+lint: vet
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
 	@echo "--> Running markdownlint"
@@ -45,23 +45,16 @@ fmt:
 	@markdownlint --config .markdownlint.yaml '**/*.md' -f
 .PHONY: fmt
 
-## test-unit: Running unit tests
-test-unit:
+## vet: Run go vet
+vet: 
+	go vet $(pkgs)
+.PHONY: vet
+
+## test: Running unit tests
+test: vet
 	@echo "--> Running unit tests"
-	@go test -v -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
-.PHONY: test-unit
-
-## test-unit-race: Running unit tests with data race detector
-test-unit-race:
-	@echo "--> Running unit tests with data race detector"
-	@go test -race -v $(pkgs) -run $(run) -count=$(count)
-.PHONY: test-unit-race
-
-## test-all: Run tests with and without data race
-test-all:
-	@$(MAKE) test-unit
-	@$(MAKE) test-unit-race
-.PHONY: test-all
+	@go test -v -race -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
+.PHONY: test
 
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:

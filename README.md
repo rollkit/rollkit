@@ -72,13 +72,7 @@ The Rollkit v0.9.0 release is compatible with [Arabica](https://docs.celestia.or
 
 ```sh
 # Run unit tests
-make test-unit
-
-# Run unit tests with the data race detector
-make test-unit-race
-
-# Run tests with and without the data race detector
-make test-all
+make test
 
 # Generate protobuf files (requires Docker)
 make proto-gen
