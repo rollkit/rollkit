@@ -1,6 +1,12 @@
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 
+# Define pkgs, run, and cover vairables for test so that we can override them in
+# the terminal more easily.
+pkgs := $(shell go list ./...)
+run := .
+count := 1
+
 ## help: Show this help message
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -17,7 +23,7 @@ clean:
 cover:
 	@echo "--> Generating Code Coverage"
 	@go install github.com/ory/go-acc@latest
-	@go-acc -o coverage.txt `go list ./...`
+	@go-acc -o coverage.txt $(pkgs)
 .PHONY: cover
 
 ## lint: Run linters golangci-lint and markdownlint.
@@ -42,13 +48,13 @@ fmt:
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test -covermode=atomic -coverprofile=coverage.txt `go list ./...`
+	@go test -v -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
 test-unit-race:
 	@echo "--> Running unit tests with data race detector"
-	@go test -race -count=1 `go list ./...`
+	@go test -race -v $(pkgs) -run $(run) -count=$(count)
 .PHONY: test-unit-race
 
 ## test-all: Run tests with and without data race
