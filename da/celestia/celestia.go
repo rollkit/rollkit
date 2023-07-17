@@ -130,53 +130,6 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 	}
 }
 
-// CheckBlockAvailability queries DA layer to check data availability of block at given height.
-func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) da.ResultCheckBlock {
-	header, err := c.rpc.Header.GetByHeight(ctx, dataLayerHeight)
-	if err != nil {
-		return da.ResultCheckBlock{
-			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
-	}
-	if header.DAH == nil {
-		return da.ResultCheckBlock{
-			BaseResult: da.BaseResult{
-				Code:     da.StatusSuccess,
-				DAHeight: dataLayerHeight,
-			},
-			DataAvailable: false,
-		}
-	}
-	err = c.rpc.Share.SharesAvailable(ctx, header.DAH)
-	if err != nil {
-		if strings.Contains(err.Error(), share.ErrNotAvailable.Error()) {
-			return da.ResultCheckBlock{
-				BaseResult: da.BaseResult{
-					Code:     da.StatusSuccess,
-					DAHeight: dataLayerHeight,
-				},
-				DataAvailable: false,
-			}
-		}
-		return da.ResultCheckBlock{
-			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
-		}
-	}
-	return da.ResultCheckBlock{
-		BaseResult: da.BaseResult{
-			Code:     da.StatusSuccess,
-			DAHeight: dataLayerHeight,
-		},
-		DataAvailable: true,
-	}
-}
-
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	c.logger.Debug("trying to retrieve blob using Blob.GetAll", "daHeight", dataLayerHeight, "namespace", hex.EncodeToString(c.namespace.Bytes()))

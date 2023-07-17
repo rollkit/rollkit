@@ -97,18 +97,6 @@ func (d *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 	}
 }
 
-// CheckBlockAvailability proxies CheckBlockAvailability request to gRPC server.
-func (d *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
-	resp, err := d.client.CheckBlockAvailability(ctx, &dalc.CheckBlockAvailabilityRequest{DAHeight: daHeight})
-	if err != nil {
-		return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-	}
-	return da.ResultCheckBlock{
-		BaseResult:    da.BaseResult{Code: da.StatusCode(resp.Result.Code), Message: resp.Result.Message},
-		DataAvailable: resp.DataAvailable,
-	}
-}
-
 // RetrieveBlocks proxies RetrieveBlocks request to gRPC server.
 func (d *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeight uint64) da.ResultRetrieveBlocks {
 	resp, err := d.client.RetrieveBlocks(ctx, &dalc.RetrieveBlocksRequest{DAHeight: daHeight})
