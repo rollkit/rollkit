@@ -191,7 +191,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	if height < initialHeight {
 		delay = time.Until(m.genesis.GenesisTime)
 	} else {
-		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
+		lastBlockTime := m.getLastBlockTime()
+		delay = time.Until(lastBlockTime.Add(m.conf.BlockTime))
 	}
 
 	if delay > 0 {
@@ -673,6 +674,12 @@ func (m *Manager) getLastStateValidators() *tmtypes.ValidatorSet {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.lastState.Validators
+}
+
+func (m *Manager) getLastBlockTime() time.Time {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState.LastBlockTime
 }
 
 func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) *types.Block {
