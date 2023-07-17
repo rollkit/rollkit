@@ -203,7 +203,9 @@ func TestLazyAggregator(t *testing.T) {
 func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require := require.New(t)
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientNodes := 2
 	bmConfig := getBMConfig()
 	bmConfig.BlockTime = 1 * time.Second
@@ -217,24 +219,25 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	node3 := nodes[2]
 
 	require.NoError(node1.Start())
+	defer func() {
+		require.NoError(node1.Stop())
+	}()
 	require.NoError(waitForFirstBlock(node1, Store))
 	require.NoError(node2.Start())
+	defer func() {
+		require.NoError(node2.Stop())
+	}()
 	require.NoError(node3.Start())
+	defer func() {
+		require.NoError(node3.Stop())
+	}()
 
 	const numberOfBlocksTSyncTill = 5
 	require.NoError(waitForAtLeastNBlocks(node2, numberOfBlocksTSyncTill, Store))
 	require.NoError(waitForAtLeastNBlocks(node3, numberOfBlocksTSyncTill, Store))
 
-	aggCancel()
-	require.NoError(node1.Stop())
-
 	require.NoError(verifyNodesSynced(node1, node2, Store))
 	require.NoError(verifyNodesSynced(node1, node3, Store))
-
-	cancel()
-	require.NoError(node2.Stop())
-	require.NoError(node3.Stop())
-
 	// endTime := time.Now()
 	// duration := endTime.Sub(startTime)
 	// expectedDuration := numberOfBlocksTSyncTill * time.Second // numberOfBlocksTSyncTill * BlockTime (1 second)
