@@ -18,11 +18,11 @@ message DAResponse {
 	uint64 da_height = 3 [(gogoproto.customname) = "DAHeight"];
 }
 
-message SubmitBlockRequest {
-	rollkit.Block block = 1;
+message SubmitBlocksRequest {
+	repeated rollkit.Block blocks = 1;
 }
 
-message SubmitBlockResponse {
+message SubmitBlocksResponse {
 	DAResponse result = 1;
 }
 
@@ -36,6 +36,6 @@ message RetrieveBlocksResponse {
 }
 
 service DALCService {
-	rpc SubmitBlock(SubmitBlockRequest) returns (SubmitBlockResponse) {}
+	rpc SubmitBlocks(SubmitBlocksRequest) returns (SubmitBlocksResponse) {}
 	rpc RetrieveBlocks(RetrieveBlocksRequest) returns (RetrieveBlocksResponse) {}
 }

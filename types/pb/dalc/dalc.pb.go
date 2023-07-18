@@ -119,22 +119,22 @@ func (m *DAResponse) GetDAHeight() uint64 {
 	return 0
 }
 
-type SubmitBlockRequest struct {
-	Block *rollkit.Block `protobuf:"bytes,1,opt,name=block,proto3" json:"block,omitempty"`
+type SubmitBlocksRequest struct {
+	Blocks []*rollkit.Block `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
 }
 
-func (m *SubmitBlockRequest) Reset()         { *m = SubmitBlockRequest{} }
-func (m *SubmitBlockRequest) String() string { return proto.CompactTextString(m) }
-func (*SubmitBlockRequest) ProtoMessage()    {}
-func (*SubmitBlockRequest) Descriptor() ([]byte, []int) {
+func (m *SubmitBlocksRequest) Reset()         { *m = SubmitBlocksRequest{} }
+func (m *SubmitBlocksRequest) String() string { return proto.CompactTextString(m) }
+func (*SubmitBlocksRequest) ProtoMessage()    {}
+func (*SubmitBlocksRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_45d7d8eda2693dc1, []int{1}
 }
-func (m *SubmitBlockRequest) XXX_Unmarshal(b []byte) error {
+func (m *SubmitBlocksRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SubmitBlockRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SubmitBlocksRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SubmitBlockRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SubmitBlocksRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -144,41 +144,41 @@ func (m *SubmitBlockRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *SubmitBlockRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SubmitBlockRequest.Merge(m, src)
+func (m *SubmitBlocksRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubmitBlocksRequest.Merge(m, src)
 }
-func (m *SubmitBlockRequest) XXX_Size() int {
+func (m *SubmitBlocksRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *SubmitBlockRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_SubmitBlockRequest.DiscardUnknown(m)
+func (m *SubmitBlocksRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubmitBlocksRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SubmitBlockRequest proto.InternalMessageInfo
+var xxx_messageInfo_SubmitBlocksRequest proto.InternalMessageInfo
 
-func (m *SubmitBlockRequest) GetBlock() *rollkit.Block {
+func (m *SubmitBlocksRequest) GetBlocks() []*rollkit.Block {
 	if m != nil {
-		return m.Block
+		return m.Blocks
 	}
 	return nil
 }
 
-type SubmitBlockResponse struct {
+type SubmitBlocksResponse struct {
 	Result *DAResponse `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
 }
 
-func (m *SubmitBlockResponse) Reset()         { *m = SubmitBlockResponse{} }
-func (m *SubmitBlockResponse) String() string { return proto.CompactTextString(m) }
-func (*SubmitBlockResponse) ProtoMessage()    {}
-func (*SubmitBlockResponse) Descriptor() ([]byte, []int) {
+func (m *SubmitBlocksResponse) Reset()         { *m = SubmitBlocksResponse{} }
+func (m *SubmitBlocksResponse) String() string { return proto.CompactTextString(m) }
+func (*SubmitBlocksResponse) ProtoMessage()    {}
+func (*SubmitBlocksResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_45d7d8eda2693dc1, []int{2}
 }
-func (m *SubmitBlockResponse) XXX_Unmarshal(b []byte) error {
+func (m *SubmitBlocksResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SubmitBlockResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SubmitBlocksResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SubmitBlockResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SubmitBlocksResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -188,19 +188,19 @@ func (m *SubmitBlockResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return b[:n], nil
 	}
 }
-func (m *SubmitBlockResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SubmitBlockResponse.Merge(m, src)
+func (m *SubmitBlocksResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubmitBlocksResponse.Merge(m, src)
 }
-func (m *SubmitBlockResponse) XXX_Size() int {
+func (m *SubmitBlocksResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *SubmitBlockResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SubmitBlockResponse.DiscardUnknown(m)
+func (m *SubmitBlocksResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubmitBlocksResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SubmitBlockResponse proto.InternalMessageInfo
+var xxx_messageInfo_SubmitBlocksResponse proto.InternalMessageInfo
 
-func (m *SubmitBlockResponse) GetResult() *DAResponse {
+func (m *SubmitBlocksResponse) GetResult() *DAResponse {
 	if m != nil {
 		return m.Result
 	}
@@ -306,8 +306,8 @@ func (m *RetrieveBlocksResponse) GetBlocks() []*rollkit.Block {
 func init() {
 	proto.RegisterEnum("dalc.StatusCode", StatusCode_name, StatusCode_value)
 	proto.RegisterType((*DAResponse)(nil), "dalc.DAResponse")
-	proto.RegisterType((*SubmitBlockRequest)(nil), "dalc.SubmitBlockRequest")
-	proto.RegisterType((*SubmitBlockResponse)(nil), "dalc.SubmitBlockResponse")
+	proto.RegisterType((*SubmitBlocksRequest)(nil), "dalc.SubmitBlocksRequest")
+	proto.RegisterType((*SubmitBlocksResponse)(nil), "dalc.SubmitBlocksResponse")
 	proto.RegisterType((*RetrieveBlocksRequest)(nil), "dalc.RetrieveBlocksRequest")
 	proto.RegisterType((*RetrieveBlocksResponse)(nil), "dalc.RetrieveBlocksResponse")
 }
@@ -315,36 +315,36 @@ func init() {
 func init() { proto.RegisterFile("dalc/dalc.proto", fileDescriptor_45d7d8eda2693dc1) }
 
 var fileDescriptor_45d7d8eda2693dc1 = []byte{
-	// 464 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x93, 0xdd, 0x8e, 0xd2, 0x40,
-	0x14, 0xc7, 0x19, 0x40, 0xdc, 0x3d, 0x18, 0xac, 0xb3, 0xe2, 0x56, 0xd6, 0x54, 0xd2, 0x6c, 0x4c,
-	0xf5, 0x82, 0x26, 0x78, 0xe7, 0x8d, 0xa1, 0x1f, 0x46, 0x12, 0x57, 0xcc, 0x14, 0x6e, 0xbc, 0x21,
-	0xfd, 0x98, 0x94, 0xba, 0xc5, 0xc1, 0xce, 0x74, 0x8d, 0x6f, 0xe1, 0x33, 0xf8, 0x34, 0x5e, 0xee,
-	0xa5, 0x57, 0xc6, 0xc0, 0x8b, 0x18, 0xa6, 0x25, 0x0b, 0x48, 0x4c, 0xf6, 0xa6, 0x3d, 0x33, 0xbf,
-	0x99, 0xd3, 0xff, 0xff, 0x9c, 0x1e, 0xb8, 0x1f, 0xf9, 0x69, 0x68, 0xae, 0x1f, 0xbd, 0x45, 0xc6,
-	0x04, 0xc3, 0xf5, 0x75, 0xdc, 0x69, 0x67, 0x2c, 0x4d, 0x2f, 0x13, 0x61, 0x96, 0xef, 0x02, 0x76,
-	0x1e, 0xc6, 0x2c, 0x66, 0x32, 0x34, 0xd7, 0x51, 0xb1, 0xab, 0x7f, 0x05, 0x70, 0x06, 0x84, 0xf2,
-	0x05, 0xfb, 0xcc, 0x29, 0x3e, 0x87, 0x7a, 0xc8, 0x22, 0xaa, 0xa2, 0x2e, 0x32, 0x5a, 0x7d, 0xa5,
-	0x27, 0x73, 0x7b, 0xc2, 0x17, 0x39, 0xb7, 0x59, 0x44, 0x89, 0xa4, 0x58, 0x85, 0xbb, 0x73, 0xca,
-	0xb9, 0x1f, 0x53, 0xb5, 0xda, 0x45, 0xc6, 0x31, 0xd9, 0x2c, 0xf1, 0x73, 0x38, 0x8e, 0xfc, 0xe9,
-	0x8c, 0x26, 0xf1, 0x4c, 0xa8, 0xb5, 0x2e, 0x32, 0xea, 0xd6, 0xbd, 0xe5, 0xef, 0xa7, 0x47, 0xce,
-	0xe0, 0xad, 0xdc, 0x23, 0x47, 0x91, 0x5f, 0x44, 0xfa, 0x2b, 0xc0, 0x5e, 0x1e, 0xcc, 0x13, 0x61,
-	0xa5, 0x2c, 0xbc, 0x24, 0xf4, 0x4b, 0x4e, 0xb9, 0xc0, 0xe7, 0x70, 0x27, 0x58, 0xaf, 0xa5, 0x82,
-	0x66, 0xbf, 0xd5, 0xdb, 0x78, 0x28, 0x4e, 0x15, 0x50, 0x7f, 0x0d, 0x27, 0x3b, 0x77, 0x4b, 0xf5,
-	0x06, 0x34, 0x32, 0xca, 0xf3, 0x54, 0x94, 0xb7, 0x4b, 0xfd, 0x37, 0xfe, 0x48, 0xc9, 0x75, 0x0b,
-	0xda, 0x84, 0x8a, 0x2c, 0xa1, 0x57, 0x54, 0xa6, 0xe0, 0x9b, 0xef, 0xef, 0x18, 0x40, 0xff, 0x35,
-	0xf0, 0x09, 0x1e, 0xed, 0xe7, 0xb8, 0xad, 0x0e, 0xfc, 0x0c, 0x1a, 0xd2, 0x11, 0x57, 0xab, 0xdd,
-	0xda, 0x01, 0xbf, 0x25, 0x7d, 0x91, 0x01, 0xdc, 0x74, 0x01, 0x9f, 0xc1, 0xa9, 0x37, 0x1e, 0x8c,
-	0x27, 0xde, 0xd4, 0x1e, 0x39, 0xee, 0x74, 0xf2, 0xde, 0xfb, 0xe0, 0xda, 0xc3, 0x37, 0x43, 0xd7,
-	0x51, 0x2a, 0xf8, 0x14, 0x4e, 0xb6, 0xa1, 0x37, 0xb1, 0x6d, 0xd7, 0xf3, 0x14, 0xb4, 0x0f, 0xc6,
-	0xc3, 0x0b, 0x77, 0x34, 0x19, 0x2b, 0x55, 0xdc, 0x86, 0x07, 0xdb, 0xc0, 0x25, 0x64, 0x44, 0x94,
-	0x5a, 0xff, 0x07, 0x82, 0xa6, 0x33, 0x78, 0x67, 0x7b, 0x34, 0xbb, 0x4a, 0x42, 0x8a, 0x1d, 0x68,
-	0x6e, 0x15, 0x1d, 0xab, 0xe5, 0xcf, 0xf1, 0x4f, 0x0f, 0x3b, 0x8f, 0x0f, 0x90, 0xc2, 0xb7, 0x5e,
-	0xc1, 0x17, 0xd0, 0xda, 0xad, 0x1a, 0x3e, 0x2b, 0x8e, 0x1f, 0xec, 0x47, 0xe7, 0xc9, 0x61, 0xb8,
-	0x49, 0x67, 0x59, 0x3f, 0x97, 0x1a, 0xba, 0x5e, 0x6a, 0xe8, 0xcf, 0x52, 0x43, 0xdf, 0x57, 0x5a,
-	0xe5, 0x7a, 0xa5, 0x55, 0x7e, 0xad, 0xb4, 0xca, 0x47, 0x23, 0x4e, 0xc4, 0x2c, 0x0f, 0x7a, 0x21,
-	0x9b, 0x9b, 0x7b, 0x03, 0x61, 0x8a, 0x6f, 0x0b, 0xca, 0xcd, 0x45, 0x20, 0x67, 0x27, 0x68, 0xc8,
-	0x49, 0x78, 0xf9, 0x37, 0x00, 0x00, 0xff, 0xff, 0x15, 0x28, 0x38, 0xc7, 0x4f, 0x03, 0x00, 0x00,
+	// 459 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x93, 0xdd, 0x8e, 0xd2, 0x4e,
+	0x14, 0xc0, 0x3b, 0x40, 0xf8, 0xef, 0x1e, 0x36, 0xfc, 0xeb, 0xec, 0xe2, 0xd6, 0xae, 0xa9, 0xa4,
+	0x31, 0xa6, 0x7a, 0x41, 0x13, 0xbc, 0x36, 0x91, 0x7e, 0xa8, 0x24, 0xae, 0x98, 0x29, 0xdc, 0x78,
+	0x43, 0xfa, 0x31, 0x29, 0x75, 0x8b, 0x83, 0xed, 0x74, 0x8d, 0x6f, 0xe1, 0x4b, 0xf8, 0x2e, 0x5e,
+	0xee, 0xa5, 0x57, 0xc6, 0xc0, 0x8b, 0x18, 0xa6, 0x25, 0x0b, 0x48, 0x36, 0xf1, 0xa6, 0x3d, 0x3d,
+	0xbf, 0xe9, 0xc9, 0xfc, 0xe6, 0xcc, 0x81, 0xff, 0x23, 0x3f, 0x0d, 0xcd, 0xf5, 0xa3, 0xb7, 0xc8,
+	0x18, 0x67, 0xb8, 0xb1, 0x8e, 0xd5, 0x4e, 0xc6, 0xd2, 0xf4, 0x2a, 0xe1, 0x66, 0xf5, 0x2e, 0xa1,
+	0x7a, 0x16, 0xb3, 0x98, 0x89, 0xd0, 0x5c, 0x47, 0x65, 0x56, 0xff, 0x02, 0xe0, 0x0c, 0x08, 0xcd,
+	0x17, 0xec, 0x53, 0x4e, 0xf1, 0x63, 0x68, 0x84, 0x2c, 0xa2, 0x0a, 0xea, 0x22, 0xa3, 0xdd, 0x97,
+	0x7b, 0xa2, 0xb6, 0xc7, 0x7d, 0x5e, 0xe4, 0x36, 0x8b, 0x28, 0x11, 0x14, 0x2b, 0xf0, 0xdf, 0x9c,
+	0xe6, 0xb9, 0x1f, 0x53, 0xa5, 0xd6, 0x45, 0xc6, 0x31, 0xd9, 0x7c, 0xe2, 0xa7, 0x70, 0x1c, 0xf9,
+	0xd3, 0x19, 0x4d, 0xe2, 0x19, 0x57, 0xea, 0x5d, 0x64, 0x34, 0xac, 0x93, 0xe5, 0xaf, 0x47, 0x47,
+	0xce, 0xe0, 0x8d, 0xc8, 0x91, 0xa3, 0xc8, 0x2f, 0x23, 0xfd, 0x05, 0x9c, 0x7a, 0x45, 0x30, 0x4f,
+	0xb8, 0x95, 0xb2, 0xf0, 0x2a, 0x27, 0xf4, 0x73, 0x41, 0x73, 0x8e, 0x9f, 0x40, 0x33, 0x10, 0x09,
+	0x05, 0x75, 0xeb, 0x46, 0xab, 0xdf, 0xee, 0x6d, 0x2c, 0xc4, 0x3a, 0x52, 0x51, 0xfd, 0x25, 0x9c,
+	0xed, 0xfe, 0x5e, 0x19, 0x18, 0xd0, 0xcc, 0x68, 0x5e, 0xa4, 0x5c, 0x38, 0xb4, 0x36, 0x0e, 0xb7,
+	0x8e, 0xa4, 0xe2, 0xba, 0x05, 0x1d, 0x42, 0x79, 0x96, 0xd0, 0x6b, 0xba, 0xbb, 0x85, 0x1d, 0x09,
+	0x74, 0xa7, 0xc4, 0x47, 0xb8, 0xbf, 0x5f, 0xe3, 0x5f, 0xf7, 0xb1, 0x65, 0x5c, 0xbb, 0xcb, 0xf8,
+	0x59, 0x06, 0x70, 0xdb, 0x09, 0x7c, 0x01, 0xe7, 0xde, 0x78, 0x30, 0x9e, 0x78, 0x53, 0x7b, 0xe4,
+	0xb8, 0xd3, 0xc9, 0x3b, 0xef, 0xbd, 0x6b, 0x0f, 0x5f, 0x0d, 0x5d, 0x47, 0x96, 0xf0, 0x39, 0x9c,
+	0x6e, 0x43, 0x6f, 0x62, 0xdb, 0xae, 0xe7, 0xc9, 0x68, 0x1f, 0x8c, 0x87, 0x97, 0xee, 0x68, 0x32,
+	0x96, 0x6b, 0xb8, 0x03, 0xf7, 0xb6, 0x81, 0x4b, 0xc8, 0x88, 0xc8, 0xf5, 0xfe, 0x77, 0x04, 0x2d,
+	0x67, 0xf0, 0xd6, 0xf6, 0x68, 0x76, 0x9d, 0x84, 0x14, 0xbf, 0x86, 0x93, 0xed, 0x53, 0xc7, 0x0f,
+	0xaa, 0x1b, 0xf2, 0x77, 0x23, 0x55, 0xf5, 0x10, 0x2a, 0xd5, 0x75, 0x09, 0x5f, 0x42, 0x7b, 0xf7,
+	0xe0, 0xf0, 0x45, 0xb9, 0xfe, 0x60, 0x4b, 0xd4, 0x87, 0x87, 0xe1, 0xa6, 0x9c, 0x65, 0xfd, 0x58,
+	0x6a, 0xe8, 0x66, 0xa9, 0xa1, 0xdf, 0x4b, 0x0d, 0x7d, 0x5b, 0x69, 0xd2, 0xcd, 0x4a, 0x93, 0x7e,
+	0xae, 0x34, 0xe9, 0x83, 0x11, 0x27, 0x7c, 0x56, 0x04, 0xbd, 0x90, 0xcd, 0xcd, 0xbd, 0xb9, 0x30,
+	0xf9, 0xd7, 0x05, 0xcd, 0xcd, 0x45, 0x20, 0x46, 0x28, 0x68, 0x8a, 0x81, 0x78, 0xfe, 0x27, 0x00,
+	0x00, 0xff, 0xff, 0xa9, 0xef, 0x2f, 0x14, 0x56, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -359,7 +359,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DALCServiceClient interface {
-	SubmitBlock(ctx context.Context, in *SubmitBlockRequest, opts ...grpc.CallOption) (*SubmitBlockResponse, error)
+	SubmitBlocks(ctx context.Context, in *SubmitBlocksRequest, opts ...grpc.CallOption) (*SubmitBlocksResponse, error)
 	RetrieveBlocks(ctx context.Context, in *RetrieveBlocksRequest, opts ...grpc.CallOption) (*RetrieveBlocksResponse, error)
 }
 
@@ -371,9 +371,9 @@ func NewDALCServiceClient(cc *grpc.ClientConn) DALCServiceClient {
 	return &dALCServiceClient{cc}
 }
 
-func (c *dALCServiceClient) SubmitBlock(ctx context.Context, in *SubmitBlockRequest, opts ...grpc.CallOption) (*SubmitBlockResponse, error) {
-	out := new(SubmitBlockResponse)
-	err := c.cc.Invoke(ctx, "/dalc.DALCService/SubmitBlock", in, out, opts...)
+func (c *dALCServiceClient) SubmitBlocks(ctx context.Context, in *SubmitBlocksRequest, opts ...grpc.CallOption) (*SubmitBlocksResponse, error) {
+	out := new(SubmitBlocksResponse)
+	err := c.cc.Invoke(ctx, "/dalc.DALCService/SubmitBlocks", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func (c *dALCServiceClient) RetrieveBlocks(ctx context.Context, in *RetrieveBloc
 
 // DALCServiceServer is the server API for DALCService service.
 type DALCServiceServer interface {
-	SubmitBlock(context.Context, *SubmitBlockRequest) (*SubmitBlockResponse, error)
+	SubmitBlocks(context.Context, *SubmitBlocksRequest) (*SubmitBlocksResponse, error)
 	RetrieveBlocks(context.Context, *RetrieveBlocksRequest) (*RetrieveBlocksResponse, error)
 }
 
@@ -399,8 +399,8 @@ type DALCServiceServer interface {
 type UnimplementedDALCServiceServer struct {
 }
 
-func (*UnimplementedDALCServiceServer) SubmitBlock(ctx context.Context, req *SubmitBlockRequest) (*SubmitBlockResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SubmitBlock not implemented")
+func (*UnimplementedDALCServiceServer) SubmitBlocks(ctx context.Context, req *SubmitBlocksRequest) (*SubmitBlocksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitBlocks not implemented")
 }
 func (*UnimplementedDALCServiceServer) RetrieveBlocks(ctx context.Context, req *RetrieveBlocksRequest) (*RetrieveBlocksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetrieveBlocks not implemented")
@@ -410,20 +410,20 @@ func RegisterDALCServiceServer(s *grpc.Server, srv DALCServiceServer) {
 	s.RegisterService(&_DALCService_serviceDesc, srv)
 }
 
-func _DALCService_SubmitBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SubmitBlockRequest)
+func _DALCService_SubmitBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitBlocksRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DALCServiceServer).SubmitBlock(ctx, in)
+		return srv.(DALCServiceServer).SubmitBlocks(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/dalc.DALCService/SubmitBlock",
+		FullMethod: "/dalc.DALCService/SubmitBlocks",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DALCServiceServer).SubmitBlock(ctx, req.(*SubmitBlockRequest))
+		return srv.(DALCServiceServer).SubmitBlocks(ctx, req.(*SubmitBlocksRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -451,8 +451,8 @@ var _DALCService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*DALCServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SubmitBlock",
-			Handler:    _DALCService_SubmitBlock_Handler,
+			MethodName: "SubmitBlocks",
+			Handler:    _DALCService_SubmitBlocks_Handler,
 		},
 		{
 			MethodName: "RetrieveBlocks",
@@ -503,7 +503,7 @@ func (m *DAResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SubmitBlockRequest) Marshal() (dAtA []byte, err error) {
+func (m *SubmitBlocksRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -513,32 +513,34 @@ func (m *SubmitBlockRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SubmitBlockRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *SubmitBlocksRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SubmitBlockRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SubmitBlocksRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Block != nil {
-		{
-			size, err := m.Block.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
+	if len(m.Blocks) > 0 {
+		for iNdEx := len(m.Blocks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Blocks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintDalc(dAtA, i, uint64(size))
 			}
-			i -= size
-			i = encodeVarintDalc(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0xa
 		}
-		i--
-		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *SubmitBlockResponse) Marshal() (dAtA []byte, err error) {
+func (m *SubmitBlocksResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -548,12 +550,12 @@ func (m *SubmitBlockResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SubmitBlockResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *SubmitBlocksResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SubmitBlockResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SubmitBlocksResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -680,20 +682,22 @@ func (m *DAResponse) Size() (n int) {
 	return n
 }
 
-func (m *SubmitBlockRequest) Size() (n int) {
+func (m *SubmitBlocksRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Block != nil {
-		l = m.Block.Size()
-		n += 1 + l + sovDalc(uint64(l))
+	if len(m.Blocks) > 0 {
+		for _, e := range m.Blocks {
+			l = e.Size()
+			n += 1 + l + sovDalc(uint64(l))
+		}
 	}
 	return n
 }
 
-func (m *SubmitBlockResponse) Size() (n int) {
+func (m *SubmitBlocksResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -863,7 +867,7 @@ func (m *DAResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SubmitBlockRequest) Unmarshal(dAtA []byte) error {
+func (m *SubmitBlocksRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -886,15 +890,15 @@ func (m *SubmitBlockRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SubmitBlockRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: SubmitBlocksRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SubmitBlockRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SubmitBlocksRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Block", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Blocks", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -921,10 +925,8 @@ func (m *SubmitBlockRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Block == nil {
-				m.Block = &rollkit.Block{}
-			}
-			if err := m.Block.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Blocks = append(m.Blocks, &rollkit.Block{})
+			if err := m.Blocks[len(m.Blocks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -949,7 +951,7 @@ func (m *SubmitBlockRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SubmitBlockResponse) Unmarshal(dAtA []byte) error {
+func (m *SubmitBlocksResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -972,10 +974,10 @@ func (m *SubmitBlockResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SubmitBlockResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: SubmitBlocksResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SubmitBlockResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SubmitBlocksResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

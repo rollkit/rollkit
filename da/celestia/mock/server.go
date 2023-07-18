@@ -221,7 +221,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		res := s.mock.SubmitBlock(r.Context(), &block)
+		res := s.mock.SubmitBlocks(r.Context(), []*types.Block{&block})
 		resp := &response{
 			Jsonrpc: "2.0",
 			Result: &sdk.TxResponse{
