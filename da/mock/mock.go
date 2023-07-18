@@ -164,12 +164,6 @@ func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 	}
 }
 
-// CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-func (m *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
-	blocksRes := m.RetrieveBlocks(ctx, daHeight)
-	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: blocksRes.Code}, DataAvailable: len(blocksRes.Blocks) > 0}
-}
-
 // RetrieveBlocks returns block at given height from data availability layer.
 func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeight uint64) da.ResultRetrieveBlocks {
 	if daHeight >= atomic.LoadUint64(&m.daHeight) {

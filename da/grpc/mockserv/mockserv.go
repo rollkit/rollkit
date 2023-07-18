@@ -52,17 +52,6 @@ func (m *mockImpl) SubmitBlock(ctx context.Context, request *dalc.SubmitBlockReq
 	}, nil
 }
 
-func (m *mockImpl) CheckBlockAvailability(ctx context.Context, request *dalc.CheckBlockAvailabilityRequest) (*dalc.CheckBlockAvailabilityResponse, error) {
-	resp := m.mock.CheckBlockAvailability(ctx, request.DAHeight)
-	return &dalc.CheckBlockAvailabilityResponse{
-		Result: &dalc.DAResponse{
-			Code:    dalc.StatusCode(resp.Code),
-			Message: resp.Message,
-		},
-		DataAvailable: resp.DataAvailable,
-	}, nil
-}
-
 func (m *mockImpl) RetrieveBlocks(ctx context.Context, request *dalc.RetrieveBlocksRequest) (*dalc.RetrieveBlocksResponse, error) {
 	resp := m.mock.RetrieveBlocks(ctx, request.DAHeight)
 	blocks := make([]*rollkit.Block, len(resp.Blocks))
