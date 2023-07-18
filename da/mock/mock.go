@@ -137,24 +137,26 @@ func (m *DataAvailabilityLayerClient) GetHeightByHeader(dah *core.DataAvailabili
 // triggers a state transition in the DA layer.
 func (m *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) da.ResultSubmitBlocks {
 	daHeight := atomic.LoadUint64(&m.daHeight)
-	m.logger.Debug("Submitting block to DA layer!", "height", block.SignedHeader.Header.Height(), "dataLayerHeight", daHeight)
 
-	hash := block.SignedHeader.Header.Hash()
-	blob, err := block.MarshalBinary()
-	if err != nil {
-		return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+	for _, block := range blocks {
+		m.logger.Debug("Submitting blocks to DA layer!", "height", block.SignedHeader.Header.Height(), "dataLayerHeight", daHeight)
+
+		hash := block.SignedHeader.Header.Hash()
+		blob, err := block.MarshalBinary()
+		if err != nil {
+			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		}
+
+		err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.SignedHeader.Header.Height())), hash[:])
+		if err != nil {
+			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		}
+
+		err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])), blob)
+		if err != nil {
+			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		}
 	}
-
-	err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.SignedHeader.Header.Height())), hash[:])
-	if err != nil {
-		return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-	}
-
-	err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])), blob)
-	if err != nil {
-		return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-	}
-
 	return da.ResultSubmitBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,

@@ -11,9 +11,9 @@ import (
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
-	"github.com/rollkit/rollkit/proto/pb/rollkit"
 	"github.com/rollkit/rollkit/types"
 	"github.com/rollkit/rollkit/types/pb/dalc"
+	"github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // DataAvailabilityLayerClient is a generic client that proxies all DA requests via gRPC.
