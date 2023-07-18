@@ -87,9 +87,11 @@ func TestInitialState(t *testing.T) {
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)
 			assert.NoError(err)
 			assert.NotNil(agg)
+			agg.lastStateMtx.RLock()
 			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
 			assert.Equal(c.expectedInitialHeight, agg.lastState.InitialHeight)
 			assert.Equal(c.expectedLastBlockHeight, agg.lastState.LastBlockHeight)
+			agg.lastStateMtx.RUnlock()
 		})
 	}
 }
