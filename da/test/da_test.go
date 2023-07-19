@@ -124,7 +124,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
-		resp := dalc.SubmitBlock(ctx, b)
+		resp := dalc.SubmitBlocks(ctx, []*types.Block{b})
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 

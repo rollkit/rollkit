@@ -74,33 +74,34 @@ func (c *DataAvailabilityLayerClient) Stop() error {
 	return nil
 }
 
-// SubmitBlock submits a block to DA layer.
-func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
-	data, err := block.MarshalBinary()
-	if err != nil {
-		return da.ResultSubmitBlock{
-			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
+// SubmitBlocks submits blocks to DA layer.
+func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) da.ResultSubmitBlocks {
+	blobs := make([]*blob.Blob, len(blocks))
+	for blockIndex, block := range blocks {
+		data, err := block.MarshalBinary()
+		if err != nil {
+			return da.ResultSubmitBlocks{
+				BaseResult: da.BaseResult{
+					Code:    da.StatusError,
+					Message: err.Error(),
+				},
+			}
 		}
-	}
-
-	blockBlob, err := blob.NewBlobV0(c.namespace.Bytes(), data)
-	if err != nil {
-		return da.ResultSubmitBlock{
-			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: err.Error(),
-			},
+		blockBlob, err := blob.NewBlobV0(c.namespace.Bytes(), data)
+		if err != nil {
+			return da.ResultSubmitBlocks{
+				BaseResult: da.BaseResult{
+					Code:    da.StatusError,
+					Message: err.Error(),
+				},
+			}
 		}
+		blobs[blockIndex] = blockBlob
 	}
-
-	blobs := []*blob.Blob{blockBlob}
 
 	txResponse, err := c.rpc.State.SubmitPayForBlob(ctx, math.NewInt(c.config.Fee), c.config.GasLimit, blobs)
 	if err != nil {
-		return da.ResultSubmitBlock{
+		return da.ResultSubmitBlocks{
 			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
 				Message: err.Error(),
@@ -113,7 +114,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		"daHeight", txResponse.Height, "daTxHash", txResponse.TxHash)
 
 	if txResponse.Code != 0 {
-		return da.ResultSubmitBlock{
+		return da.ResultSubmitBlocks{
 			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
 				Message: fmt.Sprintf("Codespace: '%s', Code: %d, Message: %s", txResponse.Codespace, txResponse.Code, txResponse.RawLog),
@@ -121,7 +122,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	return da.ResultSubmitBlock{
+	return da.ResultSubmitBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			Message:  "tx hash: " + txResponse.TxHash,
