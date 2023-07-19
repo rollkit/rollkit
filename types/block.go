@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
 	"github.com/celestiaorg/go-header"
-	tmtypes "github.com/tendermint/tendermint/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 )
 
 type NamespaceID [8]byte
@@ -43,7 +43,7 @@ type Data struct {
 
 // EvidenceData defines how evidence is stored in block.
 type EvidenceData struct {
-	Evidence []Evidence
+	Evidence []cmtypes.Evidence
 }
 
 // Commit contains evidence of block creation.
@@ -57,7 +57,7 @@ type Commit struct {
 type SignedHeader struct {
 	Header
 	Commit     Commit
-	Validators *tmtypes.ValidatorSet
+	Validators *cmtypes.ValidatorSet
 }
 
 // Signature represents signature of block creator.
@@ -72,19 +72,19 @@ type IntermediateStateRoots struct {
 // ToABCICommit converts Rollkit commit into commit format defined by ABCI.
 // This function only converts fields that are available in Rollkit commit.
 // Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
-func (c *Commit) ToABCICommit(height int64, hash Hash) *tmtypes.Commit {
-	tmCommit := tmtypes.Commit{
+func (c *Commit) ToABCICommit(height int64, hash Hash) *cmtypes.Commit {
+	tmCommit := cmtypes.Commit{
 		Height: height,
 		Round:  0,
-		BlockID: tmtypes.BlockID{
-			Hash:          tmbytes.HexBytes(hash),
-			PartSetHeader: tmtypes.PartSetHeader{},
+		BlockID: cmtypes.BlockID{
+			Hash:          cmbytes.HexBytes(hash),
+			PartSetHeader: cmtypes.PartSetHeader{},
 		},
-		Signatures: make([]tmtypes.CommitSig, len(c.Signatures)),
+		Signatures: make([]cmtypes.CommitSig, len(c.Signatures)),
 	}
 	for i, sig := range c.Signatures {
-		commitSig := tmtypes.CommitSig{
-			BlockIDFlag: tmtypes.BlockIDFlagCommit,
+		commitSig := cmtypes.CommitSig{
+			BlockIDFlag: cmtypes.BlockIDFlagCommit,
 			Signature:   sig,
 		}
 		tmCommit.Signatures[i] = commitSig

@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/types"
 
 	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
 	"github.com/rollkit/rollkit/state/txindex"

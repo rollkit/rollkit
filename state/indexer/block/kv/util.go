@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/types"
-
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/types"
 	"github.com/rollkit/rollkit/store"
 )
 

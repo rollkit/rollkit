@@ -14,13 +14,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	llcfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/libs/service"
-	corep2p "github.com/tendermint/tendermint/p2p"
-	proxy "github.com/tendermint/tendermint/proxy"
-	tmtypes "github.com/tendermint/tendermint/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	llcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/libs/service"
+	corep2p "github.com/cometbft/cometbft/p2p"
+	proxy "github.com/cometbft/cometbft/proxy"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -56,10 +56,10 @@ var _ Node = &FullNode{}
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
-	eventBus *tmtypes.EventBus
+	eventBus *cmtypes.EventBus
 	proxyApp proxy.AppConns
 
-	genesis *tmtypes.GenesisDoc
+	genesis *cmtypes.GenesisDoc
 	// cache of chunked genesis data.
 	genChunks []string
 
@@ -101,16 +101,16 @@ func newFullNode(
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
 
-	eventBus := tmtypes.NewEventBus()
+	eventBus := cmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -320,7 +320,7 @@ func (n *FullNode) OnStart() error {
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() *tmtypes.GenesisDoc {
+func (n *FullNode) GetGenesis() *cmtypes.GenesisDoc {
 	return n.genesis
 }
 
@@ -361,7 +361,7 @@ func (n *FullNode) GetLogger() log.Logger {
 }
 
 // EventBus gives access to Node's event bus.
-func (n *FullNode) EventBus() *tmtypes.EventBus {
+func (n *FullNode) EventBus() *cmtypes.EventBus {
 	return n.eventBus
 }
 
@@ -408,7 +408,7 @@ func createAndStartIndexerService(
 	ctx context.Context,
 	conf config.NodeConfig,
 	kvStore ds.TxnDatastore,
-	eventBus *tmtypes.EventBus,
+	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
 	var (

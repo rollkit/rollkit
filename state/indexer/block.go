@@ -3,8 +3,8 @@ package indexer
 import (
 	"context"
 
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/types"
 )
 
 // BlockIndexer defines an interface contract for indexing block events.
