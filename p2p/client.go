@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -23,6 +24,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/multierr"
+
+	tmcrypto "github.com/tendermint/tendermint/crypto"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/log"
@@ -186,8 +189,12 @@ func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
 }
 
 // Info returns client ID, ListenAddr, and Network info
-func (c *Client) Info() (p2p.ID, string, string) {
-	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
+func (c *Client) Info() (p2p.ID, string, string, error) {
+	rawKey, err := c.privKey.GetPublic().Raw()
+	if err != nil {
+		return "", "", "", err
+	}
+	return p2p.ID(hex.EncodeToString(tmcrypto.AddressHash(rawKey))), c.conf.ListenAddress, c.chainID, nil
 }
 
 // PeerConnection describe basic information about P2P connection.

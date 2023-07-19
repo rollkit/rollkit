@@ -36,30 +36,24 @@ type mockImpl struct {
 	mock mock.DataAvailabilityLayerClient
 }
 
-func (m *mockImpl) SubmitBlock(ctx context.Context, request *dalc.SubmitBlockRequest) (*dalc.SubmitBlockResponse, error) {
-	var b types.Block
-	err := b.FromProto(request.Block)
-	if err != nil {
-		return nil, err
+func (m *mockImpl) SubmitBlocks(ctx context.Context, request *dalc.SubmitBlocksRequest) (*dalc.SubmitBlocksResponse, error) {
+	blocks := make([]*types.Block, len(request.Blocks))
+	for i := range request.Blocks {
+		var b types.Block
+		err := b.FromProto(request.Blocks[i])
+		if err != nil {
+			return nil, err
+		}
+		blocks[i] = &b
 	}
-	resp := m.mock.SubmitBlock(ctx, &b)
-	return &dalc.SubmitBlockResponse{
+
+	resp := m.mock.SubmitBlocks(ctx, blocks)
+	return &dalc.SubmitBlocksResponse{
 		Result: &dalc.DAResponse{
 			Code:     dalc.StatusCode(resp.Code),
 			Message:  resp.Message,
 			DAHeight: resp.DAHeight,
 		},
-	}, nil
-}
-
-func (m *mockImpl) CheckBlockAvailability(ctx context.Context, request *dalc.CheckBlockAvailabilityRequest) (*dalc.CheckBlockAvailabilityResponse, error) {
-	resp := m.mock.CheckBlockAvailability(ctx, request.DAHeight)
-	return &dalc.CheckBlockAvailabilityResponse{
-		Result: &dalc.DAResponse{
-			Code:    dalc.StatusCode(resp.Code),
-			Message: resp.Message,
-		},
-		DataAvailable: resp.DataAvailable,
 	}, nil
 }
 

@@ -127,9 +127,13 @@ func (bExService *BlockExchangeService) Start() error {
 		return fmt.Errorf("error while starting block store: %w", err)
 	}
 
-	_, _, network := bExService.p2p.Info()
-	networkIDBlock := network + "-block"
 	var err error
+	_, _, network, err := bExService.p2p.Info()
+	if err != nil {
+		return fmt.Errorf("error while fetching the network: %w", err)
+	}
+	networkIDBlock := network + "-block"
+
 	if bExService.p2pServer, err = newBlockP2PServer(bExService.p2p.Host(), bExService.blockStore, networkIDBlock); err != nil {
 		return fmt.Errorf("error while creating p2p server: %w", err)
 	}

@@ -39,12 +39,13 @@ func TestStoreHeight(t *testing.T) {
 			getRandomBlock(10, 0),
 		}, 10},
 	}
-
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ds, _ := NewDefaultInMemoryKVStore()
-			bstore := New(context.Background(), ds)
+			bstore := New(ctx, ds)
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
@@ -90,13 +91,15 @@ func TestStoreLoad(t *testing.T) {
 
 	mKV, _ := NewDefaultInMemoryKVStore()
 	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, kv := range []ds.TxnDatastore{mKV, dKV} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				assert := assert.New(t)
 				require := require.New(t)
 
-				bstore := New(context.Background(), kv)
+				bstore := New(ctx, kv)
 
 				lastCommit := &types.Commit{}
 				for _, block := range c.blocks {
@@ -130,7 +133,8 @@ func TestRestart(t *testing.T) {
 
 	validatorSet := types.GetRandomValidatorSet()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	kv, _ := NewDefaultInMemoryKVStore()
 	s1 := New(ctx, kv)
 	expectedHeight := uint64(10)
@@ -153,8 +157,10 @@ func TestBlockResponses(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	kv, _ := NewDefaultInMemoryKVStore()
-	s := New(context.Background(), kv)
+	s := New(ctx, kv)
 
 	expected := &cmstate.ABCIResponses{
 		BeginBlock: &abcitypes.ResponseBeginBlock{

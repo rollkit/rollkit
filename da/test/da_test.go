@@ -83,68 +83,9 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	err = dalc.Start()
 	require.NoError(err)
 
-	err = dalc.Stop()
-	require.NoError(err)
-}
-
-func TestDALC(t *testing.T) {
-	for _, dalc := range registry.RegisteredClients() {
-		t.Run(dalc, func(t *testing.T) {
-			doTestDALC(t, registry.GetClient(dalc))
-		})
-	}
-}
-
-func doTestDALC(t *testing.T, dalc da.DataAvailabilityLayerClient) {
-	require := require.New(t)
-	assert := assert.New(t)
-	ctx := context.Background()
-
-	// mock DALC will advance block height every 100ms
-	conf := []byte{}
-	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
-		conf = []byte(mockDaBlockTime.String())
-	}
-	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
-		conf, _ = json.Marshal(testConfig)
-	}
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
-	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewLogger(t))
-	require.NoError(err)
-
-	err = dalc.Start()
-	require.NoError(err)
-
-	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
-	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
-
-	// only blocks b1 and b2 will be submitted to DA
-	b1 := getRandomBlock(1, 10)
-	b2 := getRandomBlock(2, 10)
-
-	resp := dalc.SubmitBlock(ctx, b1)
-	h1 := resp.DAHeight
-	assert.Equal(da.StatusSuccess, resp.Code)
-
-	resp = dalc.SubmitBlock(ctx, b2)
-	h2 := resp.DAHeight
-	assert.Equal(da.StatusSuccess, resp.Code)
-
-	// wait a bit more than mockDaBlockTime, so Rollkit blocks can be "included" in mock block
-	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
-
-	check := dalc.CheckBlockAvailability(ctx, h1)
-	assert.Equal(da.StatusSuccess, check.Code)
-	assert.True(check.DataAvailable)
-
-	check = dalc.CheckBlockAvailability(ctx, h2)
-	assert.Equal(da.StatusSuccess, check.Code)
-	assert.True(check.DataAvailable)
-
-	// this height should not be used by DALC
-	check = dalc.CheckBlockAvailability(ctx, h1-1)
-	assert.Equal(da.StatusSuccess, check.Code)
-	assert.False(check.DataAvailable)
+	defer func() {
+		require.NoError(dalc.Stop())
+	}()
 }
 
 func TestRetrieve(t *testing.T) {
@@ -192,7 +133,8 @@ func startMockCelestiaNodeServer() *cmock.Server {
 }
 
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	require := require.New(t)
 	assert := assert.New(t)
 
@@ -210,6 +152,9 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	err = dalc.Start()
 	require.NoError(err)
+	defer func() {
+		require.NoError(dalc.Stop())
+	}()
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
@@ -220,7 +165,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
-		resp := dalc.SubmitBlock(ctx, b)
+		resp := dalc.SubmitBlocks(ctx, []*types.Block{b})
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 
