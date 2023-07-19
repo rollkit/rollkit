@@ -30,6 +30,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
+	github.com/tendermint/tendermint v0.35.9
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.12.0
 	google.golang.org/grpc v1.55.0
@@ -164,7 +165,6 @@ require (
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
-	github.com/tendermint/tendermint v0.35.9 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opencensus.io v0.24.0 // indirect

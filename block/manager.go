@@ -13,7 +13,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
-	cmstate "github.com/cometbft/cometbft/proto/cometbft/state"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
