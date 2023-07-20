@@ -252,12 +252,10 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				}
 				blockTimer.Reset(m.getRemainingSleep(start))
 			case <-DATimer.C:
-				m.pendingBlocksMtx.Lock()
 				err := m.submitBlocksToDA(ctx)
 				if err != nil {
 					m.logger.Error("error while submitting block to DA", "error", err)
 				}
-				m.pendingBlocksMtx.Unlock()
 			}
 		}
 	} else {
@@ -286,12 +284,10 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				m.buildingBlock = false
 
 			case <-DATimer.C:
-				m.pendingBlocksMtx.Lock()
 				err := m.submitBlocksToDA(ctx)
 				if err != nil {
 					m.logger.Error("error while submitting block to DA", "error", err)
 				}
-				m.pendingBlocksMtx.Unlock()
 			}
 		}
 	}
@@ -732,7 +728,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	if !submitted {
 		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
-
+	m.pendingBlocks = make([]*types.Block, 0)
 	return nil
 }
 
