@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/libs/appconsts"
 	appns "github.com/rollkit/rollkit/libs/namespace"

@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/log"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/log"
-	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -20,7 +20,7 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-	genesis := &tmtypes.GenesisDoc{
+	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
 	}
@@ -46,7 +46,7 @@ func TestInitialState(t *testing.T) {
 	cases := []struct {
 		name                    string
 		store                   store.Store
-		genesis                 *tmtypes.GenesisDoc
+		genesis                 *cmtypes.GenesisDoc
 		expectedInitialHeight   int64
 		expectedLastBlockHeight int64
 		expectedChainID         string
@@ -87,9 +87,11 @@ func TestInitialState(t *testing.T) {
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)
 			assert.NoError(err)
 			assert.NotNil(agg)
+			agg.lastStateMtx.RLock()
 			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
 			assert.Equal(c.expectedInitialHeight, agg.lastState.InitialHeight)
 			assert.Equal(c.expectedLastBlockHeight, agg.lastState.LastBlockHeight)
+			agg.lastStateMtx.RUnlock()
 		})
 	}
 }

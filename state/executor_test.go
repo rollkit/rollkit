@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,13 +11,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	cfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/proxy"
-	tmtypes "github.com/tendermint/tendermint/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	cfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proxy"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/mempool"
 	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
@@ -33,20 +35,26 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
 
+	fmt.Println("App On CheckTx")
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
+	fmt.Println("Created New Local Client")
 	require.NoError(err)
 	require.NotNil(client)
 
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
-
-	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, nil, logger)
+	fmt.Println("Made NID")
+	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	fmt.Println("Made a NewTxMempool")
+	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, nil, logger)
+	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
+
+	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 	vKey := ed25519.GenPrivKey()
-	validators := []*tmtypes.Validator{
+	validators := []*cmtypes.Validator{
 		{
 			Address:          vKey.PubKey().Address(),
 			PubKey:           vKey.PubKey(),
@@ -54,7 +62,7 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 			ProposerPriority: int64(1),
 		},
 	}
-	state.Validators = tmtypes.NewValidatorSet(validators)
+	state.Validators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
@@ -117,10 +125,10 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	chainID := "test"
 
-	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client), 0)
-	eventBus := tmtypes.NewEventBus()
+	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client), fraudProofsEnabled, eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -135,7 +143,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.NotNil(headerSub)
 
 	vKey := ed25519.GenPrivKey()
-	validators := []*tmtypes.Validator{
+	validators := []*cmtypes.Validator{
 		{
 			Address:          vKey.PubKey().Address(),
 			PubKey:           vKey.PubKey(),
@@ -144,12 +152,13 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 		},
 	}
 	state := types.State{
-		NextValidators: tmtypes.NewValidatorSet(validators),
-		Validators:     tmtypes.NewValidatorSet(validators),
-		LastValidators: tmtypes.NewValidatorSet(validators),
+		NextValidators: cmtypes.NewValidatorSet(validators),
+		Validators:     cmtypes.NewValidatorSet(validators),
+		LastValidators: cmtypes.NewValidatorSet(validators),
 	}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
+	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 
@@ -166,7 +175,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
+	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
@@ -191,7 +200,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = tmtypes.NewValidatorSet(validators)
+	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)
@@ -210,7 +219,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 		select {
 		case evt := <-txSub.Out():
 			cnt++
-			data, ok := evt.Data().(tmtypes.EventDataTx)
+			data, ok := evt.Data().(cmtypes.EventDataTx)
 			assert.True(ok)
 			assert.NotEmpty(data.Tx)
 			txs[data.Height]++
@@ -225,7 +234,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	require.EqualValues(2, len(headerSub.Out()))
 	for h := 1; h <= 2; h++ {
 		evt := <-headerSub.Out()
-		data, ok := evt.Data().(tmtypes.EventDataNewBlockHeader)
+		data, ok := evt.Data().(cmtypes.EventDataNewBlockHeader)
 		assert.True(ok)
 		if data.Header.Height == 2 {
 			assert.EqualValues(3, data.NumTxs)

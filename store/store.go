@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
-	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/go-header"
@@ -122,7 +122,7 @@ func (s *DefaultStore) LoadBlockByHash(hash types.Hash) (*types.Block, error) {
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
-func (s *DefaultStore) SaveBlockResponses(height uint64, responses *tmstate.ABCIResponses) error {
+func (s *DefaultStore) SaveBlockResponses(height uint64, responses *cmstate.ABCIResponses) error {
 	data, err := responses.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal response: %w", err)
@@ -131,12 +131,12 @@ func (s *DefaultStore) SaveBlockResponses(height uint64, responses *tmstate.ABCI
 }
 
 // LoadBlockResponses returns block results at given height, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockResponses(height uint64) (*tmstate.ABCIResponses, error) {
+func (s *DefaultStore) LoadBlockResponses(height uint64) (*cmstate.ABCIResponses, error) {
 	data, err := s.db.Get(s.ctx, ds.NewKey(getResponsesKey(height)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve block results from height %v: %w", height, err)
 	}
-	var responses tmstate.ABCIResponses
+	var responses cmstate.ABCIResponses
 	err = responses.Unmarshal(data)
 	if err != nil {
 		return &responses, fmt.Errorf("failed to unmarshal data: %w", err)
@@ -200,7 +200,7 @@ func (s *DefaultStore) LoadState() (types.State, error) {
 }
 
 // SaveValidators stores validator set for given block height in store.
-func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {
+func (s *DefaultStore) SaveValidators(height uint64, validatorSet *cmtypes.ValidatorSet) error {
 	pbValSet, err := validatorSet.ToProto()
 	if err != nil {
 		return fmt.Errorf("failed to marshal ValidatorSet to protobuf: %w", err)
@@ -214,24 +214,24 @@ func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.Valid
 }
 
 // LoadValidators loads validator set at given block height from store.
-func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, error) {
+func (s *DefaultStore) LoadValidators(height uint64) (*cmtypes.ValidatorSet, error) {
 	blob, err := s.db.Get(s.ctx, ds.NewKey(getValidatorsKey(height)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Validators for height %v: %w", height, err)
 	}
-	var pbValSet tmproto.ValidatorSet
+	var pbValSet cmproto.ValidatorSet
 	err = pbValSet.Unmarshal(blob)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal to protobuf: %w", err)
 	}
 	if len(pbValSet.Validators) == 0 {
-		return &tmtypes.ValidatorSet{
-			Validators: make([]*tmtypes.Validator, 0),
+		return &cmtypes.ValidatorSet{
+			Validators: make([]*cmtypes.Validator, 0),
 			Proposer:   nil,
 		}, nil
 	}
 
-	return tmtypes.ValidatorSetFromProto(&pbValSet)
+	return cmtypes.ValidatorSetFromProto(&pbValSet)
 }
 
 // loadHashFromIndex returns the hash of a block given its height

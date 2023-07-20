@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"time"
 
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/gorilla/rpc/v2/json2"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/rollkit/rollkit/log"
 )

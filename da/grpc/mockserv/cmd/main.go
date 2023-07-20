@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	tmlog "github.com/tendermint/tendermint/libs/log"
+	cmlog "github.com/cometbft/cometbft/libs/log"
 
 	grpcda "github.com/rollkit/rollkit/da/grpc"
 	"github.com/rollkit/rollkit/da/grpc/mockserv"
@@ -16,7 +16,7 @@ import (
 
 func main() {
 	conf := grpcda.DefaultConfig
-	logger := tmlog.NewTMLogger(os.Stdout)
+	logger := cmlog.NewTMLogger(os.Stdout)
 
 	flag.IntVar(&conf.Port, "port", conf.Port, "listening port")
 	flag.StringVar(&conf.Host, "host", "0.0.0.0", "listening address")

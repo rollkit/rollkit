@@ -3,16 +3,25 @@ package test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/rand"
+	"net"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+
+	cmlog "github.com/cometbft/cometbft/libs/log"
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/celestia"
+	cmock "github.com/rollkit/rollkit/da/celestia/mock"
+	grpcda "github.com/rollkit/rollkit/da/grpc"
+	"github.com/rollkit/rollkit/da/grpc/mockserv"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/da/registry"
 	"github.com/rollkit/rollkit/log/test"
@@ -91,6 +100,38 @@ func TestRetrieve(t *testing.T) {
 	}
 }
 
+func startMockGRPCServ() *grpc.Server {
+	conf := grpcda.DefaultConfig
+	logger := cmlog.NewTMLogger(os.Stdout)
+
+	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)
+	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	go func() {
+		_ = srv.Serve(lis)
+	}()
+	return srv
+}
+
+func startMockCelestiaNodeServer() *cmock.Server {
+	httpSrv := cmock.NewServer(mockDaBlockTime, cmlog.NewTMLogger(os.Stdout))
+	l, err := net.Listen("tcp4", "127.0.0.1:26658")
+	if err != nil {
+		fmt.Println("failed to create listener for mock celestia-node RPC server, error: %w", err)
+		return nil
+	}
+	err = httpSrv.Start(l)
+	if err != nil {
+		fmt.Println("can't start mock celestia-node RPC server")
+		return nil
+	}
+	return httpSrv
+}
+
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -124,7 +165,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	for i := uint64(0); i < 100; i++ {
 		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
-		resp := dalc.SubmitBlock(ctx, b)
+		resp := dalc.SubmitBlocks(ctx, []*types.Block{b})
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 
