@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/go-fraud/fraudserv"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
@@ -23,38 +22,33 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-var ErrFraudProofGenerated = errors.New("failed to ApplyBlock: halting node due to fraud")
 var ErrEmptyValSetGenerated = errors.New("applying the validator changes would result in empty set")
 var ErrAddingValidatorToBased = errors.New("cannot add validators to empty validator set")
 
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
-	proposerAddress    []byte
-	namespaceID        types.NamespaceID
-	chainID            string
-	proxyApp           proxy.AppConnConsensus
-	mempool            mempool.Mempool
-	fraudProofsEnabled bool
+	proposerAddress []byte
+	namespaceID     types.NamespaceID
+	chainID         string
+	proxyApp        proxy.AppConnConsensus
+	mempool         mempool.Mempool
 
 	eventBus *cmtypes.EventBus
 
 	logger log.Logger
-
-	FraudService *fraudserv.ProofService
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, fraudProofsEnabled bool, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
-		proposerAddress:    proposerAddress,
-		namespaceID:        namespaceID,
-		chainID:            chainID,
-		proxyApp:           proxyApp,
-		mempool:            mempool,
-		fraudProofsEnabled: fraudProofsEnabled,
-		eventBus:           eventBus,
-		logger:             logger,
+		proposerAddress: proposerAddress,
+		namespaceID:     namespaceID,
+		chainID:         chainID,
+		proxyApp:        proxyApp,
+		mempool:         mempool,
+		eventBus:        eventBus,
+		logger:          logger,
 	}
 }
 
@@ -192,23 +186,6 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	return appHash, retainHeight, nil
 }
 
-func (e *BlockExecutor) VerifyFraudProof(fraudProof *abci.FraudProof, expectedValidAppHash []byte) (bool, error) {
-	resp, err := e.proxyApp.VerifyFraudProofSync(
-		abci.RequestVerifyFraudProof{
-			FraudProof:           fraudProof,
-			ExpectedValidAppHash: expectedValidAppHash,
-		},
-	)
-	if err != nil {
-		return false, err
-	}
-	return resp.Success, nil
-}
-
-func (e *BlockExecutor) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
-	e.FraudService = fraudProofServ
-}
-
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *cmstate.ABCIResponses, validatorUpdates []*cmtypes.Validator) (types.State, error) {
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
@@ -322,18 +299,6 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	validTxs := 0
 	invalidTxs := 0
 
-	currentIsrs := block.Data.IntermediateStateRoots.RawRootsList
-	currentIsrIndex := 0
-
-	if e.fraudProofsEnabled && currentIsrs != nil {
-		expectedLength := len(block.Data.Txs) + 3 // before BeginBlock, after BeginBlock, after every Tx, after EndBlock
-		if len(currentIsrs) != expectedLength {
-			return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(currentIsrs), expectedLength)
-		}
-	}
-
-	ISRs := make([][]byte, 0)
-
 	e.proxyApp.SetResponseCallback(func(req *abci.Request, res *abci.Response) {
 		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
 			txRes := r.DeliverTx
@@ -347,41 +312,6 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 			txIdx++
 		}
 	})
-
-	if e.fraudProofsEnabled {
-		isr, err := e.getAppHash()
-		if err != nil {
-			return nil, err
-		}
-		ISRs = append(ISRs, isr)
-		currentIsrIndex++
-	}
-
-	genAndGossipFraudProofIfNeeded := func(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (err error) {
-		if !e.fraudProofsEnabled {
-			return nil
-		}
-		isr, err := e.getAppHash()
-		if err != nil {
-			return err
-		}
-		ISRs = append(ISRs, isr)
-		isFraud := e.isFraudProofTrigger(isr, currentIsrs, currentIsrIndex)
-		if isFraud {
-			e.logger.Info("found fraud occurrence, generating a fraud proof...")
-			fraudProof, err := e.generateFraudProof(beginBlockRequest, deliverTxRequests, endBlockRequest)
-			if err != nil {
-				return err
-			}
-			// Gossip Fraud Proof
-			if err := e.FraudService.Broadcast(ctx, &types.StateFraudProof{FraudProof: *fraudProof}); err != nil {
-				return fmt.Errorf("failed to broadcast fraud proof: %w", err)
-			}
-			return ErrFraudProofGenerated
-		}
-		currentIsrIndex++
-		return nil
-	}
 
 	hash := block.Hash()
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.SignedHeader.Header)
@@ -404,24 +334,12 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	err = genAndGossipFraudProofIfNeeded(&beginBlockRequest, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	deliverTxRequests := make([]*abci.RequestDeliverTx, 0, len(block.Data.Txs))
 	for _, tx := range block.Data.Txs {
-		deliverTxRequest := abci.RequestDeliverTx{Tx: tx}
-		deliverTxRequests = append(deliverTxRequests, &deliverTxRequest)
-		res := e.proxyApp.DeliverTxAsync(deliverTxRequest)
+		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
 		if res.GetException() != nil {
 			return nil, errors.New(res.GetException().GetError())
 		}
 
-		err = genAndGossipFraudProofIfNeeded(&beginBlockRequest, deliverTxRequests, nil)
-		if err != nil {
-			return nil, err
-		}
 	}
 	endBlockRequest := abci.RequestEndBlock{Height: block.SignedHeader.Header.Height()}
 	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(endBlockRequest)
@@ -429,51 +347,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	err = genAndGossipFraudProofIfNeeded(&beginBlockRequest, deliverTxRequests, &endBlockRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	if e.fraudProofsEnabled && block.Data.IntermediateStateRoots.RawRootsList == nil {
-		// Block producer: Initial ISRs generated here
-		block.Data.IntermediateStateRoots.RawRootsList = ISRs
-	}
-
 	return abciResponses, nil
-}
-
-func (e *BlockExecutor) isFraudProofTrigger(generatedIsr []byte, currentIsrs [][]byte, index int) bool {
-	if currentIsrs == nil {
-		return false
-	}
-	stateIsr := currentIsrs[index]
-	if !bytes.Equal(stateIsr, generatedIsr) {
-		e.logger.Debug("ISR Mismatch", "given_isr", stateIsr, "generated_isr", generatedIsr)
-		return true
-	}
-	return false
-}
-
-func (e *BlockExecutor) generateFraudProof(beginBlockRequest *abci.RequestBeginBlock, deliverTxRequests []*abci.RequestDeliverTx, endBlockRequest *abci.RequestEndBlock) (*abci.FraudProof, error) {
-	generateFraudProofRequest := abci.RequestGenerateFraudProof{}
-	if beginBlockRequest == nil {
-		return nil, fmt.Errorf("begin block request cannot be a nil parameter")
-	}
-	generateFraudProofRequest.BeginBlockRequest = *beginBlockRequest
-	if deliverTxRequests != nil {
-		generateFraudProofRequest.DeliverTxRequests = deliverTxRequests
-		if endBlockRequest != nil {
-			generateFraudProofRequest.EndBlockRequest = endBlockRequest
-		}
-	}
-	resp, err := e.proxyApp.GenerateFraudProofSync(generateFraudProofRequest)
-	if err != nil {
-		return nil, err
-	}
-	if resp.FraudProof == nil {
-		return nil, fmt.Errorf("fraud proof generation failed")
-	}
-	return resp.FraudProof, nil
 }
 
 func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.Block, state types.State) error {
@@ -515,14 +389,6 @@ func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.
 		}))
 	}
 	return err
-}
-
-func (e *BlockExecutor) getAppHash() ([]byte, error) {
-	isrResp, err := e.proxyApp.GetAppHashSync(abci.RequestGetAppHash{})
-	if err != nil {
-		return nil, err
-	}
-	return isrResp.AppHash, nil
 }
 
 func toRollkitTxs(txs cmtypes.Txs) types.Txs {

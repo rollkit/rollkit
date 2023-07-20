@@ -8,7 +8,6 @@ import (
 	mrand "math/rand"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -44,7 +43,6 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -92,7 +90,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	require := require.New(t)
 
 	clientNodes := 4
-	nodes, apps := createAndStartNodes(clientNodes, false, t)
+	nodes, apps := createAndStartNodes(clientNodes, t)
 	aggApp := apps[0]
 	apps = apps[1:]
 
@@ -145,7 +143,6 @@ func TestLazyAggregator(t *testing.T) {
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
@@ -232,7 +229,7 @@ func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -261,7 +258,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -293,7 +290,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -337,15 +334,15 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	defer func() {
 		require.NoError(dalc.Stop())
 	}()
-	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, t)
-	fullNode, _ := createNode(ctx, 1, false, false, false, keys, t)
+	sequencer, _ := createNode(aggCtx, 0, false, true, keys, t)
+	fullNode, _ := createNode(ctx, 1, false, false, keys, t)
 
 	sequencer.(*FullNode).dalc = dalc
 	sequencer.(*FullNode).blockManager.SetDALC(dalc)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	lightNode, _ := createNode(ctx, 2, false, false, true, keys, t)
+	lightNode, _ := createNode(ctx, 2, false, false, keys, t)
 
 	require.NoError(sequencer.Start())
 	defer func() {
@@ -364,132 +361,13 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require.NoError(verifyNodesSynced(fullNode, lightNode, false))
 }
 
-func testSingleAggregatorSingleFullNodeFraudProofGossip(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	var wg sync.WaitGroup
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	defer aggCancel()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clientNodes := 1
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
-
-	for _, app := range apps {
-		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
-			wg.Done()
-		}).Once()
-	}
-
-	aggNode := nodes[0]
-	fullNode := nodes[1]
-
-	wg.Add(clientNodes + 1)
-	require.NoError(aggNode.Start())
-	defer func() {
-		require.NoError(aggNode.Stop())
-	}()
-	require.NoError(waitForAtLeastNBlocks(aggNode, 2, false))
-	require.NoError(fullNode.Start())
-	defer func() {
-		require.NoError(fullNode.Stop())
-	}()
-
-	wg.Wait()
-	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
-	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-	// fullnode should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
-	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-
-	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
-	require.NoError(err)
-
-	n2Frauds, err := fullNode.fraudService.Get(aggCtx, types.StateFraudProofType)
-	require.NoError(err)
-
-	assert.Equal(len(n1Frauds), 1, "number of fraud proofs received via gossip should be 1")
-	assert.Equal(len(n2Frauds), 1, "number of fraud proofs received via gossip should be 1")
-	assert.Equal(n1Frauds, n2Frauds, "the received fraud proofs after gossip must match")
-}
-
-func testSingleAggregatorTwoFullNodeFraudProofSync(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	var wg sync.WaitGroup
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	defer aggCancel()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clientNodes := 2
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, t)
-
-	for _, app := range apps {
-		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
-			wg.Done()
-		}).Once()
-	}
-
-	aggNode := nodes[0]
-	fullNode1 := nodes[1]
-	fullNode2 := nodes[2]
-
-	wg.Add(clientNodes)
-	require.NoError(aggNode.Start())
-	defer func() {
-		require.NoError(aggNode.Stop())
-	}()
-	require.NoError(fullNode1.Start())
-	defer func() {
-		require.NoError(fullNode1.Stop())
-	}()
-	wg.Wait()
-	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
-	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-	// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
-	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-
-	n1Frauds, err := aggNode.fraudService.Get(ctx, types.StateFraudProofType)
-	require.NoError(err)
-
-	n2Frauds, err := fullNode1.fraudService.Get(ctx, types.StateFraudProofType)
-	require.NoError(err)
-	assert.Equal(n1Frauds, n2Frauds, "number of fraud proofs gossiped between nodes must match")
-
-	wg.Add(1)
-	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
-	require.NoError(fullNode2.Start())
-	defer func() {
-		require.NoError(fullNode2.Stop())
-	}()
-
-	wg.Wait()
-	// fullnode2 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[2].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
-	apps[2].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-
-	n3Frauds, err := fullNode2.fraudService.Get(ctx, types.StateFraudProofType)
-	require.NoError(err)
-	assert.Equal(n1Frauds, n3Frauds, "number of fraud proofs gossiped between nodes must match")
-}
-
-func TestFraudProofService(t *testing.T) {
-	t.Run("SingleAggregatorSingleFullNodeFraudProofGossip", testSingleAggregatorSingleFullNodeFraudProofGossip)
-	t.Run("SingleAggregatorTwoFullNodeFraudProofSync", testSingleAggregatorTwoFullNodeFraudProofSync)
-}
-
 // Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
-func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createAndStartNodes(clientNodes int, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, t)
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
@@ -546,7 +424,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -568,14 +446,14 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *test
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
-	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, t)
+	node, app := createNode(aggCtx, 0, true, false, keys, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, t)
+		node, apps[i] = createNode(ctx, i, false, false, keys, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
@@ -584,7 +462,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, t *test
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -597,7 +475,6 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 		DABlockTime: 100 * time.Millisecond,
 		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		FraudProofs: true,
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {
@@ -617,17 +494,7 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	maliciousAppHash := []byte{9, 8, 7, 6}
-	nonMaliciousAppHash := []byte{1, 2, 3, 4}
-	if isMalicious && aggregator {
-		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: maliciousAppHash})
-	} else {
-		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: nonMaliciousAppHash})
-	}
 
-	if isMalicious && !aggregator {
-		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{BlockHeight: 1, FraudulentBeginBlock: &abci.RequestBeginBlock{Hash: []byte("123")}, ExpectedValidAppHash: nonMaliciousAppHash}})
-	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
