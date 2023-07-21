@@ -77,7 +77,7 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
 		conf, _ = json.Marshal(testConfig)
 	}
-	err := dalc.Init(testNamespaceID, conf, nil, test.NewFileLogger(t))
+	err := dalc.Init(testNamespaceID, conf, nil, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
 	require.NoError(err)
 
 	err = dalc.Start()
@@ -147,7 +147,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		conf, _ = json.Marshal(testConfig)
 	}
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
-	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewFileLogger(t))
+	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
 	require.NoError(err)
 
 	err = dalc.Start()

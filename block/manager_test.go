@@ -53,7 +53,7 @@ func TestInitialState(t *testing.T) {
 		expectedChainID         string
 	}{
 		{
-			name:                    "empty store",
+			name:                    "empty_store",
 			store:                   emptyStore,
 			genesis:                 genesis,
 			expectedInitialHeight:   genesis.InitialHeight,
@@ -61,7 +61,7 @@ func TestInitialState(t *testing.T) {
 			expectedChainID:         genesis.ChainID,
 		},
 		{
-			name:                    "state in store",
+			name:                    "state_in_store",
 			store:                   fullStore,
 			genesis:                 genesis,
 			expectedInitialHeight:   sampleState.InitialHeight,
@@ -79,7 +79,7 @@ func TestInitialState(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			logger := test.NewFileLogger(t)
+			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
 			dalc := getMockDALC(logger)
 			defer func() {
 				require.NoError(t, dalc.Stop())

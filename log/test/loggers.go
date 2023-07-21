@@ -21,11 +21,16 @@ type FileLogger struct {
 	mtx     *sync.Mutex
 }
 
+// TempLogFileName returns a filename for a log file that is unique to the test.
+func TempLogFileName(t *testing.T, suffix string) string {
+	return strings.ReplaceAll(t.Name(), "/", "_") + suffix + ".log"
+}
+
 // NewLogger create a Logger using the name of the test as the filename.
 func NewFileLogger(t *testing.T) *FileLogger {
 	// Use the test name but strip out any slashes since they are not
 	// allowed in filenames.
-	return NewFileLoggerCustom(t, strings.ReplaceAll(t.Name(), "/", "_"))
+	return NewFileLoggerCustom(t, TempLogFileName(t, ""))
 }
 
 // NewLoggerCustom create a Logger using the given filename.
