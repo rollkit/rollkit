@@ -132,42 +132,38 @@ func (m *DataAvailabilityLayerClient) GetHeightByHeader(dah *core.DataAvailabili
 	return 0
 }
 
-// SubmitBlock submits the passed in block to the DA layer.
+// SubmitBlocks submits the passed in blocks to the DA layer.
 // This should create a transaction which (potentially)
 // triggers a state transition in the DA layer.
-func (m *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
+func (m *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) da.ResultSubmitBlocks {
 	daHeight := atomic.LoadUint64(&m.daHeight)
-	m.logger.Debug("Submitting block to DA layer!", "height", block.SignedHeader.Header.Height(), "dataLayerHeight", daHeight)
 
-	hash := block.SignedHeader.Header.Hash()
-	blob, err := block.MarshalBinary()
-	if err != nil {
-		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+	for _, block := range blocks {
+		m.logger.Debug("Submitting blocks to DA layer!", "height", block.SignedHeader.Header.Height(), "dataLayerHeight", daHeight)
+
+		hash := block.SignedHeader.Header.Hash()
+		blob, err := block.MarshalBinary()
+		if err != nil {
+			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		}
+
+		err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.SignedHeader.Header.Height())), hash[:])
+		if err != nil {
+			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		}
+
+		err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])), blob)
+		if err != nil {
+			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+		}
 	}
-
-	err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.SignedHeader.Header.Height())), hash[:])
-	if err != nil {
-		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-	}
-
-	err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])), blob)
-	if err != nil {
-		return da.ResultSubmitBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-	}
-
-	return da.ResultSubmitBlock{
+	return da.ResultSubmitBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			Message:  "OK",
 			DAHeight: daHeight,
 		},
 	}
-}
-
-// CheckBlockAvailability queries DA layer to check data availability of block corresponding to given header.
-func (m *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
-	blocksRes := m.RetrieveBlocks(ctx, daHeight)
-	return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: blocksRes.Code}, DataAvailable: len(blocksRes.Blocks) > 0}
 }
 
 // RetrieveBlocks returns block at given height from data availability layer.

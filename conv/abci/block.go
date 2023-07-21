@@ -1,39 +1,39 @@
 package abci
 
 import (
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmtypes "github.com/tendermint/tendermint/types"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/types"
 )
 
 // ToABCIHeaderPB converts Rollkit header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Rollkit header (like ChainID).
-func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
-	return tmproto.Header{
-		Version: tmversion.Consensus{
+func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
+	return cmproto.Header{
+		Version: cmversion.Consensus{
 			Block: header.Version.Block,
 			App:   header.Version.App,
 		},
 		Height: int64(header.Height()),
 		Time:   header.Time(),
-		LastBlockId: tmproto.BlockID{
+		LastBlockId: cmproto.BlockID{
 			Hash: header.LastHeaderHash[:],
-			PartSetHeader: tmproto.PartSetHeader{
+			PartSetHeader: cmproto.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     header.LastCommitHash[:],
+		LastCommitHash:     header.LastHeaderHash[:],
 		DataHash:           header.DataHash[:],
 		ValidatorsHash:     header.AggregatorsHash[:],
 		NextValidatorsHash: nil,
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
 		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
+		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 		ChainID:            header.ChainID(),
 	}, nil
@@ -41,29 +41,29 @@ func ToABCIHeaderPB(header *types.Header) (tmproto.Header, error) {
 
 // ToABCIHeader converts Rollkit header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Rollkit header (like ChainID).
-func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
-	return tmtypes.Header{
-		Version: tmversion.Consensus{
+func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
+	return cmtypes.Header{
+		Version: cmversion.Consensus{
 			Block: header.Version.Block,
 			App:   header.Version.App,
 		},
 		Height: int64(header.Height()),
 		Time:   header.Time(),
-		LastBlockID: tmtypes.BlockID{
-			Hash: tmbytes.HexBytes(header.LastHeaderHash),
-			PartSetHeader: tmtypes.PartSetHeader{
+		LastBlockID: cmtypes.BlockID{
+			Hash: cmbytes.HexBytes(header.LastHeaderHash[:]),
+			PartSetHeader: cmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     tmbytes.HexBytes(header.LastCommitHash),
-		DataHash:           tmbytes.HexBytes(header.DataHash),
-		ValidatorsHash:     tmbytes.HexBytes(header.AggregatorsHash),
+		LastCommitHash:     cmbytes.HexBytes(header.LastCommitHash),
+		DataHash:           cmbytes.HexBytes(header.DataHash),
+		ValidatorsHash:     cmbytes.HexBytes(header.AggregatorsHash),
 		NextValidatorsHash: nil,
-		ConsensusHash:      tmbytes.HexBytes(header.ConsensusHash),
-		AppHash:            tmbytes.HexBytes(header.AppHash),
-		LastResultsHash:    tmbytes.HexBytes(header.LastResultsHash),
-		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
+		ConsensusHash:      cmbytes.HexBytes(header.ConsensusHash),
+		AppHash:            cmbytes.HexBytes(header.AppHash),
+		LastResultsHash:    cmbytes.HexBytes(header.LastResultsHash),
+		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 		ChainID:            header.ChainID(),
 	}, nil
@@ -71,7 +71,7 @@ func ToABCIHeader(header *types.Header) (tmtypes.Header, error) {
 
 // ToABCIBlock converts Rolkit block into block format defined by ABCI.
 // Returned block should pass `ValidateBasic`.
-func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
+func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
@@ -81,34 +81,34 @@ func ToABCIBlock(block *types.Block) (*tmtypes.Block, error) {
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.Header.ProposerAddress
 	}
-	abciBlock := tmtypes.Block{
+	abciBlock := cmtypes.Block{
 		Header: abciHeader,
-		Evidence: tmtypes.EvidenceData{
+		Evidence: cmtypes.EvidenceData{
 			Evidence: nil,
 		},
 		LastCommit: abciCommit,
 	}
-	abciBlock.Data.Txs = make([]tmtypes.Tx, len(block.Data.Txs))
+	abciBlock.Data.Txs = make([]cmtypes.Tx, len(block.Data.Txs))
 	for i := range block.Data.Txs {
-		abciBlock.Data.Txs[i] = tmtypes.Tx(block.Data.Txs[i])
+		abciBlock.Data.Txs[i] = cmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = tmbytes.HexBytes(block.SignedHeader.Header.DataHash)
+	abciBlock.Header.DataHash = cmbytes.HexBytes(block.SignedHeader.Header.DataHash)
 
 	return &abciBlock, nil
 }
 
 // ToABCIBlockMeta converts Rollkit block into BlockMeta format defined by ABCI
-func ToABCIBlockMeta(block *types.Block) (*tmtypes.BlockMeta, error) {
-	tmblock, err := ToABCIBlock(block)
+func ToABCIBlockMeta(block *types.Block) (*cmtypes.BlockMeta, error) {
+	cmblock, err := ToABCIBlock(block)
 	if err != nil {
 		return nil, err
 	}
-	blockID := tmtypes.BlockID{Hash: tmblock.Hash()}
+	blockID := cmtypes.BlockID{Hash: cmblock.Hash()}
 
-	return &tmtypes.BlockMeta{
+	return &cmtypes.BlockMeta{
 		BlockID:   blockID,
-		BlockSize: tmblock.Size(),
-		Header:    tmblock.Header,
-		NumTxs:    len(tmblock.Txs),
+		BlockSize: cmblock.Size(),
+		Header:    cmblock.Header,
+		NumTxs:    len(cmblock.Txs),
 	}, nil
 }

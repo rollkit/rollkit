@@ -1,19 +1,8 @@
 package test
 
 import (
-	"fmt"
-	"net"
-	"os"
-	"strconv"
 	"time"
 
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	"google.golang.org/grpc"
-
-	cmock "github.com/rollkit/rollkit/da/celestia/mock"
-	grpcda "github.com/rollkit/rollkit/da/grpc"
-	"github.com/rollkit/rollkit/da/grpc/mockserv"
-	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -50,36 +39,4 @@ func getRandomBlock(height uint64, nTxs int) *types.Block {
 	}
 
 	return block
-}
-
-func startMockGRPCServ() *grpc.Server {
-	conf := grpcda.DefaultConfig
-	logger := tmlog.NewTMLogger(os.Stdout)
-
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
-	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)
-	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	go func() {
-		_ = srv.Serve(lis)
-	}()
-	return srv
-}
-
-func startMockCelestiaNodeServer() *cmock.Server {
-	httpSrv := cmock.NewServer(mockDaBlockTime, tmlog.NewTMLogger(os.Stdout))
-	l, err := net.Listen("tcp4", "127.0.0.1:26658")
-	if err != nil {
-		fmt.Println("failed to create listener for mock celestia-node RPC server, error: %w", err)
-		return nil
-	}
-	err = httpSrv.Start(l)
-	if err != nil {
-		fmt.Println("can't start mock celestia-node RPC server")
-		return nil
-	}
-	return httpSrv
 }

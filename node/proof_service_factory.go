@@ -5,9 +5,9 @@ import (
 
 	"github.com/celestiaorg/go-fraud"
 	"github.com/celestiaorg/go-fraud/fraudserv"
+	abci "github.com/cometbft/cometbft/abci/types"
+	proxy "github.com/cometbft/cometbft/proxy"
 	"github.com/ipfs/go-datastore"
-	abci "github.com/tendermint/tendermint/abci/types"
-	proxy "github.com/tendermint/tendermint/proxy"
 
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/types"

@@ -10,9 +10,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/state/indexer"
 	"github.com/rollkit/rollkit/state/txindex"
@@ -565,7 +565,7 @@ func extractValueFromKey(key []byte) string {
 	return parts[2]
 }
 
-func keyForEvent(key string, value []byte, result *abci.TxResult) string {
+func keyForEvent(key string, value string, result *abci.TxResult) string {
 	return fmt.Sprintf("%s/%s/%d/%d",
 		key,
 		value,

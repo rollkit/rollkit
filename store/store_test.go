@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
+	abcitypes "github.com/cometbft/cometbft/abci/types"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	ds "github.com/ipfs/go-datastore"
-	abcitypes "github.com/tendermint/tendermint/abci/types"
-	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -161,13 +162,13 @@ func TestBlockResponses(t *testing.T) {
 	kv, _ := NewDefaultInMemoryKVStore()
 	s := New(ctx, kv)
 
-	expected := &tmstate.ABCIResponses{
+	expected := &cmstate.ABCIResponses{
 		BeginBlock: &abcitypes.ResponseBeginBlock{
 			Events: []abcitypes.Event{{
 				Type: "test",
 				Attributes: []abcitypes.EventAttribute{{
-					Key:   []byte("foo"),
-					Value: []byte("bar"),
+					Key:   string("foo"),
+					Value: string("bar"),
 					Index: false,
 				}},
 			}},
@@ -175,8 +176,8 @@ func TestBlockResponses(t *testing.T) {
 		DeliverTxs: nil,
 		EndBlock: &abcitypes.ResponseEndBlock{
 			ValidatorUpdates: nil,
-			ConsensusParamUpdates: &abcitypes.ConsensusParams{
-				Block: &abcitypes.BlockParams{
+			ConsensusParamUpdates: &cmproto.ConsensusParams{
+				Block: &cmproto.BlockParams{
 					MaxBytes: 12345,
 					MaxGas:   678909876,
 				},

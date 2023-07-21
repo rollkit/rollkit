@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-fraud/fraudserv"
+	abci "github.com/cometbft/cometbft/abci/types"
+	cmcrypto "github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	"github.com/cometbft/cometbft/proxy"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmcrypto "github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/proxy"
-	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
@@ -45,13 +46,15 @@ type newBlockEvent struct {
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
 	lastState types.State
+	// lastStateMtx is used by lastState
+	lastStateMtx *sync.RWMutex
+	store        store.Store
 
 	conf    config.BlockManagerConfig
-	genesis *tmtypes.GenesisDoc
+	genesis *cmtypes.GenesisDoc
 
 	proposerKey crypto.PrivKey
 
-	store    store.Store
 	executor *state.BlockExecutor
 
 	dalc      da.DataAvailabilityLayerClient
@@ -59,9 +62,8 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
-	HeaderCh chan *types.SignedHeader
-	BlockCh  chan *types.Block
-
+	HeaderCh  chan *types.SignedHeader
+	BlockCh   chan *types.Block
 	blockInCh chan newBlockEvent
 	syncCache map[uint64]*types.Block
 
@@ -69,8 +71,6 @@ type Manager struct {
 	retrieveMtx *sync.Mutex
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
 	retrieveCond *sync.Cond
-
-	lastStateMtx *sync.Mutex
 
 	logger log.Logger
 
@@ -81,7 +81,7 @@ type Manager struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (types.State, error) {
+func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
 	s, err := store.LoadState()
 	if err != nil {
 		s, err = types.NewFromGenesisDoc(genesis)
@@ -93,12 +93,12 @@ func getInitialState(store store.Store, genesis *tmtypes.GenesisDoc) (types.Stat
 func NewManager(
 	proposerKey crypto.PrivKey,
 	conf config.BlockManagerConfig,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	store store.Store,
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,
 	dalc da.DataAvailabilityLayerClient,
-	eventBus *tmtypes.EventBus,
+	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	doneBuildingCh chan struct{},
 ) (*Manager, error) {
@@ -155,7 +155,7 @@ func NewManager(
 		BlockCh:           make(chan *types.Block, 100),
 		blockInCh:         make(chan newBlockEvent, 100),
 		retrieveMtx:       new(sync.Mutex),
-		lastStateMtx:      new(sync.Mutex),
+		lastStateMtx:      new(sync.RWMutex),
 		syncCache:         make(map[uint64]*types.Block),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
@@ -172,7 +172,7 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return tmcrypto.AddressHash(rawKey), nil
+	return cmcrypto.AddressHash(rawKey), nil
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
@@ -191,7 +191,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	if height < initialHeight {
 		delay = time.Until(m.genesis.GenesisTime)
 	} else {
-		delay = time.Until(m.lastState.LastBlockTime.Add(m.conf.BlockTime))
+		lastBlockTime := m.getLastBlockTime()
+		delay = time.Until(lastBlockTime.Add(m.conf.BlockTime))
 	}
 
 	if delay > 0 {
@@ -339,7 +340,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 	if b != nil && commit != nil {
 		m.logger.Info("Syncing block", "height", b.SignedHeader.Header.Height())
-		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
+		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
@@ -358,7 +359,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		// SaveValidators commits the DB tx
-		err = m.store.SaveValidators(uint64(b.SignedHeader.Header.Height()), m.lastState.Validators)
+		err = m.saveValidatorsToStore(uint64(b.SignedHeader.Header.Height()))
 		if err != nil {
 			return err
 		}
@@ -368,10 +369,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
-		m.lastStateMtx.Lock()
-		m.lastState = newState
-		m.lastStateMtx.Unlock()
-		err = m.store.UpdateState(m.lastState)
+		err = m.updateState(newState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
@@ -490,6 +488,8 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 }
 
 func (m *Manager) IsProposer() (bool, error) {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
 	// if proposer is not set, assume self proposer
 	if m.lastState.Validators.Proposer == nil {
 		return true, nil
@@ -510,9 +510,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 
-	m.lastStateMtx.Lock()
 	isProposer, err := m.IsProposer()
-	m.lastStateMtx.Unlock()
 	if err != nil {
 		return fmt.Errorf("error while checking for proposer: %w", err)
 	}
@@ -546,7 +544,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block = m.executor.CreateBlock(newHeight, lastCommit, lastHeaderHash, m.lastState)
+		block = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		commit, err = m.getCommit(block.SignedHeader.Header)
@@ -557,7 +555,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
-		block.SignedHeader.Validators = m.lastState.Validators
+		block.SignedHeader.Validators = m.getLastStateValidators()
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
@@ -567,7 +565,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Apply the block but DONT commit
-	newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, block)
+	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
 		return err
 	}
@@ -606,7 +604,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveValidators commits the DB tx
-	err = m.store.SaveValidators(blockHeight, m.lastState.Validators)
+	err = m.saveValidatorsToStore(blockHeight)
 	if err != nil {
 		return err
 	}
@@ -616,10 +614,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
-	m.lastState = newState
-
-	// UpdateState commits the DB tx
-	err = m.store.UpdateState(m.lastState)
+	// updateState also commits the DB tx
+	err = m.updateState(newState)
 	if err != nil {
 		return err
 	}
@@ -641,7 +637,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlock(ctx, block)
+		res := m.dalc.SubmitBlocks(ctx, []*types.Block{block})
 		if res.Code == da.StatusSuccess {
 			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.SignedHeader.Header.Height(), "daHeight", res.DAHeight)
 			submitted = true
@@ -667,6 +663,47 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
+// Updates the state stored in manager's store along the manager's lastState
+func (m *Manager) updateState(s types.State) error {
+	m.lastStateMtx.Lock()
+	defer m.lastStateMtx.Unlock()
+	err := m.store.UpdateState(s)
+	if err != nil {
+		return err
+	}
+	m.lastState = s
+	return nil
+}
+
+func (m *Manager) saveValidatorsToStore(height uint64) error {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.store.SaveValidators(height, m.lastState.Validators)
+}
+
+func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState.Validators
+}
+
+func (m *Manager) getLastBlockTime() time.Time {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState.LastBlockTime
+}
+
+func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) *types.Block {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.executor.CreateBlock(height, lastCommit, lastHeaderHash, m.lastState)
+}
+
+func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *cmstate.ABCIResponses, error) {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.executor.ApplyBlock(ctx, m.lastState, block)
+}
 func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
@@ -692,20 +729,20 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 			s.ConsensusParams.Validator.PubKeyTypes = append([]string{}, params.Validator.PubKeyTypes...)
 		}
 		if params.Version != nil {
-			s.ConsensusParams.Version.AppVersion = params.Version.AppVersion
+			s.ConsensusParams.Version.App = params.Version.App
 		}
-		s.Version.Consensus.App = s.ConsensusParams.Version.AppVersion
+		s.Version.Consensus.App = s.ConsensusParams.Version.App
 	}
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
 	s.LastResultsHash = merkle.HashFromByteSlices(nil)
 
 	if len(res.Validators) > 0 {
-		vals, err := tmtypes.PB2TM.ValidatorUpdates(res.Validators)
+		vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
 		if err != nil {
 			// TODO(tzdybal): handle error properly
 			panic(err)
 		}
-		s.Validators = tmtypes.NewValidatorSet(vals)
-		s.NextValidators = tmtypes.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
+		s.Validators = cmtypes.NewValidatorSet(vals)
+		s.NextValidators = cmtypes.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
 	}
 }
