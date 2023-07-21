@@ -2,7 +2,6 @@ package test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -31,7 +30,7 @@ func NewFileLogger(t *testing.T) *FileLogger {
 
 // NewLoggerCustom create a Logger using the given filename.
 func NewFileLoggerCustom(t *testing.T, fileName string) *FileLogger {
-	logFile, err := ioutil.TempFile("", fileName)
+	logFile, err := os.CreateTemp("", fileName)
 	if err != nil {
 		panic(err)
 	}
