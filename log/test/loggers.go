@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/tendermint/tendermint/libs/log"
+	"github.com/cometbft/cometbft/libs/log"
 )
 
 // TODO(tzdybal): move to some common place
@@ -35,7 +35,7 @@ func NewFileLoggerCustom(t *testing.T, fileName string) *FileLogger {
 	if err != nil {
 		panic(err)
 	}
-	t.Log("Test logs can be found:", logFile.Name())
+	t.Log("Test logs can be found:", logFile.Name())
 	t.Cleanup(func() {
 		_ = logFile.Close()
 	})
