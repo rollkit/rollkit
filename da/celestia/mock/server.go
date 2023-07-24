@@ -2,24 +2,54 @@ package mock
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	mux2 "github.com/gorilla/mux"
 
-	"github.com/celestiaorg/go-cnc"
-
-	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/celestia-openrpc/types/blob"
+	"github.com/rollkit/celestia-openrpc/types/header"
+	"github.com/rollkit/celestia-openrpc/types/sdk"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
+
+type ErrorCode int
+
+type respError struct {
+	Code    ErrorCode       `json:"code"`
+	Message string          `json:"message"`
+	Meta    json.RawMessage `json:"meta,omitempty"`
+}
+
+func (e *respError) Error() string {
+	if e.Code >= -32768 && e.Code <= -32000 {
+		return fmt.Sprintf("RPC error (%d): %s", e.Code, e.Message)
+	}
+	return e.Message
+}
+
+type request struct {
+	Jsonrpc string            `json:"jsonrpc"`
+	ID      interface{}       `json:"id,omitempty"`
+	Method  string            `json:"method"`
+	Params  json.RawMessage   `json:"params"`
+	Meta    map[string]string `json:"meta,omitempty"`
+}
+
+type response struct {
+	Jsonrpc string      `json:"jsonrpc"`
+	Result  interface{} `json:"result,omitempty"`
+	ID      interface{} `json:"id"`
+	Error   *respError  `json:"error,omitempty"`
+}
 
 // Server mocks celestia-node HTTP API.
 type Server struct {
@@ -70,137 +100,143 @@ func (s *Server) Stop() {
 
 func (s *Server) getHandler() http.Handler {
 	mux := mux2.NewRouter()
-	mux.HandleFunc("/submit_pfb", s.submit).Methods(http.MethodPost)
-	mux.HandleFunc("/namespaced_shares/{namespace}/height/{height}", s.shares).Methods(http.MethodGet)
-	mux.HandleFunc("/namespaced_data/{namespace}/height/{height}", s.data).Methods(http.MethodGet)
+	mux.HandleFunc("/", s.rpc).Methods(http.MethodPost)
 
 	return mux
 }
 
-func (s *Server) submit(w http.ResponseWriter, r *http.Request) {
-	req := cnc.SubmitPFBRequest{}
+func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
+	var req request
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		s.writeError(w, err)
 		return
 	}
-
-	block := types.Block{}
-	blockData, err := hex.DecodeString(req.Data)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-	err = block.UnmarshalBinary(blockData)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	res := s.mock.SubmitBlock(r.Context(), &block)
-	code := 0
-	if res.Code != da.StatusSuccess {
-		code = 3
-	}
-
-	resp, err := json.Marshal(cnc.TxResponse{
-		Height: int64(res.DAHeight),
-		Code:   uint32(code),
-		RawLog: res.Message,
-	})
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	s.writeResponse(w, resp)
-}
-
-func (s *Server) shares(w http.ResponseWriter, r *http.Request) {
-	height, err := parseHeight(r)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	res := s.mock.RetrieveBlocks(r.Context(), height)
-	if res.Code != da.StatusSuccess {
-		s.writeError(w, errors.New(res.Message))
-		return
-	}
-
-	var nShares []NamespacedShare
-	for _, block := range res.Blocks {
-		blob, err := block.MarshalBinary()
+	switch req.Method {
+	case "header.GetByHeight":
+		var params []interface{}
+		err := json.Unmarshal(req.Params, &params)
 		if err != nil {
 			s.writeError(w, err)
 			return
 		}
-		delimited, err := marshalDelimited(blob)
-		if err != nil {
-			s.writeError(w, err)
+		if len(params) != 1 {
+			s.writeError(w, errors.New("expected 1 param: height (uint64)"))
+			return
 		}
-		nShares = appendToShares(nShares, []byte{1, 2, 3, 4, 5, 6, 7, 8}, delimited)
-	}
-	shares := make([]Share, len(nShares))
-	for i := range nShares {
-		shares[i] = nShares[i].Share
-	}
-
-	resp, err := json.Marshal(namespacedSharesResponse{
-		Shares: shares,
-		Height: res.DAHeight,
-	})
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	s.writeResponse(w, resp)
-}
-
-func (s *Server) data(w http.ResponseWriter, r *http.Request) {
-	height, err := parseHeight(r)
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	res := s.mock.RetrieveBlocks(r.Context(), height)
-	if res.Code != da.StatusSuccess {
-		s.writeError(w, errors.New(res.Message))
-		return
-	}
-
-	data := make([][]byte, len(res.Blocks))
-	for i := range res.Blocks {
-		data[i], err = res.Blocks[i].MarshalBinary()
+		height := uint64(params[0].(float64))
+		dah := s.mock.GetHeaderByHeight(height)
+		resp := &response{
+			Jsonrpc: "2.0",
+			Result: header.ExtendedHeader{
+				DAH: dah,
+			},
+			ID:    req.ID,
+			Error: nil,
+		}
+		bytes, err := json.Marshal(resp)
 		if err != nil {
 			s.writeError(w, err)
 			return
 		}
+		s.writeResponse(w, bytes)
+	case "blob.GetAll":
+		var params []interface{}
+		err := json.Unmarshal(req.Params, &params)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		if len(params) != 2 {
+			s.writeError(w, errors.New("expected 2 params: height (uint64), namespace (base64 string)"))
+			return
+		}
+		height := params[0].(float64)
+		nsBase64 := params[1].([]interface{})[0].(string)
+		ns, err := base64.StdEncoding.DecodeString(nsBase64)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		block := s.mock.RetrieveBlocks(r.Context(), uint64(height))
+		var blobs []blob.Blob
+		for _, block := range block.Blocks {
+			data, err := block.MarshalBinary()
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			blob, err := blob.NewBlobV0(ns, data)
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			blobs = append(blobs, *blob)
+		}
+		resp := &response{
+			Jsonrpc: "2.0",
+			Result:  blobs,
+			ID:      req.ID,
+			Error:   nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
+	case "share.SharesAvailable":
+		resp := &response{
+			Jsonrpc: "2.0",
+			ID:      req.ID,
+			Error:   nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
+	case "state.SubmitPayForBlob":
+		var params []interface{}
+		err := json.Unmarshal(req.Params, &params)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		if len(params) != 3 {
+			s.writeError(w, errors.New("expected 3 params: fee (uint64), gaslimit (uint64), data (base64 string)"))
+			return
+		}
+		block := types.Block{}
+		blockBase64 := params[2].([]interface{})[0].(map[string]interface{})["data"].(string)
+		blockData, err := base64.StdEncoding.DecodeString(blockBase64)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		err = block.UnmarshalBinary(blockData)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+
+		res := s.mock.SubmitBlocks(r.Context(), []*types.Block{&block})
+		resp := &response{
+			Jsonrpc: "2.0",
+			Result: &sdk.TxResponse{
+				Height: int64(res.DAHeight),
+			},
+			ID:    req.ID,
+			Error: nil,
+		}
+		bytes, err := json.Marshal(resp)
+		if err != nil {
+			s.writeError(w, err)
+			return
+		}
+		s.writeResponse(w, bytes)
 	}
-
-	resp, err := json.Marshal(namespacedDataResponse{
-		Data:   data,
-		Height: res.DAHeight,
-	})
-	if err != nil {
-		s.writeError(w, err)
-		return
-	}
-
-	s.writeResponse(w, resp)
-}
-
-func parseHeight(r *http.Request) (uint64, error) {
-	vars := mux2.Vars(r)
-
-	height, err := strconv.ParseUint(vars["height"], 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return height, nil
 }
 
 func (s *Server) writeResponse(w http.ResponseWriter, payload []byte) {

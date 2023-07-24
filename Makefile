@@ -33,10 +33,16 @@ lint:
 
 .PHONY: lint
 
+## fmt: Run fixes for linters. Currently only markdownlint.
+fmt:
+	@echo "--> Formatting markdownlint"
+	@markdownlint --config .markdownlint.yaml '**/*.md' -f
+.PHONY: fmt
+
 ## test-unit: Running unit tests
 test-unit:
 	@echo "--> Running unit tests"
-	@go test `go list ./...`
+	@go test -covermode=atomic -coverprofile=coverage.txt `go list ./...`
 .PHONY: test-unit
 
 ## test-unit-race: Running unit tests with data race detector
@@ -45,7 +51,7 @@ test-unit-race:
 	@go test -race -count=1 `go list ./...`
 .PHONY: test-unit-race
 
-### test-all: Run tests with and without data race
+## test-all: Run tests with and without data race
 test-all:
 	@$(MAKE) test-unit
 	@$(MAKE) test-unit-race

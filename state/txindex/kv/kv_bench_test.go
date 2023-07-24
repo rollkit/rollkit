@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"testing"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/store"
 )
@@ -32,8 +32,8 @@ func BenchmarkTxSearch(b *testing.B) {
 			{
 				Type: "transfer",
 				Attributes: []abci.EventAttribute{
-					{Key: []byte("address"), Value: []byte(fmt.Sprintf("address_%d", i%100)), Index: true},
-					{Key: []byte("amount"), Value: []byte("50"), Index: true},
+					{Key: string("address"), Value: string(fmt.Sprintf("address_%d", i%100)), Index: true},
+					{Key: string("amount"), Value: string("50"), Index: true},
 				},
 			},
 		}

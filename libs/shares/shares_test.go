@@ -218,9 +218,9 @@ func TestRawData(t *testing.T) {
 
 func TestIsCompactShare(t *testing.T) {
 	type testCase struct {
-		name  string
 		share Share
 		want  bool
+		name  string
 	}
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
@@ -247,9 +247,11 @@ func TestIsCompactShare(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got, err := tc.share.IsCompactShare()
-		assert.NoError(t, err)
-		assert.Equal(t, tc.want, got)
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.share.IsCompactShare()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
 	}
 }
 

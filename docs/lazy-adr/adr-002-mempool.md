@@ -15,7 +15,7 @@ For now, mempool implementation from lazyledger-core/Tendermint will be used.
 
 * inherit all limitations of the tendermint mempool
   * no prioritization of Txs
-  * many [open issues](https://github.com/tendermint/tendermint/issues?q=is%3Aissue+is%3Aopen+mempool+label%3AC%3Amempool)
+  * many [open issues](https://github.com/cometbft/cometbft/issues?q=is%3Aissue+is%3Aopen+mempool+label%3AC%3Amempool)
 * legacy code base (the tendermint mempool exists for a while now)
 
 ## Alternatives

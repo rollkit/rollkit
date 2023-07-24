@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       GO_VERSION:
-        description: 'Go version to use'
+        description: "Go version to use"
         type: string
         required: true
 
@@ -22,21 +22,6 @@ jobs:
       - name: check for diff
         run: git diff --exit-code
 
-  test_coverage:
-    name: Unit Tests Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: set up go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ inputs.GO_VERSION }}
-      - name: Test & Coverage
-        run: make cover
-      - uses: codecov/codecov-action@v3.1.4
-        with:
-          file: ./coverage.txt
-
   unit_test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
@@ -46,8 +31,13 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ inputs.GO_VERSION }}
-      - name: execute test run
+      - name: Run unit test
         run: make test-unit
+      - name: upload coverage report
+        uses: codecov/codecov-action@v3.1.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.txt
 
   unit_race_test:
     name: Run Unit Tests with Race Detector
