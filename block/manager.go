@@ -120,7 +120,7 @@ func NewManager(
 		conf.DABlockTime = defaultDABlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.StateFraudProofs, eventBus, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
