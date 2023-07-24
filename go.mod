@@ -192,6 +192,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/go-header => github.com/gupadhyaya/go-header v0.0.0-20230718224532-bc0b4fcbc660
 	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.37.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
