@@ -88,6 +88,10 @@ func doTestCreateBlock(t *testing.T) {
 	assert.Len(block.Data.Txs, 2)
 }
 
+func TestCreateBlockWithFraudProofsDisabled(t *testing.T) {
+	doTestCreateBlock(t)
+}
+
 func doTestApplyBlock(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -228,4 +232,8 @@ func doTestApplyBlock(t *testing.T) {
 			assert.EqualValues(3, data.NumTxs)
 		}
 	}
+}
+
+func TestApplyBlockWithFraudProofsDisabled(t *testing.T) {
+	doTestApplyBlock(t)
 }
