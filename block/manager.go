@@ -176,7 +176,7 @@ func NewManager(
 		blockInCh:              make(chan newBlockEvent, 100),
 		blockStoreMtx:          new(sync.Mutex),
 		retrieveMtx:            new(sync.Mutex),
-		lastStateMtx:           new(sync.Mutex),
+		lastStateMtx:           new(sync.RWMutex),
 		syncCache:              make(map[uint64]*types.Block),
 		isBlockWithHashSeenMtx: new(sync.RWMutex),
 		isBlockWithHashSeen:    make(map[string]bool),
