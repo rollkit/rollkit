@@ -9,7 +9,7 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/p2p"
-	tmtypes "github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
@@ -129,14 +129,14 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 }
 
 // TODO: use n and return n validators
-func getGenesisValidatorSetWithSigner(n int) ([]tmtypes.GenesisValidator, crypto.PrivKey) {
+func getGenesisValidatorSetWithSigner(n int) ([]cmtypes.GenesisValidator, crypto.PrivKey) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: genesisValidatorKey,
 	}
 	signingKey, _ := conv.GetNodeKey(nodeKey)
 	pubKey := genesisValidatorKey.PubKey()
 
-	genesisValidators := []tmtypes.GenesisValidator{
+	genesisValidators := []cmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
 	return genesisValidators, signingKey

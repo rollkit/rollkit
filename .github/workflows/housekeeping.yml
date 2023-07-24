@@ -10,7 +10,7 @@ jobs:
   issue-management:
     if: ${{ github.event.issue }}
     name: Add issues to project and add triage label
-    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.2.2
     secrets: inherit
     permissions:
       issues: write
@@ -25,7 +25,7 @@ jobs:
     # ignore dependabot PRs
     if: ${{ github.event.pull_request && github.actor != 'dependabot[bot]' }}
     name: Add PRs to project
-    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.2.2
     secrets: inherit
     permissions:
       issues: write
@@ -37,7 +37,7 @@ jobs:
   auto-add-reviewer:
     name: Auto add reviewer to PR
     if: github.event.pull_request
-    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.2.2
     secrets: inherit
     permissions:
       issues: write

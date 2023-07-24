@@ -9,7 +9,6 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
-	bytes "github.com/cometbft/cometbft/libs/bytes"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmmath "github.com/cometbft/cometbft/libs/math"
 	cmpubsub "github.com/cometbft/cometbft/libs/pubsub"
@@ -802,7 +801,7 @@ func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultH
 	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
 }
 
-func (c *FullClient) HeaderByHash(ctx context.Context, hash bytes.HexBytes) (*ctypes.ResultHeader, error) {
+func (c *FullClient) HeaderByHash(ctx context.Context, hash cmbytes.HexBytes) (*ctypes.ResultHeader, error) {
 	// N.B. The hash parameter is HexBytes so that the reflective parameter
 	// decoding logic in the HTTP service will correctly translate from JSON.
 	// See https://github.com/cometbft/cometbft/issues/6802 for context.

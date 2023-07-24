@@ -3,8 +3,7 @@ package node
 import (
 	"context"
 
-	bytes "github.com/cometbft/cometbft/libs/bytes"
-	cmtypes "github.com/cometbft/cometbft/libs/bytes"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
@@ -29,12 +28,12 @@ func (c *LightClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, err
 }
 
 // ABCIQuery queries for data from application.
-func (c *LightClient) ABCIQuery(ctx context.Context, path string, data cmtypes.HexBytes) (*ctypes.ResultABCIQuery, error) {
+func (c *LightClient) ABCIQuery(ctx context.Context, path string, data cmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
 	panic("Not implemented")
 }
 
 // ABCIQueryWithOptions queries for data from application.
-func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmtypes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	panic("Not implemented")
 }
 
@@ -184,6 +183,6 @@ func (c *LightClient) Header(ctx context.Context, height *int64) (*ctypes.Result
 	panic("Not implemented")
 }
 
-func (c *LightClient) HeaderByHash(ctx context.Context, hash bytes.HexBytes) (*ctypes.ResultHeader, error) {
+func (c *LightClient) HeaderByHash(ctx context.Context, hash cmbytes.HexBytes) (*ctypes.ResultHeader, error) {
 	panic("Not implemented")
 }
