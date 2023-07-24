@@ -334,7 +334,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	defer func() {
 		require.NoError(dalc.Stop())
 	}()
-	sequencer, _ := createNode(aggCtx, 0, false, true, keys, t)
+	sequencer, _ := createNode(aggCtx, 0, true, false, keys, t)
 	fullNode, _ := createNode(ctx, 1, false, false, keys, t)
 
 	sequencer.(*FullNode).dalc = dalc
@@ -342,7 +342,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	lightNode, _ := createNode(ctx, 2, false, false, keys, t)
+	lightNode, _ := createNode(ctx, 2, false, true, keys, t)
 
 	require.NoError(sequencer.Start())
 	defer func() {
