@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Version Release
-        uses: rollkit/.github/.github/actions/version-release@v0.1.1
+        uses: rollkit/.github/.github/actions/version-release@v0.2.2
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           version-bump: ${{inputs.version}}
