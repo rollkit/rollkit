@@ -18,7 +18,6 @@ const (
 	flagDABlockTime    = "rollkit.da_block_time"
 	flagDAStartHeight  = "rollkit.da_start_height"
 	flagNamespaceID    = "rollkit.namespace_id"
-	flagFraudProofs    = "rollkit.experimental_insecure_fraud_proofs"
 	flagLight          = "rollkit.light"
 	flagTrustedHash    = "rollkit.trusted_hash"
 	flagLazyAggregator = "rollkit.lazy_aggregator"
@@ -55,7 +54,6 @@ type BlockManagerConfig struct {
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
 	DAStartHeight uint64            `mapstructure:"da_start_height"`
 	NamespaceID   types.NamespaceID `mapstructure:"namespace_id"`
-	FraudProofs   bool              `mapstructure:"fraud_proofs"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.
@@ -70,7 +68,6 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.BlockTime = v.GetDuration(flagBlockTime)
 	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
 	nsID := v.GetString(flagNamespaceID)
-	nc.FraudProofs = v.GetBool(flagFraudProofs)
 	nc.Light = v.GetBool(flagLight)
 	bytes, err := hex.DecodeString(nsID)
 	if err != nil {
@@ -94,7 +91,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().BytesHex(flagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
-	cmd.Flags().Bool(flagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 }

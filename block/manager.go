@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/go-fraud/fraudserv"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -120,7 +119,7 @@ func NewManager(
 		conf.DABlockTime = defaultDABlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -246,45 +245,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 }
 
-func (m *Manager) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
-	m.executor.SetFraudProofService(fraudProofServ)
-}
-
-func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFunc) {
-	defer cancel()
-	// subscribe to state fraud proof
-	sub, err := m.executor.FraudService.Subscribe(types.StateFraudProofType)
-	if err != nil {
-		m.logger.Error("failed to subscribe to fraud proof gossip", "error", err)
-		return
-	}
-	defer sub.Cancel()
-
-	// blocks until a valid fraud proof is received via subscription
-	// sub.Proof is a blocking call that only returns on proof received or context ended
-	proof, err := sub.Proof(ctx)
-	if err != nil {
-		m.logger.Error("failed to receive gossiped fraud proof", "error", err)
-		return
-	}
-
-	// only handle the state fraud proofs for now
-	fraudProof, ok := proof.(*types.StateFraudProof)
-	if !ok {
-		m.logger.Error("unexpected type received for state fraud proof", "error", err)
-		return
-	}
-	m.logger.Debug("fraud proof received",
-		"block height", fraudProof.BlockHeight,
-		"pre-state app hash", fraudProof.PreStateAppHash,
-		"expected valid app hash", fraudProof.ExpectedValidAppHash,
-		"length of state witness", len(fraudProof.StateWitness),
-	)
-
-	// halt chain
-	m.logger.Info("verified fraud proof, halting chain")
-}
-
 // SyncLoop is responsible for syncing blocks.
 //
 // SyncLoop processes headers gossiped in P2p network to know what's the latest block height,
@@ -307,9 +267,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
-			if err != nil && err.Error() == fmt.Errorf("failed to ApplyBlock: %w", state.ErrFraudProofGenerated).Error() {
-				return
-			}
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			}
