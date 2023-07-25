@@ -26,6 +26,14 @@ cover:
 	@go-acc -o coverage.txt $(pkgs)
 .PHONY: cover
 
+## deps: Install dependencies
+deps:
+	@echo "--> Installing dependencies"
+	@go mod download
+	@make proto-gen
+	@go mod tidy
+.PHONY: deps
+
 ## lint: Run linters golangci-lint and markdownlint.
 lint: vet
 	@echo "--> Running golangci-lint"
