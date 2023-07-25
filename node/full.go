@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-fraud/fraudserv"
-	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -34,7 +32,6 @@ import (
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -79,10 +76,8 @@ type FullNode struct {
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
-	hExService          *HeaderExchangeService
-	bExService          *BlockExchangeService
-	fraudService        *fraudserv.ProofService
-	proofServiceFactory ProofServiceFactory
+	hExService *HeaderExchangeService
+	bExService *BlockExchangeService
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -167,16 +162,6 @@ func newFullNode(
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
-	fraudProofFactory := NewProofServiceFactory(
-		client,
-		func(ctx context.Context, u uint64) (header.Header, error) {
-			return headerExchangeService.headerStore.GetByHeight(ctx, u)
-		},
-		mainKV,
-		true,
-		genesis.ChainID,
-	)
-
 	blockExchangeService, err := NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
@@ -185,26 +170,25 @@ func newFullNode(
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
-		proxyApp:            proxyApp,
-		eventBus:            eventBus,
-		genesis:             genesis,
-		conf:                conf,
-		P2P:                 client,
-		blockManager:        blockManager,
-		dalc:                dalc,
-		Mempool:             mp,
-		mempoolIDs:          mpIDs,
-		incomingTxCh:        make(chan *p2p.GossipMessage),
-		Store:               s,
-		TxIndexer:           txIndexer,
-		IndexerService:      indexerService,
-		BlockIndexer:        blockIndexer,
-		hExService:          headerExchangeService,
-		bExService:          blockExchangeService,
-		proofServiceFactory: fraudProofFactory,
-		ctx:                 ctx,
-		cancel:              cancel,
-		DoneBuildingBlock:   doneBuildingChannel,
+		proxyApp:          proxyApp,
+		eventBus:          eventBus,
+		genesis:           genesis,
+		conf:              conf,
+		P2P:               client,
+		blockManager:      blockManager,
+		dalc:              dalc,
+		Mempool:           mp,
+		mempoolIDs:        mpIDs,
+		incomingTxCh:      make(chan *p2p.GossipMessage),
+		Store:             s,
+		TxIndexer:         txIndexer,
+		IndexerService:    indexerService,
+		BlockIndexer:      blockIndexer,
+		hExService:        headerExchangeService,
+		bExService:        blockExchangeService,
+		ctx:               ctx,
+		cancel:            cancel,
+		DoneBuildingBlock: doneBuildingChannel,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -296,24 +280,12 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 
-	// since p2p pubsub and host are required to create ProofService,
-	// we have to delay the construction until Start and use the help of ProofServiceFactory
-	n.fraudService = n.proofServiceFactory.CreateProofService()
-	if err := n.fraudService.AddVerifier(types.StateFraudProofType, VerifierFn(n.proxyApp)); err != nil {
-		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
-	}
-	if err = n.fraudService.Start(n.ctx); err != nil {
-		return fmt.Errorf("error while starting fraud exchange service: %w", err)
-	}
-	n.blockManager.SetFraudProofService(n.fraudService)
-
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
 		go n.blockPublishLoop(n.ctx)
 	}
-	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
 	return nil
@@ -341,7 +313,6 @@ func (n *FullNode) OnStop() {
 	err = multierr.Append(err, n.P2P.Close())
 	err = multierr.Append(err, n.hExService.Stop())
 	err = multierr.Append(err, n.bExService.Stop())
-	err = multierr.Append(err, n.fraudService.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 

@@ -26,7 +26,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
+func doTestCreateBlock(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -45,7 +45,7 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 	fmt.Println("Made NID")
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, nil, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger)
 	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
@@ -89,14 +89,10 @@ func doTestCreateBlock(t *testing.T, fraudProofsEnabled bool) {
 }
 
 func TestCreateBlockWithFraudProofsDisabled(t *testing.T) {
-	doTestCreateBlock(t, false)
+	doTestCreateBlock(t)
 }
 
-func TestCreateBlockWithFraudProofsEnabled(t *testing.T) {
-	doTestCreateBlock(t, true)
-}
-
-func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
+func doTestApplyBlock(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -107,13 +103,9 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{})
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{
-		AppHash: mockAppHash[:],
-	})
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
 		Data: mockAppHash[:],
 	})
@@ -128,7 +120,7 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), fraudProofsEnabled, eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -243,9 +235,5 @@ func doTestApplyBlock(t *testing.T, fraudProofsEnabled bool) {
 }
 
 func TestApplyBlockWithFraudProofsDisabled(t *testing.T) {
-	doTestApplyBlock(t, false)
-}
-
-func TestApplyBlockWithFraudProofsEnabled(t *testing.T) {
-	doTestApplyBlock(t, true)
+	doTestApplyBlock(t)
 }
