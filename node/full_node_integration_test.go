@@ -24,6 +24,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/log/test"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
@@ -444,7 +445,7 @@ func createNodes(aggCtx, ctx context.Context, num int, t *testing.T) ([]*FullNod
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	_ = dalc.Init([8]byte{}, nil, ds, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
 	_ = dalc.Start()
 	node, app := createNode(aggCtx, 0, true, false, keys, t)
 	apps[0] = app
@@ -516,7 +517,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		signingKey,
 		proxy.NewLocalClientCreator(app),
 		genesis,
-		log.TestingLogger().With("node", n))
+		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
 

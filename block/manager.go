@@ -358,6 +358,11 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		select {
 		case <-waitCh:
 			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				daHeight := atomic.LoadUint64(&m.daHeight)
 				m.logger.Debug("retrieve", "daHeight", daHeight)
 				err := m.processNextDABlock(ctx)
@@ -382,10 +387,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
 		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
-		if fetchErr != nil {
-			err = multierr.Append(err, fetchErr)
-			time.Sleep(100 * time.Millisecond)
-		} else {
+		if fetchErr == nil {
 			if blockResp.Code == da.StatusNotFound {
 				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
 				return nil
@@ -395,6 +397,15 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
 			return nil
+		}
+
+		// Track the error
+		err = multierr.Append(err, fetchErr)
+		// Delay before retrying
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(100 * time.Millisecond):
 		}
 	}
 	return err
