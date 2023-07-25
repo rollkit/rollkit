@@ -2,10 +2,15 @@ package namespace
 
 import tmrand "github.com/cometbft/cometbft/libs/rand"
 
+func RandomNamespaceID() []byte {
+	return tmrand.Bytes(NamespaceVersionZeroIDSize)
+}
+
 func RandomNamespace() Namespace {
 	for {
-		id := RandomVerzionZeroID()
-		namespace, err := New(NamespaceVersionZero, id)
+		id := RandomNamespaceID()
+		namespace := MustNewV0(id)
+		err := namespace.ValidateBlobNamespace()
 		if err != nil {
 			continue
 		}
@@ -13,6 +18,9 @@ func RandomNamespace() Namespace {
 	}
 }
 
-func RandomVerzionZeroID() []byte {
-	return append(NamespaceVersionZeroPrefix, tmrand.Bytes(NamespaceVersionZeroIDSize)...)
+func RandomNamespaces(count int) (namespaces []Namespace) {
+	for i := 0; i < count; i++ {
+		namespaces = append(namespaces, RandomNamespace())
+	}
+	return namespaces
 }

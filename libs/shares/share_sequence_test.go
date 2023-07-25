@@ -18,7 +18,7 @@ func TestShareSequenceRawData(t *testing.T) {
 		want          []byte
 		wantErr       bool
 	}
-	blobNamespace := appns.RandomBlobNamespace()
+	blobNamespace := appns.RandomNamespace()
 
 	testCases := []testCase{
 		{
