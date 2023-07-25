@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	coretypes "github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/libs/appconsts"
 	appns "github.com/rollkit/rollkit/libs/namespace"

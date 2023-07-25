@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/cometbft/cometbft/libs/bytes"
+	"github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
-	"github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/types"
 )
 
 type subscribeArgs struct {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	coretypes "github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 )
 
 // DelimLen calculates the length of the delimiter for a given unit size

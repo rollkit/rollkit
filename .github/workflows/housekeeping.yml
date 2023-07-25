@@ -7,10 +7,9 @@ on:
     types: [opened]
 
 jobs:
-  project:
-    # ignore dependabot PRs
-    if: ${{ github.actor != 'dependabot[bot]' }}
-    name: Add issues and PRs to project and add grooming label
+  issue-management:
+    if: ${{ github.event.issue }}
+    name: Add issues to project and add triage label
     uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
     secrets: inherit
     permissions:
@@ -18,7 +17,20 @@ jobs:
       pull-requests: write
     with:
       run-labels: true
-      labels-to-add: "needs-grooming"
+      labels-to-add: "needs-triage"
+      run-projects: true
+      project-url: https://github.com/orgs/rollkit/projects/7
+
+  add-pr-to-project:
+    # ignore dependabot PRs
+    if: ${{ github.event.pull_request && github.actor != 'dependabot[bot]' }}
+    name: Add PRs to project
+    uses: rollkit/.github/.github/workflows/reusable_housekeeping.yml@v0.1.1
+    secrets: inherit
+    permissions:
+      issues: write
+      pull-requests: write
+    with:
       run-projects: true
       project-url: https://github.com/orgs/rollkit/projects/7
 
@@ -35,40 +47,30 @@ jobs:
 
   auto-add-assignee:
     # ignore dependabot PRs
-    if: ${{ github.actor != 'dependabot[bot]' }}
+    if: ${{ github.event.pull_request && github.actor != 'dependabot[bot]' }}
     name: Assign issue and PR to creator
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
     steps:
-      - name: Set issue url and creator login
-        if: ${{ github.event.issue }}
-        run: |
-          echo "ISSUE=${{ github.event.issue.html_url }}" >> $GITHUB_ENV
-          echo "CREATOR=${{ github.event.issue.user.login }}" >> $GITHUB_ENV
       - name: Set pull_request url and creator login
-        if: ${{ github.event.pull_request }}
         # yamllint disable rule:line-length
         run: |
           echo "PR=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
           echo "CREATOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
         # yamllint enable rule:line-length
-      - name: Assign issue to creator (issue)
-        if: ${{ github.event.issue }}
-        run: gh issue edit ${{ env.ISSUE }} --add-assignee ${{ env.CREATOR }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Assign issue to creator (PR)
-        if: ${{ github.event.pull_request }}
+      - name: Assign PR to creator
         run: gh pr edit ${{ env.PR }} --add-assignee ${{ env.CREATOR }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   required-labels:
+    # ignore dependabot PRs
+    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: mheap/github-action-required-labels@v4
+      - uses: mheap/github-action-required-labels@v5
         with:
           mode: minimum
           count: 1

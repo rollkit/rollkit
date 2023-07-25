@@ -2,10 +2,10 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-TM_VERSION=abci_fraud_proofs
-TM_PROTO_URL=https://raw.githubusercontent.com/celestiaorg/tendermint/$TM_VERSION/proto/tendermint
+CM_VERSION="v0.37.1"
+CM_PROTO_URL=https://raw.githubusercontent.com/rollkit/cometbft/$CM_VERSION/proto/tendermint
 
-TM_PROTO_FILES=(
+CM_PROTO_FILES=(
   abci/types.proto
   version/types.proto
   types/types.proto
@@ -19,9 +19,9 @@ TM_PROTO_FILES=(
   p2p/types.proto
 )
 
-echo Fetching protobuf dependencies from Tendermint $TM_VERSION
-for FILE in "${TM_PROTO_FILES[@]}"; do
+echo Fetching protobuf dependencies from CommetBFT $CM_VERSION
+for FILE in "${CM_PROTO_FILES[@]}"; do
   echo Fetching "$FILE"
   mkdir -p "tendermint/$(dirname $FILE)"
-  curl -sSL "$TM_PROTO_URL/$FILE" > "tendermint/$FILE"
+  curl -sSL "$CM_PROTO_URL/$FILE" > "tendermint/$FILE"
 done

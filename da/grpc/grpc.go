@@ -13,6 +13,7 @@ import (
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
 	"github.com/rollkit/rollkit/types/pb/dalc"
+	"github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // DataAvailabilityLayerClient is a generic client that proxies all DA requests via gRPC.
@@ -74,38 +75,32 @@ func (d *DataAvailabilityLayerClient) Stop() error {
 	return d.conn.Close()
 }
 
-// SubmitBlock proxies SubmitBlock request to gRPC server.
-func (d *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *types.Block) da.ResultSubmitBlock {
-	bp, err := block.ToProto()
+// SubmitBlocks proxies SubmitBlocks request to gRPC server.
+func (d *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) da.ResultSubmitBlocks {
+	bps := make([]*rollkit.Block, len(blocks))
+	// convert blocks to protobuf
+	for i, block := range blocks {
+		bp, err := block.ToProto()
+		if err != nil {
+			return da.ResultSubmitBlocks{
+				BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()},
+			}
+		}
+		bps[i] = bp
+	}
+
+	resp, err := d.client.SubmitBlocks(ctx, &dalc.SubmitBlocksRequest{Blocks: bps})
 	if err != nil {
-		return da.ResultSubmitBlock{
+		return da.ResultSubmitBlocks{
 			BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()},
 		}
 	}
-	resp, err := d.client.SubmitBlock(ctx, &dalc.SubmitBlockRequest{Block: bp})
-	if err != nil {
-		return da.ResultSubmitBlock{
-			BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()},
-		}
-	}
-	return da.ResultSubmitBlock{
+	return da.ResultSubmitBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusCode(resp.Result.Code),
 			Message:  resp.Result.Message,
 			DAHeight: resp.Result.DAHeight,
 		},
-	}
-}
-
-// CheckBlockAvailability proxies CheckBlockAvailability request to gRPC server.
-func (d *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, daHeight uint64) da.ResultCheckBlock {
-	resp, err := d.client.CheckBlockAvailability(ctx, &dalc.CheckBlockAvailabilityRequest{DAHeight: daHeight})
-	if err != nil {
-		return da.ResultCheckBlock{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-	}
-	return da.ResultCheckBlock{
-		BaseResult:    da.BaseResult{Code: da.StatusCode(resp.Result.Code), Message: resp.Result.Message},
-		DataAvailable: resp.DataAvailable,
 	}
 }
 

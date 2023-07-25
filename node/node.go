@@ -5,10 +5,10 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/tendermint/tendermint/libs/log"
-	proxy "github.com/tendermint/tendermint/proxy"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/libs/log"
+	proxy "github.com/cometbft/cometbft/proxy"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/config"
 )
@@ -28,7 +28,7 @@ func NewNode(
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	appClient proxy.ClientCreator,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (Node, error) {
 	if !conf.Light {

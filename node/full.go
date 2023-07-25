@@ -14,13 +14,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	llcfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/libs/service"
-	corep2p "github.com/tendermint/tendermint/p2p"
-	proxy "github.com/tendermint/tendermint/proxy"
-	tmtypes "github.com/tendermint/tendermint/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	llcfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/libs/service"
+	corep2p "github.com/cometbft/cometbft/p2p"
+	proxy "github.com/cometbft/cometbft/proxy"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -56,10 +56,10 @@ var _ Node = &FullNode{}
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
-	eventBus *tmtypes.EventBus
+	eventBus *cmtypes.EventBus
 	proxyApp proxy.AppConns
 
-	genesis *tmtypes.GenesisDoc
+	genesis *cmtypes.GenesisDoc
 	// cache of chunked genesis data.
 	genChunks []string
 
@@ -80,6 +80,7 @@ type FullNode struct {
 	IndexerService *txindex.IndexerService
 
 	hExService          *HeaderExchangeService
+	bExService          *BlockExchangeService
 	fraudService        *fraudserv.ProofService
 	proofServiceFactory ProofServiceFactory
 
@@ -100,16 +101,16 @@ func newFullNode(
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
 	}
 
-	eventBus := tmtypes.NewEventBus()
+	eventBus := cmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
 		return nil, err
@@ -173,8 +174,13 @@ func newFullNode(
 		},
 		mainKV,
 		true,
-		types.StateFraudProofType,
+		genesis.ChainID,
 	)
+
+	blockExchangeService, err := NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
+	if err != nil {
+		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -194,6 +200,7 @@ func newFullNode(
 		IndexerService:      indexerService,
 		BlockIndexer:        blockIndexer,
 		hExService:          headerExchangeService,
+		bExService:          blockExchangeService,
 		proofServiceFactory: fraudProofFactory,
 		ctx:                 ctx,
 		cancel:              cancel,
@@ -203,7 +210,6 @@ func newFullNode(
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	node.P2P.SetTxValidator(node.newTxValidator())
-	node.P2P.SetFraudProofValidator(node.newFraudProofValidator())
 
 	return node, nil
 }
@@ -241,28 +247,28 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderCh:
-			n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			err := n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			if err != nil {
+				// failed to init or start headerstore
+				n.Logger.Error(err.Error())
+				return
+			}
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (n *FullNode) fraudProofPublishLoop(ctx context.Context) {
+func (n *FullNode) blockPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case fraudProof := <-n.blockManager.GetFraudProofOutChan():
-			n.Logger.Info("generated fraud proof: ", fraudProof.String())
-			fraudProofBytes, err := fraudProof.Marshal()
+		case block := <-n.blockManager.BlockCh:
+			err := n.bExService.writeToBlockStoreAndBroadcast(ctx, block)
 			if err != nil {
-				panic(fmt.Errorf("failed to serialize fraud proof: %w", err))
+				// failed to init or start blockstore
+				n.Logger.Error(err.Error())
+				return
 			}
-			n.Logger.Info("gossipping fraud proof...")
-			err = n.P2P.GossipFraudProof(context.Background(), fraudProofBytes)
-			if err != nil {
-				n.Logger.Error("failed to gossip fraud proof", "error", err)
-			}
-			_ = n.Stop()
 		case <-ctx.Done():
 			return
 		}
@@ -282,6 +288,10 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting header exchange service: %w", err)
 	}
 
+	if err = n.bExService.Start(); err != nil {
+		return fmt.Errorf("error while starting block exchange service: %w", err)
+	}
+
 	if err = n.dalc.Start(); err != nil {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
@@ -289,24 +299,28 @@ func (n *FullNode) OnStart() error {
 	// since p2p pubsub and host are required to create ProofService,
 	// we have to delay the construction until Start and use the help of ProofServiceFactory
 	n.fraudService = n.proofServiceFactory.CreateProofService()
+	if err := n.fraudService.AddVerifier(types.StateFraudProofType, VerifierFn(n.proxyApp)); err != nil {
+		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
+	}
 	if err = n.fraudService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting fraud exchange service: %w", err)
 	}
+	n.blockManager.SetFraudProofService(n.fraudService)
 
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
 		go n.headerPublishLoop(n.ctx)
+		go n.blockPublishLoop(n.ctx)
 	}
+	go n.blockManager.ProcessFraudProof(n.ctx, n.cancel)
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
-	go n.fraudProofPublishLoop(n.ctx)
-
 	return nil
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() *tmtypes.GenesisDoc {
+func (n *FullNode) GetGenesis() *cmtypes.GenesisDoc {
 	return n.genesis
 }
 
@@ -326,6 +340,8 @@ func (n *FullNode) OnStop() {
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.P2P.Close())
 	err = multierr.Append(err, n.hExService.Stop())
+	err = multierr.Append(err, n.bExService.Stop())
+	err = multierr.Append(err, n.fraudService.Stop(n.ctx))
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
@@ -345,7 +361,7 @@ func (n *FullNode) GetLogger() log.Logger {
 }
 
 // EventBus gives access to Node's event bus.
-func (n *FullNode) EventBus() *tmtypes.EventBus {
+func (n *FullNode) EventBus() *cmtypes.EventBus {
 	return n.eventBus
 }
 
@@ -384,23 +400,6 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 	}
 }
 
-// newFraudProofValidator returns a pubsub validator that validates a fraud proof and forwards
-// it to be verified
-func (n *FullNode) newFraudProofValidator() p2p.GossipValidator {
-	return func(fraudProofMsg *p2p.GossipMessage) bool {
-		n.Logger.Debug("fraud proof received", "from", fraudProofMsg.From, "bytes", len(fraudProofMsg.Data))
-		fraudProof := abci.FraudProof{}
-		err := fraudProof.Unmarshal(fraudProofMsg.Data)
-		if err != nil {
-			n.Logger.Error("failed to deserialize fraud proof", "error", err)
-			return false
-		}
-		// TODO(manav): Add validation checks for fraud proof here
-		n.blockManager.FraudProofInCh <- &fraudProof
-		return true
-	}
-}
-
 func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
 	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
 }
@@ -409,7 +408,7 @@ func createAndStartIndexerService(
 	ctx context.Context,
 	conf config.NodeConfig,
 	kvStore ds.TxnDatastore,
-	eventBus *tmtypes.EventBus,
+	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 ) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
 	var (

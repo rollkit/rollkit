@@ -20,6 +20,47 @@ cd rollkit
 go build -v ./...
 ```
 
+## Building With Rollkit
+
+While Rollkit is a modular framework that aims to be compatible with a wide
+range of data availability layers, settlement layers, and execution
+environments, the most supported development environment is building on Celestia
+as a data availability layer.
+
+### Building On Celestia
+
+There are currently 2 ways to build on Celestia:
+
+1. Using a local development environment with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
+1. Using the Arabica or Mocha Celestia testnet
+
+#### Compatibility
+
+| network               | rollkit    | celestia-node | celestia-app |
+|-----------------------|------------|---------------|--------------|
+| local-celestia-devnet | v0.9.0     | v0.11.0-rc6   | v1.0.0-rc7   |
+| arabica               | v0.9.0     | v0.11.0-rc6   | v1.0.0-rc7   |
+
+| rollkit/cosmos-sdk                          | rollkit/cometbft                   | rollkit    |
+|---------------------------------------------|------------------------------------|------------|
+| v0.46.13-rollkit-v0.9.0-no-fraud-proofs     | v0.0.0-20230524013049-75272ebaee38 | v0.9.0     |
+| v0.45.16-rollkit-v0.9.0-no-fraud-proofs     | v0.0.0-20230524013001-2968c8b8b121 | v0.9.0     |
+
+#### Local Development Environment
+
+The Rollkit v0.9.0 release is compatible with the
+[local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
+[oolong](https://github.com/rollkit/local-celestia-devnet/releases) release. This version combination is compatible with
+[celestia-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+[celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
+
+#### Arabica and Mocha Testnets
+
+The Rollkit v0.9.0 release is compatible with [Arabica](https://docs.celestia.org/nodes/arabica-devnet/) devnet which is running [celestia-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+[celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
+
+> :warning: **Rollkit v0.9.0 is not tested for compatibility with latest releases of Mocha.** :warning:
+
 ### Tools
 
 1. Install [golangci-lint](https://golangci-lint.run/usage/install/)

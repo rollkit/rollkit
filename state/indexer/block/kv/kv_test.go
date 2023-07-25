@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/types"
 
 	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
 	"github.com/rollkit/rollkit/store"
@@ -30,8 +30,8 @@ func TestBlockIndexer(t *testing.T) {
 					Type: "begin_event",
 					Attributes: []abci.EventAttribute{
 						{
-							Key:   []byte("proposer"),
-							Value: []byte("FCAA001"),
+							Key:   string("proposer"),
+							Value: string("FCAA001"),
 							Index: true,
 						},
 					},
@@ -44,8 +44,8 @@ func TestBlockIndexer(t *testing.T) {
 					Type: "end_event",
 					Attributes: []abci.EventAttribute{
 						{
-							Key:   []byte("foo"),
-							Value: []byte("100"),
+							Key:   string("foo"),
+							Value: string("100"),
 							Index: true,
 						},
 					},
@@ -68,8 +68,8 @@ func TestBlockIndexer(t *testing.T) {
 						Type: "begin_event",
 						Attributes: []abci.EventAttribute{
 							{
-								Key:   []byte("proposer"),
-								Value: []byte("FCAA001"),
+								Key:   string("proposer"),
+								Value: string("FCAA001"),
 								Index: true,
 							},
 						},
@@ -82,8 +82,8 @@ func TestBlockIndexer(t *testing.T) {
 						Type: "end_event",
 						Attributes: []abci.EventAttribute{
 							{
-								Key:   []byte("foo"),
-								Value: []byte(fmt.Sprintf("%d", i)),
+								Key:   string("foo"),
+								Value: string(fmt.Sprintf("%d", i)),
 								Index: index,
 							},
 						},
