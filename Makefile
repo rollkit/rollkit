@@ -55,7 +55,8 @@ fmt:
 
 ## vet: Run go vet
 vet: 
-	go vet $(pkgs)
+	@echo "--> Running go vet"
+	@go vet $(pkgs)
 .PHONY: vet
 
 ## test: Running unit tests
