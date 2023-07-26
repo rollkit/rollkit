@@ -1,0 +1,55 @@
+{
+  "_format": "ethers-rs-sol-cache-3",
+  "paths": {
+    "artifacts": "out",
+    "build_infos": "out/build-info",
+    "sources": "src",
+    "tests": "test",
+    "scripts": "scripts",
+    "libraries": [
+      "lib"
+    ]
+  },
+  "files": {
+    "src/RollkitInbox.sol": {
+      "lastModificationDate": 1690378471504,
+      "contentHash": "5838358b8f319a67a050c2c100b04da1",
+      "sourceName": "src/RollkitInbox.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1000000
+          },
+          "metadata": {
+            "bytecodeHash": "none",
+            "appendCBOR": false
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.19",
+      "artifacts": {
+        "RollkitInbox": {
+          "0.8.19+commit.7dd6d404.Darwin.appleclang": "RollkitInbox.sol/RollkitInbox.json"
+        }
+      }
+    }
+  }
+}

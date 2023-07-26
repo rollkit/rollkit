@@ -1,0 +1,569 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "namespace",
+          "type": "bytes32"
+        }
+      ],
+      "name": "GetLatestBlock",
+      "outputs": [
+        {
+          "internalType": "bytes",
+          "name": "",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "namespace",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "name": "SubmitBlock",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "namespaceToLatestBlock",
+      "outputs": [
+        {
+          "internalType": "bytes",
+          "name": "",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": {
+    "object": "0x608060405234801561001057600080fd5b506104df806100206000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c806361fa1ba614610046578063787a086c1461005b578063c5a5036814610084575b600080fd5b6100596100543660046101f2565b610097565b005b61006e61006936600461026e565b6100b6565b60405161007b9190610287565b60405180910390f35b61006e61009236600461026e565b610158565b60008381526020819052604090206100b08284836103c4565b50505050565b60008181526020819052604090208054606091906100d390610322565b80601f01602080910402602001604051908101604052809291908181526020018280546100ff90610322565b801561014c5780601f106101215761010080835404028352916020019161014c565b820191906000526020600020905b81548152906001019060200180831161012f57829003601f168201915b50505050509050919050565b6000602081905290815260409020805461017190610322565b80601f016020809104026020016040519081016040528092919081815260200182805461019d90610322565b80156101ea5780601f106101bf576101008083540402835291602001916101ea565b820191906000526020600020905b8154815290600101906020018083116101cd57829003601f168201915b505050505081565b60008060006040848603121561020757600080fd5b83359250602084013567ffffffffffffffff8082111561022657600080fd5b818601915086601f83011261023a57600080fd5b81358181111561024957600080fd5b87602082850101111561025b57600080fd5b6020830194508093505050509250925092565b60006020828403121561028057600080fd5b5035919050565b600060208083528351808285015260005b818110156102b457858101830151858201604001528201610298565b5060006040828601015260407fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8301168501019250505092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600181811c9082168061033657607f821691505b60208210810361036f577f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b50919050565b601f8211156103bf57600081815260208120601f850160051c8101602086101561039c5750805b601f850160051c820191505b818110156103bb578281556001016103a8565b5050505b505050565b67ffffffffffffffff8311156103dc576103dc6102f3565b6103f0836103ea8354610322565b83610375565b6000601f841160018114610442576000851561040c5750838201355b7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff600387901b1c1916600186901b1783556104d8565b6000838152602090207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0861690835b828110156104915786850135825560209485019460019092019101610471565b50868210156104cc577fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff60f88860031b161c19848701351681555b505060018560011b0183555b505050505056",
+    "sourceMap": "26:372:0:-:0;;;;;;;;;;;;;;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x608060405234801561001057600080fd5b50600436106100415760003560e01c806361fa1ba614610046578063787a086c1461005b578063c5a5036814610084575b600080fd5b6100596100543660046101f2565b610097565b005b61006e61006936600461026e565b6100b6565b60405161007b9190610287565b60405180910390f35b61006e61009236600461026e565b610158565b60008381526020819052604090206100b08284836103c4565b50505050565b60008181526020819052604090208054606091906100d390610322565b80601f01602080910402602001604051908101604052809291908181526020018280546100ff90610322565b801561014c5780601f106101215761010080835404028352916020019161014c565b820191906000526020600020905b81548152906001019060200180831161012f57829003601f168201915b50505050509050919050565b6000602081905290815260409020805461017190610322565b80601f016020809104026020016040519081016040528092919081815260200182805461019d90610322565b80156101ea5780601f106101bf576101008083540402835291602001916101ea565b820191906000526020600020905b8154815290600101906020018083116101cd57829003601f168201915b505050505081565b60008060006040848603121561020757600080fd5b83359250602084013567ffffffffffffffff8082111561022657600080fd5b818601915086601f83011261023a57600080fd5b81358181111561024957600080fd5b87602082850101111561025b57600080fd5b6020830194508093505050509250925092565b60006020828403121561028057600080fd5b5035919050565b600060208083528351808285015260005b818110156102b457858101830151858201604001528201610298565b5060006040828601015260407fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8301168501019250505092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600181811c9082168061033657607f821691505b60208210810361036f577f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b50919050565b601f8211156103bf57600081815260208120601f850160051c8101602086101561039c5750805b601f850160051c820191505b818110156103bb578281556001016103a8565b5050505b505050565b67ffffffffffffffff8311156103dc576103dc6102f3565b6103f0836103ea8354610322565b83610375565b6000601f841160018114610442576000851561040c5750838201355b7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff600387901b1c1916600186901b1783556104d8565b6000838152602090207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0861690835b828110156104915786850135825560209485019460019092019101610471565b50868210156104cc577fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff60f88860031b161c19848701351681555b505060018560011b0183555b505050505056",
+    "sourceMap": "26:372:0:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;116:125;;;;;;:::i;:::-;;:::i;:::-;;247:149;;;;;;:::i;:::-;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;54:55;;;;;;:::i;:::-;;:::i;116:125::-;194:22;:33;;;;;;;;;;:40;230:4;;194:33;:40;:::i;:::-;;116:125;;;:::o;247:149::-;356:22;:33;;;;;;;;;;349:40;;325:12;;356:33;349:40;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;247:149;;;:::o;54:55::-;;;;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::o;14:659:1:-;93:6;101;109;162:2;150:9;141:7;137:23;133:32;130:52;;;178:1;175;168:12;130:52;214:9;201:23;191:33;;275:2;264:9;260:18;247:32;298:18;339:2;331:6;328:14;325:34;;;355:1;352;345:12;325:34;393:6;382:9;378:22;368:32;;438:7;431:4;427:2;423:13;419:27;409:55;;460:1;457;450:12;409:55;500:2;487:16;526:2;518:6;515:14;512:34;;;542:1;539;532:12;512:34;587:7;582:2;573:6;569:2;565:15;561:24;558:37;555:57;;;608:1;605;598:12;555:57;639:2;635;631:11;621:21;;661:6;651:16;;;;;14:659;;;;;:::o;678:180::-;737:6;790:2;778:9;769:7;765:23;761:32;758:52;;;806:1;803;796:12;758:52;-1:-1:-1;829:23:1;;678:180;-1:-1:-1;678:180:1:o;863:605::-;973:4;1002:2;1031;1020:9;1013:21;1063:6;1057:13;1106:6;1101:2;1090:9;1086:18;1079:34;1131:1;1141:140;1155:6;1152:1;1149:13;1141:140;;;1250:14;;;1246:23;;1240:30;1216:17;;;1235:2;1212:26;1205:66;1170:10;;1141:140;;;1145:3;1330:1;1325:2;1316:6;1305:9;1301:22;1297:31;1290:42;1459:2;1389:66;1384:2;1376:6;1372:15;1368:88;1357:9;1353:104;1349:113;1341:121;;;;863:605;;;;:::o;1473:184::-;1525:77;1522:1;1515:88;1622:4;1619:1;1612:15;1646:4;1643:1;1636:15;1662:437;1741:1;1737:12;;;;1784;;;1805:61;;1859:4;1851:6;1847:17;1837:27;;1805:61;1912:2;1904:6;1901:14;1881:18;1878:38;1875:218;;1949:77;1946:1;1939:88;2050:4;2047:1;2040:15;2078:4;2075:1;2068:15;1875:218;;1662:437;;;:::o;2229:544::-;2330:2;2325:3;2322:11;2319:448;;;2366:1;2391:5;2387:2;2380:17;2436:4;2432:2;2422:19;2506:2;2494:10;2490:19;2487:1;2483:27;2477:4;2473:38;2542:4;2530:10;2527:20;2524:47;;;-1:-1:-1;2565:4:1;2524:47;2620:2;2615:3;2611:12;2608:1;2604:20;2598:4;2594:31;2584:41;;2675:82;2693:2;2686:5;2683:13;2675:82;;;2738:17;;;2719:1;2708:13;2675:82;;;2679:3;;;2319:448;2229:544;;;:::o;3009:1321::-;3131:18;3126:3;3123:27;3120:53;;;3153:18;;:::i;:::-;3182:93;3271:3;3231:38;3263:4;3257:11;3231:38;:::i;:::-;3225:4;3182:93;:::i;:::-;3301:1;3326:2;3321:3;3318:11;3343:1;3338:734;;;;4116:1;4133:3;4130:93;;;-1:-1:-1;4189:19:1;;;4176:33;4130:93;2915:66;2906:1;2902:11;;;2898:84;2894:89;2884:100;2990:1;2986:11;;;2881:117;4236:78;;3311:1013;;3338:734;2176:1;2169:14;;;2213:4;2200:18;;3383:66;3374:76;;;3533:9;3555:229;3569:7;3566:1;3563:14;3555:229;;;3658:19;;;3645:33;3630:49;;3765:4;3750:20;;;;3718:1;3706:14;;;;3585:12;3555:229;;;3559:3;3812;3803:7;3800:16;3797:219;;;3932:66;3926:3;3920;3917:1;3913:11;3909:21;3905:94;3901:99;3888:9;3883:3;3879:19;3866:33;3862:139;3854:6;3847:155;3797:219;;;4059:1;4053:3;4050:1;4046:11;4042:19;4036:4;4029:33;3311:1013;;;3009:1321;;;:::o",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": {
+    "GetLatestBlock(bytes32)": "787a086c",
+    "SubmitBlock(bytes32,bytes)": "61fa1ba6",
+    "namespaceToLatestBlock(bytes32)": "c5a50368"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.19+commit.7dd6d404\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"namespace\",\"type\":\"bytes32\"}],\"name\":\"GetLatestBlock\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"namespace\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"SubmitBlock\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"namespaceToLatestBlock\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/RollkitInbox.sol\":\"RollkitInbox\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"appendCBOR\":false,\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":1000000},\"remappings\":[]},\"sources\":{\"src/RollkitInbox.sol\":{\"keccak256\":\"0x3b24cfbeed5f9b43f4cfa71af86c80f3a3b8648da247d055b70f549dbb062c37\",\"urls\":[\"bzz-raw://a0bb852ffe3380e1a9c6b7267b44ff1bd8164ec2525b170157f5b04951291aac\",\"dweb:/ipfs/QmXqmVHdRaaD2awRuq4EXopE98fqZdwMC9endis1VzBnHp\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": {
+      "version": "0.8.19+commit.7dd6d404"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "namespace",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "GetLatestBlock",
+          "outputs": [
+            {
+              "internalType": "bytes",
+              "name": "",
+              "type": "bytes"
+            }
+          ]
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "namespace",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function",
+          "name": "SubmitBlock"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "namespaceToLatestBlock",
+          "outputs": [
+            {
+              "internalType": "bytes",
+              "name": "",
+              "type": "bytes"
+            }
+          ]
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {},
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {},
+        "version": 1
+      }
+    },
+    "settings": {
+      "remappings": [],
+      "optimizer": {
+        "enabled": true,
+        "runs": 1000000
+      },
+      "metadata": {
+        "bytecodeHash": "none",
+        "appendCBOR": false
+      },
+      "compilationTarget": {
+        "src/RollkitInbox.sol": "RollkitInbox"
+      },
+      "libraries": {}
+    },
+    "sources": {
+      "src/RollkitInbox.sol": {
+        "keccak256": "0x3b24cfbeed5f9b43f4cfa71af86c80f3a3b8648da247d055b70f549dbb062c37",
+        "urls": [
+          "bzz-raw://a0bb852ffe3380e1a9c6b7267b44ff1bd8164ec2525b170157f5b04951291aac",
+          "dweb:/ipfs/QmXqmVHdRaaD2awRuq4EXopE98fqZdwMC9endis1VzBnHp"
+        ],
+        "license": null
+      }
+    },
+    "version": 1
+  },
+  "ast": {
+    "absolutePath": "src/RollkitInbox.sol",
+    "id": 33,
+    "exportedSymbols": {
+      "RollkitInbox": [
+        32
+      ]
+    },
+    "nodeType": "SourceUnit",
+    "src": "0:399:0",
+    "nodes": [
+      {
+        "id": 1,
+        "nodeType": "PragmaDirective",
+        "src": "0:24:0",
+        "nodes": [],
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".19"
+        ]
+      },
+      {
+        "id": 32,
+        "nodeType": "ContractDefinition",
+        "src": "26:372:0",
+        "nodes": [
+          {
+            "id": 5,
+            "nodeType": "VariableDeclaration",
+            "src": "54:55:0",
+            "nodes": [],
+            "constant": false,
+            "functionSelector": "c5a50368",
+            "mutability": "mutable",
+            "name": "namespaceToLatestBlock",
+            "nameLocation": "87:22:0",
+            "scope": 32,
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_mapping$_t_bytes32_$_t_bytes_storage_$",
+              "typeString": "mapping(bytes32 => bytes)"
+            },
+            "typeName": {
+              "id": 4,
+              "keyName": "",
+              "keyNameLocation": "-1:-1:-1",
+              "keyType": {
+                "id": 2,
+                "name": "bytes32",
+                "nodeType": "ElementaryTypeName",
+                "src": "62:7:0",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                }
+              },
+              "nodeType": "Mapping",
+              "src": "54:25:0",
+              "typeDescriptions": {
+                "typeIdentifier": "t_mapping$_t_bytes32_$_t_bytes_storage_$",
+                "typeString": "mapping(bytes32 => bytes)"
+              },
+              "valueName": "",
+              "valueNameLocation": "-1:-1:-1",
+              "valueType": {
+                "id": 3,
+                "name": "bytes",
+                "nodeType": "ElementaryTypeName",
+                "src": "73:5:0",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                }
+              }
+            },
+            "visibility": "public"
+          },
+          {
+            "id": 19,
+            "nodeType": "FunctionDefinition",
+            "src": "116:125:0",
+            "nodes": [],
+            "body": {
+              "id": 18,
+              "nodeType": "Block",
+              "src": "184:57:0",
+              "nodes": [],
+              "statements": [
+                {
+                  "expression": {
+                    "id": 16,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "baseExpression": {
+                        "id": 12,
+                        "name": "namespaceToLatestBlock",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 5,
+                        "src": "194:22:0",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_mapping$_t_bytes32_$_t_bytes_storage_$",
+                          "typeString": "mapping(bytes32 => bytes storage ref)"
+                        }
+                      },
+                      "id": 14,
+                      "indexExpression": {
+                        "id": 13,
+                        "name": "namespace",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 7,
+                        "src": "217:9:0",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_bytes32",
+                          "typeString": "bytes32"
+                        }
+                      },
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": true,
+                      "nodeType": "IndexAccess",
+                      "src": "194:33:0",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes_storage",
+                        "typeString": "bytes storage ref"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "id": 15,
+                      "name": "data",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 9,
+                      "src": "230:4:0",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes_calldata_ptr",
+                        "typeString": "bytes calldata"
+                      }
+                    },
+                    "src": "194:40:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_storage",
+                      "typeString": "bytes storage ref"
+                    }
+                  },
+                  "id": 17,
+                  "nodeType": "ExpressionStatement",
+                  "src": "194:40:0"
+                }
+              ]
+            },
+            "functionSelector": "61fa1ba6",
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "SubmitBlock",
+            "nameLocation": "125:11:0",
+            "parameters": {
+              "id": 10,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7,
+                  "mutability": "mutable",
+                  "name": "namespace",
+                  "nameLocation": "145:9:0",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 19,
+                  "src": "137:17:0",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 6,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "137:7:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 9,
+                  "mutability": "mutable",
+                  "name": "data",
+                  "nameLocation": "171:4:0",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 19,
+                  "src": "156:19:0",
+                  "stateVariable": false,
+                  "storageLocation": "calldata",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes_calldata_ptr",
+                    "typeString": "bytes"
+                  },
+                  "typeName": {
+                    "id": 8,
+                    "name": "bytes",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "156:5:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_storage_ptr",
+                      "typeString": "bytes"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "136:40:0"
+            },
+            "returnParameters": {
+              "id": 11,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "184:0:0"
+            },
+            "scope": 32,
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "public"
+          },
+          {
+            "id": 31,
+            "nodeType": "FunctionDefinition",
+            "src": "247:149:0",
+            "nodes": [],
+            "body": {
+              "id": 30,
+              "nodeType": "Block",
+              "src": "339:57:0",
+              "nodes": [],
+              "statements": [
+                {
+                  "expression": {
+                    "baseExpression": {
+                      "id": 26,
+                      "name": "namespaceToLatestBlock",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 5,
+                      "src": "356:22:0",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_mapping$_t_bytes32_$_t_bytes_storage_$",
+                        "typeString": "mapping(bytes32 => bytes storage ref)"
+                      }
+                    },
+                    "id": 28,
+                    "indexExpression": {
+                      "id": 27,
+                      "name": "namespace",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 21,
+                      "src": "379:9:0",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes32",
+                        "typeString": "bytes32"
+                      }
+                    },
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "nodeType": "IndexAccess",
+                    "src": "356:33:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_storage",
+                      "typeString": "bytes storage ref"
+                    }
+                  },
+                  "functionReturnParameters": 25,
+                  "id": 29,
+                  "nodeType": "Return",
+                  "src": "349:40:0"
+                }
+              ]
+            },
+            "functionSelector": "787a086c",
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "GetLatestBlock",
+            "nameLocation": "256:14:0",
+            "parameters": {
+              "id": 22,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 21,
+                  "mutability": "mutable",
+                  "name": "namespace",
+                  "nameLocation": "288:9:0",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 31,
+                  "src": "280:17:0",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  },
+                  "typeName": {
+                    "id": 20,
+                    "name": "bytes32",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "280:7:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "270:33:0"
+            },
+            "returnParameters": {
+              "id": 25,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 24,
+                  "mutability": "mutable",
+                  "name": "",
+                  "nameLocation": "-1:-1:-1",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 31,
+                  "src": "325:12:0",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes_memory_ptr",
+                    "typeString": "bytes"
+                  },
+                  "typeName": {
+                    "id": 23,
+                    "name": "bytes",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "325:5:0",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_storage_ptr",
+                      "typeString": "bytes"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "324:14:0"
+            },
+            "scope": 32,
+            "stateMutability": "view",
+            "virtual": false,
+            "visibility": "public"
+          }
+        ],
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "RollkitInbox",
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "fullyImplemented": true,
+        "linearizedBaseContracts": [
+          32
+        ],
+        "name": "RollkitInbox",
+        "nameLocation": "35:12:0",
+        "scope": 33,
+        "usedErrors": []
+      }
+    ]
+  },
+  "id": 0
+}

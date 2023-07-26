@@ -25,8 +25,7 @@ import (
 
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
-	rpc *openrpc.Client
-
+	rpc       *openrpc.Client
 	namespace openrpcns.Namespace
 	config    Config
 	logger    log.Logger

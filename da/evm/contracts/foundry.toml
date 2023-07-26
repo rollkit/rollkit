@@ -1,0 +1,29 @@
+[profile.default]
+bytecode_hash = "none"
+cbor_metadata = false
+evm_version = "paris"
+fuzz = { runs = 1_000 }
+gas_reports = ["*"]
+optimizer = true
+optimizer_runs = 1_000_000
+lib = "lib"
+out = "out"
+script = "scripts"
+solc = "0.8.19"
+src = "src"
+test = "test"
+verbosity = 1
+
+[profile.ci]
+fuzz = { runs = 100_000 }
+verbosity = 4
+src = "contracts/src"
+
+[rpc_endpoints]
+local = "${RPC_URL_LOCAL}"
+devnet = "${RPC_URL_DEVNET}"
+testnet = "${RPC_URL_TESTNET}"
+mainnet = "${RPC_URL_MAINNET}"
+# [etherscan]
+# goerli = { key = "${ETHERSCAN_KEY}", url = "https://api-goerli.etherscan.io/api" }
+# mainnet = { key = "${ETHERSCAN_KEY}" }
