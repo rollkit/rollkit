@@ -4,12 +4,11 @@ go 1.20
 
 require (
 	cosmossdk.io/math v1.0.1
-	github.com/celestiaorg/go-fraud v0.1.2
 	github.com/celestiaorg/go-header v0.2.12
 	github.com/celestiaorg/nmt v0.17.0
 	github.com/celestiaorg/rsmt2d v0.9.0
 	github.com/celestiaorg/utils v0.1.0
-	github.com/cometbft/cometbft v0.37.0
+	github.com/cometbft/cometbft v0.37.1
 	github.com/creachadair/taskgroup v0.3.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
@@ -42,6 +41,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
+	github.com/celestiaorg/go-fraud v0.1.2 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -189,7 +189,6 @@ require (
 
 replace (
 	github.com/celestiaorg/go-header => github.com/gupadhyaya/go-header v0.0.0-20230724132619-a77221d213a9
-	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.37.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )

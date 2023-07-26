@@ -31,22 +31,13 @@ type MockTester struct {
 	t *testing.T
 }
 
-func (m MockTester) Fail() {
-	fmt.Println("Failed")
-}
+func (m MockTester) Fail() {}
 
-func (m MockTester) FailNow() {
-	fmt.Println("MockTester FailNow called")
-}
+func (m MockTester) FailNow() {}
 
-func (m MockTester) Logf(format string, args ...interface{}) {
-	fmt.Println("MockTester Logf called")
-}
+func (m MockTester) Logf(format string, args ...interface{}) {}
 
-func (m MockTester) Errorf(format string, args ...interface{}) {
-	//fmt.Printf(format, args...)
-	fmt.Println("Errorf called")
-}
+func (m MockTester) Errorf(format string, args ...interface{}) {}
 
 func waitForFirstBlock(node *FullNode, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)

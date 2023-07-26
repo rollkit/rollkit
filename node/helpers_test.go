@@ -41,8 +41,8 @@ func TestGetNodeHeight(t *testing.T) {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
 	bmConfig := getBMConfig()
-	fullNode, _ := createNode(ctx, 0, false, true, false, keys, bmConfig, t)
-	lightNode, _ := createNode(ctx, 1, false, true, true, keys, bmConfig, t)
+	fullNode, _ := createNode(ctx, 0, true, false, keys, bmConfig, t)
+	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, t)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 	require.NoError(fullNode.Start())

@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/go-fraud/fraudserv"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
@@ -140,7 +139,7 @@ func NewManager(
 		conf.BlockTime = defaultBlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, conf.FraudProofs, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
 	if s.LastBlockHeight+1 == genesis.InitialHeight {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -281,45 +280,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 }
 
-func (m *Manager) SetFraudProofService(fraudProofServ *fraudserv.ProofService) {
-	m.executor.SetFraudProofService(fraudProofServ)
-}
-
-func (m *Manager) ProcessFraudProof(ctx context.Context, cancel context.CancelFunc) {
-	defer cancel()
-	// subscribe to state fraud proof
-	sub, err := m.executor.FraudService.Subscribe(types.StateFraudProofType)
-	if err != nil {
-		m.logger.Error("failed to subscribe to fraud proof gossip", "error", err)
-		return
-	}
-	defer sub.Cancel()
-
-	// blocks until a valid fraud proof is received via subscription
-	// sub.Proof is a blocking call that only returns on proof received or context ended
-	proof, err := sub.Proof(ctx)
-	if err != nil {
-		m.logger.Error("failed to receive gossiped fraud proof", "error", err)
-		return
-	}
-
-	// only handle the state fraud proofs for now
-	fraudProof, ok := proof.(*types.StateFraudProof)
-	if !ok {
-		m.logger.Error("unexpected type received for state fraud proof", "error", err)
-		return
-	}
-	m.logger.Debug("fraud proof received",
-		"block height", fraudProof.BlockHeight,
-		"pre-state app hash", fraudProof.PreStateAppHash,
-		"expected valid app hash", fraudProof.ExpectedValidAppHash,
-		"length of state witness", len(fraudProof.StateWitness),
-	)
-
-	// halt chain
-	m.logger.Info("verified fraud proof, halting chain")
-}
-
 // SyncLoop is responsible for syncing blocks.
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
@@ -352,9 +312,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			m.retrieveCond.Signal()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
-			if err != nil && err.Error() == fmt.Errorf("failed to ApplyBlock: %w", state.ErrFraudProofGenerated).Error() {
-				return
-			}
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			} else {
@@ -521,6 +478,11 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		select {
 		case <-waitCh:
 			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				daHeight := atomic.LoadUint64(&m.daHeight)
 				m.logger.Debug("retrieve", "daHeight", daHeight)
 				err := m.processNextDABlock(ctx)
@@ -545,10 +507,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
 		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
-		if fetchErr != nil {
-			err = multierr.Append(err, fetchErr)
-			time.Sleep(100 * time.Millisecond)
-		} else {
+		if fetchErr == nil {
 			if blockResp.Code == da.StatusNotFound {
 				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
 				return nil
@@ -560,6 +519,15 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
 			return nil
+		}
+
+		// Track the error
+		err = multierr.Append(err, fetchErr)
+		// Delay before retrying
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(100 * time.Millisecond):
 		}
 	}
 	return err

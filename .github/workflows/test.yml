@@ -32,24 +32,12 @@ jobs:
         with:
           go-version: ${{ inputs.GO_VERSION }}
       - name: Run unit test
-        run: make test-unit
+        run: make test
       - name: upload coverage report
         uses: codecov/codecov-action@v3.1.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
-
-  unit_race_test:
-    name: Run Unit Tests with Race Detector
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: set up go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ inputs.GO_VERSION }}
-      - name: execute test run
-        run: make test-unit-race
 
   integration_test:
     name: Run Integration Tests

@@ -27,14 +27,14 @@ func TestClientStartup(t *testing.T) {
 		desc    string
 		p2pconf config.P2PConfig
 	}{
-		{"blank config", config.P2PConfig{}},
-		{"peer whitelisting", config.P2PConfig{
+		{"blank_config", config.P2PConfig{}},
+		{"peer_whitelisting", config.P2PConfig{
 			ListenAddress: "",
 			Seeds:         "",
 			BlockedPeers:  "",
 			AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
 		}},
-		{"peer blacklisting", config.P2PConfig{
+		{"peer_blacklisting", config.P2PConfig{
 			ListenAddress: "",
 			Seeds:         "",
 			BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
@@ -45,7 +45,7 @@ func TestClientStartup(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewLogger(t))
+				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewFileLoggerCustom(t, test.TempLogFileName(t, testCase.desc)))
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -63,7 +63,7 @@ func TestBootstrapping(t *testing.T) {
 	//log.SetDebugLogging()
 
 	assert := assert.New(t)
-	logger := test.NewLogger(t)
+	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -83,7 +83,7 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewLogger(t)
+	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -103,7 +103,7 @@ func TestDiscovery(t *testing.T) {
 
 func TestGossiping(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewLogger(t)
+	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
