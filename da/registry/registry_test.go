@@ -12,7 +12,7 @@ import (
 func TestRegistery(t *testing.T) {
 	assert := assert.New(t)
 
-	expected := []string{"mock", "grpc", "celestia"}
+	expected := []string{"mock", "grpc", "celestia", "evm"}
 	actual := RegisteredClients()
 
 	assert.ElementsMatch(expected, actual)

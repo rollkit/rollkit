@@ -32,6 +32,7 @@ func BuildTxOpts(client *ethclient.Client, sender common.Address, privateKey *ec
 	}
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0) // in wei
+	auth.GasLimit = 6000000
 	return auth
 }
 

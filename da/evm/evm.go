@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -21,6 +22,7 @@ var alice = common.HexToAddress("0x20f33CE90A13a4b5E7697E3544c3083B8F8A51D4")
 // DataAvailabilityLayerClient use celestia-node public API.
 type DataAvailabilityLayerClient struct {
 	rpc        *ethclient.Client
+	namespace  [32]byte
 	inboxAddr  common.Address
 	logger     log.Logger
 	privateKey *ecdsa.PrivateKey
@@ -42,7 +44,11 @@ func (c *DataAvailabilityLayerClient) Init(namespaceID types.NamespaceID, config
 	c.logger = logger
 	var err error
 	c.privateKey, err = crypto.HexToECDSA("fffdbb37105441e14b0ee6330d855d8504ff39e705c3afa8f859ac9865f99306")
+	if err != nil {
+		return err
+	}
 	c.inboxAddr = common.HexToAddress("0x18Df82C7E422A42D47345Ed86B0E935E9718eBda")
+	c.namespace[0] = 0x01
 	return err
 }
 
@@ -77,9 +83,8 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	transactor, err := contracts.NewRollkitInboxTransactor(c.inboxAddr, c.rpc)
+	transactor, err := contracts.NewRollkitInbox(c.inboxAddr, c.rpc)
 	if err != nil {
-		c.logger.Error("Failed to Build Transactor")
 		return da.ResultSubmitBlock{
 			BaseResult: da.BaseResult{
 				Code:    da.StatusError,
@@ -88,10 +93,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	var x [32]byte
-
-	x[0] = 1
-	tx, err := transactor.SubmitBlock(BuildTxOpts(c.rpc, alice, c.privateKey), x, data)
+	tx, err := transactor.SubmitBlock(BuildTxOpts(c.rpc, alice, c.privateKey), c.namespace, data)
 	if err != nil {
 		c.logger.Error("Failed to SubmitBlock")
 		return da.ResultSubmitBlock{
@@ -101,6 +103,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 			},
 		}
 	}
+
 	receipt, err := WaitForMined(c.rpc, tx)
 	if err != nil {
 		c.logger.Error("Failed to WaitForMind")
@@ -111,6 +114,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 			},
 		}
 	}
+
 	if receipt.Status == 0 {
 		c.logger.Error("Tx reverted")
 		return da.ResultSubmitBlock{
@@ -134,55 +138,56 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 
 // CheckBlockAvailability queries DA layer to check data availability of block at given height.
 func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) da.ResultCheckBlock {
-
+	res := c.RetrieveBlocks(ctx, dataLayerHeight)
 	return da.ResultCheckBlock{
-		BaseResult: da.BaseResult{
-			Code:     da.StatusSuccess,
-			DAHeight: dataLayerHeight,
-		},
-		DataAvailable: true,
+		BaseResult:    res.BaseResult,
+		DataAvailable: res.Blocks != nil,
 	}
+
 }
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
-	// c.logger.Debug("trying to retrieve blob using Blob.GetAll", "daHeight", dataLayerHeight, "namespace", hex.EncodeToString(c.namespace.Bytes()))
-	// blobs, err := c.rpc.Blob.GetAll(ctx, dataLayerHeight, []share.Namespace{c.namespace.Bytes()})
-	// status := dataRequestErrorToStatus(err)
-	// if status != da.StatusSuccess {
-	// 	return da.ResultRetrieveBlocks{
-	// 		BaseResult: da.BaseResult{
-	// 			Code:    status,
-	// 			Message: err.Error(),
-	// 		},
-	// 	}
-	// }
+	transactor, err := contracts.NewRollkitInbox(c.inboxAddr, c.rpc)
+	if err != nil {
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+			Blocks: nil,
+		}
+	}
 
-	// blocks := make([]*types.Block, len(blobs))
-	// for i, blob := range blobs {
-	// 	var block pb.Block
-	// 	err = proto.Unmarshal(blob.Data, &block)
-	// 	if err != nil {
-	// 		c.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
-	// 		continue
-	// 	}
-	// 	blocks[i] = new(types.Block)
-	// 	err := blocks[i].FromProto(&block)
-	// 	if err != nil {
-	// 		return da.ResultRetrieveBlocks{
-	// 			BaseResult: da.BaseResult{
-	// 				Code:    da.StatusError,
-	// 				Message: err.Error(),
-	// 			},
-	// 		}
-	// 	}
-	// }
+	bz, err := transactor.RetrieveBlock(&bind.CallOpts{}, c.namespace, dataLayerHeight)
+	if bz == nil || err != nil {
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:     da.StatusError,
+				DAHeight: dataLayerHeight,
+			},
+			Blocks: nil,
+		}
+	}
+
+	blocks := make([]*types.Block, 1)
+	blocks[0] = new(types.Block)
+
+	if err = (blocks[0]).UnmarshalBinary(bz); err != nil {
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:     da.StatusNotFound,
+				DAHeight: dataLayerHeight,
+			},
+			Blocks: nil,
+		}
+	}
 
 	return da.ResultRetrieveBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			DAHeight: dataLayerHeight,
 		},
-		Blocks: nil,
+		Blocks: blocks,
 	}
 }

@@ -1,15 +1,18 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
 contract RollkitInbox {
-    mapping(bytes32 => bytes) public namespaceToLatestBlock;
+    mapping(bytes32 => mapping(uint256 => bytes))
+        public namespaceToDaHeightBlock;
 
     function SubmitBlock(bytes32 namespace, bytes calldata data) public {
-        namespaceToLatestBlock[namespace] = data;
+        namespaceToDaHeightBlock[namespace][block.number] = data;
     }
 
-    function GetLatestBlock(
-        bytes32 namespace
+    function RetrieveBlock(
+        bytes32 namespace,
+        uint64 daHeight
     ) public view returns (bytes memory) {
-        return namespaceToLatestBlock[namespace];
+        return namespaceToDaHeightBlock[namespace][uint256(daHeight)];
     }
 }
