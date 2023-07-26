@@ -9,11 +9,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/evm/contracts"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/types"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 var localEthJsonRPC = "http://localhost:8545"
@@ -93,7 +95,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlock(ctx context.Context, block *ty
 		}
 	}
 
-	tx, err := transactor.SubmitBlock(BuildTxOpts(c.rpc, alice, c.privateKey), c.namespace, data)
+	tx, err := transactor.SubmitBlock(BuildTxOpts(c.rpc, alice, c.privateKey) /*c.namespace,*/, data)
 	if err != nil {
 		c.logger.Error("Failed to SubmitBlock")
 		return da.ResultSubmitBlock{
@@ -148,6 +150,7 @@ func (c *DataAvailabilityLayerClient) CheckBlockAvailability(ctx context.Context
 
 // RetrieveBlocks gets a batch of blocks from DA layer.
 func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
+	// Build the transactor for the evm.
 	transactor, err := contracts.NewRollkitInbox(c.inboxAddr, c.rpc)
 	if err != nil {
 		return da.ResultRetrieveBlocks{
@@ -159,7 +162,8 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLa
 		}
 	}
 
-	bz, err := transactor.RetrieveBlock(&bind.CallOpts{}, c.namespace, dataLayerHeight)
+	// Retrieve the block bytes from the DA.
+	bz, err := transactor.RetrieveBlock(&bind.CallOpts{} /*c.namespace,*/, dataLayerHeight)
 	if bz == nil || err != nil {
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
@@ -170,10 +174,11 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLa
 		}
 	}
 
-	blocks := make([]*types.Block, 1)
-	blocks[0] = new(types.Block)
-
-	if err = (blocks[0]).UnmarshalBinary(bz); err != nil {
+	// Unmarshal the block.
+	var block pb.Block
+	err = proto.Unmarshal(bz, &block)
+	if err != nil {
+		c.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "error", err)
 		return da.ResultRetrieveBlocks{
 			BaseResult: da.BaseResult{
 				Code:     da.StatusNotFound,
@@ -183,6 +188,31 @@ func (c *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, dataLa
 		}
 	}
 
+	// If we didn't find anything on the DA then we should just return not found.
+	if block == (pb.Block{}) {
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:     da.StatusNotFound,
+				DAHeight: dataLayerHeight,
+			},
+			Blocks: nil,
+		}
+	}
+
+	// If we did find something on the DA then we unmarshal.
+	blocks := make([]*types.Block, 1)
+	blocks[0] = new(types.Block)
+	err = blocks[0].FromProto(&block)
+	if err != nil {
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:    da.StatusError,
+				Message: err.Error(),
+			},
+		}
+	}
+
+	// Return the result.
 	return da.ResultRetrieveBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,

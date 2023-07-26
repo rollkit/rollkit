@@ -2,11 +2,6 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "namespace",
-        "type": "bytes32"
-      },
-      {
         "internalType": "uint64",
         "name": "daHeight",
         "type": "uint64"
@@ -25,11 +20,6 @@
   },
   {
     "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "namespace",
-        "type": "bytes32"
-      },
       {
         "internalType": "bytes",
         "name": "data",

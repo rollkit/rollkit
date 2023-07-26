@@ -12,8 +12,8 @@
   },
   "files": {
     "src/RollkitInbox.sol": {
-      "lastModificationDate": 1690388224133,
-      "contentHash": "8cad3acc534e1431f45eef00d1016c79",
+      "lastModificationDate": 1690390843631,
+      "contentHash": "1359071a23eb1974839b737a6a298dd6",
       "sourceName": "src/RollkitInbox.sol",
       "solcConfig": {
         "settings": {
