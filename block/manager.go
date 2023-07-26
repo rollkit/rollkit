@@ -418,7 +418,6 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 		case <-waitCh:
 			for {
 				blockStoreHeight := m.blockStore.Height()
-				m.logger.Debug("blockStore", "height", blockStoreHeight)
 				if blockStoreHeight > lastBlockStoreHeight {
 					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
 					if err != nil {

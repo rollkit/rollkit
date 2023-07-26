@@ -304,7 +304,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, getBMConfig(), t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -338,7 +338,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, getBMConfig(), t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
