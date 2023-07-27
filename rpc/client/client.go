@@ -400,8 +400,24 @@ func (c *Client) Header(ctx context.Context, height *int64) (*ctypes.ResultHeade
 }
 
 func (c *Client) HeaderByHash(ctx context.Context, hash tmbytes.HexBytes) (*ctypes.ResultHeader, error) {
-	//TODO implement me
-	panic("implement me")
+	var h [32]byte
+	copy(h[:], hash)
+
+	block, err := c.node.Store.LoadBlockByHash(h)
+	if err != nil {
+		return nil, err
+	}
+
+	blockMeta, err := abciconv.ToABCIBlockMeta(block)
+	if err != nil {
+		return nil, err
+	}
+
+	if blockMeta == nil {
+		return &ctypes.ResultHeader{}, nil
+	}
+
+	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
 }
 
 func (c *Client) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
