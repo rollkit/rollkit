@@ -970,7 +970,7 @@ func TestMempool2Nodes(t *testing.T) {
 		require.NoError(node2.Stop())
 	}()
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer timeoutCancel()
 
