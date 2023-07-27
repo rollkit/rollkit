@@ -30,6 +30,17 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 			Reason: err,
 		}
 	}
+	if err := sH.Header.Verify(&untrstH.Header); err != nil {
+		return &header.VerifyError{
+			Reason: err,
+		}
+	}
+
+	// TODO: Accept non-adjacent headers until go-header implements feature to accept non-adjacent
+	if sH.Height()+1 < untrst.Height() {
+		return nil
+	}
+
 	sHHash := sH.Header.Hash()
 	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
 		return &header.VerifyError{
@@ -42,7 +53,7 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 			Reason: fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
 		}
 	}
-	return sH.Header.Verify(&untrstH.Header)
+	return nil
 }
 
 var _ header.Header = &SignedHeader{}

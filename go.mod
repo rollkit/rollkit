@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	cosmossdk.io/math v1.0.1
-	github.com/celestiaorg/go-header v0.2.12
+	github.com/celestiaorg/go-header v0.2.13
 	github.com/celestiaorg/nmt v0.17.0
 	github.com/celestiaorg/rsmt2d v0.9.0
 	github.com/celestiaorg/utils v0.1.0
@@ -188,7 +188,6 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/go-header => github.com/gupadhyaya/go-header v0.0.0-20230724132619-a77221d213a9
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
