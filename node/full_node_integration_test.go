@@ -439,7 +439,9 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
-	require.NoError(t, waitForAtLeastNBlocks(nodes[1], 2, Header))
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(t, waitForAtLeastNBlocks(nodes[i], 2, Header))
+	}
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
