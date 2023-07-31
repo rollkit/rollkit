@@ -829,14 +829,16 @@ func (c *FullClient) eventsRoutine(sub cmtypes.Subscription, subscriber string, 
 		select {
 		case msg := <-sub.Out():
 			result := ctypes.ResultEvent{Query: q.String(), Data: msg.Data(), Events: msg.Events()}
-			if cap(outc) == 0 {
-				outc <- result
-			} else {
-				select {
-				case outc <- result:
-				default:
-					c.Logger.Error("wanted to publish ResultEvent, but out channel is full", "result", result, "query", result.Query)
-				}
+			select {
+			case outc <- result:
+			default:
+				// The default case can happen if the outc chan
+				// is full or if it was initialized incorrectly
+				// with a capacity of 0. Since this function has
+				// no control over re-initializing the outc
+				// chan, we do not block on a capacity of 0.
+				full := cap(outc) != 0
+				c.Logger.Error("wanted to publish ResultEvent, but out channel is full:", full, "result:", result, "query:", result.Query)
 			}
 		case <-sub.Cancelled():
 			if sub.Err() == cmpubsub.ErrUnsubscribed {
