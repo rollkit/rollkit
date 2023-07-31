@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/rollkit/rollkit/libs/appconsts"
+	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
 )
 
 // NewReservedBytes returns a byte slice of length

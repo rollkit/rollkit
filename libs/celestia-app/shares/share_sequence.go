@@ -3,8 +3,8 @@ package shares
 import (
 	"fmt"
 
-	"github.com/rollkit/rollkit/libs/appconsts"
-	appns "github.com/rollkit/rollkit/libs/namespace"
+	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
+	appns "github.com/rollkit/rollkit/libs/celestia-app/namespace"
 )
 
 // ShareSequence represents a contiguous sequence of shares that are part of the

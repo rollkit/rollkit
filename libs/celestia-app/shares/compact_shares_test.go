@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/libs/appconsts"
-	appns "github.com/rollkit/rollkit/libs/namespace"
-	"github.com/rollkit/rollkit/libs/testfactory"
+	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
+	appns "github.com/rollkit/rollkit/libs/celestia-app/namespace"
+	"github.com/rollkit/rollkit/libs/celestia-app/testfactory"
 )
 
 func SplitTxs(txs coretypes.Txs) (txShares []Share, err error) {
