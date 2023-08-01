@@ -26,6 +26,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/conv"
@@ -909,95 +910,95 @@ func TestValidatorSetHandlingBased(t *testing.T) {
 	checkValSetLatest(rpc, assert, 9, numNodes-1)
 }
 
-// func TestMempool2Nodes(t *testing.T) {
-// 	assert := assert.New(t)
-// 	require := require.New(t)
+func TestMempool2Nodes(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
 
-// 	app := &mocks.Application{}
-// 	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-// 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
-// 	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
-// 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-// 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-// 	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-// 	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
+	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
+	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
-// 	id1, err := peer.IDFromPrivateKey(key1)
-// 	require.NoError(err)
+	id1, err := peer.IDFromPrivateKey(key1)
+	require.NoError(err)
 
-// 	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-// 	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-// 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-// 	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
 
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-// 	// make node1 an aggregator, so that node2 can start gracefully
-// 	node1, err := newFullNode(ctx, config.NodeConfig{
-// 		Aggregator: true,
-// 		DALayer:    "mock",
-// 		P2P: config.P2PConfig{
-// 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
-// 		},
-// 		BlockManagerConfig: config.BlockManagerConfig{
-// 			BlockTime: 1 * time.Second,
-// 		},
-// 	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-// 	require.NoError(err)
-// 	require.NotNil(node1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// make node1 an aggregator, so that node2 can start gracefully
+	node1, err := newFullNode(ctx, config.NodeConfig{
+		Aggregator: true,
+		DALayer:    "mock",
+		P2P: config.P2PConfig{
+			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
+		},
+		BlockManagerConfig: config.BlockManagerConfig{
+			BlockTime: 1 * time.Second,
+		},
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node1)
 
-// 	node2, err := newFullNode(ctx, config.NodeConfig{
-// 		DALayer: "mock",
-// 		P2P: config.P2PConfig{
-// 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
-// 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
-// 		},
-// 	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-// 	require.NoError(err)
-// 	require.NotNil(node1)
+	node2, err := newFullNode(ctx, config.NodeConfig{
+		DALayer: "mock",
+		P2P: config.P2PConfig{
+			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
+			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
+		},
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node1)
 
-// 	err = node1.Start()
-// 	require.NoError(err)
-// 	time.Sleep(1 * time.Second)
+	err = node1.Start()
+	require.NoError(err)
+	time.Sleep(1 * time.Second)
 
-// 	defer func() {
-// 		require.NoError(node1.Stop())
-// 	}()
-// 	err = node2.Start()
-// 	require.NoError(err)
-// 	defer func() {
-// 		require.NoError(node2.Stop())
-// 	}()
+	defer func() {
+		require.NoError(node1.Stop())
+	}()
+	err = node2.Start()
+	require.NoError(err)
+	defer func() {
+		require.NoError(node2.Stop())
+	}()
 
-// 	time.Sleep(3 * time.Second)
-// 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
-// 	defer timeoutCancel()
+	time.Sleep(3 * time.Second)
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer timeoutCancel()
 
-// 	local := NewFullClient(node1)
-// 	require.NotNil(local)
+	local := NewFullClient(node1)
+	require.NotNil(local)
 
-// 	// broadcast the bad Tx, this should not be propogated or added to the local mempool
-// 	resp, err := local.BroadcastTxSync(timeoutCtx, []byte("bad"))
-// 	assert.NoError(err)
-// 	assert.NotNil(resp)
-// 	// broadcast the good Tx, this should be propogated and added to the local mempool
-// 	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
-// 	assert.NoError(err)
-// 	assert.NotNil(resp)
-// 	// broadcast the good Tx again in the same block, this should not be propogated and
-// 	// added to the local mempool
-// 	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
-// 	assert.Error(err)
-// 	assert.Nil(resp)
+	// broadcast the bad Tx, this should not be propogated or added to the local mempool
+	resp, err := local.BroadcastTxSync(timeoutCtx, []byte("bad"))
+	assert.NoError(err)
+	assert.NotNil(resp)
+	// broadcast the good Tx, this should be propogated and added to the local mempool
+	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
+	assert.NoError(err)
+	assert.NotNil(resp)
+	// broadcast the good Tx again in the same block, this should not be propogated and
+	// added to the local mempool
+	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
+	assert.Error(err)
+	assert.Nil(resp)
 
-// 	txAvailable := node2.Mempool.TxsAvailable()
-// 	select {
-// 	case <-txAvailable:
-// 	case <-ctx.Done():
-// 	}
+	txAvailable := node2.Mempool.TxsAvailable()
+	select {
+	case <-txAvailable:
+	case <-ctx.Done():
+	}
 
-// 	assert.Equal(node2.Mempool.SizeBytes(), int64(len("good")))
-// }
+	assert.Equal(node2.Mempool.SizeBytes(), int64(len("good")))
+}
 
 func TestStatus(t *testing.T) {
 	assert := assert.New(t)

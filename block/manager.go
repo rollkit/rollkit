@@ -303,7 +303,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"hash", blockHash,
 			)
 			if m.isBlockSeen(blockHash) {
-				m.logger.Debug("block already seen", "height", block.SignedHeader.Header.Height(), "block hash", blockHash)
+				m.logger.Debug("block already seen", "height", block.Height(), "block hash", blockHash)
 				continue
 			}
 			m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = block
@@ -417,6 +417,11 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 		select {
 		case <-waitCh:
 			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				blockStoreHeight := m.blockStore.Height()
 				if blockStoreHeight > lastBlockStoreHeight {
 					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
