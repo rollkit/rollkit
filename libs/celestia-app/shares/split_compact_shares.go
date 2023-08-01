@@ -6,8 +6,8 @@ import (
 
 	coretypes "github.com/cometbft/cometbft/types"
 
-	"github.com/rollkit/rollkit/libs/appconsts"
-	appns "github.com/rollkit/rollkit/libs/namespace"
+	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
+	appns "github.com/rollkit/rollkit/libs/celestia-app/namespace"
 )
 
 type ShareRange struct {

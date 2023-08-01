@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/libs/appconsts"
-	appns "github.com/rollkit/rollkit/libs/namespace"
+	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
+	appns "github.com/rollkit/rollkit/libs/celestia-app/namespace"
 )
 
 func TestShareBuilderIsEmptyShare(t *testing.T) {
