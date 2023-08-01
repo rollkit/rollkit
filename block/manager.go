@@ -483,7 +483,6 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 				default:
 				}
 				daHeight := atomic.LoadUint64(&m.daHeight)
-				m.logger.Debug("retrieve", "daHeight", daHeight)
 				err := m.processNextDABlock(ctx)
 				if err != nil {
 					m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
