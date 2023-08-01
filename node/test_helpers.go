@@ -39,7 +39,7 @@ func (m MockTester) Logf(format string, args ...interface{}) {}
 
 func (m MockTester) Errorf(format string, args ...interface{}) {}
 
-func waitForFirstBlock(node *FullNode, source Source) error {
+func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
 }
 

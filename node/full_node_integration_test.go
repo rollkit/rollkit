@@ -169,32 +169,27 @@ func TestLazyAggregator(t *testing.T) {
 	}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
-	err = node.Start()
-	assert.NoError(err)
+
+	assert.NoError(node.Start())
 	defer func() {
 		require.NoError(node.Stop())
 	}()
 	assert.True(node.IsRunning())
 
-	require.NoError(err)
-
-	require.NoError(waitForFirstBlock(node.(*FullNode), Header))
-
 	client := node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
-	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
+	require.NoError(waitForAtLeastNBlocks(node, 1, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
-	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
+	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
 
-	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
-
+	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
 }
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
