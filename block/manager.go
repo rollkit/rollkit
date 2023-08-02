@@ -250,12 +250,14 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				if err != nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
-				blockTimer.Reset(m.getRemainingSleep(start))
+				blockTimer.Reset(m.getRemainingSleep(start, m.conf.BlockTime))
 			case <-DATimer.C:
+				start := time.Now()
 				err := m.submitBlocksToDA(ctx)
 				if err != nil {
 					m.logger.Error("error while submitting block to DA", "error", err)
 				}
+				DATimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
 			}
 		}
 	} else {
@@ -284,10 +286,12 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				m.buildingBlock = false
 
 			case <-DATimer.C:
+				start := time.Now()
 				err := m.submitBlocksToDA(ctx)
 				if err != nil {
 					m.logger.Error("error while submitting block to DA", "error", err)
 				}
+				DATimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
 			}
 		}
 	}
@@ -539,9 +543,9 @@ func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRet
 	return blockRes, err
 }
 
-func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
+func (m *Manager) getRemainingSleep(start time.Time, blockOrDATime time.Duration) time.Duration {
 	publishingDuration := time.Since(start)
-	sleepDuration := m.conf.BlockTime - publishingDuration
+	sleepDuration := blockOrDATime - publishingDuration
 	if sleepDuration < 0 {
 		sleepDuration = 0
 	}
