@@ -3,10 +3,10 @@ package node
 import (
 	"context"
 
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	"github.com/tendermint/tendermint/types"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/cometbft/cometbft/types"
 )
 
 var _ rpcclient.Client = &LightClient{}
@@ -28,12 +28,12 @@ func (c *LightClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, err
 }
 
 // ABCIQuery queries for data from application.
-func (c *LightClient) ABCIQuery(ctx context.Context, path string, data tmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
+func (c *LightClient) ABCIQuery(ctx context.Context, path string, data cmbytes.HexBytes) (*ctypes.ResultABCIQuery, error) {
 	panic("Not implemented")
 }
 
 // ABCIQueryWithOptions queries for data from application.
-func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data tmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (c *LightClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	panic("Not implemented")
 }
 
@@ -176,5 +176,13 @@ func (c *LightClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctype
 //
 // If valid, the tx is automatically added to the mempool.
 func (c *LightClient) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultCheckTx, error) {
+	panic("Not implemented")
+}
+
+func (c *LightClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
+	panic("Not implemented")
+}
+
+func (c *LightClient) HeaderByHash(ctx context.Context, hash cmbytes.HexBytes) (*ctypes.ResultHeader, error) {
 	panic("Not implemented")
 }

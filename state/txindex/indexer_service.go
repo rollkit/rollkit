@@ -3,8 +3,8 @@ package txindex
 import (
 	"context"
 
-	"github.com/tendermint/tendermint/libs/service"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/libs/service"
+	"github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/state/indexer"
 )

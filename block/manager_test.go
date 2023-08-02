@@ -6,21 +6,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/log"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/log"
-	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/log/test"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
 
 func TestInitialState(t *testing.T) {
-	genesis := &tmtypes.GenesisDoc{
+	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
 	}
@@ -46,13 +47,13 @@ func TestInitialState(t *testing.T) {
 	cases := []struct {
 		name                    string
 		store                   store.Store
-		genesis                 *tmtypes.GenesisDoc
+		genesis                 *cmtypes.GenesisDoc
 		expectedInitialHeight   int64
 		expectedLastBlockHeight int64
 		expectedChainID         string
 	}{
 		{
-			name:                    "empty store",
+			name:                    "empty_store",
 			store:                   emptyStore,
 			genesis:                 genesis,
 			expectedInitialHeight:   genesis.InitialHeight,
@@ -60,7 +61,7 @@ func TestInitialState(t *testing.T) {
 			expectedChainID:         genesis.ChainID,
 		},
 		{
-			name:                    "state in store",
+			name:                    "state_in_store",
 			store:                   fullStore,
 			genesis:                 genesis,
 			expectedInitialHeight:   sampleState.InitialHeight,
@@ -78,7 +79,7 @@ func TestInitialState(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			logger := log.TestingLogger()
+			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
 			dalc := getMockDALC(logger)
 			defer func() {
 				require.NoError(t, dalc.Stop())

@@ -4,22 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/go-fraud/fraudserv"
-	"github.com/celestiaorg/go-header"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/libs/service"
+	proxy "github.com/cometbft/cometbft/proxy"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/libs/service"
-	proxy "github.com/tendermint/tendermint/proxy"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-	tmtypes "github.com/tendermint/tendermint/types"
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 var _ Node = &LightNode{}
@@ -31,9 +27,7 @@ type LightNode struct {
 
 	proxyApp proxy.AppConns
 
-	hExService          *HeaderExchangeService
-	fraudService        *fraudserv.ProofService
-	proofServiceFactory ProofServiceFactory
+	hExService *HeaderExchangeService
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -48,11 +42,11 @@ func newLightNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
-	genesis *tmtypes.GenesisDoc,
+	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*LightNode, error) {
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
-	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
@@ -72,25 +66,14 @@ func newLightNode(
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
-	fraudProofFactory := NewProofServiceFactory(
-		client,
-		func(ctx context.Context, u uint64) (header.Header, error) {
-			return headerExchangeService.headerStore.GetByHeight(ctx, u)
-		},
-		datastore,
-		true,
-		genesis.ChainID,
-	)
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &LightNode{
-		P2P:                 client,
-		proxyApp:            proxyApp,
-		hExService:          headerExchangeService,
-		proofServiceFactory: fraudProofFactory,
-		cancel:              cancel,
-		ctx:                 ctx,
+		P2P:        client,
+		proxyApp:   proxyApp,
+		hExService: headerExchangeService,
+		cancel:     cancel,
+		ctx:        ctx,
 	}
 
 	node.P2P.SetTxValidator(node.falseValidator())
@@ -117,16 +100,6 @@ func (ln *LightNode) OnStart() error {
 		return fmt.Errorf("error while starting header exchange service: %w", err)
 	}
 
-	ln.fraudService = ln.proofServiceFactory.CreateProofService()
-	if err := ln.fraudService.AddVerifier(types.StateFraudProofType, VerifierFn(ln.proxyApp)); err != nil {
-		return fmt.Errorf("error while registering verifier for fraud service: %w", err)
-	}
-	if err := ln.fraudService.Start(ln.ctx); err != nil {
-		return fmt.Errorf("error while starting fraud exchange service: %w", err)
-	}
-
-	go ln.ProcessFraudProof()
-
 	return nil
 }
 
@@ -142,49 +115,5 @@ func (ln *LightNode) OnStop() {
 func (ln *LightNode) falseValidator() p2p.GossipValidator {
 	return func(*p2p.GossipMessage) bool {
 		return false
-	}
-}
-
-func (ln *LightNode) ProcessFraudProof() {
-	// subscribe to state fraud proof
-	sub, err := ln.fraudService.Subscribe(types.StateFraudProofType)
-	if err != nil {
-		ln.Logger.Error("failed to subscribe to fraud proof gossip", "error", err)
-		return
-	}
-
-	// continuously process the fraud proofs received via subscription
-	for {
-		proof, err := sub.Proof(ln.ctx)
-		if err != nil {
-			ln.Logger.Error("failed to receive gossiped fraud proof", "error", err)
-			return
-		}
-
-		// only handle the state fraud proofs for now
-		fraudProof, ok := proof.(*types.StateFraudProof)
-		if !ok {
-			ln.Logger.Error("unexpected type received for state fraud proof", "error", err)
-			return
-		}
-		ln.Logger.Debug("fraud proof received",
-			"block height", fraudProof.BlockHeight,
-			"pre-state app hash", fraudProof.PreStateAppHash,
-			"expected valid app hash", fraudProof.ExpectedValidAppHash,
-			"length of state witness", len(fraudProof.StateWitness),
-		)
-
-		resp, err := ln.proxyApp.Consensus().VerifyFraudProofSync(abci.RequestVerifyFraudProof{
-			FraudProof:           &fraudProof.FraudProof,
-			ExpectedValidAppHash: fraudProof.ExpectedValidAppHash,
-		})
-		if err != nil {
-			ln.Logger.Error("failed to verify fraud proof", "error", err)
-			continue
-		}
-
-		if resp.Success {
-			panic("received valid fraud proof! halting light client")
-		}
 	}
 }

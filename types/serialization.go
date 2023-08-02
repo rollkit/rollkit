@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )

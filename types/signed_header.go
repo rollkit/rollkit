@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
-	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 )
 
 func (sH *SignedHeader) New() header.Header {

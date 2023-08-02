@@ -33,5 +33,8 @@ linters-settings:
     rules:
       - name: package-comments
         disabled: true
+      - name: duplicated-imports
+        severity: warning
+
   goimports:
     local-prefixes: github.com/rollkit

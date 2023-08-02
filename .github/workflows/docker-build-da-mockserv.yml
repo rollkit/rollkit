@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.1.1 # yamllint disable-line rule:line-length
+    uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.2 # yamllint disable-line rule:line-length
     with:
       dockerfile: docker/mockserv.Dockerfile
       packageName: mockserv

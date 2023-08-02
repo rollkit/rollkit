@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/log"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/log"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func TestWebSockets(t *testing.T) {
@@ -63,7 +63,7 @@ func TestWebSockets(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(websocket.TextMessage, typ)
 	assert.NotEmpty(msg)
-	var payload tmtypes.EventDataNewBlock
+	var payload cmtypes.EventDataNewBlock
 	err = json.Unmarshal(msg, &payload)
 	assert.NoError(err)
 	assert.NotNil(payload.ResultBeginBlock)

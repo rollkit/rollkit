@@ -1,7 +1,7 @@
 package conv
 
 import (
-	tmcfg "github.com/tendermint/tendermint/config"
+	cmcfg "github.com/cometbft/cometbft/config"
 
 	"github.com/rollkit/rollkit/config"
 )
@@ -10,22 +10,22 @@ import (
 //
 // This method only translates configuration, and doesn't verify it. If some option is missing in Tendermint's
 // config, it's skipped during translation.
-func GetNodeConfig(nodeConf *config.NodeConfig, tmConf *tmcfg.Config) {
-	if tmConf != nil {
-		nodeConf.RootDir = tmConf.RootDir
-		nodeConf.DBPath = tmConf.DBPath
-		if tmConf.P2P != nil {
-			nodeConf.P2P.ListenAddress = tmConf.P2P.ListenAddress
-			nodeConf.P2P.Seeds = tmConf.P2P.Seeds
+func GetNodeConfig(nodeConf *config.NodeConfig, cmConf *cmcfg.Config) {
+	if cmConf != nil {
+		nodeConf.RootDir = cmConf.RootDir
+		nodeConf.DBPath = cmConf.DBPath
+		if cmConf.P2P != nil {
+			nodeConf.P2P.ListenAddress = cmConf.P2P.ListenAddress
+			nodeConf.P2P.Seeds = cmConf.P2P.Seeds
 		}
-		if tmConf.RPC != nil {
-			nodeConf.RPC.ListenAddress = tmConf.RPC.ListenAddress
-			nodeConf.RPC.CORSAllowedOrigins = tmConf.RPC.CORSAllowedOrigins
-			nodeConf.RPC.CORSAllowedMethods = tmConf.RPC.CORSAllowedMethods
-			nodeConf.RPC.CORSAllowedHeaders = tmConf.RPC.CORSAllowedHeaders
-			nodeConf.RPC.MaxOpenConnections = tmConf.RPC.MaxOpenConnections
-			nodeConf.RPC.TLSCertFile = tmConf.RPC.TLSCertFile
-			nodeConf.RPC.TLSKeyFile = tmConf.RPC.TLSKeyFile
+		if cmConf.RPC != nil {
+			nodeConf.RPC.ListenAddress = cmConf.RPC.ListenAddress
+			nodeConf.RPC.CORSAllowedOrigins = cmConf.RPC.CORSAllowedOrigins
+			nodeConf.RPC.CORSAllowedMethods = cmConf.RPC.CORSAllowedMethods
+			nodeConf.RPC.CORSAllowedHeaders = cmConf.RPC.CORSAllowedHeaders
+			nodeConf.RPC.MaxOpenConnections = cmConf.RPC.MaxOpenConnections
+			nodeConf.RPC.TLSCertFile = cmConf.RPC.TLSCertFile
+			nodeConf.RPC.TLSKeyFile = cmConf.RPC.TLSKeyFile
 		}
 	}
 }

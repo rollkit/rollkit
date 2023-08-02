@@ -8,9 +8,9 @@ import (
 	"time"
 
 	testutils "github.com/celestiaorg/utils/test"
+	"github.com/cometbft/cometbft/libs/log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/log"
 
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
@@ -40,8 +40,8 @@ func TestGetNodeHeight(t *testing.T) {
 	for i := 0; i < num; i++ {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
-	fullNode, _ := createNode(ctx, 0, false, true, false, keys, t)
-	lightNode, _ := createNode(ctx, 1, false, true, true, keys, t)
+	fullNode, _ := createNode(ctx, 0, true, false, keys, t)
+	lightNode, _ := createNode(ctx, 1, true, true, keys, t)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 	require.NoError(fullNode.Start())

@@ -37,7 +37,7 @@ jobs:
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.1.1 # yamllint disable-line rule:line-length
+    uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.2 # yamllint disable-line rule:line-length
     with:
       dockerfile: docker/mockserv.Dockerfile
 
@@ -45,13 +45,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: rollkit/.github/.github/actions/yamllint@v0.1.1
+      - uses: rollkit/.github/.github/actions/yamllint@v0.2.2
 
   markdown-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: rollkit/.github/.github/actions/markdown-lint@v0.1.1
+      - uses: rollkit/.github/.github/actions/markdown-lint@v0.2.2
 
   protobuf-lint:
     runs-on: ubuntu-latest
