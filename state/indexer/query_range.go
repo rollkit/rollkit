@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/cometbft/cometbft/libs/pubsub/query"
@@ -43,7 +44,9 @@ func (qr QueryRange) LowerBoundValue() interface{} {
 	switch t := qr.LowerBound.(type) {
 	case int64:
 		return t + 1
-
+	case *big.Int:
+		tmp := new(big.Int)
+		return tmp.Add(t, big.NewInt(1))
 	case time.Time:
 		return t.Unix() + 1
 
@@ -66,7 +69,9 @@ func (qr QueryRange) UpperBoundValue() interface{} {
 	switch t := qr.UpperBound.(type) {
 	case int64:
 		return t - 1
-
+	case *big.Int:
+		tmp := new(big.Int)
+		return tmp.Sub(t, big.NewInt(1))
 	case time.Time:
 		return t.Unix() - 1
 

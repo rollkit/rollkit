@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -300,7 +301,7 @@ func lookForHash(conditions []query.Condition) (hash []byte, ok bool, err error)
 func lookForHeight(conditions []query.Condition) (height int64) {
 	for _, c := range conditions {
 		if c.CompositeKey == types.TxHeightKey && c.Op == query.OpEqual {
-			return c.Operand.(int64)
+			return c.Operand.(*big.Int).Int64()
 		}
 	}
 	return 0
@@ -480,18 +481,18 @@ LOOP:
 			continue
 		}
 
-		if _, ok := qr.AnyBound().(int64); ok {
+		if _, ok := qr.AnyBound().(*big.Int); ok {
 			v, err := strconv.ParseInt(extractValueFromKey([]byte(result.Entry.Key)), 10, 64)
 			if err != nil {
 				continue LOOP
 			}
 
 			include := true
-			if lowerBound != nil && v < lowerBound.(int64) {
+			if lowerBound != nil && v < lowerBound.(*big.Int).Int64() {
 				include = false
 			}
 
-			if upperBound != nil && v > upperBound.(int64) {
+			if upperBound != nil && v > upperBound.(*big.Int).Int64() {
 				include = false
 			}
 
