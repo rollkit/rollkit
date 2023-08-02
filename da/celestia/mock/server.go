@@ -208,20 +208,24 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, errors.New("expected 3 params: fee (uint64), gaslimit (uint64), data (base64 string)"))
 			return
 		}
-		block := types.Block{}
-		blockBase64 := params[2].([]interface{})[0].(map[string]interface{})["data"].(string)
-		blockData, err := base64.StdEncoding.DecodeString(blockBase64)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		err = block.UnmarshalBinary(blockData)
-		if err != nil {
-			s.writeError(w, err)
-			return
+
+		blocks := make([]*types.Block, len(params[2].([]interface{})))
+		for i, data := range params[2].([]interface{}) {
+			blockBase64 := data.(map[string]interface{})["data"].(string)
+			blockData, err := base64.StdEncoding.DecodeString(blockBase64)
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
+			blocks[i] = new(types.Block)
+			err = blocks[i].UnmarshalBinary(blockData)
+			if err != nil {
+				s.writeError(w, err)
+				return
+			}
 		}
 
-		res := s.mock.SubmitBlocks(r.Context(), []*types.Block{&block})
+		res := s.mock.SubmitBlocks(r.Context(), blocks)
 		resp := &response{
 			Jsonrpc: "2.0",
 			Result: &sdk.TxResponse{
