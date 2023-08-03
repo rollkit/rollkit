@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -258,13 +259,13 @@ func (idx *BlockerIndexer) matchRange(
 			continue
 		}
 
-		if _, ok := qr.AnyBound().(int64); ok {
+		if _, ok := qr.AnyBound().(*big.Int); ok {
 			include := true
-			if lowerBound != nil && v < lowerBound.(int64) {
+			if lowerBound != nil && v < lowerBound.(*big.Int).Int64() {
 				include = false
 			}
 
-			if upperBound != nil && v > upperBound.(int64) {
+			if upperBound != nil && v > upperBound.(*big.Int).Int64() {
 				include = false
 			}
 
