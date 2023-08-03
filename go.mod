@@ -9,7 +9,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.9.0
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.37.2
-	github.com/creachadair/taskgroup v0.3.2
+	github.com/creachadair/taskgroup v0.6.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
 	github.com/gogo/protobuf v1.3.3
