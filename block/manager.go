@@ -404,6 +404,9 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 	lastBlockStoreHeight := uint64(0)
 	go func() {
 		for {
+			// This infinite loop is expected to be stopped once the context is
+			// cancelled or throws an error and cleaned up by the GC. This is OK
+			// because it waits using a conditional which is only signaled periodically.
 			m.blockStoreMtx.Lock()
 			m.blockStoreCond.Wait()
 			waitCh <- nil
@@ -416,26 +419,19 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 	for {
 		select {
 		case <-waitCh:
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
+			blockStoreHeight := m.blockStore.Height()
+			if blockStoreHeight > lastBlockStoreHeight {
+				blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
+				if err != nil {
+					m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
+					break
 				}
-				blockStoreHeight := m.blockStore.Height()
-				if blockStoreHeight > lastBlockStoreHeight {
-					blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
-					if err != nil {
-						m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
-						break
-					}
-					daHeight := atomic.LoadUint64(&m.daHeight)
-					for _, block := range blocks {
-						m.blockInCh <- newBlockEvent{block, daHeight}
-					}
+				daHeight := atomic.LoadUint64(&m.daHeight)
+				for _, block := range blocks {
+					m.blockInCh <- newBlockEvent{block, daHeight}
 				}
-				lastBlockStoreHeight = blockStoreHeight
 			}
+			lastBlockStoreHeight = blockStoreHeight
 		case <-ctx.Done():
 			return
 		}
@@ -468,6 +464,9 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	waitCh := make(chan interface{})
 	go func() {
 		for {
+			// This infinite loop is expected to be stopped once the context is
+			// cancelled or throws an error and cleaned up by the GC. This is OK
+			// because it waits using a conditional which is only signaled periodically.
 			m.retrieveMtx.Lock()
 			m.retrieveCond.Wait()
 			waitCh <- nil
@@ -481,20 +480,13 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	for {
 		select {
 		case <-waitCh:
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-				daHeight := atomic.LoadUint64(&m.daHeight)
-				err := m.processNextDABlock(ctx)
-				if err != nil {
-					m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
-					break
-				}
-				atomic.AddUint64(&m.daHeight, 1)
+			daHeight := atomic.LoadUint64(&m.daHeight)
+			err := m.processNextDABlock(ctx)
+			if err != nil {
+				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+				break
 			}
+			atomic.AddUint64(&m.daHeight, 1)
 		case <-ctx.Done():
 			return
 		}
