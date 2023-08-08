@@ -238,7 +238,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 
 	blockTimer := time.NewTimer(0)
-	DATimer := time.NewTicker(m.conf.DABlockTime)
+	DABlockTimer := time.NewTicker(m.conf.DABlockTime)
 
 	if !lazy {
 		for {
@@ -252,13 +252,13 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 					m.logger.Error("error while publishing block", "error", err)
 				}
 				blockTimer.Reset(m.getRemainingSleep(start, m.conf.BlockTime))
-			case <-DATimer.C:
+			case <-DABlockTimer.C:
 				start := time.Now()
 				err := m.submitBlocksToDA(ctx)
 				if err != nil {
 					m.logger.Error("error while submitting block to DA", "error", err)
 				}
-				DATimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
+				DABlockTimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
 			}
 		}
 	} else {
@@ -286,13 +286,13 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				m.doneBuildingBlock = make(chan struct{})
 				m.buildingBlock = false
 
-			case <-DATimer.C:
+			case <-DABlockTimer.C:
 				start := time.Now()
 				err := m.submitBlocksToDA(ctx)
 				if err != nil {
 					m.logger.Error("error while submitting block to DA", "error", err)
 				}
-				DATimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
+				DABlockTimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
 			}
 		}
 	}
