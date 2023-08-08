@@ -71,10 +71,7 @@ type Manager struct {
 	blockInCh  chan newBlockEvent
 	blockStore *goheaderstore.Store[*types.Block]
 
-	syncCache              map[uint64]*types.Block
-	isBlockWithHashSeenMtx *sync.RWMutex
-	isBlockWithHashSeen    map[string]bool
-	isBlockHardConfirmed   map[string]bool
+	blockCache *BlockCache
 
 	// blockStoreMtx is used by blockStoreCond
 	blockStoreMtx *sync.Mutex
@@ -170,20 +167,22 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:               make(chan *types.SignedHeader, 100),
-		BlockCh:                make(chan *types.Block, 100),
-		blockInCh:              make(chan newBlockEvent, 100),
-		blockStoreMtx:          new(sync.Mutex),
-		retrieveMtx:            new(sync.Mutex),
-		lastStateMtx:           new(sync.RWMutex),
-		syncCache:              make(map[uint64]*types.Block),
-		isBlockWithHashSeenMtx: new(sync.RWMutex),
-		isBlockWithHashSeen:    make(map[string]bool),
-		isBlockHardConfirmed:   make(map[string]bool),
-		logger:                 logger,
-		txsAvailable:           txsAvailableCh,
-		doneBuildingBlock:      doneBuildingCh,
-		buildingBlock:          false,
+		HeaderCh:      make(chan *types.SignedHeader, 100),
+		BlockCh:       make(chan *types.Block, 100),
+		blockInCh:     make(chan newBlockEvent, 100),
+		blockStoreMtx: new(sync.Mutex),
+		retrieveMtx:   new(sync.Mutex),
+		lastStateMtx:  new(sync.RWMutex),
+		blockCache: &BlockCache{
+			blocks:            make(map[uint64]*types.Block),
+			hashes:            make(map[string]bool),
+			hardConfirmations: make(map[string]bool),
+			mtx:               new(sync.RWMutex),
+		},
+		logger:            logger,
+		txsAvailable:      txsAvailableCh,
+		doneBuildingBlock: doneBuildingCh,
+		buildingBlock:     false,
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 	agg.blockStoreCond = sync.NewCond(agg.blockStoreMtx)
@@ -302,11 +301,11 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", blockHash,
 			)
-			if m.isBlockSeen(blockHash) {
+			if m.blockCache.isSeen(blockHash) {
 				m.logger.Debug("block already seen", "height", block.Height(), "block hash", blockHash)
 				continue
 			}
-			m.syncCache[block.SignedHeader.Header.BaseHeader.Height] = block
+			m.blockCache.setBlock(block.SignedHeader.Header.BaseHeader.Height, block)
 
 			m.blockStoreCond.Signal()
 			m.retrieveCond.Signal()
@@ -315,24 +314,12 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
 			} else {
-				m.setBlockSeen(blockHash)
+				m.blockCache.setSeen(blockHash)
 			}
 		case <-ctx.Done():
 			return
 		}
 	}
-}
-
-func (m *Manager) isBlockSeen(blockHash string) bool {
-	m.isBlockWithHashSeenMtx.RLock()
-	defer m.isBlockWithHashSeenMtx.RUnlock()
-	return m.isBlockWithHashSeen[blockHash]
-}
-
-func (m *Manager) setBlockSeen(blockHash string) {
-	m.isBlockWithHashSeenMtx.Lock()
-	defer m.isBlockWithHashSeenMtx.Unlock()
-	m.isBlockWithHashSeen[blockHash] = true
 }
 
 // trySyncNextBlock tries to progress one step (one block) in sync process.
@@ -344,7 +331,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	var commit *types.Commit
 	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
 
-	b, ok := m.syncCache[currentHeight+1]
+	b, ok := m.blockCache.getBlock(currentHeight + 1)
 	if !ok {
 		return nil
 	}
@@ -389,7 +376,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
-		delete(m.syncCache, currentHeight+1)
+		m.blockCache.deleteBlock(currentHeight + 1)
 	}
 
 	return nil
@@ -510,7 +497,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				blockHash := block.Hash().String()
-				m.isBlockHardConfirmed[blockHash] = true
+				m.blockCache.setHardConfirmed(blockHash)
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
 			return nil
@@ -644,7 +631,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 	blockHash := block.Hash().String()
-	m.setBlockSeen(blockHash)
+	m.blockCache.setSeen(blockHash)
 
 	if commit == nil {
 		commit, err = m.getCommit(block.SignedHeader.Header)
