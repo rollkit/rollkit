@@ -85,7 +85,7 @@ func TestInitialState(t *testing.T) {
 				require.NoError(t, dalc.Stop())
 			}()
 			dumbChan := make(chan struct{})
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan, nil)
 			assert.NoError(err)
 			assert.NotNil(agg)
 			agg.lastStateMtx.RLock()

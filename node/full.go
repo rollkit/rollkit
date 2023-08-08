@@ -151,12 +151,6 @@ func newFullNode(
 	mpIDs := newMempoolIDs()
 	mp.EnableTxsAvailable()
 
-	doneBuildingChannel := make(chan struct{})
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel)
-	if err != nil {
-		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
-	}
-
 	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
@@ -167,7 +161,11 @@ func newFullNode(
 		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
 	}
 
-	blockManager.SetBlockStore(blockExchangeService.blockStore)
+	doneBuildingChannel := make(chan struct{})
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.blockStore)
+	if err != nil {
+		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 

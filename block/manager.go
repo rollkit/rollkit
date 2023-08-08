@@ -114,6 +114,7 @@ func NewManager(
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	doneBuildingCh chan struct{},
+	blockStore *goheaderstore.Store[*types.Block],
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -198,11 +199,6 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 		return nil, err
 	}
 	return cmcrypto.AddressHash(rawKey), nil
-}
-
-// SetBlockStore is used to set Block Store used by Manager.
-func (m *Manager) SetBlockStore(blockStore *goheaderstore.Store[*types.Block]) {
-	m.blockStore = blockStore
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
