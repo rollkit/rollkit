@@ -73,6 +73,10 @@ func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, d
 func (m *DataAvailabilityLayerClient) Start() error {
 	m.logger.Debug("Mock Data Availability Layer Client starting")
 	go func() {
+		// This infinite loop is expected to be stopped and cleaned up
+		// by the GC. This is OK because it is only a test helper and
+		// the block time is sufficiently long that there should not be
+		// a lot of wasted cycles.
 		for {
 			time.Sleep(m.config.BlockTime)
 			m.updateDAHeight()

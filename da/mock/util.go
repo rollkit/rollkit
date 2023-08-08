@@ -174,6 +174,10 @@ func RandNamespace() share.Namespace {
 	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)
 	r.Read(rb) // nolint:gosec
 	for {
+		// This infinite loop is here to ensure that we generate a valid
+		// namespace for testing. We don't care about errors from
+		// invalid namespaces and the chances of this loop firing a
+		// large number of times is very low.
 		namespace, _ := share.NewBlobNamespaceV0(rb)
 		if err := namespace.ValidateForData(); err != nil {
 			continue
