@@ -94,7 +94,7 @@ type Manager struct {
 
 	// Maintains blocks that need to be published to DA layer
 	pendingBlocks    []*types.Block
-	pendingBlocksMtx *sync.Mutex
+	pendingBlocksMtx *sync.RWMutex
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -191,6 +191,7 @@ func NewManager(
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
 		buildingBlock:     false,
+		pendingBlocksMtx:  new(sync.RWMutex),
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 	agg.blockStoreCond = sync.NewCond(agg.blockStoreMtx)
