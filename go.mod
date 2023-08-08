@@ -8,8 +8,8 @@ require (
 	github.com/celestiaorg/nmt v0.17.0
 	github.com/celestiaorg/rsmt2d v0.9.0
 	github.com/celestiaorg/utils v0.1.0
-	github.com/cometbft/cometbft v0.37.1
-	github.com/creachadair/taskgroup v0.3.2
+	github.com/cometbft/cometbft v0.37.2
+	github.com/creachadair/taskgroup v0.6.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.12.0
 	github.com/gogo/protobuf v1.3.3
@@ -31,9 +31,9 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tendermint v0.35.9
 	go.uber.org/multierr v1.11.0
-	golang.org/x/net v0.12.0
+	golang.org/x/net v0.13.0
 	google.golang.org/grpc v1.55.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 )
 
 require (

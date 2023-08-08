@@ -3,6 +3,7 @@ package kv
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -57,7 +58,7 @@ func parseValueFromEventKey(key string) string {
 func lookForHeight(conditions []query.Condition) (int64, bool) {
 	for _, c := range conditions {
 		if c.CompositeKey == types.BlockHeightKey && c.Op == query.OpEqual {
-			return c.Operand.(int64), true
+			return c.Operand.(*big.Int).Int64(), true
 		}
 	}
 
