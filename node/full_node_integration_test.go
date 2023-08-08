@@ -205,8 +205,22 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	bmConfig := getBMConfig()
 	bmConfig.BlockTime = 1 * time.Second
 	bmConfig.DABlockTime = 10 * time.Second
+	const numberOfBlocksTSyncTill = 5
 
-	// startTime := time.Now()
+	errs := make(chan error, 1)
+	timer := time.NewTimer(numberOfBlocksTSyncTill * bmConfig.BlockTime)
+
+	go func() {
+		select {
+		case <-errs:
+			// Channel closed before timer expired.
+			return
+		case <-timer.C:
+			// Timer expired before channel closed.
+			errs <- errors.New("nodes did not sync before DA Block time")
+			return
+		}
+	}()
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
 
 	node1 := nodes[0]
@@ -227,16 +241,15 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 		require.NoError(node3.Stop())
 	}()
 
-	const numberOfBlocksTSyncTill = 5
 	require.NoError(waitForAtLeastNBlocks(node2, numberOfBlocksTSyncTill, Store))
 	require.NoError(waitForAtLeastNBlocks(node3, numberOfBlocksTSyncTill, Store))
 
 	require.NoError(verifyNodesSynced(node1, node2, Store))
 	require.NoError(verifyNodesSynced(node1, node3, Store))
-	// endTime := time.Now()
-	// duration := endTime.Sub(startTime)
-	// expectedDuration := numberOfBlocksTSyncTill * time.Second // numberOfBlocksTSyncTill * BlockTime (1 second)
-	// require.True(duration <= expectedDuration)
+	close(errs)
+	if len(errs) > 0 {
+		t.Fatal(<-errs)
+	}
 }
 
 func TestBlockExchange(t *testing.T) {
