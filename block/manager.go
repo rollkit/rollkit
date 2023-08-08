@@ -38,6 +38,8 @@ const defaultBlockTime = 1 * time.Second
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
 
+const channelLength = 100
+
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
 
@@ -167,9 +169,9 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:      make(chan *types.SignedHeader, 100),
-		BlockCh:       make(chan *types.Block, 100),
-		blockInCh:     make(chan newBlockEvent, 100),
+		HeaderCh:      make(chan *types.SignedHeader, channelLength),
+		BlockCh:       make(chan *types.Block, channelLength),
+		blockInCh:     make(chan newBlockEvent, channelLength),
 		blockStoreMtx: new(sync.Mutex),
 		retrieveMtx:   new(sync.Mutex),
 		lastStateMtx:  new(sync.RWMutex),
