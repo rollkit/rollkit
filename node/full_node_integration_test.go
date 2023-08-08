@@ -201,13 +201,13 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clientNodes := 2
+	clientNodes := 3
 	bmConfig := getBMConfig()
 	bmConfig.BlockTime = 1 * time.Second
 	bmConfig.DABlockTime = 10 * time.Second
 
 	// startTime := time.Now()
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, bmConfig, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -271,8 +271,8 @@ func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -300,8 +300,8 @@ func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
+	clientNodes := 3
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -334,8 +334,8 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
