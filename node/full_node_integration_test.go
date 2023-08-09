@@ -207,17 +207,17 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	bmConfig.DABlockTime = 10 * time.Second
 	const numberOfBlocksTSyncTill = 5
 
-	errs := make(chan error, 1)
+	ch := make(chan struct{})
 	timer := time.NewTimer(numberOfBlocksTSyncTill * bmConfig.BlockTime)
 
 	go func() {
 		select {
-		case <-errs:
+		case <-ch:
 			// Channel closed before timer expired.
 			return
 		case <-timer.C:
 			// Timer expired before channel closed.
-			errs <- errors.New("nodes did not sync before DA Block time")
+			t.Error("nodes did not sync before DA Block time")
 			return
 		}
 	}()
@@ -246,10 +246,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 
 	require.NoError(verifyNodesSynced(node1, node2, Store))
 	require.NoError(verifyNodesSynced(node1, node3, Store))
-	close(errs)
-	if len(errs) > 0 {
-		t.Fatal(<-errs)
-	}
+	close(ch)
 }
 
 func TestBlockExchange(t *testing.T) {
