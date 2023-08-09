@@ -47,6 +47,17 @@ func (d *Data) MarshalBinary() ([]byte, error) {
 	return d.ToProto().Marshal()
 }
 
+// UnmarshalBinary decodes binary form of Data into object.
+func (d *Data) UnmarshalBinary(data []byte) error {
+	var pData pb.Data
+	err := pData.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	err = d.FromProto(&pData)
+	return err
+}
+
 // MarshalBinary encodes Commit into binary form and returns it.
 func (c *Commit) MarshalBinary() ([]byte, error) {
 	return c.ToProto().Marshal()
@@ -192,10 +203,20 @@ func (b *Block) FromProto(other *pb.Block) error {
 	if err != nil {
 		return err
 	}
-	b.Data.Txs = byteSlicesToTxs(other.Data.Txs)
-	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
+	err = b.Data.FromProto(other.Data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// FromProto fills the Data with data from its protobuf representation
+func (d *Data) FromProto(other *pb.Data) error {
+	d.Txs = byteSlicesToTxs(other.Txs)
+	d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896
-	// b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
+	// d.Evidence = evidenceFromProto(other.Evidence)
 
 	return nil
 }
