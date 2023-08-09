@@ -161,16 +161,23 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	retriever := dalc.(da.BlockRetriever)
 	countAtHeight := make(map[uint64]int)
-	blocks := make(map[*types.Block]uint64)
+	blockToDAHeight := make(map[*types.Block]uint64)
+	numBatches := uint64(10)
+	blocksSubmittedPerBatch := 10
 
-	for i := uint64(0); i < 100; i++ {
-		b := getRandomBlock(i, rand.Int()%20) //nolint:gosec
-		resp := dalc.SubmitBlocks(ctx, []*types.Block{b})
+	for i := uint64(0); i < numBatches; i++ {
+		blocks := make([]*types.Block, blocksSubmittedPerBatch)
+		for j := 0; j < len(blocks); j++ {
+			blocks[j] = getRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
+		}
+		resp := dalc.SubmitBlocks(ctx, blocks)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 
-		countAtHeight[resp.DAHeight]++
-		blocks[b] = resp.DAHeight
+		for _, b := range blocks {
+			blockToDAHeight[b] = resp.DAHeight
+			countAtHeight[resp.DAHeight]++
+		}
 	}
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" last blocks
@@ -181,10 +188,11 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		ret := retriever.RetrieveBlocks(ctx, h)
 		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Blocks, h)
+		assert.Equal(cnt%blocksSubmittedPerBatch, 0)
 		assert.Len(ret.Blocks, cnt, h)
 	}
 
-	for b, h := range blocks {
+	for b, h := range blockToDAHeight {
 		ret := retriever.RetrieveBlocks(ctx, h)
 		assert.Equal(da.StatusSuccess, ret.Code, h)
 		require.NotEmpty(ret.Blocks, h)
