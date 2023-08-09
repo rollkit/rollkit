@@ -91,6 +91,10 @@ type Manager struct {
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
 	doneBuildingBlock chan struct{}
+
+	// Maintains blocks that need to be published to DA layer
+	pendingBlocks    []*types.Block
+	pendingBlocksMtx *sync.RWMutex
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -187,6 +191,8 @@ func NewManager(
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
 		buildingBlock:     false,
+		pendingBlocks:     make([]*types.Block, 0),
+		pendingBlocksMtx:  new(sync.RWMutex),
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
 	agg.blockStoreCond = sync.NewCond(agg.blockStoreMtx)
@@ -232,7 +238,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 		time.Sleep(delay)
 	}
 
-	//var timer *time.Timer
 	timer := time.NewTimer(0)
 
 	if !lazy {
@@ -273,6 +278,22 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				close(m.doneBuildingBlock)
 				m.doneBuildingBlock = make(chan struct{})
 				m.buildingBlock = false
+			}
+		}
+	}
+}
+
+// BlockSubmissionLoop is responsible for submitting blocks to the DA layer.
+func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
+	timer := time.NewTicker(m.conf.DABlockTime)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			err := m.submitBlocksToDA(ctx)
+			if err != nil {
+				m.logger.Error("error while submitting block to DA", "error", err)
 			}
 		}
 	}
@@ -645,11 +666,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	err = m.submitBlockToDA(ctx, block)
-	if err != nil {
-		m.logger.Error("Failed to submit block to DA Layer")
-		return err
-	}
+	// Submit block to be published to the DA layer
+	m.pendingBlocksMtx.Lock()
+	m.pendingBlocks = append(m.pendingBlocks, block)
+	m.pendingBlocksMtx.Unlock()
 
 	blockHeight := uint64(block.SignedHeader.Header.Height())
 
@@ -693,15 +713,15 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error {
-	m.logger.Info("submitting block to DA layer", "height", block.SignedHeader.Header.Height())
-
+func (m *Manager) submitBlocksToDA(ctx context.Context) error {
+	m.pendingBlocksMtx.Lock()
+	defer m.pendingBlocksMtx.Unlock()
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlocks(ctx, []*types.Block{block})
+		res := m.dalc.SubmitBlocks(ctx, m.pendingBlocks)
 		if res.Code == da.StatusSuccess {
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "rollkitHeight", block.SignedHeader.Header.Height(), "daHeight", res.DAHeight)
+			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight)
 			submitted = true
 		} else {
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
@@ -713,7 +733,7 @@ func (m *Manager) submitBlockToDA(ctx context.Context, block *types.Block) error
 	if !submitted {
 		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
-
+	m.pendingBlocks = make([]*types.Block, 0)
 	return nil
 }
 
