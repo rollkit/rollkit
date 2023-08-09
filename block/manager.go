@@ -174,6 +174,7 @@ func NewManager(
 		BlockCh:       make(chan *types.Block, channelLength),
 		blockInCh:     make(chan newBlockEvent, channelLength),
 		blockStoreMtx: new(sync.Mutex),
+		blockStore:    blockStore,
 		retrieveMtx:   new(sync.Mutex),
 		lastStateMtx:  new(sync.RWMutex),
 		blockCache: &BlockCache{
