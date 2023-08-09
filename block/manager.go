@@ -191,6 +191,7 @@ func NewManager(
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
 		buildingBlock:     false,
+		pendingBlocks:     make([]*types.Block, 0),
 		pendingBlocksMtx:  new(sync.RWMutex),
 	}
 	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
@@ -713,7 +714,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
-	//m.logger.Info("submitting blocks to DA layer", "height", block.SignedHeader.Header.Height())
 	m.pendingBlocksMtx.Lock()
 	defer m.pendingBlocksMtx.Unlock()
 	submitted := false
