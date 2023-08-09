@@ -162,11 +162,13 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	retriever := dalc.(da.BlockRetriever)
 	countAtHeight := make(map[uint64]int)
 	blockToDAHeight := make(map[*types.Block]uint64)
+	numBatches := uint64(10)
+	blocksSubmittedPerBatch := 10
 
-	for i := uint64(0); i < 10; i++ {
-		blocks := make([]*types.Block, 10)
+	for i := uint64(0); i < numBatches; i++ {
+		blocks := make([]*types.Block, blocksSubmittedPerBatch)
 		for j := 0; j < len(blocks); j++ {
-			blocks[j] = getRandomBlock(i*10+uint64(j), rand.Int()%20) //nolint:gosec
+			blocks[j] = getRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
 		}
 		resp := dalc.SubmitBlocks(ctx, blocks)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
@@ -186,6 +188,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		ret := retriever.RetrieveBlocks(ctx, h)
 		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Blocks, h)
+		assert.Equal(cnt%blocksSubmittedPerBatch, 0)
 		assert.Len(ret.Blocks, cnt, h)
 	}
 
