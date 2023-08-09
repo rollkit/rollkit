@@ -237,28 +237,20 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 		time.Sleep(delay)
 	}
 
-	blockTimer := time.NewTimer(0)
-	DABlockTimer := time.NewTicker(m.conf.DABlockTime)
+	timer := time.NewTimer(0)
 
 	if !lazy {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-blockTimer.C:
+			case <-timer.C:
 				start := time.Now()
 				err := m.publishBlock(ctx)
 				if err != nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
-				blockTimer.Reset(m.getRemainingSleep(start, m.conf.BlockTime))
-			case <-DABlockTimer.C:
-				start := time.Now()
-				err := m.submitBlocksToDA(ctx)
-				if err != nil {
-					m.logger.Error("error while submitting block to DA", "error", err)
-				}
-				DABlockTimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
+				timer.Reset(m.getRemainingSleep(start))
 			}
 		}
 	} else {
@@ -272,9 +264,9 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			case <-m.txsAvailable:
 				if !m.buildingBlock {
 					m.buildingBlock = true
-					blockTimer.Reset(1 * time.Second)
+					timer.Reset(1 * time.Second)
 				}
-			case <-blockTimer.C:
+			case <-timer.C:
 				// build a block with all the transactions received in the last 1 second
 				err := m.publishBlock(ctx)
 				if err != nil {
@@ -285,14 +277,22 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				close(m.doneBuildingBlock)
 				m.doneBuildingBlock = make(chan struct{})
 				m.buildingBlock = false
+			}
+		}
+	}
+}
 
-			case <-DABlockTimer.C:
-				start := time.Now()
-				err := m.submitBlocksToDA(ctx)
-				if err != nil {
-					m.logger.Error("error while submitting block to DA", "error", err)
-				}
-				DABlockTimer.Reset(m.getRemainingSleep(start, m.conf.DABlockTime))
+// BlockSubmissionLoop is responsible for submitting blocks to the DA layer.
+func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
+	timer := time.NewTicker(m.conf.DABlockTime)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			err := m.submitBlocksToDA(ctx)
+			if err != nil {
+				m.logger.Error("error while submitting block to DA", "error", err)
 			}
 		}
 	}
@@ -544,9 +544,9 @@ func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRet
 	return blockRes, err
 }
 
-func (m *Manager) getRemainingSleep(start time.Time, blockOrDATime time.Duration) time.Duration {
+func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	publishingDuration := time.Since(start)
-	sleepDuration := blockOrDATime - publishingDuration
+	sleepDuration := m.conf.BlockTime - publishingDuration
 	if sleepDuration < 0 {
 		sleepDuration = 0
 	}
