@@ -333,9 +333,9 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
 				m.logger.Info("failed to sync next block", "error", err)
-			} else {
-				m.blockCache.setSeen(blockHash)
+				continue
 			}
+			m.blockCache.setSeen(blockHash)
 		case <-ctx.Done():
 			return
 		}
@@ -431,7 +431,7 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 				blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
 				if err != nil {
 					m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
-					break
+					continue
 				}
 				daHeight := atomic.LoadUint64(&m.daHeight)
 				for _, block := range blocks {
@@ -491,7 +491,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			err := m.processNextDABlock(ctx)
 			if err != nil {
 				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
-				break
+				continue
 			}
 			atomic.AddUint64(&m.daHeight, 1)
 		case <-ctx.Done():
