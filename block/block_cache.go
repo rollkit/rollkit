@@ -7,11 +7,17 @@ import (
 )
 
 type BlockCache struct {
-	blocks            map[uint64]*types.Block
-	hashes            map[string]bool
-	hardConfirmations map[string]bool
-	mtx               *sync.RWMutex
+	blocks      map[uint64]*types.Block
+	blockStatus map[string]BlockStatus
+	mtx         *sync.RWMutex
 }
+
+type BlockStatus int
+
+const (
+	StatusSeen BlockStatus = iota
+	StatusHardConfirmed
+)
 
 func (bc *BlockCache) getBlock(height uint64) (*types.Block, bool) {
 	bc.mtx.Lock()
@@ -35,17 +41,18 @@ func (bc *BlockCache) deleteBlock(height uint64) {
 func (bc *BlockCache) isSeen(hash string) bool {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
-	return bc.hashes[hash]
+	_, ok := bc.blockStatus[hash]
+	return ok
 }
 
 func (bc *BlockCache) setSeen(hash string) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
-	bc.hashes[hash] = true
+	bc.blockStatus[hash] = StatusSeen
 }
 
 func (bc *BlockCache) setHardConfirmed(hash string) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
-	bc.hardConfirmations[hash] = true
+	bc.blockStatus[hash] = StatusHardConfirmed
 }

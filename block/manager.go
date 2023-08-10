@@ -182,10 +182,9 @@ func NewManager(
 		retrieveMtx:   new(sync.Mutex),
 		lastStateMtx:  new(sync.RWMutex),
 		blockCache: &BlockCache{
-			blocks:            make(map[uint64]*types.Block),
-			hashes:            make(map[string]bool),
-			hardConfirmations: make(map[string]bool),
-			mtx:               new(sync.RWMutex),
+			blocks:      make(map[uint64]*types.Block),
+			blockStatus: make(map[string]BlockStatus),
+			mtx:         new(sync.RWMutex),
 		},
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
