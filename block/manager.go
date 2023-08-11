@@ -311,16 +311,17 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
 			blockHash := block.Hash().String()
+			blockHeight := uint64(block.Height())
 			m.logger.Debug("block body retrieved from DALC",
-				"height", block.SignedHeader.Header.Height(),
+				"height", blockHeight,
 				"daHeight", daHeight,
 				"hash", blockHash,
 			)
 			if m.blockCache.isSeen(blockHash) {
-				m.logger.Debug("block already seen", "height", block.Height(), "block hash", blockHash)
+				m.logger.Debug("block already seen", "height", blockHeight, "block hash", blockHash)
 				continue
 			}
-			m.blockCache.setBlock(block.SignedHeader.Header.BaseHeader.Height, block)
+			m.blockCache.setBlock(blockHeight, block)
 
 			m.blockStoreCond.Signal()
 			m.retrieveCond.Signal()
@@ -357,7 +358,8 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	}
 
 	if b != nil && commit != nil {
-		m.logger.Info("Syncing block", "height", b.SignedHeader.Header.Height())
+		bHeight := uint64(b.Height())
+		m.logger.Info("Syncing block", "height", bHeight)
 		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -371,18 +373,18 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		err = m.store.SaveBlockResponses(uint64(b.SignedHeader.Header.Height()), responses)
+		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
 		// SaveValidators commits the DB tx
-		err = m.saveValidatorsToStore(uint64(b.SignedHeader.Header.Height()))
+		err = m.saveValidatorsToStore(bHeight)
 		if err != nil {
 			return err
 		}
 
-		m.store.SetHeight(uint64(b.SignedHeader.Header.Height()))
+		m.store.SetHeight(bHeight)
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -703,7 +705,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Publish block to channel so that block exchange service can broadcast
 	m.BlockCh <- block
 
-	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", block.SignedHeader.Height())
+	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
 	return nil
 }
