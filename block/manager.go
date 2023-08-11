@@ -38,6 +38,7 @@ const defaultBlockTime = 1 * time.Second
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
 
+// Applies to all channels, 100 is a large enough buffer to avoid blocking
 const channelLength = 100
 
 // initialBackoff defines initial value for block submission backoff
