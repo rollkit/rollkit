@@ -18,7 +18,7 @@ func NewBlockCache() *BlockCache {
 		blocks:            make(map[uint64]*types.Block),
 		hashes:            make(map[string]bool),
 		hardConfirmations: make(map[string]bool),
-		mtx:               &sync.RWMutex{},
+		mtx:               new(sync.RWMutex),
 	}
 }
 
