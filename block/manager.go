@@ -242,13 +242,13 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			case <-ctx.Done():
 				return
 			case <-timer.C:
-				start := time.Now()
-				err := m.publishBlock(ctx)
-				if err != nil {
-					m.logger.Error("error while publishing block", "error", err)
-				}
-				timer.Reset(m.getRemainingSleep(start))
 			}
+			start := time.Now()
+			err := m.publishBlock(ctx)
+			if err != nil {
+				m.logger.Error("error while publishing block", "error", err)
+			}
+			timer.Reset(m.getRemainingSleep(start))
 		}
 	} else {
 		for {
@@ -287,10 +287,10 @@ func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			err := m.submitBlocksToDA(ctx)
-			if err != nil {
-				m.logger.Error("error while submitting block to DA", "error", err)
-			}
+		}
+		err := m.submitBlocksToDA(ctx)
+		if err != nil {
+			m.logger.Error("error while submitting block to DA", "error", err)
 		}
 	}
 }
@@ -423,23 +423,23 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 	}()
 	for {
 		select {
-		case <-waitCh:
-			blockStoreHeight := m.blockStore.Height()
-			if blockStoreHeight > lastBlockStoreHeight {
-				blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
-				if err != nil {
-					m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
-					continue
-				}
-				daHeight := atomic.LoadUint64(&m.daHeight)
-				for _, block := range blocks {
-					m.blockInCh <- newBlockEvent{block, daHeight}
-				}
-			}
-			lastBlockStoreHeight = blockStoreHeight
 		case <-ctx.Done():
 			return
+		case <-waitCh:
 		}
+		blockStoreHeight := m.blockStore.Height()
+		if blockStoreHeight > lastBlockStoreHeight {
+			blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
+			if err != nil {
+				m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
+				continue
+			}
+			daHeight := atomic.LoadUint64(&m.daHeight)
+			for _, block := range blocks {
+				m.blockInCh <- newBlockEvent{block, daHeight}
+			}
+		}
+		lastBlockStoreHeight = blockStoreHeight
 	}
 }
 
@@ -484,17 +484,17 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 
 	for {
 		select {
-		case <-waitCh:
-			daHeight := atomic.LoadUint64(&m.daHeight)
-			err := m.processNextDABlock(ctx)
-			if err != nil {
-				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
-				continue
-			}
-			atomic.AddUint64(&m.daHeight, 1)
 		case <-ctx.Done():
 			return
+		case <-waitCh:
 		}
+		daHeight := atomic.LoadUint64(&m.daHeight)
+		err := m.processNextDABlock(ctx)
+		if err != nil {
+			m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+			continue
+		}
+		atomic.AddUint64(&m.daHeight, 1)
 	}
 }
 
