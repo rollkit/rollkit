@@ -13,6 +13,15 @@ type BlockCache struct {
 	mtx               *sync.RWMutex
 }
 
+func NewBlockCache() *BlockCache {
+	return &BlockCache{
+		blocks:            make(map[uint64]*types.Block),
+		hashes:            make(map[string]bool),
+		hardConfirmations: make(map[string]bool),
+		mtx:               &sync.RWMutex{},
+	}
+}
+
 func (bc *BlockCache) getBlock(height uint64) (*types.Block, bool) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()

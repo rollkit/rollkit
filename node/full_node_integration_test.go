@@ -208,6 +208,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	const numberOfBlocksTSyncTill = 5
 
 	ch := make(chan struct{})
+	defer close(ch)
 	timer := time.NewTimer(numberOfBlocksTSyncTill * bmConfig.BlockTime)
 
 	go func() {
@@ -246,7 +247,6 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 
 	require.NoError(verifyNodesSynced(node1, node2, Store))
 	require.NoError(verifyNodesSynced(node1, node3, Store))
-	close(ch)
 }
 
 func TestBlockExchange(t *testing.T) {

@@ -134,12 +134,12 @@ func NewManager(
 	}
 
 	if conf.DABlockTime == 0 {
-		logger.Info("WARNING: using default DA block time", "DABlockTime", defaultDABlockTime)
+		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
 		conf.DABlockTime = defaultDABlockTime
 	}
 
 	if conf.BlockTime == 0 {
-		logger.Info("WARNING: using default block time", "BlockTime", defaultBlockTime)
+		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
 		conf.BlockTime = defaultBlockTime
 	}
 
@@ -174,19 +174,14 @@ func NewManager(
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:      make(chan *types.SignedHeader, channelLength),
-		BlockCh:       make(chan *types.Block, channelLength),
-		blockInCh:     make(chan newBlockEvent, channelLength),
-		blockStoreMtx: new(sync.Mutex),
-		blockStore:    blockStore,
-		retrieveMtx:   new(sync.Mutex),
-		lastStateMtx:  new(sync.RWMutex),
-		blockCache: &BlockCache{
-			blocks:            make(map[uint64]*types.Block),
-			hashes:            make(map[string]bool),
-			hardConfirmations: make(map[string]bool),
-			mtx:               new(sync.RWMutex),
-		},
+		HeaderCh:          make(chan *types.SignedHeader, channelLength),
+		BlockCh:           make(chan *types.Block, channelLength),
+		blockInCh:         make(chan newBlockEvent, channelLength),
+		blockStoreMtx:     new(sync.Mutex),
+		blockStore:        blockStore,
+		retrieveMtx:       new(sync.Mutex),
+		lastStateMtx:      new(sync.RWMutex),
+		blockCache:        NewBlockCache(),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
