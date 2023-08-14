@@ -151,12 +151,6 @@ func newFullNode(
 	mpIDs := newMempoolIDs()
 	mp.EnableTxsAvailable()
 
-	doneBuildingChannel := make(chan struct{})
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel)
-	if err != nil {
-		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
-	}
-
 	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
@@ -165,6 +159,12 @@ func newFullNode(
 	blockExchangeService, err := NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
+	}
+
+	doneBuildingChannel := make(chan struct{})
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.blockStore)
+	if err != nil {
+		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -283,10 +283,12 @@ func (n *FullNode) OnStart() error {
 	if n.conf.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
+		go n.blockManager.BlockSubmissionLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 		go n.blockPublishLoop(n.ctx)
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
+	go n.blockManager.BlockStoreRetrieveLoop(n.ctx)
 	go n.blockManager.SyncLoop(n.ctx, n.cancel)
 	return nil
 }

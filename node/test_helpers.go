@@ -12,7 +12,17 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/conv"
+	"github.com/rollkit/rollkit/types"
+)
+
+type Source int
+
+const (
+	Header Source = iota
+	Block
+	Store
 )
 
 var genesisValidatorKey = ed25519.GenPrivKey()
@@ -29,14 +39,32 @@ func (m MockTester) Logf(format string, args ...interface{}) {}
 
 func (m MockTester) Errorf(format string, args ...interface{}) {}
 
-func waitForFirstBlock(node *FullNode, useBlockExchange bool) error {
-	return waitForAtLeastNBlocks(node, 1, useBlockExchange)
+func waitForFirstBlock(node Node, source Source) error {
+	return waitForAtLeastNBlocks(node, 1, source)
 }
 
-func getNodeHeight(node Node, useBlockExchange bool) (uint64, error) {
-	if useBlockExchange {
-		return getNodeHeightFromBlock(node)
+func getBMConfig() config.BlockManagerConfig {
+	return config.BlockManagerConfig{
+		DABlockTime: 100 * time.Millisecond,
+		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 	}
+}
+
+func getNodeHeight(node Node, source Source) (uint64, error) {
+	switch source {
+	case Header:
+		return getNodeHeightFromHeader(node)
+	case Block:
+		return getNodeHeightFromBlock(node)
+	case Store:
+		return getNodeHeightFromStore(node)
+	default:
+		return 0, errors.New("invalid source")
+	}
+}
+
+func getNodeHeightFromHeader(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.hExService.headerStore.Height(), nil
 	}
@@ -53,13 +81,20 @@ func getNodeHeightFromBlock(node Node) (uint64, error) {
 	return 0, errors.New("not a full node")
 }
 
-func verifyNodesSynced(node1, node2 Node, useBlockExchange bool) error {
+func getNodeHeightFromStore(node Node) (uint64, error) {
+	if fn, ok := node.(*FullNode); ok {
+		return fn.blockManager.GetStoreHeight(), nil
+	}
+	return 0, errors.New("not a full node")
+}
+
+func verifyNodesSynced(node1, node2 Node, source Source) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1, useBlockExchange)
+		n1Height, err := getNodeHeight(node1, source)
 		if err != nil {
 			return err
 		}
-		n2Height, err := getNodeHeight(node2, useBlockExchange)
+		n2Height, err := getNodeHeight(node2, source)
 		if err != nil {
 			return err
 		}
@@ -70,9 +105,9 @@ func verifyNodesSynced(node1, node2 Node, useBlockExchange bool) error {
 	})
 }
 
-func waitForAtLeastNBlocks(node Node, n int, useBlockExchange bool) error {
+func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		nHeight, err := getNodeHeight(node, useBlockExchange)
+		nHeight, err := getNodeHeight(node, source)
 		if err != nil {
 			return err
 		}

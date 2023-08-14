@@ -169,97 +169,60 @@ func TestLazyAggregator(t *testing.T) {
 	}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
-	err = node.Start()
-	assert.NoError(err)
+
+	assert.NoError(node.Start())
 	defer func() {
 		require.NoError(node.Stop())
 	}()
 	assert.True(node.IsRunning())
 
-	require.NoError(err)
-
-	require.NoError(waitForFirstBlock(node.(*FullNode), false))
+	require.NoError(waitForFirstBlock(node.(*FullNode), Header))
 
 	client := node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
-	require.NoError(waitForAtLeastNBlocks(node, 2, false))
+	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
-	require.NoError(waitForAtLeastNBlocks(node, 3, false))
+	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
 
-	require.NoError(waitForAtLeastNBlocks(node, 4, false))
-
+	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
 }
 
-func TestBlockExchange(t *testing.T) {
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorSingleFullNode(t, true)
-	})
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorTwoFullNode(t, true)
-	})
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorSingleFullNodeTrustedHash(t, true)
-	})
-}
-
-func TestHeaderExchange(t *testing.T) {
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
-		testSingleAggregatorSingleFullNode(t, false)
-	})
-	t.Run("SingleAggregatorTwoFullNode", func(t *testing.T) {
-		testSingleAggregatorTwoFullNode(t, false)
-	})
-	t.Run("SingleAggregatorSingleFullNodeTrustedHash", func(t *testing.T) {
-		testSingleAggregatorSingleFullNodeTrustedHash(t, false)
-	})
-	t.Run("SingleAggregatorSingleFullNodeSingleLightNode", testSingleAggregatorSingleFullNodeSingleLightNode)
-}
-
-func testSingleAggregatorSingleFullNode(t *testing.T, useBlockExchange bool) {
+// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
+func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require := require.New(t)
-
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, t)
+	clientNodes := 3
+	bmConfig := getBMConfig()
+	bmConfig.BlockTime = 1 * time.Second
+	bmConfig.DABlockTime = 10 * time.Second
+	const numberOfBlocksTSyncTill = 5
 
-	node1 := nodes[0]
-	node2 := nodes[1]
+	ch := make(chan struct{})
+	defer close(ch)
+	timer := time.NewTimer(numberOfBlocksTSyncTill * bmConfig.BlockTime)
 
-	require.NoError(node1.Start())
-	defer func() {
-		require.NoError(node1.Stop())
+	go func() {
+		select {
+		case <-ch:
+			// Channel closed before timer expired.
+			return
+		case <-timer.C:
+			// Timer expired before channel closed.
+			t.Error("nodes did not sync before DA Block time")
+			return
+		}
 	}()
-
-	require.NoError(waitForFirstBlock(node1, useBlockExchange))
-	require.NoError(node2.Start())
-
-	defer func() {
-		require.NoError(node2.Stop())
-	}()
-
-	require.NoError(waitForAtLeastNBlocks(node2, 2, useBlockExchange))
-	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
-}
-
-func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
-	require := require.New(t)
-
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	defer aggCancel()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -269,7 +232,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 	defer func() {
 		require.NoError(node1.Stop())
 	}()
-	require.NoError(waitForFirstBlock(node1, useBlockExchange))
+	require.NoError(waitForFirstBlock(node1, Store))
 	require.NoError(node2.Start())
 	defer func() {
 		require.NoError(node2.Stop())
@@ -279,19 +242,47 @@ func testSingleAggregatorTwoFullNode(t *testing.T, useBlockExchange bool) {
 		require.NoError(node3.Stop())
 	}()
 
-	require.NoError(waitForAtLeastNBlocks(node2, 2, useBlockExchange))
-	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
+	require.NoError(waitForAtLeastNBlocks(node2, numberOfBlocksTSyncTill, Store))
+	require.NoError(waitForAtLeastNBlocks(node3, numberOfBlocksTSyncTill, Store))
+
+	require.NoError(verifyNodesSynced(node1, node2, Store))
+	require.NoError(verifyNodesSynced(node1, node3, Store))
 }
 
-func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchange bool) {
+func TestBlockExchange(t *testing.T) {
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNode(t, Block)
+	})
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorTwoFullNode(t, Block)
+	})
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNodeTrustedHash(t, Block)
+	})
+}
+
+func TestHeaderExchange(t *testing.T) {
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNode(t, Header)
+	})
+	t.Run("SingleAggregatorTwoFullNode", func(t *testing.T) {
+		testSingleAggregatorTwoFullNode(t, Header)
+	})
+	t.Run("SingleAggregatorSingleFullNodeTrustedHash", func(t *testing.T) {
+		testSingleAggregatorSingleFullNodeTrustedHash(t, Header)
+	})
+	t.Run("SingleAggregatorSingleFullNodeSingleLightNode", testSingleAggregatorSingleFullNodeSingleLightNode)
+}
+
+func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	require := require.New(t)
 
 	aggCtx, aggCancel := context.WithCancel(context.Background())
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, t)
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -301,7 +292,70 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 		require.NoError(node1.Stop())
 	}()
 
-	require.NoError(waitForFirstBlock(node1, useBlockExchange))
+	require.NoError(waitForFirstBlock(node1, source))
+	require.NoError(node2.Start())
+
+	defer func() {
+		require.NoError(node2.Stop())
+	}()
+
+	require.NoError(waitForAtLeastNBlocks(node2, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
+}
+
+func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
+	require := require.New(t)
+
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clientNodes := 3
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+	node3 := nodes[2]
+
+	require.NoError(node1.Start())
+	defer func() {
+		require.NoError(node1.Stop())
+	}()
+	require.NoError(waitForFirstBlock(node1, source))
+	require.NoError(node2.Start())
+	defer func() {
+		require.NoError(node2.Stop())
+	}()
+	require.NoError(node3.Start())
+	defer func() {
+		require.NoError(node3.Stop())
+	}()
+
+	require.NoError(waitForAtLeastNBlocks(node2, 2, source))
+	require.NoError(waitForAtLeastNBlocks(node3, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
+	require.NoError(verifyNodesSynced(node1, node3, source))
+}
+
+func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) {
+	require := require.New(t)
+
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+
+	require.NoError(node1.Start())
+	defer func() {
+		require.NoError(node1.Stop())
+	}()
+
+	require.NoError(waitForFirstBlock(node1, source))
 
 	// Get the trusted hash from node1 and pass it to node2 config
 	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
@@ -312,8 +366,8 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, useBlockExchang
 		require.NoError(node2.Stop())
 	}()
 
-	require.NoError(waitForAtLeastNBlocks(node1, 2, useBlockExchange))
-	require.NoError(verifyNodesSynced(node1, node2, useBlockExchange))
+	require.NoError(waitForAtLeastNBlocks(node1, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
 }
 
 func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
@@ -335,15 +389,16 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	defer func() {
 		require.NoError(dalc.Stop())
 	}()
-	sequencer, _ := createNode(aggCtx, 0, true, false, keys, t)
-	fullNode, _ := createNode(ctx, 1, false, false, keys, t)
+	bmConfig := getBMConfig()
+	sequencer, _ := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
+	fullNode, _ := createNode(ctx, 1, false, false, keys, bmConfig, t)
 
 	sequencer.(*FullNode).dalc = dalc
 	sequencer.(*FullNode).blockManager.SetDALC(dalc)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	lightNode, _ := createNode(ctx, 2, false, true, keys, t)
+	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, t)
 
 	require.NoError(sequencer.Start())
 	defer func() {
@@ -358,8 +413,9 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 		require.NoError(lightNode.Stop())
 	}()
 
-	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, false))
-	require.NoError(verifyNodesSynced(fullNode, lightNode, false))
+	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, Header))
+	require.NoError(verifyNodesSynced(sequencer, fullNode, Header))
+	require.NoError(verifyNodesSynced(fullNode, lightNode, Header))
 }
 
 // Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
@@ -368,7 +424,7 @@ func createAndStartNodes(clientNodes int, t *testing.T) ([]*FullNode, []*mocks.A
 	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
@@ -384,13 +440,15 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 
 	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
 	require.NoError(t, nodes[0].Start())
-	require.NoError(t, waitForFirstBlock(nodes[0], false))
+	require.NoError(t, waitForFirstBlock(nodes[0], Header))
 	for i := 1; i < len(nodes); i++ {
 		require.NoError(t, nodes[i].Start())
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
-	require.NoError(t, waitForAtLeastNBlocks(nodes[1], 2, false))
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(t, waitForAtLeastNBlocks(nodes[i], 2, Header))
+	}
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
@@ -403,7 +461,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 		defer close(doneChan)
 		// create a MockTester, to catch the Failed asserts from the Mock package
 		m := MockTester{t: t}
-		// We don't nedd to check any specific arguments to DeliverTx
+		// We don't need to check any specific arguments to DeliverTx
 		// so just use a function that returns "true" for matching the args
 		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
 		err := testutils.Retry(300, 100*time.Millisecond, func() error {
@@ -425,7 +483,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -447,14 +505,14 @@ func createNodes(aggCtx, ctx context.Context, num int, t *testing.T) ([]*FullNod
 	ds, _ := store.NewDefaultInMemoryKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
 	_ = dalc.Start()
-	node, app := createNode(aggCtx, 0, true, false, keys, t)
+	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, false, false, keys, t)
+		node, apps[i] = createNode(ctx, i, false, false, keys, bmConfig, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
@@ -463,7 +521,7 @@ func createNodes(aggCtx, ctx context.Context, num int, t *testing.T) ([]*FullNod
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -471,11 +529,6 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	startPort := 10000
 	p2pConfig := config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
-	}
-	bmConfig := config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {

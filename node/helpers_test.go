@@ -40,8 +40,9 @@ func TestGetNodeHeight(t *testing.T) {
 	for i := 0; i < num; i++ {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
-	fullNode, _ := createNode(ctx, 0, true, false, keys, t)
-	lightNode, _ := createNode(ctx, 1, true, true, keys, t)
+	bmConfig := getBMConfig()
+	fullNode, _ := createNode(ctx, 0, true, false, keys, bmConfig, t)
+	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, t)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 	require.NoError(fullNode.Start())
@@ -55,7 +56,7 @@ func TestGetNodeHeight(t *testing.T) {
 	}()
 
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(fullNode, false)
+		num, err := getNodeHeight(fullNode, Header)
 		if err != nil {
 			return err
 		}
@@ -65,7 +66,27 @@ func TestGetNodeHeight(t *testing.T) {
 		return errors.New("expected height > 0")
 	}))
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(lightNode, false)
+		num, err := getNodeHeight(fullNode, Block)
+		if err != nil {
+			return err
+		}
+		if num > 0 {
+			return nil
+		}
+		return errors.New("expected height > 0")
+	}))
+	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+		num, err := getNodeHeight(fullNode, Store)
+		if err != nil {
+			return err
+		}
+		if num > 0 {
+			return nil
+		}
+		return errors.New("expected height > 0")
+	}))
+	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+		num, err := getNodeHeight(lightNode, Header)
 		if err != nil {
 			return err
 		}
