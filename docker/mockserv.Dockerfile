@@ -9,7 +9,7 @@ RUN go mod tidy -compat=1.19 && \
     go build /src/da/grpc/mockserv/cmd/main.go
 
 # Final image
-FROM alpine:3.18.2
+FROM alpine:3.18.3
 
 WORKDIR /root
 
