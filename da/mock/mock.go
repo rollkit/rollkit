@@ -52,7 +52,10 @@ func (m *DataAvailabilityLayerClient) Init(_ types.NamespaceID, config []byte, d
 	if err != nil {
 		return err
 	}
-	dah := core.NewDataAvailabilityHeader(eds)
+	dah, err := core.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		return err
+	}
 	m.daHeadersLock.Lock()
 	m.daHeaders[m.daHeight] = &dah
 	m.daHeadersLock.Unlock()
@@ -215,7 +218,11 @@ func (m *DataAvailabilityLayerClient) updateDAHeight() {
 		fmt.Println(err)
 		return
 	}
-	dah := core.NewDataAvailabilityHeader(eds)
+	dah, err := core.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	m.daHeadersLock.Lock()
 	m.daHeaders[atomic.LoadUint64(&m.daHeight)] = &dah
 	defer m.daHeadersLock.Unlock()
