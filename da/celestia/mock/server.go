@@ -84,7 +84,7 @@ func (s *Server) Start(listener net.Listener) error {
 	}
 	go func() {
 		s.server = new(http.Server)
-		s.server.Handler = s.getHandler()
+		s.server.Handler = s.Handler()
 		err := s.server.Serve(listener)
 		s.logger.Debug("http server exited with", "error", err)
 	}()
@@ -98,7 +98,7 @@ func (s *Server) Stop() {
 	_ = s.server.Shutdown(ctx)
 }
 
-func (s *Server) getHandler() http.Handler {
+func (s *Server) Handler() http.Handler {
 	mux := mux2.NewRouter()
 	mux.HandleFunc("/", s.rpc).Methods(http.MethodPost)
 

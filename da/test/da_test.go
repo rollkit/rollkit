@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
@@ -119,16 +120,9 @@ func startMockGRPCServ() *grpc.Server {
 
 func startMockCelestiaNodeServer() *cmock.Server {
 	httpSrv := cmock.NewServer(mockDaBlockTime, cmlog.NewTMLogger(os.Stdout))
-	l, err := net.Listen("tcp4", "127.0.0.1:26658")
-	if err != nil {
-		fmt.Println("failed to create listener for mock celestia-node RPC server, error: %w", err)
-		return nil
-	}
-	err = httpSrv.Start(l)
-	if err != nil {
-		fmt.Println("can't start mock celestia-node RPC server")
-		return nil
-	}
+	ts := httptest.NewServer(httpSrv.Handler())
+	testConfig.BaseURL = ts.URL
+	httpSrv.Start(ts.Listener)
 	return httpSrv
 }
 
