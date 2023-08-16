@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
@@ -34,7 +33,7 @@ var (
 	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
 	testConfig = celestia.Config{
-		BaseURL:  "http://localhost:26658",
+		BaseURL:  "http://localhost:26658", // placeholder; actually set in startMockCelestiaNodeServer
 		Timeout:  30 * time.Second,
 		GasLimit: 3000000,
 	}
@@ -120,13 +119,12 @@ func startMockGRPCServ() *grpc.Server {
 
 func startMockCelestiaNodeServer() *cmock.Server {
 	httpSrv := cmock.NewServer(mockDaBlockTime, cmlog.NewTMLogger(os.Stdout))
-	ts := httptest.NewServer(httpSrv.Handler())
-	testConfig.BaseURL = ts.URL
-	err := httpSrv.Start(ts.Listener)
+	url, err := httpSrv.Start()
 	if err != nil {
 		fmt.Println("can't start mock celestia-node RPC server")
 		return nil
 	}
+	testConfig.BaseURL = url
 	return httpSrv
 }
 
