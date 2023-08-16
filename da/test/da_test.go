@@ -122,7 +122,11 @@ func startMockCelestiaNodeServer() *cmock.Server {
 	httpSrv := cmock.NewServer(mockDaBlockTime, cmlog.NewTMLogger(os.Stdout))
 	ts := httptest.NewServer(httpSrv.Handler())
 	testConfig.BaseURL = ts.URL
-	httpSrv.Start(ts.Listener)
+	err := httpSrv.Start(ts.Listener)
+	if err != nil {
+		fmt.Println("can't start mock celestia-node RPC server")
+		return nil
+	}
 	return httpSrv
 }
 
