@@ -33,7 +33,6 @@ var (
 	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
 	testConfig = celestia.Config{
-		BaseURL:  "http://localhost:26658", // placeholder; actually set in startMockCelestiaNodeServer
 		Timeout:  30 * time.Second,
 		GasLimit: 3000000,
 	}
