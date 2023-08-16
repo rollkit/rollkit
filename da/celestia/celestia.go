@@ -97,7 +97,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		blobs[blockIndex] = blockBlob
 	}
 
-	DAHeightIncludedAt, err := c.rpc.Blob.Submit(ctx, blobs)
+	dataLayerHeight, err := c.rpc.Blob.Submit(ctx, blobs)
 	if err != nil {
 		return da.ResultSubmitBlocks{
 			BaseResult: da.BaseResult{
@@ -107,12 +107,12 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		}
 	}
 
-	c.logger.Debug("successfully submitted blobs", "daHeight", DAHeightIncludedAt)
+	c.logger.Debug("successfully submitted blobs", "daHeight", dataLayerHeight)
 
 	return da.ResultSubmitBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
-			DAHeight: uint64(DAHeightIncludedAt),
+			DAHeight: uint64(dataLayerHeight),
 		},
 	}
 }
