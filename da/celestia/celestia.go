@@ -107,7 +107,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		}
 	}
 
-	c.logger.Debug("successfully submitted PayForBlob transaction", "daHeight", DAHeightIncludedAt)
+	c.logger.Debug("successfully submitted blobs", "daHeight", DAHeightIncludedAt)
 
 	return da.ResultSubmitBlocks{
 		BaseResult: da.BaseResult{

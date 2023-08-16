@@ -14,7 +14,6 @@ import (
 
 	"github.com/rollkit/celestia-openrpc/types/blob"
 	"github.com/rollkit/celestia-openrpc/types/header"
-	"github.com/rollkit/celestia-openrpc/types/sdk"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
@@ -228,11 +227,9 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		res := s.mock.SubmitBlocks(r.Context(), blocks)
 		resp := &response{
 			Jsonrpc: "2.0",
-			Result: &sdk.TxResponse{
-				Height: int64(res.DAHeight),
-			},
-			ID:    req.ID,
-			Error: nil,
+			Result:  int64(res.DAHeight),
+			ID:      req.ID,
+			Error:   nil,
 		}
 		bytes, err := json.Marshal(resp)
 		if err != nil {
