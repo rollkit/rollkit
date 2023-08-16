@@ -313,7 +313,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			daHeight := blockEvent.daHeight
 			blockHash := block.Hash().String()
 			blockHeight := uint64(block.Height())
-			m.logger.Debug("block body retrieved from DALC",
+			m.logger.Debug("block body retrieved",
 				"height", blockHeight,
 				"daHeight", daHeight,
 				"hash", blockHash,
@@ -437,6 +437,8 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
+				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height())
+
 			}
 		}
 		lastBlockStoreHeight = blockStoreHeight
@@ -650,7 +652,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	blockHeight := uint64(block.Height())
-	// Only update the stored height after successfully submitting to DA layer and committing to the DB
+	// Update the stored height before submitting to the DA layer and committing to the DB
 	m.store.SetHeight(blockHeight)
 
 	blockHash := block.Hash().String()
