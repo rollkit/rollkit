@@ -437,7 +437,7 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
 				m.blockInCh <- newBlockEvent{block, daHeight}
-				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height())
+				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
 
 			}
 		}
