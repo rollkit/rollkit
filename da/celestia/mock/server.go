@@ -197,20 +197,20 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.writeResponse(w, bytes)
-	case "state.SubmitPayForBlob":
+	case "blob.Submit":
 		var params []interface{}
 		err := json.Unmarshal(req.Params, &params)
 		if err != nil {
 			s.writeError(w, err)
 			return
 		}
-		if len(params) != 3 {
-			s.writeError(w, errors.New("expected 3 params: fee (uint64), gaslimit (uint64), data (base64 string)"))
+		if len(params) != 1 {
+			s.writeError(w, errors.New("expected 1 param: data (base64 string)"))
 			return
 		}
 
-		blocks := make([]*types.Block, len(params[2].([]interface{})))
-		for i, data := range params[2].([]interface{}) {
+		blocks := make([]*types.Block, len(params[0].([]interface{})))
+		for i, data := range params[0].([]interface{}) {
 			blockBase64 := data.(map[string]interface{})["data"].(string)
 			blockData, err := base64.StdEncoding.DecodeString(blockBase64)
 			if err != nil {
