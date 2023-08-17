@@ -38,8 +38,11 @@ const defaultBlockTime = 1 * time.Second
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
 
-// Applies to all channels, 100 is a large enough buffer to avoid blocking
+// Applies to most channels, 100 is a large enough buffer to avoid blocking
 const channelLength = 100
+
+// Applies to the blockInCh, 10000 is a large enough number for blocks per DA block.
+const blockInChLength = 10000
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
@@ -177,7 +180,7 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
 		BlockCh:           make(chan *types.Block, channelLength),
-		blockInCh:         make(chan newBlockEvent, 100000),
+		blockInCh:         make(chan newBlockEvent, blockInChLength),
 		blockStoreMtx:     new(sync.Mutex),
 		blockStore:        blockStore,
 		retrieveMtx:       new(sync.Mutex),
