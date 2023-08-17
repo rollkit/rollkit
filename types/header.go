@@ -71,6 +71,7 @@ func (h *Header) LastHeader() Hash {
 	return h.LastHeaderHash[:]
 }
 
+// Returns unix time with nanosecond precision
 func (h *Header) Time() time.Time {
 	return time.Unix(0, int64(h.BaseHeader.Time))
 }
