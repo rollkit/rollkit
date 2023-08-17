@@ -1,13 +1,12 @@
 package mock
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
+	"net/http/httptest"
 	"time"
 
 	mux2 "github.com/gorilla/mux"
@@ -54,7 +53,7 @@ type response struct {
 type Server struct {
 	mock      *mockda.DataAvailabilityLayerClient
 	blockTime time.Duration
-	server    *http.Server
+	server    *httptest.Server
 	logger    log.Logger
 }
 
@@ -68,36 +67,30 @@ func NewServer(blockTime time.Duration, logger log.Logger) *Server {
 }
 
 // Start starts HTTP server with given listener.
-func (s *Server) Start(listener net.Listener) error {
+func (s *Server) Start() (string, error) {
 	kvStore, err := store.NewDefaultInMemoryKVStore()
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = s.mock.Init([8]byte{}, []byte(s.blockTime.String()), kvStore, s.logger)
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = s.mock.Start()
 	if err != nil {
-		return err
+		return "", err
 	}
-	go func() {
-		s.server = new(http.Server)
-		s.server.Handler = s.Handler()
-		err := s.server.Serve(listener)
-		s.logger.Debug("http server exited with", "error", err)
-	}()
-	return nil
+	s.server = httptest.NewServer(s.getHandler())
+	s.logger.Debug("http server exited with", "error", err)
+	return s.server.URL, nil
 }
 
 // Stop shuts down the Server.
 func (s *Server) Stop() {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	_ = s.server.Shutdown(ctx)
+	s.server.Close()
 }
 
-func (s *Server) Handler() http.Handler {
+func (s *Server) getHandler() http.Handler {
 	mux := mux2.NewRouter()
 	mux.HandleFunc("/", s.rpc).Methods(http.MethodPost)
 
