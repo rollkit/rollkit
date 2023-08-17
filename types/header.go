@@ -15,7 +15,7 @@ type Hash = header.Hash
 type BaseHeader struct {
 	// Height represents the block height (aka block number) of a given header
 	Height uint64
-	// Time contains Unix time of a block
+	// Time contains Unix nanotime of a block
 	Time uint64
 	// The Chain ID
 	ChainID string
@@ -72,7 +72,7 @@ func (h *Header) LastHeader() Hash {
 }
 
 func (h *Header) Time() time.Time {
-	return time.Unix(int64(h.BaseHeader.Time), 0)
+	return time.Unix(0, int64(h.BaseHeader.Time))
 }
 
 func (h *Header) Verify(untrst header.Header) error {

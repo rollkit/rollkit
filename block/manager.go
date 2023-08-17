@@ -177,7 +177,7 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
 		BlockCh:           make(chan *types.Block, channelLength),
-		blockInCh:         make(chan newBlockEvent, channelLength),
+		blockInCh:         make(chan newBlockEvent, 100000),
 		blockStoreMtx:     new(sync.Mutex),
 		blockStore:        blockStore,
 		retrieveMtx:       new(sync.Mutex),
@@ -436,9 +436,8 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			}
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
-				m.blockInCh <- newBlockEvent{block, daHeight}
 				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
-
+				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
 		}
 		lastBlockStoreHeight = blockStoreHeight
@@ -518,7 +517,10 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			for _, block := range blockResp.Blocks {
 				blockHash := block.Hash().String()
 				m.blockCache.setHardConfirmed(blockHash)
-				m.blockInCh <- newBlockEvent{block, daHeight}
+				m.logger.Info("block marked as hard confirmed", "blockHeight", block.Height(), "blockHash", blockHash)
+				if !m.blockCache.isSeen(blockHash) {
+					m.blockInCh <- newBlockEvent{block, daHeight}
+				}
 			}
 			return nil
 		}

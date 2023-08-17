@@ -56,14 +56,14 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Truncate(time.Hour).Unix())
+				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Truncate(time.Hour).UnixNano())
 				return untrustedAdj
 			},
 			err: true,
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Add(time.Minute).Unix())
+				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Add(time.Minute).UnixNano())
 				return untrustedAdj
 			},
 			err: true,

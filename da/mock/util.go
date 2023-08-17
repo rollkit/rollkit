@@ -152,7 +152,7 @@ func RandShares(total int) ([]share.Share, error) {
 		return nil, fmt.Errorf("total must be power of 2: %d", total)
 	}
 
-	var r = rand.New(rand.NewSource(time.Now().Unix())) //nolint:gosec
+	var r = rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 	shares := make([]share.Share, total)
 	for i := range shares {
 		shr := make([]byte, appconsts.ShareSize)
@@ -174,7 +174,7 @@ func RandShares(total int) ([]share.Share, error) {
 
 // RandNamespace generates random valid data namespace for testing purposes.
 func RandNamespace() share.Namespace {
-	var r = rand.New(rand.NewSource(time.Now().Unix())) //nolint:gosec
+	var r = rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 	rb := make([]byte, namespace.NamespaceVersionZeroIDSize)
 	r.Read(rb) // nolint:gosec
 	for {
