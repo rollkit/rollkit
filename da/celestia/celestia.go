@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
-	"cosmossdk.io/math"
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
@@ -99,7 +97,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		blobs[blockIndex] = blockBlob
 	}
 
-	txResponse, err := c.rpc.State.SubmitPayForBlob(ctx, math.NewInt(c.config.Fee), c.config.GasLimit, blobs)
+	dataLayerHeight, err := c.rpc.Blob.Submit(ctx, blobs)
 	if err != nil {
 		return da.ResultSubmitBlocks{
 			BaseResult: da.BaseResult{
@@ -109,24 +107,12 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		}
 	}
 
-	c.logger.Debug("successfully submitted PayForBlob transaction",
-		"fee", c.config.Fee, "gasLimit", c.config.GasLimit,
-		"daHeight", txResponse.Height, "daTxHash", txResponse.TxHash)
-
-	if txResponse.Code != 0 {
-		return da.ResultSubmitBlocks{
-			BaseResult: da.BaseResult{
-				Code:    da.StatusError,
-				Message: fmt.Sprintf("Codespace: '%s', Code: %d, Message: %s", txResponse.Codespace, txResponse.Code, txResponse.RawLog),
-			},
-		}
-	}
+	c.logger.Debug("successfully submitted blobs", "daHeight", dataLayerHeight)
 
 	return da.ResultSubmitBlocks{
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
-			Message:  "tx hash: " + txResponse.TxHash,
-			DAHeight: uint64(txResponse.Height),
+			DAHeight: uint64(dataLayerHeight),
 		},
 	}
 }
