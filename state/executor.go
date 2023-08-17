@@ -104,7 +104,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 				BaseHeader: types.BaseHeader{
 					ChainID: e.chainID,
 					Height:  height,
-					Time:    uint64(time.Now().Unix()), // TODO(tzdybal): how to get TAI64?
+					Time:    uint64(time.Now().UnixNano()), // TODO(tzdybal): how to get TAI64?
 				},
 				//LastHeaderHash: lastHeaderHash,
 				//LastCommitHash:  lastCommitHash,

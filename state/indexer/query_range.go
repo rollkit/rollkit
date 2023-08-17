@@ -48,7 +48,7 @@ func (qr QueryRange) LowerBoundValue() interface{} {
 		tmp := new(big.Int)
 		return tmp.Add(t, big.NewInt(1))
 	case time.Time:
-		return t.Unix() + 1
+		return t.UnixNano() + 1
 
 	default:
 		panic("not implemented")
@@ -73,7 +73,7 @@ func (qr QueryRange) UpperBoundValue() interface{} {
 		tmp := new(big.Int)
 		return tmp.Sub(t, big.NewInt(1))
 	case time.Time:
-		return t.Unix() - 1
+		return t.UnixNano() - 1
 
 	default:
 		panic("not implemented")

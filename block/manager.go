@@ -38,8 +38,11 @@ const defaultBlockTime = 1 * time.Second
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
 
-// Applies to all channels, 100 is a large enough buffer to avoid blocking
+// Applies to most channels, 100 is a large enough buffer to avoid blocking
 const channelLength = 100
+
+// Applies to the blockInCh, 10000 is a large enough number for blocks per DA block.
+const blockInChLength = 10000
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
@@ -177,7 +180,7 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
 		BlockCh:           make(chan *types.Block, channelLength),
-		blockInCh:         make(chan newBlockEvent, channelLength),
+		blockInCh:         make(chan newBlockEvent, blockInChLength),
 		blockStoreMtx:     new(sync.Mutex),
 		blockStore:        blockStore,
 		retrieveMtx:       new(sync.Mutex),
@@ -436,9 +439,8 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			}
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
-				m.blockInCh <- newBlockEvent{block, daHeight}
 				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
-
+				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
 		}
 		lastBlockStoreHeight = blockStoreHeight
@@ -518,7 +520,10 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			for _, block := range blockResp.Blocks {
 				blockHash := block.Hash().String()
 				m.blockCache.setHardConfirmed(blockHash)
-				m.blockInCh <- newBlockEvent{block, daHeight}
+				m.logger.Info("block marked as hard confirmed", "blockHeight", block.Height(), "blockHash", blockHash)
+				if !m.blockCache.isSeen(blockHash) {
+					m.blockInCh <- newBlockEvent{block, daHeight}
+				}
 			}
 			return nil
 		}

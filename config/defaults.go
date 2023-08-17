@@ -21,7 +21,8 @@ var DefaultNodeConfig = NodeConfig{
 	Aggregator:     false,
 	LazyAggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
-		BlockTime:   30 * time.Second,
+		BlockTime:   1 * time.Second,
+		DABlockTime: 30 * time.Second,
 		NamespaceID: types.NamespaceID{},
 	},
 	DALayer:  "mock",
