@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -122,7 +122,7 @@ func (s *DefaultStore) LoadBlockByHash(hash types.Hash) (*types.Block, error) {
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
-func (s *DefaultStore) SaveBlockResponses(height uint64, responses *cmstate.ABCIResponses) error {
+func (s *DefaultStore) SaveBlockResponses(height uint64, responses *abci.ResponseFinalizeBlock) error {
 	data, err := responses.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal response: %w", err)
@@ -131,12 +131,12 @@ func (s *DefaultStore) SaveBlockResponses(height uint64, responses *cmstate.ABCI
 }
 
 // LoadBlockResponses returns block results at given height, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockResponses(height uint64) (*cmstate.ABCIResponses, error) {
+func (s *DefaultStore) LoadBlockResponses(height uint64) (*abci.ResponseFinalizeBlock, error) {
 	data, err := s.db.Get(s.ctx, ds.NewKey(getResponsesKey(height)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve block results from height %v: %w", height, err)
 	}
-	var responses cmstate.ABCIResponses
+	var responses abci.ResponseFinalizeBlock
 	err = responses.Unmarshal(data)
 	if err != nil {
 		return &responses, fmt.Errorf("failed to unmarshal data: %w", err)

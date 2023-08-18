@@ -3,14 +3,22 @@ package kv
 import (
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"strconv"
 	"strings"
 
-	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
+	"github.com/rollkit/rollkit/state/indexer"
 	"github.com/rollkit/rollkit/store"
 )
+
+type HeightInfo struct {
+	heightRange     indexer.QueryRange
+	height          int64
+	heightEqIdx     int
+	onlyHeightRange bool
+	onlyHeightEq    bool
+}
 
 func intInSlice(a int, list []int) bool {
 	for _, b := range list {
@@ -55,12 +63,51 @@ func parseValueFromEventKey(key string) string {
 	return parts[2]
 }
 
-func lookForHeight(conditions []query.Condition) (int64, bool) {
+// Remove all occurrences of height equality queries except one. While we are traversing the conditions, check whether the only condition in
+// addition to match events is the height equality or height range query. At the same time, if we do have a height range condition
+// ignore the height equality condition. If a height equality exists, place the condition index in the query and the desired height
+// into the heightInfo struct
+func dedupHeight(conditions []syntax.Condition) (dedupConditions []syntax.Condition, heightInfo HeightInfo, found bool) {
+	heightInfo.heightEqIdx = -1
+	heightRangeExists := false
+	var heightCondition []syntax.Condition
+	heightInfo.onlyHeightEq = true
+	heightInfo.onlyHeightRange = true
 	for _, c := range conditions {
-		if c.CompositeKey == types.BlockHeightKey && c.Op == query.OpEqual {
-			return c.Operand.(*big.Int).Int64(), true
+		if c.Tag == types.BlockHeightKey {
+			if c.Op == syntax.TEq {
+				if found || heightRangeExists {
+					continue
+				}
+				hFloat := c.Arg.Number()
+				if hFloat != nil {
+					h, _ := hFloat.Int64()
+					heightInfo.height = h
+					heightCondition = append(heightCondition, c)
+					found = true
+				}
+			} else {
+				heightInfo.onlyHeightEq = false
+				heightRangeExists = true
+				dedupConditions = append(dedupConditions, c)
+			}
+		} else {
+			heightInfo.onlyHeightRange = false
+			heightInfo.onlyHeightEq = false
+			dedupConditions = append(dedupConditions, c)
 		}
 	}
-
-	return 0, false
+	if !heightRangeExists && len(heightCondition) != 0 {
+		heightInfo.heightEqIdx = len(dedupConditions)
+		heightInfo.onlyHeightRange = false
+		dedupConditions = append(dedupConditions, heightCondition...)
+	} else {
+		// If we found a range make sure we set the hegiht idx to -1 as the height equality
+		// will be removed
+		heightInfo.heightEqIdx = -1
+		heightInfo.height = 0
+		heightInfo.onlyHeightEq = false
+		found = false
+	}
+	return dedupConditions, heightInfo, found
 }

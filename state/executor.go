@@ -10,11 +10,9 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
-	"go.uber.org/multierr"
 
 	abciconv "github.com/rollkit/rollkit/conv/abci"
 	"github.com/rollkit/rollkit/log"
@@ -61,7 +59,7 @@ func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseIn
 		validators[i] = cmtypes.NewValidator(v.PubKey, v.Power)
 	}
 
-	return e.proxyApp.InitChainSync(abci.RequestInitChain{
+	return e.proxyApp.InitChain(context.Background(), &abci.RequestInitChain{
 		Time:    genesis.GenesisTime,
 		ChainId: genesis.ChainID,
 		ConsensusParams: &cmproto.ConsensusParams{
@@ -131,7 +129,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 }
 
 // ApplyBlock validates and executes the block.
-func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *cmstate.ABCIResponses, error) {
+func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {
 	err := e.validate(state, block)
 	if err != nil {
 		return types.State{}, nil, err
@@ -143,7 +141,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return types.State{}, nil, err
 	}
 
-	abciValUpdates := resp.EndBlock.ValidatorUpdates
+	abciValUpdates := resp.ValidatorUpdates
 
 	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
 	if err != nil {
@@ -170,23 +168,20 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 }
 
 // Commit commits the block
-func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *cmstate.ABCIResponses) ([]byte, uint64, error) {
-	appHash, retainHeight, err := e.commit(ctx, state, block, resp.DeliverTxs)
+func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *types.Block, resp *abci.ResponseFinalizeBlock) ([]byte, uint64, error) {
+	appHash, retainHeight, err := e.commit(ctx, state, block, resp)
 	if err != nil {
 		return []byte{}, 0, err
 	}
 
 	state.AppHash = appHash
 
-	err = e.publishEvents(resp, block, state)
-	if err != nil {
-		e.logger.Error("failed to fire block events", "error", err)
-	}
+	e.publishEvents(resp, block, state)
 
 	return appHash, retainHeight, nil
 }
 
-func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *cmstate.ABCIResponses, validatorUpdates []*cmtypes.Validator) (types.State, error) {
+func (e *BlockExecutor) updateState(state types.State, block *types.Block, finalizeBlockResponse *abci.ResponseFinalizeBlock, validatorUpdates []*cmtypes.Validator) (types.State, error) {
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
 	// Rollkit can work without validators
@@ -232,12 +227,12 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
 		AppHash:                          make(types.Hash, 32),
 	}
-	copy(s.LastResultsHash[:], cmtypes.NewResults(abciResponses.DeliverTxs).Hash())
+	copy(s.LastResultsHash[:], cmtypes.NewResults(finalizeBlockResponse.TxResults).Hash())
 
 	return s, nil
 }
 
-func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *types.Block, deliverTxs []*abci.ResponseDeliverTx) ([]byte, uint64, error) {
+func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *types.Block, resp *abci.ResponseFinalizeBlock) ([]byte, uint64, error) {
 	e.mempool.Lock()
 	defer e.mempool.Unlock()
 
@@ -246,19 +241,19 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 		return nil, 0, err
 	}
 
-	resp, err := e.proxyApp.CommitSync()
+	commitResp, err := e.proxyApp.Commit(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(int64(block.SignedHeader.Header.Height()), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	err = e.mempool.Update(int64(block.SignedHeader.Header.Height()), fromRollkitTxs(block.Data.Txs), resp.TxResults, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return resp.Data, uint64(resp.RetainHeight), err
+	return resp.AppHash, uint64(commitResp.RetainHeight), err
 }
 
 func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
@@ -291,104 +286,117 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 	return nil
 }
 
-func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *types.Block) (*cmstate.ABCIResponses, error) {
-	abciResponses := new(cmstate.ABCIResponses)
-	abciResponses.DeliverTxs = make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
-
-	txIdx := 0
-	validTxs := 0
-	invalidTxs := 0
-
-	e.proxyApp.SetResponseCallback(func(req *abci.Request, res *abci.Response) {
-		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
-			txRes := r.DeliverTx
-			if txRes.Code == abci.CodeTypeOK {
-				validTxs++
-			} else {
-				e.logger.Debug("Invalid tx", "code", txRes.Code, "log", txRes.Log)
-				invalidTxs++
-			}
-			abciResponses.DeliverTxs[txIdx] = txRes
-			txIdx++
-		}
-	})
-
-	hash := block.Hash()
+func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *types.Block) (*abci.ResponseFinalizeBlock, error) {
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
 	}
 	abciHeader.ChainID = e.chainID
 	abciHeader.ValidatorsHash = state.Validators.Hash()
-	beginBlockRequest := abci.RequestBeginBlock{
-		Hash:   hash[:],
-		Header: abciHeader,
-		LastCommitInfo: abci.CommitInfo{
+
+	abciBlock, err := abciconv.ToABCIBlock(block)
+	if err != nil {
+		return nil, err
+	}
+
+	finalizeBlockResponse, err := e.proxyApp.FinalizeBlock(context.TODO(), &abci.RequestFinalizeBlock{
+		Hash:               block.Hash(),
+		NextValidatorsHash: abciHeader.NextValidatorsHash,
+		ProposerAddress:    abciHeader.ProposerAddress,
+		Height:             abciHeader.Height,
+		Time:               abciHeader.Time,
+		DecidedLastCommit: abci.CommitInfo{
 			Round: 0,
 			Votes: nil,
 		},
-		ByzantineValidators: nil,
-	}
-	abciResponses.BeginBlock, err = e.proxyApp.BeginBlockSync(beginBlockRequest)
+		Misbehavior: abciBlock.Evidence.Evidence.ToABCI(),
+		Txs:         abciBlock.Txs.ToSliceOfBytes(),
+	})
+
 	if err != nil {
+		e.logger.Error("error in proxyAppConn.FinalizeBlock", "err", err)
 		return nil, err
 	}
 
-	for _, tx := range block.Data.Txs {
-		res := e.proxyApp.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
-		if res.GetException() != nil {
-			return nil, errors.New(res.GetException().GetError())
-		}
+	e.logger.Info(
+		"finalized block",
+		"height", abciBlock.Height,
+		"num_txs_res", len(finalizeBlockResponse.TxResults),
+		"num_val_updates", len(finalizeBlockResponse.ValidatorUpdates),
+		"block_app_hash", fmt.Sprintf("%X", finalizeBlockResponse.AppHash),
+	)
 
-	}
-	endBlockRequest := abci.RequestEndBlock{Height: block.SignedHeader.Header.Height()}
-	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(endBlockRequest)
-	if err != nil {
-		return nil, err
+	// Assert that the application correctly returned tx results for each of the transactions provided in the block
+	if len(abciBlock.Data.Txs) != len(finalizeBlockResponse.TxResults) {
+		return nil, fmt.Errorf("expected tx results length to match size of transactions in block. Expected %d, got %d", len(block.Data.Txs), len(finalizeBlockResponse.TxResults))
 	}
 
-	return abciResponses, nil
+	e.logger.Info("executed block", "height", abciHeader.Height, "app_hash", finalizeBlockResponse.AppHash)
+
+	return finalizeBlockResponse, nil
 }
 
-func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.Block, state types.State) error {
+func (e *BlockExecutor) publishEvents(resp *abci.ResponseFinalizeBlock, block *types.Block, state types.State) {
 	if e.eventBus == nil {
-		return nil
+		return
 	}
 
 	abciBlock, err := abciconv.ToABCIBlock(block)
+
 	abciBlock.Header.ValidatorsHash = state.Validators.Hash()
 	if err != nil {
-		return err
+		return
 	}
 
-	err = multierr.Append(err, e.eventBus.PublishEventNewBlock(cmtypes.EventDataNewBlock{
-		Block:            abciBlock,
-		ResultBeginBlock: *resp.BeginBlock,
-		ResultEndBlock:   *resp.EndBlock,
-	}))
-	err = multierr.Append(err, e.eventBus.PublishEventNewBlockHeader(cmtypes.EventDataNewBlockHeader{
-		Header:           abciBlock.Header,
-		NumTxs:           int64(len(abciBlock.Txs)),
-		ResultBeginBlock: *resp.BeginBlock,
-		ResultEndBlock:   *resp.EndBlock,
-	}))
-	for _, ev := range abciBlock.Evidence.Evidence {
-		err = multierr.Append(err, e.eventBus.PublishEventNewEvidence(cmtypes.EventDataNewEvidence{
-			Evidence: ev,
-			Height:   block.SignedHeader.Header.Height(),
-		}))
+	if err := e.eventBus.PublishEventNewBlock(cmtypes.EventDataNewBlock{
+		Block: abciBlock,
+		BlockID: cmtypes.BlockID{
+			Hash: cmbytes.HexBytes(block.SignedHeader.Header.Hash()),
+			// for now, we don't care about part set headers
+		},
+		ResultFinalizeBlock: *resp,
+	}); err != nil {
+		e.logger.Error("failed publishing new block", "err", err)
 	}
-	for i, dtx := range resp.DeliverTxs {
-		err = multierr.Append(err, e.eventBus.PublishEventTx(cmtypes.EventDataTx{
+
+	if err := e.eventBus.PublishEventNewBlockHeader(cmtypes.EventDataNewBlockHeader{
+		Header: abciBlock.Header,
+	}); err != nil {
+		e.logger.Error("failed publishing new block header", "err", err)
+	}
+
+	if err := e.eventBus.PublishEventNewBlockEvents(cmtypes.EventDataNewBlockEvents{
+		Height: abciBlock.Height,
+		Events: resp.Events,
+		NumTxs: int64(len(abciBlock.Txs)),
+	}); err != nil {
+		e.logger.Error("failed publishing new block events", "err", err)
+	}
+
+	if len(abciBlock.Evidence.Evidence) != 0 {
+		for _, ev := range abciBlock.Evidence.Evidence {
+			if err := e.eventBus.PublishEventNewEvidence(cmtypes.EventDataNewEvidence{
+				Evidence: ev,
+				Height:   block.SignedHeader.Header.Height(),
+			}); err != nil {
+				e.logger.Error("failed publishing new evidence", "err", err)
+			}
+		}
+	}
+
+	for i, tx := range abciBlock.Data.Txs {
+		err := e.eventBus.PublishEventTx(cmtypes.EventDataTx{
 			TxResult: abci.TxResult{
-				Height: block.SignedHeader.Header.Height(),
+				Height: abciBlock.Height,
 				Index:  uint32(i),
-				Tx:     abciBlock.Data.Txs[i],
-				Result: *dtx,
+				Tx:     tx,
+				Result: *(resp.TxResults[i]),
 			},
-		}))
+		})
+		if err != nil {
+			e.logger.Error("failed publishing event TX", "err", err)
+		}
 	}
-	return err
 }
 
 func toRollkitTxs(txs cmtypes.Txs) types.Txs {

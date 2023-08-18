@@ -31,7 +31,7 @@ func TestStartup(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,8 +55,8 @@ func TestMempoolDirectly(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -75,20 +75,20 @@ func TestMempoolDirectly(t *testing.T) {
 
 	pid, err := peer.IDFromPrivateKey(anotherKey)
 	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx1"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx([]byte("tx1"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx2"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx([]byte("tx2"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
 	time.Sleep(100 * time.Millisecond)
-	err = node.Mempool.CheckTx([]byte("tx3"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx([]byte("tx3"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx4"), func(r *abci.Response) {}, mempool.TxInfo{
+	err = node.Mempool.CheckTx([]byte("tx4"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
 		SenderID: node.mempoolIDs.GetForPeer(pid),
 	})
 	require.NoError(err)

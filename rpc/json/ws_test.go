@@ -66,10 +66,9 @@ func TestWebSockets(t *testing.T) {
 	var payload cmtypes.EventDataNewBlock
 	err = json.Unmarshal(msg, &payload)
 	assert.NoError(err)
-	assert.NotNil(payload.ResultBeginBlock)
+	assert.NotNil(payload.ResultFinalizeBlock)
 	assert.NotNil(payload.Block)
 	assert.GreaterOrEqual(payload.Block.Height, int64(1))
-	assert.NotNil(payload.ResultEndBlock)
 
 	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &unsubscribeAllArgs{})
 	require.NoError(err)

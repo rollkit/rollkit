@@ -36,7 +36,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	prefixStore := (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0]).(ds.TxnDatastore)
 	blockIndexer := blockidxkv.New(context.Background(), prefixStore)
 
-	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
+	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus, false)
 	service.SetLogger(log.TestingLogger())
 	err = service.Start()
 	require.NoError(t, err)
@@ -49,14 +49,14 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	// publish block with txs
 	err = eventBus.PublishEventNewBlockHeader(types.EventDataNewBlockHeader{
 		Header: types.Header{Height: 1},
-		NumTxs: int64(2),
+		// NumTxs: int64(2),
 	})
 	require.NoError(t, err)
 	txResult1 := &abci.TxResult{
 		Height: 1,
 		Index:  uint32(0),
 		Tx:     types.Tx("foo"),
-		Result: abci.ResponseDeliverTx{Code: 0},
+		Result: abci.ExecTxResult{Code: 0},
 	}
 	err = eventBus.PublishEventTx(types.EventDataTx{TxResult: *txResult1})
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 		Height: 1,
 		Index:  uint32(1),
 		Tx:     types.Tx("bar"),
-		Result: abci.ResponseDeliverTx{Code: 0},
+		Result: abci.ExecTxResult{Code: 0},
 	}
 	err = eventBus.PublishEventTx(types.EventDataTx{TxResult: *txResult2})
 	require.NoError(t, err)

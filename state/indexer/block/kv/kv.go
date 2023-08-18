@@ -13,6 +13,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/state/indexer"
@@ -53,14 +54,14 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 // primary key: encode(block.height | height) => encode(height)
 // BeginBlock events: encode(eventType.eventAttr|eventValue|height|begin_block) => encode(height)
 // EndBlock events: encode(eventType.eventAttr|eventValue|height|end_block) => encode(height)
-func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
+func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockEvents) error {
 	batch, err := idx.store.NewTransaction(idx.ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
 	defer batch.Discard(idx.ctx)
 
-	height := bh.Header.Height
+	height := bh.Height
 
 	// 1. index by height
 	if err := batch.Put(idx.ctx, ds.NewKey(heightKey(height)), int64ToBytes(height)); err != nil {
@@ -68,12 +69,12 @@ func (idx *BlockerIndexer) Index(bh types.EventDataNewBlockHeader) error {
 	}
 
 	// 2. index BeginBlock events
-	if err := idx.indexEvents(batch, bh.ResultBeginBlock.Events, "begin_block", height); err != nil {
+	if err := idx.indexEvents(batch, bh.Events, "begin_block", height); err != nil {
 		return fmt.Errorf("failed to index BeginBlock events: %w", err)
 	}
 
 	// 3. index EndBlock events
-	if err := idx.indexEvents(batch, bh.ResultEndBlock.Events, "end_block", height); err != nil {
+	if err := idx.indexEvents(batch, bh.Events, "end_block", height); err != nil {
 		return fmt.Errorf("failed to index EndBlock events: %w", err)
 	}
 
@@ -94,22 +95,37 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 	default:
 	}
 
-	conditions, err := q.Conditions()
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse query conditions: %w", err)
-	}
+	conditions := q.Syntax()
 
-	// If there is an exact height query, return the result immediately
-	// (if it exists).
-	height, ok := lookForHeight(conditions)
-	if ok {
-		ok, err := idx.Has(height)
+	// conditions to skip because they're handled before "everything else"
+	skipIndexes := make([]int, 0)
+
+	var ok bool
+
+	var heightInfo HeightInfo
+	// If we are not matching events and block.height occurs more than once, the later value will
+	// overwrite the first one.
+	conditions, heightInfo, ok = dedupHeight(conditions)
+
+	// Extract ranges. If both upper and lower bounds exist, it's better to get
+	// them in order as to not iterate over kvs that are not within range.
+	ranges, rangeIndexes, heightRange := indexer.LookForRangesWithHeight(conditions)
+	heightInfo.heightRange = heightRange
+
+	// If we have additional constraints and want to query per event
+	// attributes, we cannot simply return all blocks for a height.
+	// But we remember the height we want to find and forward it to
+	// match(). If we only have the height constraint
+	// in the query (the second part of the ||), we don't need to query
+	// per event conditions and return all events within the height range.
+	if ok && heightInfo.onlyHeightEq {
+		ok, err := idx.Has(heightInfo.height)
 		if err != nil {
 			return nil, err
 		}
 
 		if ok {
-			return []int64{height}, nil
+			return []int64{heightInfo.height}, nil
 		}
 
 		return results, nil
@@ -117,18 +133,29 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 
 	var heightsInitialized bool
 	filteredHeights := make(map[string][]byte)
-
-	// conditions to skip because they're handled before "everything else"
-	skipIndexes := make([]int, 0)
-
-	// Extract ranges. If both upper and lower bounds exist, it's better to get
-	// them in order as to not iterate over kvs that are not within range.
-	ranges, rangeIndexes := indexer.LookForRanges(conditions)
+	var err error
+	if heightInfo.heightEqIdx != -1 {
+		skipIndexes = append(skipIndexes, heightInfo.heightEqIdx)
+	}
 
 	if len(ranges) > 0 {
 		skipIndexes = append(skipIndexes, rangeIndexes...)
 
 		for _, qr := range ranges {
+			// If we have a query range over height and want to still look for
+			// specific event values we do not want to simply return all
+			// blocks in this height range. We remember the height range info
+			// and pass it on to match() to take into account when processing events.
+			if qr.Key == types.BlockHeightKey && !heightInfo.onlyHeightRange {
+				// If the query contains ranges other than the height then we need to treat the height
+				// range when querying the conditions of the other range.
+				// Otherwise we can just return all the blocks within the height range (as there is no
+				// additional constraint on events)
+
+				continue
+
+			}
+
 			if !heightsInitialized {
 				filteredHeights, err = idx.matchRange(ctx, qr, ds.NewKey(qr.Key).String(), filteredHeights, true)
 				if err != nil {
@@ -157,7 +184,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 			continue
 		}
 
-		startKey := store.GenerateKey([]interface{}{c.CompositeKey, c.Operand})
+		startKey := store.GenerateKey([]interface{}{c.Tag, c.Arg.Value()})
 
 		if !heightsInitialized {
 			filteredHeights, err = idx.match(ctx, c, ds.NewKey(startKey).String(), filteredHeights, true)
@@ -329,7 +356,7 @@ func (idx *BlockerIndexer) matchRange(
 // matched.
 func (idx *BlockerIndexer) match(
 	ctx context.Context,
-	c query.Condition,
+	c syntax.Condition,
 	startKeyBz string,
 	filteredHeights map[string][]byte,
 	firstRun bool,
@@ -344,7 +371,7 @@ func (idx *BlockerIndexer) match(
 	tmpHeights := make(map[string][]byte)
 
 	switch {
-	case c.Op == query.OpEqual:
+	case c.Op == syntax.TEq:
 		results, err := store.PrefixEntries(ctx, idx.store, startKeyBz)
 		if err != nil {
 			return nil, err
@@ -358,9 +385,9 @@ func (idx *BlockerIndexer) match(
 			}
 		}
 
-	case c.Op == query.OpExists:
+	case c.Op == syntax.TExists:
 
-		results, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
+		results, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.Tag).String())
 		if err != nil {
 			return nil, err
 		}
@@ -382,9 +409,9 @@ func (idx *BlockerIndexer) match(
 			}
 		}
 
-	case c.Op == query.OpContains:
+	case c.Op == syntax.TContains:
 
-		results, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.CompositeKey).String())
+		results, err := store.PrefixEntries(ctx, idx.store, ds.NewKey(c.Tag).String())
 		if err != nil {
 			return nil, err
 		}
@@ -394,7 +421,7 @@ func (idx *BlockerIndexer) match(
 
 			eventValue := parseValueFromEventKey(result.Entry.Key)
 
-			if strings.Contains(eventValue, c.Operand.(string)) {
+			if strings.Contains(eventValue, c.Arg.Value()) {
 				tmpHeights[string(result.Entry.Value)] = result.Entry.Value
 			}
 

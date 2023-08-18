@@ -28,21 +28,20 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(&abci.ResponseFinalizeBlock{}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{
 		GasWanted: 1000,
 		GasUsed:   1000,
-	})
-	app.On("Info", mock.Anything).Return(abci.ResponseInfo{
+	}, nil)
+	app.On("Info", mock.Anything, mock.Anything).Return(&abci.ResponseInfo{
 		Data:             "mock",
 		Version:          "mock",
 		AppVersion:       123,
 		LastBlockHeight:  345,
 		LastBlockAppHash: nil,
-	})
+	}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	validatorKey := ed25519.GenPrivKey()
 	nodeKey := &p2p.NodeKey{

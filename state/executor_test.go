@@ -21,7 +21,6 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/mempool"
-	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
 	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -33,7 +32,7 @@ func doTestCreateBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 
 	fmt.Println("App On CheckTx")
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
@@ -43,7 +42,7 @@ func doTestCreateBlock(t *testing.T) {
 
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	fmt.Println("Made NID")
-	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
 	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger)
 	fmt.Println("Made a New Block Executor")
@@ -71,7 +70,7 @@ func doTestCreateBlock(t *testing.T) {
 	assert.Equal(int64(1), block.SignedHeader.Header.Height())
 
 	// one small Tx
-	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block = executor.CreateBlock(2, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
@@ -79,9 +78,9 @@ func doTestCreateBlock(t *testing.T) {
 	assert.Len(block.Data.Txs, 1)
 
 	// now there are 3 Txs, and only two can fit into single block
-	err = mpool.CheckTx([]byte{4, 5, 6, 7}, func(r *abci.Response) {}, mempool.TxInfo{})
+	err = mpool.CheckTx([]byte{4, 5, 6, 7}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	err = mpool.CheckTx(make([]byte, 100), func(r *abci.Response) {}, mempool.TxInfo{})
+	err = mpool.CheckTx(make([]byte, 100), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block = executor.CreateBlock(3, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
@@ -99,16 +98,13 @@ func doTestApplyBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
-		Data: mockAppHash[:],
-	})
+	r := &abci.ResponseFinalizeBlock{AppHash: mockAppHash}
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(r, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
 	require.NoError(err)
@@ -117,7 +113,7 @@ func doTestApplyBlock(t *testing.T) {
 	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	chainID := "test"
 
-	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
 	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
@@ -154,7 +150,7 @@ func doTestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 
-	_ = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
+	_ = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
 	require.NotNil(block)
@@ -178,10 +174,10 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	assert.Equal(mockAppHash, appHash)
 
-	require.NoError(mpool.CheckTx([]byte{0, 1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.Response) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.Response) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx([]byte{0, 1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	block = executor.CreateBlock(2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
 	require.NotNil(block)
 	assert.Equal(int64(2), block.SignedHeader.Header.Height())
@@ -226,9 +222,9 @@ func doTestApplyBlock(t *testing.T) {
 	require.EqualValues(2, len(headerSub.Out()))
 	for h := 1; h <= 2; h++ {
 		evt := <-headerSub.Out()
-		data, ok := evt.Data().(cmtypes.EventDataNewBlockHeader)
+		data, ok := evt.Data().(cmtypes.EventDataNewBlockEvents)
 		assert.True(ok)
-		if data.Header.Height == 2 {
+		if data.Height == 2 {
 			assert.EqualValues(3, data.NumTxs)
 		}
 	}

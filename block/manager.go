@@ -13,7 +13,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -786,7 +785,7 @@ func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeade
 	return m.executor.CreateBlock(height, lastCommit, lastHeaderHash, m.lastState)
 }
 
-func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *cmstate.ABCIResponses, error) {
+func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.executor.ApplyBlock(ctx, m.lastState, block)

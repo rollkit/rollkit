@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	abcitypes "github.com/cometbft/cometbft/abci/types"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	ds "github.com/ipfs/go-datastore"
 
@@ -162,25 +161,21 @@ func TestBlockResponses(t *testing.T) {
 	kv, _ := NewDefaultInMemoryKVStore()
 	s := New(ctx, kv)
 
-	expected := &cmstate.ABCIResponses{
-		BeginBlock: &abcitypes.ResponseBeginBlock{
-			Events: []abcitypes.Event{{
-				Type: "test",
-				Attributes: []abcitypes.EventAttribute{{
-					Key:   string("foo"),
-					Value: string("bar"),
-					Index: false,
-				}},
+	expected := &abcitypes.ResponseFinalizeBlock{
+		Events: []abcitypes.Event{{
+			Type: "test",
+			Attributes: []abcitypes.EventAttribute{{
+				Key:   string("foo"),
+				Value: string("bar"),
+				Index: false,
 			}},
-		},
-		DeliverTxs: nil,
-		EndBlock: &abcitypes.ResponseEndBlock{
-			ValidatorUpdates: nil,
-			ConsensusParamUpdates: &cmproto.ConsensusParams{
-				Block: &cmproto.BlockParams{
-					MaxBytes: 12345,
-					MaxGas:   678909876,
-				},
+		}},
+		TxResults:        nil,
+		ValidatorUpdates: nil,
+		ConsensusParamUpdates: &cmproto.ConsensusParams{
+			Block: &cmproto.BlockParams{
+				MaxBytes: 12345,
+				MaxGas:   678909876,
 			},
 		},
 	}

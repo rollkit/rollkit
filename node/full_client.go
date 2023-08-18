@@ -66,7 +66,7 @@ func (n *FullNode) GetClient() rpcclient.Client {
 
 // ABCIInfo returns basic information about application state.
 func (c *FullClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error) {
-	resInfo, err := c.appClient().Query().InfoSync(proxy.RequestInfo)
+	resInfo, err := c.appClient().Query().Info(ctx, proxy.RequestInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (c *FullClient) ABCIQuery(ctx context.Context, path string, data cmbytes.He
 
 // ABCIQueryWithOptions queries for data from application.
 func (c *FullClient) ABCIQueryWithOptions(ctx context.Context, path string, data cmbytes.HexBytes, opts rpcclient.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-	resQuery, err := c.appClient().Query().QuerySync(abci.RequestQuery{
+	resQuery, err := c.appClient().Query().Query(ctx, &abci.RequestQuery{
 		Path:   path,
 		Data:   data,
 		Height: opts.Height,
@@ -124,21 +124,20 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*cty
 	}()
 
 	// add to mempool and wait for CheckTx result
-	checkTxResCh := make(chan *abci.Response, 1)
-	err = c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+	checkTxResCh := make(chan *abci.ResponseCheckTx, 1)
+	err = c.node.Mempool.CheckTx(tx, func(res *abci.ResponseCheckTx) {
 		checkTxResCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
 		c.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
 	}
-	checkTxResMsg := <-checkTxResCh
-	checkTxRes := checkTxResMsg.GetCheckTx()
+	checkTxRes := <-checkTxResCh
 	if checkTxRes.Code != abci.CodeTypeOK {
 		return &ctypes.ResultBroadcastTxCommit{
-			CheckTx:   *checkTxRes,
-			DeliverTx: abci.ResponseDeliverTx{},
-			Hash:      tx.Hash(),
+			CheckTx:  *checkTxRes,
+			TxResult: abci.ExecTxResult{},
+			Hash:     tx.Hash(),
 		}, nil
 	}
 
@@ -153,12 +152,12 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*cty
 	case msg := <-deliverTxSub.Out(): // The tx was included in a block.
 		deliverTxRes := msg.Data().(cmtypes.EventDataTx)
 		return &ctypes.ResultBroadcastTxCommit{
-			CheckTx:   *checkTxRes,
-			DeliverTx: deliverTxRes.Result,
-			Hash:      tx.Hash(),
-			Height:    deliverTxRes.Height,
+			CheckTx:  *checkTxRes,
+			TxResult: deliverTxRes.Result,
+			Hash:     tx.Hash(),
+			Height:   deliverTxRes.Height,
 		}, nil
-	case <-deliverTxSub.Cancelled():
+	case <-deliverTxSub.Canceled():
 		var reason string
 		if deliverTxSub.Err() == nil {
 			reason = "Tendermint exited"
@@ -168,17 +167,17 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*cty
 		err = fmt.Errorf("deliverTxSub was cancelled (reason: %s)", reason)
 		c.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return &ctypes.ResultBroadcastTxCommit{
-			CheckTx:   *checkTxRes,
-			DeliverTx: abci.ResponseDeliverTx{},
-			Hash:      tx.Hash(),
+			CheckTx:  *checkTxRes,
+			TxResult: abci.ExecTxResult{},
+			Hash:     tx.Hash(),
 		}, err
 	case <-time.After(c.config.TimeoutBroadcastTxCommit):
 		err = errors.New("timed out waiting for tx to be included in a block")
 		c.Logger.Error("Error on broadcastTxCommit", "err", err)
 		return &ctypes.ResultBroadcastTxCommit{
-			CheckTx:   *checkTxRes,
-			DeliverTx: abci.ResponseDeliverTx{},
-			Hash:      tx.Hash(),
+			CheckTx:  *checkTxRes,
+			TxResult: abci.ExecTxResult{},
+			Hash:     tx.Hash(),
 		}, err
 	}
 }
@@ -203,20 +202,19 @@ func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx cmtypes.Tx) (*ctyp
 // DeliverTx result.
 // More: https://docs.tendermint.com/master/rpc/#/Tx/broadcast_tx_sync
 func (c *FullClient) BroadcastTxSync(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
-	resCh := make(chan *abci.Response, 1)
-	err := c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
+	resCh := make(chan *abci.ResponseCheckTx, 1)
+	err := c.node.Mempool.CheckTx(tx, func(res *abci.ResponseCheckTx) {
 		resCh <- res
 	}, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
 	}
 	res := <-resCh
-	r := res.GetCheckTx()
 
 	// gossip the transaction if it's in the mempool.
 	// Note: we have to do this here because, unlike the tendermint mempool reactor, there
 	// is no routine that gossips transactions after they enter the pool
-	if r.Code == abci.CodeTypeOK {
+	if res.Code == abci.CodeTypeOK {
 		err = c.node.P2P.GossipTx(ctx, tx)
 		if err != nil {
 			// the transaction must be removed from the mempool if it cannot be gossiped.
@@ -229,10 +227,10 @@ func (c *FullClient) BroadcastTxSync(ctx context.Context, tx cmtypes.Tx) (*ctype
 	}
 
 	return &ctypes.ResultBroadcastTx{
-		Code:      r.Code,
-		Data:      r.Data,
-		Log:       r.Log,
-		Codespace: r.Codespace,
+		Code:      res.Code,
+		Data:      res.Data,
+		Log:       res.Log,
+		Codespace: res.Codespace,
 		Hash:      tx.Hash(),
 	}, nil
 }
@@ -465,6 +463,10 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	} else {
 		h = uint64(*height)
 	}
+	block, err := c.node.Store.LoadBlock(h)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.node.Store.LoadBlockResponses(h)
 	if err != nil {
 		return nil, err
@@ -472,11 +474,11 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 
 	return &ctypes.ResultBlockResults{
 		Height:                int64(h),
-		TxsResults:            resp.DeliverTxs,
-		BeginBlockEvents:      resp.BeginBlock.Events,
-		EndBlockEvents:        resp.EndBlock.Events,
-		ValidatorUpdates:      resp.EndBlock.ValidatorUpdates,
-		ConsensusParamUpdates: resp.EndBlock.ConsensusParamUpdates,
+		TxsResults:            resp.TxResults,
+		FinalizeBlockEvents:   resp.Events,
+		ValidatorUpdates:      resp.ValidatorUpdates,
+		ConsensusParamUpdates: resp.ConsensusParamUpdates,
+		AppHash:               block.SignedHeader.Header.AppHash,
 	}, nil
 }
 
@@ -789,7 +791,7 @@ func (c *FullClient) UnconfirmedTxs(ctx context.Context, limitPtr *int) (*ctypes
 //
 // If valid, the tx is automatically added to the mempool.
 func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultCheckTx, error) {
-	res, err := c.appClient().Mempool().CheckTxSync(abci.RequestCheckTx{Tx: tx})
+	res, err := c.appClient().Mempool().CheckTx(ctx, &abci.RequestCheckTx{Tx: tx})
 	if err != nil {
 		return nil, err
 	}
@@ -840,7 +842,7 @@ func (c *FullClient) eventsRoutine(sub cmtypes.Subscription, subscriber string, 
 				full := cap(outc) != 0
 				c.Logger.Error("wanted to publish ResultEvent, but out channel is full:", full, "result:", result, "query:", result.Query)
 			}
-		case <-sub.Cancelled():
+		case <-sub.Canceled():
 			if sub.Err() == cmpubsub.ErrUnsubscribed {
 				return
 			}

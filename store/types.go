@@ -1,7 +1,7 @@
 package store
 
 import (
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/types"
@@ -24,10 +24,10 @@ type Store interface {
 	LoadBlockByHash(hash types.Hash) (*types.Block, error)
 
 	// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
-	SaveBlockResponses(height uint64, responses *cmstate.ABCIResponses) error
+	SaveBlockResponses(height uint64, responses *abci.ResponseFinalizeBlock) error
 
 	// LoadBlockResponses returns block results at given height, or error if it's not found in Store.
-	LoadBlockResponses(height uint64) (*cmstate.ABCIResponses, error)
+	LoadBlockResponses(height uint64) (*abci.ResponseFinalizeBlock, error)
 
 	// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
 	LoadCommit(height uint64) (*types.Commit, error)

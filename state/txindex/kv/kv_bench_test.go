@@ -47,7 +47,7 @@ func BenchmarkTxSearch(b *testing.B) {
 			Height: int64(i),
 			Index:  0,
 			Tx:     types.Tx(string(txBz)),
-			Result: abci.ResponseDeliverTx{
+			Result: abci.ExecTxResult{
 				Data:   []byte{0},
 				Code:   abci.CodeTypeOK,
 				Log:    "",
@@ -60,7 +60,7 @@ func BenchmarkTxSearch(b *testing.B) {
 		}
 	}
 
-	txQuery := query.MustParse("transfer.address = 'address_43' AND transfer.amount = 50")
+	txQuery := query.MustCompile("transfer.address = 'address_43' AND transfer.amount = 50")
 
 	b.ResetTimer()
 

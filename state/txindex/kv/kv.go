@@ -13,6 +13,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/state/indexer"
@@ -192,10 +193,7 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 	filteredHashes := make(map[string][]byte)
 
 	// get a list of conditions (like "tx.height > 5")
-	conditions, err := q.Conditions()
-	if err != nil {
-		return nil, fmt.Errorf("error during parsing conditions from query: %w", err)
-	}
+	conditions := q.Syntax()
 
 	// if there is a hash condition, return the result immediately
 	hash, ok, err := lookForHash(conditions)
@@ -215,15 +213,32 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 
 	// conditions to skip because they're handled before "everything else"
 	skipIndexes := make([]int, 0)
+	var heightInfo HeightInfo
+
+	// If we are not matching events and tx.height = 3 occurs more than once, the later value will
+	// overwrite the first one.
+	conditions, heightInfo = dedupHeight(conditions)
+
+	if !heightInfo.onlyHeightEq {
+		skipIndexes = append(skipIndexes, heightInfo.heightEqIdx)
+	}
 
 	// extract ranges
 	// if both upper and lower bounds exist, it's better to get them in order not
 	// no iterate over kvs that are not within range.
-	ranges, rangeIndexes := indexer.LookForRanges(conditions)
+	ranges, rangeIndexes, heightRange := indexer.LookForRangesWithHeight(conditions)
+	heightInfo.heightRange = heightRange
 	if len(ranges) > 0 {
 		skipIndexes = append(skipIndexes, rangeIndexes...)
 
 		for _, qr := range ranges {
+			// If we have a query range over height and want to still look for
+			// specific event values we do not want to simply return all
+			// transactios in this height range. We remember the height range info
+			// and pass it on to match() to take into account when processing events.
+			if qr.Key == types.TxHeightKey && !heightInfo.onlyHeightRange {
+				continue
+			}
 			if !hashesInitialized {
 				filteredHashes = txi.matchRange(ctx, qr, startKey(qr.Key), filteredHashes, true)
 				hashesInitialized = true
@@ -263,34 +278,34 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 	}
 
 	results := make([]*abci.TxResult, 0, len(filteredHashes))
+	resultMap := make(map[string]struct{})
+RESULTS_LOOP:
 	for _, h := range filteredHashes {
-		cont := true
 
 		res, err := txi.Get(h)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get Tx{%X}: %w", h, err)
 		}
-		results = append(results, res)
-
+		hashString := string(h)
+		if _, ok := resultMap[hashString]; !ok {
+			resultMap[hashString] = struct{}{}
+			results = append(results, res)
+		}
 		// Potentially exit early.
 		select {
 		case <-ctx.Done():
-			cont = false
+			break RESULTS_LOOP
 		default:
-		}
-
-		if !cont {
-			break
 		}
 	}
 
 	return results, nil
 }
 
-func lookForHash(conditions []query.Condition) (hash []byte, ok bool, err error) {
+func lookForHash(conditions []syntax.Condition) (hash []byte, ok bool, err error) {
 	for _, c := range conditions {
-		if c.CompositeKey == types.TxHashKey {
-			decoded, err := hex.DecodeString(c.Operand.(string))
+		if c.Tag == types.TxHashKey {
+			decoded, err := hex.DecodeString(c.Arg.Value())
 			return decoded, true, err
 		}
 	}
@@ -298,10 +313,15 @@ func lookForHash(conditions []query.Condition) (hash []byte, ok bool, err error)
 }
 
 // lookForHeight returns a height if there is an "height=X" condition.
-func lookForHeight(conditions []query.Condition) (height int64) {
+func lookForHeight(conditions []syntax.Condition) (height int64) {
 	for _, c := range conditions {
-		if c.CompositeKey == types.TxHeightKey && c.Op == query.OpEqual {
-			return c.Operand.(*big.Int).Int64()
+		if c.Tag == types.TxHeightKey && c.Op == syntax.TEq {
+			hFloat := c.Arg.Number()
+			if hFloat == nil {
+				return 0
+			}
+			h, _ := hFloat.Int64()
+			return h
 		}
 	}
 	return 0
@@ -314,7 +334,7 @@ func lookForHeight(conditions []query.Condition) (height int64) {
 // NOTE: filteredHashes may be empty if no previous condition has matched.
 func (txi *TxIndex) match(
 	ctx context.Context,
-	c query.Condition,
+	c syntax.Condition,
 	startKeyBz string,
 	filteredHashes map[string][]byte,
 	firstRun bool,
@@ -328,7 +348,7 @@ func (txi *TxIndex) match(
 	tmpHashes := make(map[string][]byte)
 
 	switch {
-	case c.Op == query.OpEqual:
+	case c.Op == syntax.TEq:
 		results, err := store.PrefixEntries(ctx, txi.store, startKeyBz)
 		if err != nil {
 			panic(err)
@@ -351,10 +371,10 @@ func (txi *TxIndex) match(
 			}
 		}
 
-	case c.Op == query.OpExists:
+	case c.Op == syntax.TExists:
 		// XXX: can't use startKeyBz here because c.Operand is nil
 		// (e.g. "account.owner/<nil>/" won't match w/ a single row)
-		results, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
+		results, err := store.PrefixEntries(ctx, txi.store, startKey(c.Tag))
 		if err != nil {
 			panic(err)
 		}
@@ -376,11 +396,11 @@ func (txi *TxIndex) match(
 			}
 		}
 
-	case c.Op == query.OpContains:
+	case c.Op == syntax.TContains:
 		// XXX: startKey does not apply here.
 		// For example, if startKey = "account.owner/an/" and search query = "account.owner CONTAINS an"
 		// we can't iterate with prefix "account.owner/an/" because we might miss keys like "account.owner/Ulan/"
-		results, err := store.PrefixEntries(ctx, txi.store, startKey(c.CompositeKey))
+		results, err := store.PrefixEntries(ctx, txi.store, startKey(c.Tag))
 		if err != nil {
 			panic(err)
 		}
@@ -392,7 +412,7 @@ func (txi *TxIndex) match(
 				continue
 			}
 
-			if strings.Contains(extractValueFromKey([]byte(result.Entry.Key)), c.Operand.(string)) {
+			if strings.Contains(extractValueFromKey([]byte(result.Entry.Key)), c.Arg.Value()) {
 				tmpHashes[string(result.Entry.Value)] = result.Entry.Value
 			}
 
@@ -584,11 +604,11 @@ func keyForHeight(result *abci.TxResult) string {
 	)
 }
 
-func startKeyForCondition(c query.Condition, height int64) string {
+func startKeyForCondition(c syntax.Condition, height int64) string {
 	if height > 0 {
-		return startKey(c.CompositeKey, c.Operand, height)
+		return startKey(c.Tag, c.Arg.Value(), height)
 	}
-	return startKey(c.CompositeKey, c.Operand)
+	return startKey(c.Tag, c.Arg.Value())
 }
 
 func startKey(fields ...interface{}) string {
