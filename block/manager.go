@@ -174,7 +174,7 @@ func NewManager(
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
 		BlockCh:           make(chan *types.Block, channelLength),
-		blockInCh:         make(chan newBlockEvent, channelLength),
+		blockInCh:         make(chan newBlockEvent, blockInChLength),
 		blockStoreCh:      make(chan interface{}),
 		blockStore:        blockStore,
 		lastStateMtx:      new(sync.RWMutex),
