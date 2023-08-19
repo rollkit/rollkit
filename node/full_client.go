@@ -701,7 +701,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
-	validators, err := c.node.Store.LoadValidators(uint64(latest.SignedHeader.Header.Height()))
+	validators, err := c.node.Store.LoadValidators(uint64(latest.Height()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
 	}
@@ -738,12 +738,12 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		SyncInfo: ctypes.SyncInfo{
 			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.Header.DataHash),
 			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.Header.AppHash),
-			LatestBlockHeight:   latest.SignedHeader.Header.Height(),
-			LatestBlockTime:     latest.SignedHeader.Header.Time(),
+			LatestBlockHeight:   latest.Height(),
+			LatestBlockTime:     latest.Time(),
 			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.Header.DataHash),
 			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.Header.AppHash),
-			EarliestBlockHeight: initial.SignedHeader.Header.Height(),
-			EarliestBlockTime:   initial.SignedHeader.Header.Time(),
+			EarliestBlockHeight: initial.Height(),
+			EarliestBlockTime:   initial.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
