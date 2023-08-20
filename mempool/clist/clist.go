@@ -40,7 +40,7 @@ and there's no reason to serialize that condition for goroutines
 waiting on NextWait() (since it's just a read operation).
 */
 type CElement struct {
-	mtx        cmsync.RWMutex
+	mtx        sync.RWMutex
 	prev       *CElement
 	prevWg     *sync.WaitGroup
 	prevWaitCh chan struct{}
