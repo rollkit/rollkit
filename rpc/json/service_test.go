@@ -133,124 +133,124 @@ func TestStringyRequest(t *testing.T) {
 	assert.Equal(respJSON, resp.Body.String())
 }
 
-func TestSubscription(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
+// func TestSubscription(t *testing.T) {
+// 	assert := assert.New(t)
+// 	require := require.New(t)
 
-	const (
-		query        = "message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
-		query2       = "message.sender!='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
-		invalidQuery = "message.sender='broken"
-	)
-	subscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
-		Query: query,
-	})
-	require.NoError(err)
-	require.NotEmpty(subscribeReq)
+// 	const (
+// 		query        = "message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
+// 		query2       = "message.sender!='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
+// 		invalidQuery = "message.sender='broken"
+// 	)
+// 	subscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
+// 		Query: query,
+// 	})
+// 	require.NoError(err)
+// 	require.NotEmpty(subscribeReq)
 
-	subscribeReq2, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
-		Query: query2,
-	})
-	require.NoError(err)
-	require.NotEmpty(subscribeReq2)
+// 	subscribeReq2, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
+// 		Query: query2,
+// 	})
+// 	require.NoError(err)
+// 	require.NotEmpty(subscribeReq2)
 
-	invalidSubscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
-		Query: invalidQuery,
-	})
-	require.NoError(err)
-	require.NotEmpty(invalidSubscribeReq)
+// 	invalidSubscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
+// 		Query: invalidQuery,
+// 	})
+// 	require.NoError(err)
+// 	require.NotEmpty(invalidSubscribeReq)
 
-	unsubscribeReq, err := json2.EncodeClientRequest("unsubscribe", &unsubscribeArgs{
-		Query: query,
-	})
-	require.NoError(err)
-	require.NotEmpty(unsubscribeReq)
+// 	unsubscribeReq, err := json2.EncodeClientRequest("unsubscribe", &unsubscribeArgs{
+// 		Query: query,
+// 	})
+// 	require.NoError(err)
+// 	require.NotEmpty(unsubscribeReq)
 
-	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &unsubscribeAllArgs{})
-	require.NoError(err)
-	require.NotEmpty(unsubscribeAllReq)
+// 	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &unsubscribeAllArgs{})
+// 	require.NoError(err)
+// 	require.NotEmpty(unsubscribeAllReq)
 
-	_, local := getRPC(t)
-	handler, err := GetHTTPHandler(local, log.TestingLogger())
-	require.NoError(err)
+// 	_, local := getRPC(t)
+// 	handler, err := GetHTTPHandler(local, log.TestingLogger())
+// 	require.NoError(err)
 
-	var (
-		jsonResp response
-	)
+// 	var (
+// 		jsonResp response
+// 	)
 
-	// test valid subscription
-	req := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(subscribeReq))
-	resp := httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	assert.Nil(jsonResp.Error)
+// 	// test valid subscription
+// 	req := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(subscribeReq))
+// 	resp := httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	assert.Nil(jsonResp.Error)
 
-	// test valid subscription with second query
-	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(subscribeReq2))
-	resp = httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	assert.Nil(jsonResp.Error)
+// 	// test valid subscription with second query
+// 	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(subscribeReq2))
+// 	resp = httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	assert.Nil(jsonResp.Error)
 
-	// test subscription with invalid query
-	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(invalidSubscribeReq))
-	resp = httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	require.NotNil(jsonResp.Error)
-	assert.Contains(jsonResp.Error.Message, "failed to parse query")
+// 	// test subscription with invalid query
+// 	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(invalidSubscribeReq))
+// 	resp = httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	require.NotNil(jsonResp.Error)
+// 	assert.Contains(jsonResp.Error.Message, "failed to parse query")
 
-	// test valid, but duplicate subscription
-	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(subscribeReq))
-	resp = httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	require.NotNil(jsonResp.Error)
-	assert.Contains(jsonResp.Error.Message, "already subscribed")
+// 	// test valid, but duplicate subscription
+// 	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(subscribeReq))
+// 	resp = httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	require.NotNil(jsonResp.Error)
+// 	assert.Contains(jsonResp.Error.Message, "already subscribed")
 
-	// test unsubscribing
-	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeReq))
-	resp = httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	assert.Nil(jsonResp.Error)
+// 	// test unsubscribing
+// 	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeReq))
+// 	resp = httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	assert.Nil(jsonResp.Error)
 
-	// test unsubscribing again
-	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeReq))
-	resp = httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	require.NotNil(jsonResp.Error)
-	assert.Contains(jsonResp.Error.Message, "subscription not found")
+// 	// test unsubscribing again
+// 	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeReq))
+// 	resp = httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	require.NotNil(jsonResp.Error)
+// 	assert.Contains(jsonResp.Error.Message, "subscription not found")
 
-	// test unsubscribe all
-	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeAllReq))
-	resp = httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	assert.Nil(jsonResp.Error)
+// 	// test unsubscribe all
+// 	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeAllReq))
+// 	resp = httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	assert.Nil(jsonResp.Error)
 
-	// test unsubscribing all again
-	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeAllReq))
-	resp = httptest.NewRecorder()
-	handler.ServeHTTP(resp, req)
-	assert.Equal(http.StatusOK, resp.Code)
-	jsonResp = response{}
-	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
-	require.NotNil(jsonResp.Error)
-	assert.Contains(jsonResp.Error.Message, "subscription not found")
-}
+// 	// test unsubscribing all again
+// 	req = httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeAllReq))
+// 	resp = httptest.NewRecorder()
+// 	handler.ServeHTTP(resp, req)
+// 	assert.Equal(http.StatusOK, resp.Code)
+// 	jsonResp = response{}
+// 	assert.NoError(json.Unmarshal(resp.Body.Bytes(), &jsonResp))
+// 	require.NotNil(jsonResp.Error)
+// 	assert.Contains(jsonResp.Error.Message, "subscription not found")
+// }

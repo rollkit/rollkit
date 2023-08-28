@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"strconv"
 	"strings"
 
 	ds "github.com/ipfs/go-datastore"
@@ -16,6 +15,7 @@ import (
 	"github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
 
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/state/indexer"
 	"github.com/rollkit/rollkit/store"
 )
@@ -157,7 +157,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 			}
 
 			if !heightsInitialized {
-				filteredHeights, err = idx.matchRange(ctx, qr, ds.NewKey(qr.Key).String(), filteredHeights, true)
+				filteredHeights, err = idx.matchRange(ctx, qr, ds.NewKey(qr.Key).String(), filteredHeights, true, heightInfo)
 				if err != nil {
 					return nil, err
 				}
@@ -170,7 +170,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 					break
 				}
 			} else {
-				filteredHeights, err = idx.matchRange(ctx, qr, ds.NewKey(qr.Key).String(), filteredHeights, false)
+				filteredHeights, err = idx.matchRange(ctx, qr, ds.NewKey(qr.Key).String(), filteredHeights, false, heightInfo)
 				if err != nil {
 					return nil, err
 				}
@@ -209,6 +209,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 
 	// fetch matching heights
 	results = make([]int64, 0, len(filteredHeights))
+	resultMap := make(map[int64]struct{})
 	for _, hBz := range filteredHeights {
 		cont := true
 
@@ -219,7 +220,10 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 			return nil, err
 		}
 		if ok {
-			results = append(results, h)
+			if _, ok := resultMap[h]; !ok {
+				resultMap[h] = struct{}{}
+				results = append(results, h)
+			}
 		}
 
 		select {
@@ -250,6 +254,7 @@ func (idx *BlockerIndexer) matchRange(
 	startKey string,
 	filteredHeights map[string][]byte,
 	firstRun bool,
+	heightInfo HeightInfo,
 ) (map[string][]byte, error) {
 
 	// A previous match was attempted but resulted in no matches, so we return
@@ -259,46 +264,90 @@ func (idx *BlockerIndexer) matchRange(
 	}
 
 	tmpHeights := make(map[string][]byte)
-	lowerBound := qr.LowerBoundValue()
-	upperBound := qr.UpperBoundValue()
+	// lowerBound := qr.LowerBoundValue()
+	// upperBound := qr.UpperBoundValue()
 
 	results, err := store.PrefixEntries(ctx, idx.store, startKey)
 	if err != nil {
 		return nil, err
 	}
 
+LOOP:
 	for result := range results.Next() {
 		cont := true
 
 		var (
-			v    int64
-			vStr string
-			err  error
+			// v    float64
+			eventValue string
+			err        error
 		)
 
 		if qr.Key == types.BlockHeightKey {
-			v, err = parseValueFromPrimaryKey(result.Entry.Key)
+			eventValue = parseValueFromPrimaryKey(result.Entry.Key)
 		} else {
-			vStr = parseValueFromEventKey(result.Entry.Key)
-			v, err = strconv.ParseInt(vStr, 10, 64)
+			eventValue = parseValueFromEventKey(result.Entry.Key)
 		}
 		if err != nil {
 			continue
 		}
 
-		if _, ok := qr.AnyBound().(*big.Int); ok {
-			include := true
-			if lowerBound != nil && v < lowerBound.(*big.Int).Int64() {
-				include = false
+		if _, ok := qr.AnyBound().(*big.Float); ok {
+			// // include := true
+			// if lowerBound != nil {
+			// 	lF, _ := lowerBound.(*big.Float).Float64()
+			// 	if v < lF {
+			// 		include = false
+			// 	}
+			// }
+
+			// if upperBound != nil {
+			// 	uF, _ := upperBound.(*big.Float).Float64()
+			// 	if v > uF {
+			// 		include = false
+			// 	}
+			// }
+
+			v := new(big.Int)
+			v, ok := v.SetString(eventValue, 10)
+			var vF *big.Float
+			if !ok {
+				// The precision here is 125. For numbers bigger than this, the value
+				// will not be parsed properly
+				vF, _, err = big.ParseFloat(eventValue, 10, 125, big.ToNearestEven)
+				if err != nil {
+					continue LOOP
+				}
 			}
 
-			if upperBound != nil && v > upperBound.(*big.Int).Int64() {
-				include = false
+			if qr.Key != types.BlockHeightKey {
+				keyHeight, err := parseHeightFromEventKey(result.Entry.Key)
+				if err != nil {
+					continue LOOP
+				}
+				withinHeight, err := checkHeightConditions(heightInfo, keyHeight)
+				if err != nil {
+					continue LOOP
+				}
+				if !withinHeight {
+					continue LOOP
+				}
 			}
 
-			if include {
-				tmpHeights[string(result.Entry.Value)] = result.Entry.Value
+			var withinBounds bool
+			var err error
+			if !ok {
+				withinBounds, err = state.CheckBounds(qr, vF)
+			} else {
+				withinBounds, err = state.CheckBounds(qr, v)
 			}
+			if err != nil {
+
+			} else {
+				if withinBounds {
+					tmpHeights[string(result.Entry.Value)] = result.Entry.Value
+				}
+			}
+
 		}
 
 		select {

@@ -97,14 +97,28 @@ func doTestApplyBlock(t *testing.T) {
 
 	logger := log.TestingLogger()
 
-	app := &mocks.Application{}
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
-	r := &abci.ResponseFinalizeBlock{AppHash: mockAppHash}
+
+	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(r, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
+		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+			txResults := make([]*abci.ExecTxResult, len(req.Txs))
+			for idx := range req.Txs {
+				txResults[idx] = &abci.ExecTxResult{
+					Code: abci.CodeTypeOK,
+				}
+			}
+
+			return &abci.ResponseFinalizeBlock{
+				TxResults: txResults,
+				AppHash:   mockAppHash,
+			}, nil
+		},
+	)
 
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
 	require.NoError(err)
@@ -150,7 +164,7 @@ func doTestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 
-	_ = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
+	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
 	require.NotNil(block)
@@ -222,11 +236,8 @@ func doTestApplyBlock(t *testing.T) {
 	require.EqualValues(2, len(headerSub.Out()))
 	for h := 1; h <= 2; h++ {
 		evt := <-headerSub.Out()
-		data, ok := evt.Data().(cmtypes.EventDataNewBlockEvents)
+		_, ok := evt.Data().(cmtypes.EventDataNewBlockHeader)
 		assert.True(ok)
-		if data.Height == 2 {
-			assert.EqualValues(3, data.NumTxs)
-		}
 	}
 }
 

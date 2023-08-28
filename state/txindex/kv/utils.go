@@ -1,8 +1,11 @@
 package kv
 
 import (
+	"math/big"
+
 	cmtsyntax "github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/state/indexer"
 )
 
@@ -67,4 +70,18 @@ func dedupHeight(conditions []cmtsyntax.Condition) (dedupConditions []cmtsyntax.
 		heightInfo.onlyHeightEq = false
 	}
 	return dedupConditions, heightInfo
+}
+
+func checkHeightConditions(heightInfo HeightInfo, keyHeight int64) (bool, error) {
+	if heightInfo.heightRange.Key != "" {
+		withinBounds, err := state.CheckBounds(heightInfo.heightRange, big.NewInt(keyHeight))
+		if err != nil || !withinBounds {
+			return false, err
+		}
+	} else {
+		if heightInfo.height != 0 && keyHeight != heightInfo.height {
+			return false, nil
+		}
+	}
+	return true, nil
 }

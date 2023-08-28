@@ -29,7 +29,20 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(&abci.ResponseFinalizeBlock{}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
+		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+			txResults := make([]*abci.ExecTxResult, len(req.Txs))
+			for idx := range req.Txs {
+				txResults[idx] = &abci.ExecTxResult{
+					Code: abci.CodeTypeOK,
+				}
+			}
+
+			return &abci.ResponseFinalizeBlock{
+				TxResults: txResults,
+			}, nil
+		},
+	)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{
 		GasWanted: 1000,

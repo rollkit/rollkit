@@ -16,6 +16,7 @@ import (
 	"github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
 
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/state/indexer"
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/store"
@@ -240,7 +241,7 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 				continue
 			}
 			if !hashesInitialized {
-				filteredHashes = txi.matchRange(ctx, qr, startKey(qr.Key), filteredHashes, true)
+				filteredHashes = txi.matchRange(ctx, qr, startKey(qr.Key), filteredHashes, true, heightInfo)
 				hashesInitialized = true
 
 				// Ignore any remaining conditions if the first condition resulted
@@ -249,13 +250,13 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 					break
 				}
 			} else {
-				filteredHashes = txi.matchRange(ctx, qr, startKey(qr.Key), filteredHashes, false)
+				filteredHashes = txi.matchRange(ctx, qr, startKey(qr.Key), filteredHashes, false, heightInfo)
 			}
 		}
 	}
 
 	// if there is a height condition ("tx.height=3"), extract it
-	height := lookForHeight(conditions)
+	// height := lookForHeight(conditions)
 
 	// for all other conditions
 	for i, c := range conditions {
@@ -264,7 +265,7 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 		}
 
 		if !hashesInitialized {
-			filteredHashes = txi.match(ctx, c, startKeyForCondition(c, height), filteredHashes, true)
+			filteredHashes = txi.match(ctx, c, startKeyForCondition(c, heightInfo.height), filteredHashes, true)
 			hashesInitialized = true
 
 			// Ignore any remaining conditions if the first condition resulted
@@ -273,7 +274,7 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 				break
 			}
 		} else {
-			filteredHashes = txi.match(ctx, c, startKeyForCondition(c, height), filteredHashes, false)
+			filteredHashes = txi.match(ctx, c, startKeyForCondition(c, heightInfo.height), filteredHashes, false)
 		}
 	}
 
@@ -477,6 +478,7 @@ func (txi *TxIndex) matchRange(
 	startKey string,
 	filteredHashes map[string][]byte,
 	firstRun bool,
+	heightInfo HeightInfo,
 ) map[string][]byte {
 	// A previous match was attempted but resulted in no matches, so we return
 	// no matches (assuming AND operand).
@@ -485,8 +487,6 @@ func (txi *TxIndex) matchRange(
 	}
 
 	tmpHashes := make(map[string][]byte)
-	lowerBound := qr.LowerBoundValue()
-	upperBound := qr.UpperBoundValue()
 
 	results, err := store.PrefixEntries(ctx, txi.store, startKey)
 	if err != nil {
@@ -501,23 +501,45 @@ LOOP:
 			continue
 		}
 
-		if _, ok := qr.AnyBound().(*big.Int); ok {
-			v, err := strconv.ParseInt(extractValueFromKey([]byte(result.Entry.Key)), 10, 64)
+		if _, ok := qr.AnyBound().(*big.Float); ok {
+			v := new(big.Int)
+			v, ok := v.SetString(extractValueFromKey([]byte(result.Entry.Key)), 10)
+			var vF *big.Float
+			if !ok {
+				vF, _, err = big.ParseFloat(extractValueFromKey([]byte(result.Entry.Key)), 10, 125, big.ToNearestEven)
+				if err != nil {
+					continue LOOP
+				}
+
+			}
+			if qr.Key != types.TxHeightKey {
+				keyHeight, err := extractHeightFromKey([]byte(result.Entry.Key))
+				if err != nil {
+					// txi.log.Error("failure to parse height from key:", err)
+					continue
+				}
+				withinBounds, err := checkHeightConditions(heightInfo, keyHeight)
+				if err != nil {
+					// txi.log.Error("failure checking for height bounds:", err)
+					continue
+				}
+				if !withinBounds {
+					continue
+				}
+			}
+			var withinBounds bool
+			var err error
+			if !ok {
+				withinBounds, err = state.CheckBounds(qr, vF)
+			} else {
+				withinBounds, err = state.CheckBounds(qr, v)
+			}
 			if err != nil {
-				continue LOOP
-			}
 
-			include := true
-			if lowerBound != nil && v < lowerBound.(*big.Int).Int64() {
-				include = false
-			}
-
-			if upperBound != nil && v > upperBound.(*big.Int).Int64() {
-				include = false
-			}
-
-			if include {
-				tmpHashes[string(result.Entry.Value)] = result.Entry.Value
+			} else {
+				if withinBounds {
+					tmpHashes[string(result.Entry.Value)] = result.Entry.Value
+				}
 			}
 
 			// XXX: passing time in a ABCI Events is not yet implemented
@@ -584,6 +606,12 @@ func isTagKey(key []byte) bool {
 func extractValueFromKey(key []byte) string {
 	parts := strings.SplitN(string(key), tagKeySeparator, 4)
 	return parts[2]
+}
+
+func extractHeightFromKey(key []byte) (int64, error) {
+	parts := strings.SplitN(string(key), tagKeySeparator, -1)
+
+	return strconv.ParseInt(parts[len(parts)-2], 10, 64)
 }
 
 func keyForEvent(key string, value string, result *abci.TxResult) string {

@@ -3,11 +3,13 @@ package kv
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/state/indexer"
 	"github.com/rollkit/rollkit/store"
 )
@@ -49,8 +51,18 @@ func eventKey(compositeKey, typ, eventValue string, height int64) string {
 	return store.GenerateKey([]interface{}{compositeKey, eventValue, height, typ})
 }
 
-func parseValueFromPrimaryKey(key string) (int64, error) {
+func parseValueFromPrimaryKey(key string) string {
 	parts := strings.SplitN(key, "/", 3)
+	return parts[2]
+	// height, err := strconv.ParseFloat(parts[2], 64)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("failed to parse event key: %w", err)
+	// }
+	// return height, nil
+}
+
+func parseHeightFromEventKey(key string) (int64, error) {
+	parts := strings.SplitN(key, "/", 5)
 	height, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse event key: %w", err)
@@ -110,4 +122,18 @@ func dedupHeight(conditions []syntax.Condition) (dedupConditions []syntax.Condit
 		found = false
 	}
 	return dedupConditions, heightInfo, found
+}
+
+func checkHeightConditions(heightInfo HeightInfo, keyHeight int64) (bool, error) {
+	if heightInfo.heightRange.Key != "" {
+		withinBounds, err := state.CheckBounds(heightInfo.heightRange, big.NewInt(keyHeight))
+		if err != nil || !withinBounds {
+			return false, err
+		}
+	} else {
+		if heightInfo.height != 0 && keyHeight != heightInfo.height {
+			return false, nil
+		}
+	}
+	return true, nil
 }
