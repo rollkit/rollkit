@@ -25,6 +25,11 @@ func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
 	return pb.pendingBlocks
 }
 
+func (pb *PendingBlocks) isEmpty() bool {
+	pendingBlocks := pb.getPendingBlocks()
+	return len(pendingBlocks) == 0
+}
+
 func (pb *PendingBlocks) addPendingBlock(block *types.Block) {
 	pb.mtx.Lock()
 	defer pb.mtx.Unlock()

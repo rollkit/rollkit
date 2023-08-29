@@ -281,6 +281,9 @@ func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 			return
 		case <-timer.C:
 		}
+		if m.pendingBlocks.isEmpty() {
+			continue
+		}
 		err := m.submitBlocksToDA(ctx)
 		if err != nil {
 			m.logger.Error("error while submitting block to DA", "error", err)
