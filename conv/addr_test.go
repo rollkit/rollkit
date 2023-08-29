@@ -53,14 +53,15 @@ func TestTranslateAddresses(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			// c.input is changed in place
-			err := TranslateAddresses(&c.input)
+			// input is changed in place
+			input := c.input
+			err := TranslateAddresses(&input)
 			if c.expectedErr != "" {
 				assert.Error(err)
 				assert.True(strings.HasPrefix(err.Error(), c.expectedErr), "invalid error message")
 			} else {
 				assert.NoError(err)
-				assert.Equal(c.expected, c.input)
+				assert.Equal(c.expected, input)
 			}
 		})
 	}
