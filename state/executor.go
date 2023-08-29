@@ -266,8 +266,8 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 	if err != nil {
 		return err
 	}
-	if block.SignedHeader.Header.Version.App != state.Version.Consensus.App ||
-		block.SignedHeader.Header.Version.Block != state.Version.Consensus.Block {
+	if block.SignedHeader.Version.App != state.Version.Consensus.App ||
+		block.SignedHeader.Version.Block != state.Version.Consensus.Block {
 		return errors.New("block version mismatch")
 	}
 	if state.LastBlockHeight <= 0 && block.Height() != state.InitialHeight {
@@ -276,15 +276,15 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 	if state.LastBlockHeight > 0 && block.Height() != state.LastBlockHeight+1 {
 		return errors.New("block height mismatch")
 	}
-	if !bytes.Equal(block.SignedHeader.Header.AppHash[:], state.AppHash[:]) {
+	if !bytes.Equal(block.SignedHeader.AppHash[:], state.AppHash[:]) {
 		return errors.New("AppHash mismatch")
 	}
 
-	if !bytes.Equal(block.SignedHeader.Header.LastResultsHash[:], state.LastResultsHash[:]) {
+	if !bytes.Equal(block.SignedHeader.LastResultsHash[:], state.LastResultsHash[:]) {
 		return errors.New("LastResultsHash mismatch")
 	}
 
-	if !bytes.Equal(block.SignedHeader.Header.AggregatorsHash[:], state.Validators.Hash()) {
+	if !bytes.Equal(block.SignedHeader.AggregatorsHash[:], state.Validators.Hash()) {
 		return errors.New("AggregatorsHash mismatch")
 	}
 

@@ -491,7 +491,7 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	if err != nil {
 		return nil, err
 	}
-	commit := com.ToABCICommit(int64(heightValue), b.SignedHeader.Hash())
+	commit := com.ToABCICommit(int64(heightValue), b.Hash())
 	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
 		return nil, err
@@ -736,12 +736,12 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.Header.DataHash),
-			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.Header.AppHash),
+			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.DataHash),
+			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.AppHash),
 			LatestBlockHeight:   latest.Height(),
 			LatestBlockTime:     latest.Time(),
-			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.Header.DataHash),
-			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.Header.AppHash),
+			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.DataHash),
+			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
 			EarliestBlockHeight: initial.Height(),
 			EarliestBlockTime:   initial.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
