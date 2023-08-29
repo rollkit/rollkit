@@ -80,10 +80,10 @@ type Manager struct {
 	blockCache *BlockCache
 
 	// blockStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve blocks from blockStore
-	blockStoreCh chan interface{}
+	blockStoreCh chan struct{}
 
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
-	retrieveCh chan interface{}
+	retrieveCh chan struct{}
 
 	logger log.Logger
 
@@ -175,11 +175,11 @@ func NewManager(
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
 		BlockCh:           make(chan *types.Block, channelLength),
 		blockInCh:         make(chan newBlockEvent, blockInChLength),
-		blockStoreCh:      make(chan interface{}),
+		blockStoreCh:      make(chan struct{}),
 		blockStore:        blockStore,
 		lastStateMtx:      new(sync.RWMutex),
 		blockCache:        NewBlockCache(),
-		retrieveCh:        make(chan interface{}),
+		retrieveCh:        make(chan struct{}),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
@@ -298,9 +298,9 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 	for {
 		select {
 		case <-daTicker.C:
-			m.retrieveCh <- nil
+			m.retrieveCh <- struct{}{}
 		case <-blockTicker.C:
-			m.blockStoreCh <- nil
+			m.blockStoreCh <- struct{}{}
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -317,8 +317,8 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			}
 			m.blockCache.setBlock(blockHeight, block)
 
-			m.blockStoreCh <- nil
-			m.retrieveCh <- nil
+			m.blockStoreCh <- struct{}{}
+			m.retrieveCh <- struct{}{}
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
