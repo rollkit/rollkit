@@ -175,11 +175,11 @@ func NewManager(
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
 		BlockCh:           make(chan *types.Block, channelLength),
 		blockInCh:         make(chan newBlockEvent, blockInChLength),
-		blockStoreCh:      make(chan struct{}),
+		blockStoreCh:      make(chan struct{}, 1),
 		blockStore:        blockStore,
 		lastStateMtx:      new(sync.RWMutex),
 		blockCache:        NewBlockCache(),
-		retrieveCh:        make(chan struct{}),
+		retrieveCh:        make(chan struct{}, 1),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
@@ -301,9 +301,9 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 	for {
 		select {
 		case <-daTicker.C:
-			m.retrieveCh <- struct{}{}
+			m.sendNonBlockingSignalToRetrieveCh()
 		case <-blockTicker.C:
-			m.blockStoreCh <- struct{}{}
+			m.sendNonBlockingSignalToBlockStoreCh()
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -320,8 +320,8 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			}
 			m.blockCache.setBlock(blockHeight, block)
 
-			m.blockStoreCh <- struct{}{}
-			m.retrieveCh <- struct{}{}
+			m.sendNonBlockingSignalToBlockStoreCh()
+			m.sendNonBlockingSignalToRetrieveCh()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
@@ -332,6 +332,20 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToBlockStoreCh() {
+	select {
+	case m.blockStoreCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
+	select {
+	case m.retrieveCh <- struct{}{}:
+	default:
 	}
 }
 
