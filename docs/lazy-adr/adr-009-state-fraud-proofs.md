@@ -49,7 +49,6 @@ Rollkit blocks contain a field called `Intermediate State Roots` in block data:
 type Data struct {
 	Txs                    Txs
 	IntermediateStateRoots IntermediateStateRoots
-	Evidence               EvidenceData
 }
 ```
 
@@ -125,7 +124,7 @@ message FraudProof {
   map<string, StateWitness> state_witness = 4;
 
   // Fraudulent state transition has to be one of these
-  // Only one have of these three can be non-nil
+  // Only one of these three can be non-nil
   RequestBeginBlock fraudulent_begin_block = 5;
   RequestDeliverTx fraudulent_deliver_tx = 6;
   RequestEndBlock fraudulent_end_block = 7;
