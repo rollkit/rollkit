@@ -9,6 +9,8 @@ import (
 	"github.com/cometbft/cometbft/crypto/ed25519"
 )
 
+var ErrAggregatorSetHashMismatch = errors.New("aggregator set hash in signed header and hash of validator set do not match")
+
 func (sH *SignedHeader) New() header.Header {
 	return new(SignedHeader)
 }
@@ -78,7 +80,7 @@ func (h *SignedHeader) ValidateBasic() error {
 	}
 
 	if !bytes.Equal(h.Validators.Hash(), h.AggregatorsHash[:]) {
-		return errors.New("aggregator set hash in signed header and hash of validator set do not match")
+		return ErrAggregatorSetHashMismatch
 	}
 
 	// Make sure there is exactly one signature

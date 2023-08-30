@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
 )
@@ -36,7 +37,7 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 
 			BaseHeader: BaseHeader{
 				ChainID: "test",
-				Height:  rand.Uint64(), //nolint:gosec,
+				Height:  rand.Int63(), //nolint:gosec,
 				Time:    uint64(time.Now().UnixNano()),
 			},
 			LastHeaderHash:  GetRandomBytes(32),
@@ -69,7 +70,7 @@ func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*
 
 			BaseHeader: BaseHeader{
 				ChainID: "test",
-				Height:  uint64(signedHeader.Height() + 1),
+				Height:  signedHeader.Height() + 1,
 				Time:    uint64(time.Now().UnixNano()),
 			},
 			LastHeaderHash:  signedHeader.Hash(),
@@ -91,6 +92,11 @@ func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*
 	}
 	newSignedHeader.Commit = *commit
 	return newSignedHeader, nil
+}
+
+func GetHeaderWithLastCommitHash(header Header, lastCommitHash header.Hash) *Header {
+	header.LastCommitHash = lastCommitHash
+	return &header
 }
 
 func GetRandomTx() Tx {

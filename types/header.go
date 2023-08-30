@@ -14,7 +14,7 @@ type Hash = header.Hash
 // BaseHeader contains the most basic data of a header
 type BaseHeader struct {
 	// Height represents the block height (aka block number) of a given header
-	Height uint64
+	Height int64
 	// Time contains Unix nanotime of a block
 	Time uint64
 	// The Chain ID

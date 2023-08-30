@@ -17,7 +17,7 @@ message Header {
 	Version version = 1;
 
 	// Block height
-	uint64 height = 2;
+	int64 height = 2;
 
 	// Block creation time
 	uint64 time = 3;
