@@ -705,7 +705,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
 	}
-	_, validator := validators.GetByAddress(latest.SignedHeader.Header.ProposerAddress)
+	_, validator := validators.GetByAddress(latest.SignedHeader.ProposerAddress)
 
 	state, err := c.node.Store.LoadState()
 	if err != nil {

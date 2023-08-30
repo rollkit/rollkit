@@ -68,7 +68,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 			},
 		},
 	}
-	block.SignedHeader.Header.AppHash = types.GetRandomBytes(32)
+	block.SignedHeader.AppHash = types.GetRandomBytes(32)
 
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = types.GetRandomTx()
@@ -87,7 +87,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 	}
 	lastCommitHash := make(types.Hash, 32)
 	copy(lastCommitHash, cmprotoLC.Hash().Bytes())
-	block.SignedHeader.Header.LastCommitHash = lastCommitHash
+	block.SignedHeader.LastCommitHash = lastCommitHash
 
 	block.SignedHeader.Validators = types.GetRandomValidatorSet()
 
