@@ -84,52 +84,52 @@ func TestAggregatorMode(t *testing.T) {
 
 // TestTxGossipingAndAggregation setups a network of nodes, with single aggregator and multiple producers.
 // Nodes should gossip transactions and aggregator node should produce blocks.
-// func TestTxGossipingAndAggregation(t *testing.T) {
-// 	assert := assert.New(t)
-// 	require := require.New(t)
+func TestTxGossipingAndAggregation(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
 
-// 	clientNodes := 4
-// 	nodes, apps := createAndStartNodes(clientNodes, t)
-// 	aggApp := apps[0]
-// 	apps = apps[1:]
+	clientNodes := 4
+	nodes, apps := createAndStartNodes(clientNodes, t)
+	aggApp := apps[0]
+	apps = apps[1:]
 
-// 	aggApp.AssertNumberOfCalls(t, "FinalizeBlock", clientNodes)
-// 	aggApp.AssertExpectations(t)
+	aggApp.AssertNumberOfCalls(t, "FinalizeBlock", 2)
+	aggApp.AssertExpectations(t)
 
-// 	for i, app := range apps {
-// 		app.AssertNumberOfCalls(t, "FinalizeBlock", clientNodes)
-// 		app.AssertExpectations(t)
+	for i, app := range apps {
+		app.AssertNumberOfCalls(t, "FinalizeBlock", 2)
+		app.AssertExpectations(t)
 
-// 		// assert that we have most of the blocks from aggregator
-// 		// beginCnt := 0
-// 		// endCnt := 0
-// 		// commitCnt := 0
-// 		// for _, call := range app.Calls {
-// 		// 	switch call.Method {
-// 		// 	case "BeginBlock":
-// 		// 		beginCnt++
-// 		// 	case "EndBlock":
-// 		// 		endCnt++
-// 		// 	case "Commit":
-// 		// 		commitCnt++
-// 		// 	}
-// 		// }
-// 		// aggregatorHeight := nodes[0].Store.Height()
-// 		// adjustedHeight := int(aggregatorHeight - 3) // 3 is completely arbitrary
-// 		// assert.GreaterOrEqual(beginCnt, adjustedHeight)
-// 		// assert.GreaterOrEqual(endCnt, adjustedHeight)
-// 		// assert.GreaterOrEqual(commitCnt, adjustedHeight)
+		// assert that we have most of the blocks from aggregator
+		beginCnt := 0
+		endCnt := 0
+		commitCnt := 0
+		for _, call := range app.Calls {
+			switch call.Method {
+			case "FinalizeBlock":
+				beginCnt++
+			case "CheckTx":
+				endCnt++
+			case "Commit":
+				commitCnt++
+			}
+		}
+		aggregatorHeight := nodes[0].Store.Height()
+		adjustedHeight := int(aggregatorHeight - 3) // 3 is completely arbitrary
+		assert.GreaterOrEqual(beginCnt, adjustedHeight)
+		assert.GreaterOrEqual(endCnt, adjustedHeight)
+		assert.GreaterOrEqual(commitCnt, adjustedHeight)
 
-// 		// assert that all blocks known to node are same as produced by aggregator
-// 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
-// 			aggBlock, err := nodes[0].Store.LoadBlock(h)
-// 			require.NoError(err)
-// 			nodeBlock, err := nodes[i].Store.LoadBlock(h)
-// 			require.NoError(err)
-// 			assert.Equal(aggBlock, nodeBlock, fmt.Sprintf("height: %d", h))
-// 		}
-// 	}
-// }
+		// assert that all blocks known to node are same as produced by aggregator
+		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
+			aggBlock, err := nodes[0].Store.LoadBlock(h)
+			require.NoError(err)
+			nodeBlock, err := nodes[i].Store.LoadBlock(h)
+			require.NoError(err)
+			assert.Equal(aggBlock, nodeBlock, fmt.Sprintf("height: %d", h))
+		}
+	}
+}
 
 func TestLazyAggregator(t *testing.T) {
 	assert := assert.New(t)
@@ -462,7 +462,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
 		err := testutils.Retry(300, 100*time.Millisecond, func() error {
 			for i := 0; i < len(apps); i++ {
-				if !apps[i].AssertCalled(m, "FinalizeBlock", matcher) {
+				if !apps[i].AssertCalled(m, "FinalizeBlock", matcher, matcher) {
 					return errors.New("FinalizeBlock hasn't been called yet")
 				}
 			}

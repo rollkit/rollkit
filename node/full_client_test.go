@@ -329,9 +329,9 @@ func TestBroadcastTxSync(t *testing.T) {
 // 	defer func() {
 // 		require.NoError(rpc.node.Stop())
 // 	}()
+
 // 	go func() {
 // 		time.Sleep(mockTxProcessingTime)
-// 		// require.NoError(waitForFirstBlock(rpc.node, Block))
 // 		err := rpc.node.EventBus().PublishEventTx(cmtypes.EventDataTx{TxResult: abci.TxResult{
 // 			Height: 1,
 // 			Index:  0,
@@ -517,59 +517,57 @@ func finalizeBlockResponse(_ context.Context, req *abci.RequestFinalizeBlock) (*
 	}, nil
 }
 
-// func TestTx(t *testing.T) {
-// 	assert := assert.New(t)
-// 	require := require.New(t)
+func TestTx(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
 
-// 	mockApp := &mocks.Application{}
-// 	mockApp.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-// 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-// 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-// 	node, err := newFullNode(context.Background(), config.NodeConfig{
-// 		DALayer:    "mock",
-// 		Aggregator: true,
-// 		BlockManagerConfig: config.BlockManagerConfig{
-// 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-// 		}},
-// 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
-// 		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-// 		log.TestingLogger())
-// 	require.NoError(err)
-// 	require.NotNil(node)
+	mockApp := &mocks.Application{}
+	mockApp.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	node, err := newFullNode(context.Background(), config.NodeConfig{
+		DALayer:    "mock",
+		Aggregator: true,
+		BlockManagerConfig: config.BlockManagerConfig{
+			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		}},
+		key, signingKey, proxy.NewLocalClientCreator(mockApp),
+		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+		log.TestingLogger())
+	require.NoError(err)
+	require.NotNil(node)
 
-// 	rpc := NewFullClient(node)
-// 	require.NotNil(rpc)
-// 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-// 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-// 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	rpc := NewFullClient(node)
+	require.NotNil(rpc)
+	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 
-// 	err = rpc.node.Start()
-// 	require.NoError(err)
-// 	defer func() {
-// 		require.NoError(rpc.node.Stop())
-// 	}()
-// 	tx1 := cmtypes.Tx("tx1")
-// 	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
-// 	assert.NoError(err)
-// 	assert.NotNil(res)
+	err = rpc.node.Start()
+	require.NoError(err)
+	defer func() {
+		require.NoError(rpc.node.Stop())
+	}()
+	tx1 := cmtypes.Tx("tx1")
+	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
+	assert.NoError(err)
+	assert.NotNil(res)
 
-// 	// time.Sleep(2 * time.Second)
-// 	assert.NoError(waitForFirstBlock(rpc.node, Block))
-// 	// assert.NoError(waitForAtLeastNBlocks(rpc.node, 2, Block))
+	time.Sleep(2 * time.Second)
 
-// 	resTx, errTx := rpc.Tx(context.Background(), res.Hash, true)
-// 	assert.NoError(errTx)
-// 	assert.NotNil(resTx)
-// 	assert.EqualValues(tx1, resTx.Tx)
-// 	assert.EqualValues(res.Hash, resTx.Hash)
+	resTx, errTx := rpc.Tx(context.Background(), res.Hash, true)
+	assert.NoError(errTx)
+	assert.NotNil(resTx)
+	assert.EqualValues(tx1, resTx.Tx)
+	assert.EqualValues(res.Hash, resTx.Hash)
 
-// 	tx2 := cmtypes.Tx("tx2")
-// 	assert.Panics(func() {
-// 		resTx, errTx := rpc.Tx(context.Background(), tx2.Hash(), true)
-// 		assert.Nil(resTx)
-// 		assert.Error(errTx)
-// 	})
-// }
+	tx2 := cmtypes.Tx("tx2")
+	assert.Panics(func() {
+		resTx, errTx := rpc.Tx(context.Background(), tx2.Hash(), true)
+		assert.Nil(resTx)
+		assert.Error(errTx)
+	})
+}
 
 func TestUnconfirmedTxs(t *testing.T) {
 	tx1 := cmtypes.Tx("tx1")
