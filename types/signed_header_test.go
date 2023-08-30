@@ -49,43 +49,49 @@ func TestVerify(t *testing.T) {
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.Header.BaseHeader.Height++
-				return untrustedAdj
+				untrusted := *untrustedAdj
+				untrusted.Header.BaseHeader.Height++
+				return &untrusted
 			},
 			err: true,
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Truncate(time.Hour).UnixNano())
-				return untrustedAdj
+				untrusted := *untrustedAdj
+				untrusted.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Truncate(time.Hour).UnixNano())
+				return &untrusted
 			},
 			err: true,
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Add(time.Minute).UnixNano())
-				return untrustedAdj
+				untrusted := *untrustedAdj
+				untrusted.Header.BaseHeader.Time = uint64(untrustedAdj.Header.Time().Add(time.Minute).UnixNano())
+				return &untrusted
 			},
 			err: true,
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.BaseHeader.ChainID = "toaster"
-				return untrustedAdj
+				untrusted := *untrustedAdj
+				untrusted.BaseHeader.ChainID = "toaster"
+				return &untrusted
 			},
 			err: true,
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.Version.App = untrustedAdj.Version.App + 1
-				return untrustedAdj
+				untrusted := *untrustedAdj
+				untrusted.Version.App = untrustedAdj.Version.App + 1
+				return &untrusted
 			},
 			err: true,
 		},
 		{
 			prepare: func() *SignedHeader {
-				untrustedAdj.ProposerAddress = nil
-				return untrustedAdj
+				untrusted := *untrustedAdj
+				untrusted.ProposerAddress = nil
+				return &untrusted
 			},
 			err: true,
 		},
