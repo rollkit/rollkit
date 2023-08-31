@@ -45,7 +45,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
-				Reason: fmt.Errorf("last header hash %v does not match hash of previous header %v", fakeLastHeaderHash, untrustedAdj.LastHeaderHash),
+				Reason: &ErrLastHeaderHashMismatch{},
 			},
 		},
 		{
@@ -134,7 +134,12 @@ func TestVerify(t *testing.T) {
 					case *header.VerifyError:
 						reason := err.(*header.VerifyError).Reason
 						testReason := test.err.(*header.VerifyError).Reason
-						assert.Equal(t, testReason, reason)
+						switch reason.(type) {
+						case *ErrLastHeaderHashMismatch:
+							assert.Equal(t, testReason, &ErrLastHeaderHashMismatch{})
+						default:
+							assert.Equal(t, testReason, reason)
+						}
 					default:
 						fmt.Printf("unexpected error: %s\n", err)
 					}

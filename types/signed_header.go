@@ -11,6 +11,14 @@ import (
 
 var ErrAggregatorSetHashMismatch = errors.New("aggregator set hash in signed header and hash of validator set do not match")
 
+type ErrLastHeaderHashMismatch struct {
+	Reason error
+}
+
+func (mr *ErrLastHeaderHashMismatch) Error() string {
+	return fmt.Sprintf("lastHeaderMismatch: %s", mr.Reason.Error())
+}
+
 func (sH *SignedHeader) New() header.Header {
 	return new(SignedHeader)
 }
@@ -46,7 +54,9 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	sHHash := sH.Header.Hash()
 	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
 		return &header.VerifyError{
-			Reason: fmt.Errorf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
+			Reason: &ErrLastHeaderHashMismatch{
+				fmt.Errorf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
+			},
 		}
 	}
 	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
