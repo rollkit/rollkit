@@ -491,7 +491,7 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	if err != nil {
 		return nil, err
 	}
-	commit := com.ToABCICommit(int64(heightValue), b.SignedHeader.Hash())
+	commit := com.ToABCICommit(int64(heightValue), b.Hash())
 	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
 		return nil, err
@@ -701,11 +701,11 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
-	validators, err := c.node.Store.LoadValidators(uint64(latest.SignedHeader.Header.Height()))
+	validators, err := c.node.Store.LoadValidators(uint64(latest.Height()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
 	}
-	_, validator := validators.GetByAddress(latest.SignedHeader.Header.ProposerAddress)
+	_, validator := validators.GetByAddress(latest.SignedHeader.ProposerAddress)
 
 	state, err := c.node.Store.LoadState()
 	if err != nil {
@@ -736,14 +736,14 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.Header.DataHash),
-			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.Header.AppHash),
-			LatestBlockHeight:   latest.SignedHeader.Header.Height(),
-			LatestBlockTime:     latest.SignedHeader.Header.Time(),
-			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.Header.DataHash),
-			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.Header.AppHash),
-			EarliestBlockHeight: initial.SignedHeader.Header.Height(),
-			EarliestBlockTime:   initial.SignedHeader.Header.Time(),
+			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.DataHash),
+			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.AppHash),
+			LatestBlockHeight:   latest.Height(),
+			LatestBlockTime:     latest.Time(),
+			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.DataHash),
+			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
+			EarliestBlockHeight: initial.Height(),
+			EarliestBlockTime:   initial.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
