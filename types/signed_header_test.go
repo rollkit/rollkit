@@ -127,31 +127,36 @@ func TestVerify(t *testing.T) {
 				preparedHeader.Commit = *commit
 			}
 			err = trusted.Verify(preparedHeader)
-			if test.err == nil {
-				assert.NoError(t, err)
-			} else {
-				if err != nil {
-					switch (err).(type) {
-					case *header.VerifyError:
-						reason := err.(*header.VerifyError).Reason
-						testReason := test.err.(*header.VerifyError).Reason
-						switch reason.(type) {
-						case *ErrLastHeaderHashMismatch:
-							assert.Equal(t, &ErrLastHeaderHashMismatch{}, testReason)
-						case *ErrLastCommitHashMismatch:
-							assert.Equal(t, &ErrLastCommitHashMismatch{}, testReason)
-						case *ErrNewHeaderTimeBeforeOldHeaderTime:
-							assert.Equal(t, &ErrNewHeaderTimeBeforeOldHeaderTime{}, testReason)
-						case *ErrNewHeaderTimeFromFuture:
-							assert.Equal(t, &ErrNewHeaderTimeFromFuture{}, testReason)
-						default:
-							assert.Equal(t, testReason, reason)
-						}
-					default:
-						assert.Failf(t, "unexpected error: %s\n", err.Error())
-					}
-				}
-			}
+                 // Case 1 & 2: test.err == nil and err == nil or err != nil
+	        if test.err == nil {
+		        assert.NoError(t, err)
+		        return
+	        }
+	        // Case 3: test.err != nil and err != nil
+	        if err == nil {
+	          t.Errorf("expected err: %v, got nil",test.err)
+	          return
+	        }
+		// Case 4: test.err != nil and err != nil
+	        switch (err).(type) {
+	        case *header.VerifyError:
+		        reason := err.(*header.VerifyError).Reason
+		        testReason := test.err.(*header.VerifyError).Reason
+		        switch reason.(type) {
+		        case *ErrLastHeaderHashMismatch:
+			        assert.Equal(t, &ErrLastHeaderHashMismatch{}, testReason)
+		        case *ErrLastCommitHashMismatch:
+			        assert.Equal(t, &ErrLastCommitHashMismatch{}, testReason)
+		        case *ErrNewHeaderTimeBeforeOldHeaderTime:
+			        assert.Equal(t, &ErrNewHeaderTimeBeforeOldHeaderTime{}, testReason)
+		        case *ErrNewHeaderTimeFromFuture:
+			        assert.Equal(t, &ErrNewHeaderTimeFromFuture{}, testReason)
+		        default:
+			        assert.Equal(t, testReason, reason)
+		        }
+	        default:
+		        assert.Failf(t, "unexpected error: %s\n", err.Error())
+	        }
 		})
 	}
 }
