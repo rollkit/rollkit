@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -55,15 +54,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
-				Reason: fmt.Errorf("last commit hash %v does not match hash of previous header %v",
-					fakeLastCommitHash,
-					header.Hash(
-						trusted.Commit.GetCommitHash(
-							GetHeaderWithLastCommitHash(untrustedAdj.Header, fakeLastCommitHash),
-							trusted.ProposerAddress,
-						),
-					),
-				),
+				Reason: &ErrLastCommitHashMismatch{},
 			},
 		},
 		{
@@ -81,7 +72,9 @@ func TestVerify(t *testing.T) {
 				untrusted.Header.BaseHeader.Time = uint64(untrusted.Header.Time().Truncate(time.Hour).UnixNano())
 				return &untrusted, true
 			},
-			err: nil,
+			err: &header.VerifyError{
+				Reason: &ErrNewHeaderTimeBeforeOldHeaderTime{},
+			},
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -89,7 +82,9 @@ func TestVerify(t *testing.T) {
 				untrusted.Header.BaseHeader.Time = uint64(untrusted.Header.Time().Add(time.Minute).UnixNano())
 				return &untrusted, true
 			},
-			err: nil,
+			err: &header.VerifyError{
+				Reason: &ErrNewHeaderTimeFromFuture{},
+			},
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -97,7 +92,9 @@ func TestVerify(t *testing.T) {
 				untrusted.BaseHeader.ChainID = "toaster"
 				return &untrusted, false // Signature verification should fail
 			},
-			err: nil,
+			err: &header.VerifyError{
+				Reason: ErrSignatureVerificationFailed,
+			},
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -105,7 +102,9 @@ func TestVerify(t *testing.T) {
 				untrusted.Version.App = untrusted.Version.App + 1
 				return &untrusted, false // Signature verification should fail
 			},
-			err: nil,
+			err: &header.VerifyError{
+				Reason: ErrSignatureVerificationFailed,
+			},
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -113,7 +112,9 @@ func TestVerify(t *testing.T) {
 				untrusted.ProposerAddress = nil
 				return &untrusted, true
 			},
-			err: nil,
+			err: &header.VerifyError{
+				Reason: ErrNoProposerAddress,
+			},
 		},
 	}
 
@@ -136,12 +137,18 @@ func TestVerify(t *testing.T) {
 						testReason := test.err.(*header.VerifyError).Reason
 						switch reason.(type) {
 						case *ErrLastHeaderHashMismatch:
-							assert.Equal(t, testReason, &ErrLastHeaderHashMismatch{})
+							assert.Equal(t, &ErrLastHeaderHashMismatch{}, testReason)
+						case *ErrLastCommitHashMismatch:
+							assert.Equal(t, &ErrLastCommitHashMismatch{}, testReason)
+						case *ErrNewHeaderTimeBeforeOldHeaderTime:
+							assert.Equal(t, &ErrNewHeaderTimeBeforeOldHeaderTime{}, testReason)
+						case *ErrNewHeaderTimeFromFuture:
+							assert.Equal(t, &ErrNewHeaderTimeFromFuture{}, testReason)
 						default:
 							assert.Equal(t, testReason, reason)
 						}
 					default:
-						fmt.Printf("unexpected error: %s\n", err)
+						assert.Failf(t, "unexpected error: %s\n", err.Error())
 					}
 				}
 			}

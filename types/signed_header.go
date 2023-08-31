@@ -11,12 +11,40 @@ import (
 
 var ErrAggregatorSetHashMismatch = errors.New("aggregator set hash in signed header and hash of validator set do not match")
 
+var ErrSignatureVerificationFailed = errors.New("signature verification failed")
+
+var ErrNoProposerAddress = errors.New("no proposer address")
+
 type ErrLastHeaderHashMismatch struct {
 	Reason error
 }
 
 func (mr *ErrLastHeaderHashMismatch) Error() string {
 	return fmt.Sprintf("lastHeaderMismatch: %s", mr.Reason.Error())
+}
+
+type ErrLastCommitHashMismatch struct {
+	Reason error
+}
+
+func (mr *ErrLastCommitHashMismatch) Error() string {
+	return fmt.Sprintf("lastCommitMismatch: %s", mr.Reason.Error())
+}
+
+type ErrNewHeaderTimeBeforeOldHeaderTime struct {
+	Reason error
+}
+
+func (mr *ErrNewHeaderTimeBeforeOldHeaderTime) Error() string {
+	return fmt.Sprintf("newHeaderTimeBeforeOldHeaderTime: %s", mr.Reason.Error())
+}
+
+type ErrNewHeaderTimeFromFuture struct {
+	Reason error
+}
+
+func (mr *ErrNewHeaderTimeFromFuture) Error() string {
+	return fmt.Sprintf("newHeaderTimeFromFuture: %s", mr.Reason.Error())
 }
 
 func (sH *SignedHeader) New() header.Header {
@@ -62,7 +90,9 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
-			Reason: fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
+			Reason: &ErrLastCommitHashMismatch{
+				fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
+			},
 		}
 	}
 	return nil
@@ -106,7 +136,7 @@ func (h *SignedHeader) ValidateBasic() error {
 		return errors.New("signature verification failed, unable to marshal header")
 	}
 	if !pubKey.VerifySignature(msg, signature) {
-		return errors.New("signature verification failed")
+		return ErrSignatureVerificationFailed
 	}
 
 	return nil
