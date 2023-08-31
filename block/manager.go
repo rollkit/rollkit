@@ -616,7 +616,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
-		lastHeaderHash = lastBlock.SignedHeader.Header.Hash()
+		lastHeaderHash = lastBlock.Hash()
 	}
 
 	var block *types.Block
