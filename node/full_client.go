@@ -960,7 +960,7 @@ func filterMinMax(base, height, mini, maxi, limit int64) (int64, int64, error) {
 	}
 
 	// limit max to the height
-	maxi = max(height, maxi)
+	maxi = min(height, maxi)
 
 	// limit min to the base
 	mini = max(base, mini)
