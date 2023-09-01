@@ -68,14 +68,14 @@ func doTestCreateBlock(t *testing.T) {
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
-	assert.Equal(int64(1), block.Height())
+	assert.Equal(uint64(1), block.Height())
 
 	// one small Tx
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block = executor.CreateBlock(2, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
-	assert.Equal(int64(2), block.Height())
+	assert.Equal(uint64(2), block.Height())
 	assert.Len(block.Data.Txs, 1)
 
 	// now there are 3 Txs, and only two can fit into single block
@@ -158,7 +158,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	block := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
 	require.NotNil(block)
-	assert.Equal(int64(1), block.Height())
+	assert.Equal(uint64(1), block.Height())
 	assert.Len(block.Data.Txs, 1)
 
 	// Update the signature on the block to current from last
@@ -184,7 +184,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
 	block = executor.CreateBlock(2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
 	require.NotNil(block)
-	assert.Equal(int64(2), block.Height())
+	assert.Equal(uint64(2), block.Height())
 	assert.Len(block.Data.Txs, 3)
 
 	headerBytes, _ = block.SignedHeader.Header.MarshalBinary()

@@ -3,7 +3,7 @@ module github.com/rollkit/rollkit
 go 1.21
 
 require (
-	github.com/celestiaorg/go-header v0.2.13
+	github.com/celestiaorg/go-header v0.3.0
 	github.com/celestiaorg/nmt v0.18.1
 	github.com/celestiaorg/rsmt2d v0.10.0
 	github.com/celestiaorg/utils v0.1.0
@@ -41,7 +41,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
-	github.com/celestiaorg/go-fraud v0.1.2 // indirect
+	github.com/celestiaorg/go-fraud v0.2.0 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -189,3 +189,5 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
+
+replace github.com/rollkit/celestia-openrpc => ../celestia-openrpc
