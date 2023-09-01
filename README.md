@@ -10,7 +10,7 @@ A modular framework for rollups, with an ABCI-compatible client interface. For m
 
 ## Building From Source
 
-Requires Go version >= 1.19.
+Requires Go version >= 1.21.
 
 To build:
 
@@ -98,7 +98,8 @@ Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to as
 
 ## Dependency Graph
 
-To see our progress and a possible future of Rollkit visit our [Dependency Graph](./docs/specification/rollkit-dependency-graph.md).
+To see our progress and a possible future of Rollkit visit our [Dependency
+Graph](./docs/specification/rollkit-dependency-graph.md).
 
 ## Code of Conduct
 

@@ -82,7 +82,7 @@ func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*
 		},
 		Validators: valSet,
 	}
-	newSignedHeader.Header.LastCommitHash = signedHeader.Commit.GetCommitHash(
+	newSignedHeader.LastCommitHash = signedHeader.Commit.GetCommitHash(
 		&newSignedHeader.Header, signedHeader.ProposerAddress,
 	)
 	commit, err := getCommit(newSignedHeader.Header, privKey)

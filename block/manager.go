@@ -78,15 +78,11 @@ type Manager struct {
 
 	blockCache *BlockCache
 
-	// blockStoreMtx is used by blockStoreCond
-	blockStoreMtx *sync.Mutex
-	// blockStoreCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve blocks from blockStore
-	blockStoreCond *sync.Cond
+	// blockStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve blocks from blockStore
+	blockStoreCh chan struct{}
 
-	// retrieveMtx is used by retrieveCond
-	retrieveMtx *sync.Mutex
 	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
-	retrieveCond *sync.Cond
+	retrieveCh chan struct{}
 
 	logger log.Logger
 
@@ -95,9 +91,7 @@ type Manager struct {
 	txsAvailable      <-chan struct{}
 	doneBuildingBlock chan struct{}
 
-	// Maintains blocks that need to be published to DA layer
-	pendingBlocks    []*types.Block
-	pendingBlocksMtx *sync.RWMutex
+	pendingBlocks *PendingBlocks
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -180,21 +174,17 @@ func NewManager(
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
 		BlockCh:           make(chan *types.Block, channelLength),
 		blockInCh:         make(chan newBlockEvent, blockInChLength),
-		blockStoreMtx:     new(sync.Mutex),
+		blockStoreCh:      make(chan struct{}, 1),
 		blockStore:        blockStore,
-		retrieveMtx:       new(sync.Mutex),
 		lastStateMtx:      new(sync.RWMutex),
 		blockCache:        NewBlockCache(),
+		retrieveCh:        make(chan struct{}, 1),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: doneBuildingCh,
 		buildingBlock:     false,
-		pendingBlocks:     make([]*types.Block, 0),
-		pendingBlocksMtx:  new(sync.RWMutex),
+		pendingBlocks:     NewPendingBlocks(),
 	}
-	agg.retrieveCond = sync.NewCond(agg.retrieveMtx)
-	agg.blockStoreCond = sync.NewCond(agg.blockStoreMtx)
-
 	return agg, nil
 }
 
@@ -290,6 +280,9 @@ func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 			return
 		case <-timer.C:
 		}
+		if m.pendingBlocks.isEmpty() {
+			continue
+		}
 		err := m.submitBlocksToDA(ctx)
 		if err != nil {
 			m.logger.Error("error while submitting block to DA", "error", err)
@@ -307,9 +300,9 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 	for {
 		select {
 		case <-daTicker.C:
-			m.retrieveCond.Signal()
+			m.sendNonBlockingSignalToRetrieveCh()
 		case <-blockTicker.C:
-			m.blockStoreCond.Signal()
+			m.sendNonBlockingSignalToBlockStoreCh()
 		case blockEvent := <-m.blockInCh:
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
@@ -326,8 +319,8 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			}
 			m.blockCache.setBlock(blockHeight, block)
 
-			m.blockStoreCond.Signal()
-			m.retrieveCond.Signal()
+			m.sendNonBlockingSignalToBlockStoreCh()
+			m.sendNonBlockingSignalToRetrieveCh()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
@@ -338,6 +331,20 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToBlockStoreCh() {
+	select {
+	case m.blockStoreCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
+	select {
+	case m.retrieveCh <- struct{}{}:
+	default:
 	}
 }
 
@@ -404,30 +411,12 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 // BlockStoreRetrieveLoop is responsible for retrieving blocks from the Block Store.
 func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
-	// waitCh is used to signal the block store retrieve loop, that it should check block store for new blocks
-	// blockStoreCond can be signalled in completely async manner, and goroutine below
-	// works as some kind of "buffer" for those signals
-	waitCh := make(chan interface{})
 	lastBlockStoreHeight := uint64(0)
-	go func() {
-		for {
-			// This infinite loop is expected to be stopped once the context is
-			// cancelled or throws an error and cleaned up by the GC. This is OK
-			// because it waits using a conditional which is only signaled periodically.
-			m.blockStoreMtx.Lock()
-			m.blockStoreCond.Wait()
-			waitCh <- nil
-			m.blockStoreMtx.Unlock()
-			if ctx.Err() != nil {
-				return
-			}
-		}
-	}()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-waitCh:
+		case <-m.blockStoreCh:
 		}
 		blockStoreHeight := m.blockStore.Height()
 		if blockStoreHeight > lastBlockStoreHeight {
@@ -466,30 +455,11 @@ func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endH
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
-	// waitCh is used to signal the retrieve loop, that it should process next blocks
-	// retrieveCond can be signalled in completely async manner, and goroutine below
-	// works as some kind of "buffer" for those signals
-	waitCh := make(chan interface{})
-	go func() {
-		for {
-			// This infinite loop is expected to be stopped once the context is
-			// cancelled or throws an error and cleaned up by the GC. This is OK
-			// because it waits using a conditional which is only signaled periodically.
-			m.retrieveMtx.Lock()
-			m.retrieveCond.Wait()
-			waitCh <- nil
-			m.retrieveMtx.Unlock()
-			if ctx.Err() != nil {
-				return
-			}
-		}
-	}()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-waitCh:
+		case <-m.retrieveCh:
 		}
 		daHeight := atomic.LoadUint64(&m.daHeight)
 		err := m.processNextDABlock(ctx)
@@ -615,7 +585,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
-		lastHeaderHash = lastBlock.SignedHeader.Header.Hash()
+		lastHeaderHash = lastBlock.Hash()
 	}
 
 	var block *types.Block
@@ -676,9 +646,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Submit block to be published to the DA layer
-	m.pendingBlocksMtx.Lock()
-	m.pendingBlocks = append(m.pendingBlocks, block)
-	m.pendingBlocksMtx.Unlock()
+	m.pendingBlocks.addPendingBlock(block)
 
 	// Commit the new state and block which writes to disk on the proxy app
 	_, _, err = m.executor.Commit(ctx, newState, block, responses)
@@ -718,12 +686,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
-	m.pendingBlocksMtx.Lock()
-	defer m.pendingBlocksMtx.Unlock()
 	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlocks(ctx, m.pendingBlocks)
+		res := m.dalc.SubmitBlocks(ctx, m.pendingBlocks.getPendingBlocks())
 		if res.Code == da.StatusSuccess {
 			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight)
 			submitted = true
@@ -737,7 +703,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	if !submitted {
 		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
-	m.pendingBlocks = make([]*types.Block, 0)
+	m.pendingBlocks.resetPendingBlocks()
 	return nil
 }
 
