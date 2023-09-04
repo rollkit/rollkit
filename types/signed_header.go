@@ -2,8 +2,9 @@ package types
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 
 	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -16,6 +17,16 @@ func (sH *SignedHeader) New() header.Header {
 func (sH *SignedHeader) IsZero() bool {
 	return sH == nil
 }
+
+var (
+	ErrAggregatorSetHashMismatch        = errors.New("aggregator set hash in signed header and hash of validator set do not match")
+	ErrSignatureVerificationFailed      = errors.New("signature verification failed")
+	ErrNoProposerAddress                = errors.New("no proposer address")
+	ErrLastHeaderHashMismatch           = errors.New("last header hash mismatch")
+	ErrLastCommitHashMismatch           = errors.New("last commit hash mismatch")
+	ErrNewHeaderTimeBeforeOldHeaderTime = errors.New("new header time before old header time")
+	ErrNewHeaderTimeFromFuture          = errors.New("new header time from future")
+)
 
 func (sH *SignedHeader) Verify(untrst header.Header) error {
 	// Explicit type checks are required due to embedded Header which also does the explicit type check
@@ -44,17 +55,19 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	sHHash := sH.Header.Hash()
 	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
 		return &header.VerifyError{
-			Reason: &ErrLastHeaderHashMismatch{
-				fmt.Errorf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
-			},
+			Reason: errors.Wrap(
+				ErrLastHeaderHashMismatch,
+				fmt.Sprintf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
+			),
 		}
 	}
 	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
-			Reason: &ErrLastCommitHashMismatch{
-				fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
-			},
+			Reason: errors.Wrap(
+				ErrLastCommitHashMismatch,
+				fmt.Sprintf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
+			),
 		}
 	}
 	return nil

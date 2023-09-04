@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/celestiaorg/go-header"
 )
 
@@ -131,20 +133,23 @@ func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
 	}
 
 	if !untrusted.Time().After(trusted.Time()) {
-		return &ErrNewHeaderTimeBeforeOldHeaderTime{
-			Reason: fmt.Errorf("expected new header time %v to be after old header time %v",
+		return errors.Wrap(
+			ErrNewHeaderTimeBeforeOldHeaderTime,
+			fmt.Sprintf("expected new header time %v to be after old header time %v",
 				untrusted.Time(),
-				trusted.Time()),
-		}
+				trusted.Time(),
+			),
+		)
 	}
 
 	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
-		return &ErrNewHeaderTimeFromFuture{
-			Reason: fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
+		return errors.Wrap(
+			ErrNewHeaderTimeFromFuture,
+			fmt.Sprintf("new header has a time from the future %v (now: %v; max clock drift: %v)",
 				untrusted.Time(),
 				time.Now(),
 				maxClockDrift),
-		}
+		)
 	}
 
 	return nil

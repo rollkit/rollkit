@@ -44,7 +44,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
-				Reason: &ErrLastHeaderHashMismatch{},
+				Reason: ErrLastHeaderHashMismatch,
 			},
 		},
 		{
@@ -54,7 +54,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
-				Reason: &ErrLastCommitHashMismatch{},
+				Reason: ErrLastCommitHashMismatch,
 			},
 		},
 		{
@@ -73,7 +73,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
-				Reason: &ErrNewHeaderTimeBeforeOldHeaderTime{},
+				Reason: ErrNewHeaderTimeBeforeOldHeaderTime,
 			},
 		},
 		{
@@ -83,7 +83,7 @@ func TestVerify(t *testing.T) {
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
-				Reason: &ErrNewHeaderTimeFromFuture{},
+				Reason: ErrNewHeaderTimeFromFuture,
 			},
 		},
 		{
@@ -127,30 +127,27 @@ func TestVerify(t *testing.T) {
 				preparedHeader.Commit = *commit
 			}
 			err = trusted.Verify(preparedHeader)
-			// Case 1 & 2: test.err == nil and err == nil or err != nil
 			if test.err == nil {
 				assert.NoError(t, err)
 				return
 			}
-			// Case 3: test.err != nil and err != nil
 			if err == nil {
 				t.Errorf("expected err: %v, got nil", test.err)
 				return
 			}
-			// Case 4: test.err != nil and err != nil
 			switch (err).(type) {
 			case *header.VerifyError:
 				reason := err.(*header.VerifyError).Reason
 				testReason := test.err.(*header.VerifyError).Reason
-				switch reason.(type) {
-				case *ErrLastHeaderHashMismatch:
-					assert.Equal(t, &ErrLastHeaderHashMismatch{}, testReason)
-				case *ErrLastCommitHashMismatch:
-					assert.Equal(t, &ErrLastCommitHashMismatch{}, testReason)
-				case *ErrNewHeaderTimeBeforeOldHeaderTime:
-					assert.Equal(t, &ErrNewHeaderTimeBeforeOldHeaderTime{}, testReason)
-				case *ErrNewHeaderTimeFromFuture:
-					assert.Equal(t, &ErrNewHeaderTimeFromFuture{}, testReason)
+				switch testReason {
+				case ErrLastHeaderHashMismatch:
+					assert.ErrorIs(t, reason, ErrLastHeaderHashMismatch)
+				case ErrLastCommitHashMismatch:
+					assert.ErrorIs(t, reason, ErrLastCommitHashMismatch)
+				case ErrNewHeaderTimeBeforeOldHeaderTime:
+					assert.ErrorIs(t, reason, ErrNewHeaderTimeBeforeOldHeaderTime)
+				case ErrNewHeaderTimeFromFuture:
+					assert.ErrorIs(t, reason, ErrNewHeaderTimeFromFuture)
 				default:
 					assert.Equal(t, testReason, reason)
 				}
