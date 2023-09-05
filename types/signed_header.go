@@ -2,9 +2,8 @@ package types
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 
 	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -55,18 +54,18 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	sHHash := sH.Header.Hash()
 	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
 		return &header.VerifyError{
-			Reason: errors.Wrap(
+			Reason: fmt.Errorf("%w: %w",
 				ErrLastHeaderHashMismatch,
-				fmt.Sprintf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
+				fmt.Errorf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
 			),
 		}
 	}
 	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
-			Reason: errors.Wrap(
+			Reason: fmt.Errorf("%w: %w",
 				ErrLastCommitHashMismatch,
-				fmt.Sprintf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
+				fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
 			),
 		}
 	}
