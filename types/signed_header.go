@@ -54,18 +54,18 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	sHHash := sH.Header.Hash()
 	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
 		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: %w",
+			Reason: fmt.Errorf("%w: expected %v, but got %v",
 				ErrLastHeaderHashMismatch,
-				fmt.Errorf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
+				untrstH.LastHeaderHash[:], sHHash,
 			),
 		}
 	}
 	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: %w",
+			Reason: fmt.Errorf("%w: expected %v, but got %v",
 				ErrLastCommitHashMismatch,
-				fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
+				untrstH.LastCommitHash[:], sHHash,
 			),
 		}
 	}
