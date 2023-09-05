@@ -23,8 +23,8 @@ var (
 	ErrNoProposerAddress                = errors.New("no proposer address")
 	ErrLastHeaderHashMismatch           = errors.New("last header hash mismatch")
 	ErrLastCommitHashMismatch           = errors.New("last commit hash mismatch")
-	ErrNewHeaderTimeBeforeOldHeaderTime = errors.New("new header time before old header time")
-	ErrNewHeaderTimeFromFuture          = errors.New("new header time from future")
+	ErrNewHeaderTimeBeforeOldHeaderTime = errors.New("new header has time before old header time")
+	ErrNewHeaderTimeFromFuture          = errors.New("new header has time from future")
 )
 
 func (sH *SignedHeader) Verify(untrst header.Header) error {

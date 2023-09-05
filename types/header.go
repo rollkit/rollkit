@@ -133,7 +133,7 @@ func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
 	if !untrusted.Time().After(trusted.Time()) {
 		return fmt.Errorf("%w: %w",
 			ErrNewHeaderTimeBeforeOldHeaderTime,
-			fmt.Errorf("expected new header time %v to be after old header time %v",
+			fmt.Errorf("expected new header time %v to be after %v",
 				untrusted.Time(),
 				trusted.Time(),
 			),
@@ -141,12 +141,11 @@ func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
 	}
 
 	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
-		return fmt.Errorf("%w: %w",
+		return fmt.Errorf("%w: new header time %v (now: %v; max clock drift: %v)",
 			ErrNewHeaderTimeFromFuture,
-			fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
-				untrusted.Time(),
-				time.Now(),
-				maxClockDrift),
+			untrusted.Time(),
+			time.Now(),
+			maxClockDrift,
 		)
 	}
 
