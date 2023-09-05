@@ -135,25 +135,9 @@ func TestVerify(t *testing.T) {
 				t.Errorf("expected err: %v, got nil", test.err)
 				return
 			}
-			switch (err).(type) {
-			case *header.VerifyError:
-				reason := err.(*header.VerifyError).Reason
-				testReason := test.err.(*header.VerifyError).Reason
-				switch testReason {
-				case ErrLastHeaderHashMismatch:
-					assert.ErrorIs(t, reason, ErrLastHeaderHashMismatch)
-				case ErrLastCommitHashMismatch:
-					assert.ErrorIs(t, reason, ErrLastCommitHashMismatch)
-				case ErrNewHeaderTimeBeforeOldHeaderTime:
-					assert.ErrorIs(t, reason, ErrNewHeaderTimeBeforeOldHeaderTime)
-				case ErrNewHeaderTimeFromFuture:
-					assert.ErrorIs(t, reason, ErrNewHeaderTimeFromFuture)
-				default:
-					assert.Equal(t, testReason, reason)
-				}
-			default:
-				assert.Failf(t, "unexpected error: %s\n", err.Error())
-			}
+			reason := err.(*header.VerifyError).Reason
+			testReason := test.err.(*header.VerifyError).Reason
+			assert.ErrorIs(t, reason, testReason)
 		})
 	}
 }
