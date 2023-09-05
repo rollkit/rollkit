@@ -1,12 +1,13 @@
 module github.com/rollkit/rollkit
 
-go 1.21
+go 1.20
 
 require (
 	github.com/celestiaorg/go-header v0.2.13
 	github.com/celestiaorg/nmt v0.18.1
 	github.com/celestiaorg/rsmt2d v0.10.0
 	github.com/celestiaorg/utils v0.1.0
+	github.com/centrifuge/go-substrate-rpc-client/v4 v4.1.0
 	github.com/cometbft/cometbft v0.37.2
 	github.com/creachadair/taskgroup v0.6.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
@@ -37,6 +38,7 @@ require (
 
 require (
 	cosmossdk.io/math v1.0.1 // indirect
+	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
@@ -53,6 +55,9 @@ require (
 	github.com/cosmos/gogoproto v1.4.11 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
+	github.com/deckarep/golang-set v1.8.0 // indirect
+	github.com/decred/base58 v1.0.4 // indirect
+	github.com/decred/dcrd/crypto/blake256 v1.0.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
@@ -60,6 +65,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/elastic/gosigar v0.14.2 // indirect
+	github.com/ethereum/go-ethereum v1.10.20 // indirect
 	github.com/filecoin-project/go-jsonrpc v0.3.1 // indirect
 	github.com/flynn/noise v1.0.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
@@ -68,6 +74,7 @@ require (
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/glog v1.0.0 // indirect
@@ -83,6 +90,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
+	github.com/gtank/ristretto255 v0.1.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
@@ -122,7 +130,7 @@ require (
 	github.com/miekg/dns v1.1.55 // indirect
 	github.com/mikioh/tcpinfo v0.0.0-20190314235526-30a79bb1804b // indirect
 	github.com/mikioh/tcpopt v0.0.0-20190314235656-172688c1accc // indirect
-	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
+	github.com/mimoo/StrobeGo v0.0.0-20220103164710-9a04d6ca976b // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
@@ -141,6 +149,7 @@ require (
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/petermattis/goid v0.0.0-20230317030725-371a4b8eda08 // indirect
+	github.com/pierrec/xxHash v0.1.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polydawn/refmt v0.89.0 // indirect
@@ -160,7 +169,8 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
-	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
+	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
+	github.com/vedhavyas/go-subkey v1.0.4 // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opencensus.io v0.24.0 // indirect
@@ -181,11 +191,13 @@ require (
 	gonum.org/v1/gonum v0.11.0 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
 
 replace (
+	github.com/centrifuge/go-substrate-rpc-client/v4 => github.com/availproject/go-substrate-rpc-client/v4 v4.0.12-avail-1.6.2-rc1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
