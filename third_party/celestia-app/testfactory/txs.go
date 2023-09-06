@@ -2,7 +2,6 @@ package testfactory
 
 import (
 	"bytes"
-	"math/rand"
 	mrand "math/rand"
 
 	"github.com/cometbft/cometbft/types"
@@ -35,8 +34,8 @@ func GenerateRandomTxs(count, size int) types.Txs {
 
 // GetRandomSubSlice returns two integers representing a randomly sized range in the interval [0, size]
 func GetRandomSubSlice(size int) (start int, length int) {
-	length = rand.Intn(size + 1)         //nolint:gosec
-	start = rand.Intn(size - length + 1) //nolint:gosec
+	length = mrand.Intn(size + 1)         //nolint:gosec
+	start = mrand.Intn(size - length + 1) //nolint:gosec
 	return start, length
 }
 
