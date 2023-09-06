@@ -146,15 +146,16 @@ func (m *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 	daHeight := atomic.LoadUint64(&m.daHeight)
 
 	for _, block := range blocks {
-		m.logger.Debug("Submitting blocks to DA layer!", "height", block.SignedHeader.Header.Height(), "dataLayerHeight", daHeight)
+		blockHeight := uint64(block.Height())
+		m.logger.Debug("Submitting blocks to DA layer!", "height", blockHeight, "dataLayerHeight", daHeight)
 
-		hash := block.SignedHeader.Header.Hash()
+		hash := block.Hash()
 		blob, err := block.MarshalBinary()
 		if err != nil {
 			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
 
-		err = m.dalcKV.Put(ctx, getKey(daHeight, uint64(block.SignedHeader.Header.Height())), hash[:])
+		err = m.dalcKV.Put(ctx, getKey(daHeight, blockHeight), hash[:])
 		if err != nil {
 			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}

@@ -76,10 +76,10 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	abciCommit := block.SignedHeader.Commit.ToABCICommit(int64(block.SignedHeader.Header.BaseHeader.Height), block.SignedHeader.Hash())
+	abciCommit := block.SignedHeader.Commit.ToABCICommit(int64(block.Height()), block.Hash())
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
-		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.Header.ProposerAddress
+		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
 	}
 	abciBlock := cmtypes.Block{
 		Header: abciHeader,
@@ -92,7 +92,7 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	for i := range block.Data.Txs {
 		abciBlock.Data.Txs[i] = cmtypes.Tx(block.Data.Txs[i])
 	}
-	abciBlock.Header.DataHash = cmbytes.HexBytes(block.SignedHeader.Header.DataHash)
+	abciBlock.Header.DataHash = cmbytes.HexBytes(block.SignedHeader.DataHash)
 
 	return &abciBlock, nil
 }

@@ -38,5 +38,5 @@ func (h *Header) Hash() Hash {
 
 // Hash returns ABCI-compatible hash of a block.
 func (b *Block) Hash() Hash {
-	return b.SignedHeader.Header.Hash()
+	return b.SignedHeader.Hash()
 }

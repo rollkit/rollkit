@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.20-alpine AS build-env
+FROM --platform=$BUILDPLATFORM golang:1.21-alpine AS build-env
 
 # Set working directory for the build
 WORKDIR /src
