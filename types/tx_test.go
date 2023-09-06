@@ -20,10 +20,10 @@ func TestTxWithISRSerializationRoundtrip(t *testing.T) {
 		RawRootsList: make([][]byte, len(txs)+1),
 	}
 	for i := 0; i < len(txs); i++ {
-		txs[i] = getRandomTx()
-		ISRs.RawRootsList[i] = getRandomBytes(32)
+		txs[i] = GetRandomTx()
+		ISRs.RawRootsList[i] = GetRandomBytes(32)
 	}
-	ISRs.RawRootsList[len(txs)] = getRandomBytes(32)
+	ISRs.RawRootsList[len(txs)] = GetRandomBytes(32)
 
 	txsWithISRs, err := txs.ToTxsWithISRs(ISRs)
 	require.NoError(err)
@@ -60,10 +60,10 @@ func TestTxWithISRSerializationOutOfContextRoundtrip(t *testing.T) {
 		RawRootsList: make([][]byte, len(txs)+1),
 	}
 	for i := 0; i < len(txs); i++ {
-		txs[i] = getRandomTx()
-		ISRs.RawRootsList[i] = getRandomBytes(32)
+		txs[i] = GetRandomTx()
+		ISRs.RawRootsList[i] = GetRandomBytes(32)
 	}
-	ISRs.RawRootsList[len(txs)] = getRandomBytes(32)
+	ISRs.RawRootsList[len(txs)] = GetRandomBytes(32)
 
 	txsWithISRs, err := txs.ToTxsWithISRs(ISRs)
 	require.NoError(err)
@@ -110,17 +110,4 @@ func checkSubArray(txList []rollkit.TxWithISRs, subTxList []rollkit.TxWithISRs) 
 		}
 	}
 	return false, nil
-}
-
-// copy-pasted from store/store_test.go
-func getRandomTx() Tx {
-	size := rand.Int()%100 + 100 //nolint:gosec
-	return Tx(getRandomBytes(size))
-}
-
-// copy-pasted from store/store_test.go
-func getRandomBytes(n int) []byte {
-	data := make([]byte, n)
-	_, _ = rand.Read(data) //nolint:gosec
-	return data
 }
