@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -128,7 +127,17 @@ func TestVerify(t *testing.T) {
 				preparedHeader.Commit = *commit
 			}
 			err = trusted.Verify(preparedHeader)
-			assert.ErrorIs(t, errors.Unwrap(err), errors.Unwrap(test.err))
+			if test.err == nil {
+				assert.NoError(t, err)
+				return
+			}
+			if err == nil {
+				t.Errorf("expected err: %v, got nil", test.err)
+				return
+			}
+			reason := err.(*header.VerifyError).Reason
+			testReason := test.err.(*header.VerifyError).Reason
+			assert.ErrorIs(t, reason, testReason)
 		})
 	}
 }
