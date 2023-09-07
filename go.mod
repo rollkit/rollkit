@@ -1,6 +1,6 @@
 module github.com/rollkit/rollkit
 
-go 1.20
+go 1.21
 
 require (
 	github.com/celestiaorg/go-header v0.2.13
