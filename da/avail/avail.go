@@ -110,7 +110,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		BaseResult: da.BaseResult{
 			Code:     da.StatusSuccess,
 			Message:  "success",
-			DAHeight: 1,
+			DAHeight: 1, // it always returns 1 due to the unavailability of DAHeight in avail block
 		},
 	}
 }
