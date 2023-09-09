@@ -17,6 +17,16 @@ func (sH *SignedHeader) IsZero() bool {
 	return sH == nil
 }
 
+var (
+	ErrAggregatorSetHashMismatch        = errors.New("aggregator set hash in signed header and hash of validator set do not match")
+	ErrSignatureVerificationFailed      = errors.New("signature verification failed")
+	ErrNoProposerAddress                = errors.New("no proposer address")
+	ErrLastHeaderHashMismatch           = errors.New("last header hash mismatch")
+	ErrLastCommitHashMismatch           = errors.New("last commit hash mismatch")
+	ErrNewHeaderTimeBeforeOldHeaderTime = errors.New("new header has time before old header time")
+	ErrNewHeaderTimeFromFuture          = errors.New("new header has time from future")
+)
+
 func (sH *SignedHeader) Verify(untrst header.Header) error {
 	// Explicit type checks are required due to embedded Header which also does the explicit type check
 	untrstH, ok := untrst.(*SignedHeader)
@@ -44,13 +54,19 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	sHHash := sH.Header.Hash()
 	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
 		return &header.VerifyError{
-			Reason: fmt.Errorf("last header hash %v does not match hash of previous header %v", untrstH.LastHeaderHash[:], sHHash),
+			Reason: fmt.Errorf("%w: expected %v, but got %v",
+				ErrLastHeaderHashMismatch,
+				untrstH.LastHeaderHash[:], sHHash,
+			),
 		}
 	}
 	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
-			Reason: fmt.Errorf("last commit hash %v does not match hash of previous header %v", untrstH.LastCommitHash[:], sHHash),
+			Reason: fmt.Errorf("%w: expected %v, but got %v",
+				ErrLastCommitHashMismatch,
+				untrstH.LastCommitHash[:], sHHash,
+			),
 		}
 	}
 	return nil
@@ -78,7 +94,7 @@ func (h *SignedHeader) ValidateBasic() error {
 	}
 
 	if !bytes.Equal(h.Validators.Hash(), h.AggregatorsHash[:]) {
-		return errors.New("aggregator set hash in signed header and hash of validator set do not match")
+		return ErrAggregatorSetHashMismatch
 	}
 
 	// Make sure there is exactly one signature
@@ -94,7 +110,7 @@ func (h *SignedHeader) ValidateBasic() error {
 		return errors.New("signature verification failed, unable to marshal header")
 	}
 	if !pubKey.VerifySignature(msg, signature) {
-		return errors.New("signature verification failed")
+		return ErrSignatureVerificationFailed
 	}
 
 	return nil
