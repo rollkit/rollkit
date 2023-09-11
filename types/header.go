@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding"
-	"errors"
 	"fmt"
 	"time"
 
@@ -85,7 +84,7 @@ func (h *Header) Verify(untrst header.Header) error {
 	}
 	// sanity check fields
 	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
-		return &header.VerifyError{Reason: err}
+		return err
 	}
 
 	// Check the validator hashes are the same in the case headers are adjacent
@@ -132,16 +131,22 @@ func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
 	}
 
 	if !untrusted.Time().After(trusted.Time()) {
-		return fmt.Errorf("expected new header time %v to be after old header time %v",
-			untrusted.Time(),
-			trusted.Time())
+		return fmt.Errorf("%w: %w",
+			ErrNewHeaderTimeBeforeOldHeaderTime,
+			fmt.Errorf("expected new header time %v to be after %v",
+				untrusted.Time(),
+				trusted.Time(),
+			),
+		)
 	}
 
 	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
-		return fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
+		return fmt.Errorf("%w: new header time %v (now: %v; max clock drift: %v)",
+			ErrNewHeaderTimeFromFuture,
 			untrusted.Time(),
 			time.Now(),
-			maxClockDrift)
+			maxClockDrift,
+		)
 	}
 
 	return nil
@@ -150,7 +155,7 @@ func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
 // ValidateBasic performs basic validation of a header.
 func (h *Header) ValidateBasic() error {
 	if len(h.ProposerAddress) == 0 {
-		return errors.New("no proposer address")
+		return ErrNoProposerAddress
 	}
 
 	return nil
