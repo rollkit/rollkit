@@ -142,8 +142,8 @@ github.com/armon/go-radix v1.0.0/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgI
 github.com/aryann/difflib v0.0.0-20170710044230-e206f873d14a/go.mod h1:DAHtR1m6lCRdSC2Tm3DSWRPvIPr6xNKyeHdqDQSQT+A=
 github.com/ashanbrown/forbidigo v1.3.0/go.mod h1:vVW7PEdqEFqapJe95xHkTfB1+XvZXBFg8t0sG2FIxmI=
 github.com/ashanbrown/makezero v1.1.1/go.mod h1:i1bJLCRSCHOcOa9Y6MyF2FTfMZMFdHvxKHxgO5Z1axI=
-github.com/availproject/go-substrate-rpc-client/v4 v4.0.12-avail-1.6.2-rc1 h1:SpFSpUgNt2/Y3b7boDO5rNQLi5xFnZ9ULPD3Dhrbedw=
-github.com/availproject/go-substrate-rpc-client/v4 v4.0.12-avail-1.6.2-rc1/go.mod h1:NF4gqLe3pSyn8QdLF3Mf2AFD8DDzsOG4ws/ZpazxE2M=
+github.com/availproject/go-substrate-rpc-client/v4 v4.0.12-avail-1.6.2-rc2 h1:5ZVzcWxE/Ta8Udzz9MOg7oUOTpx08Lrm/+fAn0IALCw=
+github.com/availproject/go-substrate-rpc-client/v4 v4.0.12-avail-1.6.2-rc2/go.mod h1:NF4gqLe3pSyn8QdLF3Mf2AFD8DDzsOG4ws/ZpazxE2M=
 github.com/aws/aws-lambda-go v1.13.3/go.mod h1:4UKl9IzQMoD+QF79YdCuzCwp8VbmG4VAQwij/eHl5CU=
 github.com/aws/aws-sdk-go v1.23.20/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/aws/aws-sdk-go v1.25.37/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
