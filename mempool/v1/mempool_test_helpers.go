@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/abci/example/code"
 	"github.com/cometbft/cometbft/abci/example/kvstore"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
@@ -64,7 +63,7 @@ func (app *application) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	return abci.ResponseCheckTx{
 		Priority:  priority,
 		Sender:    sender,
-		Code:      code.CodeTypeOK,
+		Code:      abci.CodeTypeOK,
 		GasWanted: 1,
 	}
 }
