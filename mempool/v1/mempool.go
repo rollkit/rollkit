@@ -52,7 +52,7 @@ type TxMempool struct {
 	txsAvailable         chan struct{} // one value sent per height when mempool is not empty
 	preCheck             mempool.PreCheckFunc
 	postCheck            mempool.PostCheckFunc
-	height               int64 // the latest height passed to Update
+	height               uint64 // the latest height passed to Update
 
 	txs        *clist.CList // valid transactions (passed CheckTx)
 	txByKey    map[types.TxKey]*clist.CElement
@@ -65,7 +65,7 @@ func NewTxMempool(
 	logger log.Logger,
 	cfg *config.MempoolConfig,
 	proxyAppConn proxy.AppConnMempool,
-	height int64,
+	height uint64,
 	options ...TxMempoolOption,
 ) *TxMempool {
 
@@ -181,7 +181,7 @@ func (txmp *TxMempool) CheckTx(tx types.Tx, cb func(*abci.Response), txInfo memp
 	// During the initial phase of CheckTx, we do not need to modify any state.
 	// A transaction will not actually be added to the mempool until it survives
 	// a call to the ABCI CheckTx method and size constraint checks.
-	height, err := func() (int64, error) {
+	height, err := func() (uint64, error) {
 		txmp.mtx.RLock()
 		defer txmp.mtx.RUnlock()
 
@@ -390,7 +390,7 @@ func (txmp *TxMempool) ReapMaxTxs(max int) types.Txs {
 // The caller must hold an exclusive mempool lock (by calling txmp.Lock) before
 // calling Update.
 func (txmp *TxMempool) Update(
-	blockHeight int64,
+	blockHeight uint64,
 	blockTxs types.Txs,
 	deliverTxResponses []*abci.ResponseDeliverTx,
 	newPreFn mempool.PreCheckFunc,
@@ -744,7 +744,7 @@ func (txmp *TxMempool) canAddTx(wtx *WrappedTx) error {
 // Transactions removed by this operation are not removed from the cache.
 //
 // The caller must hold txmp.mtx exclusively.
-func (txmp *TxMempool) purgeExpiredTxs(blockHeight int64) {
+func (txmp *TxMempool) purgeExpiredTxs(blockHeight uint64) {
 	if txmp.config.TTLNumBlocks == 0 && txmp.config.TTLDuration == 0 {
 		return // nothing to do
 	}
@@ -757,7 +757,7 @@ func (txmp *TxMempool) purgeExpiredTxs(blockHeight int64) {
 		next := cur.Next()
 
 		w := cur.Value.(*WrappedTx)
-		if txmp.config.TTLNumBlocks > 0 && (blockHeight-w.height) > txmp.config.TTLNumBlocks {
+		if txmp.config.TTLNumBlocks > 0 && (blockHeight-uint64(w.height)) > uint64(txmp.config.TTLNumBlocks) {
 			txmp.removeTxByElement(cur)
 			txmp.cache.Remove(w.tx)
 			txmp.metrics.EvictedTxs.Add(1)

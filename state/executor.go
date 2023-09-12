@@ -253,7 +253,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(int64(block.Height()), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	err = e.mempool.Update(block.Height(), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}

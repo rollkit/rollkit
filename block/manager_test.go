@@ -48,15 +48,15 @@ func TestInitialState(t *testing.T) {
 		name                    string
 		store                   store.Store
 		genesis                 *cmtypes.GenesisDoc
-		expectedInitialHeight   int64
-		expectedLastBlockHeight int64
+		expectedInitialHeight   uint64
+		expectedLastBlockHeight uint64
 		expectedChainID         string
 	}{
 		{
 			name:                    "empty_store",
 			store:                   emptyStore,
 			genesis:                 genesis,
-			expectedInitialHeight:   genesis.InitialHeight,
+			expectedInitialHeight:   uint64(genesis.InitialHeight),
 			expectedLastBlockHeight: 0,
 			expectedChainID:         genesis.ChainID,
 		},
@@ -64,8 +64,8 @@ func TestInitialState(t *testing.T) {
 			name:                    "state_in_store",
 			store:                   fullStore,
 			genesis:                 genesis,
-			expectedInitialHeight:   sampleState.InitialHeight,
-			expectedLastBlockHeight: sampleState.LastBlockHeight,
+			expectedInitialHeight:   uint64(sampleState.InitialHeight),
+			expectedLastBlockHeight: uint64(sampleState.LastBlockHeight),
 			expectedChainID:         sampleState.ChainID,
 		},
 	}

@@ -60,9 +60,9 @@ type IntermediateStateRoots struct {
 // ToABCICommit converts Rollkit commit into commit format defined by ABCI.
 // This function only converts fields that are available in Rollkit commit.
 // Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
-func (c *Commit) ToABCICommit(height int64, hash Hash) *cmtypes.Commit {
+func (c *Commit) ToABCICommit(height uint64, hash Hash) *cmtypes.Commit {
 	tmCommit := cmtypes.Commit{
-		Height: height,
+		Height: int64(height),
 		Round:  0,
 		BlockID: cmtypes.BlockID{
 			Hash:          cmbytes.HexBytes(hash),
