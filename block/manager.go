@@ -29,14 +29,14 @@ import (
 )
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
-const defaultDABlockTime = 30 * time.Second
+const defaultDABlockTime = 15 * time.Second
 
 // defaultBlockTime is used only if BlockTime is not configured for manager
 const defaultBlockTime = 1 * time.Second
 
 // maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 30
+const maxSubmitAttempts = 15
 
 // Applies to most channels, 100 is a large enough buffer to avoid blocking
 const channelLength = 100
