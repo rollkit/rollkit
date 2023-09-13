@@ -47,10 +47,12 @@ lint: vet
 
 .PHONY: lint
 
-## fmt: Run fixes for linters. Currently only markdownlint.
+## fmt: Run fixes for linters.
 fmt:
 	@echo "--> Formatting markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md' -f
+	@echo "--> Formatting go"
+	@golangci-lint run --fix
 .PHONY: fmt
 
 ## vet: Run go vet
