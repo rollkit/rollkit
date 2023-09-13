@@ -52,7 +52,7 @@ fmt:
 	@echo "--> Formatting markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md' -f
 	@echo "--> Formatting go"
-	@go fmt $(pkgs)
+	@golangci-lint run --fix
 .PHONY: fmt
 
 ## vet: Run go vet
