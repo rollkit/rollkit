@@ -75,25 +75,25 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 }
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
-func (h *SignedHeader) ToProto() (*pb.SignedHeader, error) {
-	vSet, err := h.Validators.ToProto()
+func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
+	vSet, err := sh.Validators.ToProto()
 	if err != nil {
 		return nil, err
 	}
 	return &pb.SignedHeader{
-		Header:     h.Header.ToProto(),
-		Commit:     h.Commit.ToProto(),
+		Header:     sh.Header.ToProto(),
+		Commit:     sh.Commit.ToProto(),
 		Validators: vSet,
 	}, nil
 }
 
 // FromProto fills SignedHeader with data from protobuf representation.
-func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
-	err := h.Header.FromProto(other.Header)
+func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
+	err := sh.Header.FromProto(other.Header)
 	if err != nil {
 		return err
 	}
-	err = h.Commit.FromProto(other.Commit)
+	err = sh.Commit.FromProto(other.Commit)
 	if err != nil {
 		return err
 	}
@@ -104,14 +104,14 @@ func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
 			return err
 		}
 
-		h.Validators = validators
+		sh.Validators = validators
 	}
 	return nil
 }
 
 // MarshalBinary encodes SignedHeader into binary form and returns it.
-func (h *SignedHeader) MarshalBinary() ([]byte, error) {
-	hp, err := h.ToProto()
+func (sh *SignedHeader) MarshalBinary() ([]byte, error) {
+	hp, err := sh.ToProto()
 	if err != nil {
 		return nil, err
 	}
@@ -119,13 +119,13 @@ func (h *SignedHeader) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes binary form of SignedHeader into object.
-func (h *SignedHeader) UnmarshalBinary(data []byte) error {
+func (sh *SignedHeader) UnmarshalBinary(data []byte) error {
 	var pHeader pb.SignedHeader
 	err := pHeader.Unmarshal(data)
 	if err != nil {
 		return err
 	}
-	err = h.FromProto(&pHeader)
+	err = sh.FromProto(&pHeader)
 	if err != nil {
 		return err
 	}

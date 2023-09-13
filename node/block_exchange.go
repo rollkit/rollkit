@@ -89,7 +89,7 @@ func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context
 // Note: Only returns an error in case block store can't be initialized. Logs error if there's one while broadcasting.
 func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
 	// For genesis block initialize the store and start the syncer
-	if block.Height() == bExService.genesis.InitialHeight {
+	if int64(block.Height()) == bExService.genesis.InitialHeight {
 		if err := bExService.blockStore.Init(ctx, block); err != nil {
 			return fmt.Errorf("failed to initialize block store")
 		}

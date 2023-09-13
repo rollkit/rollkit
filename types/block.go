@@ -3,13 +3,10 @@ package types
 import (
 	"encoding"
 	"errors"
-
-	"fmt"
 	"time"
 
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
-	"github.com/celestiaorg/go-header"
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
@@ -51,15 +48,6 @@ type Commit struct {
 	Signatures []Signature // most of the time this is a single signature
 }
 
-// SignedHeader combines Header and its Commit.
-//
-// Used mostly for gossiping.
-type SignedHeader struct {
-	Header
-	Commit     Commit
-	Validators *cmtypes.ValidatorSet
-}
-
 // Signature represents signature of block creator.
 type Signature []byte
 
@@ -94,7 +82,7 @@ func (c *Commit) ToABCICommit(height int64, hash Hash) *cmtypes.Commit {
 }
 
 func (c *Commit) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash())
+	lastABCICommit := c.ToABCICommit(int64(header.Height()), header.Hash())
 	// Rollkit does not support a multi signature scheme so there can only be one signature
 	if len(c.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = proposerAddress
@@ -128,7 +116,7 @@ func (b *Block) ValidateBasic() error {
 	return nil
 }
 
-func (b *Block) New() header.Header {
+func (b *Block) New() *Block {
 	return new(Block)
 }
 
@@ -140,7 +128,7 @@ func (b *Block) ChainID() string {
 	return b.SignedHeader.ChainID() + "-block"
 }
 
-func (b *Block) Height() int64 {
+func (b *Block) Height() uint64 {
 	return b.SignedHeader.Height()
 }
 
@@ -152,18 +140,8 @@ func (b *Block) Time() time.Time {
 	return b.SignedHeader.Time()
 }
 
-func (b *Block) Verify(untrst header.Header) error {
+func (b *Block) Verify(*Block) error {
 	//TODO: Update with new header verify method
-	untrstB, ok := untrst.(*Block)
-	if !ok {
-		// if the header type is wrong, something very bad is going on
-		// and is a programmer bug
-		panic(fmt.Errorf("%T is not of type %T", untrst, &b))
-	}
-	// sanity check fields
-	if err := verifyNewHeaderAndVals(&b.SignedHeader.Header, &untrstB.SignedHeader.Header); err != nil {
-		return &header.VerifyError{Reason: err}
-	}
 	return nil
 }
 

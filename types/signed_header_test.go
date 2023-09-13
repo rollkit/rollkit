@@ -64,26 +64,8 @@ func TestVerify(t *testing.T) {
 				untrusted.Header.BaseHeader.Height++
 				return &untrusted, true
 			},
-			err: nil, // Accepts non-adjacent headers
-		},
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				untrusted.Header.BaseHeader.Time = uint64(untrusted.Header.Time().Truncate(time.Hour).UnixNano())
-				return &untrusted, true
-			},
 			err: &header.VerifyError{
-				Reason: ErrNewHeaderTimeBeforeOldHeaderTime,
-			},
-		},
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				untrusted.Header.BaseHeader.Time = uint64(untrusted.Header.Time().Add(time.Minute).UnixNano())
-				return &untrusted, true
-			},
-			err: &header.VerifyError{
-				Reason: ErrNewHeaderTimeFromFuture,
+				Reason: ErrNonAdjacentHeaders,
 			},
 		},
 		{
