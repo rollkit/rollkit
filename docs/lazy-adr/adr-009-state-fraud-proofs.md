@@ -179,7 +179,7 @@ There are four stages of verification that must occur for a Fraud Proof. The fir
 
 #### **Stage One**
 
-Verify that both the `appHash` (ISR) and the fraudulent state transition in the `FraudProof` exist as part of a block published on the DA layer within a specified fraud proof window. This involves verifying that share containing the block is posted on Celestia via a Blob Inclusion Proof.
+Verify that both the `appHash` (ISR) and the fraudulent state transition in the `FraudProof` exist as part of a block published on the DA layer within a specified fraud proof window. This involves verifying that the blob corresponding to the block is posted on the DA layer via a Blob Inclusion Proof and verifying the share(s) containing the fraudulent state transition and `appHash` were part of that blob via Share Inclusion Proof(s).
 
 #### **Stage Two**
 
@@ -248,7 +248,7 @@ Proposed
 A prototype implementation of the above design is available in the following working branches:
 
 - [Rollkit](https://github.com/rollkit/rollkit/releases/tag/v0.6.0): Contains fraud proof detection and gossiping logic. As fraud proofs are currently a work in progress, this logic can be toggled using a flag `--rollkit.experimental_insecure_fraud_proofs`. By default, this flag is set to `false`.
-- [Cosmos-SDK](https://github.com/rollkit/cosmos-sdk/tree/manav/fraudproof_iavl_prototype): Implements the new ABCI methods described.
+- [Cosmos-SDK](https://github.com/rollkit/cosmos-sdk-old/tree/manav/fraudproof_iavl_prototype): Implements the new ABCI methods described.
 - [Tendermint](https://github.com/rollkit/tendermint/tree/abci_fraud_proofs): Contains modifications to the ABCI interface described.
 - [IAVL](https://github.com/rollkit/iavl/tree/deepsubtrees_0.19.x): Adds support for Deep Subtrees and tracing.
 
