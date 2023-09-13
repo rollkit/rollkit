@@ -36,7 +36,7 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 
 			BaseHeader: BaseHeader{
 				ChainID: "test",
-				Height:  rand.Uint64(), //nolint:gosec,
+				Height:  uint64(rand.Int63()), //nolint:gosec,
 				Time:    uint64(time.Now().UnixNano()),
 			},
 			LastHeaderHash:  GetRandomBytes(32),
