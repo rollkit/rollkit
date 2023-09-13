@@ -33,7 +33,7 @@ var (
 	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
 	testConfig = celestia.Config{
-		Timeout:  30 * time.Second,
+		Timeout:  15 * time.Second,
 		GasLimit: 3000000,
 	}
 )
