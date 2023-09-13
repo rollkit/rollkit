@@ -24,7 +24,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rollkit/celestia-openrpc v0.2.0
-	github.com/rs/cors v1.9.0
+	github.com/rs/cors v1.10.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
