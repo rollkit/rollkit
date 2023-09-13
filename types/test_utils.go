@@ -69,7 +69,7 @@ func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*
 
 			BaseHeader: BaseHeader{
 				ChainID: "test",
-				Height:  uint64(signedHeader.Height() + 1),
+				Height:  signedHeader.Height() + 1,
 				Time:    uint64(time.Now().UnixNano()),
 			},
 			LastHeaderHash:  signedHeader.Hash(),
