@@ -36,7 +36,7 @@ const defaultBlockTime = 1 * time.Second
 
 // maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 15
+const maxSubmitAttempts = 30
 
 // Applies to most channels, 100 is a large enough buffer to avoid blocking
 const channelLength = 100
