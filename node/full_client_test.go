@@ -402,7 +402,7 @@ func TestGetCommit(t *testing.T) {
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
 		for _, b := range blocks {
-			h := b.Height()
+			h := int64(b.Height())
 			commit, err := rpc.Commit(context.Background(), &h)
 			require.NoError(err)
 			require.NotNil(commit)
@@ -414,7 +414,7 @@ func TestGetCommit(t *testing.T) {
 		commit, err := rpc.Commit(context.Background(), nil)
 		require.NoError(err)
 		require.NotNil(commit)
-		assert.Equal(blocks[3].Height(), commit.Height)
+		assert.Equal(int64(blocks[3].Height()), commit.Height)
 	})
 }
 
@@ -496,7 +496,7 @@ func TestGetBlockByHash(t *testing.T) {
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	require.NoError(err)
 
-	height := block.Height()
+	height := int64(block.Height())
 	retrievedBlock, err := rpc.Block(context.Background(), &height)
 	require.NoError(err)
 	require.NotNil(retrievedBlock)

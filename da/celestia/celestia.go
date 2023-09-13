@@ -97,7 +97,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		blobs[blockIndex] = blockBlob
 	}
 
-	dataLayerHeight, err := c.rpc.Blob.Submit(ctx, blobs)
+	dataLayerHeight, err := c.rpc.Blob.Submit(ctx, blobs, openrpc.DefaultSubmitOptions())
 	if err != nil {
 		return da.ResultSubmitBlocks{
 			BaseResult: da.BaseResult{
