@@ -82,7 +82,7 @@ func (c *Commit) ToABCICommit(height uint64, hash Hash) *cmtypes.Commit {
 }
 
 func (c *Commit) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-	lastABCICommit := c.ToABCICommit(int64(header.Height()), header.Hash())
+	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash())
 	// Rollkit does not support a multi signature scheme so there can only be one signature
 	if len(c.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = proposerAddress
