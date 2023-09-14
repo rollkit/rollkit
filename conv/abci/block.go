@@ -76,7 +76,7 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	abciCommit := block.SignedHeader.Commit.ToABCICommit(int64(block.Height()), block.Hash())
+	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
