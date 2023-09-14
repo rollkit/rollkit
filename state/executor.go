@@ -126,6 +126,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	block.SignedHeader.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.LastHeaderHash = lastHeaderHash
 	block.SignedHeader.AggregatorsHash = state.Validators.Hash()
+	block.SignedHeader.NextAggregatorsHash = state.NextValidators.Hash()
 
 	return block
 }
