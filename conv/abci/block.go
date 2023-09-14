@@ -59,7 +59,7 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 		LastCommitHash:     cmbytes.HexBytes(header.LastCommitHash),
 		DataHash:           cmbytes.HexBytes(header.DataHash),
 		ValidatorsHash:     cmbytes.HexBytes(header.AggregatorsHash),
-		NextValidatorsHash: nil,
+		NextValidatorsHash: cmbytes.HexBytes(header.NextAggregatorsHash),
 		ConsensusHash:      cmbytes.HexBytes(header.ConsensusHash),
 		AppHash:            cmbytes.HexBytes(header.AppHash),
 		LastResultsHash:    cmbytes.HexBytes(header.LastResultsHash),

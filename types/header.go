@@ -90,7 +90,7 @@ func (h *Header) Verify(untrstH *Header) error {
 		if !bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]) {
 			return &header.VerifyError{
 				Reason: fmt.Errorf("expected old header validators (%X) to match those from new header (%X)",
-					h.AggregatorsHash,
+					h.NextAggregatorsHash,
 					untrstH.AggregatorsHash,
 				),
 			}
