@@ -196,11 +196,11 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, err)
 			return
 		}
-		if len(params) != 1 {
-			s.writeError(w, errors.New("expected 1 param: data (base64 string)"))
+		if len(params) != 2 {
+			s.writeError(w, errors.New("expected 2 params: data (base64 string) and options (map[string]interface{})"))
 			return
 		}
-
+		// ignores the second parameter - options
 		blocks := make([]*types.Block, len(params[0].([]interface{})))
 		for i, data := range params[0].([]interface{}) {
 			blockBase64 := data.(map[string]interface{})["data"].(string)
@@ -220,7 +220,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		res := s.mock.SubmitBlocks(r.Context(), blocks)
 		resp := &response{
 			Jsonrpc: "2.0",
-			Result:  int64(res.DAHeight),
+			Result:  res.DAHeight,
 			ID:      req.ID,
 			Error:   nil,
 		}

@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding"
-	"fmt"
 	"time"
 
 	"github.com/celestiaorg/go-header"
@@ -50,7 +49,7 @@ type Header struct {
 	AggregatorsHash Hash
 }
 
-func (h *Header) New() header.Header {
+func (h *Header) New() *Header {
 	return new(Header)
 }
 
@@ -62,8 +61,8 @@ func (h *Header) ChainID() string {
 	return h.BaseHeader.ChainID
 }
 
-func (h *Header) Height() int64 {
-	return int64(h.BaseHeader.Height)
+func (h *Header) Height() uint64 {
+	return h.BaseHeader.Height
 }
 
 func (h *Header) LastHeader() Hash {
@@ -75,17 +74,7 @@ func (h *Header) Time() time.Time {
 	return time.Unix(0, int64(h.BaseHeader.Time))
 }
 
-func (h *Header) Verify(untrst header.Header) error {
-	untrstH, ok := untrst.(*Header)
-	if !ok {
-		// if the header type is wrong, something very bad is going on
-		// and is a programmer bug
-		panic(fmt.Errorf("%T is not of type %T", untrst, h))
-	}
-	// sanity check fields
-	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
-		return err
-	}
+func (h *Header) Verify(_ *Header) error {
 
 	// Check the validator hashes are the same in the case headers are adjacent
 	// TODO: next validator set is not available, disable this check until NextValidatorHash is enabled
@@ -114,44 +103,6 @@ func (h *Header) Validate() error {
 	return h.ValidateBasic()
 }
 
-// clockDrift defines how much new header's time can drift into
-// the future relative to the now time during verification.
-var maxClockDrift = 10 * time.Second
-
-// verifyNewHeaderAndVals performs basic verification of untrusted header.
-func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
-	if err := untrusted.ValidateBasic(); err != nil {
-		return fmt.Errorf("untrusted.ValidateBasic failed: %w", err)
-	}
-
-	if untrusted.Height() <= trusted.Height() {
-		return fmt.Errorf("expected new header height %d to be greater than one of old header %d",
-			untrusted.Height(),
-			trusted.Height())
-	}
-
-	if !untrusted.Time().After(trusted.Time()) {
-		return fmt.Errorf("%w: %w",
-			ErrNewHeaderTimeBeforeOldHeaderTime,
-			fmt.Errorf("expected new header time %v to be after %v",
-				untrusted.Time(),
-				trusted.Time(),
-			),
-		)
-	}
-
-	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
-		return fmt.Errorf("%w: new header time %v (now: %v; max clock drift: %v)",
-			ErrNewHeaderTimeFromFuture,
-			untrusted.Time(),
-			time.Now(),
-			maxClockDrift,
-		)
-	}
-
-	return nil
-}
-
 // ValidateBasic performs basic validation of a header.
 func (h *Header) ValidateBasic() error {
 	if len(h.ProposerAddress) == 0 {
@@ -161,6 +112,6 @@ func (h *Header) ValidateBasic() error {
 	return nil
 }
 
-var _ header.Header = &Header{}
+var _ header.Header[*Header] = &Header{}
 var _ encoding.BinaryMarshaler = &Header{}
 var _ encoding.BinaryUnmarshaler = &Header{}

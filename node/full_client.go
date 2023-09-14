@@ -10,6 +10,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmmath "github.com/cometbft/cometbft/libs/math"
 	cmpubsub "github.com/cometbft/cometbft/libs/pubsub"
 	cmquery "github.com/cometbft/cometbft/libs/pubsub/query"
 	corep2p "github.com/cometbft/cometbft/p2p"
@@ -490,7 +491,7 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	if err != nil {
 		return nil, err
 	}
-	commit := com.ToABCICommit(int64(heightValue), b.Hash())
+	commit := com.ToABCICommit(heightValue, b.Hash())
 	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
 		return nil, err
@@ -515,7 +516,7 @@ func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, 
 	}
 
 	skipCount := validateSkipCount(page, perPage)
-	v := validators.Validators[skipCount : skipCount+min(perPage, totalCount-skipCount)]
+	v := validators.Validators[skipCount : skipCount+cmmath.MinInt(perPage, totalCount-skipCount)]
 	return &ctypes.ResultValidators{
 		BlockHeight: int64(height),
 		Validators:  v,
@@ -601,7 +602,7 @@ func (c *FullClient) TxSearch(ctx context.Context, query string, prove bool, pag
 	}
 
 	skipCount := validateSkipCount(page, perPage)
-	pageSize := min(perPage, totalCount-skipCount)
+	pageSize := cmmath.MinInt(perPage, totalCount-skipCount)
 
 	apiResults := make([]*ctypes.ResultTx, 0, pageSize)
 	for i := skipCount; i < skipCount+pageSize; i++ {
@@ -664,7 +665,7 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 	}
 
 	skipCount := validateSkipCount(pageVal, perPageVal)
-	pageSize := min(perPageVal, totalCount-skipCount)
+	pageSize := cmmath.MinInt(perPageVal, totalCount-skipCount)
 
 	// Fetch the blocks
 	blocks := make([]*ctypes.ResultBlock, 0, pageSize)
@@ -700,7 +701,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
-	validators, err := c.node.Store.LoadValidators(uint64(latest.Height()))
+	validators, err := c.node.Store.LoadValidators(latest.Height())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
 	}
@@ -737,11 +738,11 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		SyncInfo: ctypes.SyncInfo{
 			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.DataHash),
 			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.AppHash),
-			LatestBlockHeight:   latest.Height(),
+			LatestBlockHeight:   int64(latest.Height()),
 			LatestBlockTime:     latest.Time(),
 			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.DataHash),
 			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
-			EarliestBlockHeight: initial.Height(),
+			EarliestBlockHeight: int64(initial.Height()),
 			EarliestBlockTime:   initial.Time(),
 			CatchingUp:          true, // the client is always syncing in the background to the latest height
 		},
@@ -945,33 +946,33 @@ func validateSkipCount(page, perPage int) int {
 	return skipCount
 }
 
-func filterMinMax(base, height, mini, maxi, limit int64) (int64, int64, error) {
+func filterMinMax(base, height, min, max, limit int64) (int64, int64, error) {
 	// filter negatives
-	if mini < 0 || maxi < 0 {
-		return mini, maxi, errors.New("height must be greater than zero")
+	if min < 0 || max < 0 {
+		return min, max, errors.New("height must be greater than zero")
 	}
 
 	// adjust for default values
-	if mini == 0 {
-		mini = 1
+	if min == 0 {
+		min = 1
 	}
-	if maxi == 0 {
-		maxi = height
+	if max == 0 {
+		max = height
 	}
 
 	// limit max to the height
-	maxi = min(height, maxi)
+	max = cmmath.MinInt64(height, max)
 
 	// limit min to the base
-	mini = max(base, mini)
+	min = cmmath.MaxInt64(base, min)
 
 	// limit min to within `limit` of max
 	// so the total number of blocks returned will be `limit`
-	mini = max(mini, maxi-limit+1)
+	min = cmmath.MaxInt64(min, max-limit+1)
 
-	if mini > maxi {
-		return mini, maxi, fmt.Errorf("%w: min height %d can't be greater than max height %d",
-			errors.New("invalid request"), mini, maxi)
+	if min > max {
+		return min, max, fmt.Errorf("%w: min height %d can't be greater than max height %d",
+			errors.New("invalid request"), min, max)
 	}
-	return mini, maxi, nil
+	return min, max, nil
 }

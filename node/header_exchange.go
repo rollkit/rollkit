@@ -89,7 +89,7 @@ func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx conte
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
 func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
 	// For genesis header initialize the store and start the syncer
-	if signedHeader.Height() == hExService.genesis.InitialHeight {
+	if int64(signedHeader.Height()) == hExService.genesis.InitialHeight {
 		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
 			return fmt.Errorf("failed to initialize header store")
 		}
@@ -220,6 +220,7 @@ func newP2PExchange(
 		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
 		goheaderp2p.WithChainID(chainID),
 	)
+
 	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
 }
 

@@ -7,51 +7,62 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmtypes "github.com/cometbft/cometbft/types"
 )
 
-func (sH *SignedHeader) New() header.Header {
+// SignedHeader combines Header and its Commit.
+//
+// Used mostly for gossiping.
+type SignedHeader struct {
+	Header
+	Commit     Commit
+	Validators *cmtypes.ValidatorSet
+}
+
+func (sh *SignedHeader) New() *SignedHeader {
 	return new(SignedHeader)
 }
 
-func (sH *SignedHeader) IsZero() bool {
-	return sH == nil
+func (sh *SignedHeader) IsZero() bool {
+	return sh == nil
 }
 
 var (
-	ErrAggregatorSetHashMismatch        = errors.New("aggregator set hash in signed header and hash of validator set do not match")
-	ErrSignatureVerificationFailed      = errors.New("signature verification failed")
-	ErrNoProposerAddress                = errors.New("no proposer address")
-	ErrLastHeaderHashMismatch           = errors.New("last header hash mismatch")
-	ErrLastCommitHashMismatch           = errors.New("last commit hash mismatch")
-	ErrNewHeaderTimeBeforeOldHeaderTime = errors.New("new header has time before old header time")
-	ErrNewHeaderTimeFromFuture          = errors.New("new header has time from future")
+	ErrNonAdjacentHeaders     = errors.New("non-adjacent headers")
+	ErrNoProposerAddress      = errors.New("no proposer address")
+	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
+	ErrLastCommitHashMismatch = errors.New("last commit hash mismatch")
 )
 
-func (sH *SignedHeader) Verify(untrst header.Header) error {
-	// Explicit type checks are required due to embedded Header which also does the explicit type check
-	untrstH, ok := untrst.(*SignedHeader)
-	if !ok {
-		// if the header type is wrong, something very bad is going on
-		// and is a programmer bug
-		panic(fmt.Errorf("%T is not of type %T", untrst, untrstH))
-	}
+func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
+	// TODO(@Wondertan):
+	//  We keep this check because of how unit tests are structured where TestVerify tests both ValidateBasic and Verify.
+	//  While the check is redundant as go-header ensures untrustH passed ValidateBasic before.
+	//  Decoupling TestVerify into TestValidateBasic and TestVerify would allow to remove this check.
 	if err := untrstH.ValidateBasic(); err != nil {
 		return &header.VerifyError{
 			Reason: err,
 		}
 	}
-	if err := sH.Header.Verify(&untrstH.Header); err != nil {
+
+	if err := sh.Header.Verify(&untrstH.Header); err != nil {
 		return &header.VerifyError{
 			Reason: err,
 		}
 	}
 
-	// TODO: Accept non-adjacent headers until go-header implements feature to accept non-adjacent
-	if sH.Height()+1 < untrst.Height() {
-		return nil
+	if sh.Height()+1 < untrstH.Height() {
+		return &header.VerifyError{
+			Reason: fmt.Errorf("%w: untrusted %d, trusted %d",
+				ErrNonAdjacentHeaders,
+				untrstH.Height(),
+				sh.Height(),
+			),
+			SoftFailure: true,
+		}
 	}
 
-	sHHash := sH.Header.Hash()
+	sHHash := sh.Header.Hash()
 	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
 		return &header.VerifyError{
 			Reason: fmt.Errorf("%w: expected %v, but got %v",
@@ -60,7 +71,7 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 			),
 		}
 	}
-	sHLastCommitHash := sH.Commit.GetCommitHash(&untrstH.Header, sH.ProposerAddress)
+	sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
 			Reason: fmt.Errorf("%w: expected %v, but got %v",
@@ -72,40 +83,43 @@ func (sH *SignedHeader) Verify(untrst header.Header) error {
 	return nil
 }
 
-var _ header.Header = &SignedHeader{}
+var (
+	ErrAggregatorSetHashMismatch   = errors.New("aggregator set hash in signed header and hash of validator set do not match")
+	ErrSignatureVerificationFailed = errors.New("signature verification failed")
+)
 
 // ValidateBasic performs basic validation of a signed header.
-func (h *SignedHeader) ValidateBasic() error {
-	if err := h.Header.ValidateBasic(); err != nil {
+func (sh *SignedHeader) ValidateBasic() error {
+	if err := sh.Header.ValidateBasic(); err != nil {
 		return err
 	}
 
-	if err := h.Commit.ValidateBasic(); err != nil {
+	if err := sh.Commit.ValidateBasic(); err != nil {
 		return err
 	}
 
 	// Handle Based Rollup case
-	if h.Validators == nil || len(h.Validators.Validators) == 0 {
+	if sh.Validators == nil || len(sh.Validators.Validators) == 0 {
 		return nil
 	}
 
-	if err := h.Validators.ValidateBasic(); err != nil {
+	if err := sh.Validators.ValidateBasic(); err != nil {
 		return err
 	}
 
-	if !bytes.Equal(h.Validators.Hash(), h.AggregatorsHash[:]) {
+	if !bytes.Equal(sh.Validators.Hash(), sh.AggregatorsHash[:]) {
 		return ErrAggregatorSetHashMismatch
 	}
 
 	// Make sure there is exactly one signature
-	if len(h.Commit.Signatures) != 1 {
+	if len(sh.Commit.Signatures) != 1 {
 		return errors.New("expected exactly one signature")
 	}
 
-	signature := h.Commit.Signatures[0]
-	proposer := h.Validators.GetProposer()
+	signature := sh.Commit.Signatures[0]
+	proposer := sh.Validators.GetProposer()
 	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
-	msg, err := h.Header.MarshalBinary()
+	msg, err := sh.Header.MarshalBinary()
 	if err != nil {
 		return errors.New("signature verification failed, unable to marshal header")
 	}
@@ -115,3 +129,5 @@ func (h *SignedHeader) ValidateBasic() error {
 
 	return nil
 }
+
+var _ header.Header[*SignedHeader] = &SignedHeader{}

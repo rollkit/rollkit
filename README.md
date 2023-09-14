@@ -10,7 +10,7 @@ A modular framework for rollups, with an ABCI-compatible client interface. For m
 
 ## Building From Source
 
-Requires Go version >= 1.21.
+Requires Go version >= 1.20.
 
 To build:
 

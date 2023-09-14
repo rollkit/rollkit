@@ -139,7 +139,7 @@ func TestRestart(t *testing.T) {
 	s1 := New(ctx, kv)
 	expectedHeight := uint64(10)
 	err := s1.UpdateState(types.State{
-		LastBlockHeight: int64(expectedHeight),
+		LastBlockHeight: expectedHeight,
 		NextValidators:  validatorSet,
 		Validators:      validatorSet,
 		LastValidators:  validatorSet,

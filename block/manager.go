@@ -29,7 +29,7 @@ import (
 )
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
-const defaultDABlockTime = 30 * time.Second
+const defaultDABlockTime = 15 * time.Second
 
 // defaultBlockTime is used only if BlockTime is not configured for manager
 const defaultBlockTime = 1 * time.Second
@@ -142,7 +142,7 @@ func NewManager(
 	}
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
-	if s.LastBlockHeight+1 == genesis.InitialHeight {
+	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
 			return nil, err
