@@ -31,7 +31,30 @@ List of caveats and required modifications to push State Fraud Proofs towards co
 - Support for multiple sequencers, in which case, fraud proof detection works the same as described above.
 - Support more ABCI-compatible State Machines, in addition to the Cosmos SDK state machine.
 
-![State Fraud Proofs](./figures/state_fraud_proofs.png)
+```mermaid
+sequenceDiagram
+    title State Fraud Proofs
+
+    participant User
+    participant Block Producer
+    participant DA Layer
+    participant Full Node
+    participant Light Client
+
+    User->>Block Producer: Send Tx
+    Block Producer->>Block Producer: Generate Block
+    Block Producer->>Full Node: Gossip Header
+    Full Node->>Full Node: Verify Header
+    Full Node->>Light Client: Gossip  Header
+
+    Block Producer->>Full Node: Gossip Block
+    Block Producer->>DA Layer: Publish Block
+    DA Layer->>Full Node: Retrieve Block
+    Full Node->>Full Node: Verify Block
+    Full Node->>Full Node: Generate Fraud Proof
+    Full Node->>Light Client: Gossip Fraud Proof
+    Light Client->>Light Client: Verify Fraud Proof
+```
 
 ## Alternative Approaches
 
