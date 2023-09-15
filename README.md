@@ -216,7 +216,7 @@ Now that you have a da node and light nodes running, we are ready to build and r
     touch init-local.sh
 
     ```
-    add the following script to the script file (init-local.sh)
+    add the following script to the script file (init-local.sh) or you can get the script from [here](https://gist.githubusercontent.com/chandiniv1/27397b93e08e2c40e7e1b746f13e5d7b/raw/0dc8c17d630a249f439e0c5030266a2a34030bb8/init-local.sh)
 
     ```
     #!/bin/sh
