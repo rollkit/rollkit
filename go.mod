@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/celestiaorg/go-header v0.3.1
-	github.com/celestiaorg/nmt v0.19.0
+	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.37.2
