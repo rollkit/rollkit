@@ -195,32 +195,31 @@ This package implements DataAvailabilityLayerClient interface in rollkit
         ``` cd avail-light ```
     
         ``` git checkout v1.4.4 ```
-        
-    * If you want to connect local-node :
+         
+    * create one yaml configuration file ```config1.yaml``` in the root of the project & put following content.
     
-        * create one yaml configuration file ```config1.yaml``` in the root of the project & put following content.
+        ```
+            log_level = "info"
+            http_server_host = "127.0.0.1"
+            http_server_port = "7000"
+            libp2p_seed = 1
+            libp2p_port = "37000"
+            full_node_ws = ["ws://127.0.0.1:9944"]
+            app_id = 1
+            confidence = 92.0
+            avail_path = "avail_path"
+            prometheus_port = 9520
+            bootstraps = [] 
+                
+        ```
     
-            ``` 
-                log_level = "info"
-                http_server_host = "127.0.0.1"
-                http_server_port = "7000"
-                libp2p_seed = 1
-                libp2p_port = "37000"
-                full_node_ws = ["ws://127.0.0.1:9944"]
-                app_id = 1
-                confidence = 92.0
-                avail_path = "avail_path"
-                prometheus_port = 9520
-                bootstraps = [] 
-            ```
+    * run node with first configuration file 
     
-        * run node with first configuration file 
-    
-            ```cargo run -- -c config1.yaml ```
+        ```cargo run -- -c config1.yaml ```
             
-            logs will appear as below:
+      logs will appear as below:
     
-            ```
+      ```
             warning: variant `PutKadRecord` is never constructed
             --> src/network/client.rs:355:2
                 |
@@ -246,10 +245,12 @@ This package implements DataAvailabilityLayerClient interface in rollkit
             2023-09-12T05:44:23.865553Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/172.17.0.1/udp/37000/quic-v1"
             2023-09-12T05:44:23.868076Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/127.0.0.1/tcp/37000"
             2023-09-12T05:44:23.868865Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/192.168.1.40/tcp/37000"
-            2023-09-12T05:44:23.869487Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/172.17.0.1/tcp/37000"  ```
+            2023-09-12T05:44:23.869487Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/172.17.0.1/tcp/37000"
+      ```
     
-        * copy the local peer id in the above logs and Run another LC, with another config (copy the above config) and change the port for server, libp2p, prometheus and the avail_path, change the first argument in the bootstraps to the  address of the first light client
-            ``` 
+  * copy the local peer id in the above logs and Run another LC, with another config (copy the above config) and change the port for server, libp2p, prometheus and the avail_path, change the first argument in the bootstraps to the  address of the first light client
+        
+      ``` 
             log_level = "info"
             http_server_host = "127.0.0.1"
             http_server_port = "8000"
@@ -261,9 +262,14 @@ This package implements DataAvailabilityLayerClient interface in rollkit
             avail_path = "avail_path_2"
             prometheus_port = 9525
             bootstraps = [["12D3KooWBbKnhLfDBuzzN1RzeKHBoCnKK9E1nf1Vec3suhJYAEua", "/ip4/127.0.0.1/tcp/38000"]]
-        * run the second light-client with this configuration
+      
+      ```
+        
+
+      
+  * run the second light-client with this configuration
     
-            ``` cargo run -- -c config2.yaml ```
+      ``` cargo run -- -c config2.yaml ```
 
 
 ## Building your soverign rollup
@@ -293,7 +299,7 @@ Now that you have a da node and light client running, we are ready to build and 
     touch init-local.sh
 
     ```
-    add the following script to the script file (init-local.sh) or you can get the script from [here](https://gist.githubusercontent.com/chandiniv1/27397b93e08e2c40e7e1b746f13e5d7b/raw/0dc8c17d630a249f439e0c5030266a2a34030bb8/init-local.sh)
+*   add the following script to the script file (init-local.sh) or you can get the script from [here](https://gist.githubusercontent.com/chandiniv1/27397b93e08e2c40e7e1b746f13e5d7b/raw/0dc8c17d630a249f439e0c5030266a2a34030bb8/init-local.sh)
 
     ```
     #!/bin/sh
@@ -345,7 +351,7 @@ Now that you have a da node and light client running, we are ready to build and 
     gmd start --rollkit.aggregator true --rollkit.da_layer avail --rollkit.da_config='{"base_url":"http://localhost:8000/v1", "seed":"bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice","api_url":"ws://127.0.0.1:9944","app_data_url": "/appdata/%d?decode=true","app_id" : 1,"confidence":92}' --rollkit.namespace_id $NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --api.enable --api.enabled-unsafe-cors
 
     ```
-    run the rollup chain 
+* run the rollup chain 
 
     ```
     bash init-local.sh
