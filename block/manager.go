@@ -762,6 +762,12 @@ func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
 	return m.lastState.Validators
 }
 
+func (m *Manager) getNextAggregatorsHash() types.Hash {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState.NextValidators.Hash()
+}
+
 func (m *Manager) getLastBlockTime() time.Time {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()

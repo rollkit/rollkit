@@ -836,7 +836,9 @@ func checkValSet(rpc *FullClient, assert *assert.Assertions, h int64, expectedVa
 	commit, err := rpc.Commit(context.Background(), &h)
 	assert.NoError(err)
 	assert.NotNil(vals)
-	fmt.Printf("height: %d; current validators hash: %v; next validators hash: %v; validators hash: %v\n", h, commit.ValidatorsHash, commit.NextValidatorsHash, hex.EncodeToString(cmtypes.NewValidatorSet(vals.Validators).Hash()))
+
+	// TODO: check against rpc.NextValidators
+	assert.Equal(commit.NextValidatorsHash.Bytes(), cmtypes.NewValidatorSet(vals.Validators).Hash())
 }
 
 func checkValSetLatest(rpc *FullClient, assert *assert.Assertions, lastBlockHeight int64, expectedValCount int) {
