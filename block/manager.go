@@ -636,13 +636,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	blockHeight := block.Height()
-	// Update the stored height before submitting to the DA layer and committing to the DB
-	m.store.SetHeight(blockHeight)
-
-	blockHash := block.Hash().String()
-	m.blockCache.setSeen(blockHash)
-
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
 		return err
@@ -657,6 +650,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err := m.executor.Validate(m.lastState, block); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
+
+	blockHeight := block.Height()
+	// Update the stored height before submitting to the DA layer and committing to the DB
+	m.store.SetHeight(blockHeight)
+
+	blockHash := block.Hash().String()
+	m.blockCache.setSeen(blockHash)
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlock(block, commit)
