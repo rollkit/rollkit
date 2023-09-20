@@ -141,10 +141,13 @@ func TestToABCIBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	abciCommit := block.SignedHeader.Commit.ToABCICommit(int64(block.Height()), block.Hash())
+
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
 	}
+
 	abciBlock := cmtypes.Block{
 		Header: abciHeader,
 		Evidence: cmtypes.EvidenceData{
