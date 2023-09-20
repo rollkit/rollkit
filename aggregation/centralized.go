@@ -6,6 +6,7 @@ import (
 	"bytes"
 
 	cmtypes "github.com/cometbft/cometbft/types"
+
 	"github.com/rollkit/rollkit/types"
 )
 

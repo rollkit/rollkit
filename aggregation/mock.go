@@ -2,6 +2,7 @@ package aggregation
 
 import (
 	cmtypes "github.com/cometbft/cometbft/types"
+
 	"github.com/rollkit/rollkit/types"
 )
 

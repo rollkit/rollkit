@@ -8,8 +8,9 @@ import (
 	//"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 	//"github.com/rollkit/rollkit/conv"
-	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestCentralized(t *testing.T) {
