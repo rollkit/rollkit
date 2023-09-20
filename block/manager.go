@@ -371,10 +371,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	if b != nil && commit != nil {
 		bHeight := uint64(b.Height())
 		m.logger.Info("Syncing block", "height", bHeight)
-		// Validate the received block before applying
-		if err := m.executor.Validate(m.lastState, b); err != nil {
-			return fmt.Errorf("failed to validate block: %w", err)
-		}
 		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -607,6 +603,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
+		block.SignedHeader.DataHash, err = block.Data.Hash()
+		if err != nil {
+			return nil
+		}
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
