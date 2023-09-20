@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
+	"github.com/rollkit/rollkit/aggregation"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/log"
@@ -65,6 +66,7 @@ type Manager struct {
 	proposerKey crypto.PrivKey
 
 	executor *state.BlockExecutor
+	aggr     aggregation.Aggregation
 
 	dalc      da.DataAvailabilityLayerClient
 	retriever da.BlockRetriever
@@ -117,6 +119,7 @@ func NewManager(
 	logger log.Logger,
 	doneBuildingCh chan struct{},
 	blockStore *goheaderstore.Store[*types.Block],
+	aggr aggregation.Aggregation,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -168,6 +171,7 @@ func NewManager(
 		lastState:   s,
 		store:       store,
 		executor:    exec,
+		aggr:        aggr,
 		dalc:        dalc,
 		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,

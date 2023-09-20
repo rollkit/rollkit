@@ -31,4 +31,5 @@ var DefaultNodeConfig = NodeConfig{
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
+	AggregationScheme: "mock",
 }

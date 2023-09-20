@@ -20,6 +20,7 @@ import (
 	proxy "github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
+	"github.com/rollkit/rollkit/aggregation"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -71,6 +72,7 @@ type FullNode struct {
 	Store        store.Store
 	blockManager *block.Manager
 	dalc         da.DataAvailabilityLayerClient
+	agg          aggregation.Aggregation
 
 	TxIndexer      txindex.TxIndexer
 	BlockIndexer   indexer.BlockIndexer
@@ -142,6 +144,17 @@ func newFullNode(
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
 
+	var agg aggregation.Aggregation
+	switch conf.AggregationScheme {
+	case "centralized":
+		agg, err = aggregation.NewCentralizedAggregation(genesis)
+	default:
+		agg, err = aggregation.NewMockAggregation(nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, conf, indexerKV, eventBus, logger)
 	if err != nil {
 		return nil, err
@@ -162,7 +175,7 @@ func newFullNode(
 	}
 
 	doneBuildingChannel := make(chan struct{})
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.blockStore)
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.blockStore, agg)
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -189,6 +202,7 @@ func newFullNode(
 		ctx:               ctx,
 		cancel:            cancel,
 		DoneBuildingBlock: doneBuildingChannel,
+		agg:               agg,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
