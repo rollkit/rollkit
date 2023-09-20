@@ -12,7 +12,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Header Interface
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/574">
+                                <a href="https://github.com/rollkit/rollkit/issues/574">
                                     574
                                 </a>
                             </div>
@@ -71,9 +71,9 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 1140px; margin-left: 381px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                New Rollmint Header
+                                New Rollkit Header
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/579">
+                                <a href="https://github.com/rollkit/rollkit/issues/579">
                                     579
                                 </a>
                             </div>
@@ -81,7 +81,7 @@
                     </div>
                 </foreignObject>
                 <text x="440" y="1144" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    New Rollmint Header...
+                    New Rollkit Header...
                 </text>
             </switch>
         </g>
@@ -123,7 +123,7 @@
                                     Celestia Blob Inclusion Proofs
                                 </font>
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/594">
+                                <a href="https://github.com/rollkit/rollkit/issues/594">
                                     594
                                 </a>
                             </div>
@@ -146,13 +146,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 880px; margin-left: 171px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                P2P Rollmint Headersync
+                                P2P Rollkit Headersync
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="230" y="884" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    P2P Rollmint Headers...
+                    P2P Rollkit Headers...
                 </text>
             </switch>
         </g>
@@ -285,9 +285,9 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 630px; margin-left: 841px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Rollmint Light Clients
+                                Rollkit Light Clients
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/362">
+                                <a href="https://github.com/rollkit/rollkit/issues/362">
                                     362
                                 </a>
                             </div>
@@ -295,7 +295,7 @@
                     </div>
                 </foreignObject>
                 <text x="900" y="634" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Rollmint Light Clien...
+                    Rollkit Light Clien...
                 </text>
             </switch>
         </g>
@@ -329,7 +329,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 State Tracing
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/514">
+                                <a href="https://github.com/rollkit/rollkit/issues/514">
                                     514
                                 </a>
                             </div>
@@ -354,7 +354,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 State Execution Fraud Proof generation
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/514">
+                                <a href="https://github.com/rollkit/rollkit/issues/514">
                                     514
                                 </a>
                             </div>
@@ -453,13 +453,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 900px; margin-left: 1391px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Satet Execution Fraud Proof verification
+                                State Execution Fraud Proof verification
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="1450" y="904" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Satet Execution Frau...
+                    State Execution Frau...
                 </text>
             </switch>
         </g>
@@ -552,13 +552,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 260px; margin-left: 841px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Rollmint Frontend
+                                Rollkit Frontend
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="900" y="264" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Rollmint Frontend
+                    Rollkit Frontend
                 </text>
             </switch>
         </g>
@@ -871,7 +871,7 @@
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
                                 Make Light client lighter
                                 <br/>
-                                <a href="https://github.com/celestiaorg/rollmint/issues/571">
+                                <a href="https://github.com/rollkit/rollkit/issues/571">
                                     571
                                 </a>
                             </div>
@@ -934,13 +934,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 1240px; margin-left: 1121px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Solve Dependcy on Celestia Node
+                                Solve Dependency on Celestia Node
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="1180" y="1244" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Solve Dependcy on Ce...
+                    Solve Dependency on Ce...
                 </text>
             </switch>
         </g>
@@ -951,13 +951,13 @@
                     <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 1240px; margin-left: 2651px;">
                         <div data-drawio-colors="color: rgb(0, 0, 0); " style="box-sizing: border-box; font-size: 0px; text-align: center;">
                             <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0); line-height: 1.2; pointer-events: all; white-space: normal; overflow-wrap: normal;">
-                                Solve Dependcy on cometbft
+                                Solve Dependency on cometbft
                             </div>
                         </div>
                     </div>
                 </foreignObject>
                 <text x="2710" y="1244" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">
-                    Solve Dependcy on co...
+                    Solve Dependency on co...
                 </text>
             </switch>
         </g>
