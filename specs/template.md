@@ -3,7 +3,7 @@
 ## Abstract
 
 Provide a concise description of the purpose of the component for which the
-specification is written, along with its contribution to the celestia-app or
+specification is written, along with its contribution to the rollkit or
 other relevant parts of the system. Make sure to include proper references to
 the relevant sections.
 
@@ -30,7 +30,7 @@ concerns.
 
 Include a link to the location where the implementation of this protocol can be
 found. Note that specific implementation details should be documented in the
-core-app repository rather than in the specification document.
+rollkit repository rather than in the specification document.
 
 ## References
 

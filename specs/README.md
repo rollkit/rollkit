@@ -1,4 +1,4 @@
-# Celestia App Specifications
+# Rollkit Specifications
 
 ## Building From Source
 
