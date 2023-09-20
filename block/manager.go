@@ -626,7 +626,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	blockHeight := uint64(block.Height())
+	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
+	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
+	if err != nil {
+		return err
+	}
+
+	blockHeight := block.Height()
 	// Update the stored height before submitting to the DA layer and committing to the DB
 	m.store.SetHeight(blockHeight)
 
