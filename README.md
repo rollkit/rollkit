@@ -348,7 +348,7 @@ Now that you have a da node and light client running, we are ready to build and 
     gmd collect-gentxs
 
     # start the chain
-    gmd start --rollkit.aggregator true --rollkit.da_layer avail --rollkit.da_config='{"base_url":"http://localhost:8000/v1", "seed":"bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice","api_url":"ws://127.0.0.1:9944","app_data_url": "/appdata/%d?decode=true","app_id" : 1,"confidence":92}' --rollkit.namespace_id $NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --api.enable --api.enabled-unsafe-cors
+    gmd start --rollkit.aggregator true --rollkit.da_layer avail --rollkit.da_config='{"base_url":"http://localhost:7000/v1", "seed":"bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice","api_url":"ws://127.0.0.1:9944","app_data_url": "/appdata/%d?decode=true","app_id" : 1,"confidence":92}' --rollkit.namespace_id $NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --api.enable --api.enabled-unsafe-cors
 
     ```
 * run the rollup chain 
