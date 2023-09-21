@@ -16,57 +16,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var header = &types.Header{
-	BaseHeader: types.BaseHeader{
-		Height:  12,
-		Time:    uint64(time.Now().Local().Day()),
-		ChainID: "test",
-	},
-	Version: types.Version{
-		Block: 1,
-		App:   2,
-	},
-	LastHeaderHash:  types.GetRandomBytes(32),
-	LastCommitHash:  types.GetRandomBytes(32),
-	DataHash:        types.GetRandomBytes(32),
-	ConsensusHash:   types.GetRandomBytes(32),
-	AppHash:         types.GetRandomBytes(32),
-	LastResultsHash: types.GetRandomBytes(32),
-	ProposerAddress: types.GetRandomBytes(32),
-	AggregatorsHash: types.GetRandomBytes(32),
+func getRandomHeader() *types.Header {
+	return &types.Header{
+		BaseHeader: types.BaseHeader{
+			Height:  12,
+			Time:    uint64(time.Now().Local().Day()),
+			ChainID: "test",
+		},
+		Version: types.Version{
+			Block: 1,
+			App:   2,
+		},
+		LastHeaderHash:  types.GetRandomBytes(32),
+		LastCommitHash:  types.GetRandomBytes(32),
+		DataHash:        types.GetRandomBytes(32),
+		ConsensusHash:   types.GetRandomBytes(32),
+		AppHash:         types.GetRandomBytes(32),
+		LastResultsHash: types.GetRandomBytes(32),
+		ProposerAddress: types.GetRandomBytes(32),
+		AggregatorsHash: types.GetRandomBytes(32),
+	}
 }
 
-var block = &types.Block{
-	SignedHeader: types.SignedHeader{
-		Header: types.Header{
-			BaseHeader: types.BaseHeader{
-				Height:  12,
-				Time:    uint64(time.Now().Local().Day()),
-				ChainID: "test",
-			},
-			Version: types.Version{
-				Block: 1,
-				App:   2,
-			},
-			LastHeaderHash:  types.GetRandomBytes(32),
-			LastCommitHash:  types.GetRandomBytes(32),
-			DataHash:        types.GetRandomBytes(32),
-			ConsensusHash:   types.GetRandomBytes(32),
-			AppHash:         types.GetRandomBytes(32),
-			LastResultsHash: types.GetRandomBytes(32),
-			ProposerAddress: types.GetRandomBytes(32),
-			AggregatorsHash: types.GetRandomBytes(32),
+func getRandomBlock() *types.Block {
+	randomHeader := getRandomHeader()
+	return &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: *randomHeader,
 		},
-	},
-	Data: types.Data{
-		Txs: make(types.Txs, 1),
-		IntermediateStateRoots: types.IntermediateStateRoots{
-			RawRootsList: make([][]byte, 1),
+		Data: types.Data{
+			Txs: make(types.Txs, 1),
+			IntermediateStateRoots: types.IntermediateStateRoots{
+				RawRootsList: make([][]byte, 1),
+			},
 		},
-	},
+	}
 }
 
 func TestToABCIHeaderPB(t *testing.T) {
+	header := getRandomHeader()
 	expected := cmproto.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -102,6 +90,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 }
 
 func TestToABCIHeader(t *testing.T) {
+	header := getRandomHeader()
 	expected := cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -137,12 +126,13 @@ func TestToABCIHeader(t *testing.T) {
 }
 
 func TestToABCIBlock(t *testing.T) {
+	block := getRandomBlock()
 	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	abciCommit := block.SignedHeader.Commit.ToABCICommit(int64(block.Height()), block.Hash())
+	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
 
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
@@ -169,6 +159,7 @@ func TestToABCIBlock(t *testing.T) {
 }
 
 func TestToABCIBlockMeta(t *testing.T) {
+	block := getRandomBlock()
 	cmblock, err := ToABCIBlock(block)
 	if err != nil {
 		t.Fatal(err)
