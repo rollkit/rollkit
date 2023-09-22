@@ -12,7 +12,7 @@ import (
 type WrappedTx struct {
 	tx        types.Tx    // the original transaction data
 	hash      types.TxKey // the transaction hash
-	height    int64       // height when this transaction was initially checked (for expiry)
+	height    uint64      // height when this transaction was initially checked (for expiry)
 	timestamp time.Time   // time when transaction was entered (for TTL)
 
 	mtx       sync.Mutex

@@ -4,11 +4,11 @@ go 1.20
 
 require (
 	github.com/celestiaorg/go-header v0.3.1
-	github.com/celestiaorg/nmt v0.19.0
+	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.37.2
-	github.com/creachadair/taskgroup v0.6.0
+	github.com/creachadair/taskgroup v0.6.1
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.3
@@ -24,7 +24,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rollkit/celestia-openrpc v0.2.0
-	github.com/rs/cors v1.9.0
+	github.com/rs/cors v1.10.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4

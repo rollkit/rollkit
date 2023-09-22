@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Check protobuf generated code matches committed code"
         # yamllint disable
         run: |

@@ -142,7 +142,7 @@ func NewManager(
 	}
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
-	if s.LastBlockHeight+1 == genesis.InitialHeight {
+	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
 			return nil, err

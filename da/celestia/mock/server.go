@@ -220,7 +220,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		res := s.mock.SubmitBlocks(r.Context(), blocks)
 		resp := &response{
 			Jsonrpc: "2.0",
-			Result:  int64(res.DAHeight),
+			Result:  res.DAHeight,
 			ID:      req.ID,
 			Error:   nil,
 		}

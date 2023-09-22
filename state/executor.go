@@ -203,7 +203,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 				}
 			}
 			// Change results from this height but only applies to the next next height.
-			lastHeightValSetChanged = int64(block.Height()) + 1 + 1
+			lastHeightValSetChanged = block.Height() + 1 + 1
 		}
 
 		if len(nValSet.Validators) > 0 {
@@ -218,7 +218,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		Version:         state.Version,
 		ChainID:         state.ChainID,
 		InitialHeight:   state.InitialHeight,
-		LastBlockHeight: int64(block.Height()),
+		LastBlockHeight: block.Height(),
 		LastBlockTime:   block.Time(),
 		LastBlockID: cmtypes.BlockID{
 			Hash: cmbytes.HexBytes(block.Hash()),
@@ -253,7 +253,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(int64(block.Height()), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	err = e.mempool.Update(block.Height(), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -270,10 +270,10 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 		block.SignedHeader.Version.Block != state.Version.Consensus.Block {
 		return errors.New("block version mismatch")
 	}
-	if state.LastBlockHeight <= 0 && int64(block.Height()) != state.InitialHeight {
+	if state.LastBlockHeight <= 0 && block.Height() != state.InitialHeight {
 		return errors.New("initial block height mismatch")
 	}
-	if state.LastBlockHeight > 0 && int64(block.Height()) != state.LastBlockHeight+1 {
+	if state.LastBlockHeight > 0 && block.Height() != state.LastBlockHeight+1 {
 		return errors.New("block height mismatch")
 	}
 	if !bytes.Equal(block.SignedHeader.AppHash[:], state.AppHash[:]) {

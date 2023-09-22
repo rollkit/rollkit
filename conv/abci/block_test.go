@@ -2,17 +2,60 @@ package abci
 
 import (
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+
+	"testing"
+	"time"
+
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/types"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// ToABCIHeaderPB converts Rollkit header to Header format defined in ABCI.
-// Caller should fill all the fields that are not available in Rollkit header (like ChainID).
-func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
-	return cmproto.Header{
+func getRandomHeader() *types.Header {
+	return &types.Header{
+		BaseHeader: types.BaseHeader{
+			Height:  12,
+			Time:    uint64(time.Now().Local().Day()),
+			ChainID: "test",
+		},
+		Version: types.Version{
+			Block: 1,
+			App:   2,
+		},
+		LastHeaderHash:  types.GetRandomBytes(32),
+		LastCommitHash:  types.GetRandomBytes(32),
+		DataHash:        types.GetRandomBytes(32),
+		ConsensusHash:   types.GetRandomBytes(32),
+		AppHash:         types.GetRandomBytes(32),
+		LastResultsHash: types.GetRandomBytes(32),
+		ProposerAddress: types.GetRandomBytes(32),
+		AggregatorsHash: types.GetRandomBytes(32),
+	}
+}
+
+func getRandomBlock() *types.Block {
+	randomHeader := getRandomHeader()
+	return &types.Block{
+		SignedHeader: types.SignedHeader{
+			Header: *randomHeader,
+		},
+		Data: types.Data{
+			Txs: make(types.Txs, 1),
+			IntermediateStateRoots: types.IntermediateStateRoots{
+				RawRootsList: make([][]byte, 1),
+			},
+		},
+	}
+}
+
+func TestToABCIHeaderPB(t *testing.T) {
+	header := getRandomHeader()
+	expected := cmproto.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
 			App:   header.Version.App,
@@ -36,13 +79,19 @@ func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
 		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 		ChainID:            header.ChainID(),
-	}, nil
+	}
+
+	actual, err := ToABCIHeaderPB(header)
+	if err != nil {
+		t.Fatalf("ToABCIHeaderPB returned an error: %v", err)
+	}
+
+	assert.Equal(t, expected, actual)
 }
 
-// ToABCIHeader converts Rollkit header to Header format defined in ABCI.
-// Caller should fill all the fields that are not available in Rollkit header (like ChainID).
-func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
-	return cmtypes.Header{
+func TestToABCIHeader(t *testing.T) {
+	header := getRandomHeader()
+	expected := cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
 			App:   header.Version.App,
@@ -66,21 +115,29 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
 		ProposerAddress:    header.ProposerAddress,
 		ChainID:            header.ChainID(),
-	}, nil
+	}
+
+	actual, err := ToABCIHeader(header)
+	if err != nil {
+		t.Fatalf("ToABCIHeaderPB returned an error: %v", err)
+	}
+
+	assert.Equal(t, expected, actual)
 }
 
-// ToABCIBlock converts Rolkit block into block format defined by ABCI.
-// Returned block should pass `ValidateBasic`.
-func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
+func TestToABCIBlock(t *testing.T) {
+	block := getRandomBlock()
 	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
+
 	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
-	// This assumes that we have only one signature
+
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
 	}
+
 	abciBlock := cmtypes.Block{
 		Header: abciHeader,
 		Evidence: cmtypes.EvidenceData{
@@ -94,21 +151,32 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	}
 	abciBlock.Header.DataHash = cmbytes.HexBytes(block.SignedHeader.DataHash)
 
-	return &abciBlock, nil
+	actual, err := ToABCIBlock(block)
+	if err != nil {
+		t.Fatalf("ToABCIBlock returned an error: %v", err)
+	}
+	assert.Equal(t, &abciBlock, actual)
 }
 
-// ToABCIBlockMeta converts Rollkit block into BlockMeta format defined by ABCI
-func ToABCIBlockMeta(block *types.Block) (*cmtypes.BlockMeta, error) {
+func TestToABCIBlockMeta(t *testing.T) {
+	block := getRandomBlock()
 	cmblock, err := ToABCIBlock(block)
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 	blockID := cmtypes.BlockID{Hash: cmblock.Hash()}
 
-	return &cmtypes.BlockMeta{
+	expected := &cmtypes.BlockMeta{
 		BlockID:   blockID,
 		BlockSize: cmblock.Size(),
 		Header:    cmblock.Header,
 		NumTxs:    len(cmblock.Txs),
-	}, nil
+	}
+
+	actual, err := ToABCIBlockMeta(block)
+	if err != nil {
+		t.Fatalf("ToABCIBlock returned an error: %v", err)
+	}
+	assert.Equal(t, expected, actual)
+
 }
