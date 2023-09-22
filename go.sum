@@ -1373,8 +1373,9 @@ github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
 github.com/rogpeppe/go-internal v1.8.1/go.mod h1:JeRgkft04UBgHMgCIwADu4Pn6Mtm5d4nPKWu0nJ5d+o=
 github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDNXVBh4M=
-github.com/rollkit/celestia-openrpc v0.3.0 h1:jMLsdLNQ7T20yiNDlisBhlyurFOpN1gZ6vC068FPrQA=
-github.com/rollkit/celestia-openrpc v0.3.0/go.mod h1:2ZhU01YF2hsHIROWzxfMZOYM09Kgyy4roH5JWoNJzp0=
+github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
+github.com/rollkit/celestia-openrpc v0.2.0 h1:miSxBgiKtDBZk0dUgreAMubIPXU/Qtf9Q36+E7yZdeE=
+github.com/rollkit/celestia-openrpc v0.2.0/go.mod h1:0fNIcIMbG0ZceCoh4tINNhuzhmebUMDV0cJqZboe/wg=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/rs/cors v1.8.2/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/rs/cors v1.10.1 h1:L0uuZVXIKlI1SShY2nhFfo44TYvDPQ1w4oFkUJNfhyo=
