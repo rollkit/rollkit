@@ -24,8 +24,8 @@ import (
 // be efficiently accessed by multiple concurrent readers.
 type CListMempool struct {
 	// Atomic integers
-	height   int64 // the last block Update()'d to
-	txsBytes int64 // total size of mempool, in bytes
+	height   uint64 // the last block Update()'d to
+	txsBytes int64  // total size of mempool, in bytes
 
 	// notify listeners (ie. consensus) when txs are available
 	notifiedTxsAvailable bool
@@ -70,7 +70,7 @@ type CListMempoolOption func(*CListMempool)
 func NewCListMempool(
 	cfg *config.MempoolConfig,
 	proxyAppConn proxy.AppConnMempool,
-	height int64,
+	height uint64,
 	options ...CListMempoolOption,
 ) *CListMempool {
 	mp := &CListMempool{
@@ -581,7 +581,7 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 
 // Lock() must be help by the caller during execution.
 func (mem *CListMempool) Update(
-	height int64,
+	height uint64,
 	txs types.Txs,
 	txResults []*abci.ExecTxResult,
 	preCheck PreCheckFunc,
@@ -675,7 +675,7 @@ func (mem *CListMempool) recheckTxs() {
 
 // mempoolTx is a transaction that successfully ran
 type mempoolTx struct {
-	height    int64    // height that this tx had been validated in
+	height    uint64   // height that this tx had been validated in
 	gasWanted int64    // amount of gas this tx states it will require
 	tx        types.Tx //
 
@@ -685,6 +685,6 @@ type mempoolTx struct {
 }
 
 // Height returns the height for this transaction
-func (memTx *mempoolTx) Height() int64 {
-	return atomic.LoadInt64(&memTx.height)
+func (memTx *mempoolTx) Height() uint64 {
+	return atomic.LoadUint64(&memTx.height)
 }
