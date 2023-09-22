@@ -83,7 +83,9 @@ The communication between the full node and block manager:
 
 ## Assumptions and Considerations
 
-* The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts
+* The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.
+* The default mode for sequencer nodes is normal (not lazy).
+* The sequencer can produce empty blocks.
 
 ## Implementation
 
