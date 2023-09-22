@@ -36,6 +36,7 @@ The sequencer (aka aggregator) type of full nodes run the block production logic
 #### Building the Block
 
 The block manager of the sequencer nodes perform following steps to produce a block:
+
 * Call `CreateBlock` using executor
 * Sign the block to generate commitment
 * Call `ApplyBlock` using executor to generate an updated state
