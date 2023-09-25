@@ -37,7 +37,7 @@ Both full and light nodes perform validation of the block headers, full nodes ad
 
 Blocks contain the `SignedHeader` and `Data` as follows:
 
-```
+```go
 type Block struct {
 	SignedHeader SignedHeader
 	Data         Data
@@ -46,7 +46,7 @@ type Block struct {
 
 ## Signed Header Specification
 
-```
+```go
 type SignedHeader struct {
 	Header
 	Commit     Commit
@@ -77,7 +77,7 @@ type Validator struct {
 
 ## Header Specification
 
-```
+```go
 type Header struct {
 	BaseHeader
 	// Block and App version
