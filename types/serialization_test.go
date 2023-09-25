@@ -48,7 +48,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		AppHash:         h[4],
 		LastResultsHash: h[5],
 		ProposerAddress: []byte{4, 3, 2, 1},
-		AggregatorsHash: h[6],
+		Signatures:      [][]byte{h[6]},
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()

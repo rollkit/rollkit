@@ -46,7 +46,7 @@ type Header struct {
 	ProposerAddress []byte // original proposer of the block
 
 	// Hash of block aggregator set, at a time of block creation
-	AggregatorsHash Hash
+	Signatures [][]byte
 }
 
 func (h *Header) New() *Header {

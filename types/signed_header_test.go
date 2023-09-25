@@ -30,7 +30,7 @@ func TestVerify(t *testing.T) {
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.AggregatorsHash = fakeAggregatorsHash
+				untrusted.Signatures = [][]byte{fakeAggregatorsHash}
 				return &untrusted, false
 			},
 			err: &header.VerifyError{

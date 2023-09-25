@@ -46,7 +46,7 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 			AppHash:         GetRandomBytes(32),
 			LastResultsHash: GetRandomBytes(32),
 			ProposerAddress: valSet.Proposer.Address,
-			AggregatorsHash: valSet.Hash(),
+			Signatures:      [][]byte{valSet.Hash()},
 		},
 		Validators: valSet,
 	}
@@ -78,7 +78,7 @@ func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*
 			AppHash:         GetRandomBytes(32),
 			LastResultsHash: GetRandomBytes(32),
 			ProposerAddress: valSet.Proposer.Address,
-			AggregatorsHash: valSet.Hash(),
+			Signatures:      [][]byte{valSet.Hash()},
 		},
 		Validators: valSet,
 	}

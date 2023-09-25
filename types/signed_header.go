@@ -107,7 +107,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	if !bytes.Equal(sh.Validators.Hash(), sh.AggregatorsHash[:]) {
+	if !bytes.Equal(sh.Validators.Hash(), sh.Header.Signatures[0]) {
 		return ErrAggregatorSetHashMismatch
 	}
 

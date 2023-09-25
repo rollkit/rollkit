@@ -59,7 +59,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 				},
 				Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
 				ProposerAddress: proposerAddr,
-				AggregatorsHash: make([]byte, 32),
+				Signatures:      make([][]byte, 32),
 			}},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),

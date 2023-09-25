@@ -125,7 +125,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	}
 	block.SignedHeader.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.LastHeaderHash = lastHeaderHash
-	block.SignedHeader.AggregatorsHash = state.Validators.Hash()
+	block.SignedHeader.Signatures = [][]byte{state.Validators.Hash()}
 
 	return block
 }
@@ -284,7 +284,7 @@ func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
 		return errors.New("LastResultsHash mismatch")
 	}
 
-	if !bytes.Equal(block.SignedHeader.AggregatorsHash[:], state.Validators.Hash()) {
+	if !bytes.Equal(block.SignedHeader.Header.Signatures[0], state.Validators.Hash()) {
 		return errors.New("AggregatorsHash mismatch")
 	}
 
