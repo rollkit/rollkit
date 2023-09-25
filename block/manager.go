@@ -602,6 +602,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
+		block.SignedHeader.DataHash, err = block.Data.Hash()
+		if err != nil {
+			return nil
+		}
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
@@ -625,19 +629,33 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	blockHeight := uint64(block.Height())
+	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
+	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
+	if err != nil {
+		return err
+	}
+
+	commit, err = m.getCommit(block.SignedHeader.Header)
+	if err != nil {
+		return err
+	}
+
+	// set the commit to current block's signed header
+	block.SignedHeader.Commit = *commit
+
+	block.SignedHeader.Validators = m.getLastStateValidators()
+
+	// Validate the created block before storing
+	if err := m.executor.Validate(m.lastState, block); err != nil {
+		return fmt.Errorf("failed to validate block: %w", err)
+	}
+
+	blockHeight := block.Height()
 	// Update the stored height before submitting to the DA layer and committing to the DB
 	m.store.SetHeight(blockHeight)
 
 	blockHash := block.Hash().String()
 	m.blockCache.setSeen(blockHash)
-
-	if commit == nil {
-		commit, err = m.getCommit(block.SignedHeader.Header)
-		if err != nil {
-			return err
-		}
-	}
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlock(block, commit)
