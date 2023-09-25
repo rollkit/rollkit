@@ -148,7 +148,7 @@ func (h *Header) ToProto() *pb.Header {
 		AppHash:         h.AppHash[:],
 		LastResultsHash: h.LastResultsHash[:],
 		ProposerAddress: h.ProposerAddress[:],
-		AggregatorsHash: h.AggregatorsHash[:],
+		Signatures:      h.ToProto().Signatures[:],
 		ChainId:         h.BaseHeader.ChainID,
 	}
 }
@@ -166,7 +166,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.ConsensusHash = other.ConsensusHash
 	h.AppHash = other.AppHash
 	h.LastResultsHash = other.LastResultsHash
-	h.AggregatorsHash = other.AggregatorsHash
+	h.ToProto().Signatures = other.Signatures
 	if len(other.ProposerAddress) > 0 {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
 		copy(h.ProposerAddress, other.ProposerAddress)
