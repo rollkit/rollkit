@@ -1,32 +1,42 @@
 # Block and Header Validity
 
 ## Abstract
+
 Like all blockchains, rollups are composed of a chain of blocks from the rollup's genesis to its head, each consisting of metadata in the header, and transaction data in the body.
 
 ## Verification
+
 Both full and light nodes perform validation of the block headers, full nodes additionally verify the block's body.
 
 ## SignedHeader validation
+
 1. Valid serialization according to the Protobuf specification
 2. `BaseHeader`:
-	- `Height`: corresponds to the correct, expected height of the block
-	- `Time`: unspecified
-	- `ChainID`: corresponds to the correct chainID for the rollup.
+
+- `Height`: corresponds to the correct, expected height of the block
+- `Time`: unused in Rollkit
+- `ChainID`: corresponds to the correct chainID for the rollup.
+
 3. `Header`:
-	- `Version`: ???
-	- `LastHeaderHash`: links to the previous block in the chain
-	- `LastCommitHash`: valid hash of the previous commit
-	- `DataHash`: correct hash of the block's transaction data
-	- `ConsensusHash`: ???
-	- `AppHash`: commitment to the state of the rollup after applying txs from the current block
-	- `LastResultsHash`: root hash of all the results from the txs from the previous block
-	- `ProposerAddress`: Validation rules depend on the rollup's configured aggregation scheme
-	- `AggregatorsHash`: valid hash of the `SignedHeader`'s `Validators` field
+
+- `Version`: Matches the App and Block versions from the previous state
+- `LastHeaderHash`: links to the previous block in the chain
+- `LastCommitHash`: valid hash of the previous commit
+- `DataHash`: correct hash of the block's transaction data
+- `ConsensusHash`: unused in Rollkit
+- `AppHash`: commitment to the state of the rollup after applying txs from the current block
+- `LastResultsHash`: root hash of all the results from the txs from the previous block
+- `ProposerAddress`: Validation rules depend on the rollup's configured aggregation scheme
+- `AggregatorsHash`: valid hash of the `SignedHeader`'s `Validators` field
+
 4. Commit:
-	- `Signatures`: array of signatures, to be validated according to the rollup's aggregation scheme.
+
+- `Signatures`: array of signatures, to be validated according to the rollup's aggregation scheme.
 
 ## Block specification
+
 Blocks contain the `SignedHeader` and `Data` as follows:
+
 ```
 type Block struct {
 	SignedHeader SignedHeader
@@ -66,6 +76,7 @@ type Validator struct {
 ```
 
 ## Header Specification
+
 ```
 type Header struct {
 	BaseHeader
