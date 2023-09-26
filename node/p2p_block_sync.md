@@ -2,7 +2,7 @@
 
 ## Abstract
 
-P2P Block Sync enables rollkit full nodes including aggregators to gossip blocks amongst 
+P2P Block Sync enables rollkit full nodes including aggregators to gossip blocks amongst  
 themselves and sync with the rollup chain faster than they can sync using the DA layer.
 
 ```mermaid
@@ -50,20 +50,20 @@ The block exchange service uses the ([`go-header` service](https://github.com/ce
 ### Block Publication to P2P network
 
 Blocks ready to be published to the P2P network are sent to the `BlockCh` channel in Block Manager inside `publishLoop`.
-The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block 
+The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block  
 is received, it is written to the block store and broadcasted to the network using the block exchange service.
 
 ### Block Retrieval from P2P network
 
 Blocks gossiped to validating full nodes through the P2P network are retreived from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
-For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in block manager and when this signal is received, the 
+For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in block manager and when this signal is received, the  
 `BlockStoreRetrieveLoop` retrieves blocks from the block store. It keeps track of the last retrieved block's height and if the current block store's height  is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
 For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel that blocks retrieved from the DA layer are sent.
 This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
 
 ## Message Structure/Communication Format
 
-The communication within Block Manager and between itself and the full node is all done through channels that pass around the `block struct`. 
+The communication within Block Manager and between itself and the full node is all done through channels that pass around the `block struct`.  
 
 ## Assumptions and Considerations
 
@@ -75,7 +75,6 @@ The communication within Block Manager and between itself and the full node is a
 ## Implementation
 
 The `blockStore` in `BlockExchangeService` ([node/block_exchange.go](https://github.com/rollkit/rollkit/blob/main/node/block_exchange.go)) is used when initializing a full node ([node/full.go](https://github.com/rollkit/rollkit/blob/main/node/full.go)). Blocks are written to `blockStore` in `blockPublishLoop` in full node ([node/full.go](https://github.com/rollkit/rollkit/blob/main/node/full.go)), gossiped amongst the network, and retrieved in `BlockStoreRetrieveLoop` in Block Manager ([block/manager.go](https://github.com/rollkit/rollkit/blob/main/block/manager.go)).
-
 
 ## References
 
