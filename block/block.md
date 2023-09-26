@@ -2,9 +2,9 @@
 
 ## Abstract
 
-The block manager is a key component of full nodes (including sequencer) that is responsible for block production (in case of sequencer full node) or block syncing (syncing in this context includes retrieving the published blocks from the network, validating them to raise fraud proofs upon validation failure, and updating the state and storing the validated blocks). A full node invokes multiple of the block manager functionalities in parallel, such as:
+The block manager is a key component of full nodes that is responsible for block production or block syncing depending on the node type. Block syncing in this context includes retrieving the published blocks from the network, validating them to raise fraud proofs upon validation failure, and updating the state and storing the validated blocks. A full node invokes multiple of the block manager functionalities in parallel, such as:
 
-* block production (in case of sequencer full nodes)
+* block production (only for sequencer full nodes)
 * block publication to DA network
 * block retrieval from DA network
 * block retrieval from Blockstore (which retrieves blocks from the p2p network)
@@ -15,11 +15,11 @@ The block manager is a key component of full nodes (including sequencer) that is
 The block manager is initialized using several parameters as defined below:
 
 * `signing key`: used for signing the blocks after production
-* `config`: block manager configurations
+* `config`: block manager configurations (see config options below)
 * `genesis`: initialize the block manager with genesis state
 * `localstore`: store blocks and states
 * `(mempool, proxyapp, eventbus)`: for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
-* `dalc`: to submit and retrieve blocks to DA network  
+* `dalc`: the data availability light client used to submit and retrieve blocks to DA network  
 * `blockstore`: to retrieve blocks from block store (p2p blocksync)
 
 Block manager configuration options:
@@ -31,7 +31,11 @@ Block manager configuration options:
 
 ### Block Production
 
-The sequencer (aka aggregator) type of full nodes run the block production logic. The sequencer can produce blocks under two modes: 1) normal and 2) lazy, which can be specified in the node configurations. In the normal mode, the sequencer runs a timer, which is set to the `BlockTime` configuration parameter of the block manager, and continuously publishes blocks at `BlockTime` intervals. Whereas, in the lazy mode, the manager starts building a block when any transaction becomes available in the mempool. The manager will wait for 1 second timer to finish as part of the block building process, after the first notification of the transaction availability, to collect as many transactions from the mempool as possible. The block manager also notifies the full node after every lazy block building.
+When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: `normal` and `lazy`. 
+
+In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously publishes blocks at `BlockTime` intervals. 
+
+In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish before finalizing the block, in order to collect as many transactions from the mempool as possible. The block manager also notifies the full node after every lazy block building.
 
 #### Building the Block
 
