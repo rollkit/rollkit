@@ -45,6 +45,8 @@ P2P Block Sync consists of the following components:
 
 ### Block Exchange Service
 
+The block exchange service uses the ([`go-header` service](https://github.com/celestiaorg/go-header)) to gossip blocks over P2P.
+
 ### Block Publication to P2P network
 
 Blocks ready to be published to the P2P network are sent to the `BlockCh` channel in Block Manager inside `publishLoop`.
@@ -53,35 +55,22 @@ is received, it is written to the block store and broadcasted to the network usi
 
 ### Block Retrieval from P2P network
 
-BlockStoreRetrieveLoop is a function that is responsible for retrieving blocks from the Block Store.
-The function listens for two types of events:
-1. When the context is done, it returns and stops the loop.
-2. When a signal is received from the blockStoreCh channel, it retrieves blocks from the block store.
-The function keeps track of the last retrieved block's height (lastBlockStoreHeight).
-If the current block store's height (blockStoreHeight) is greater than the last retrieved block's height,
-it retrieves all blocks from the block store that are between these two heights.
-If there is an error while retrieving blocks, it logs the error and continues with the next iteration.
-For each retrieved block, it sends a new block event to the blockInCh channel.
-The new block event contains the block and the current DA (Data Availability) layer's height.
-After all blocks are retrieved and sent, it updates the last retrieved block's height to the current block store's height.
-
-
-Offer a comprehensive explanation of the protocol, covering aspects such as data
-flow, communication mechanisms, and any other details necessary for
-understanding the inner workings of this component.
+Blocks gossiped to validating full nodes through the P2P network are retreived from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
+For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in block manager and when this signal is received, the 
+`BlockStoreRetrieveLoop` retrieves blocks from the block store. It keeps track of the last retrieved block's height and if the current block store's height  is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel that blocks retrieved from the DA layer are sent.
+This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
 
 ## Message Structure/Communication Format
 
-If this particular component is expected to communicate over the network,
-outline the structure of the message protocol, including details such as field
-interpretation, message format, and any other relevant information.
+The communication within Block Manager and between itself and the full node is all done through channels that pass around the `block struct`. 
 
 ## Assumptions and Considerations
 
-If there are any assumptions required for the component's correct operation,
-performance, security, or other expected features, outline them here.
-Additionally, provide any relevant considerations related to security or other
-concerns.
+* The block exchange store is created by prefixing `blockEx` on the main data store.
+* The genesis `ChainID` is used to create the `PubSubTopID` in go-header. Refer to go-header specs for more details.
+* P2P Block sync works only when a full node is connected to p2p network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
+* Node's context is passed down to all the components of the p2p block exchange to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
 
 ## Implementation
 
@@ -90,4 +79,4 @@ The `blockStore` in `BlockExchangeService` ([node/block_exchange.go](https://git
 
 ## References
 
-List any references used or cited in the document.
+Refer to `go-header` ([specs](https://github.com/celestiaorg/go-header)).
