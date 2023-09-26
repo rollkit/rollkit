@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The P2P Header Sync is a p2pP exchange service for rollkit headers that implements the go-header interface. The main components are:
+The P2P Header Sync is a p2pP exchange service for rollkit headers that implements the [go-header][go-header] interface. The main components are:
 
 * store: a `headerEx` prefixed datastore where synced headers are stored
 * subscriber: a libp2p node pubsub subscriber
