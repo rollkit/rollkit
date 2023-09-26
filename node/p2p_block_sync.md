@@ -78,4 +78,7 @@ The `blockStore` in `BlockExchangeService` ([node/block_exchange.go](https://git
 
 ## References
 
-Refer to `go-header` ([specs](https://github.com/celestiaorg/go-header)).
+Refer to [go-header specs][go-header].
+
+
+[go-header]: https://github.com/celestiaorg/go-header
