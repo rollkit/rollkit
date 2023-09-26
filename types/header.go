@@ -80,10 +80,6 @@ func (h *Header) Time() time.Time {
 }
 
 func (h *Header) Verify(untrstH *Header) error {
-	// sanity check fields
-	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
-		return &header.VerifyError{Reason: err}
-	}
 	// perform actual verification
 	if untrstH.Height() == h.Height()+1 {
 		// Check the validator hashes are the same in the case headers are adjacent
@@ -115,38 +111,6 @@ func (h *Header) Validate() error {
 func (h *Header) ValidateBasic() error {
 	if len(h.ProposerAddress) == 0 {
 		return ErrNoProposerAddress
-	}
-
-	return nil
-}
-
-// clockDrift defines how much new header's time can drift into
-// the future relative to the now time during verification.
-var maxClockDrift = 10 * time.Second
-
-// verifyNewHeaderAndVals performs basic verification of untrusted header.
-func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
-	if err := untrusted.ValidateBasic(); err != nil {
-		return fmt.Errorf("untrusted.ValidateBasic failed: %w", err)
-	}
-
-	if untrusted.Height() <= trusted.Height() {
-		return fmt.Errorf("expected new header height %d to be greater than one of old header %d",
-			untrusted.Height(),
-			trusted.Height())
-	}
-
-	if !untrusted.Time().After(trusted.Time()) {
-		return fmt.Errorf("expected new header time %v to be after old header time %v",
-			untrusted.Time(),
-			trusted.Time())
-	}
-
-	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
-		return fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
-			untrusted.Time(),
-			time.Now(),
-			maxClockDrift)
 	}
 
 	return nil
