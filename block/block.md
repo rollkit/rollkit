@@ -31,9 +31,9 @@ Block manager configuration options:
 
 ### Block Production
 
-When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: `normal` and `lazy`. 
+When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: `normal` and `lazy`.
 
-In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously publishes blocks at `BlockTime` intervals. 
+In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously publishes blocks at `BlockTime` intervals.
 
 In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish before finalizing the block, in order to collect as many transactions from the mempool as possible. The block manager also notifies the full node after every lazy block building.
 
