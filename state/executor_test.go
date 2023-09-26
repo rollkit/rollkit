@@ -160,6 +160,9 @@ func doTestApplyBlock(t *testing.T) {
 	require.NotNil(block)
 	assert.Equal(uint64(1), block.Height())
 	assert.Len(block.Data.Txs, 1)
+	dataHash, err := block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	// Update the signature on the block to current from last
 	headerBytes, _ := block.SignedHeader.Header.MarshalBinary()
@@ -186,6 +189,9 @@ func doTestApplyBlock(t *testing.T) {
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Height())
 	assert.Len(block.Data.Txs, 3)
+	dataHash, err = block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	headerBytes, _ = block.SignedHeader.Header.MarshalBinary()
 	sig, _ = vKey.Sign(headerBytes)

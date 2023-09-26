@@ -132,11 +132,10 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 
 // ApplyBlock validates and executes the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *cmstate.ABCIResponses, error) {
-	err := e.validate(state, block)
+	err := e.Validate(state, block)
 	if err != nil {
 		return types.State{}, nil, err
 	}
-
 	// This makes calls to the AppClient
 	resp, err := e.execute(ctx, state, block)
 	if err != nil {
@@ -261,7 +260,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 	return resp.Data, uint64(resp.RetainHeight), err
 }
 
-func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
+func (e *BlockExecutor) Validate(state types.State, block *types.Block) error {
 	err := block.ValidateBasic()
 	if err != nil {
 		return err
