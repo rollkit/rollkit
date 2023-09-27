@@ -49,21 +49,25 @@ The block exchange service is created during full node initialization. After tha
 
 ### Block Publication to P2P network
 
-Blocks ready to be published to the P2P network are sent to the `BlockCh` channel in Block Manager inside `publishLoop`.
+Blocks created by the sequencer that are ready to be published to the P2P network are sent to the `BlockCh` channel in Block Manager inside `publishLoop`.
 The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block  
 is received, it is written to the block store and broadcasted to the network using the block exchange service.
 
+Among non-sequencer full nodes, all the block gossiping is handled by the block exchange service, and they do not need to publish blocks to the P2P network using any of the block manager components.
+
 ### Block Retrieval from P2P network
 
-Blocks gossiped to validating full nodes through the P2P network are retreived from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
+For validating full nodes, Blocks gossiped through the P2P network are retreived from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
 For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in block manager and when this signal is received, the  
 `BlockStoreRetrieveLoop` retrieves blocks from the block store. It keeps track of the last retrieved block's height and if the current block store's height  is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
 For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel that blocks retrieved from the DA layer are sent.
 This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
 
+Although a sequencer does not need to retrieve blocks from the P2P network, it still runs the `BlockStoreRetrieveLoop`.
+
 ## Message Structure/Communication Format
 
-The communication within Block Manager and between itself and the full node is all done through channels that pass around the `block struct`.  
+The communication within Block Manager and between itself and the full node is all done through channels that pass around the [block struct].  
 
 ## Assumptions and Considerations
 
@@ -74,11 +78,14 @@ The communication within Block Manager and between itself and the full node is a
 
 ## Implementation
 
-The `blockStore` in `BlockExchangeService` ([block-exchange]) is used when initializing a full node ([full-node]). Blocks are written to `blockStore` in `blockPublishLoop` in full node ([full-node]), gossiped amongst the network, and retrieved in `BlockStoreRetrieveLoop` in Block Manager ([block-manager]).
+The `blockStore` in `BlockExchangeService` ([block-exchange]) is used when initializing a [full node]. Blocks are written to `blockStore` in `blockPublishLoop` in [full-node], gossiped around the network, and retrieved in `BlockStoreRetrieveLoop` in [Block Manager]. 
+See [tutorial] for running a validating full node.
 
 ## References
 
 [go-header]: https://github.com/celestiaorg/go-header
 [block-exchange]: ../node/block_exchange.go
-[full-node]: ../node/full.go
-[block-manager]: ../block/manager.go
+[full node]: ../node/full.go
+[Block Manager]: ../block/manager.go
+[block struct]: ../types/block.go
+[tutorial]: https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started
