@@ -2,13 +2,15 @@
 
 ## Abstract
 
-The P2P Header Sync is a p2pP exchange service for rollkit headers that implements the [go-header](https://github.com/celestiaorg/go-header) interface. The main components are:
+The P2P Header Sync is a p2pP exchange service for rollkit headers that implements the [go-header](https://github.com/celestiaorg/go-header) interface. The main components are listed in the table below.
 
-* store: a `headerEx` prefixed datastore where synced headers are stored
-* subscriber: a libp2p node pubsub subscriber
-* p2p server: a server for handling header requests between peers in the p2p network
-* exchange: a client that enables sending in/out-bound header requests from/to the p2p network
-* syncer: a service for efficient synchronization for headers. When a p2p node falls behind and wants to catch up to the latest network head via p2p network, it can use the syncer.
+| Component  | Description                                                                                                                                                                |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| store      | a `headerEx` prefixed datastore where synced headers are stored                                                                                                          |
+| subscriber | a libp2p node pubsub subscriber                                                                                                                                            |
+| p2p server | a server for handling header requests between peers in the p2p network                                                                                                     |
+| exchange   | a client that enables sending in/out-bound header requests from/to the p2p network                                                                                         |
+| syncer     | a service for efficient synchronization for headers. When a p2p node falls behind and wants to catch up to the latest network head via p2p network, it can use the syncer. |
 
 ## Details
 
