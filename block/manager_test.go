@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rollkit/rollkit/aggregation"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
@@ -85,7 +86,7 @@ func TestInitialState(t *testing.T) {
 				require.NoError(t, dalc.Stop())
 			}()
 			dumbChan := make(chan struct{})
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan, nil)
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan, nil, aggregation.MockAggregation{})
 			assert.NoError(err)
 			assert.NotNil(agg)
 			agg.lastStateMtx.RLock()
