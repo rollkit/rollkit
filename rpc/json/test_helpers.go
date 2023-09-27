@@ -23,16 +23,25 @@ import (
 	"github.com/rollkit/rollkit/node"
 )
 
+const (
+	InitChain  = "InitChain"
+	CheckTx    = "CheckTx"
+	BeginBlock = "BeginBlock"
+	DeliverTx  = "DeliverTx"
+	EndBlock   = "EndBlock"
+	Commit     = "Commit"
+)
+
 // copied from rpc
 func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{
 		GasWanted: 1000,
 		GasUsed:   1000,
 	})

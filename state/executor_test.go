@@ -26,6 +26,14 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+const (
+	CheckTx    = "CheckTx"
+	BeginBlock = "BeginBlock"
+	DeliverTx  = "DeliverTx"
+	EndBlock   = "EndBlock"
+	Commit     = "Commit"
+)
+
 func doTestCreateBlock(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -33,7 +41,7 @@ func doTestCreateBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 
 	fmt.Println("App On CheckTx")
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
@@ -99,14 +107,14 @@ func doTestApplyBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{
 		Data: mockAppHash[:],
 	})
 
