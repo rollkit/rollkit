@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The block manager is a key component of full nodes and is responsible for block production or block syncing depending on the node type. Block syncing in this context includes retrieving the published blocks from the network, validating them to raise fraud proofs upon validation failure, updating the state, and storing the validated blocks. A full node invokes multiple block manager functionalities in parallel, such as:
+The block manager is a key component of full nodes and is responsible for block production or block syncing depending on the node type. Block syncing in this context includes retrieving the published blocks from the network (p2p network or DA network), validating them to raise fraud proofs upon validation failure, updating the state, and storing the validated blocks. A full node invokes multiple block manager functionalities in parallel, such as:
 
 * block production (only for sequencer full nodes)
 * block publication to DA network
@@ -68,7 +68,7 @@ The block manager of the full nodes regularly pulls blocks from the block store 
 
 The block manager stores and applies the block every time a new block is retrieved either via the blockstore or DA network. Block syncing involves:
 
-* `ApplyBlock` using executor: validate the block, executes the block (applies the transactions), captures the validator updates, and creates an update state.
+* `ApplyBlock` using executor: validates the block, executes the block (applies the transactions), captures the validator updates, and creates an updated state.
 * `Commit` using executor: commit the execution and changes, update mempool, and publish events
 * Store the block, the validators, and the updated state.
 
@@ -91,6 +91,8 @@ The communication between the full node and block manager:
 * The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.
 * The default mode for sequencer nodes is normal (not lazy).
 * The sequencer can produce empty blocks.
+* The block manager uses persistent storage (disk) when the `root_dir` and `db_path` configuration parameters are specified in `config.toml` file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.
+* The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using p2p block sync, but later was hard confirmed by DA retrieval. The block is only set hard confirmed in this case.
 
 ## Implementation
 
