@@ -6,7 +6,7 @@ Like all blockchains, rollups are composed of a chain of blocks from the rollup'
 
 ## Verification
 
-Both full and light nodes perform validation of the block headers, full nodes additionally verify the block's body.
+Both full and light nodes perform validation of the block headers, full nodes additionally verify the block's body, and the correctness of the `AppHash` after verifying execution with the ABCI `proxyApp`.
 
 ## SignedHeader validation
 
