@@ -16,8 +16,8 @@ The block manager is initialized using several parameters as defined below:
 
 * `signing key`: used for signing a block after it is created
 * `config`: block manager configurations (see config options below)
-* `genesis`: initialize the block manager with genesis state
-* `localstore`: store blocks and states
+* `genesis`: initialize the block manager with genesis state (genesis configuration defined in `config/genesis.json` file under the app directory)
+* `store`: local datastore for storing rollup blocks and states (default local store path is `$db_dir/rollkit` and `db_dir` specified in the `config.toml` file under the app directory)
 * `(mempool, proxyapp, eventbus)`: for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
 * `dalc`: the data availability light client used to submit and retrieve blocks to DA network  
 * `blockstore`: to retrieve blocks gossiped over the p2p network
@@ -35,7 +35,7 @@ When the full node is operating as a sequencer (aka aggregator), the block manag
 
 In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously publishes blocks at `BlockTime` intervals.
 
-In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish before finalizing the block, in order to collect as many transactions from the mempool as possible. The block manager also notifies the full node after every lazy block building.
+In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish before finalizing the block, in order to collect as many transactions from the mempool as possible. The 1 second delay is chosen in accordance with the default block time of 1s. The block manager also notifies the full node after every lazy block building.
 
 #### Building the Block
 
