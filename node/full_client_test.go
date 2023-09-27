@@ -837,7 +837,9 @@ func checkValSet(rpc *FullClient, assert *assert.Assertions, h int64, expectedVa
 	assert.NoError(err)
 	assert.NotNil(vals)
 
-	// TODO: check against rpc.NextValidators
+	h1 := h + 1
+	vals, err = rpc.Validators(context.Background(), &h1, nil, nil)
+	assert.NoError(err)
 	assert.Equal(commit.NextValidatorsHash.Bytes(), cmtypes.NewValidatorSet(vals.Validators).Hash())
 }
 
