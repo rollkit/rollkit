@@ -14,20 +14,24 @@ The block manager is a key component of full nodes and is responsible for block 
 
 The block manager is initialized using several parameters as defined below:
 
-* `signing key`: used for signing a block after it is created
-* `config`: block manager configurations (see config options below)
-* `genesis`: initialize the block manager with genesis state (genesis configuration defined in `config/genesis.json` file under the app directory)
-* `store`: local datastore for storing rollup blocks and states (default local store path is `$db_dir/rollkit` and `db_dir` specified in the `config.toml` file under the app directory)
-* `(mempool, proxyapp, eventbus)`: for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
-* `dalc`: the data availability light client used to submit and retrieve blocks to DA network  
-* `blockstore`: to retrieve blocks gossiped over the p2p network
+**Name**|**Type**|**Description**
+|-----|-----|-----|
+signing key|crypto.PrivKey|used for signing a block after it is created
+config|config.BlockManagerConfig|block manager configurations (see config options below)
+genesis|*cmtypes.GenesisDoc|initialize the block manager with genesis state (genesis configuration defined in `config/genesis.json` file under the app directory)
+store|store.Store|local datastore for storing rollup blocks and states (default local store path is `$db\_dir/rollkit` and `db\_dir` specified in the `config.toml` file under the app directory)
+mempool, proxyapp, eventbus|mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus|for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
+dalc|da.DataAvailabilityLayerClient|the data availability light client used to submit and retrieve blocks to DA network
+blockstore|*goheaderstore.Store[*types.Block]|to retrieve blocks gossiped over the p2p network
 
 Block manager configuration options:
 
-* `BlockTime`: time interval used for block production and block retrieval from block store (default: 1 second)
-* `DABlockTime`: time interval used for both block publication to DA network and block retrieval from DA network (default: 15 seconds)
-* `DAStartHeight`: block retrieval from DA network starts from this height
-* `NamespaceID`: 8 `byte` unique identifier of the rollup
+|Name|Type|Description|
+|-----|-----|-----|
+|BlockTime|time.Duration|time interval used for block production and block retrieval from block store (default: 1 second)|
+|DABlockTime|time.Duration|time interval used for both block publication to DA network and block retrieval from DA network (default: 15 seconds)|
+|DAStartHeight|uint64|block retrieval from DA network starts from this height|
+|NamespaceID|bytes|8 `byte` unique identifier of the rollup|
 
 ### Block Production
 
