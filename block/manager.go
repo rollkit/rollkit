@@ -491,7 +491,22 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				return nil
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
+		Blockloop:
 			for _, block := range blockResp.Blocks {
+				candidates := []*types.Block{}
+				blocksAtHeight, ok := m.blockCache.getBlock(block.Height())
+				if ok {
+					candidates = append(candidates, blocksAtHeight)
+				}
+				switch m.aggr.CheckSafetyInvariant(block, candidates) {
+				case aggregation.Junk:
+					continue Blockloop
+				case aggregation.ConsensusFault:
+					panic("consensus fault, halt the rollup")
+				case aggregation.Ok:
+				default:
+					panic("invalid aggregation implementation")
+				}
 				blockHash := block.Hash().String()
 				m.blockCache.setHardConfirmed(blockHash)
 				m.logger.Info("block marked as hard confirmed", "blockHeight", block.Height(), "blockHash", blockHash)
