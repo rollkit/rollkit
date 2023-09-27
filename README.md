@@ -308,7 +308,9 @@ Now that you have a da node and light client running, we are ready to build and 
     touch init-local.sh
 
     ```
+
 *   add the following script to the script file (init-local.sh) or you can get the script from [here](https://gist.github.com/chandiniv1/27397b93e08e2c40e7e1b746f13e5d7b)
+
 
     ```
     #!/bin/sh
