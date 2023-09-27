@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/cometbft/cometbft/crypto/merkle"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -39,4 +40,15 @@ func (h *Header) Hash() Hash {
 // Hash returns ABCI-compatible hash of a block.
 func (b *Block) Hash() Hash {
 	return b.SignedHeader.Hash()
+}
+
+// Hash returns hash of the Data
+func (d *Data) Hash() (Hash, error) {
+	dBytes, err := d.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return merkle.HashFromByteSlices([][]byte{
+		dBytes,
+	}), nil
 }
