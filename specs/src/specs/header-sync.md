@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The P2P Header Sync is a p2pP exchange service for rollkit headers that implements the [go-header][go-header] interface. The main components are:
+The P2P Header Sync is a p2pP exchange service for rollkit headers that implements the [go-header](https://github.com/celestiaorg/go-header) interface. The main components are:
 
 * store: a `headerEx` prefixed datastore where synced headers are stored
 * subscriber: a libp2p node pubsub subscriber
@@ -18,7 +18,7 @@ The header exchange service inherits the ConnectionGater from the node's p2p cli
 
 `NodeConfig.BlockTime` is used to configure the syncer such that it can effectively decide the outdated headers while it receives headers from the p2p network.
 
-Both header and block sync utilizes go-header library and runs two separate exchange services (p2p header sync and p2p block sync). This distinction is mainly to serve light nodes which does not store blocks, but only headers synced from the p2p network. The two separate service may be redundant for the full nodes and can be optimized to single service in the future.
+Both header and block sync utilizes go-header library and runs two separate exchange services (p2p header sync and p2p block sync). This distinction is mainly to serve light nodes which does not store blocks, but only headers synced from the p2p network.
 
 ### Consumption of Header Sync
 
@@ -35,3 +35,11 @@ The sequencer node upon successfully creating the block publishes the signed blo
 ## Implementation
 
 The P2P header exchange implementation can be found in [node/header_exchange.go](https://github.com/rollkit/rollkit/blob/main/node/header_exchange.go). The full and light nodes create and start the header exchange service under [full](https://github.com/rollkit/rollkit/blob/main/node/full.go) and [light](https://github.com/rollkit/rollkit/blob/main/node/light.go).
+
+## References
+
+[1] <https://github.com/rollkit/rollkit/blob/main/node/header_exchange.go>
+
+[2] <https://github.com/rollkit/rollkit/blob/main/node/full.go>
+
+[3] <https://github.com/rollkit/rollkit/blob/main/node/light.go>
