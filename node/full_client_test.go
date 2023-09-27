@@ -43,6 +43,15 @@ var expectedInfo = abci.ResponseInfo{
 	LastBlockHeight: 0,
 }
 
+const (
+	InitChain  = "InitChain"
+	CheckTx    = "CheckTx"
+	BeginBlock = "BeginBlock"
+	DeliverTx  = "DeliverTx"
+	EndBlock   = "EndBlock"
+	Commit     = "Commit"
+)
+
 var mockTxProcessingTime = 10 * time.Millisecond
 
 // copy-pasted from store/store_test.go
@@ -111,7 +120,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
@@ -189,7 +198,7 @@ func TestCheckTx(t *testing.T) {
 	expectedTx := []byte("tx data")
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Once().Return(abci.ResponseCheckTx{})
+	mockApp.On(CheckTx, abci.RequestCheckTx{Tx: expectedTx}).Once().Return(abci.ResponseCheckTx{})
 
 	res, err := rpc.CheckTx(context.Background(), expectedTx)
 	assert.NoError(err)
@@ -210,7 +219,7 @@ func TestGenesisChunked(t *testing.T) {
 	}
 
 	mockApp := &mocks.Application{}
-	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
@@ -245,7 +254,7 @@ func TestBroadcastTxAsync(t *testing.T) {
 	expectedTx := []byte("tx data")
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(abci.ResponseCheckTx{})
+	mockApp.On(CheckTx, abci.RequestCheckTx{Tx: expectedTx}).Return(abci.ResponseCheckTx{})
 
 	err := rpc.node.Start()
 	require.NoError(t, err)
@@ -285,7 +294,7 @@ func TestBroadcastTxSync(t *testing.T) {
 	defer func() {
 		assert.NoError(rpc.node.Stop())
 	}()
-	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedResponse)
+	mockApp.On(CheckTx, abci.RequestCheckTx{Tx: expectedTx}).Return(expectedResponse)
 
 	res, err := rpc.BroadcastTxSync(context.Background(), expectedTx)
 	assert.NoError(err)
@@ -325,9 +334,9 @@ func TestBroadcastTxCommit(t *testing.T) {
 	}
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.BeginBlock(abci.RequestBeginBlock{})
-	mockApp.On("CheckTx", abci.RequestCheckTx{Tx: expectedTx}).Return(expectedCheckResp)
+	mockApp.On(CheckTx, abci.RequestCheckTx{Tx: expectedTx}).Return(expectedCheckResp)
 
 	// in order to broadcast, the node must be started
 	err := rpc.node.Start()
@@ -359,10 +368,10 @@ func TestGetBlock(t *testing.T) {
 	require := require.New(t)
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	err := rpc.node.Start()
 	require.NoError(err)
@@ -385,8 +394,8 @@ func TestGetCommit(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	blocks := []*types.Block{getRandomBlock(1, 5), getRandomBlock(2, 6), getRandomBlock(3, 8), getRandomBlock(4, 10)}
 
@@ -422,8 +431,8 @@ func TestBlockSearch(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
@@ -480,10 +489,10 @@ func TestGetBlockByHash(t *testing.T) {
 	require := require.New(t)
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	err := rpc.node.Start()
 	require.NoError(err)
@@ -516,7 +525,7 @@ func TestTx(t *testing.T) {
 	require := require.New(t)
 
 	mockApp := &mocks.Application{}
-	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	node, err := newFullNode(context.Background(), config.NodeConfig{
@@ -533,11 +542,11 @@ func TestTx(t *testing.T) {
 
 	rpc := NewFullClient(node)
 	require.NotNil(rpc)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 
 	err = rpc.node.Start()
 	require.NoError(err)
@@ -587,8 +596,8 @@ func TestUnconfirmedTxs(t *testing.T) {
 			require := require.New(t)
 
 			mockApp, rpc := getRPC(t)
-			mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-			mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+			mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+			mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 
 			err := rpc.node.Start()
 			require.NoError(err)
@@ -626,8 +635,8 @@ func TestUnconfirmedTxsLimit(t *testing.T) {
 	require := require.New(t)
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 
 	err := rpc.node.Start()
 	require.NoError(err)
@@ -678,8 +687,8 @@ func TestBlockchainInfo(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
@@ -836,23 +845,23 @@ func checkValSetLatest(rpc *FullClient, assert *assert.Assertions, lastBlockHeig
 
 func createApp(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application {
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	pbValKey, err := encoding.PubKeyToProto(vKeyToRemove.PubKey())
 	require.NoError(err)
 
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Once()
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
 		wg.Done()
 	}).Once()
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
 	return app
 }
 
@@ -915,9 +924,9 @@ func TestMempool2Nodes(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
-	app.On("CheckTx", abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(CheckTx, abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
+	app.On(CheckTx, abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
@@ -926,10 +935,10 @@ func TestMempool2Nodes(t *testing.T) {
 	id1, err := peer.IDFromPrivateKey(key1)
 	require.NoError(err)
 
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1005,7 +1014,7 @@ func TestStatus(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
@@ -1130,15 +1139,15 @@ func TestFutureGenesisTime(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	mockApp := &mocks.Application{}
-	mockApp.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{}).Run(func(_ mock.Arguments) {
+	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{}).Run(func(_ mock.Arguments) {
 		beginBlockTime = time.Now()
 		wg.Done()
 	})
-	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	mockApp.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
