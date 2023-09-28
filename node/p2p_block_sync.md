@@ -2,8 +2,7 @@
 
 ## Abstract
 
-P2P Block Sync enables rollkit full nodes, including aggregators, to gossip blocks amongst  
-themselves and have lower rollup block times than the DA layer block times.
+P2P Block Sync enables rollkit full nodes, including aggregators, to gossip blocks amongst themselves and have lower rollup block times than the DA layer block times.
 
 ```mermaid
 sequenceDiagram
