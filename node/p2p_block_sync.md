@@ -44,7 +44,7 @@ P2P Block Sync consists of the following components:
 
 ### Block Exchange Service
 
-The block exchange service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside block exchange service is passed to it. Blocks created in the block manager which need to gossipped over a p2p network are then passed to the `BlockCh` channel and then sent to [go-header] service to be gossip blocks over P2P network.
+The block exchange service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block exchange service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to [go-header] service to be gossiped blocks over p2p network.
 
 ### Block Publication to P2P network
 
@@ -56,10 +56,10 @@ Among non-sequencer full nodes, all the block gossiping is handled by the block 
 
 ### Block Retrieval from P2P network
 
-For validating full nodes, Blocks gossiped through the P2P network are retreived from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
-For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in block manager and when this signal is received, the  
-`BlockStoreRetrieveLoop` retrieves blocks from the block store. It keeps track of the last retrieved block's height and if the current block store's height  is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
-For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel that blocks retrieved from the DA layer are sent.
+For validating full nodes, Blocks gossiped through the P2P network are retrieved from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
+For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the  
+`BlockStoreRetrieveLoop` retrieves blocks from the block store. It keeps track of the last retrieved block's height and if the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel in which blocks retrieved from the DA layer are sent.
 This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
 
 Although a sequencer does not need to retrieve blocks from the P2P network, it still runs the `BlockStoreRetrieveLoop`.
@@ -71,13 +71,13 @@ The communication within Block Manager and between itself and the full node is a
 ## Assumptions and Considerations
 
 * The block exchange store is created by prefixing `blockEx` on the main data store.
-* The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has p2p header sync also running with a different p2p network. Refer to go-header specs for more details.
+* The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has p2p header sync running with a different p2p network. Refer to go-header specs for more details.
 * P2P Block sync works only when a full node is connected to p2p network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
 * Node's context is passed down to all the components of the p2p block exchange to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
 
 ## Implementation
 
-The `blockStore` in `BlockExchangeService` ([block-exchange]) is used when initializing a [full node]. Blocks are written to `blockStore` in `blockPublishLoop` in [full-node], gossiped around the network, and retrieved in `BlockStoreRetrieveLoop` in [Block Manager]. 
+The `blockStore` in `BlockExchangeService` ([block-exchange]) is used when initializing a [full node]. Blocks are written to `blockStore` in `blockPublishLoop` in [full-node], gossiped around the network, and retrieved in `BlockStoreRetrieveLoop` in [Block Manager].
 See [tutorial] for running a validating full node.
 
 ## References
