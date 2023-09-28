@@ -3,13 +3,13 @@ package mock
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/celestiaorg/go-header"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/celestia-openrpc/types/core"
@@ -146,8 +146,7 @@ func (m *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 	daHeight := atomic.LoadUint64(&m.daHeight)
 
 	for _, block := range blocks {
-		blockHeight := uint64(block.Height())
-		m.logger.Debug("Submitting blocks to DA layer!", "height", blockHeight, "dataLayerHeight", daHeight)
+		m.logger.Debug("Submitting blocks to DA layer!", "dataLayerHeight", daHeight)
 
 		hash := block.Hash()
 		blob, err := block.MarshalBinary()
@@ -155,12 +154,7 @@ func (m *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
 
-		err = m.dalcKV.Put(ctx, getKey(daHeight, blockHeight), hash[:])
-		if err != nil {
-			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-		}
-
-		err = m.dalcKV.Put(ctx, ds.NewKey(hex.EncodeToString(hash[:])), blob)
+		err = m.dalcKV.Put(ctx, getKey(daHeight, hash), blob)
 		if err != nil {
 			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
@@ -187,15 +181,12 @@ func (m *DataAvailabilityLayerClient) RetrieveBlocks(ctx context.Context, daHeig
 
 	var blocks []*types.Block
 	for result := range results.Next() {
-		blob, err := m.dalcKV.Get(ctx, ds.NewKey(hex.EncodeToString(result.Entry.Value)))
-		if err != nil {
-			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
-		}
+		blob := result.Entry.Value
 
 		block := &types.Block{}
 		err = block.UnmarshalBinary(blob)
 		if err != nil {
-			return da.ResultRetrieveBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
+			m.logger.Debug("DA block contains junk data")
 		}
 		blocks = append(blocks, block)
 	}
@@ -207,8 +198,8 @@ func getPrefix(daHeight uint64) string {
 	return store.GenerateKey([]interface{}{daHeight})
 }
 
-func getKey(daHeight uint64, height uint64) ds.Key {
-	return ds.NewKey(store.GenerateKey([]interface{}{daHeight, height}))
+func getKey(daHeight uint64, hash header.Hash) ds.Key {
+	return ds.NewKey(store.GenerateKey([]interface{}{daHeight, hash}))
 }
 
 func (m *DataAvailabilityLayerClient) updateDAHeight() {
