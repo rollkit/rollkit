@@ -44,7 +44,7 @@ P2P Block Sync consists of the following components:
 
 ### Block Exchange Service
 
-The block exchange service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block exchange service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to [go-header] service to be gossiped blocks over p2p network.
+The block exchange service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block exchange service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to the [go-header] service to be gossiped blocks over the P2P network.
 
 ### Block Publication to P2P network
 
@@ -71,9 +71,9 @@ The communication within Block Manager and between itself and the full node is a
 ## Assumptions and Considerations
 
 * The block exchange store is created by prefixing `blockEx` on the main data store.
-* The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has p2p header sync running with a different p2p network. Refer to go-header specs for more details.
-* P2P Block sync works only when a full node is connected to p2p network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
-* Node's context is passed down to all the components of the p2p block exchange to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
+* The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.
+* P2P Block sync works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
+* Node's context is passed down to all the components of the P2P block exchange to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
 
 ## Implementation
 
