@@ -1,12 +1,12 @@
-# P2P Block Sync
+# P2P Block Exchange
 
 ## Abstract
 
-P2P Block Sync enables rollkit full nodes, including aggregators, to gossip blocks amongst themselves and have lower rollup block times than the DA layer block times.
+P2P Block Exchange enables rollkit full nodes, including aggregators, to gossip blocks amongst themselves and have lower rollup block times than the DA layer block times.
 
 ```mermaid
 sequenceDiagram
-    title P2P Block Sync
+    title P2P Block Exchange
 
     participant User
     participant Block Producer
@@ -36,7 +36,7 @@ sequenceDiagram
 
 ## Protocol/Component Description
 
-P2P Block Sync consists of the following components:
+P2P Block Exchange consists of the following components:
 
 * block exchange service: responsible for gossiping blocks over P2P
 * block publication to P2P network
@@ -49,16 +49,15 @@ The block exchange service is created during full node initialization. After tha
 ### Block Publication to P2P network
 
 Blocks created by the sequencer that are ready to be published to the P2P network are sent to the `BlockCh` channel in Block Manager inside `publishLoop`.
-The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block  
-is received, it is written to the block store and broadcasted to the network using the block exchange service.
+The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block is received, it is written to the block store and broadcasted to the network using the block exchange service.
 
 Among non-sequencer full nodes, all the block gossiping is handled by the block exchange service, and they do not need to publish blocks to the P2P network using any of the block manager components.
 
 ### Block Retrieval from P2P network
 
 For validating full nodes, Blocks gossiped through the P2P network are retrieved from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
-For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the  
-`BlockStoreRetrieveLoop` retrieves blocks from the block store. It keeps track of the last retrieved block's height and if the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.
+It keeps track of the last retrieved block's height and if the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
 For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel in which blocks retrieved from the DA layer are sent.
 This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
 
