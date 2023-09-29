@@ -71,6 +71,7 @@ func doTestCreateBlock(t *testing.T) {
 		},
 	}
 	state.Validators = cmtypes.NewValidatorSet(validators)
+	state.NextValidators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)

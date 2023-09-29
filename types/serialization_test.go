@@ -41,14 +41,15 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			Height: 3,
 			Time:   4567,
 		},
-		LastHeaderHash:  h[0],
-		LastCommitHash:  h[1],
-		DataHash:        h[2],
-		ConsensusHash:   h[3],
-		AppHash:         h[4],
-		LastResultsHash: h[5],
-		ProposerAddress: []byte{4, 3, 2, 1},
-		AggregatorsHash: h[6],
+		LastHeaderHash:      h[0],
+		LastCommitHash:      h[1],
+		DataHash:            h[2],
+		ConsensusHash:       h[3],
+		AppHash:             h[4],
+		LastResultsHash:     h[5],
+		ProposerAddress:     []byte{4, 3, 2, 1},
+		AggregatorsHash:     h[6],
+		NextAggregatorsHash: h[7],
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()

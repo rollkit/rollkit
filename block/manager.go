@@ -371,7 +371,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	if b != nil && commit != nil {
 		bHeight := uint64(b.Height())
 		m.logger.Info("Syncing block", "height", bHeight)
-		newState, responses, err := m.applyBlock(ctx, b)
+		// Validate the received block before applying
+		if err := m.executor.Validate(m.lastState, b); err != nil {
+			return fmt.Errorf("failed to validate block: %w", err)
+		}
+		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
@@ -607,6 +611,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return nil
 		}
+		block.SignedHeader.Header.NextAggregatorsHash = m.getNextAggregatorsHash()
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
@@ -635,6 +640,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	block.SignedHeader.Header.NextAggregatorsHash = newState.NextValidators.Hash()
 
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
@@ -756,6 +763,12 @@ func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.lastState.Validators
+}
+
+func (m *Manager) getNextAggregatorsHash() types.Hash {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState.NextValidators.Hash()
 }
 
 func (m *Manager) getLastBlockTime() time.Time {

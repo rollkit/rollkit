@@ -26,7 +26,7 @@ func (h *Header) Hash() Hash {
 		LastCommitHash:     cmbytes.HexBytes(h.LastCommitHash),
 		DataHash:           cmbytes.HexBytes(h.DataHash),
 		ValidatorsHash:     cmbytes.HexBytes(h.AggregatorsHash),
-		NextValidatorsHash: nil,
+		NextValidatorsHash: cmbytes.HexBytes(h.NextAggregatorsHash),
 		ConsensusHash:      cmbytes.HexBytes(h.ConsensusHash),
 		AppHash:            cmbytes.HexBytes(h.AppHash),
 		LastResultsHash:    cmbytes.HexBytes(h.LastResultsHash),
