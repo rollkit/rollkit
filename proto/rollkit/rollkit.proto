@@ -52,8 +52,11 @@ message Header {
 	// Hash of block aggregator set, at a time of block creation
 	bytes aggregators_hash = 11;
 
+	// Hash of next block aggregator set, at a time of block creation
+	bytes next_aggregators_hash = 12;
+
 	// Chain ID the block belongs to
-	string chain_id = 12;
+	string chain_id = 13;
 }
 
 message Commit {

@@ -139,17 +139,18 @@ func (h *Header) ToProto() *pb.Header {
 			Block: h.Version.Block,
 			App:   h.Version.App,
 		},
-		Height:          h.BaseHeader.Height,
-		Time:            h.BaseHeader.Time,
-		LastHeaderHash:  h.LastHeaderHash[:],
-		LastCommitHash:  h.LastCommitHash[:],
-		DataHash:        h.DataHash[:],
-		ConsensusHash:   h.ConsensusHash[:],
-		AppHash:         h.AppHash[:],
-		LastResultsHash: h.LastResultsHash[:],
-		ProposerAddress: h.ProposerAddress[:],
-		AggregatorsHash: h.AggregatorsHash[:],
-		ChainId:         h.BaseHeader.ChainID,
+		Height:              h.BaseHeader.Height,
+		Time:                h.BaseHeader.Time,
+		LastHeaderHash:      h.LastHeaderHash[:],
+		LastCommitHash:      h.LastCommitHash[:],
+		DataHash:            h.DataHash[:],
+		ConsensusHash:       h.ConsensusHash[:],
+		AppHash:             h.AppHash[:],
+		LastResultsHash:     h.LastResultsHash[:],
+		ProposerAddress:     h.ProposerAddress[:],
+		AggregatorsHash:     h.AggregatorsHash[:],
+		NextAggregatorsHash: h.NextAggregatorsHash[:],
+		ChainId:             h.BaseHeader.ChainID,
 	}
 }
 
@@ -167,6 +168,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.AppHash = other.AppHash
 	h.LastResultsHash = other.LastResultsHash
 	h.AggregatorsHash = other.AggregatorsHash
+	h.NextAggregatorsHash = other.NextAggregatorsHash
 	if len(other.ProposerAddress) > 0 {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
 		copy(h.ProposerAddress, other.ProposerAddress)
