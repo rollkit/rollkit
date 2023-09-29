@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
-	appns "github.com/rollkit/rollkit/libs/celestia-app/namespace"
+	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
+	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
 )
 
 // Share contains the raw share data (including namespace ID).
