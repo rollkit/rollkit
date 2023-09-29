@@ -132,6 +132,10 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 
 // ApplyBlock validates and executes the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *cmstate.ABCIResponses, error) {
+	err := e.Validate(state, block)
+	if err != nil {
+		return types.State{}, nil, err
+	}
 	// This makes calls to the AppClient
 	resp, err := e.execute(ctx, state, block)
 	if err != nil {
@@ -179,36 +183,6 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	}
 
 	return appHash, retainHeight, nil
-}
-
-func (e *BlockExecutor) Validate(state types.State, block *types.Block) error {
-	err := block.ValidateBasic()
-	if err != nil {
-		return err
-	}
-	if block.SignedHeader.Header.Version.App != state.Version.Consensus.App ||
-		block.SignedHeader.Header.Version.Block != state.Version.Consensus.Block {
-		return errors.New("block version mismatch")
-	}
-	if state.LastBlockHeight <= 0 && block.SignedHeader.Header.Height() != state.InitialHeight {
-		return errors.New("initial block height mismatch")
-	}
-	if state.LastBlockHeight > 0 && block.SignedHeader.Header.Height() != state.LastBlockHeight+1 {
-		return errors.New("block height mismatch")
-	}
-	if !bytes.Equal(block.SignedHeader.Header.AppHash[:], state.AppHash[:]) {
-		return errors.New("AppHash mismatch")
-	}
-
-	if !bytes.Equal(block.SignedHeader.Header.LastResultsHash[:], state.LastResultsHash[:]) {
-		return errors.New("LastResultsHash mismatch")
-	}
-
-	if !bytes.Equal(block.SignedHeader.Header.AggregatorsHash[:], state.Validators.Hash()) {
-		return errors.New("AggregatorsHash mismatch")
-	}
-
-	return nil
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *cmstate.ABCIResponses, validatorUpdates []*cmtypes.Validator) (types.State, error) {
@@ -284,6 +258,36 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 	}
 
 	return resp.Data, uint64(resp.RetainHeight), err
+}
+
+func (e *BlockExecutor) Validate(state types.State, block *types.Block) error {
+	err := block.ValidateBasic()
+	if err != nil {
+		return err
+	}
+	if block.SignedHeader.Version.App != state.Version.Consensus.App ||
+		block.SignedHeader.Version.Block != state.Version.Consensus.Block {
+		return errors.New("block version mismatch")
+	}
+	if state.LastBlockHeight <= 0 && block.Height() != state.InitialHeight {
+		return errors.New("initial block height mismatch")
+	}
+	if state.LastBlockHeight > 0 && block.Height() != state.LastBlockHeight+1 {
+		return errors.New("block height mismatch")
+	}
+	if !bytes.Equal(block.SignedHeader.AppHash[:], state.AppHash[:]) {
+		return errors.New("AppHash mismatch")
+	}
+
+	if !bytes.Equal(block.SignedHeader.LastResultsHash[:], state.LastResultsHash[:]) {
+		return errors.New("LastResultsHash mismatch")
+	}
+
+	if !bytes.Equal(block.SignedHeader.AggregatorsHash[:], state.Validators.Hash()) {
+		return errors.New("AggregatorsHash mismatch")
+	}
+
+	return nil
 }
 
 func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *types.Block) (*cmstate.ABCIResponses, error) {
