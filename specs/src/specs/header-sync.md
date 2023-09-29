@@ -36,12 +36,20 @@ The sequencer node upon successfully creating the block publishes the signed blo
 
 ## Implementation
 
-The P2P header exchange implementation can be found in [node/header_exchange.go](https://github.com/rollkit/rollkit/blob/main/node/header_exchange.go). The full and light nodes create and start the header exchange service under [full](https://github.com/rollkit/rollkit/blob/main/node/full.go) and [light](https://github.com/rollkit/rollkit/blob/main/node/light.go).
+The header exchange implementation can be found in [node/header_exchange.go][header exchange]. The full and light nodes create and start the header exchange service under [full][fullnode] and [light][lightnode].
 
 ## References
 
-[1] <https://github.com/rollkit/rollkit/blob/main/node/header_exchange.go>
+[1] [Header Exchange][header exchange]
 
-[2] <https://github.com/rollkit/rollkit/blob/main/node/full.go>
+[2] [Full Node][fullnode]
 
-[3] <https://github.com/rollkit/rollkit/blob/main/node/light.go>
+[3] [Light Node][lightnode]
+
+[4] [go-header][go-header]
+
+
+[header exchange]: https://github.com/rollkit/rollkit/blob/main/node/header_exchange.go
+[fullnode]: https://github.com/rollkit/rollkit/blob/main/node/full.go
+[lightnode]: https://github.com/rollkit/rollkit/blob/main/node/light.go
+[go-header]: https://github.com/celestiaorg/go-header
