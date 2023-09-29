@@ -19,8 +19,8 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/conv"
-	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/node"
+	"github.com/rollkit/rollkit/test/mocks"
 )
 
 const (

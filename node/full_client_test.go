@@ -32,8 +32,8 @@ import (
 	"github.com/rollkit/rollkit/conv"
 	abciconv "github.com/rollkit/rollkit/conv/abci"
 	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
