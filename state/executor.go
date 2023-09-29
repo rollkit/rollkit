@@ -17,8 +17,8 @@ import (
 	"go.uber.org/multierr"
 
 	abciconv "github.com/rollkit/rollkit/conv/abci"
-	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 
