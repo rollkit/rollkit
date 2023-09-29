@@ -641,7 +641,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	block.SignedHeader.Header.NextAggregatorsHash = m.getNextAggregatorsHash()
+	block.SignedHeader.Header.NextAggregatorsHash = newState.NextValidators.Hash()
 
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
