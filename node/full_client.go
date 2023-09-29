@@ -21,9 +21,9 @@ import (
 	"github.com/cometbft/cometbft/version"
 
 	rconfig "github.com/rollkit/rollkit/config"
-	abciconv "github.com/rollkit/rollkit/conv/abci"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/types"
+	abciconv "github.com/rollkit/rollkit/types/abci"
 )
 
 const (

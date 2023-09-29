@@ -16,10 +16,10 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	"go.uber.org/multierr"
 
-	abciconv "github.com/rollkit/rollkit/conv/abci"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
+	abciconv "github.com/rollkit/rollkit/types/abci"
 )
 
 var ErrEmptyValSetGenerated = errors.New("applying the validator changes would result in empty set")
