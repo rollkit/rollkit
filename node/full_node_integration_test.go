@@ -24,7 +24,6 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
@@ -46,7 +45,6 @@ func TestAggregatorMode(t *testing.T) {
 	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
@@ -67,8 +65,6 @@ func TestAggregatorMode(t *testing.T) {
 	}()
 	assert.True(node.IsRunning())
 
-	pid, err := peer.IDFromPrivateKey(anotherKey)
-	require.NoError(err)
 	ctx, cancel = context.WithCancel(context.TODO())
 	defer cancel()
 	go func() {
@@ -77,7 +73,6 @@ func TestAggregatorMode(t *testing.T) {
 			case <-ctx.Done():
 				return
 			default:
-				node.incomingTxCh <- &p2p.GossipMessage{Data: []byte(time.Now().String()), From: pid}
 				time.Sleep(time.Duration(mrand.Uint32()%20) * time.Millisecond) //nolint:gosec
 			}
 		}
