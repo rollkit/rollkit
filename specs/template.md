@@ -1,13 +1,37 @@
-# Staking (Differences from Tendermint)
+# Protocol/Component Name
 
 ## Abstract
 
-Rollkit will support customizable functionality for verifying the correctness of a block proposer. However, it currently works by delegating this functionality to the Application, by checking that the `AggregatorsHash` of a header corresponds to the `NextAggregatorsHash` of the previous, where setting the `NextAggregtorsHash` is the responsibility of the ABCI Application.
+Provide a concise description of the purpose of the component for which the
+specification is written, along with its contribution to the rollkit or
+other relevant parts of the system. Make sure to include proper references to
+the relevant sections.
+
+## Protocol/Component Description
+
+Offer a comprehensive explanation of the protocol, covering aspects such as data
+flow, communication mechanisms, and any other details necessary for
+understanding the inner workings of this component.
+
+## Message Structure/Communication Format
+
+If this particular component is expected to communicate over the network,
+outline the structure of the message protocol, including details such as field
+interpretation, message format, and any other relevant information.
 
 ## Assumptions and Considerations
 
-Assumes that the ABCI Application (such as apps built with Cosmos-SDK), has correct code for setting the `Validators` field in `SignedHeader`, and `NextAggregatorsHash` `AggregatorsHash` fields in `Header`, according to the rollup's desired sequencer scheme.
+If there are any assumptions required for the component's correct operation,
+performance, security, or other expected features, outline them here.
+Additionally, provide any relevant considerations related to security or other
+concerns.
 
 ## Implementation
 
-[types/header.go](https://github.com/rollkit/rollkit/blob/main/types/header.go#L86)
+Include a link to the location where the implementation of this protocol can be
+found. Note that specific implementation details should be documented in the
+rollkit repository rather than in the specification document.
+
+## References
+
+List any references used or cited in the document.
