@@ -102,7 +102,7 @@ Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to as
 ## Dependency Graph
 
 To see our progress and a possible future of Rollkit visit our [Dependency
-Graph](./docs/specification/rollkit-dependency-graph.md).
+Graph](./specs/src/specs/rollkit-dependency-graph.md).
 
 ## Code of Conduct
 

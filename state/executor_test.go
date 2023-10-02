@@ -21,7 +21,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/mempool"
-	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 

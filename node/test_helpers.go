@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/conv"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -123,7 +122,7 @@ func getGenesisValidatorSetWithSigner(n int) ([]cmtypes.GenesisValidator, crypto
 	nodeKey := &p2p.NodeKey{
 		PrivKey: genesisValidatorKey,
 	}
-	signingKey, _ := conv.GetNodeKey(nodeKey)
+	signingKey, _ := GetNodeKey(nodeKey)
 	pubKey := genesisValidatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{

@@ -14,8 +14,8 @@ import (
 
 	"github.com/rollkit/celestia-openrpc/types/core"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 

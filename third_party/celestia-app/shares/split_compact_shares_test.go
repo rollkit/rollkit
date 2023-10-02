@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
-	appns "github.com/rollkit/rollkit/libs/celestia-app/namespace"
+	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
+	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
 )
 
 // fillShare returns a share filled with filler so that the share length
