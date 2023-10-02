@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Block - Rollkit Specifications</title>
+        <title>Dependency Graph - Rollkit Specifications</title>
         <!-- Custom HTML head -->
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block.html" class="active"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html" class="active"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block.html"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -137,16 +137,25 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="block"><a class="header" href="#block">Block</a></h1>
+                        <h1 id="rollkit-dependency-graph"><a class="header" href="#rollkit-dependency-graph">Rollkit Dependency Graph</a></h1>
+<p><img src="./dependency-graph.drawio.svg" alt="Dependency Graph" /></p>
+<p>We use the following color coding in this Graph:</p>
+<ul>
+<li>No Colour: Work not yet started</li>
+<li>Yellow Box: Work in progress</li>
+<li>Green Box: Work completed or at least unblocking the next dependency</li>
+<li>Red Border: Work needs to happen in cooperation with another team</li>
+</ul>
+<p>If the EPICs are not linked to the box yet, it means that this box has currently no priority or is still in the ideation phase or the dependency is unclear.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../specs/template.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                            <a rel="next" href="../specs/da.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../specs/block.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
@@ -155,10 +164,10 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../specs/template.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                    <a rel="next" href="../specs/da.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../specs/block.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
