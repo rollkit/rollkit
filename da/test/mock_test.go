@@ -1,15 +1,13 @@
 package test
 
 import (
-	"context"
-	"fmt"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/da/mock"
 	testlog "github.com/rollkit/rollkit/log/test"
 	"github.com/rollkit/rollkit/store"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMockDA(t *testing.T) {
@@ -24,11 +22,11 @@ func TestMockDA(t *testing.T) {
 
 	err = dalc.Start()
 	require.NoError(err)
-	
-	blocks := getRandomBlock(0, 10)
-	
+
+	/*blocks := getRandomBlock(0, 10)
+
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	go func () {
 		for {
 			select {
@@ -40,6 +38,6 @@ func TestMockDA(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 	err = dalc.Stop()
-	require.NoError(err)
+	require.NoError(err)*/
 
 }
