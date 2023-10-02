@@ -137,13 +137,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="staking-differences-from-tendermint"><a class="header" href="#staking-differences-from-tendermint">Staking (Differences from Tendermint)</a></h1>
-<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
-<p>Rollkit will support customizable functionality for verifying the correctness of a block proposer. However, it currently works by delegating this functionality to the Application, by checking that the <code>AggregatorsHash</code> of a header corresponds to the <code>NextAggregatorsHash</code> of the previous, where setting the <code>NextAggregtorsHash</code> is the responsibility of the ABCI Application.</p>
-<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
-<p>Assumes that the ABCI Application (such as apps built with Cosmos-SDK), has correct code for setting the <code>Validators</code> field in <code>SignedHeader</code>, and <code>NextAggregatorsHash</code> <code>AggregatorsHash</code> fields in <code>Header</code>, according to the rollup's desired sequencer scheme.</p>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go#L86">types/header.go</a></p>
+                        <h1 id="template"><a class="header" href="#template">Template</a></h1>
 
                     </main>
 
