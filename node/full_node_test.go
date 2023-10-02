@@ -22,7 +22,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mempool"
-	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/test/mocks"
 )
 
 // simply check that node is starting and stopping without panicking

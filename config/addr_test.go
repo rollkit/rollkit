@@ -1,4 +1,4 @@
-package conv
+package config
 
 import (
 	"strings"
@@ -6,8 +6,6 @@ import (
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/rollkit/rollkit/config"
 )
 
 func TestTranslateAddresses(t *testing.T) {
@@ -19,33 +17,33 @@ func TestTranslateAddresses(t *testing.T) {
 
 	cases := []struct {
 		name        string
-		input       config.NodeConfig
-		expected    config.NodeConfig
+		input       NodeConfig
+		expected    NodeConfig
 		expectedErr string
 	}{
-		{"empty", config.NodeConfig{}, config.NodeConfig{}, ""},
+		{"empty", NodeConfig{}, NodeConfig{}, ""},
 		{
 			"valid listen address",
-			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validCosmos}},
-			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: validRollkit}},
+			NodeConfig{P2P: P2PConfig{ListenAddress: validCosmos}},
+			NodeConfig{P2P: P2PConfig{ListenAddress: validRollkit}},
 			"",
 		},
 		{
 			"valid seed address",
-			config.NodeConfig{P2P: config.P2PConfig{Seeds: validCosmos + "," + validCosmos}},
-			config.NodeConfig{P2P: config.P2PConfig{Seeds: validRollkit + "," + validRollkit}},
+			NodeConfig{P2P: P2PConfig{Seeds: validCosmos + "," + validCosmos}},
+			NodeConfig{P2P: P2PConfig{Seeds: validRollkit + "," + validRollkit}},
 			"",
 		},
 		{
 			"invalid listen address",
-			config.NodeConfig{P2P: config.P2PConfig{ListenAddress: invalidCosmos}},
-			config.NodeConfig{},
+			NodeConfig{P2P: P2PConfig{ListenAddress: invalidCosmos}},
+			NodeConfig{},
 			errInvalidAddress.Error(),
 		},
 		{
 			"invalid seed address",
-			config.NodeConfig{P2P: config.P2PConfig{Seeds: validCosmos + "," + invalidCosmos}},
-			config.NodeConfig{},
+			NodeConfig{P2P: P2PConfig{Seeds: validCosmos + "," + invalidCosmos}},
+			NodeConfig{},
 			errInvalidAddress.Error(),
 		},
 	}

@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       GO_VERSION:
-        description: 'Go version to use'
+        description: "Go version to use"
         type: string
         required: true
 
@@ -39,7 +39,7 @@ jobs:
   hadolint:
     uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.2 # yamllint disable-line rule:line-length
     with:
-      dockerfile: docker/mockserv.Dockerfile
+      dockerfile: test/docker/mockserv.Dockerfile
 
   yamllint:
     runs-on: ubuntu-latest
