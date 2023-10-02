@@ -21,10 +21,10 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 

@@ -29,12 +29,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/conv"
-	abciconv "github.com/rollkit/rollkit/conv/abci"
 	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
+	abciconv "github.com/rollkit/rollkit/types/abci"
 )
 
 var expectedInfo = abci.ResponseInfo{
@@ -784,7 +783,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 		nodeKey := &p2p.NodeKey{
 			PrivKey: vKeys[i],
 		}
-		signingKey, err := conv.GetNodeKey(nodeKey)
+		signingKey, err := GetNodeKey(nodeKey)
 		require.NoError(err)
 		nodes[i], err = newFullNode(
 			context.Background(),

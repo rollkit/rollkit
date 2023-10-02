@@ -1,15 +1,18 @@
-package conv
+package config
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/multiformats/go-multiaddr"
+)
 
-	"github.com/rollkit/rollkit/config"
+var (
+	errInvalidAddress = errors.New("invalid address format, expected [protocol://][<NODE_ID>@]<IPv4>:<PORT>")
 )
 
 // TranslateAddresses updates conf by changing Cosmos-style addresses to Multiaddr format.
-func TranslateAddresses(conf *config.NodeConfig) error {
+func TranslateAddresses(conf *NodeConfig) error {
 	if conf.P2P.ListenAddress != "" {
 		addr, err := GetMultiAddr(conf.P2P.ListenAddress)
 		if err != nil {

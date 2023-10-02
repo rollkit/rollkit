@@ -22,7 +22,7 @@ import (
 
 	"github.com/rollkit/rollkit/mempool"
 	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
-	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
