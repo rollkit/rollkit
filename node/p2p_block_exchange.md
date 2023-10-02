@@ -65,7 +65,7 @@ Although a sequencer does not need to retrieve blocks from the P2P network, it s
 
 ## Message Structure/Communication Format
 
-The communication within Block Manager and between itself and the full node is all done through channels that pass around the [block struct].  
+The communication within Block Manager and between itself and the full node is all done through channels that pass around the [block-struct].  
 
 ## Assumptions and Considerations
 
@@ -76,14 +76,26 @@ The communication within Block Manager and between itself and the full node is a
 
 ## Implementation
 
-The `blockStore` in `BlockExchangeService` ([block-exchange]) is used when initializing a [full node]. Blocks are written to `blockStore` in `blockPublishLoop` in [full-node], gossiped around the network, and retrieved in `BlockStoreRetrieveLoop` in [Block Manager].
+The `blockStore` in `BlockExchangeService` ([block-exchange]) is used when initializing a [full-node]. Blocks are written to `blockStore` in `blockPublishLoop` in [full-node], gossiped around the network, and retrieved in `BlockStoreRetrieveLoop` in [block-manager].
 See [tutorial] for running a validating full node.
 
 ## References
 
+[1] [Go Header][go-header]
+
+[2] [Block Exchange][block-exchange]
+
+[3] [Full Node][full-node]
+
+[4] [Block Manager][block-manager]
+
+[5] [Block Struct][block-struct]
+
+[6] [Tutorial][tutorial]
+
 [go-header]: https://github.com/celestiaorg/go-header
 [block-exchange]: ../node/block_exchange.go
-[full node]: ../node/full.go
-[Block Manager]: ../block/manager.go
-[block struct]: ../types/block.go
+[full-node]: ../node/full.go
+[block-manager]: ../block/manager.go
+[block-struct]: ../types/block.go
 [tutorial]: https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started
