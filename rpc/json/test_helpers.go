@@ -18,9 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/conv"
-	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/node"
+	"github.com/rollkit/rollkit/test/mocks"
 )
 
 const (
@@ -57,7 +56,7 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: validatorKey,
 	}
-	signingKey, _ := conv.GetNodeKey(nodeKey)
+	signingKey, _ := node.GetNodeKey(nodeKey)
 	pubKey := validatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{
