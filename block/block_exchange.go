@@ -72,8 +72,8 @@ func NewBlockExchangeService(ctx context.Context, store ds.TxnDatastore, conf co
 	}, nil
 }
 
-// GetBlockStore returns the blockstore of the BlockExchangeService
-func (bExService *BlockExchangeService) GetBlockStore() *goheaderstore.Store[*types.Block] {
+// BlockStore returns the blockstore of the BlockExchangeService
+func (bExService *BlockExchangeService) BlockStore() *goheaderstore.Store[*types.Block] {
 	return bExService.blockStore
 }
 

@@ -72,8 +72,8 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 	}, nil
 }
 
-// GetHeaderStore returns the headerstore of the HeaderExchangeService
-func (hExService *HeaderExchangeService) GetHeaderStore() *goheaderstore.Store[*types.SignedHeader] {
+// HeaderStore returns the headerstore of the HeaderExchangeService
+func (hExService *HeaderExchangeService) HeaderStore() *goheaderstore.Store[*types.SignedHeader] {
 	return hExService.headerStore
 }
 
