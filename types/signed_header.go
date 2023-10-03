@@ -51,7 +51,7 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 		}
 	}
 
-	if sh.Height()+1 < untrstH.Height() {
+	if sh.Height()+1 != untrstH.Height() {
 		return &header.VerifyError{
 			Reason: fmt.Errorf("%w: untrusted %d, trusted %d",
 				ErrNonAdjacentHeaders,
