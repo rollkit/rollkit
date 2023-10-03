@@ -1,4 +1,4 @@
-package node
+package block
 
 import (
 	"sync"
