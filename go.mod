@@ -1,6 +1,6 @@
 module github.com/rollkit/rollkit
 
-go 1.20
+go 1.21.1
 
 require (
 	github.com/celestiaorg/go-header v0.4.0
@@ -24,6 +24,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.12.0
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rollkit/celestia-openrpc v0.3.0
+	github.com/rollkit/go-da v0.0.0-20231011133250-da58c6931483
 	github.com/rs/cors v1.10.1
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.17.0
