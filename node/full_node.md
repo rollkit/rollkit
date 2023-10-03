@@ -4,18 +4,18 @@
 
 A Full Node is a top-level service that encapsulates different components of Rollkit and initializes/manages them. The main components are listed in the table below:
 
- Component     | Description                                                                                                                         |
- ----------    | ------------------------------------------------------------------------------------------------------------------------------------|
- proxyApp      | ProxyApp is the interface to the application that consists of multiple connections. It is used to communicate with the application.|
- genesisDoc    | GenesisDoc is the genesis document that contains information about the initial state of the blockchain.|
- conf          | Conf is the configuration of the node. It contains all the necessary settings for the node to be initialized and function properly.|
- P2P           | P2P is the peer-to-peer client used for communication between nodes in the network.|
- Mempool       | Mempool is the transaction pool where all the transactions are stored before they are added to a block.|
- Store         | Store is used to store/retrieve blocks, commits, and state.|
- blockManager  | BlockManager is responsible for managing the operations related to blocks such as creating and validating blocks.|
- dalc          | DALC is the Data Availability Layer Client used to interact with the data availability layer.|
- hExService    | HExService is the Header Exchange Service used for exchanging block headers between nodes over P2P.|
- bExService    | BExService is the Block Exchange Service used for exchanging blocks between nodes over P2P. |
+| Component | Description |
+| :--- | :--- |
+| proxyApp | ProxyApp is the interface to the application that consists of multiple connections. It is used to communicate with the application. |
+| genesisDoc | GenesisDoc is the genesis document that contains information about the initial state of the blockchain. |
+| conf | Conf is the configuration of the node. It contains all the necessary settings for the node to be initialized and function properly. |
+| P2P | P2P is the peer-to-peer client used for communication between nodes in the network. |
+| Mempool | Mempool is the transaction pool where all the transactions are stored before they are added to a block. |
+| Store | Store is used to store/retrieve blocks, commits, and state. |
+| blockManager | BlockManager is responsible for managing the operations related to blocks such as creating and validating blocks. |
+| dalc | DALC is the Data Availability Layer Client used to interact with the data availability layer. |
+| hExService | HExService is the Header Exchange Service used for exchanging block headers between nodes over P2P. |
+| bExService | BExService is the Block Exchange Service used for exchanging blocks between nodes over P2P. |
 
 ## Details
 
