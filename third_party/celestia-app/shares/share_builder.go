@@ -123,12 +123,12 @@ func (b *Builder) indexOfInfoBytes() int {
 	return appconsts.NamespaceSize
 }
 
-// MaybeWriteReservedBytes will be a no-op if the reserved bytes
+// MaybeWriteReservedBytes will be a no-op for a compact share or if the reserved bytes
 // have already been populated. If the reserved bytes are empty, it will write
 // the location of the next unit of data to the reserved bytes.
 func (b *Builder) MaybeWriteReservedBytes() error {
 	if !b.isCompactShare {
-		return errors.New("this is not a compact share")
+		return nil
 	}
 
 	empty, err := b.isEmptyReservedBytes()
