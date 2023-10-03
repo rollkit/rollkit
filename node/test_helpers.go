@@ -65,17 +65,17 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 
 func getNodeHeightFromHeader(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.hExService.headerStore.Height(), nil
+		return fn.hExService.GetHeaderStore().Height(), nil
 	}
 	if ln, ok := node.(*LightNode); ok {
-		return ln.hExService.headerStore.Height(), nil
+		return ln.hExService.GetHeaderStore().Height(), nil
 	}
 	return 0, errors.New("not a full or light node")
 }
 
 func getNodeHeightFromBlock(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.bExService.blockStore.Height(), nil
+		return fn.bExService.GetBlockStore().Height(), nil
 	}
 	return 0, errors.New("not a full node")
 }

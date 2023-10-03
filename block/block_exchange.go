@@ -1,4 +1,4 @@
-package node
+package block
 
 import (
 	"context"
@@ -72,6 +72,11 @@ func NewBlockExchangeService(ctx context.Context, store ds.TxnDatastore, conf co
 	}, nil
 }
 
+// GetBlockStore returns the blockstore of the BlockExchangeService
+func (bExService *BlockExchangeService) GetBlockStore() *goheaderstore.Store[*types.Block] {
+	return bExService.blockStore
+}
+
 func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context.Context, initial *types.Block) error {
 	if initial == nil {
 		return fmt.Errorf("failed to initialize the blockstore and start syncer")
@@ -87,7 +92,7 @@ func (bExService *BlockExchangeService) initBlockStoreAndStartSyncer(ctx context
 
 // Initialize block store if needed and broadcasts provided block.
 // Note: Only returns an error in case block store can't be initialized. Logs error if there's one while broadcasting.
-func (bExService *BlockExchangeService) writeToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
+func (bExService *BlockExchangeService) WriteToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
 	// For genesis block initialize the store and start the syncer
 	if int64(block.Height()) == bExService.genesis.InitialHeight {
 		if err := bExService.blockStore.Init(ctx, block); err != nil {
