@@ -1,1 +1,1 @@
-../../../node/node.md
+# Node
