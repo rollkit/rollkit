@@ -76,8 +76,8 @@ type FullNode struct {
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
-	hExService *HeaderExchangeService
-	bExService *BlockExchangeService
+	hExService *block.HeaderExchangeService
+	bExService *block.BlockExchangeService
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -151,18 +151,18 @@ func newFullNode(
 	mpIDs := newMempoolIDs()
 	mp.EnableTxsAvailable()
 
-	headerExchangeService, err := NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
+	headerExchangeService, err := block.NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
-	blockExchangeService, err := NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
+	blockExchangeService, err := block.NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
 	}
 
 	doneBuildingChannel := make(chan struct{})
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.blockStore)
+	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.BlockStore())
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -231,7 +231,7 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderCh:
-			err := n.hExService.writeToHeaderStoreAndBroadcast(ctx, signedHeader)
+			err := n.hExService.WriteToHeaderStoreAndBroadcast(ctx, signedHeader)
 			if err != nil {
 				// failed to init or start headerstore
 				n.Logger.Error(err.Error())
@@ -247,7 +247,7 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case block := <-n.blockManager.BlockCh:
-			err := n.bExService.writeToBlockStoreAndBroadcast(ctx, block)
+			err := n.bExService.WriteToBlockStoreAndBroadcast(ctx, block)
 			if err != nil {
 				// failed to init or start blockstore
 				n.Logger.Error(err.Error())

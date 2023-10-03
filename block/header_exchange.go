@@ -1,4 +1,4 @@
-package node
+package block
 
 import (
 	"context"
@@ -72,6 +72,11 @@ func NewHeaderExchangeService(ctx context.Context, store ds.TxnDatastore, conf c
 	}, nil
 }
 
+// HeaderStore returns the headerstore of the HeaderExchangeService
+func (hExService *HeaderExchangeService) HeaderStore() *goheaderstore.Store[*types.SignedHeader] {
+	return hExService.headerStore
+}
+
 func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.SignedHeader) error {
 	if initial == nil {
 		return fmt.Errorf("failed to initialize the headerstore and start syncer")
@@ -87,7 +92,7 @@ func (hExService *HeaderExchangeService) initHeaderStoreAndStartSyncer(ctx conte
 
 // Initialize header store if needed and broadcasts provided header.
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
-func (hExService *HeaderExchangeService) writeToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
+func (hExService *HeaderExchangeService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
 	// For genesis header initialize the store and start the syncer
 	if int64(signedHeader.Height()) == hExService.genesis.InitialHeight {
 		if err := hExService.headerStore.Init(ctx, signedHeader); err != nil {
