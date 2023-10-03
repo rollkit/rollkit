@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/conv"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -66,17 +65,17 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 
 func getNodeHeightFromHeader(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.hExService.headerStore.Height(), nil
+		return fn.hExService.HeaderStore().Height(), nil
 	}
 	if ln, ok := node.(*LightNode); ok {
-		return ln.hExService.headerStore.Height(), nil
+		return ln.hExService.HeaderStore().Height(), nil
 	}
 	return 0, errors.New("not a full or light node")
 }
 
 func getNodeHeightFromBlock(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.bExService.blockStore.Height(), nil
+		return fn.bExService.BlockStore().Height(), nil
 	}
 	return 0, errors.New("not a full node")
 }
@@ -123,7 +122,7 @@ func getGenesisValidatorSetWithSigner(n int) ([]cmtypes.GenesisValidator, crypto
 	nodeKey := &p2p.NodeKey{
 		PrivKey: genesisValidatorKey,
 	}
-	signingKey, _ := conv.GetNodeKey(nodeKey)
+	signingKey, _ := GetNodeKey(nodeKey)
 	pubKey := genesisValidatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{

@@ -24,10 +24,10 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/log/test"
-	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 
 	testutils "github.com/celestiaorg/utils/test"
@@ -38,12 +38,12 @@ func TestAggregatorMode(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -95,11 +95,11 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	aggApp := apps[0]
 	apps = apps[1:]
 
-	aggApp.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
+	aggApp.AssertNumberOfCalls(t, DeliverTx, clientNodes)
 	aggApp.AssertExpectations(t)
 
 	for i, app := range apps {
-		app.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
+		app.AssertNumberOfCalls(t, DeliverTx, clientNodes)
 		app.AssertExpectations(t)
 
 		// assert that we have most of the blocks from aggregator
@@ -108,11 +108,11 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		commitCnt := 0
 		for _, call := range app.Calls {
 			switch call.Method {
-			case "BeginBlock":
+			case BeginBlock:
 				beginCnt++
-			case "EndBlock":
+			case EndBlock:
 				endCnt++
-			case "Commit":
+			case Commit:
 				commitCnt++
 			}
 		}
@@ -138,12 +138,12 @@ func TestLazyAggregator(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
@@ -358,7 +358,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	require.NoError(waitForFirstBlock(node1, source))
 
 	// Get the trusted hash from node1 and pass it to node2 config
-	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
+	trustedHash, err := node1.hExService.HeaderStore().GetByHeight(aggCtx, 1)
 	require.NoError(err)
 	node2.conf.TrustedHash = trustedHash.Hash().String()
 	require.NoError(node2.Start())
@@ -466,7 +466,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
 		err := testutils.Retry(300, 100*time.Millisecond, func() error {
 			for i := 0; i < len(apps); i++ {
-				if !apps[i].AssertCalled(m, "DeliverTx", matcher) {
+				if !apps[i].AssertCalled(m, DeliverTx, matcher) {
 					return errors.New("DeliverTx hasn't been called yet")
 				}
 			}
@@ -542,12 +542,12 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 
 	if ctx == nil {
 		ctx = context.Background()

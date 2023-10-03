@@ -1,7 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"encoding"
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/go-header"
@@ -47,6 +49,9 @@ type Header struct {
 
 	// Hash of block aggregator set, at a time of block creation
 	AggregatorsHash Hash
+
+	// Hash of next block aggregator set, at a time of block creation
+	NextAggregatorsHash Hash
 }
 
 func (h *Header) New() *Header {
@@ -74,20 +79,19 @@ func (h *Header) Time() time.Time {
 	return time.Unix(0, int64(h.BaseHeader.Time))
 }
 
-func (h *Header) Verify(_ *Header) error {
-
-	// Check the validator hashes are the same in the case headers are adjacent
-	// TODO: next validator set is not available, disable this check until NextValidatorHash is enabled
-	// if untrstH.Height() == h.Height()+1 {
-	// if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
-	// 	return &header.VerifyError{
-	// 		Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-	// 			h.AggregatorsHash,
-	// 			untrstH.AggregatorsHash,
-	// 		),
-	// 	}
-	// }
-	// }
+func (h *Header) Verify(untrstH *Header) error {
+	// perform actual verification
+	if untrstH.Height() == h.Height()+1 {
+		// Check the validator hashes are the same in the case headers are adjacent
+		if !bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]) {
+			return &header.VerifyError{
+				Reason: fmt.Errorf("expected old header validators (%X) to match those from new header (%X)",
+					h.NextAggregatorsHash,
+					untrstH.AggregatorsHash,
+				),
+			}
+		}
+	}
 
 	// TODO: There must be a way to verify non-adjacent headers
 	// Ensure that untrusted commit has enough of trusted commit's power.

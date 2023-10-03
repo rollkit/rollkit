@@ -7,6 +7,9 @@ import (
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
+	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
+	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
+	"github.com/rollkit/rollkit/third_party/celestia-app/shares"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
@@ -54,13 +57,64 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]p
 	if len(intermediateStateRoots.RawRootsList) != expectedISRListLength {
 		return nil, fmt.Errorf("invalid length of ISR list: %d, expected length: %d", len(intermediateStateRoots.RawRootsList), expectedISRListLength)
 	}
-	txsWithISRs := make([]pb.TxWithISRs, 0, len(txs))
+	txsWithISRs := make([]pb.TxWithISRs, len(txs))
 	for i, tx := range txs {
 		txsWithISRs[i] = pb.TxWithISRs{
 			PreIsr:  intermediateStateRoots.RawRootsList[i],
 			Tx:      tx,
 			PostIsr: intermediateStateRoots.RawRootsList[i+1],
 		}
+	}
+	return txsWithISRs, nil
+}
+
+func TxsWithISRsToShares(txsWithISRs []pb.TxWithISRs) (txShares []shares.Share, err error) {
+	byteSlices := make([][]byte, len(txsWithISRs))
+	for i, txWithISR := range txsWithISRs {
+		byteSlices[i], err = txWithISR.Marshal()
+		if err != nil {
+			return nil, err
+		}
+	}
+	coreTxs := shares.TxsFromBytes(byteSlices)
+	txShares, err = shares.SplitTxs(coreTxs)
+	return txShares, err
+}
+
+func SharesToPostableBytes(txShares []shares.Share) (postableData []byte, err error) {
+	for i := 0; i < len(txShares); i++ {
+		raw, err := txShares[i].RawDataWithReserved()
+		if err != nil {
+			return nil, err
+		}
+		postableData = append(postableData, raw...)
+	}
+	return postableData, nil
+}
+
+func PostableBytesToShares(postableData []byte) (txShares []shares.Share, err error) {
+	css := shares.NewCompactShareSplitterWithIsCompactFalse(appns.TxNamespace, appconsts.ShareVersionZero)
+	err = css.WriteWithNoReservedBytes(postableData)
+	if err != nil {
+		return nil, err
+	}
+	shares, _, err := css.Export(0)
+	return shares, err
+}
+
+func SharesToTxsWithISRs(txShares []shares.Share) (txsWithISRs []pb.TxWithISRs, err error) {
+	byteSlices, err := shares.ParseCompactShares(txShares)
+	if err != nil {
+		return nil, err
+	}
+	txsWithISRs = make([]pb.TxWithISRs, len(byteSlices))
+	for i, byteSlice := range byteSlices {
+		var txWithISR pb.TxWithISRs
+		err = txWithISR.Unmarshal(byteSlice)
+		if err != nil {
+			return nil, err
+		}
+		txsWithISRs[i] = txWithISR
 	}
 	return txsWithISRs, nil
 }

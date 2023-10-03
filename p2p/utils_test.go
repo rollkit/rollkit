@@ -18,7 +18,7 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 )
 
 type testNet []*Client

@@ -3,6 +3,7 @@
 [Introduction](README.md)
 
 - [Template](./specs/template.md)
+- [Dependency Graph](./specs/rollkit-dependency-graph.md)
 - [Block](./specs/block.md)
 - [DA](./specs/da.md)
 - [Mempool](./specs/mempool.md)

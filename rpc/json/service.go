@@ -12,7 +12,7 @@ import (
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/gorilla/rpc/v2/json2"
 
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 )
 
 // GetHTTPHandler returns handler configured to serve Tendermint-compatible RPC.

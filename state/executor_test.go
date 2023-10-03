@@ -22,8 +22,16 @@ import (
 
 	"github.com/rollkit/rollkit/mempool"
 	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
-	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
+)
+
+const (
+	CheckTx    = "CheckTx"
+	BeginBlock = "BeginBlock"
+	DeliverTx  = "DeliverTx"
+	EndBlock   = "EndBlock"
+	Commit     = "Commit"
 )
 
 func doTestCreateBlock(t *testing.T) {
@@ -33,7 +41,7 @@ func doTestCreateBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 
 	fmt.Println("App On CheckTx")
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
@@ -63,6 +71,7 @@ func doTestCreateBlock(t *testing.T) {
 		},
 	}
 	state.Validators = cmtypes.NewValidatorSet(validators)
+	state.NextValidators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
@@ -99,14 +108,14 @@ func doTestApplyBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{
 		Data: mockAppHash[:],
 	})
 

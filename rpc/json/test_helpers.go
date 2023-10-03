@@ -18,9 +18,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/conv"
-	"github.com/rollkit/rollkit/mocks"
 	"github.com/rollkit/rollkit/node"
+	"github.com/rollkit/rollkit/test/mocks"
+)
+
+const (
+	InitChain  = "InitChain"
+	CheckTx    = "CheckTx"
+	BeginBlock = "BeginBlock"
+	DeliverTx  = "DeliverTx"
+	EndBlock   = "EndBlock"
+	Commit     = "Commit"
 )
 
 // copied from rpc
@@ -28,11 +36,11 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{
 		GasWanted: 1000,
 		GasUsed:   1000,
 	})
@@ -48,7 +56,7 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: validatorKey,
 	}
-	signingKey, _ := conv.GetNodeKey(nodeKey)
+	signingKey, _ := node.GetNodeKey(nodeKey)
 	pubKey := validatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{

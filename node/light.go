@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
 
+	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
@@ -27,7 +28,7 @@ type LightNode struct {
 
 	proxyApp proxy.AppConns
 
-	hExService *HeaderExchangeService
+	hExService *block.HeaderExchangeService
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -61,7 +62,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerExchangeService, err := NewHeaderExchangeService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
+	headerExchangeService, err := block.NewHeaderExchangeService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
