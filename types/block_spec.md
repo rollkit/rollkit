@@ -2,11 +2,51 @@
 
 ## Abstract
 
-Like all blockchains, rollups are composed of a chain of blocks from the rollup's genesis to its head, each consisting of metadata in the header, and transaction data in the body.
+Like all blockchains, rollups are defined as the chain of **valid** blocks from the genesis, to the head. Thus, the block and header validation rules define the chain.
 
-## Verification
+Verifying a block is done in 3 steps:
 
-Both full and light nodes perform validation of the block headers, full nodes additionally verify the block's body, and the correctness of the `AppHash` after verifying execution with the ABCI `proxyApp`.
+1. Verify correct serialization according to the protobuf spec
+
+2. Perform basic validation of the types
+
+3. Perform verification of the new block against the previous accepted block
+
+## Basic Validation
+
+Each type contains a `.ValidateBasic()` method, which verifies that certain basic invariants hold. The `ValidateBasic()` calls are nested, starting from the `Block` struct, all the way down to each subfield.
+
+The nested basic validation is called like:
+
+```go
+Block.ValidateBasic()
+  SignedHeader.ValidateBasic()
+    Header.ValidateBasic()
+	  ProposerAddress not nil
+	Commit.ValidateBasic()
+	  len(c.Signatures) not 0
+	Validators.ValidateBasic()
+	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
+	SignedHeader.Validators not nil (Based Rollup case)
+    SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
+    len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
+    (signature verification)
+  Data
+  Data.Hash() == SignedHeader.DataHash
+```
+
+## Verification Against Previous Block
+
+```go
+Block.Verify()
+  SignedHeader.Verify(untrustH *SignedHeader)
+    untrustH.ValidateBasic()
+	Header.Verify(untrustH *SignedHeader)
+	  // must be the header of the next block in the chain
+	  untrustH.Height == h.Height + 1
+	  // Must have correct aggregators, set by the ABCI App in the previous block
+	  bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:])
+```
 
 ## SignedHeader validation
 
