@@ -1,7 +1,7 @@
 package shares
 
 import (
-	"github.com/rollkit/rollkit/libs/celestia-app/appconsts"
+	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
 )
 
 func ParseCompactShares(shares []Share) (data [][]byte, err error) {
