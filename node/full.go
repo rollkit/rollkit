@@ -60,8 +60,8 @@ type FullNode struct {
 	// cache of chunked genesis data.
 	genChunks []string
 
-	conf config.NodeConfig
-	P2P  *p2p.Client
+	nodeConfig config.NodeConfig
+	p2pClient  *p2p.Client
 
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool    mempool.Mempool
@@ -89,7 +89,7 @@ type FullNode struct {
 // newFullNode creates a new Rollkit full node.
 func newFullNode(
 	ctx context.Context,
-	conf config.NodeConfig,
+	nodeConfig config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
@@ -110,11 +110,11 @@ func newFullNode(
 
 	var err error
 	var baseKV ds.TxnDatastore
-	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		baseKV, err = store.NewDefaultInMemoryKVStore()
 	} else {
-		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit")
+		baseKV, err = store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 	}
 	if err != nil {
 		return nil, err
@@ -124,42 +124,41 @@ func newFullNode(
 	dalcKV := newPrefixKV(baseKV, dalcPrefix)
 	indexerKV := newPrefixKV(baseKV, indexerPrefix)
 
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"))
+	client, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"))
 	if err != nil {
 		return nil, err
 	}
-	s := store.New(ctx, mainKV)
 
-	dalc := registry.GetClient(conf.DALayer)
+	dalc := registry.GetClient(nodeConfig.DALayer)
 	if dalc == nil {
-		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
+		return nil, fmt.Errorf("couldn't get data availability client named '%s'", nodeConfig.DALayer)
 	}
-	err = dalc.Init(conf.NamespaceID, []byte(conf.DAConfig), dalcKV, logger.With("module", "da_client"))
+	err = dalc.Init(nodeConfig.NamespaceID, []byte(nodeConfig.DAConfig), dalcKV, logger.With("module", "da_client"))
 	if err != nil {
 		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
 	}
 
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, conf, indexerKV, eventBus, logger)
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, nodeConfig, indexerKV, eventBus, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	mp := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
-	mpIDs := newMempoolIDs()
-	mp.EnableTxsAvailable()
+	mempool := mempoolv1.NewTxMempool(logger, llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mempool.EnableTxsAvailable()
 
-	headerExchangeService, err := block.NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
+	headerExchangeService, err := block.NewHeaderExchangeService(ctx, mainKV, nodeConfig, genesis, client, logger.With("module", "HeaderExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
 	}
 
-	blockExchangeService, err := block.NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
+	blockExchangeService, err := block.NewBlockExchangeService(ctx, mainKV, nodeConfig, genesis, client, logger.With("module", "BlockExchangeService"))
 	if err != nil {
 		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
 	}
 
 	doneBuildingChannel := make(chan struct{})
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.BlockStore())
+	store := store.New(ctx, mainKV)
+	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.BlockStore())
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -170,13 +169,13 @@ func newFullNode(
 		proxyApp:       proxyApp,
 		eventBus:       eventBus,
 		genesis:        genesis,
-		conf:           conf,
-		P2P:            client,
+		nodeConfig:     nodeConfig,
+		p2pClient:      client,
 		blockManager:   blockManager,
 		dalc:           dalc,
-		Mempool:        mp,
-		mempoolIDs:     mpIDs,
-		Store:          s,
+		Mempool:        mempool,
+		mempoolIDs:     newMempoolIDs(),
+		Store:          store,
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
@@ -188,7 +187,7 @@ func newFullNode(
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
-	node.P2P.SetTxValidator(node.newTxValidator())
+	node.p2pClient.SetTxValidator(node.newTxValidator())
 
 	return node, nil
 }
@@ -258,7 +257,7 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 func (n *FullNode) OnStart() error {
 
 	n.Logger.Info("starting P2P client")
-	err := n.P2P.Start(n.ctx)
+	err := n.p2pClient.Start(n.ctx)
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
@@ -275,9 +274,9 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 
-	if n.conf.Aggregator {
-		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
+	if n.nodeConfig.Aggregator {
+		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
+		go n.blockManager.AggregationLoop(n.ctx, n.nodeConfig.LazyAggregator)
 		go n.blockManager.BlockSubmissionLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 		go n.blockPublishLoop(n.ctx)
@@ -307,7 +306,7 @@ func (n *FullNode) OnStop() {
 	n.Logger.Info("halting full node...")
 	n.cancel()
 	err := n.dalc.Stop()
-	err = multierr.Append(err, n.P2P.Close())
+	err = multierr.Append(err, n.p2pClient.Close())
 	err = multierr.Append(err, n.hExService.Stop())
 	err = multierr.Append(err, n.bExService.Stop())
 	n.Logger.Error("errors while stopping node:", "errors", err)

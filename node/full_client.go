@@ -143,7 +143,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*cty
 	}
 
 	// broadcast tx
-	err = c.node.P2P.GossipTx(ctx, tx)
+	err = c.node.p2pClient.GossipTx(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("tx added to local mempool but failure to broadcast: %w", err)
 	}
@@ -192,7 +192,7 @@ func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx cmtypes.Tx) (*ctyp
 		return nil, err
 	}
 	// gossipTx optimistically
-	err = c.node.P2P.GossipTx(ctx, tx)
+	err = c.node.p2pClient.GossipTx(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("tx added to local mempool but failed to gossip: %w", err)
 	}
@@ -217,7 +217,7 @@ func (c *FullClient) BroadcastTxSync(ctx context.Context, tx cmtypes.Tx) (*ctype
 	// Note: we have to do this here because, unlike the tendermint mempool reactor, there
 	// is no routine that gossips transactions after they enter the pool
 	if r.Code == abci.CodeTypeOK {
-		err = c.node.P2P.GossipTx(ctx, tx)
+		err = c.node.p2pClient.GossipTx(ctx, tx)
 		if err != nil {
 			// the transaction must be removed from the mempool if it cannot be gossiped.
 			// if this does not occur, then the user will not be able to try again using
@@ -348,10 +348,10 @@ func (c *FullClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error)
 	res := ctypes.ResultNetInfo{
 		Listening: true,
 	}
-	for _, ma := range c.node.P2P.Addrs() {
+	for _, ma := range c.node.p2pClient.Addrs() {
 		res.Listeners = append(res.Listeners, ma.String())
 	}
-	peers := c.node.P2P.Peers()
+	peers := c.node.p2pClient.Peers()
 	res.NPeers = len(peers)
 	for _, peer := range peers {
 		res.Peers = append(res.Peers, ctypes.Peer{
@@ -716,7 +716,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		state.Version.Consensus.Block,
 		state.Version.Consensus.App,
 	)
-	id, addr, network, err := c.node.P2P.Info()
+	id, addr, network, err := c.node.p2pClient.Info()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load node p2p2 info: %w", err)
 	}
