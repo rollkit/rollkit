@@ -4,7 +4,7 @@
 
 Like all blockchains, rollups are defined as the chain of **valid** blocks from the genesis, to the head. Thus, the block and header validation rules define the chain.
 
-Verifying a block is done in 3 steps:
+Verifying a block / header is done in 3 parts:
 
 1. Verify correct serialization according to the protobuf spec
 
