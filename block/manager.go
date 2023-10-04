@@ -115,7 +115,6 @@ func NewManager(
 	dalc da.DataAvailabilityLayerClient,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
-	doneBuildingCh chan struct{},
 	blockStore *goheaderstore.Store[*types.Block],
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
@@ -182,7 +181,7 @@ func NewManager(
 		retrieveCh:        make(chan struct{}, 1),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
-		doneBuildingBlock: doneBuildingCh,
+		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
 		pendingBlocks:     NewPendingBlocks(),
 	}
