@@ -64,14 +64,14 @@ type FullNode struct {
 	P2P  *p2p.Client
 
 	// TODO(tzdybal): consider extracting "mempool reactor"
-	Mempool      mempool.Mempool
-	mempoolIDs   *mempoolIDs
-	incomingTxCh chan *p2p.GossipMessage
+	Mempool    mempool.Mempool
+	mempoolIDs *mempoolIDs
 
 	Store        store.Store
 	blockManager *block.Manager
 	dalc         da.DataAvailabilityLayerClient
 
+	// Preserves cometBFT compatibility
 	TxIndexer      txindex.TxIndexer
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
@@ -84,9 +84,6 @@ type FullNode struct {
 	ctx context.Context
 
 	cancel context.CancelFunc
-
-	// For use in Lazy Aggregator
-	DoneBuildingBlock chan struct{}
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -170,25 +167,23 @@ func newFullNode(
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
-		proxyApp:          proxyApp,
-		eventBus:          eventBus,
-		genesis:           genesis,
-		conf:              conf,
-		P2P:               client,
-		blockManager:      blockManager,
-		dalc:              dalc,
-		Mempool:           mp,
-		mempoolIDs:        mpIDs,
-		incomingTxCh:      make(chan *p2p.GossipMessage),
-		Store:             s,
-		TxIndexer:         txIndexer,
-		IndexerService:    indexerService,
-		BlockIndexer:      blockIndexer,
-		hExService:        headerExchangeService,
-		bExService:        blockExchangeService,
-		ctx:               ctx,
-		cancel:            cancel,
-		DoneBuildingBlock: doneBuildingChannel,
+		proxyApp:       proxyApp,
+		eventBus:       eventBus,
+		genesis:        genesis,
+		conf:           conf,
+		P2P:            client,
+		blockManager:   blockManager,
+		dalc:           dalc,
+		Mempool:        mp,
+		mempoolIDs:     mpIDs,
+		Store:          s,
+		TxIndexer:      txIndexer,
+		IndexerService: indexerService,
+		BlockIndexer:   blockIndexer,
+		hExService:     headerExchangeService,
+		bExService:     blockExchangeService,
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
