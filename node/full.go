@@ -52,115 +52,95 @@ var _ Node = &FullNode{}
 // It connects all the components and orchestrates their work.
 type FullNode struct {
 	service.BaseService
-	eventBus *cmtypes.EventBus
-	proxyApp proxy.AppConns
 
 	genesis *cmtypes.GenesisDoc
 	// cache of chunked genesis data.
 	genChunks []string
 
-	conf config.NodeConfig
-	P2P  *p2p.Client
+	nodeConfig config.NodeConfig
 
+	proxyApp   proxy.AppConns
+	eventBus   *cmtypes.EventBus
+	dalc       da.DataAvailabilityLayerClient
+	p2pClient  *p2p.Client
+	hExService *block.HeaderExchangeService
+	bExService *block.BlockExchangeService
 	// TODO(tzdybal): consider extracting "mempool reactor"
-	Mempool    mempool.Mempool
-	mempoolIDs *mempoolIDs
-
+	Mempool      mempool.Mempool
+	mempoolIDs   *mempoolIDs
 	Store        store.Store
 	blockManager *block.Manager
-	dalc         da.DataAvailabilityLayerClient
 
 	// Preserves cometBFT compatibility
 	TxIndexer      txindex.TxIndexer
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
 
-	hExService *block.HeaderExchangeService
-	bExService *block.BlockExchangeService
-
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
-	ctx context.Context
-
+	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // newFullNode creates a new Rollkit full node.
 func newFullNode(
 	ctx context.Context,
-	conf config.NodeConfig,
+	nodeConfig config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
 ) (*FullNode, error) {
-	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
-	}
-
-	eventBus := cmtypes.NewEventBus()
-	eventBus.SetLogger(logger.With("module", "events"))
-	if err := eventBus.Start(); err != nil {
+	proxyApp, err := initProxyApp(clientCreator, logger)
+	if err != nil {
 		return nil, err
 	}
 
-	var err error
-	var baseKV ds.TxnDatastore
-	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
-		logger.Info("WARNING: working in in-memory mode")
-		baseKV, err = store.NewDefaultInMemoryKVStore()
-	} else {
-		baseKV, err = store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit")
+	eventBus, err := initEventBus(logger)
+	if err != nil {
+		return nil, err
 	}
+
+	baseKV, err := initBaseKV(nodeConfig, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	dalcKV := newPrefixKV(baseKV, dalcPrefix)
+	dalc, err := initDALC(nodeConfig, dalcKV, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"))
 	if err != nil {
 		return nil, err
 	}
 
 	mainKV := newPrefixKV(baseKV, mainPrefix)
-	dalcKV := newPrefixKV(baseKV, dalcPrefix)
+	headerExchangeService, err := initHeaderExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	blockExchangeService, err := initBlockExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	mempool := initMempool(logger, proxyApp)
+
+	store := store.New(ctx, mainKV)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockExchangeService)
+	if err != nil {
+		return nil, err
+	}
+
 	indexerKV := newPrefixKV(baseKV, indexerPrefix)
-
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"))
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, nodeConfig, indexerKV, eventBus, logger)
 	if err != nil {
 		return nil, err
-	}
-	s := store.New(ctx, mainKV)
-
-	dalc := registry.GetClient(conf.DALayer)
-	if dalc == nil {
-		return nil, fmt.Errorf("couldn't get data availability client named '%s'", conf.DALayer)
-	}
-	err = dalc.Init(conf.NamespaceID, []byte(conf.DAConfig), dalcKV, logger.With("module", "da_client"))
-	if err != nil {
-		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
-	}
-
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, conf, indexerKV, eventBus, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	mp := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
-	mpIDs := newMempoolIDs()
-	mp.EnableTxsAvailable()
-
-	headerExchangeService, err := block.NewHeaderExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
-	if err != nil {
-		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
-	}
-
-	blockExchangeService, err := block.NewBlockExchangeService(ctx, mainKV, conf, genesis, client, logger.With("module", "BlockExchangeService"))
-	if err != nil {
-		return nil, fmt.Errorf("BlockExchangeService initialization error: %w", err)
-	}
-
-	doneBuildingChannel := make(chan struct{})
-	blockManager, err := block.NewManager(signingKey, conf.BlockManagerConfig, genesis, s, mp, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), doneBuildingChannel, blockExchangeService.BlockStore())
-	if err != nil {
-		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -169,13 +149,13 @@ func newFullNode(
 		proxyApp:       proxyApp,
 		eventBus:       eventBus,
 		genesis:        genesis,
-		conf:           conf,
-		P2P:            client,
+		nodeConfig:     nodeConfig,
+		p2pClient:      p2pClient,
 		blockManager:   blockManager,
 		dalc:           dalc,
-		Mempool:        mp,
-		mempoolIDs:     mpIDs,
-		Store:          s,
+		Mempool:        mempool,
+		mempoolIDs:     newMempoolIDs(),
+		Store:          store,
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
@@ -186,10 +166,78 @@ func newFullNode(
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
-
-	node.P2P.SetTxValidator(node.newTxValidator())
+	node.p2pClient.SetTxValidator(node.newTxValidator())
 
 	return node, nil
+}
+
+func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.AppConns, error) {
+	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
+	proxyApp.SetLogger(logger.With("module", "proxy"))
+	if err := proxyApp.Start(); err != nil {
+		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+	}
+	return proxyApp, nil
+}
+
+func initEventBus(logger log.Logger) (*cmtypes.EventBus, error) {
+	eventBus := cmtypes.NewEventBus()
+	eventBus.SetLogger(logger.With("module", "events"))
+	if err := eventBus.Start(); err != nil {
+		return nil, err
+	}
+	return eventBus, nil
+}
+
+// initBaseKV initializes the base key-value store.
+func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
+	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
+		logger.Info("WARNING: working in in-memory mode")
+		return store.NewDefaultInMemoryKVStore()
+	}
+	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
+}
+
+func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (da.DataAvailabilityLayerClient, error) {
+	dalc := registry.GetClient(nodeConfig.DALayer)
+	if dalc == nil {
+		return nil, fmt.Errorf("couldn't get data availability client named '%s'", nodeConfig.DALayer)
+	}
+	err := dalc.Init(nodeConfig.NamespaceID, []byte(nodeConfig.DAConfig), dalcKV, logger.With("module", "da_client"))
+	if err != nil {
+		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
+	}
+	return dalc, nil
+}
+
+func initMempool(logger log.Logger, proxyApp proxy.AppConns) *mempool.CListMempool {
+	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+	mempool.EnableTxsAvailable()
+	return mempool
+}
+
+func initHeaderExchangeService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderExchangeService, error) {
+	headerExchangeService, err := block.NewHeaderExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderExchangeService"))
+	if err != nil {
+		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
+	}
+	return headerExchangeService, nil
+}
+
+func initBlockExchangeService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.BlockExchangeService, error) {
+	blockExchangeService, err := block.NewBlockExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "BlockExchangeService"))
+	if err != nil {
+		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
+	}
+	return blockExchangeService, nil
+}
+
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc da.DataAvailabilityLayerClient, eventBus *cmtypes.EventBus, logger log.Logger, blockExchangeService *block.BlockExchangeService) (*block.Manager, error) {
+	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockExchangeService.BlockStore())
+	if err != nil {
+		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
+	}
+	return blockManager, nil
 }
 
 // initGenesisChunks creates a chunked format of the genesis document to make it easier to
@@ -257,7 +305,7 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 func (n *FullNode) OnStart() error {
 
 	n.Logger.Info("starting P2P client")
-	err := n.P2P.Start(n.ctx)
+	err := n.p2pClient.Start(n.ctx)
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
@@ -274,9 +322,9 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting data availability layer client: %w", err)
 	}
 
-	if n.conf.Aggregator {
-		n.Logger.Info("working in aggregator mode", "block time", n.conf.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx, n.conf.LazyAggregator)
+	if n.nodeConfig.Aggregator {
+		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
+		go n.blockManager.AggregationLoop(n.ctx, n.nodeConfig.LazyAggregator)
 		go n.blockManager.BlockSubmissionLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 		go n.blockPublishLoop(n.ctx)
@@ -306,7 +354,7 @@ func (n *FullNode) OnStop() {
 	n.Logger.Info("halting full node...")
 	n.cancel()
 	err := n.dalc.Stop()
-	err = multierr.Append(err, n.P2P.Close())
+	err = multierr.Append(err, n.p2pClient.Close())
 	err = multierr.Append(err, n.hExService.Stop())
 	err = multierr.Append(err, n.bExService.Stop())
 	n.Logger.Error("errors while stopping node:", "errors", err)
