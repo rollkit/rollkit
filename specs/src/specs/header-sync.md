@@ -48,7 +48,6 @@ The header sync implementation can be found in [node/header_exchange.go][header 
 
 [4] [go-header][go-header]
 
-
 [header exchange]: https://github.com/rollkit/rollkit/blob/main/node/header_exchange.go
 [fullnode]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [lightnode]: https://github.com/rollkit/rollkit/blob/main/node/light.go
