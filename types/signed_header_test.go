@@ -3,7 +3,6 @@ package types
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -15,10 +14,6 @@ func TestSignedHeader(t *testing.T) {
 	// Generate a random signed header
 	trusted, privKey, err := GetRandomSignedHeader()
 	require.NoError(t, err)
-
-	// Wait for a second to ensure time difference before generating the next header
-	time.Sleep(time.Second)
-
 	// Get the next random header
 	untrustedAdj, err := GetNextRandomHeader(trusted, privKey)
 	require.NoError(t, err)
