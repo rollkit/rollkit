@@ -33,7 +33,6 @@ func TestStartup(t *testing.T) {
 	ctx := context.Background()
 	node := initializeAndStartNode(ctx, require, assert)
 	defer cleanUpNode(node, assert)
-	assert.True(node.IsRunning())
 }
 
 func TestMempoolDirectly(t *testing.T) {
@@ -91,6 +90,7 @@ func initializeAndStartNode(ctx context.Context, require *require.Assertions, as
 	assert.False(node.IsRunning())
 	err := node.Start()
 	assert.NoError(err)
+	assert.True(node.IsRunning())
 	return node
 }
 
