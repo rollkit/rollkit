@@ -1,20 +1,20 @@
-# P2P Header Sync
+# Header Sync
 
 ## Abstract
 
 The nodes in the P2P network sync headers using the header sync service that implements the [go-header][go-header] interface. The header sync service consists of several components as listed below.
 
-| Component  | Description                                                                                                                                                                |
-| --- | --- |
-| store      | a `headerEx` prefixed [datastore][datastore] where synced headers are stored                                                                                                          |
-| subscriber | a [libp2p][libp2p] node pubsub subscriber                                                                                                                                            |
-| p2p server | a server for handling header requests between peers in the p2p network                                                                                                     |
-| exchange   | a client that enables sending in/out-bound header requests from/to the p2p network                                                                                         |
-| syncer     | a service for efficient synchronization for headers. When a p2p node falls behind and wants to catch up to the latest network head via p2p network, it can use the syncer. |
+|Component|Description|
+|---|---|
+|store| a `headerEx` prefixed [datastore][datastore] where synced headers are stored|
+|subscriber | a [libp2p][libp2p] node pubsub subscriber|
+|p2p server| a server for handling header requests between peers in the p2p network|
+|exchange| a client that enables sending in/out-bound header requests from/to the p2p network|
+|syncer| a service for efficient synchronization for headers. When a p2p node falls behind and wants to catch up to the latest network head via p2p network, it can use the syncer.|
 
 ## Details
 
-All three types of nodes (sequencer, full, and light) run the p2p header sync service to maintain the cannonical view of the rollup chain (with respect to the p2p network).
+All three types of nodes (sequencer, full, and light) run the header sync service to maintain the cannonical view of the rollup chain (with respect to the p2p network).
 
 The header sync service inherits the `ConnectionGater` from the node's p2p client which enables blocking and allowing peers as needed by specifying the `P2PConfig.BlockedPeers` and `P2PConfig.AllowedPeers`.
 
@@ -24,7 +24,7 @@ Both header and block sync utilizes [go-header][go-header] library and runs two 
 
 ### Consumption of Header Sync
 
-The sequencer node, upon successfully creating the block, publishes the signed block header to the p2p network using the p2p header sync service. The full/light nodes run the header sync service in the background to receive and store the signed headers from the p2p network. Currently the full/light nodes do not consume the p2p synced headers, however they have utilities to perform certain checks.
+The sequencer node, upon successfully creating the block, publishes the signed block header to the p2p network using the header sync service. The full/light nodes run the header sync service in the background to receive and store the signed headers from the p2p network. Currently the full/light nodes do not consume the p2p synced headers, however they have future utilities in performing certain checks.
 
 ## Assumptions
 
@@ -48,7 +48,7 @@ The header sync implementation can be found in [node/header_exchange.go][header 
 
 [4] [go-header][go-header]
 
-[header exchange]: https://github.com/rollkit/rollkit/blob/main/node/header_exchange.go
+[header exchange]: https://github.com/rollkit/rollkit/blob/main/block/header_exchange.go
 [fullnode]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [lightnode]: https://github.com/rollkit/rollkit/blob/main/node/light.go
 [go-header]: https://github.com/celestiaorg/go-header
