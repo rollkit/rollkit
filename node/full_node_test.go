@@ -30,21 +30,9 @@ func TestStartup(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	app := setupMockApplication()
-	key, signingKey := generateKeys()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
-
-	assert.False(node.IsRunning())
-
-	err = node.Start()
-	assert.NoError(err)
-	defer func() {
-		assert.NoError(node.Stop())
-	}()
+	ctx := context.Background()
+	node := initializeAndStartNode(ctx, require, assert)
+	defer cleanUpNode(node, assert)
 	assert.True(node.IsRunning())
 }
 
@@ -52,30 +40,23 @@ func TestMempoolDirectly(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	app := setupMockApplication()
-	key, signingKey := generateKeys()
-	anotherKey := generateSingleKey()
+	ctx := context.Background()
+	node := initializeAndStartNode(ctx, require, assert)
+	defer cleanUpNode(node, assert)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	node, err := setupNode(ctx, key, signingKey, app)
-	require.NoError(err)
-	require.NotNil(node)
-
-	err = node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(node.Stop())
-	}()
-
-	pid := getPeerID(anotherKey, require)
-
-	checkTransactions(node, pid, require)
-
-	checkMempoolSize(node, require)
+	peerID := getPeerID(assert)
+	verifyTransactions(node, peerID, assert)
+	verifyMempoolSize(node, assert)
 }
 
+// cleanUpNode stops the node and checks if it is running
+func cleanUpNode(node *FullNode, assert *assert.Assertions) {
+	defer node.cancel()
+	assert.NoError(node.Stop())
+	assert.False(node.IsRunning())
+}
+
+// setupMockApplication initializes a mock application
 func setupMockApplication() *mocks.Application {
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
@@ -83,39 +64,58 @@ func setupMockApplication() *mocks.Application {
 	return app
 }
 
-func generateKeys() (crypto.PrivKey, crypto.PrivKey) {
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	return key, signingKey
-}
-
+// generateSingleKey generates a single private key
 func generateSingleKey() crypto.PrivKey {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	return key
 }
 
-func setupNode(ctx context.Context, key crypto.PrivKey, signingKey crypto.PrivKey, app *mocks.Application) (*FullNode, error) {
+// newTestNode creates a new test node
+func newTestNode(ctx context.Context, key crypto.PrivKey, signingKey crypto.PrivKey, app *mocks.Application) (*FullNode, error) {
 	return newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 }
 
-func getPeerID(key crypto.PrivKey, require *require.Assertions) peer.ID {
-	pid, err := peer.IDFromPrivateKey(key)
+// setupTestNode sets up a test node
+func setupTestNode(ctx context.Context, require *require.Assertions) *FullNode {
+	app := setupMockApplication()
+	key, signingKey := generateSingleKey(), generateSingleKey()
+	node, err := newTestNode(ctx, key, signingKey, app)
 	require.NoError(err)
-	return pid
+	require.NotNil(node)
+	return node
 }
 
-func checkTransactions(node *FullNode, pid peer.ID, require *require.Assertions) {
+// initializeAndStartNode initializes and starts a test node
+func initializeAndStartNode(ctx context.Context, require *require.Assertions, assert *assert.Assertions) *FullNode {
+	node := setupTestNode(ctx, require)
+	assert.False(node.IsRunning())
+	err := node.Start()
+	assert.NoError(err)
+	return node
+}
+
+// getPeerID generates a peer ID
+func getPeerID(assert *assert.Assertions) peer.ID {
+	key := generateSingleKey()
+	peerID, err := peer.IDFromPrivateKey(key)
+	assert.NoError(err)
+	return peerID
+}
+
+// verifyTransactions checks if transactions are valid
+func verifyTransactions(node *FullNode, peerID peer.ID, assert *assert.Assertions) {
 	transactions := []string{"tx1", "tx2", "tx3", "tx4"}
 	for _, tx := range transactions {
 		err := node.Mempool.CheckTx([]byte(tx), func(r *abci.Response) {}, mempool.TxInfo{
-			SenderID: node.mempoolIDs.GetForPeer(pid),
+			SenderID: node.mempoolIDs.GetForPeer(peerID),
 		})
-		require.NoError(err)
+		assert.NoError(err)
 	}
 }
 
-func checkMempoolSize(node *FullNode, require *require.Assertions) {
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+// verifyMempoolSize checks if the mempool size is as expected
+func verifyMempoolSize(node *FullNode, assert *assert.Assertions) {
+	assert.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
 		expectedSize := int64(4 * len("tx*"))
 		actualSize := node.Mempool.SizeBytes()
 		if expectedSize == actualSize {
