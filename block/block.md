@@ -37,9 +37,9 @@ Block manager configuration options:
 
 When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: `normal` and `lazy`.
 
-In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously publishes blocks at `BlockTime` intervals.
+In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously produces blocks at `BlockTime` intervals.
 
-In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish before finalizing the block, in order to collect as many transactions from the mempool as possible. The 1 second delay is chosen in accordance with the default block time of 1s. The block manager also notifies the full node after every lazy block building.
+In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish, in order to collect as many transactions from the mempool as possible. The 1 second delay is chosen in accordance with the default block time of 1s. The block manager also notifies the full node after every lazy block building.
 
 #### Building the Block
 
@@ -54,7 +54,7 @@ The block manager of the sequencer nodes performs the following steps to produce
 
 ### Block Publication to DA Network
 
-The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform `maxSubmitAttempts` (default is 30) attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at 100 milliseconds and it doubles in the next attempt and capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting.
+The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform `maxSubmitAttempts` (default is 30) attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at 100 milliseconds and it doubles in the next attempt and capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting and without emptying of `pendingBlocks` queue.
 
 ### Block Retrieval from DA Network
 
