@@ -28,8 +28,8 @@ Block manager configuration options:
 
 |Name|Type|Description|
 |-----|-----|-----|
-|BlockTime|time.Duration|time interval used for block production and block retrieval from block store (default: 1 second)|
-|DABlockTime|time.Duration|time interval used for both block publication to DA network and block retrieval from DA network (default: 15 seconds)|
+|BlockTime|time.Duration|time interval used for block production and block retrieval from block store ([`defaultBlockTime`][defaultBlockTime])|
+|DABlockTime|time.Duration|time interval used for both block publication to DA network and block retrieval from DA network ([`defaultDABlockTime`][defaultDABlockTime])|
 |DAStartHeight|uint64|block retrieval from DA network starts from this height|
 |NamespaceID|bytes|8 `byte` unique identifier of the rollup|
 
@@ -54,7 +54,7 @@ The block manager of the sequencer nodes performs the following steps to produce
 
 ### Block Publication to DA Network
 
-The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform `maxSubmitAttempts` (default is 30) attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at 100 milliseconds and it doubles in the next attempt and capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting and without emptying of `pendingBlocks` queue.
+The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform [`maxSubmitAttempts`][maxSubmitAttempts] attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at [`initialBackoff`][initialBackoff] and it doubles in the next attempt and capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting and without emptying of `pendingBlocks` queue.
 
 ### Block Retrieval from DA Network
 
@@ -103,3 +103,8 @@ The communication between the full node and block manager:
 See [block/manager.go](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
 
 ## References
+
+[maxSubmitAttempts]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39
+[defaultBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L35
+[defaultDABlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L32
+[initialBackoff]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L48
