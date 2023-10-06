@@ -15,8 +15,6 @@ Messages within the Rollkit protocol are structured as specified in the types pa
 ## Assumptions and Considerations
 
 * Nodes operate under the same version of the protocol.
-* Messages exchanged between nodes are reliable and received in the correct order.
-* Network latency and message loss may impact the state transition process.
 
 ## Implementation
 
