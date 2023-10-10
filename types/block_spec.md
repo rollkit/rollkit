@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Like all blockchains, rollups are defined as the chain of **valid** blocks from the genesis, to the head. Thus, the block and header validation rules define the chain.
+Like all blockchains, rollups are defined as the chain of **valid** blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.
 
 Verifying a block / header is done in 3 parts:
 
@@ -20,18 +20,36 @@ The nested basic validation, and validation checks, are called as follows:
 
 ```go
 Block.ValidateBasic()
+  // Make sure the block's SignedHeader passes basic validation
   SignedHeader.ValidateBasic()
+    // Make sure the SignedHeader's Header passes basic validation
     Header.ValidateBasic()
 	  verify ProposerAddress not nil
+	// Make sure the SignedHeader's Commit passes basic validation
 	Commit.ValidateBasic()
+	  // Ensure that someone signed the block
 	  verify len(c.Signatures) not 0
+	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, pass validation and skip all remaining checks.
 	Validators.ValidateBasic()
 	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
-	SignedHeader.Validators not nil (Based Rollup case)
-    SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-    len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
-    (signature verification)
-  Data.ValidateBasic()
+	  verify sh.Validators is not nil, and len(sh.Validators.Validators) != 0
+	  // apply basic validation to all Validators
+	  for each validator:
+	    validator.ValidateBasic()
+		  validate not nil
+		  validator.PubKey not nil
+		  validator.VotingPower >= 0
+		  validator.Address == correct size
+	  // apply ValidateBasic to the proposer field:
+	  sh.Validators.Proposer.ValidateBasic()
+		validate not nil
+		validator.PubKey not nil
+		validator.VotingPower >= 0
+		validator.Address == correct size
+    Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
+    Assert that len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
+	Verify the 1 signature
+  Data.ValidateBasic() // always passes
   // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
   Data.Hash() == SignedHeader.DataHash
 ```
