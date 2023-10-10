@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.1
 
 require (
-	github.com/celestiaorg/go-header v0.4.0
+	github.com/celestiaorg/go-header v0.3.3
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/celestiaorg/utils v0.1.0
