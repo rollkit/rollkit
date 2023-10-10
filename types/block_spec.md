@@ -16,22 +16,23 @@ Verifying a block / header is done in 3 parts:
 
 Each type contains a `.ValidateBasic()` method, which verifies that certain basic invariants hold. The `ValidateBasic()` calls are nested, starting from the `Block` struct, all the way down to each subfield.
 
-The nested basic validation is called like:
+The nested basic validation, and validation checks, are called as follows:
 
 ```go
 Block.ValidateBasic()
   SignedHeader.ValidateBasic()
     Header.ValidateBasic()
-	  ProposerAddress not nil
+	  verify ProposerAddress not nil
 	Commit.ValidateBasic()
-	  len(c.Signatures) not 0
+	  verify len(c.Signatures) not 0
 	Validators.ValidateBasic()
 	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
 	SignedHeader.Validators not nil (Based Rollup case)
     SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
     len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
     (signature verification)
-  Data
+  Data.ValidateBasic()
+  // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
   Data.Hash() == SignedHeader.DataHash
 ```
 
@@ -40,7 +41,8 @@ Block.ValidateBasic()
 ```go
 Block.Verify()
   SignedHeader.Verify(untrustH *SignedHeader)
-    untrustH.ValidateBasic()
+    // basic validation removed in #1231, because go-header already validates it
+    //untrustH.ValidateBasic()
 	Header.Verify(untrustH *SignedHeader)
 	  // must be the header of the next block in the chain
 	  untrustH.Height == h.Height + 1
