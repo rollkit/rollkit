@@ -29,7 +29,7 @@ Block.ValidateBasic()
 	Commit.ValidateBasic()
 	  // Ensure that someone signed the block
 	  verify len(c.Signatures) not 0
-	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, pass validation and skip all remaining checks.
+	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
 	Validators.ValidateBasic()
 	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
 	  verify sh.Validators is not nil, and len(sh.Validators.Validators) != 0
