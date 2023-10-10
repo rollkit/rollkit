@@ -35,16 +35,7 @@ var (
 )
 
 func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
-	// TODO(@Wondertan):
-	//  We keep this check because of how unit tests are structured where TestVerify tests both ValidateBasic and Verify.
-	//  While the check is redundant as go-header ensures untrustH passed ValidateBasic before.
-	//  Decoupling TestVerify into TestValidateBasic and TestVerify would allow to remove this check.
-	if err := untrstH.ValidateBasic(); err != nil {
-		return &header.VerifyError{
-			Reason: err,
-		}
-	}
-
+	// go-header ensures untrustH already passed ValidateBasic.
 	if err := sh.Header.Verify(&untrstH.Header); err != nil {
 		return &header.VerifyError{
 			Reason: err,
