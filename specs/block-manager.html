@@ -3,34 +3,33 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Rollkit Specifications</title>
-        <meta name="robots" content="noindex" />
+        <title>Block - Rollkit Specifications</title>
         <!-- Custom HTML head -->
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
     </head>
     <body>
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
-            var path_to_root = "";
+            var path_to_root = "../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
@@ -76,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="chapter-item expanded "><a href="specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="specs/p2p.html"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html" class="active"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -108,7 +107,7 @@
                     <h1 class="menu-title">Rollkit Specifications</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/rollkit/rollkit" title="Git repository" aria-label="Git repository">
@@ -138,45 +137,8 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="welcome"><a class="header" href="#welcome">Welcome</a></h1>
-<p>Welcome to the Rollkit Specifications.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="protocolcomponent-name"><a class="header" href="#protocolcomponent-name">Protocol/Component Name</a></h1>
+                        <h1 id="block"><a class="header" href="#block">Block</a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
-<p>Provide a concise description of the purpose of the component for which the
-specification is written, along with its contribution to the rollkit or
-other relevant parts of the system. Make sure to include proper references to
-the relevant sections.</p>
-<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
-<p>Offer a comprehensive explanation of the protocol, covering aspects such as data
-flow, communication mechanisms, and any other details necessary for
-understanding the inner workings of this component.</p>
-<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
-<p>If this particular component is expected to communicate over the network,
-outline the structure of the message protocol, including details such as field
-interpretation, message format, and any other relevant information.</p>
-<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
-<p>If there are any assumptions required for the component's correct operation,
-performance, security, or other expected features, outline them here.
-Additionally, provide any relevant considerations related to security or other
-concerns.</p>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>Include a link to the location where the implementation of this protocol can be
-found. Note that specific implementation details should be documented in the
-rollkit repository rather than in the specification document.</p>
-<h2 id="references"><a class="header" href="#references">References</a></h2>
-<p>List any references used or cited in the document.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rollkit-dependency-graph"><a class="header" href="#rollkit-dependency-graph">Rollkit Dependency Graph</a></h1>
-<p><img src="specs/./dependency-graph.drawio.svg" alt="Dependency Graph" /></p>
-<p>We use the following color coding in this Graph:</p>
-<ul>
-<li>No Colour: Work not yet started</li>
-<li>Yellow Box: Work in progress</li>
-<li>Green Box: Work completed or at least unblocking the next dependency</li>
-<li>Red Border: Work needs to happen in cooperation with another team</li>
-</ul>
-<p>If the EPICs are not linked to the box yet, it means that this box has currently no priority or is still in the ideation phase or the dependency is unclear.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="block"><a class="header" href="#block">Block</a></h1>
-<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
 <p>The block manager is a key component of full nodes and is responsible for block production or block syncing depending on the node type. Block syncing in this context includes retrieving the published blocks from the network (p2p network or DA network), validating them to raise fraud proofs upon validation failure, updating the state, and storing the validated blocks. A full node invokes multiple block manager functionalities in parallel, such as:</p>
 <ul>
 <li>block production (only for sequencer full nodes)</li>
@@ -185,7 +147,7 @@ rollkit repository rather than in the specification document.</p>
 <li>block retrieval from Blockstore (which retrieves blocks from the p2p network)</li>
 <li>block syncing</li>
 </ul>
-<h2 id="protocolcomponent-description-1"><a class="header" href="#protocolcomponent-description-1">Protocol/Component Description</a></h2>
+<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
 <p>The block manager is initialized using several parameters as defined below:</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Name</strong></th><th><strong>Type</strong></th><th><strong>Description</strong></th></tr></thead><tbody>
 <tr><td>signing key</td><td>crypto.PrivKey</td><td>used for signing a block after it is created</td></tr>
@@ -234,7 +196,7 @@ rollkit repository rather than in the specification document.</p>
 <li><code>Commit</code> using executor: commit the execution and changes, update mempool, and publish events</li>
 <li>Store the block, the validators, and the updated state.</li>
 </ul>
-<h2 id="message-structurecommunication-format-1"><a class="header" href="#message-structurecommunication-format-1">Message Structure/Communication Format</a></h2>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
 <p>The communication between the block manager and executor:</p>
 <ul>
 <li><code>InitChain</code>: using the genesis, a set of parameters, and validator set to invoke <code>InitChainSync</code> on the proxyApp to obtain initial <code>appHash</code> and initialize the state.</li>
@@ -247,7 +209,7 @@ rollkit repository rather than in the specification document.</p>
 <li>Notify when the block is published</li>
 <li>Notify when the block is done lazy building</li>
 </ul>
-<h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
 <ul>
 <li>The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.</li>
 <li>The default mode for sequencer nodes is normal (not lazy).</li>
@@ -255,26 +217,32 @@ rollkit repository rather than in the specification document.</p>
 <li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.toml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
 <li>The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using p2p block sync, but later was hard confirmed by DA retrieval. The block is only set hard confirmed in this case.</li>
 </ul>
-<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block/manager.go</a></p>
-<h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="da"><a class="header" href="#da">DA</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="mempool"><a class="header" href="#mempool">Mempool</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="node"><a class="header" href="#node">Node</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="p2p"><a class="header" href="#p2p">P2P</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="state"><a class="header" href="#state">State</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="store"><a class="header" href="#store">Store</a></h1>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../specs/da.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
                         <div style="clear: both"></div>
                     </nav>
                 </div>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../specs/da.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
             </nav>
 
         </div>
@@ -282,18 +250,13 @@ rollkit repository rather than in the specification document.</p>
         <script type="text/javascript">
             window.playground_copyable = true;
         </script>
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
-        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
-        <script type="text/javascript">
-        window.addEventListener('load', function() {
-            window.setTimeout(window.print, 100);
-        });
-        </script>
     </body>
 </html>
