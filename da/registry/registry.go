@@ -2,6 +2,8 @@ package registry
 
 import (
 	"fmt"
+	"github.com/rollkit/go-da/test"
+	"github.com/rollkit/rollkit/da/newda"
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/celestia"
@@ -23,6 +25,11 @@ var clients = map[string]func() da.DataAvailabilityLayerClient{
 	"mock":     func() da.DataAvailabilityLayerClient { return &mock.DataAvailabilityLayerClient{} },
 	"grpc":     func() da.DataAvailabilityLayerClient { return &grpc.DataAvailabilityLayerClient{} },
 	"celestia": func() da.DataAvailabilityLayerClient { return &celestia.DataAvailabilityLayerClient{} },
+	"newda": func() da.DataAvailabilityLayerClient {
+		return &newda.NewDA{
+			DA: test.NewDummyDA(),
+		}
+	},
 }
 
 // GetClient returns client identified by name.
