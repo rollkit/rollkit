@@ -57,15 +57,22 @@ Block.ValidateBasic()
 ## Verification Against Previous Block
 
 ```go
+// (Block.Verify is currenty unimplemented)
 Block.Verify()
   SignedHeader.Verify(untrustH *SignedHeader)
     // basic validation removed in #1231, because go-header already validates it
     //untrustH.ValidateBasic()
 	Header.Verify(untrustH *SignedHeader)
-	  // must be the header of the next block in the chain
-	  untrustH.Height == h.Height + 1
-	  // Must have correct aggregators, set by the ABCI App in the previous block
-	  bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:])
+	  if untrustH.Height == h.Height + 1, then apply the following check:
+	    untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]
+	if untrustH.Height > h.Height + 1:
+	  soft verification failure	
+	// We should know they're adjacent now,
+	// verify the link to previous.
+	untrustH.LastHeaderHash == h.Header.Hash()
+	// Verify LastCommit hash
+	untrustH.LastCommitHash == sh.Commit.GetCommitHash(...)
+	
 ```
 
 ## SignedHeader validation
