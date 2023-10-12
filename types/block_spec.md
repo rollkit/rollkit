@@ -84,6 +84,21 @@ Block.Verify()
 
 ## [SignedHeader](https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16)
 
+| **Field Name**      | **Valid State**                                                                            | **Validation**                        |
+|---------------------|--------------------------------------------------------------------------------------------|---------------------------------------|
+| Height              | Height of the previous accepted header, plus 1.                                            | checked in the Verify() step          |
+| Time                | Timestamp of the block                                                                     | Not validated in Rollkit              |
+| ChainID             | The hard-coded ChainID of the chain                                                        | Should be checked as soon as possible |
+| Version             | ???                                                                                        | ???                                   |
+| LastHeaderHash      | The hash of the previous accepted block                                                    | checked in the Verify() step          |
+| LastCommitHash      | The hash of the previous accepted block's commit                                           | checked in the Verify() step          |
+| DataHash            | Correct hash of the block's Data field                                                     | checked in the ValidateBasic() step   |
+| ConsensusHash       | ???                                                                                        | ???                                   |
+| AppHash             | The correct state root after executing the block's transactions against the accepted state | checked during block execution        |
+| LastResultsHash     | Correct results from executing transactions                                                | checked during block execution        |
+| ProposerAddress     | Address of the expected proposer                                                           | checked in the Verify() step          |
+| AggregatorsHash     | Matches the NextAggregatorsHash of the previous accepted block                             | checked in the Verify() step          |
+| NextAggregatorsHash | Set during block execution, according to the ABCI app                                      | checked during block execution        |
 ## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L25)
 
 ## [Commit](https://github.com/rollkit/rollkit/blob/main/types/block.go#L48)
