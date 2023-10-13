@@ -28,19 +28,19 @@ The sequencer node, upon successfully creating the block, publishes the signed b
 
 ## Assumptions
 
-* The header sync store is created by prefixing `headerEx` the main datastore.
+* The header sync store is created by prefixing `headerSync` the main datastore.
 * The genesis `ChainID` is used to create the `PubsubTopicID` in [go-header][go-header]. For example, for ChainID `gm`, the pubsub topic id is `/gm/header-sub/v0.0.1`. Refer to go-header specs for further details.
-* The header store must be initialized with genesis header before starting the syncer service. The genesis header can be loaded by passing the genesis header hash via `NodeConfig.TrustedHash` configuration parameter or by querying the P2P network. This imposes a time constraint that full/light nodes have to wait for the sequencer to publish the genesis header to the P2P network before starting the P2P header sync service.
+* The header store must be initialized with genesis header before starting the syncer service. The genesis header can be loaded by passing the genesis header hash via `NodeConfig.TrustedHash` configuration parameter or by querying the P2P network. This imposes a time constraint that full/light nodes have to wait for the sequencer to publish the genesis header to the P2P network before starting the header sync service.
 * The Header Sync works only when the node is connected to the P2P network by specifying the initial seeds to connect to via the `P2PConfig.Seeds` configuration parameter.
 * The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
 
 ## Implementation
 
-The header sync implementation can be found in [node/header_exchange.go][header exchange]. The full and light nodes create and start the header sync service under [full][fullnode] and [light][lightnode].
+The header sync implementation can be found in [node/header_sync.go][header sync]. The full and light nodes create and start the header sync service under [full][fullnode] and [light][lightnode].
 
 ## References
 
-[1] [Header Exchange][header exchange]
+[1] [Header Sync][header sync]
 
 [2] [Full Node][fullnode]
 
@@ -48,7 +48,7 @@ The header sync implementation can be found in [node/header_exchange.go][header 
 
 [4] [go-header][go-header]
 
-[header exchange]: https://github.com/rollkit/rollkit/blob/main/block/header_exchange.go
+[header sync]: https://github.com/rollkit/rollkit/blob/main/block/header_sync.go
 [fullnode]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [lightnode]: https://github.com/rollkit/rollkit/blob/main/node/light.go
 [go-header]: https://github.com/celestiaorg/go-header
