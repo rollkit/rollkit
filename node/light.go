@@ -28,7 +28,7 @@ type LightNode struct {
 
 	proxyApp proxy.AppConns
 
-	hExService *block.HeaderExchangeService
+	hSyncService *block.HeaderSynceService
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -62,19 +62,19 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerExchangeService, err := block.NewHeaderExchangeService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderExchangeService"))
+	headerSyncService, err := block.NewHeaderSynceService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
-		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
+		return nil, fmt.Errorf("HeaderSyncService initialization error: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &LightNode{
-		P2P:        client,
-		proxyApp:   proxyApp,
-		hExService: headerExchangeService,
-		cancel:     cancel,
-		ctx:        ctx,
+		P2P:          client,
+		proxyApp:     proxyApp,
+		hSyncService: headerSyncService,
+		cancel:       cancel,
+		ctx:          ctx,
 	}
 
 	node.P2P.SetTxValidator(node.falseValidator())
@@ -97,8 +97,8 @@ func (ln *LightNode) OnStart() error {
 		return err
 	}
 
-	if err := ln.hExService.Start(); err != nil {
-		return fmt.Errorf("error while starting header exchange service: %w", err)
+	if err := ln.hSyncService.Start(); err != nil {
+		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
 	return nil
@@ -108,7 +108,7 @@ func (ln *LightNode) OnStop() {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()
 	err := ln.P2P.Close()
-	err = multierr.Append(err, ln.hExService.Stop())
+	err = multierr.Append(err, ln.hSyncService.Stop())
 	ln.Logger.Error("errors while stopping node:", "errors", err)
 }
 
