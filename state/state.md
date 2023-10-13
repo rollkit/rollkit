@@ -14,15 +14,15 @@
 - `InitChain`: This method initializes the chain by calling `InitChainSync` using the consensus connection to the app. It takes a `GenesisDoc` as a parameter.
 - `CreateBlock`: This method reaps transactions from the mempool and builds a block. It takes the current state, the height of the block, and the commit as parameters.
 - `ApplyBlock`: This method applies the block to the state. It takes the current state, the block ID, and the block itself as parameters. It can return the following named errors:
-    - `ErrEmptyValSetGenerate`: returned when applying the validator changes would result in empty set.
-    - `ErrAddingValidatorToBased`: return because we cannot add validators to empty validator set.
+  - `ErrEmptyValSetGenerate`: returned when applying the validator changes would result in empty set.
+  - `ErrAddingValidatorToBased`: return because we cannot add validators to empty validator set.
 - `Validate`: This method validates the block. It takes the state and the block as parameters. It applies the following validations:
-    - New block version must match state block version.
-    - New block height must match state initial height.
-    - New block height must be adjacent to state last block height.
-    - New block header `AppHash` must match state `AppHash`.
-    - New block header `LastResultsHash` must match state `LastResultsHash`.
-    - New block headeer `AggregatorsHash` must match state `Validators.Hash()`.
+  - New block version must match state block version.
+  - New block height must match state initial height.
+  - New block height must be adjacent to state last block height.
+  - New block header `AppHash` must match state `AppHash`.
+  - New block header `LastResultsHash` must match state `LastResultsHash`.
+  - New block headeer `AggregatorsHash` must match state `Validators.Hash()`.
 - `commit`: This method commits the block and updates the state. It takes the state, the block ID, and the block as parameters.
 - `execute`: This method executes the block. It takes the context, the state, and the block as parameters.
 - `publishEvents`: This method publishes events related to the block. It takes the ABCI responses, the block, and the state as parameters.
