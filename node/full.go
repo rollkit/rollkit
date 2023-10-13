@@ -59,12 +59,12 @@ type FullNode struct {
 
 	nodeConfig config.NodeConfig
 
-	proxyApp   proxy.AppConns
-	eventBus   *cmtypes.EventBus
-	dalc       da.DataAvailabilityLayerClient
-	p2pClient  *p2p.Client
-	hExService *block.HeaderExchangeService
-	bExService *block.BlockExchangeService
+	proxyApp     proxy.AppConns
+	eventBus     *cmtypes.EventBus
+	dalc         da.DataAvailabilityLayerClient
+	p2pClient    *p2p.Client
+	hSyncService *block.HeaderSynceService
+	bSyncService *block.BlockSyncService
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
@@ -119,12 +119,12 @@ func newFullNode(
 	}
 
 	mainKV := newPrefixKV(baseKV, mainPrefix)
-	headerExchangeService, err := initHeaderExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
+	headerSyncService, err := initHeaderSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	blockExchangeService, err := initBlockExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
+	blockSyncService, err := initBlockSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func newFullNode(
 	mempool := initMempool(logger, proxyApp)
 
 	store := store.New(ctx, mainKV)
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockExchangeService)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockSyncService)
 	if err != nil {
 		return nil, err
 	}
@@ -159,8 +159,8 @@ func newFullNode(
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
-		hExService:     headerExchangeService,
-		bExService:     blockExchangeService,
+		hSyncService:   headerSyncService,
+		bSyncService:   blockSyncService,
 		ctx:            ctx,
 		cancel:         cancel,
 	}
@@ -216,24 +216,24 @@ func initMempool(logger log.Logger, proxyApp proxy.AppConns) *mempool.CListMempo
 	return mempool
 }
 
-func initHeaderExchangeService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderExchangeService, error) {
-	headerExchangeService, err := block.NewHeaderExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderExchangeService"))
+func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSynceService, error) {
+	headerSyncService, err := block.NewHeaderSynceService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
-		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
+		return nil, fmt.Errorf("HeaderSyncService initialization error: %w", err)
 	}
-	return headerExchangeService, nil
+	return headerSyncService, nil
 }
 
-func initBlockExchangeService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.BlockExchangeService, error) {
-	blockExchangeService, err := block.NewBlockExchangeService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "BlockExchangeService"))
+func initBlockSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.BlockSyncService, error) {
+	blockSyncService, err := block.NewBlockSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "BlockSyncService"))
 	if err != nil {
-		return nil, fmt.Errorf("HeaderExchangeService initialization error: %w", err)
+		return nil, fmt.Errorf("HeaderSyncService initialization error: %w", err)
 	}
-	return blockExchangeService, nil
+	return blockSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc da.DataAvailabilityLayerClient, eventBus *cmtypes.EventBus, logger log.Logger, blockExchangeService *block.BlockExchangeService) (*block.Manager, error) {
-	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockExchangeService.BlockStore())
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc da.DataAvailabilityLayerClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService) (*block.Manager, error) {
+	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.BlockStore())
 	if err != nil {
 		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
 	}
@@ -273,7 +273,7 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderCh:
-			err := n.hExService.WriteToHeaderStoreAndBroadcast(ctx, signedHeader)
+			err := n.hSyncService.WriteToHeaderStoreAndBroadcast(ctx, signedHeader)
 			if err != nil {
 				// failed to init or start headerstore
 				n.Logger.Error(err.Error())
@@ -289,7 +289,7 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case block := <-n.blockManager.BlockCh:
-			err := n.bExService.WriteToBlockStoreAndBroadcast(ctx, block)
+			err := n.bSyncService.WriteToBlockStoreAndBroadcast(ctx, block)
 			if err != nil {
 				// failed to init or start blockstore
 				n.Logger.Error(err.Error())
@@ -310,12 +310,12 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
-	if err = n.hExService.Start(); err != nil {
-		return fmt.Errorf("error while starting header exchange service: %w", err)
+	if err = n.hSyncService.Start(); err != nil {
+		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	if err = n.bExService.Start(); err != nil {
-		return fmt.Errorf("error while starting block exchange service: %w", err)
+	if err = n.bSyncService.Start(); err != nil {
+		return fmt.Errorf("error while starting block sync service: %w", err)
 	}
 
 	if err = n.dalc.Start(); err != nil {
@@ -355,8 +355,8 @@ func (n *FullNode) OnStop() {
 	n.cancel()
 	err := n.dalc.Stop()
 	err = multierr.Append(err, n.p2pClient.Close())
-	err = multierr.Append(err, n.hExService.Stop())
-	err = multierr.Append(err, n.bExService.Stop())
+	err = multierr.Append(err, n.hSyncService.Stop())
+	err = multierr.Append(err, n.bSyncService.Stop())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
