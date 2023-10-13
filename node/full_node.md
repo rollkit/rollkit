@@ -48,11 +48,11 @@ The [Data Availability Layer Client][dalc] is used to interact with the data ava
 
 ### hExService
 
-The [Header Exchange Service] is used for exchanging block headers between nodes over P2P.
+The [Header Sync Service] is used for syncing block headers between nodes over P2P.
 
-### bExService
+### bSyncService
 
-The [Block Exchange Service] is used for exchanging blocks between nodes over P2P.
+The [Block Sync Service] is used for syncing blocks between nodes over P2P.
 
 ## Message Structure/Communication Format
 
@@ -90,9 +90,9 @@ See [full node]
 
 [11] [DA registry][DA registry]
 
-[12] [Header Exchange Service][Header Exchange Service]
+[12] [Header Sync Service][Header Sync Service]
 
-[13] [Block Exchange Service][Block Exchange Service]
+[13] [Block Sync Service][Block Sync Service]
 
 [full node]: ../node/full.go
 [ABCI app connections]: https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md
@@ -105,5 +105,5 @@ See [full node]
 [Block Manager]: ../block/manager.go
 [dalc]: ../da/da.go
 [DA registry]: ../da/registry/registry.go
-[Header Exchange Service]: ../block/header_exchange.go
-[Block Exchange Service]: ../block/block_exchange.go
+[Header Sync Service]: ../block/header_sync.go
+[Block Sync Service]: ../block/block_sync.go
