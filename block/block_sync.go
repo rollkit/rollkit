@@ -56,7 +56,7 @@ func NewBlockSyncService(ctx context.Context, store ds.TxnDatastore, conf config
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	ss, err := goheaderstore.NewStore[*types.Block](storeBatch, goheaderstore.WithStorePrefix("blockEx"))
+	ss, err := goheaderstore.NewStore[*types.Block](storeBatch, goheaderstore.WithStorePrefix("blockSync"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize the block store: %w", err)
 	}
@@ -72,7 +72,7 @@ func NewBlockSyncService(ctx context.Context, store ds.TxnDatastore, conf config
 	}, nil
 }
 
-// BlockStore returns the blockstore of the BlockExchangeService
+// BlockStore returns the blockstore of the BlockSyncService
 func (bSyncService *BlockSyncService) BlockStore() *goheaderstore.Store[*types.Block] {
 	return bSyncService.blockStore
 }
