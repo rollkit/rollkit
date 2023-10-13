@@ -2,13 +2,45 @@
 
 ## Abstract
 
-The block manager is a key component of full nodes and is responsible for block production or block syncing depending on the node type. Block syncing in this context includes retrieving the published blocks from the network (p2p network or DA network), validating them to raise fraud proofs upon validation failure, updating the state, and storing the validated blocks. A full node invokes multiple block manager functionalities in parallel, such as:
+The block manager is a key component of full nodes and is responsible for block production or block syncing depending on the node type. Block syncing in this context includes retrieving the published blocks from the network (P2P network or DA network), validating them to raise fraud proofs upon validation failure, updating the state, and storing the validated blocks. A full node invokes multiple block manager functionalities in parallel, such as:
 
-* block production (only for sequencer full nodes)
-* block publication to DA network
-* block retrieval from DA network
-* block retrieval from Blockstore (which retrieves blocks from the p2p network)
-* block syncing
+* Block Production (only for sequencer full nodes)
+* Block Publication to DA network
+* Block Retrieval from DA network
+* Block Sync Service
+* Block Publication to P2P network
+* Block Retrieval from P2P network
+* State Update after Block Retrieval
+
+```mermaid
+sequenceDiagram
+    title Overview of Block Manager
+
+    participant User
+    participant Sequencer
+    participant Full Node 1
+    participant Full Node 2
+    participant DA Layer
+
+    User->>Sequencer: Send Tx
+    Sequencer->>Sequencer: Generate Block
+    Sequencer->>DA Layer: Publish Block
+
+    Sequencer->>Full Node 1: Gossip Block
+    Sequencer->>Full Node 2: Gossip Block
+    Full Node 1->>Full Node 1: Verify Block
+    Full Node 1->>Full Node 2: Gossip Block
+    Full Node 1->>Full Node 1: Mark Block Soft-Confirmed
+
+    Full Node 2->>Full Node 2: Verify Block
+    Full Node 2->>Full Node 2: Mark Block Soft-Confirmed
+
+    DA Layer->>Full Node 1: Retrieve Block
+    Full Node 1->>Full Node 1: Mark Block Hard-Confirmed
+
+    DA Layer->>Full Node 2: Retrieve Block
+    Full Node 2->>Full Node 2: Mark Block Hard-Confirmed
+```
 
 ## Protocol/Component Description
 
@@ -22,7 +54,7 @@ genesis|*cmtypes.GenesisDoc|initialize the block manager with genesis state (gen
 store|store.Store|local datastore for storing rollup blocks and states (default local store path is `$db_dir/rollkit` and `db_dir` specified in the `config.toml` file under the app directory)
 mempool, proxyapp, eventbus|mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus|for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
 dalc|da.DataAvailabilityLayerClient|the data availability light client used to submit and retrieve blocks to DA network
-blockstore|*goheaderstore.Store[*types.Block]|to retrieve blocks gossiped over the p2p network
+blockstore|*goheaderstore.Store[*types.Block]|to retrieve blocks gossiped over the P2P network
 
 Block manager configuration options:
 
@@ -54,23 +86,40 @@ The block manager of the sequencer nodes performs the following steps to produce
 
 ### Block Publication to DA Network
 
-The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform [`maxSubmitAttempts`][maxSubmitAttempts] attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at [`initialBackoff`][initialBackoff] and it doubles in the next attempt and capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting and without emptying of `pendingBlocks` queue.
+The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform [`maxSubmitAttempts`][maxSubmitAttempts] attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at [`initialBackoff`][initialBackoff] and it doubles in the next attempt and capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting without emptying of `pendingBlocks` queue.
 
 ### Block Retrieval from DA Network
 
 The block manager of the full nodes regularly pulls blocks from the DA network at `DABlockTime` intervals and starts off with a DA height read from the last state stored in the local store or `DAStartHeight` configuration parameter, whichever is the latest. The block manager also actively maintains and increments the `daHeight` counter after every DA pull. The pull happens by making the `RetrieveBlocks(daHeight)` request using the Data Availability Light Client (DALC) retriever, which can return either `Success`, `NotFound`, or `Error`. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the `daHeight` counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block `NotFound` scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the `daHeight` counter in this case. Finally, for the `Success` scenario, first, blocks that are successfully retrieved are marked as hard confirmed and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the `DABlockTime` and `BlockTime` intervals.
 
+### Block Sync Service
+
+The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to the [go-header] service to be gossiped blocks over the P2P network.
+
+### Block Publication to P2P network
+
+Blocks created by the sequencer that are ready to be published to the P2P network are sent to the `BlockCh` channel in Block Manager inside `publishLoop`.
+The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block is received, it is written to the block store and broadcasted to the network using the block sync service.
+
+Among non-sequencer full nodes, all the block gossiping is handled by the block sync service, and they do not need to publish blocks to the P2P network using any of the block manager components.
+
+### Block Retrieval from P2P network
+
+For validating full nodes, Blocks gossiped through the P2P network are retrieved from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
+Starting off with a block store height of zero, for every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.
+It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel in which blocks retrieved from the DA layer are sent.
+This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
+
+Although a sequencer does not need to retrieve blocks from the P2P network, it still runs the `BlockStoreRetrieveLoop`.
+
 #### About Soft/Hard Confirmations
 
-The block manager retrieves blocks from both the p2p network and the underlying DA network because the blocks are available in the p2p network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the p2p network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked hard confirmed. The hard confirmations can be considered to have a higher level of finality.
+The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked hard confirmed. The hard confirmations can be considered to have a higher level of finality.
 
-### Block Retrieval from BlockStore (P2P BlockSync)
+### State Update after Block Retrieval
 
-The block manager of the full nodes regularly pulls blocks from the block store (which in turn uses the p2p network for syncing the blocks) at `BlockTime` intervals and starts off with a block store height of zero. Every time the block store height is higher than the last seen height, the newest blocks are pulled from the block store and sent to be applied (or state update), along with updating the last seen block store height.
-
-### Block Syncing
-
-The block manager stores and applies the block every time a new block is retrieved either via the blockstore or DA network. Block syncing involves:
+The block manager stores and applies the block to update its state every time a new block is retrieved either via the P2P or DA network. State update involves:
 
 * `ApplyBlock` using executor: validates the block, executes the block (applies the transactions), captures the validator updates, and creates an updated state.
 * `Commit` using executor: commit the execution and changes, update mempool, and publish events
@@ -96,15 +145,36 @@ The communication between the full node and block manager:
 * The default mode for sequencer nodes is normal (not lazy).
 * The sequencer can produce empty blocks.
 * The block manager uses persistent storage (disk) when the `root_dir` and `db_path` configuration parameters are specified in `config.toml` file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.
-* The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using p2p block sync, but later was hard confirmed by DA retrieval. The block is only set hard confirmed in this case.
+* The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was hard confirmed by DA retrieval. The block is only set hard confirmed in this case.
+* The block sync store is created by prefixing `blockSync` on the main data store.
+* The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.
+* Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
+* Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
 
 ## Implementation
 
-See [block/manager.go](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
+See [block-manager]
+
+See [tutorial] for running a multi-node network with both sequencer and non-sequencer full nodes.
 
 ## References
 
-[maxSubmitAttempts]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39
-[defaultBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L35
-[defaultDABlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L32
-[initialBackoff]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L48
+[1] [Go Header][go-header]
+
+[2] [Block Sync][block-sync]
+
+[3] [Full Node][full-node]
+
+[4] [Block Manager][block-manager]
+
+[5] [Tutorial][tutorial]
+
+[maxSubmitAttempts]: ../block/manager.go#L39
+[defaultBlockTime]: ../block/manager.go#L35
+[defaultDABlockTime]: ../block/manager.go#L32
+[initialBackoff]: ../block/manager.go#L48
+[go-header]: https://github.com/celestiaorg/go-header
+[block-sync]: ../node/block_sync.go
+[full-node]: ../node/full.go
+[block-manager]: ../block/manager.go
+[tutorial]: https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started

@@ -56,8 +56,8 @@ Among non-sequencer full nodes, all the block gossiping is handled by the block 
 ### Block Retrieval from P2P network
 
 For validating full nodes, Blocks gossiped through the P2P network are retrieved from the `Block Store` in `BlockStoreRetrieveLoop` in Block Manager.
-For every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.
-It keeps track of the last retrieved block's height and if the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+Starting off with a block store height of zero, for every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.
+It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
 For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel in which blocks retrieved from the DA layer are sent.
 This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
 
@@ -71,7 +71,7 @@ The communication within Block Manager and between itself and the full node is a
 
 * The block sync store is created by prefixing `blockSync` on the main data store.
 * The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.
-* P2P Block sync works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
+* Block sync works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
 * Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
 
 ## Implementation
@@ -89,13 +89,10 @@ See [tutorial] for running a validating full node.
 
 [4] [Block Manager][block-manager]
 
-[5] [Block Struct][block-struct]
-
-[6] [Tutorial][tutorial]
+[5] [Tutorial][tutorial]
 
 [go-header]: https://github.com/celestiaorg/go-header
 [block-sync]: ../node/block_sync.go
 [full-node]: ../node/full.go
 [block-manager]: ../block/manager.go
-[block-struct]: ../types/block.go
 [tutorial]: https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started
