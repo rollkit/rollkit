@@ -1,12 +1,12 @@
-# P2P Block Exchange
+# Block Sync
 
 ## Abstract
 
-P2P Block Exchange enables rollkit full nodes, including aggregators, to gossip blocks amongst themselves and have lower rollup block times than the DA layer block times.
+The Block Sync service enables rollkit full nodes, including sequencers, to gossip blocks amongst themselves as well as to and from the DA layer.
 
 ```mermaid
 sequenceDiagram
-    title P2P Block Exchange
+    title Block Sync
 
     participant User
     participant Block Producer
@@ -36,22 +36,22 @@ sequenceDiagram
 
 ## Protocol/Component Description
 
-P2P Block Exchange consists of the following components:
+Block Sync consists of the following components:
 
-* block exchange service: responsible for gossiping blocks over P2P
+* block sync service: responsible for gossiping blocks over P2P
 * block publication to P2P network
 * block retrieval from P2P network
 
-### Block Exchange Service
+### Block Sync Service
 
-The block exchange service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block exchange service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to the [go-header] service to be gossiped blocks over the P2P network.
+The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to the [go-header] service to be gossiped blocks over the P2P network.
 
 ### Block Publication to P2P network
 
 Blocks created by the sequencer that are ready to be published to the P2P network are sent to the `BlockCh` channel in Block Manager inside `publishLoop`.
-The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block is received, it is written to the block store and broadcasted to the network using the block exchange service.
+The `blockPublishLoop` in the full node continuously listens for new blocks from the `BlockCh` channel and when a new block is received, it is written to the block store and broadcasted to the network using the block sync service.
 
-Among non-sequencer full nodes, all the block gossiping is handled by the block exchange service, and they do not need to publish blocks to the P2P network using any of the block manager components.
+Among non-sequencer full nodes, all the block gossiping is handled by the block sync service, and they do not need to publish blocks to the P2P network using any of the block manager components.
 
 ### Block Retrieval from P2P network
 
@@ -69,21 +69,21 @@ The communication within Block Manager and between itself and the full node is a
 
 ## Assumptions and Considerations
 
-* The block exchange store is created by prefixing `blockEx` on the main data store.
+* The block sync store is created by prefixing `blockSync` on the main data store.
 * The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.
 * P2P Block sync works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
-* Node's context is passed down to all the components of the P2P block exchange to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
+* Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
 
 ## Implementation
 
-The `blockStore` in `BlockExchangeService` ([block-exchange]) is used when initializing a [full-node]. Blocks are written to `blockStore` in `blockPublishLoop` in [full-node], gossiped around the network, and retrieved in `BlockStoreRetrieveLoop` in [block-manager].
+The `blockStore` in `BlockSyncService` ([block-sync]) is used when initializing a [full-node]. Blocks are written to `blockStore` in `blockPublishLoop` in [full-node], gossiped around the network, and retrieved in `BlockStoreRetrieveLoop` in [block-manager].
 See [tutorial] for running a validating full node.
 
 ## References
 
 [1] [Go Header][go-header]
 
-[2] [Block Exchange][block-exchange]
+[2] [Block Sync][block-sync]
 
 [3] [Full Node][full-node]
 
@@ -94,7 +94,7 @@ See [tutorial] for running a validating full node.
 [6] [Tutorial][tutorial]
 
 [go-header]: https://github.com/celestiaorg/go-header
-[block-exchange]: ../node/block_exchange.go
+[block-sync]: ../node/block_sync.go
 [full-node]: ../node/full.go
 [block-manager]: ../block/manager.go
 [block-struct]: ../types/block.go
