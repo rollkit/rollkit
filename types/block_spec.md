@@ -118,7 +118,7 @@ Block.Verify()
 
 ## [ValidatorSet](https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51)
 
-| **Field Name | **Valid State**                                                 | **Validation**              |
+| **Field Name** | **Valid State**                                                 | **Validation**              |
 |--------------|-----------------------------------------------------------------|-----------------------------|
 | Validators   | Array of validators, each must pass `Validator.ValidateBasic()` | `Validator.ValidateBasic()` |
-| Proposer`    | Must pass `Validator.ValidateBasic()`                           | `Validator.ValidateBasic()` |
+| Proposer    | Must pass `Validator.ValidateBasic()`                           | `Validator.ValidateBasic()` |
