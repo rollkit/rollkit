@@ -94,16 +94,16 @@ See [full node]
 
 [13] [Block Sync Service][Block Sync Service]
 
-[full node]: ../node/full.go
+[full node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [ABCI app connections]: https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md
 [genesis]: https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md
-[node configuration]: ../config/config.go
-[peer-to-peer client]: ../p2p/client.go
-[Mempool]: ../mempool/mempool.go
-[Store]: ../store/store.go
-[store interface]: ../store/types.go
-[Block Manager]: ../block/manager.go
-[dalc]: ../da/da.go
-[DA registry]: ../da/registry/registry.go
-[Header Sync Service]: ../block/header_sync.go
-[Block Sync Service]: ../block/block_sync.go
+[node configuration]: https://github.com/rollkit/rollkit/blob/main/config/config.go
+[peer-to-peer client]: https://github.com/rollkit/rollkit/blob/main/p2p/client.go
+[Mempool]: https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go
+[Store]: https://github.com/rollkit/rollkit/blob/main/store/store.go
+[store interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go
+[Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
+[dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
+[DA registry]: https://github.com/rollkit/rollkit/blob/main/da/registry/registry.go
+[Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/header_sync.go
+[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/block_sync.go
