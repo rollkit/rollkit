@@ -74,23 +74,23 @@ gantt
 
 ### Grammer and spelling check
 
-The recommendation is to use your favorite spellchecker extension in your IDE like [grammerly], to make sure that the document is free of spelling and grammar errors.
+The recommendation is to use your favorite spellchecker extension in your IDE like [grammarly], to make sure that the document is free of spelling and grammar errors.
 
 ### Use of links
 
 If you want to use links use proper syntax. This goes for both internal and external links like [documentation] or [external links]
 
-At the bottom of the document in [Reference](#references)you can add the following footnotes that will be visible in the markdown document:
+At the bottom of the document in [Reference](#references), you can add the following footnotes that will be visible in the markdown document:
 
-[1] [Grammarly] [grammerly]
+[1] [Grammarly][grammarly]
 
-[2] [Documentation] [documentation]
+[2] [Documentation][documentation]
 
-[3] [external links] [external links]
+[3] [external links][external links]
 
 Then at the bottom add the actual links that will not be visible in the markdown document:
 
-[grammerly]: https://www.grammarly.com/
+[grammarly]: https://www.grammarly.com/
 [documentation]: ../README.md
 [external links]: https://github.com/celestiaorg/go-header
 
