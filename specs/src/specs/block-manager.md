@@ -1,1 +1,1 @@
-# Block Manager
+../../../block/block-manager.md
