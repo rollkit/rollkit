@@ -4,3 +4,4 @@ proto/tendermint
 types/pb/tendermint
 .vscode/launch.json
 */**.html
+*.idea
