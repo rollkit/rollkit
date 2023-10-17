@@ -119,7 +119,17 @@ func (hSyncService *HeaderSynceService) isInitialized() bool {
 func (hSyncService *HeaderSynceService) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := hSyncService.p2p.PubSub()
-	hSyncService.sub = goheaderp2p.NewSubscriber[*types.SignedHeader](ps, pubsub.DefaultMsgIdFn, hSyncService.genesis.ChainID)
+
+	var err error
+	hSyncService.sub, err = goheaderp2p.NewSubscriber[*types.SignedHeader](
+		ps,
+		pubsub.DefaultMsgIdFn,
+		goheaderp2p.WithSubscriberNetworkID(hSyncService.genesis.ChainID),
+	)
+	if err != nil {
+		return err
+	}
+
 	if err := hSyncService.sub.Start(hSyncService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -131,7 +141,6 @@ func (hSyncService *HeaderSynceService) Start() error {
 		return fmt.Errorf("error while starting header store: %w", err)
 	}
 
-	var err error
 	_, _, network, err := hSyncService.p2p.Info()
 	if err != nil {
 		return fmt.Errorf("error while fetching the network: %w", err)
@@ -151,7 +160,12 @@ func (hSyncService *HeaderSynceService) Start() error {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	if hSyncService.syncer, err = newSyncer(hSyncService.ex, hSyncService.headerStore, hSyncService.sub, goheadersync.WithBlockTime(hSyncService.conf.BlockTime)); err != nil {
+	if hSyncService.syncer, err = newSyncer(
+		hSyncService.ex,
+		hSyncService.headerStore,
+		hSyncService.sub,
+		[]goheadersync.Option{goheadersync.WithBlockTime(hSyncService.conf.BlockTime)},
+	); err != nil {
 		return fmt.Errorf("error while creating syncer: %w", err)
 	}
 
@@ -234,9 +248,9 @@ func newSyncer(
 	ex header.Exchange[*types.SignedHeader],
 	store header.Store[*types.SignedHeader],
 	sub header.Subscriber[*types.SignedHeader],
-	opt goheadersync.Options,
+	opts []goheadersync.Option,
 ) (*goheadersync.Syncer[*types.SignedHeader], error) {
-	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opt)
+	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opts...)
 }
 
 func (hSyncService *HeaderSynceService) StartSyncer() error {
