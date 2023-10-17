@@ -48,11 +48,11 @@ The [Data Availability Layer Client][dalc] is used to interact with the data ava
 
 ### hExService
 
-The [Header Exchange Service] is used for exchanging block headers between nodes over P2P.
+The [Header Sync Service] is used for syncing block headers between nodes over P2P.
 
-### bExService
+### bSyncService
 
-The [Block Exchange Service] is used for exchanging blocks between nodes over P2P.
+The [Block Sync Service] is used for syncing blocks between nodes over P2P.
 
 ## Message Structure/Communication Format
 
@@ -90,20 +90,20 @@ See [full node]
 
 [11] [DA registry][DA registry]
 
-[12] [Header Exchange Service][Header Exchange Service]
+[12] [Header Sync Service][Header Sync Service]
 
-[13] [Block Exchange Service][Block Exchange Service]
+[13] [Block Sync Service][Block Sync Service]
 
-[full node]: ../node/full.go
+[full node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [ABCI app connections]: https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md
 [genesis]: https://github.com/cometbft/cometbft/blob/main/spec/core/genesis.md
-[node configuration]: ../config/config.go
-[peer-to-peer client]: ../p2p/client.go
-[Mempool]: ../mempool/mempool.go
-[Store]: ../store/store.go
-[store interface]: ../store/types.go
-[Block Manager]: ../block/manager.go
-[dalc]: ../da/da.go
-[DA registry]: ../da/registry/registry.go
-[Header Exchange Service]: ../block/header_exchange.go
-[Block Exchange Service]: ../block/block_exchange.go
+[node configuration]: https://github.com/rollkit/rollkit/blob/main/config/config.go
+[peer-to-peer client]: https://github.com/rollkit/rollkit/blob/main/p2p/client.go
+[Mempool]: https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go
+[Store]: https://github.com/rollkit/rollkit/blob/main/store/store.go
+[store interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go
+[Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
+[dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
+[DA registry]: https://github.com/rollkit/rollkit/blob/main/da/registry/registry.go
+[Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/header_sync.go
+[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/block_sync.go
