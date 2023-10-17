@@ -3,7 +3,7 @@ module github.com/rollkit/rollkit
 go 1.20
 
 require (
-	github.com/celestiaorg/go-header v0.3.3
+	github.com/celestiaorg/go-header v0.4.0
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/celestiaorg/utils v0.1.0
@@ -23,7 +23,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/prometheus/client_golang v1.17.0
-	github.com/rollkit/celestia-openrpc v0.2.0
+	github.com/rollkit/celestia-openrpc v0.3.0
 	github.com/rs/cors v1.10.1
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.17.0
