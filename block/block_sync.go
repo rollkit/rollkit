@@ -115,12 +115,22 @@ func (bSyncService *BlockSyncService) isInitialized() bool {
 	return bSyncService.blockStore.Height() > 0
 }
 
-// OnStart is a part of Service interface.
+// Start is a part of Service interface.
 func (bSyncService *BlockSyncService) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := bSyncService.p2p.PubSub()
 	chainIDBlock := bSyncService.genesis.ChainID + "-block"
-	bSyncService.sub = goheaderp2p.NewSubscriber[*types.Block](ps, pubsub.DefaultMsgIdFn, chainIDBlock)
+
+	var err error
+	bSyncService.sub, err = goheaderp2p.NewSubscriber[*types.Block](
+		ps,
+		pubsub.DefaultMsgIdFn,
+		goheaderp2p.WithSubscriberNetworkID(chainIDBlock),
+	)
+	if err != nil {
+		return err
+	}
+
 	if err := bSyncService.sub.Start(bSyncService.ctx); err != nil {
 		return fmt.Errorf("error while starting subscriber: %w", err)
 	}
@@ -132,7 +142,6 @@ func (bSyncService *BlockSyncService) Start() error {
 		return fmt.Errorf("error while starting block store: %w", err)
 	}
 
-	var err error
 	_, _, network, err := bSyncService.p2p.Info()
 	if err != nil {
 		return fmt.Errorf("error while fetching the network: %w", err)
@@ -154,7 +163,12 @@ func (bSyncService *BlockSyncService) Start() error {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	if bSyncService.syncer, err = newBlockSyncer(bSyncService.ex, bSyncService.blockStore, bSyncService.sub, goheadersync.WithBlockTime(bSyncService.conf.BlockTime)); err != nil {
+	if bSyncService.syncer, err = newBlockSyncer(
+		bSyncService.ex,
+		bSyncService.blockStore,
+		bSyncService.sub,
+		[]goheadersync.Option{goheadersync.WithBlockTime(bSyncService.conf.BlockTime)},
+	); err != nil {
 		return fmt.Errorf("error while creating syncer: %w", err)
 	}
 
@@ -235,9 +249,9 @@ func newBlockSyncer(
 	ex header.Exchange[*types.Block],
 	store header.Store[*types.Block],
 	sub header.Subscriber[*types.Block],
-	opt goheadersync.Options,
+	opts []goheadersync.Option,
 ) (*goheadersync.Syncer[*types.Block], error) {
-	return goheadersync.NewSyncer[*types.Block](ex, store, sub, opt)
+	return goheadersync.NewSyncer[*types.Block](ex, store, sub, opts...)
 }
 
 func (bSyncService *BlockSyncService) StartSyncer() error {
