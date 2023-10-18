@@ -97,7 +97,7 @@ Block.Verify()
 | **BaseHeader** .    |                                                                                            |                                       |
 | Height              | Height of the previous accepted header, plus 1.                                            | checked in the `Verify()`` step          |
 | Time                | Timestamp of the block                                                                     | Not validated in Rollkit              |
-| ChainID             | The hard-coded ChainID of the chain                                                        | Should be checked as soon as possible |
+| ChainID             | The hard-coded ChainID of the chain                                                        | Should be checked as soon as the header is received |
 | **Header** .        |                                                                                            |                                       |
 | Version             | unused                                                                                     |                                       |
 | LastHeaderHash      | The hash of the previous accepted block                                                    | checked in the `Verify()`` step          |
