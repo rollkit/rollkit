@@ -1101,6 +1101,20 @@ func TestStatus(t *testing.T) {
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)
 
+	//validate SyncInfo
+	assert.NotNil(resp.SyncInfo)
+	assert.NotNil(resp.SyncInfo.LatestBlockHash)
+	assert.NotNil(resp.SyncInfo.LatestAppHash)
+	assert.NotNil(resp.SyncInfo.LatestBlockHeight)
+	assert.NotNil(resp.SyncInfo.LatestBlockTime)
+	assert.NotNil(resp.SyncInfo.CatchingUp)
+
+	//valide ValidatorInfo
+	assert.NotNil(resp.ValidatorInfo)
+	assert.NotNil(resp.ValidatorInfo.Address)
+	assert.NotNil(resp.ValidatorInfo.PubKey)
+	assert.NotNil(resp.ValidatorInfo.VotingPower)
+
 	assert.Equal(int64(1), resp.SyncInfo.EarliestBlockHeight)
 	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
 
