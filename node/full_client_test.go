@@ -1172,3 +1172,24 @@ func TestFutureGenesisTime(t *testing.T) {
 
 	assert.True(beginBlockTime.After(genesisTime))
 }
+
+func TestHealth(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	err := rpc.node.Start()
+	require.NoError(err)
+	defer func() {
+		require.NoError(rpc.node.Stop())
+	}()
+
+	resultHealth, err := rpc.Health(context.Background())
+	assert.Nil(err)
+	assert.Empty(resultHealth)
+}
