@@ -36,7 +36,7 @@ These events are subscribed to in the `OnStart` method of `indexer_service.go`, 
 
 ## Assumptions and Considerations
 
-The indexer service assumes that the messages passed by the block executor are valid block headers and valid transactions with the required fields such that they can be indexed by the respective block indexer and transaction indexer. 
+The indexer service assumes that the messages passed by the block executor are valid block headers and valid transactions with the required fields such that they can be indexed by the respective block indexer and transaction indexer.
 
 ## Implementation
 
