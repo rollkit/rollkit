@@ -1,1 +1,59 @@
 # P2P
+
+Every rollup node (both full and light) runs a p2p client using [go-libp2p][go-libp2p] p2p networking stack for gossiping transactions in the rollup's p2p network. The same p2p client is also used by the header and block sync services for gossiping headers and blocks.
+
+Following parameters are required for creating a new instance of a p2p client:
+* P2PConfig (described below)
+* [go-libp2p][go-libp2p] private key
+* chainID: rollup identifier
+* datastore: an instance of [go-datastore][go-datastore]
+* logger
+
+```
+// P2PConfig stores configuration related to peer-to-peer networking.
+type P2PConfig struct {
+	ListenAddress string // Address to listen for incoming connections
+	Seeds         string // Comma separated list of seed nodes to connect to
+	BlockedPeers  string // Comma separated list of nodes to ignore
+	AllowedPeers  string // Comma separated list of nodes to whitelist
+}
+```
+
+A p2p client also instantiates a [connection gator][conngater] to blacklist and whitelist peers specified in the `P2PConfig`.
+
+It also sets up a gossiper using the gossip topic `<chainID>+<txTopicSuffix>` (`txTopicSuffix` is defined in [p2p/client.go][client.go]), a Distributed Hash Table (DHT) using the `Seeds` defined in the `P2PConfig` and peer discovery using go-libp2p's `discovery.RoutingDiscovery`.
+
+A p2p client provides an interface `SetTxValidator(p2p.GossipValidator)` for specifying a gossip validator which can define how to handle the incoming `GossipMessage` in the p2p network. The `GossipMessage` represents message gossiped via P2P network (e.g. transaction, Block etc).
+
+```
+// GossipValidator is a callback function type.
+type GossipValidator func(*GossipMessage) bool
+```
+
+The full nodes define a transaction validator (shown below) as gossip validator for processing the gossiped transactions to add to the mempool, whereas light nodes simply pass a dummy validator as light nodes do not process gossiped transactions.
+
+```
+// newTxValidator creates a pubsub validator that uses the node's mempool to check the
+// transaction. If the transaction is valid, then it is added to the mempool
+func (n *FullNode) newTxValidator() p2p.GossipValidator {
+```
+
+```
+// Dummy validator that always returns a callback function with boolean `false`
+func (ln *LightNode) falseValidator() p2p.GossipValidator {
+```
+
+
+# References 
+
+[1] [client.go][client.go] 
+
+[2] [go-datastore][go-datastore]
+
+[3] [go-libp2p][go-libp2p]
+
+[client.go]: https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43
+
+[go-datastore]: https://github.com/ipfs/go-datastore
+
+[go-libp2p]: https://github.com/libp2p/go-libp2p
