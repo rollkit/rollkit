@@ -13,3 +13,21 @@ The [`BlockExecutor`](../specs/src/specs/state.md) calls `ReapMaxBytesMaxGas` in
 ## Communication
 
 Several RPC methods query the mempool module: [`BroadcastTxCommit`](https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L128), [`BroadcastTxAsync`](https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L190), [`BroadcastTxSync`](https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L207) call the mempool's `CheckTx(...)` method.
+
+## Interface
+
+| **Method Name**    | **Inputs** | **Outputs** | **Behavior** |
+| ------------------ | ---------- | ----------- | ------------ |
+| CheckTx            | Takes a transaction object           |             |              |
+| RemoveTxByKey      |            |             |              |
+| ReapMaxBytesMaxGas |            |             |              |
+| ReapMaxTxs         |            |             |              |
+| Lock               |            |             |              |
+| Unlock             |            |             |              |
+| Update             |            |             |              |
+| FlushAppConn       |            |             |              |
+| Flush              |            |             |              |
+| TxsAvailable       |            |             |              |
+| EnableTxsAvailable |            |             |              |
+| Size               |            |             |              |
+| SizeBytes          |            |             |              |
