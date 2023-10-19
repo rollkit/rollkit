@@ -1103,21 +1103,16 @@ func TestStatus(t *testing.T) {
 
 	//validate SyncInfo
 	assert.NotNil(resp.SyncInfo)
-	assert.NotNil(resp.SyncInfo.LatestBlockHash)
-	assert.NotNil(resp.SyncInfo.LatestAppHash)
-	assert.NotNil(resp.SyncInfo.LatestBlockHeight)
-	assert.NotNil(resp.SyncInfo.LatestBlockTime)
-	assert.NotNil(resp.SyncInfo.CatchingUp)
+	assert.Equal(latestBlock.Hash(), resp.SyncInfo.LatestBlockHash)
+	assert.Equal(latestBlock.Height(), resp.SyncInfo.LatestBlockHeight)
+	assert.Equal(latestBlock.Time, resp.SyncInfo.LatestBlockTime)
+	assert.Equal(earliestBlock.Hash(), resp.SyncInfo.EarliestBlockHash)
+	assert.Equal(int64(1), resp.SyncInfo.EarliestBlockHeight)
+	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
+	assert.False(resp.SyncInfo.CatchingUp)
 
 	//valide ValidatorInfo
 	assert.NotNil(resp.ValidatorInfo)
-	assert.NotNil(resp.ValidatorInfo.Address)
-	assert.NotNil(resp.ValidatorInfo.PubKey)
-	assert.NotNil(resp.ValidatorInfo.VotingPower)
-
-	assert.Equal(int64(1), resp.SyncInfo.EarliestBlockHeight)
-	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
-
 	assert.Equal(validators[1].Address, resp.ValidatorInfo.Address)
 	assert.Equal(validators[1].PubKey, resp.ValidatorInfo.PubKey)
 	assert.Equal(validators[1].VotingPower, resp.ValidatorInfo.VotingPower)
@@ -1132,7 +1127,7 @@ func TestStatus(t *testing.T) {
 		state.Version.Consensus.App,
 	)
 	assert.Equal(defaultProtocolVersion, resp.NodeInfo.ProtocolVersion)
-
+	assert.Equal("on", resp.NodeInfo.Other.TxIndex)
 	assert.NotNil(resp.NodeInfo.Other.TxIndex)
 	cases := []struct {
 		expected bool
