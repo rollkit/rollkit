@@ -22,17 +22,19 @@ The [Transaction Indexer][tx_indexer] is a key-value store-backed indexer that p
 
 ## Message Structure/Communication Format
 
-The `publishEvents` [method][publish_events_method] in the block executor sends several types of messages through the event bus, which are then received by `indexer_service.go`. These messages are:
+The `publishEvents` [method][publish_events_method] in the block executor is responsible for broadcasting several types of events through the event bus. These events include `EventNewBlock`, `EventNewBlockHeader`, `EventNewBlockEvents`, `EventNewEvidence`, and `EventTx`. Each of these events carries specific data related to the block or transaction they represent.
 
-1. `EventNewBlock`: This event is published when a new block is created. It contains the block data and the results of the `BeginBlock` and `EndBlock` ABCI methods.
+1. `EventNewBlock`: Triggered when a new block is finalized. It carries the block data along with the results of the `FinalizeBlock` ABCI method.
 
-2. `EventNewBlockHeader`: This event is published along with the `EventNewBlock` event. It contains the block header data, the number of transactions in the block, and the results of the `BeginBlock` and `EndBlock` ABCI methods.
+2. `EventNewBlockHeader`: Triggered alongside the `EventNewBlock` event. It carries the block header data.
 
-3. `EventNewEvidence`: This event is published for each piece of evidence in the block. It contains the evidence and the height of the block.
+3. `EventNewBlockEvents`: Triggered when a new block is finalized. It carries the block height, the events associated with the block, and the number of transactions in the block.
 
-4. `EventTx`: This event is published for each transaction in the block. It contains the result of the `DeliverTx` ABCI method for the transaction.
+4. `EventNewEvidence`: Triggered for each piece of evidence in the block. It carries the evidence and the height of the block.
 
-These events are subscribed to in the `OnStart` method of `indexer_service.go`, and are used to index the transactions and blocks.
+5. `EventTx`: Triggered for each transaction in the block. It carries the result of the `DeliverTx` ABCI method for the transaction.
+
+The `OnStart` method in `indexer_service.go` subscribes to these events. It listens for new blocks and transactions, and upon receiving these events, it indexes the transactions and blocks accordingly. The block indexer indexes `EventNewBlockEvents`, while the transaction indexer indexes the events inside `EventTx`. The events, `EventNewBlock`, `EventNewBlockHeader`, and `EventNewEvidence` are not currently used by the indexer service.
 
 ## Assumptions and Considerations
 
@@ -52,7 +54,7 @@ See [indexer service]
 
 [4] [Indexer Service][indexer service]
 
-[block_indexer]: https://github.com/rollkit/rollkit/blob/e3218bb78e06aa49e2fde57ec9b96cc2cdfc071e/state/indexer/block.go#L11
-[tx_indexer]: https://github.com/rollkit/rollkit/blob/e3218bb78e06aa49e2fde57ec9b96cc2cdfc071e/state/txindex/indexer.go#L14
-[publish_events_method]: https://github.com/rollkit/rollkit/blob/e3218bb78e06aa49e2fde57ec9b96cc2cdfc071e/state/executor.go#L352
-[indexer service]: https://github.com/rollkit/rollkit/blob/e3218bb78e06aa49e2fde57ec9b96cc2cdfc071e/state/txindex/indexer_service.go#L20
+[block_indexer]: https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11
+[tx_indexer]: https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14
+[publish_events_method]: https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352
+[indexer service]: https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20
