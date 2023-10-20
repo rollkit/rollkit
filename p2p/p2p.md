@@ -1,8 +1,8 @@
 # P2P
 
-Every rollup node (both full and light) runs a p2p client using [go-libp2p][go-libp2p] p2p networking stack for gossiping transactions in the rollup's p2p network. The same p2p client is also used by the header and block sync services for gossiping headers and blocks.
+Every rollup node (both full and light) runs a P2P client using [go-libp2p][go-libp2p] P2P networking stack for gossiping transactions in the rollup's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.
 
-Following parameters are required for creating a new instance of a p2p client:
+Following parameters are required for creating a new instance of a P2P client:
 
 * P2PConfig (described below)
 * [go-libp2p][go-libp2p] private key
@@ -20,11 +20,11 @@ type P2PConfig struct {
 }
 ```
 
-A p2p client also instantiates a [connection gator][conngater] to blacklist and whitelist peers specified in the `P2PConfig`.
+A P2P client also instantiates a [connection gator][conngater] to blacklist and whitelist peers specified in the `P2PConfig`.
 
 It also sets up a gossiper using the gossip topic `<chainID>+<txTopicSuffix>` (`txTopicSuffix` is defined in [p2p/client.go][client.go]), a Distributed Hash Table (DHT) using the `Seeds` defined in the `P2PConfig` and peer discovery using go-libp2p's `discovery.RoutingDiscovery`.
 
-A p2p client provides an interface `SetTxValidator(p2p.GossipValidator)` for specifying a gossip validator which can define how to handle the incoming `GossipMessage` in the p2p network. The `GossipMessage` represents message gossiped via P2P network (e.g. transaction, Block etc).
+A P2P client provides an interface `SetTxValidator(p2p.GossipValidator)` for specifying a gossip validator which can define how to handle the incoming `GossipMessage` in the P2P network. The `GossipMessage` represents message gossiped via P2P network (e.g. transaction, Block etc).
 
 ```go
 // GossipValidator is a callback function type.
