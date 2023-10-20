@@ -3,6 +3,7 @@ package newda
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 
@@ -68,12 +69,24 @@ func (n *NewDA) SubmitBlocks(ctx context.Context, blocks []*types.Block) da.Resu
 func (n *NewDA) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	ids, err := n.DA.GetIDs(dataLayerHeight)
 	if err != nil {
-
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:     da.StatusError,
+				Message:  fmt.Sprintf("failed to get IDs: %s", err.Error()),
+				DAHeight: dataLayerHeight,
+			},
+		}
 	}
 
 	blobs, err := n.DA.Get(ids)
 	if err != nil {
-
+		return da.ResultRetrieveBlocks{
+			BaseResult: da.BaseResult{
+				Code:     da.StatusError,
+				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
+				DAHeight: dataLayerHeight,
+			},
+		}
 	}
 
 	blocks := make([]*types.Block, len(blobs))
