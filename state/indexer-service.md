@@ -10,7 +10,7 @@ The Indexer service consists of three main components: an event bus, a transacti
 
 ### Event Bus
 
-The event bus is a messaging service between the full node and the indexer service. It serves events emitted by block executor of the full node to the indexer service where events are routed to the relevant indexer component based on type.
+The event bus is a messaging service between the full node and the indexer service. It serves events emitted by the block executor of the full node to the indexer service where events are routed to the relevant indexer component based on type.
 
 ### Block Indexer
 
@@ -18,7 +18,7 @@ The [Block Indexer][block_indexer] indexes BeginBlock and EndBlock events with a
 
 ### Transaction Indexer
 
-The [Transaction Indexer][tx_indexer] is a key-value store backed indexer that provides functionalities for indexing and searching transactions. It allows for the addition of a batch of transactions, indexing and storing a single transaction, retrieving a transaction specified by hash, and querying for transactions based on specific conditions. The indexer also supports range queries and can return results based on the intersection of multiple conditions.
+The [Transaction Indexer][tx_indexer] is a key-value store-backed indexer that provides functionalities for indexing and searching transactions. It allows for the addition of a batch of transactions, indexing and storing a single transaction, retrieving a transaction specified by hash, and querying for transactions based on specific conditions. The indexer also supports range queries and can return results based on the intersection of multiple conditions.
 
 ## Message Structure/Communication Format
 
