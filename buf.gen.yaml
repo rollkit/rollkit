@@ -4,7 +4,7 @@ version: v1beta1
 plugins:
   # The name of the plugin.
   - name: gogofaster
-     # The the relative output directory.
-    out: proto/pb
+     # The relative output directory.
+    out: types/pb
     # Any options to provide to the plugin.
     opt: plugins=grpc,paths=source_relative
