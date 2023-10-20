@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="chapter-item expanded "><a href="specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="specs/p2p.html"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Introduction</a></li><li class="chapter-item expanded "><a href="specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="specs/block-validity.html"><strong aria-hidden="true">4.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="specs/da.html"><strong aria-hidden="true">5.</strong> DA</a></li><li class="chapter-item expanded "><a href="specs/mempool.html"><strong aria-hidden="true">6.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="specs/node.html"><strong aria-hidden="true">7.</strong> Node</a></li><li class="chapter-item expanded "><a href="specs/p2p.html"><strong aria-hidden="true">8.</strong> P2P</a></li><li class="chapter-item expanded "><a href="specs/state.html"><strong aria-hidden="true">9.</strong> State</a></li><li class="chapter-item expanded "><a href="specs/store.html"><strong aria-hidden="true">10.</strong> Store</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -351,7 +351,119 @@ This block is marked as soft-confirmed by the validating full node until the sam
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[5] <a href="https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started">Tutorial</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="da"><a class="header" href="#da">DA</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="block-and-header-validity"><a class="header" href="#block-and-header-validity">Block and Header Validity</a></h1>
+<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
+<p>Like all blockchains, rollups are defined as the chain of <strong>valid</strong> blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.</p>
+<p>Verifying a block / header is done in 3 parts:</p>
+<ol>
+<li>
+<p>Verify correct serialization according to the protobuf spec</p>
+</li>
+<li>
+<p>Perform basic validation of the types</p>
+</li>
+<li>
+<p>Perform verification of the new block against the previous accepted block</p>
+</li>
+</ol>
+<h2 id="basic-validation"><a class="header" href="#basic-validation">Basic Validation</a></h2>
+<p>Each type contains a <code>.ValidateBasic()</code> method, which verifies that certain basic invariants hold. The <code>ValidateBasic()</code> calls are nested, starting from the <code>Block</code> struct, all the way down to each subfield.</p>
+<p>The nested basic validation, and validation checks, are called as follows:</p>
+<pre><code class="language-go">Block.ValidateBasic()
+  // Make sure the block's SignedHeader passes basic validation
+  SignedHeader.ValidateBasic()
+    // Make sure the SignedHeader's Header passes basic validation
+    Header.ValidateBasic()
+	  verify ProposerAddress not nil
+	// Make sure the SignedHeader's Commit passes basic validation
+	Commit.ValidateBasic()
+	  // Ensure that someone signed the block
+	  verify len(c.Signatures) not 0
+	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
+	Validators.ValidateBasic()
+	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
+	  verify sh.Validators is not nil, and len(sh.Validators.Validators) != 0
+	  // apply basic validation to all Validators
+	  for each validator:
+	    validator.ValidateBasic()
+		  validate not nil
+		  validator.PubKey not nil
+		  validator.VotingPower &gt;= 0
+		  validator.Address == correct size
+	  // apply ValidateBasic to the proposer field:
+	  sh.Validators.Proposer.ValidateBasic()
+		validate not nil
+		validator.PubKey not nil
+		validator.VotingPower &gt;= 0
+		validator.Address == correct size
+    Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
+    Assert that len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
+	Verify the 1 signature
+  Data.ValidateBasic() // always passes
+  // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
+  Data.Hash() == SignedHeader.DataHash
+</code></pre>
+<h2 id="verification-against-previous-block"><a class="header" href="#verification-against-previous-block">Verification Against Previous Block</a></h2>
+<pre><code class="language-go">// (Block.Verify is currenty unimplemented)
+Block.Verify()
+  SignedHeader.Verify(untrustH *SignedHeader)
+    // basic validation removed in #1231, because go-header already validates it
+    //untrustH.ValidateBasic()
+	Header.Verify(untrustH *SignedHeader)
+	  if untrustH.Height == h.Height + 1, then apply the following check:
+	    untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]
+	if untrustH.Height &gt; h.Height + 1:
+	  soft verification failure	
+	// We should know they're adjacent now,
+	// verify the link to previous.
+	untrustH.LastHeaderHash == h.Header.Hash()
+	// Verify LastCommit hash
+	untrustH.LastCommitHash == sh.Commit.GetCommitHash(...)
+	
+</code></pre>
+<h2 id="block"><a class="header" href="#block"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L26">Block</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>SignedHeader</td><td>Header of the block, signed by proposer</td><td>(See SignedHeader)</td></tr>
+<tr><td>Data</td><td>Transaction data of the block</td><td>Data.Hash == SignedHeader.DataHash</td></tr>
+</tbody></table>
+</div>
+<h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16">SignedHeader</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>Header</td><td>Valid header for the block</td><td><code>Header</code> passes <code>ValidateBasic()</code> and <code>Verify()</code></td></tr>
+<tr><td>Commit</td><td>1 valid signature from the expected proposer</td><td><code>Commit</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
+<tr><td>Validators</td><td>Array of Aggregators, should be length 1 (or zero for based rollup case)</td><td><code>Validators</code> passes <code>ValidateBasic()</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go#L25">Header</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td><strong>BaseHeader</strong> .</td><td></td><td></td></tr>
+<tr><td>Height</td><td>Height of the previous accepted header, plus 1.</td><td>checked in the `Verify()`` step</td></tr>
+<tr><td>Time</td><td>Timestamp of the block</td><td>Not validated in Rollkit</td></tr>
+<tr><td>ChainID</td><td>The hard-coded ChainID of the chain</td><td>Should be checked as soon as the header is received</td></tr>
+<tr><td><strong>Header</strong> .</td><td></td><td></td></tr>
+<tr><td>Version</td><td>unused</td><td></td></tr>
+<tr><td>LastHeaderHash</td><td>The hash of the previous accepted block</td><td>checked in the `Verify()`` step</td></tr>
+<tr><td>LastCommitHash</td><td>The hash of the previous accepted block's commit</td><td>checked in the `Verify()`` step</td></tr>
+<tr><td>DataHash</td><td>Correct hash of the block's Data field</td><td>checked in the `ValidateBasic()`` step</td></tr>
+<tr><td>ConsensusHash</td><td>unused</td><td></td></tr>
+<tr><td>AppHash</td><td>The correct state root after executing the block's transactions against the accepted state</td><td>checked during block execution</td></tr>
+<tr><td>LastResultsHash</td><td>Correct results from executing transactions</td><td>checked during block execution</td></tr>
+<tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>checked in the <code>Verify()</code> step</td></tr>
+<tr><td>AggregatorsHash</td><td>Matches the NextAggregatorsHash of the previous accepted block</td><td>checked in the <code>Verify()</code> step</td></tr>
+<tr><td>NextAggregatorsHash</td><td>Set during block execution, according to the ABCI app</td><td>checked during block execution</td></tr>
+</tbody></table>
+</div>
+<h2 id="commit"><a class="header" href="#commit"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L48">Commit</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>Signatures</td><td>Array containing a signature from the expected proposer</td><td>checked in <code>ValidateBasic()</code>,  signature verification occurs in <code>SignedHeader.ValidateBasic()</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="validatorset"><a class="header" href="#validatorset"><a href="https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51">ValidatorSet</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>Validators</td><td>Array of validators, each must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
+<tr><td>Proposer</td><td>Must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
+</tbody></table>
+</div><div style="break-before: page; page-break-before: always;"></div><h1 id="da"><a class="header" href="#da">DA</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="mempool"><a class="header" href="#mempool">Mempool</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="node"><a class="header" href="#node">Node</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="p2p"><a class="header" href="#p2p">P2P</a></h1>
