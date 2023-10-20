@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+
 	"github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da/newda"
 

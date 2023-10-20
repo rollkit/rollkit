@@ -2,8 +2,10 @@ package newda
 
 import (
 	"context"
-
 	"encoding/binary"
+
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+
 	"github.com/gogo/protobuf/proto"
 	ds "github.com/ipfs/go-datastore"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 type NewDA struct {
