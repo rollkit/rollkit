@@ -57,4 +57,4 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 [client.go]: https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43
 [go-datastore]: https://github.com/ipfs/go-datastore
 [go-libp2p]: https://github.com/libp2p/go-libp2p
-[conngater]: https://github.com/libp2p/go-libp2p/p2p/net/conngater
+[conngater]: https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater
