@@ -44,7 +44,6 @@ See [block executor]
 [3] [Block Validation][block validation]
 [4] [ABCI documentation][ABCI interface]
 
-
 [block executor]: https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go
 [block manager]: https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md
 [block validation]: https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md
