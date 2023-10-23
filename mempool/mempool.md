@@ -16,18 +16,18 @@ Several RPC methods query the mempool module: [`BroadcastTxCommit`](https://gith
 
 ## Interface
 
-| **Method Name**    | **Inputs** | **Outputs** | **Behavior** |
-| ------------------ | ---------- | ----------- | ------------ |
-| CheckTx            | Takes a transaction object           |             |              |
-| RemoveTxByKey      |            |             |              |
-| ReapMaxBytesMaxGas |            |             |              |
-| ReapMaxTxs         |            |             |              |
-| Lock               |            |             |              |
-| Unlock             |            |             |              |
-| Update             |            |             |              |
-| FlushAppConn       |            |             |              |
-| Flush              |            |             |              |
-| TxsAvailable       |            |             |              |
-| EnableTxsAvailable |            |             |              |
-| Size               |            |             |              |
-| SizeBytes          |            |             |              |
+| Function Name       | Input Arguments                              | Output Type      | Intended Behavior                                                |
+|---------------------|---------------------------------------------|------------------|------------------------------------------------------------------|
+| CheckTx             | tx types.Tx, callback func(*abci.Response), txInfo TxInfo | error            | Executes a new transaction against the application to determine its validity and whether it should be added to the mempool. |
+| RemoveTxByKey       | txKey types.TxKey                           | error            | Removes a transaction, identified by its key, from the mempool. |
+| ReapMaxBytesMaxGas  | maxBytes, maxGas int64                      | types.Txs         | Reaps transactions from the mempool up to maxBytes bytes total with the condition that the total gasWanted must be less than maxGas. If both maxes are negative, there is no cap on the size of all returned transactions (~ all available transactions). |
+| ReapMaxTxs          | max int                                       | types.Txs         | Reaps up to max transactions from the mempool. If max is negative, there is no cap on the size of all returned transactions (~ all available transactions). |
+| Lock                | N/A                                         | N/A              | Locks the mempool. The consensus must be able to hold the lock to safely update. |
+| Unlock              | N/A                                         | N/A              | Unlocks the mempool. |
+| Update              | blockHeight uint64, blockTxs types.Txs, deliverTxResponses []*abci.ResponseDeliverTx, newPreFn PreCheckFunc, newPostFn PostCheckFunc | error            | Informs the mempool that the given txs were committed and can be discarded. This should be called *after* block is committed by consensus. Lock/Unlock must be managed by the caller. |
+| FlushAppConn        | N/A                                         | error            | Flushes the mempool connection to ensure async callback calls are done, e.g., from CheckTx. Lock/Unlock must be managed by the caller. |
+| Flush               | N/A                                         | N/A              | Removes all transactions from the mempool and caches. |
+| TxsAvailable        | N/A                                         | <-chan struct{}   | Returns a channel which fires once for every height when transactions are available in the mempool. The returned channel may be nil if EnableTxsAvailable was not called. |
+| EnableTxsAvailable  | N/A                                         | N/A              | Initializes the TxsAvailable channel, ensuring it will trigger once every height when transactions are available. |
+| Size                | N/A                                         | int              | Returns the number of transactions in the mempool. |
+| SizeBytes           | N/A                                         | int64            | Returns the total size of all txs in the mempool. |
