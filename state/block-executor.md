@@ -4,11 +4,9 @@
 
 The `BlockExecutor` is a component responsible for creating, applying, and maintaining blocks and state in the system. It interacts with the mempool and the application via the [ABCI interface].
 
-## Component Description
+## Detailed Description
 
 The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `chain ID`, `mempool`, `proxyApp`, `eventBus`, and `logger`. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.
-
-## Detailed Description
 
 - `NewBlockExecutor`: This method creates a new instance of `BlockExecutor`. It takes a proposer address, `namespace ID`, `chain ID`, `mempool`, `proxyApp`, `eventBus`, and `logger` as parameters. See [block manager] for details.
 - `InitChain`: This method initializes the chain by calling `InitChainSync` using the consensus connection to the app. It takes a `GenesisDoc` as a parameter.
@@ -23,13 +21,13 @@ The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `cha
   - New block header `AppHash` must match state `AppHash`.
   - New block header `LastResultsHash` must match state `LastResultsHash`.
   - New block header `AggregatorsHash` must match state `Validators.Hash()`.
-- `commit`: This method commits the block and updates the state. It takes the state, the block, and a list of ABCI `ResponseDeliverTx` as parameters.
-- `execute`: This method executes the block. It takes the context, the state, and the block as parameters. It calls the ABCI methods `BeginBlock`, `DeliverTx`, `EndBlock` with the block transactions and returns `ABCIResponses` and errors, if any.
-- `publishEvents`: This method publishes events related to the block. It takes the ABCI responses, the block, and the state as parameters.
+- `commit`: This method commits the block and updates the state. It takes the state, the block, and the ABCI `ResponseFinalizeBlock` as parameters.
+- `execute`: This method executes the block. It takes the context, the state, and the block as parameters. It calls the ABCI method `FinalizeBlock` with the ABCI `RequestFinalizeBlock` containing the block hash, ABCI header, commit, transactions and returns the ABCI `ResponseFinalizeBlock` and errors, if any.
+- `publishEvents`: This method publishes events related to the block. It takes the ABCI `ResponseFinalizeBlock`, the block, and the state as parameters.
 
 ## Message Structure/Communication Format
 
-The `BlockExecutor` communicates with the application via the ABCI interface. It sends and receives ABCI messages, such as `RequestInitChain`, `RequestBeginBlock`, `RequestDeliverTx`, and `RequestEndBlock`.
+The `BlockExecutor` communicates with the application via the ABCI interface. It sends and receives ABCI messages, such as `RequestFinalizeBlock` and `ResponseFinalizeBlock`.
 
 ## Assumptions and Considerations
 
@@ -37,7 +35,7 @@ The `BlockExecutor` assumes that the mempool and the application are functioning
 
 ## Implementation
 
-The implementation of the `BlockExecutor` can be found in the file `state/executor.go`.
+See [block executor]
 
 ## References
 
@@ -46,7 +44,8 @@ The implementation of the `BlockExecutor` can be found in the file `state/execut
 [3] [Block Validation][block validation]
 [4] [ABCI documentation][ABCI interface]
 
-[block executor]: https://github.com/rollkit/rollkit/blob/main/state/executor.go
-[block manager]: ../block/block-manager.md
-[block validation]: ../types/block_spec.md
+
+[block executor]: https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go
+[block manager]: https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md
+[block validation]: https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md
 [ABCI interface]: https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md
