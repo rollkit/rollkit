@@ -22,7 +22,7 @@ The [Transaction Indexer][tx_indexer] is a key-value store-backed indexer that p
 
 ## Message Structure/Communication Format
 
-The `publishEvents` [method][publish_events_method] in the block executor is responsible for broadcasting several types of events through the event bus. These events include `EventNewBlock`, `EventNewBlockHeader`, `EventNewBlockEvents`, `EventNewEvidence`, and `EventTx`. Each of these events carries specific data related to the block or transaction they represent.
+The [`publishEvents` method][publish_events_method] in the block executor is responsible for broadcasting several types of events through the event bus. These events include `EventNewBlock`, `EventNewBlockHeader`, `EventNewBlockEvents`, `EventNewEvidence`, and `EventTx`. Each of these events carries specific data related to the block or transaction they represent.
 
 1. `EventNewBlock`: Triggered when a new block is finalized. It carries the block data along with the results of the `FinalizeBlock` ABCI method.
 
