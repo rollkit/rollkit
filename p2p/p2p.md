@@ -20,7 +20,7 @@ type P2PConfig struct {
 }
 ```
 
-A P2P client also instantiates a [connection gator][conngater] to blacklist and whitelist peers specified in the `P2PConfig`.
+A P2P client also instantiates a [connection gator][conngater] to block and allow peers specified in the `P2PConfig`.
 
 It also sets up a gossiper using the gossip topic `<chainID>+<txTopicSuffix>` (`txTopicSuffix` is defined in [p2p/client.go][client.go]), a Distributed Hash Table (DHT) using the `Seeds` defined in the `P2PConfig` and peer discovery using go-libp2p's `discovery.RoutingDiscovery`.
 
