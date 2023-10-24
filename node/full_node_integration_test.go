@@ -128,6 +128,20 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
+func TestValsetUpdates(t *testing.T) {
+
+	//assert := assert.New(t)
+	//require := require.New(t)
+
+	app := &mocks.Application{}
+	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
+}
+
 func TestLazyAggregator(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
