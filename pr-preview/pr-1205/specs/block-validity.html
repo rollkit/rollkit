@@ -190,7 +190,7 @@
   Data.Hash() == SignedHeader.DataHash
 </code></pre>
 <h2 id="verification-against-previous-block"><a class="header" href="#verification-against-previous-block">Verification Against Previous Block</a></h2>
-<pre><code class="language-go">// (Block.Verify is currenty unimplemented)
+<pre><code class="language-go">// code does not match spec: see https://github.com/rollkit/rollkit/issues/1277
 Block.Verify()
   SignedHeader.Verify(untrustH *SignedHeader)
     // basic validation removed in #1231, because go-header already validates it
