@@ -57,7 +57,7 @@ Block.ValidateBasic()
 ## Verification Against Previous Block
 
 ```go
-// (Block.Verify is currenty unimplemented)
+// code does not match spec: see https://github.com/rollkit/rollkit/issues/1277
 Block.Verify()
   SignedHeader.Verify(untrustH *SignedHeader)
     // basic validation removed in #1231, because go-header already validates it
