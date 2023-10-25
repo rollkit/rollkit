@@ -111,8 +111,11 @@ See [block executor]
 ## References
 
 [1] [Block Executor][block executor]
+
 [2] [Block Manager][block manager]
+
 [3] [Block Validation][block validation]
+
 [4] [ABCI documentation][ABCI interface]
 
 [block executor]: https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go
