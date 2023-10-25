@@ -9,7 +9,7 @@ The Store interface defines methods for storing and retrieving blocks, commits, 
 The Store interface defines the following methods:
 
 - `Height`: Returns the height of the highest block in the store.
-- `SetHeight`: Sets the height saved in the Store if it is higher than the existing height.
+- `SetHeight`: Sets given height in the store if it's higher than existing height in the store.
 - `SaveBlock`: Saves a block along with its seen commit.
 - `LoadBlock`: Returns a block at a given height.
 - `LoadBlockByHash`: Returns a block with a given block header hash.
