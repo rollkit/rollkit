@@ -5,9 +5,9 @@ Every rollup node (both full and light) runs a P2P client using [go-libp2p][go-l
 Following parameters are required for creating a new instance of a P2P client:
 
 * P2PConfig (described below)
-* [go-libp2p][go-libp2p] private key
-* chainID: rollup identifier
-* datastore: an instance of [go-datastore][go-datastore]
+* [go-libp2p][go-libp2p] private key used to create a libp2p connection and join the p2p network.
+* chainID: rollup identifier used as namespace within the p2p network for peer discovery. The namespace acts as a sub network in the p2p network, where peer connections are limited to the same namespace.
+* datastore: an instance of [go-datastore][go-datastore] used for creating a connection gator and stores blocked and allowed peers.
 * logger
 
 ```go
