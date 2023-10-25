@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html" class="active"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block.html"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html" class="active"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -162,7 +162,49 @@ found. Note that specific implementation details should be documented in the
 rollkit repository rather than in the specification document.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <p>List any references used or cited in the document.</p>
+<h2 id="general-tips"><a class="header" href="#general-tips">General Tips</a></h2>
+<h3 id="how-to-use-a-mermaid-diagram-that-you-can-display-in-a-markdown"><a class="header" href="#how-to-use-a-mermaid-diagram-that-you-can-display-in-a-markdown">How to use a mermaid diagram that you can display in a markdown</a></h3>
+<pre><code class="language-mermaid">
+sequenceDiagram
+    title Example
+    participant A
+    participant B
+    A-&gt;&gt;B: Example
+    B-&gt;&gt;A: Example
 
+</code></pre>
+<pre><code class="language-mermaid">
+graph LR
+   A[Example] --&gt; B[Example]
+   B --&gt; C[Example]
+   C --&gt; A
+
+</code></pre>
+<pre><code class="language-mermaid">
+gantt
+   title Example
+   dateFormat  YYYY-MM-DD
+   section Example
+   A :done,    des1, 2014-01-06,2014-01-08
+   B :done,    des2, 2014-01-06,2014-01-08
+   C :done,    des3, 2014-01-06,2014-01-08
+
+</code></pre>
+<h3 id="grammer-and-spelling-check"><a class="header" href="#grammer-and-spelling-check">Grammer and spelling check</a></h3>
+<p>The recommendation is to use your favorite spellchecker extension in your IDE like <a href="https://www.grammarly.com/">grammarly</a>, to make sure that the document is free of spelling and grammar errors.</p>
+<h3 id="use-of-links"><a class="header" href="#use-of-links">Use of links</a></h3>
+<p>If you want to use links use proper syntax. This goes for both internal and external links like <a href="../README.html">documentation</a> or <a href="https://github.com/celestiaorg/go-header">external links</a></p>
+<p>At the bottom of the document in <a href="#references">Reference</a>, you can add the following footnotes that will be visible in the markdown document:</p>
+<p>[1] <a href="https://www.grammarly.com/">Grammarly</a></p>
+<p>[2] <a href="../README.html">Documentation</a></p>
+<p>[3] <a href="https://github.com/celestiaorg/go-header">external links</a></p>
+<p>Then at the bottom add the actual links that will not be visible in the markdown document:</p>
+<h3 id="use-of-tables"><a class="header" href="#use-of-tables">Use of tables</a></h3>
+<p>If you are describing variables, components or other things in a structured list that can be described in a table use the following syntax:</p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td><code>type</code></td><td>Description</td></tr>
+</tbody></table>
+</div>
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
