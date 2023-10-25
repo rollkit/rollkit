@@ -206,7 +206,15 @@
 </ul>
 </li>
 <li>
-<p><code>updateState</code>: This method updates the local state using the block and block execution responses and returns the updated state and errors, if any. Given the current state, the block and the ABCI <code>ResponseFinalizeBlock</code>, it validates the updated validator set and updates the state by applying the block. The state consists of:</p>
+<p><code>Commit</code>: This method commits the block and updates the mempool. Given the updated state, the block, and the ABCI <code>ResponseFinalizeBlock</code> as parameters, it:</p>
+<ul>
+<li>Invokes app commit, basically finalizing the last execution, by  calling ABCI <code>Commit</code>.</li>
+<li>Updates the mempool to inform that the transactions included in the block can be safely discarded.</li>
+<li>Publishes the events produced during the block exection for indexing.</li>
+</ul>
+</li>
+<li>
+<p><code>updateState</code>: This method updates the state. Given the current state, the block, the ABCI <code>ResponseFinalizeBlock</code> and the validator updates, it validates the updated validator set, updates the state by applying the block and returns the updated state and errors, if any. The state consists of:</p>
 <ul>
 <li>Version</li>
 <li>Chain ID</li>
@@ -228,14 +236,6 @@
 </ul>
 </li>
 <li>
-<p><code>commit</code>: This method commits the block and updates the mempool. Given takes the updated state, the block, and the ABCI <code>ResponseFinalizeBlock</code> as parameters, it:</p>
-<ul>
-<li>Invokes app commit, basically finalizing the last execution, by  calling ABCI <code>Commit</code>.</li>
-<li>Updates the mempool to inform that the transactions included in the block can be safely discarded.</li>
-<li>Publishes the events produced during the block exection for indexing.</li>
-</ul>
-</li>
-<li>
 <p><code>execute</code>: This method executes the block. It takes the context, the state, and the block as parameters. It calls the ABCI method <code>FinalizeBlock</code> with the ABCI <code>RequestFinalizeBlock</code> containing the block hash, ABCI header, commit, transactions and returns the ABCI <code>ResponseFinalizeBlock</code> and errors, if any.</p>
 </li>
 <li>
@@ -243,7 +243,7 @@
 </li>
 </ul>
 <h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
-<p>The <code>BlockExecutor</code> communicates with the application via the ABCI interface. It sends and receives ABCI messages, such as <code>RequestInitChain</code> for initializing a new chain and <code>RequestFinalizeBlock</code>, <code>ResponseFinalizeBlock</code> for creating new blocks. The ABCI methods <code>InitChainSync</code>, <code>FinalizeBlock</code>, <code>Commit</code> are used for initializing a new chain and creating blocks, respectively.</p>
+<p>The <code>BlockExecutor</code> communicates with the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>. It calls the ABCI methods <code>InitChainSync</code>, <code>FinalizeBlock</code>, <code>Commit</code> for initializing a new chain and creating blocks, respectively.</p>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
 <p>The <code>BlockExecutor</code> assumes that there is consensus connection available to the app, which can be used to send and receive ABCI messages. In addition there are some important pre-condition and post-condition invariants, as follows:</p>
 <ul>
