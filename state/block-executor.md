@@ -91,7 +91,7 @@ The `BlockExecutor` assumes that there is consensus connection available to the 
 
 - `ApplyBlock`:
   - pre-condition:
-    - block is valid, using basic [block validation rules] as well as validations performed in `Validate`, as described above.
+    - block is valid, using basic [block validation] rules as well as validations performed in `Validate`, as described above.
   - post-condition:
     - block is added to the chain, state is updated and block execution responses are captured.
 
