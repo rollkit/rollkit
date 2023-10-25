@@ -44,7 +44,12 @@ The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `cha
   - New block header `LastResultsHash` must match state `LastResultsHash`.
   - New block header `AggregatorsHash` must match state `Validators.Hash()`.
 
-- `updateState`: This method updates the local state using the block and block execution responses and returns the updated state and errors, if any. Given the current state, the block and the ABCI `ResponseFinalizeBlock`, it validates the updated validator set and updates the state by applying the block. The state consists of:
+- `Commit`: This method commits the block and updates the mempool. Given the updated state, the block, and the ABCI `ResponseFinalizeBlock` as parameters, it:
+  - Invokes app commit, basically finalizing the last execution, by  calling ABCI `Commit`.
+  - Updates the mempool to inform that the transactions included in the block can be safely discarded.
+  - Publishes the events produced during the block exection for indexing.
+
+- `updateState`: This method updates the state. Given the current state, the block, the ABCI `ResponseFinalizeBlock` and the validator updates, it validates the updated validator set, updates the state by applying the block and returns the updated state and errors, if any. The state consists of:
   - Version
   - Chain ID
   - Initial Height
@@ -60,18 +65,13 @@ The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `cha
   - Whether Last Height Consensus Parameters changed
   - App Hash
 
-- `commit`: This method commits the block and updates the mempool. Given takes the updated state, the block, and the ABCI `ResponseFinalizeBlock` as parameters, it:
-  - Invokes app commit, basically finalizing the last execution, by  calling ABCI `Commit`.
-  - Updates the mempool to inform that the transactions included in the block can be safely discarded.
-  - Publishes the events produced during the block exection for indexing.
-
 - `execute`: This method executes the block. It takes the context, the state, and the block as parameters. It calls the ABCI method `FinalizeBlock` with the ABCI `RequestFinalizeBlock` containing the block hash, ABCI header, commit, transactions and returns the ABCI `ResponseFinalizeBlock` and errors, if any.
 
 - `publishEvents`: This method publishes events related to the block. It takes the ABCI `ResponseFinalizeBlock`, the block, and the state as parameters.
 
 ## Message Structure/Communication Format
 
-The `BlockExecutor` communicates with the application via the ABCI interface. It sends and receives ABCI messages, such as `RequestInitChain` for initializing a new chain and `RequestFinalizeBlock`, `ResponseFinalizeBlock` for creating new blocks. The ABCI methods `InitChainSync`, `FinalizeBlock`, `Commit` are used for initializing a new chain and creating blocks, respectively.
+The `BlockExecutor` communicates with the application via the [ABCI interface]. It sends and receives ABCI messages, such as `RequestInitChain` for initializing a new chain and `RequestFinalizeBlock`, `ResponseFinalizeBlock` for creating new blocks. The ABCI methods `InitChainSync`, `FinalizeBlock`, `Commit` are used for initializing a new chain and creating blocks, respectively.
 
 ## Assumptions and Considerations
 
