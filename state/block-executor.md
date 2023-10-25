@@ -71,7 +71,7 @@ The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `cha
 
 ## Message Structure/Communication Format
 
-The `BlockExecutor` communicates with the application via the [ABCI interface]. It sends and receives ABCI messages, such as `RequestInitChain` for initializing a new chain and `RequestFinalizeBlock`, `ResponseFinalizeBlock` for creating new blocks. The ABCI methods `InitChainSync`, `FinalizeBlock`, `Commit` are used for initializing a new chain and creating blocks, respectively.
+The `BlockExecutor` communicates with the application via the [ABCI interface]. It calls the ABCI methods `InitChainSync`, `FinalizeBlock`, `Commit` for initializing a new chain and creating blocks, respectively.
 
 ## Assumptions and Considerations
 
