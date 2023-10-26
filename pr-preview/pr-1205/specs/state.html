@@ -137,7 +137,187 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="state"><a class="header" href="#state">State</a></h1>
+                        <h1 id="block-executor"><a class="header" href="#block-executor">Block Executor</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The <code>BlockExecutor</code> is a component responsible for creating, applying, and maintaining blocks and state in the system. It interacts with the mempool and the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>.</p>
+<h2 id="detailed-description"><a class="header" href="#detailed-description">Detailed Description</a></h2>
+<p>The <code>BlockExecutor</code> is initialized with a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code>. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.</p>
+<ul>
+<li>
+<p><code>NewBlockExecutor</code>: This method creates a new instance of <code>BlockExecutor</code>. It takes a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code> as parameters. See <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md">block manager</a> for details.</p>
+</li>
+<li>
+<p><code>InitChain</code>: This method initializes the chain by calling ABCI <code>InitChainSync</code> using the consensus connection to the app. It takes a <code>GenesisDoc</code> as a parameter. It sends a ABCI <code>RequestInitChain</code> message with the genesis parameters including:</p>
+<ul>
+<li>Genesis Time</li>
+<li>Chain ID</li>
+<li>Consensus Parameters including:
+<ul>
+<li>Block Max Bytes</li>
+<li>Block Max Gas</li>
+<li>Evidence Parameters</li>
+<li>Validator Parameters</li>
+<li>Version Parameters</li>
+</ul>
+</li>
+<li>Initial Validator Set using genesis validators</li>
+<li>Initial Height</li>
+</ul>
+</li>
+<li>
+<p><code>CreateBlock</code>: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the commit as parameters.</p>
+</li>
+<li>
+<p><code>ApplyBlock</code>: This method applies the block to the state. Given the current state and block to be applied, it:</p>
+<ul>
+<li>
+<p>Validates the block, as described in <code>Validate</code>.</p>
+</li>
+<li>
+<p>Executes the block using app, as described in <code>execute</code>.</p>
+</li>
+<li>
+<p>Captures the validator updates done in the execute block.</p>
+</li>
+<li>
+<p>Updates the state using the block, block execution responses, and validator updates as described in <code>updateState</code>.</p>
+</li>
+<li>
+<p>Returns the updated state, validator updates and errors, if any, after applying the block.</p>
+</li>
+<li>
+<p>It can return the following named errors:</p>
+<ul>
+<li><code>ErrEmptyValSetGenerate</code>: returned when applying the validator changes would result in empty set.</li>
+<li><code>ErrAddingValidatorToBased</code>: returned when adding validators to empty validator set.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>Validate</code>: This method validates the block. It takes the state and the block as parameters. In addition to the basic <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md">block validation</a> rules, it applies the following validations:</p>
+<ul>
+<li>New block version must match block version of the state.</li>
+<li>If state is at genesis, new block height must match initial height of the state.</li>
+<li>New block height must be last block height + 1 of the state.</li>
+<li>New block header <code>AppHash</code> must match state <code>AppHash</code>.</li>
+<li>New block header <code>LastResultsHash</code> must match state <code>LastResultsHash</code>.</li>
+<li>New block header <code>AggregatorsHash</code> must match state <code>Validators.Hash()</code>.</li>
+</ul>
+</li>
+<li>
+<p><code>Commit</code>: This method commits the block and updates the mempool. Given the updated state, the block, and the ABCI <code>ResponseFinalizeBlock</code> as parameters, it:</p>
+<ul>
+<li>Invokes app commit, basically finalizing the last execution, by  calling ABCI <code>Commit</code>.</li>
+<li>Updates the mempool to inform that the transactions included in the block can be safely discarded.</li>
+<li>Publishes the events produced during the block exection for indexing.</li>
+</ul>
+</li>
+<li>
+<p><code>updateState</code>: This method updates the state. Given the current state, the block, the ABCI <code>ResponseFinalizeBlock</code> and the validator updates, it validates the updated validator set, updates the state by applying the block and returns the updated state and errors, if any. The state consists of:</p>
+<ul>
+<li>Version</li>
+<li>Chain ID</li>
+<li>Initial Height</li>
+<li>Last Block including:
+<ul>
+<li>Block Height</li>
+<li>Block Time</li>
+<li>Block ID</li>
+</ul>
+</li>
+<li>Next Validator Set</li>
+<li>Current Validator Set</li>
+<li>Last Validators</li>
+<li>Whether Last Height Validators changed</li>
+<li>Consensus Parameters</li>
+<li>Whether Last Height Consensus Parameters changed</li>
+<li>App Hash</li>
+</ul>
+</li>
+<li>
+<p><code>execute</code>: This method executes the block. It takes the context, the state, and the block as parameters. It calls the ABCI method <code>FinalizeBlock</code> with the ABCI <code>RequestFinalizeBlock</code> containing the block hash, ABCI header, commit, transactions and returns the ABCI <code>ResponseFinalizeBlock</code> and errors, if any.</p>
+</li>
+<li>
+<p><code>publishEvents</code>: This method publishes events related to the block. It takes the ABCI <code>ResponseFinalizeBlock</code>, the block, and the state as parameters.</p>
+</li>
+</ul>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
+<p>The <code>BlockExecutor</code> communicates with the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>. It calls the ABCI methods <code>InitChainSync</code>, <code>FinalizeBlock</code>, <code>Commit</code> for initializing a new chain and creating blocks, respectively.</p>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<p>The <code>BlockExecutor</code> assumes that there is consensus connection available to the app, which can be used to send and receive ABCI messages. In addition there are some important pre-condition and post-condition invariants, as follows:</p>
+<ul>
+<li>
+<p><code>InitChain</code>:</p>
+<ul>
+<li>pre-condition:
+<ul>
+<li>state is at genesis.</li>
+</ul>
+</li>
+<li>post-condition:
+<ul>
+<li>new chain is initialized.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>CreateBlock</code>:</p>
+<ul>
+<li>pre-condition:
+<ul>
+<li>chain is initialized</li>
+</ul>
+</li>
+<li>post-condition:
+<ul>
+<li>new block is created</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>ApplyBlock</code>:</p>
+<ul>
+<li>pre-condition:
+<ul>
+<li>block is valid, using basic <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md">block validation</a> rules as well as validations performed in <code>Validate</code>, as described above.</li>
+</ul>
+</li>
+<li>post-condition:
+<ul>
+<li>block is added to the chain, state is updated and block execution responses are captured.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>Commit</code>:</p>
+<ul>
+<li>pre-condition:
+<ul>
+<li>block has been applied</li>
+</ul>
+</li>
+<li>post-condition:
+<ul>
+<li>block is commited</li>
+<li>mempool is cleared of block transactions</li>
+<li>block events are published</li>
+<li>state App Hash is updated with the result from <code>ResponseCommit</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go">block executor</a></p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go">Block Executor</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md">Block Manager</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md">Block Validation</a></p>
+<p>[4] <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI documentation</a></p>
 
                     </main>
 
