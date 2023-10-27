@@ -256,6 +256,24 @@ func TestReapMaxBytesMaxGas(t *testing.T) {
 	}
 }
 
+func TestTxMempoolTxLargerThanMaxBytes(t *testing.T) {
+	app := kvstore.NewInMemoryApplication()
+	cc := proxy.NewLocalClientCreator(app)
+	txmp, cleanup := newMempoolWithApp(cc)
+	defer cleanup()
+
+	// large high priority tx
+	bigTx := kvstore.NewRandomTx(100)
+	smallTx := kvstore.NewRandomTx(20)
+	require.NoError(t, txmp.CheckTx(bigTx, nil, TxInfo{SenderID: 1}))
+	require.NoError(t, txmp.CheckTx(smallTx, nil, TxInfo{SenderID: 2}))
+
+	// reap by max bytes less than the large tx
+	reapedTxs := txmp.ReapMaxBytesMaxGas(100, -1)
+	require.Len(t, reapedTxs, 1)
+	require.Equal(t, types.Tx(smallTx), reapedTxs[0])
+}
+
 func TestMempoolFilters(t *testing.T) {
 	app := kvstore.NewInMemoryApplication()
 	cc := proxy.NewLocalClientCreator(app)
