@@ -4,7 +4,8 @@
 
 - [Template](./specs/template.md)
 - [Dependency Graph](./specs/rollkit-dependency-graph.md)
-- [Block](./specs/block-manager.md)
+- [Block Manager](./specs/block-manager.md)
+- [Block Validity](./specs/block-validity.md)
 - [DA](./specs/da.md)
 - [Mempool](./specs/mempool.md)
 - [Node](./specs/node.md)
