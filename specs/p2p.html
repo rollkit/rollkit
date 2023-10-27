@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">4.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">5.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/node.html"><strong aria-hidden="true">6.</strong> Node</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html" class="active"><strong aria-hidden="true">7.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">8.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">9.</strong> Store</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">4.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">5.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">6.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/node.html"><strong aria-hidden="true">7.</strong> Node</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html" class="active"><strong aria-hidden="true">8.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">9.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">10.</strong> Store</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -138,6 +138,42 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="p2p"><a class="header" href="#p2p">P2P</a></h1>
+<p>Every rollup node (both full and light) runs a P2P client using <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> P2P networking stack for gossiping transactions in the rollup's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.</p>
+<p>Following parameters are required for creating a new instance of a P2P client:</p>
+<ul>
+<li>P2PConfig (described below)</li>
+<li><a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> private key used to create a libp2p connection and join the p2p network.</li>
+<li>chainID: rollup identifier used as namespace within the p2p network for peer discovery. The namespace acts as a sub network in the p2p network, where peer connections are limited to the same namespace.</li>
+<li>datastore: an instance of <a href="https://github.com/ipfs/go-datastore">go-datastore</a> used for creating a connection gator and stores blocked and allowed peers.</li>
+<li>logger</li>
+</ul>
+<pre><code class="language-go">// P2PConfig stores configuration related to peer-to-peer networking.
+type P2PConfig struct {
+	ListenAddress string // Address to listen for incoming connections
+	Seeds         string // Comma separated list of seed nodes to connect to
+	BlockedPeers  string // Comma separated list of nodes to ignore
+	AllowedPeers  string // Comma separated list of nodes to whitelist
+}
+</code></pre>
+<p>A P2P client also instantiates a <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">connection gator</a> to block and allow peers specified in the <code>P2PConfig</code>.</p>
+<p>It also sets up a gossiper using the gossip topic <code>&lt;chainID&gt;+&lt;txTopicSuffix&gt;</code> (<code>txTopicSuffix</code> is defined in <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43">p2p/client.go</a>), a Distributed Hash Table (DHT) using the <code>Seeds</code> defined in the <code>P2PConfig</code> and peer discovery using go-libp2p's <code>discovery.RoutingDiscovery</code>.</p>
+<p>A P2P client provides an interface <code>SetTxValidator(p2p.GossipValidator)</code> for specifying a gossip validator which can define how to handle the incoming <code>GossipMessage</code> in the P2P network. The <code>GossipMessage</code> represents message gossiped via P2P network (e.g. transaction, Block etc).</p>
+<pre><code class="language-go">// GossipValidator is a callback function type.
+type GossipValidator func(*GossipMessage) bool
+</code></pre>
+<p>The full nodes define a transaction validator (shown below) as gossip validator for processing the gossiped transactions to add to the mempool, whereas light nodes simply pass a dummy validator as light nodes do not process gossiped transactions.</p>
+<pre><code class="language-go">// newTxValidator creates a pubsub validator that uses the node's mempool to check the
+// transaction. If the transaction is valid, then it is added to the mempool
+func (n *FullNode) newTxValidator() p2p.GossipValidator {
+</code></pre>
+<pre><code class="language-go">// Dummy validator that always returns a callback function with boolean `false`
+func (ln *LightNode) falseValidator() p2p.GossipValidator {
+</code></pre>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43">client.go</a></p>
+<p>[2] <a href="https://github.com/ipfs/go-datastore">go-datastore</a></p>
+<p>[3] <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a></p>
+<p>[4] <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">conngater</a></p>
 
                     </main>
 
