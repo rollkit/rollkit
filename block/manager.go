@@ -783,6 +783,14 @@ func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.Sta
 	defer m.lastStateMtx.RUnlock()
 	return m.executor.ApplyBlock(ctx, m.lastState, block)
 }
+
+func (m *Manager) customValidate(h types.SignedHeader) error {
+	if bytes.Equal(h.ProposerAddress, m.lastState.Sequencer.Address().Bytes()) {
+		return nil
+	}
+	return fmt.Errorf("block proposer != centralized sequencer")
+}
+
 func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
