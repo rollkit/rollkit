@@ -1111,7 +1111,7 @@ func TestStatus(t *testing.T) {
 	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
 	assert.False(resp.SyncInfo.CatchingUp)
 
-	//valide ValidatorInfo
+	// validate ValidatorInfo
 	assert.NotNil(resp.ValidatorInfo)
 	assert.Equal(validators[1].Address, resp.ValidatorInfo.Address)
 	assert.Equal(validators[1].PubKey, resp.ValidatorInfo.PubKey)
