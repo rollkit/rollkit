@@ -483,7 +483,9 @@ func TestTx(t *testing.T) {
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	node, err := newFullNode(context.Background(), config.NodeConfig{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, err := newFullNode(ctx, config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
@@ -509,13 +511,13 @@ func TestTx(t *testing.T) {
 		require.NoError(rpc.node.Stop())
 	}()
 	tx1 := cmtypes.Tx("tx1")
-	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
+	res, err := rpc.BroadcastTxSync(ctx, tx1)
 	assert.NoError(err)
 	assert.NotNil(res)
 
 	time.Sleep(2 * time.Second)
 
-	resTx, errTx := rpc.Tx(context.Background(), res.Hash, true)
+	resTx, errTx := rpc.Tx(ctx, res.Hash, true)
 	assert.NoError(errTx)
 	assert.NotNil(resTx)
 	assert.EqualValues(tx1, resTx.Tx)
@@ -523,7 +525,7 @@ func TestTx(t *testing.T) {
 
 	tx2 := cmtypes.Tx("tx2")
 	assert.Panics(func() {
-		resTx, errTx := rpc.Tx(context.Background(), tx2.Hash(), true)
+		resTx, errTx := rpc.Tx(ctx, tx2.Hash(), true)
 		assert.Nil(resTx)
 		assert.Error(errTx)
 	})
