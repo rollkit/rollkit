@@ -699,6 +699,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	// Check if the node has shutdown prior to publishing to channels
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+	}
+
 	// Publish header to channel so that header exchange service can broadcast
 	m.HeaderCh <- &block.SignedHeader
 
