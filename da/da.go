@@ -15,8 +15,10 @@ var (
 	ErrDataNotFound = errors.New("data not found")
 	// ErrNamespaceNotFound is used to indicate that the block contains data, but not for the requested namespace.
 	ErrNamespaceNotFound = errors.New("namespace not found in data")
-	ErrBlobNotFound      = errors.New("blob: not found")
-	ErrEDSNotFound       = errors.New("eds not found")
+	// ErrBlobNotFound is used to indicate that the blob was not found.
+	ErrBlobNotFound = errors.New("blob: not found")
+	// ErrEDSNotFound is used to indicate that the EDS was not found.
+	ErrEDSNotFound = errors.New("eds not found")
 )
 
 // StatusCode is a type for DA layer return status.
