@@ -15,8 +15,8 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/log/test"
 	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -48,15 +48,15 @@ func TestInitialState(t *testing.T) {
 		name                    string
 		store                   store.Store
 		genesis                 *cmtypes.GenesisDoc
-		expectedInitialHeight   int64
-		expectedLastBlockHeight int64
+		expectedInitialHeight   uint64
+		expectedLastBlockHeight uint64
 		expectedChainID         string
 	}{
 		{
 			name:                    "empty_store",
 			store:                   emptyStore,
 			genesis:                 genesis,
-			expectedInitialHeight:   genesis.InitialHeight,
+			expectedInitialHeight:   uint64(genesis.InitialHeight),
 			expectedLastBlockHeight: 0,
 			expectedChainID:         genesis.ChainID,
 		},
@@ -64,8 +64,8 @@ func TestInitialState(t *testing.T) {
 			name:                    "state_in_store",
 			store:                   fullStore,
 			genesis:                 genesis,
-			expectedInitialHeight:   sampleState.InitialHeight,
-			expectedLastBlockHeight: sampleState.LastBlockHeight,
+			expectedInitialHeight:   uint64(sampleState.InitialHeight),
+			expectedLastBlockHeight: uint64(sampleState.LastBlockHeight),
 			expectedChainID:         sampleState.ChainID,
 		},
 	}
@@ -84,8 +84,7 @@ func TestInitialState(t *testing.T) {
 			defer func() {
 				require.NoError(t, dalc.Stop())
 			}()
-			dumbChan := make(chan struct{})
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan, nil)
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
 			assert.NoError(err)
 			assert.NotNil(agg)
 			agg.lastStateMtx.RLock()

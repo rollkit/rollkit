@@ -24,8 +24,8 @@ import (
 	"github.com/rollkit/rollkit/da/grpc/mockserv"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/da/registry"
-	"github.com/rollkit/rollkit/log/test"
 	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -33,7 +33,7 @@ var (
 	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
 	testConfig = celestia.Config{
-		Timeout:  30 * time.Second,
+		Timeout:  15 * time.Second,
 		GasLimit: 3000000,
 	}
 )

@@ -14,8 +14,8 @@ import (
 	"github.com/rollkit/celestia-openrpc/types/blob"
 	"github.com/rollkit/celestia-openrpc/types/header"
 	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -196,11 +196,11 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, err)
 			return
 		}
-		if len(params) != 1 {
-			s.writeError(w, errors.New("expected 1 param: data (base64 string)"))
+		if len(params) != 2 {
+			s.writeError(w, errors.New("expected 2 params: data (base64 string) and options (map[string]interface{})"))
 			return
 		}
-
+		// ignores the second parameter - options
 		blocks := make([]*types.Block, len(params[0].([]interface{})))
 		for i, data := range params[0].([]interface{}) {
 			blockBase64 := data.(map[string]interface{})["data"].(string)
@@ -220,7 +220,7 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		res := s.mock.SubmitBlocks(r.Context(), blocks)
 		resp := &response{
 			Jsonrpc: "2.0",
-			Result:  int64(res.DAHeight),
+			Result:  res.DAHeight,
 			ID:      req.ID,
 			Error:   nil,
 		}

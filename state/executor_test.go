@@ -22,8 +22,16 @@ import (
 
 	"github.com/rollkit/rollkit/mempool"
 	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
-	"github.com/rollkit/rollkit/mocks"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
+)
+
+const (
+	CheckTx    = "CheckTx"
+	BeginBlock = "BeginBlock"
+	DeliverTx  = "DeliverTx"
+	EndBlock   = "EndBlock"
+	Commit     = "Commit"
 )
 
 func doTestCreateBlock(t *testing.T) {
@@ -33,7 +41,7 @@ func doTestCreateBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 
 	fmt.Println("App On CheckTx")
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
@@ -63,19 +71,20 @@ func doTestCreateBlock(t *testing.T) {
 		},
 	}
 	state.Validators = cmtypes.NewValidatorSet(validators)
+	state.NextValidators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
-	assert.Equal(int64(1), block.Height())
+	assert.Equal(uint64(1), block.Height())
 
 	// one small Tx
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
 	block = executor.CreateBlock(2, &types.Commit{}, []byte{}, state)
 	require.NotNil(block)
-	assert.Equal(int64(2), block.Height())
+	assert.Equal(uint64(2), block.Height())
 	assert.Len(block.Data.Txs, 1)
 
 	// now there are 3 Txs, and only two can fit into single block
@@ -99,14 +108,14 @@ func doTestApplyBlock(t *testing.T) {
 	logger := log.TestingLogger()
 
 	app := &mocks.Application{}
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{
+	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{
 		Data: mockAppHash[:],
 	})
 
@@ -158,8 +167,11 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	block := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
 	require.NotNil(block)
-	assert.Equal(int64(1), block.Height())
+	assert.Equal(uint64(1), block.Height())
 	assert.Len(block.Data.Txs, 1)
+	dataHash, err := block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	// Update the signature on the block to current from last
 	headerBytes, _ := block.SignedHeader.Header.MarshalBinary()
@@ -173,7 +185,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
-	assert.Equal(int64(1), newState.LastBlockHeight)
+	assert.Equal(uint64(1), newState.LastBlockHeight)
 	appHash, _, err := executor.Commit(context.Background(), newState, block, resp)
 	require.NoError(err)
 	assert.Equal(mockAppHash, appHash)
@@ -184,8 +196,11 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.Response) {}, mempool.TxInfo{}))
 	block = executor.CreateBlock(2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
 	require.NotNil(block)
-	assert.Equal(int64(2), block.Height())
+	assert.Equal(uint64(2), block.Height())
 	assert.Len(block.Data.Txs, 3)
+	dataHash, err = block.Data.Hash()
+	assert.NoError(err)
+	block.SignedHeader.DataHash = dataHash
 
 	headerBytes, _ = block.SignedHeader.Header.MarshalBinary()
 	sig, _ = vKey.Sign(headerBytes)
@@ -198,7 +213,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
-	assert.Equal(int64(2), newState.LastBlockHeight)
+	assert.Equal(uint64(2), newState.LastBlockHeight)
 	_, _, err = executor.Commit(context.Background(), newState, block, resp)
 	require.NoError(err)
 

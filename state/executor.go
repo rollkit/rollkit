@@ -16,10 +16,10 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	"go.uber.org/multierr"
 
-	abciconv "github.com/rollkit/rollkit/conv/abci"
-	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
+	abciconv "github.com/rollkit/rollkit/types/abci"
 )
 
 var ErrEmptyValSetGenerated = errors.New("applying the validator changes would result in empty set")
@@ -132,11 +132,10 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 
 // ApplyBlock validates and executes the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *cmstate.ABCIResponses, error) {
-	err := e.validate(state, block)
+	err := e.Validate(state, block)
 	if err != nil {
 		return types.State{}, nil, err
 	}
-
 	// This makes calls to the AppClient
 	resp, err := e.execute(ctx, state, block)
 	if err != nil {
@@ -253,7 +252,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(int64(block.Height()), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	err = e.mempool.Update(block.Height(), fromRollkitTxs(block.Data.Txs), deliverTxs, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -261,7 +260,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 	return resp.Data, uint64(resp.RetainHeight), err
 }
 
-func (e *BlockExecutor) validate(state types.State, block *types.Block) error {
+func (e *BlockExecutor) Validate(state types.State, block *types.Block) error {
 	err := block.ValidateBasic()
 	if err != nil {
 		return err
@@ -341,7 +340,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		}
 
 	}
-	endBlockRequest := abci.RequestEndBlock{Height: block.Height()}
+	endBlockRequest := abci.RequestEndBlock{Height: int64(block.Height())}
 	abciResponses.EndBlock, err = e.proxyApp.EndBlockSync(endBlockRequest)
 	if err != nil {
 		return nil, err
@@ -375,13 +374,13 @@ func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.
 	for _, ev := range abciBlock.Evidence.Evidence {
 		err = multierr.Append(err, e.eventBus.PublishEventNewEvidence(cmtypes.EventDataNewEvidence{
 			Evidence: ev,
-			Height:   block.Height(),
+			Height:   int64(block.Height()),
 		}))
 	}
 	for i, dtx := range resp.DeliverTxs {
 		err = multierr.Append(err, e.eventBus.PublishEventTx(cmtypes.EventDataTx{
 			TxResult: abci.TxResult{
-				Height: block.Height(),
+				Height: int64(block.Height()),
 				Index:  uint32(i),
 				Tx:     abciBlock.Data.Txs[i],
 				Result: *dtx,

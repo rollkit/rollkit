@@ -21,15 +21,15 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/log"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
-const defaultDABlockTime = 30 * time.Second
+const defaultDABlockTime = 15 * time.Second
 
 // defaultBlockTime is used only if BlockTime is not configured for manager
 const defaultBlockTime = 1 * time.Second
@@ -115,7 +115,6 @@ func NewManager(
 	dalc da.DataAvailabilityLayerClient,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
-	doneBuildingCh chan struct{},
 	blockStore *goheaderstore.Store[*types.Block],
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
@@ -142,7 +141,7 @@ func NewManager(
 	}
 
 	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
-	if s.LastBlockHeight+1 == genesis.InitialHeight {
+	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
 			return nil, err
@@ -182,7 +181,7 @@ func NewManager(
 		retrieveCh:        make(chan struct{}, 1),
 		logger:            logger,
 		txsAvailable:      txsAvailableCh,
-		doneBuildingBlock: doneBuildingCh,
+		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
 		pendingBlocks:     NewPendingBlocks(),
 	}
@@ -371,7 +370,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	if b != nil && commit != nil {
 		bHeight := uint64(b.Height())
 		m.logger.Info("Syncing block", "height", bHeight)
-		newState, responses, err := m.applyBlock(ctx, b)
+		// Validate the received block before applying
+		if err := m.executor.Validate(m.lastState, b); err != nil {
+			return fmt.Errorf("failed to validate block: %w", err)
+		}
+		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
@@ -603,6 +606,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
+		block.SignedHeader.DataHash, err = block.Data.Hash()
+		if err != nil {
+			return nil
+		}
+		block.SignedHeader.Header.NextAggregatorsHash = m.getNextAggregatorsHash()
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
@@ -626,19 +634,35 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	blockHeight := uint64(block.Height())
+	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
+	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
+	if err != nil {
+		return err
+	}
+
+	block.SignedHeader.Header.NextAggregatorsHash = newState.NextValidators.Hash()
+
+	commit, err = m.getCommit(block.SignedHeader.Header)
+	if err != nil {
+		return err
+	}
+
+	// set the commit to current block's signed header
+	block.SignedHeader.Commit = *commit
+
+	block.SignedHeader.Validators = m.getLastStateValidators()
+
+	// Validate the created block before storing
+	if err := m.executor.Validate(m.lastState, block); err != nil {
+		return fmt.Errorf("failed to validate block: %w", err)
+	}
+
+	blockHeight := block.Height()
 	// Update the stored height before submitting to the DA layer and committing to the DB
 	m.store.SetHeight(blockHeight)
 
 	blockHash := block.Hash().String()
 	m.blockCache.setSeen(blockHash)
-
-	if commit == nil {
-		commit, err = m.getCommit(block.SignedHeader.Header)
-		if err != nil {
-			return err
-		}
-	}
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlock(block, commit)
@@ -738,6 +762,12 @@ func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.lastState.Validators
+}
+
+func (m *Manager) getNextAggregatorsHash() types.Hash {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState.NextValidators.Hash()
 }
 
 func (m *Manager) getLastBlockTime() time.Time {

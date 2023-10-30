@@ -1,8 +1,8 @@
 package types
 
 import (
+	"bytes"
 	"encoding"
-	"errors"
 	"fmt"
 	"time"
 
@@ -49,9 +49,12 @@ type Header struct {
 
 	// Hash of block aggregator set, at a time of block creation
 	AggregatorsHash Hash
+
+	// Hash of next block aggregator set, at a time of block creation
+	NextAggregatorsHash Hash
 }
 
-func (h *Header) New() header.Header {
+func (h *Header) New() *Header {
 	return new(Header)
 }
 
@@ -63,8 +66,8 @@ func (h *Header) ChainID() string {
 	return h.BaseHeader.ChainID
 }
 
-func (h *Header) Height() int64 {
-	return int64(h.BaseHeader.Height)
+func (h *Header) Height() uint64 {
+	return h.BaseHeader.Height
 }
 
 func (h *Header) LastHeader() Hash {
@@ -76,30 +79,19 @@ func (h *Header) Time() time.Time {
 	return time.Unix(0, int64(h.BaseHeader.Time))
 }
 
-func (h *Header) Verify(untrst header.Header) error {
-	untrstH, ok := untrst.(*Header)
-	if !ok {
-		// if the header type is wrong, something very bad is going on
-		// and is a programmer bug
-		panic(fmt.Errorf("%T is not of type %T", untrst, h))
+func (h *Header) Verify(untrstH *Header) error {
+	// perform actual verification
+	if untrstH.Height() == h.Height()+1 {
+		// Check the validator hashes are the same in the case headers are adjacent
+		if !bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]) {
+			return &header.VerifyError{
+				Reason: fmt.Errorf("expected old header validators (%X) to match those from new header (%X)",
+					h.NextAggregatorsHash,
+					untrstH.AggregatorsHash,
+				),
+			}
+		}
 	}
-	// sanity check fields
-	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
-		return &header.VerifyError{Reason: err}
-	}
-
-	// Check the validator hashes are the same in the case headers are adjacent
-	// TODO: next validator set is not available, disable this check until NextValidatorHash is enabled
-	// if untrstH.Height() == h.Height()+1 {
-	// if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
-	// 	return &header.VerifyError{
-	// 		Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-	// 			h.AggregatorsHash,
-	// 			untrstH.AggregatorsHash,
-	// 		),
-	// 	}
-	// }
-	// }
 
 	// TODO: There must be a way to verify non-adjacent headers
 	// Ensure that untrusted commit has enough of trusted commit's power.
@@ -115,47 +107,15 @@ func (h *Header) Validate() error {
 	return h.ValidateBasic()
 }
 
-// clockDrift defines how much new header's time can drift into
-// the future relative to the now time during verification.
-var maxClockDrift = 10 * time.Second
-
-// verifyNewHeaderAndVals performs basic verification of untrusted header.
-func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
-	if err := untrusted.ValidateBasic(); err != nil {
-		return fmt.Errorf("untrusted.ValidateBasic failed: %w", err)
-	}
-
-	if untrusted.Height() <= trusted.Height() {
-		return fmt.Errorf("expected new header height %d to be greater than one of old header %d",
-			untrusted.Height(),
-			trusted.Height())
-	}
-
-	if !untrusted.Time().After(trusted.Time()) {
-		return fmt.Errorf("expected new header time %v to be after old header time %v",
-			untrusted.Time(),
-			trusted.Time())
-	}
-
-	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
-		return fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
-			untrusted.Time(),
-			time.Now(),
-			maxClockDrift)
-	}
-
-	return nil
-}
-
 // ValidateBasic performs basic validation of a header.
 func (h *Header) ValidateBasic() error {
 	if len(h.ProposerAddress) == 0 {
-		return errors.New("no proposer address")
+		return ErrNoProposerAddress
 	}
 
 	return nil
 }
 
-var _ header.Header = &Header{}
+var _ header.Header[*Header] = &Header{}
 var _ encoding.BinaryMarshaler = &Header{}
 var _ encoding.BinaryUnmarshaler = &Header{}

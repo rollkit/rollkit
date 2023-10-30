@@ -10,7 +10,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	"github.com/rollkit/rollkit/types/pb/dalc"
 	"github.com/rollkit/rollkit/types/pb/rollkit"

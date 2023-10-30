@@ -16,7 +16,7 @@ import (
 
 	openrpcns "github.com/rollkit/celestia-openrpc/types/namespace"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -97,7 +97,7 @@ func (c *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		blobs[blockIndex] = blockBlob
 	}
 
-	dataLayerHeight, err := c.rpc.Blob.Submit(ctx, blobs)
+	dataLayerHeight, err := c.rpc.Blob.Submit(ctx, blobs, openrpc.DefaultSubmitOptions())
 	if err != nil {
 		return da.ResultSubmitBlocks{
 			BaseResult: da.BaseResult{

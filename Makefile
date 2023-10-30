@@ -41,16 +41,18 @@ lint: vet
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint docker/mockserv.Dockerfile
+	@hadolint test/docker/mockserv.Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 
 .PHONY: lint
 
-## fmt: Run fixes for linters. Currently only markdownlint.
+## fmt: Run fixes for linters.
 fmt:
 	@echo "--> Formatting markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md' -f
+	@echo "--> Formatting go"
+	@golangci-lint run --fix
 .PHONY: fmt
 
 ## vet: Run go vet

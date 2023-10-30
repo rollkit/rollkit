@@ -1,51 +1,58 @@
 package types
 
 import (
-	"strconv"
+	"fmt"
 	"testing"
-	"time"
 
+	"github.com/celestiaorg/go-header"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestVerify(t *testing.T) {
+func TestSignedHeader(t *testing.T) {
+	// Generate a random signed header
 	trusted, privKey, err := GetRandomSignedHeader()
 	require.NoError(t, err)
-	time.Sleep(time.Second)
+	// Get the next random header
 	untrustedAdj, err := GetNextRandomHeader(trusted, privKey)
 	require.NoError(t, err)
+	t.Run("Test Verify", func(t *testing.T) {
+		testVerify(t, trusted, untrustedAdj, privKey)
+	})
+	t.Run("Test ValidateBasic", func(t *testing.T) {
+		testValidateBasic(t, untrustedAdj, privKey)
+	})
+}
+
+func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader, privKey ed25519.PrivKey) {
 	tests := []struct {
-		prepare func() (*SignedHeader, bool)
-		err     bool
+		prepare func() (*SignedHeader, bool) // Function to prepare the test case
+		err     error                        // Expected error
 	}{
 		{
 			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
-			err:     false,
+			err:     nil,
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.AggregatorsHash = GetRandomBytes(32)
+				untrusted.LastHeaderHash = header.Hash(GetRandomBytes(32))
 				return &untrusted, true
 			},
-			err: true,
+			err: &header.VerifyError{
+				Reason: ErrLastHeaderHashMismatch,
+			},
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.LastHeaderHash = GetRandomBytes(32)
+				untrusted.LastCommitHash = header.Hash(GetRandomBytes(32))
 				return &untrusted, true
 			},
-			err: true,
-		},
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				untrusted.LastCommitHash = GetRandomBytes(32)
-				return &untrusted, true
+			err: &header.VerifyError{
+				Reason: ErrLastCommitHashMismatch,
 			},
-			err: true,
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -54,23 +61,58 @@ func TestVerify(t *testing.T) {
 				untrusted.Header.BaseHeader.Height++
 				return &untrusted, true
 			},
-			err: false, // Accepts non-adjacent headers
+			err: &header.VerifyError{
+				Reason: ErrNonAdjacentHeaders,
+			},
+		},
+	}
+
+	for testIndex, test := range tests {
+		t.Run(fmt.Sprintf("Test #%d", testIndex), func(t *testing.T) {
+			preparedHeader, shouldRecomputeCommit := test.prepare()
+
+			if shouldRecomputeCommit {
+				commit, err := getCommit(preparedHeader.Header, privKey)
+				require.NoError(t, err)
+				preparedHeader.Commit = *commit
+			}
+
+			err := trusted.Verify(preparedHeader)
+
+			if test.err == nil {
+				assert.NoError(t, err)
+				return
+			}
+
+			if err == nil {
+				t.Errorf("expected error: %v, but got nil", test.err)
+				return
+			}
+
+			reason := err.(*header.VerifyError).Reason
+			expectedReason := test.err.(*header.VerifyError).Reason
+			assert.ErrorIs(t, reason, expectedReason)
+		})
+	}
+}
+
+func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519.PrivKey) {
+	// Define test cases
+	tests := []struct {
+		prepare func() (*SignedHeader, bool) // Function to prepare the test case
+		err     error                        // Expected error
+	}{
+		{
+			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
+			err:     nil,
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.Header.BaseHeader.Time = uint64(untrusted.Header.Time().Truncate(time.Hour).UnixNano())
-				return &untrusted, true
+				untrusted.AggregatorsHash = header.Hash(GetRandomBytes(32))
+				return &untrusted, false
 			},
-			err: true,
-		},
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				untrusted.Header.BaseHeader.Time = uint64(untrusted.Header.Time().Add(time.Minute).UnixNano())
-				return &untrusted, true
-			},
-			err: true,
+			err: ErrAggregatorSetHashMismatch,
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -78,7 +120,7 @@ func TestVerify(t *testing.T) {
 				untrusted.BaseHeader.ChainID = "toaster"
 				return &untrusted, false // Signature verification should fail
 			},
-			err: true,
+			err: ErrSignatureVerificationFailed,
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -86,7 +128,7 @@ func TestVerify(t *testing.T) {
 				untrusted.Version.App = untrusted.Version.App + 1
 				return &untrusted, false // Signature verification should fail
 			},
-			err: true,
+			err: ErrSignatureVerificationFailed,
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -94,24 +136,33 @@ func TestVerify(t *testing.T) {
 				untrusted.ProposerAddress = nil
 				return &untrusted, true
 			},
-			err: true,
+			err: ErrNoProposerAddress,
 		},
 	}
 
-	for i, test := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			preparedHeader, recomputeCommit := test.prepare()
-			if recomputeCommit {
+	for testIndex, test := range tests {
+		t.Run(fmt.Sprintf("Test #%d", testIndex), func(t *testing.T) {
+			preparedHeader, shouldRecomputeCommit := test.prepare()
+
+			if shouldRecomputeCommit {
 				commit, err := getCommit(preparedHeader.Header, privKey)
 				require.NoError(t, err)
 				preparedHeader.Commit = *commit
 			}
-			err = trusted.Verify(preparedHeader)
-			if test.err {
-				assert.Error(t, err)
-			} else {
+
+			err := preparedHeader.ValidateBasic()
+
+			if test.err == nil {
 				assert.NoError(t, err)
+				return
 			}
+
+			if err == nil {
+				t.Errorf("expected error: %v, but got nil", test.err)
+				return
+			}
+
+			assert.ErrorIs(t, err, test.err)
 		})
 	}
 }

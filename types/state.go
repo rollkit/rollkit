@@ -30,10 +30,10 @@ type State struct {
 
 	// immutable
 	ChainID       string
-	InitialHeight int64 // should be 1, not 0, when starting from height 1
+	InitialHeight uint64 // should be 1, not 0, when starting from height 1
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
-	LastBlockHeight int64
+	LastBlockHeight uint64
 	LastBlockID     types.BlockID
 	LastBlockTime   time.Time
 
@@ -44,12 +44,12 @@ type State struct {
 	NextValidators              *types.ValidatorSet
 	Validators                  *types.ValidatorSet
 	LastValidators              *types.ValidatorSet
-	LastHeightValidatorsChanged int64
+	LastHeightValidatorsChanged uint64
 
 	// Consensus parameters used for validating blocks.
 	// Changes returned by EndBlock and updated after Commit.
 	ConsensusParams                  cmproto.ConsensusParams
-	LastHeightConsensusParamsChanged int64
+	LastHeightConsensusParamsChanged uint64
 
 	// Merkle root of the results from executing prev block
 	LastResultsHash Hash
@@ -81,7 +81,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
-		InitialHeight: genDoc.InitialHeight,
+		InitialHeight: uint64(genDoc.InitialHeight),
 
 		DAHeight: 1,
 
@@ -92,7 +92,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              types.NewValidatorSet(nil),
-		LastHeightValidatorsChanged: genDoc.InitialHeight,
+		LastHeightValidatorsChanged: uint64(genDoc.InitialHeight),
 
 		ConsensusParams: cmproto.ConsensusParams{
 			Block: &cmproto.BlockParams{
@@ -111,7 +111,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 				App: genDoc.ConsensusParams.Version.App,
 			},
 		},
-		LastHeightConsensusParamsChanged: genDoc.InitialHeight,
+		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight),
 	}
 	s.AppHash = genDoc.AppHash.Bytes()
 

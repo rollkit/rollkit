@@ -369,7 +369,7 @@ func TestTxMempool_ConcurrentTxs(t *testing.T) {
 		defer ticker.Stop()
 		defer wg.Done()
 
-		var height int64 = 1
+		var height uint64 = 1
 
 		for range ticker.C {
 			reapedTxs := txmp.ReapMaxTxs(200)

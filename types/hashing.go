@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/cometbft/cometbft/crypto/merkle"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -25,7 +26,7 @@ func (h *Header) Hash() Hash {
 		LastCommitHash:     cmbytes.HexBytes(h.LastCommitHash),
 		DataHash:           cmbytes.HexBytes(h.DataHash),
 		ValidatorsHash:     cmbytes.HexBytes(h.AggregatorsHash),
-		NextValidatorsHash: nil,
+		NextValidatorsHash: cmbytes.HexBytes(h.NextAggregatorsHash),
 		ConsensusHash:      cmbytes.HexBytes(h.ConsensusHash),
 		AppHash:            cmbytes.HexBytes(h.AppHash),
 		LastResultsHash:    cmbytes.HexBytes(h.LastResultsHash),
@@ -39,4 +40,15 @@ func (h *Header) Hash() Hash {
 // Hash returns ABCI-compatible hash of a block.
 func (b *Block) Hash() Hash {
 	return b.SignedHeader.Hash()
+}
+
+// Hash returns hash of the Data
+func (d *Data) Hash() (Hash, error) {
+	dBytes, err := d.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return merkle.HashFromByteSlices([][]byte{
+		dBytes,
+	}), nil
 }
