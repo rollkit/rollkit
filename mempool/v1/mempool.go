@@ -336,7 +336,7 @@ func (txmp *TxMempool) allEntriesSorted() []*WrappedTx {
 func (txmp *TxMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	var totalGas, totalBytes int64
 
-	var keep []types.Tx //nolint:prealloc
+	keep := make([]types.Tx, 0, len(txmp.allEntriesSorted()))
 	for _, w := range txmp.allEntriesSorted() {
 		// N.B. When computing byte size, we need to include the overhead for
 		// encoding as protobuf to send to the application. This actually overestimates it
