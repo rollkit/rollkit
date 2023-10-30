@@ -175,7 +175,7 @@ func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.A
 	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+		return nil, fmt.Errorf("error while starting proxy app connections: %v", err)
 	}
 	return proxyApp, nil
 }
@@ -201,11 +201,11 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (da.DataAvailabilityLayerClient, error) {
 	dalc := registry.GetClient(nodeConfig.DALayer)
 	if dalc == nil {
-		return nil, fmt.Errorf("couldn't get data availability client named '%s'", nodeConfig.DALayer)
+		return nil, fmt.Errorf("errror while getting data availability client named '%s'", nodeConfig.DALayer)
 	}
 	err := dalc.Init(nodeConfig.NamespaceID, []byte(nodeConfig.DAConfig), dalcKV, logger.With("module", "da_client"))
 	if err != nil {
-		return nil, fmt.Errorf("data availability layer client initialization error: %w", err)
+		return nil, fmt.Errorf("error while initializing data availability layer client: %w", err)
 	}
 	return dalc, nil
 }
@@ -219,7 +219,7 @@ func initMempool(logger log.Logger, proxyApp proxy.AppConns) *mempool.CListMempo
 func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSynceService, error) {
 	headerSyncService, err := block.NewHeaderSynceService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
-		return nil, fmt.Errorf("HeaderSyncService initialization error: %w", err)
+		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 	return headerSyncService, nil
 }
@@ -227,7 +227,7 @@ func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConf
 func initBlockSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.BlockSyncService, error) {
 	blockSyncService, err := block.NewBlockSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "BlockSyncService"))
 	if err != nil {
-		return nil, fmt.Errorf("HeaderSyncService initialization error: %w", err)
+		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 	return blockSyncService, nil
 }
@@ -235,7 +235,7 @@ func initBlockSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfi
 func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc da.DataAvailabilityLayerClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService) (*block.Manager, error) {
 	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.BlockStore())
 	if err != nil {
-		return nil, fmt.Errorf("BlockManager initialization error: %w", err)
+		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
 	return blockManager, nil
 }
