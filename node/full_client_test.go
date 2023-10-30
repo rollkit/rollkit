@@ -42,7 +42,7 @@ var expectedInfo = &abci.ResponseInfo{
 	LastBlockHeight: 0,
 }
 
-var mockTxProcessingTime = 10 * time.Millisecond
+// var mockTxProcessingTime = 10 * time.Millisecond
 
 // copy-pasted from store/store_test.go
 func getRandomBlock(height uint64, nTxs int) *types.Block {

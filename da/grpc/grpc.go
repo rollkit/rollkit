@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	ds "github.com/ipfs/go-datastore"
 
@@ -58,7 +59,7 @@ func (d *DataAvailabilityLayerClient) Start() error {
 	var err error
 	var opts []grpc.DialOption
 	// TODO(tzdybal): add more options
-	opts = append(opts, grpc.WithInsecure())
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	d.conn, err = grpc.Dial(d.config.Host+":"+strconv.Itoa(d.config.Port), opts...)
 	if err != nil {
 		return err
