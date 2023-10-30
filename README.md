@@ -1,9 +1,120 @@
+# Rollkit
 
-# Avail-da
+A modular framework for rollups, with an ABCI-compatible client interface. For more in-depth information about Rollkit, please visit our [website](https://rollkit.dev).
+
+[![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
+[![golangci-lint](https://github.com/rollkit/rollkit/actions/workflows/lint.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/lint.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rollkit/rollkit)](https://goreportcard.com/report/github.com/rollkit/rollkit)
+[![codecov](https://codecov.io/gh/rollkit/rollkit/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/rollkit/rollkit)
+[![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
+
+## Building From Source
+
+Requires Go version >= 1.19.
+
+To build:
+
+```sh
+git clone https://github.com/rollkit/rollkit.git
+cd rollkit 
+go build -v ./...
+```
+
+## Building With Rollkit
+
+While Rollkit is a modular framework that aims to be compatible with a wide
+range of data availability layers, settlement layers, and execution
+environments, the most supported development environment is building on Celestia
+as a data availability layer.
+
+### Building On Celestia
+
+There are currently 2 ways to build on Celestia:
+
+1. Using a local development environment with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
+1. Using the Arabica or Mocha Celestia testnet
+
+#### Compatibility
+
+| network               | rollkit    | celestia-node | celestia-app |
+|-----------------------|------------|---------------|--------------|
+| local-celestia-devnet | v0.9.0     | v0.11.0-rc6   | v1.0.0-rc7   |
+| arabica               | v0.9.0     | v0.11.0-rc6   | v1.0.0-rc7   |
+
+| rollkit/cosmos-sdk                          | rollkit/cometbft                   | rollkit    |
+|---------------------------------------------|------------------------------------|------------|
+| v0.46.13-rollkit-v0.9.0-no-fraud-proofs     | v0.0.0-20230524013049-75272ebaee38 | v0.9.0     |
+| v0.45.16-rollkit-v0.9.0-no-fraud-proofs     | v0.0.0-20230524013001-2968c8b8b121 | v0.9.0     |
+
+#### Local Development Environment
+
+The Rollkit v0.9.0 release is compatible with the
+[local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
+[oolong](https://github.com/rollkit/local-celestia-devnet/releases) release. This version combination is compatible with
+[celestia-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+[celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
+
+#### Arabica and Mocha Testnets
+
+The Rollkit v0.9.0 release is compatible with [Arabica](https://docs.celestia.org/nodes/arabica-devnet/) devnet which is running [celestia-app](https://github.com/celestiaorg/celestia-app) v1.0.0-rc7 and
+[celestia-node](https://github.com/celestiaorg/celestia-node) v0.11.0-rc6.
+
+> :warning: **Rollkit v0.9.0 is not tested for compatibility with latest releases of Mocha.** :warning:
+
+### Tools
+
+1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
+1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
+1. Install [hadolint](https://github.com/hadolint/hadolint)
+1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
+
+## Helpful Commands
+
+```sh
+# Run unit tests
+make test
+
+# Generate protobuf files (requires Docker)
+make proto-gen
+
+# Run linters (requires golangci-lint, markdownlint, hadolint, and yamllint)
+make lint
+
+# Lint protobuf files (requires Docker and buf)
+make proto-lint
+
+```
+
+## Contributing
+
+We welcome your contributions! Everyone is welcome to contribute, whether it's in the form of code,
+documentation, bug reports, feature requests, or anything else.
+
+If you're looking for issues to work on, try looking at the [good first issue list](https://github.com/rollkit/rollkit/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). Issues with this tag are suitable for a new external contributor and is a great way to find something you can help with!
+
+See [the contributing guide](./CONTRIBUTING.md) for more details.
+
+Please join our [Community Discord](https://discord.com/invite/YsnTPcSfWQ) to ask questions, discuss your ideas, and connect with other contributors.
+
+## Dependency Graph
+
+To see our progress and a possible future of Rollkit visit our [Dependency Graph](./docs/specification/rollkit-dependency-graph.md).
+
+## Code of Conduct
+
+See our Code of Conduct [here](https://docs.celestia.org/community/coc).
+
+## Building on avail
+There are currently 2 ways to build on Avail:
+
+1. Using a local development environment
+2. Using the Avail kate testnet
+
+### Avail-da
 
 This package implements DataAvailabilityLayerClient interface in rollkit
 
-## Installation
+### Installation for Local Development Environment
 
 ### Required nodes to run
 
@@ -68,9 +179,9 @@ This package implements DataAvailabilityLayerClient interface in rollkit
     2023-09-12 10:57:40 :bookmark: Pre-sealed block for proposal at 1. Hash now 0xd080fd49331fe59b1d400ee4a55e128d993241287601ae8f57b1447c7d16f66c, previously 0x67901da0d9cac880b6f75086ee86a48417c8a59c90b44c130257367d17c2863e
         ```
 
-#### 2. Avail light node
+#### 2. Avail light client
 
-
+    
 * clone the repo
 
     ``` https://github.com/availproject/avail-light.git ```
@@ -80,32 +191,31 @@ This package implements DataAvailabilityLayerClient interface in rollkit
     ``` cd avail-light ```
 
     ``` git checkout v1.4.4 ```
-    
-* If you want to connect local-node :
+     
+* create one yaml configuration file ```config1.yaml``` in the root of the project & put following content.
 
-    * create one yaml configuration file ```config1.yaml``` in the root of the project & put following content.
+    ```
+        log_level = "info"
+        http_server_host = "127.0.0.1"
+        http_server_port = "7000"
+        libp2p_seed = 1
+        libp2p_port = "37000"
+        full_node_ws = ["ws://127.0.0.1:9944"]
+        app_id = 1
+        confidence = 92.0
+        avail_path = "avail_path"
+        prometheus_port = 9520
+        bootstraps = [] 
+            
+    ```
 
-        ``` 
-            log_level = "info"
-            http_server_host = "127.0.0.1"
-            http_server_port = "7000"
-            libp2p_seed = 1
-            libp2p_port = "37000"
-            full_node_ws = ["ws://127.0.0.1:9944"]
-            app_id = 1
-            confidence = 92.0
-            avail_path = "avail_path"
-            prometheus_port = 9520
-            bootstraps = [] 
-        ```
+* run node with first configuration file 
 
-    * run node with first configuration file 
-
-        ```cargo run -- -c config1.yaml ```
+    ```cargo run -- -c config1.yaml ```
         
-        logs will appear as below:
+  logs will appear as below:
 
-        ```
+  ```
         warning: variant `PutKadRecord` is never constructed
         --> src/network/client.rs:355:2
             |
@@ -131,10 +241,12 @@ This package implements DataAvailabilityLayerClient interface in rollkit
         2023-09-12T05:44:23.865553Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/172.17.0.1/udp/37000/quic-v1"
         2023-09-12T05:44:23.868076Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/127.0.0.1/tcp/37000"
         2023-09-12T05:44:23.868865Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/192.168.1.40/tcp/37000"
-        2023-09-12T05:44:23.869487Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/172.17.0.1/tcp/37000"  ```
+        2023-09-12T05:44:23.869487Z  INFO avail_light::network::event_loop: Local node is listening on "/ip4/172.17.0.1/tcp/37000"
+  ```
 
-    * copy the local peer id in the above logs and Run another LC, with another config (copy the above config) and change the port for server, libp2p, prometheus and the avail_path, change the first argument in the bootstraps to the  address of the first light client
-        ``` 
+* copy the local peer id in the above logs and Run another LC, with another config (copy the above config) and change the port for server, libp2p, prometheus and the avail_path, change the first argument in the bootstraps to the  address of the first light client
+    
+  ``` 
         log_level = "info"
         http_server_host = "127.0.0.1"
         http_server_port = "8000"
@@ -146,54 +258,30 @@ This package implements DataAvailabilityLayerClient interface in rollkit
         avail_path = "avail_path_2"
         prometheus_port = 9525
         bootstraps = [["12D3KooWBbKnhLfDBuzzN1RzeKHBoCnKK9E1nf1Vec3suhJYAEua", "/ip4/127.0.0.1/tcp/38000"]]
-    * run the second light-client with this configuration
-
-        ``` cargo run -- -c config2.yaml ```
-* If you want to connect to kate testnet : 
+  
+  ```
     
-    * In root folder(avail-light) create yaml configuration file and put the following content
+  
+* run the second light-client with this configuration
 
-        ```
-        http_server_host = '127.0.0.1'
-        http_server_port = '7000'
-        libp2p_port = '37000'
-        libp2p_tcp_port_reuse = false
-        libp2p_autonat_only_global_ips = false
-        full_node_rpc= ['https://kate.avail.tools/rpc']
-        full_node_ws = ['wss://kate.avail.tools:443/ws']
-        confidence = 92.0
-        bootstraps = [["12D3KooWN39TzfjNxqxbzLVEro5rQFfpibcy9SJXnN594j3xhQ4j", "/dns/gateway-lightnode-001.kate.avail.tools/tcp/37000"]]
-        avail_path = 'avail_path'
-        log_level = 'INFO'
-        log_format_json = false
-        prometheus_port = 9520
-        disable_rpc = false
-        disable_proof_verification = false
-        dht_parallelization_limit = 20
-        query_proof_rpc_parallel_tasks = 8
-        max_cells_per_rpc = 30
-        threshold = 5000
-        kad_record_ttl = 86400
-        publication_interval = 43200
-        replication_interval = 10800
-        replication_factor = 20
-        connection_idle_timeout = 30
-        query_timeout = 60
-        query_parallelism = 3
-        caching_max_peers = 1
-        disjoint_query_paths = false
-        max_kad_record_number = 2400000
-        max_kad_record_size = 8192
-        max_kad_provided_keys = 1024
-        ```
-    * run the light node
+  ``` cargo run -- -c config2.yaml ```
+  
+### Installation for Avail kate testnet
 
-        ``` cargo run ```
+### Required nodes to run
+
+* run the Avail light client simply with the following command:
+  
+  ``` curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/availproject/availup/main/availup.sh | sh ```
+  
+  or with ``` wget ```:
+  
+  ``` wget --https-only --secure-protocol=TLSv1_2 -O - https://raw.githubusercontent.com/availproject/availup/main/availup.sh | sh ```
 
 
 ## Building your soverign rollup
 
-Now that you have a da node and light nodes running, we are ready to build and run our Cosmos-SDK blockchain (here we have taken gm application)
+Now that you have a da node and light client running, we are ready to build and run our Cosmos-SDK blockchain (here we have taken gm application)
 
 * go to the root directory and install rollkit by adding the following lines to go.mod
 
@@ -208,7 +296,11 @@ Now that you have a da node and light nodes running, we are ready to build and r
     go mod tidy
 
     ```
-* start your rollup 
+* create a config.json file
+    * testnet environment [config](https://gist.github.com/chandiniv1/a844141dc9dda1d531da0eede69072a6)
+    * local development environment [config](https://gist.github.com/chandiniv1/bc457ad6d36ec0c3ed5cc04314f9e163)
+
+* 
     
     create one script file (init-local.sh) in root folder
 
@@ -216,7 +308,9 @@ Now that you have a da node and light nodes running, we are ready to build and r
     touch init-local.sh
 
     ```
-    add the following script to the script file (init-local.sh) or you can get the script from [here](https://gist.githubusercontent.com/chandiniv1/27397b93e08e2c40e7e1b746f13e5d7b/raw/0dc8c17d630a249f439e0c5030266a2a34030bb8/init-local.sh)
+
+*   add the following script to the script file (init-local.sh) or you can get the script from [here](https://gist.github.com/chandiniv1/27397b93e08e2c40e7e1b746f13e5d7b)
+
 
     ```
     #!/bin/sh
@@ -265,10 +359,10 @@ Now that you have a da node and light nodes running, we are ready to build and r
     gmd collect-gentxs
 
     # start the chain
-    gmd start --rollkit.aggregator true --rollkit.da_layer avail --rollkit.da_config='{"base_url":"http://localhost:8000/v1", "seed":"bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice","api_url":"ws://127.0.0.1:9944","app_data_url": "/appdata/%d?decode=true","app_id" : 1,"confidence":92}' --rollkit.namespace_id $NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --api.enable --api.enabled-unsafe-cors
+    gmd start --rollkit.aggregator true --rollkit.da_layer avail --rollkit.da_config "$(cat config.json)" --rollkit.namespace_id $NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --api.enable --api.enabled-unsafe-cors
 
     ```
-    run the rollup chain 
+* run the rollup chain 
 
     ```
     bash init-local.sh
