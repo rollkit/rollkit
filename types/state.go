@@ -68,6 +68,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		return State{}, fmt.Errorf("must have exactly 1 validator (the centralized sequencer)")
 	}
 
+	// Validators is still an array, because we import this from CometBFT.
 	sequencerPubkey := genDoc.Validators[0].PubKey
 
 	s := State{
