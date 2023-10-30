@@ -549,17 +549,13 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 func (m *Manager) IsProposer() (bool, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	// if proposer is not set, assume self proposer
-	if m.lastState.Validators.Proposer == nil {
-		return true, nil
-	}
 
 	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
 	if err != nil {
 		return false, err
 	}
 
-	return bytes.Equal(m.lastState.Validators.Proposer.PubKey.Bytes(), signerPubBytes), nil
+	return bytes.Equal(m.lastState.Sequencer.Bytes(), signerPubBytes), nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
