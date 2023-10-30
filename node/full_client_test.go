@@ -19,7 +19,6 @@ import (
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/cometbft/cometbft/libs/bytes"
-	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
@@ -31,6 +30,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 	abciconv "github.com/rollkit/rollkit/types/abci"
@@ -123,7 +123,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -221,7 +221,7 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -535,7 +535,7 @@ func TestTx(t *testing.T) {
 		}},
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-		log.TestingLogger())
+		test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -771,7 +771,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, err := store.NewDefaultInMemoryKVStore()
 	require.Nil(err)
-	err = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	err = dalc.Init([8]byte{}, nil, ds, test.NewFileLogger(t))
 	require.Nil(err)
 	err = dalc.Start()
 	require.Nil(err)
@@ -799,7 +799,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 			signingKey,
 			proxy.NewLocalClientCreator(apps[i]),
 			&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-			log.TestingLogger(),
+			test.NewFileLogger(t),
 		)
 		require.NoError(err)
 		require.NotNil(nodes[i])
@@ -962,7 +962,7 @@ func TestMempool2Nodes(t *testing.T) {
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second,
 		},
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -972,7 +972,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -1066,7 +1066,7 @@ func TestStatus(t *testing.T) {
 			ChainID:    "test",
 			Validators: genesisValidators,
 		},
-		log.TestingLogger(),
+		test.NewFileLogger(t),
 	)
 	require.NoError(err)
 	require.NotNil(node)
@@ -1177,7 +1177,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			GenesisTime:   genesisTime,
 			Validators:    genesisValidators,
 		},
-		log.TestingLogger())
+		test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
 
