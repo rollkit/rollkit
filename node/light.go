@@ -87,7 +87,7 @@ func newLightNode(
 func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
+		return store.NewDefaultTestKVStore()
 	}
 	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }

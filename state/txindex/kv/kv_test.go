@@ -23,7 +23,7 @@ import (
 )
 
 func TestTxIndex(t *testing.T) {
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	indexer := NewTxIndex(context.Background(), kvStore)
 
 	tx := types.Tx("HELLO WORLD")
@@ -70,7 +70,7 @@ func TestTxIndex(t *testing.T) {
 }
 
 func TestTxSearch(t *testing.T) {
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
@@ -145,7 +145,7 @@ func TestTxSearch(t *testing.T) {
 }
 
 func TestTxSearchWithCancelation(t *testing.T) {
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	indexer := NewTxIndex(context.Background(), kvStore)
 
 	txResult := txResultWithEvents([]abci.Event{
@@ -166,7 +166,7 @@ func TestTxSearchWithCancelation(t *testing.T) {
 func TestTxSearchDeprecatedIndexing(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	indexer := NewTxIndex(ctx, kvStore)
 
 	// index tx using events indexing (composite key)
@@ -246,7 +246,7 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 }
 
 func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -270,7 +270,7 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 }
 
 func TestTxSearchMultipleTxs(t *testing.T) {
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	indexer := NewTxIndex(ctx, kvStore)

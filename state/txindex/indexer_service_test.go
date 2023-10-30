@@ -31,7 +31,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	})
 
 	// tx indexer
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	txIndexer := kv.NewTxIndex(context.Background(), kvStore)
 	prefixStore := (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0]).(ds.TxnDatastore)
 	blockIndexer := blockidxkv.New(context.Background(), prefixStore)

@@ -29,7 +29,7 @@ func TestGetNodeHeight(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
+	ds, _ := store.NewDefaultTestKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	defer func() {

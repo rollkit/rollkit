@@ -378,7 +378,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
+	ds, _ := store.NewDefaultTestKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	defer func() {
@@ -497,7 +497,7 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
+	ds, _ := store.NewDefaultTestKVStore()
 	_ = dalc.Init([8]byte{}, nil, ds, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
 	_ = dalc.Start()
 	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)

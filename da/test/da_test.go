@@ -103,7 +103,7 @@ func startMockGRPCServ() *grpc.Server {
 	conf := grpcda.DefaultConfig
 	logger := cmlog.NewTMLogger(os.Stdout)
 
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)
 	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
 	if err != nil {
@@ -141,7 +141,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
 		conf, _ = json.Marshal(testConfig)
 	}
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
+	kvStore, _ := store.NewDefaultTestKVStore()
 	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
 	require.NoError(err)
 

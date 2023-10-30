@@ -68,7 +68,7 @@ func NewServer(blockTime time.Duration, logger log.Logger) *Server {
 
 // Start starts HTTP server with given listener.
 func (s *Server) Start() (string, error) {
-	kvStore, err := store.NewDefaultInMemoryKVStore()
+	kvStore, err := store.NewDefaultTestKVStore()
 	if err != nil {
 		return "", err
 	}

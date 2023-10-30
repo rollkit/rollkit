@@ -769,7 +769,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 	}
 
 	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, err := store.NewDefaultInMemoryKVStore()
+	ds, err := store.NewDefaultTestKVStore()
 	require.Nil(err)
 	err = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	require.Nil(err)

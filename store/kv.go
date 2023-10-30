@@ -14,8 +14,8 @@ import (
 	badger3 "github.com/ipfs/go-ds-badger3"
 )
 
-// NewDefaultInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
-func NewDefaultInMemoryKVStore() (ds.TxnDatastore, error) {
+// NewDefaultTestKVStore builds KVStore that works in-memory (without accessing disk).
+func NewDefaultTestKVStore() (ds.TxnDatastore, error) {
 	inMemoryOptions := &badger3.Options{
 		GcDiscardRatio: 0.2,
 		GcInterval:     15 * time.Minute,

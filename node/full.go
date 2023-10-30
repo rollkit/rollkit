@@ -194,7 +194,7 @@ func initEventBus(logger log.Logger) (*cmtypes.EventBus, error) {
 func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
 	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
+		return store.NewDefaultTestKVStore()
 	}
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }

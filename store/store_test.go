@@ -44,7 +44,7 @@ func TestStoreHeight(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ds, _ := NewDefaultInMemoryKVStore()
+			ds, _ := NewDefaultTestKVStore()
 			bstore := New(ctx, ds)
 			assert.Equal(uint64(0), bstore.Height())
 
@@ -89,7 +89,7 @@ func TestStoreLoad(t *testing.T) {
 		}
 	}()
 
-	mKV, _ := NewDefaultInMemoryKVStore()
+	mKV, _ := NewDefaultTestKVStore()
 	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -135,7 +135,7 @@ func TestRestart(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	kv, _ := NewDefaultInMemoryKVStore()
+	kv, _ := NewDefaultTestKVStore()
 	s1 := New(ctx, kv)
 	expectedHeight := uint64(10)
 	err := s1.UpdateState(types.State{
@@ -159,7 +159,7 @@ func TestBlockResponses(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	kv, _ := NewDefaultInMemoryKVStore()
+	kv, _ := NewDefaultTestKVStore()
 	s := New(ctx, kv)
 
 	expected := &cmstate.ABCIResponses{

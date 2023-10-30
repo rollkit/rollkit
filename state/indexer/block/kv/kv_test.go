@@ -17,7 +17,7 @@ import (
 )
 
 func TestBlockIndexer(t *testing.T) {
-	kvStore, err := store.NewDefaultInMemoryKVStore()
+	kvStore, err := store.NewDefaultTestKVStore()
 	require.NoError(t, err)
 	prefixStore := (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0]).(ds.TxnDatastore)
 	indexer := blockidxkv.New(context.Background(), prefixStore)

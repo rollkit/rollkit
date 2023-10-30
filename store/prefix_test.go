@@ -18,7 +18,7 @@ func TestPrefixKV1(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	base, _ := NewDefaultInMemoryKVStore()
+	base, _ := NewDefaultTestKVStore()
 
 	p1 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey("1")})
 	p2 := ktds.Wrap(base, ktds.PrefixTransform{Prefix: ds.NewKey("2")})
@@ -85,7 +85,7 @@ func TestPrefixKVBatch(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	basekv, _ := NewDefaultInMemoryKVStore()
+	basekv, _ := NewDefaultTestKVStore()
 	prefixkv := ktds.Wrap(basekv, ktds.PrefixTransform{Prefix: ds.NewKey("prefix1")}).Children()[0]
 
 	badgerPrefixkv, _ := prefixkv.(ds.TxnDatastore)

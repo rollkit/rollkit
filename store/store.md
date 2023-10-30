@@ -24,7 +24,7 @@ The Store interface defines the following methods:
 
 The `TxnDatastore` interface inside [go-datastore] is used for constructing different key-value stores for the underlying storage of a full node. The are two different implementations of `TxnDatastore` in [kv.go]:
 
-- `NewDefaultInMemoryKVStore`: Builds a key-value store that uses the [BadgerDB] library and operates in-memory, without accessing the disk. Used only across unit tests and integration tests.
+- `NewDefaultTestKVStore`: Builds a key-value store that uses the [BadgerDB] library and operates in-memory, without accessing the disk. Used only across unit tests and integration tests.
 
 - `NewDefaultKVStore`: Builds a key-value store that uses the [BadgerDB] library and stores the data on disk at the specified path.
 
