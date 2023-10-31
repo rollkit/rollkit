@@ -6,6 +6,7 @@ run:
     - mempool
     - state/indexer
     - state/txindex
+    - third_party
 
 linters:
   enable:
