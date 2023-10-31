@@ -459,11 +459,16 @@ func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endH
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
+	// blockFoundCh is used to track when we successfully found a block so
+	// that we can continue to try and find blocks are the next DA height.
+	// This enables syncing faster than the DA block time.
+	blockFoundCh := make(chan struct{}, 1)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
+		case <-blockFoundCh:
 		}
 		daHeight := atomic.LoadUint64(&m.daHeight)
 		err := m.processNextDABlock(ctx)
@@ -471,6 +476,8 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			continue
 		}
+		// Signal the blockFoundCh to try and retrieve the next block
+		blockFoundCh <- struct{}{}
 		atomic.AddUint64(&m.daHeight, 1)
 	}
 }
