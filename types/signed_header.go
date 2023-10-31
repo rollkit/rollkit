@@ -98,10 +98,6 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	if !bytes.Equal(sh.Validators.Hash(), sh.AggregatorsHash[:]) {
-		return ErrAggregatorSetHashMismatch
-	}
-
 	// Make sure there is exactly one signature
 	if len(sh.Commit.Signatures) != 1 {
 		return errors.New("expected exactly one signature")

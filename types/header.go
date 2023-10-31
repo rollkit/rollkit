@@ -74,27 +74,10 @@ func (h *Header) Time() time.Time {
 }
 
 func (h *Header) Verify(untrstH *Header) error {
-	// perform actual verification
-	if untrstH.Height() == h.Height()+1 {
-		// Check the validator hashes are the same in the case headers are adjacent
-		if !bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]) {
-			return &header.VerifyError{
-				Reason: fmt.Errorf("expected old header validators (%X) to match those from new header (%X)",
-					h.NextAggregatorsHash,
-					untrstH.AggregatorsHash,
-				),
-			}
-		}
+	if bytes.Equal(h.ProposerAddress, untrstH.ProposerAddress) {
+		return nil
 	}
-
-	// TODO: There must be a way to verify non-adjacent headers
-	// Ensure that untrusted commit has enough of trusted commit's power.
-	// err := h.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID, untrst.Commit, light.DefaultTrustLevel)
-	// if err != nil {
-	// 	return &VerifyError{err}
-	// }
-
-	return nil
+	return fmt.Errorf("incorrect proposer address")
 }
 
 func (h *Header) Validate() error {

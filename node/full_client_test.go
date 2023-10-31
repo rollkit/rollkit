@@ -67,7 +67,6 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 				},
 				Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
 				ProposerAddress: proposerAddr,
-				AggregatorsHash: make([]byte, 32),
 			}},
 		Data: types.Data{
 			Txs: make(types.Txs, nTxs),
@@ -1076,7 +1075,7 @@ func TestStatus(t *testing.T) {
 	require.NoError(err)
 	err = node.Store.SaveValidators(2, validatorSet)
 	require.NoError(err)
-	err = node.Store.UpdateState(types.State{LastValidators: validatorSet, NextValidators: validatorSet, Validators: validatorSet})
+	err = node.Store.UpdateState(types.State{})
 	assert.NoError(err)
 
 	rpc := NewFullClient(node)

@@ -109,7 +109,6 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.AggregatorsHash = header.Hash(GetRandomBytes(32))
 				return &untrusted, false
 			},
 			err: ErrAggregatorSetHashMismatch,

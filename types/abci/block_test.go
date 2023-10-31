@@ -34,7 +34,6 @@ func getRandomHeader() *types.Header {
 		AppHash:         types.GetRandomBytes(32),
 		LastResultsHash: types.GetRandomBytes(32),
 		ProposerAddress: types.GetRandomBytes(32),
-		AggregatorsHash: types.GetRandomBytes(32),
 	}
 }
 
@@ -71,7 +70,6 @@ func TestToABCIHeaderPB(t *testing.T) {
 		},
 		LastCommitHash:     header.LastHeaderHash[:],
 		DataHash:           header.DataHash[:],
-		ValidatorsHash:     header.AggregatorsHash[:],
 		NextValidatorsHash: nil,
 		ConsensusHash:      header.ConsensusHash[:],
 		AppHash:            header.AppHash[:],
@@ -107,7 +105,6 @@ func TestToABCIHeader(t *testing.T) {
 		},
 		LastCommitHash:     cmbytes.HexBytes(header.LastCommitHash),
 		DataHash:           cmbytes.HexBytes(header.DataHash),
-		ValidatorsHash:     cmbytes.HexBytes(header.AggregatorsHash),
 		NextValidatorsHash: nil,
 		ConsensusHash:      cmbytes.HexBytes(header.ConsensusHash),
 		AppHash:            cmbytes.HexBytes(header.AppHash),

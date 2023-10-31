@@ -29,9 +29,6 @@ func TestInitialState(t *testing.T) {
 		ChainID:         "state id",
 		InitialHeight:   123,
 		LastBlockHeight: 128,
-		LastValidators:  types.GetRandomValidatorSet(),
-		Validators:      types.GetRandomValidatorSet(),
-		NextValidators:  types.GetRandomValidatorSet(),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
