@@ -22,7 +22,7 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 	case "ed25519":
 		privKey, err := crypto.UnmarshalEd25519PrivateKey(nodeKey.PrivKey.Bytes())
 		if err != nil {
-			return nil, fmt.Errorf("node private key unmarshaling error: %w", err)
+			return nil, fmt.Errorf("error while node private key: %w", err)
 		}
 		return privKey, nil
 	default:
