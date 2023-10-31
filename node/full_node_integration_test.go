@@ -189,8 +189,7 @@ func TestLazyAggregator(t *testing.T) {
 	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
 }
 
-// TestFastDASync verifies that nodes can quick DA blocks faster than the DA
-// block time
+// TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
 func TestFastDASync(t *testing.T) {
 	// Test setup, create require and contexts for aggregator and client nodes
 	require := require.New(t)
