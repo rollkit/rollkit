@@ -28,7 +28,7 @@ type LightNode struct {
 
 	proxyApp proxy.AppConns
 
-	hSyncService *block.HeaderSynceService
+	hSyncService *block.HeaderSyncService
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -62,7 +62,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSynceService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}

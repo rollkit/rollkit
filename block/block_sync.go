@@ -24,8 +24,8 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// P2P Sync Service for block that implements the go-header interface.
-// Contains a block store where synced blocks are stored.
+// BlockSyncService is the P2P Sync Service for block that implements the
+// go-header interface.  Contains a block store where synced blocks are stored.
 // Uses the go-header library for handling all P2P logic.
 type BlockSyncService struct {
 	conf       config.NodeConfig
@@ -43,6 +43,7 @@ type BlockSyncService struct {
 	ctx    context.Context
 }
 
+// NewvBlockSyncService returns a new BlockSyncService.
 func NewBlockSyncService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*BlockSyncService, error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
