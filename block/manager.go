@@ -207,6 +207,11 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
+// GetHardConfirmation returns true if the block is hard confirmed
+func (m *Manager) GetHardConfirmation(hash types.Hash) bool {
+	return m.blockCache.isHardConfirmed(hash.String())
+}
+
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	initialHeight := uint64(m.genesis.InitialHeight)

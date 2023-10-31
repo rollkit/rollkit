@@ -53,6 +53,12 @@ func (bc *BlockCache) setSeen(hash string) {
 	bc.hashes[hash] = true
 }
 
+func (bc *BlockCache) isHardConfirmed(hash string) bool {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+	return bc.hardConfirmations[hash]
+}
+
 func (bc *BlockCache) setHardConfirmed(hash string) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
