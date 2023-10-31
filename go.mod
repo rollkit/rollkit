@@ -3,7 +3,7 @@ module github.com/rollkit/rollkit
 go 1.21
 
 require (
-	github.com/celestiaorg/go-header v0.4.0
+	github.com/celestiaorg/go-header v0.4.1
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/celestiaorg/utils v0.1.0
