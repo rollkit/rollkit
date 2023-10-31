@@ -44,6 +44,7 @@ type HeaderSyncService struct {
 	ctx    context.Context
 }
 
+// NewHeaderSyncService returns a new HeaderSyncService.
 func NewHeaderSyncService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
@@ -91,7 +92,7 @@ func (hSyncService *HeaderSyncService) initHeaderStoreAndStartSyncer(ctx context
 	return nil
 }
 
-// Initialize header store if needed and broadcasts provided header.
+// WriteToHeaderStoreAndBroadcast initializes header store if needed and broadcasts provided header.
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
 func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
 	// For genesis header initialize the store and start the syncer
@@ -116,7 +117,7 @@ func (hSyncService *HeaderSyncService) isInitialized() bool {
 	return hSyncService.headerStore.Height() > 0
 }
 
-// OnStart is a part of Service interface.
+// Start is a part of Service interface.
 func (hSyncService *HeaderSyncService) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := hSyncService.p2p.PubSub()
@@ -204,7 +205,7 @@ func (hSyncService *HeaderSyncService) Start() error {
 	return nil
 }
 
-// OnStop is a part of Service interface.
+// Stop is a part of Service interface.
 func (hSyncService *HeaderSyncService) Stop() error {
 	err := hSyncService.headerStore.Stop(hSyncService.ctx)
 	err = multierr.Append(err, hSyncService.p2pServer.Stop(hSyncService.ctx))
@@ -254,6 +255,7 @@ func newSyncer(
 	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opts...)
 }
 
+// StartSyncer starts the HeaderSyncService's syncer
 func (hSyncService *HeaderSyncService) StartSyncer() error {
 	hSyncService.syncerStatus.m.Lock()
 	defer hSyncService.syncerStatus.m.Unlock()

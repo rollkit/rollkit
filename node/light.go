@@ -21,6 +21,7 @@ import (
 
 var _ Node = &LightNode{}
 
+// LightNode is a rollup node that only needs the header service
 type LightNode struct {
 	service.BaseService
 
@@ -34,6 +35,9 @@ type LightNode struct {
 	cancel context.CancelFunc
 }
 
+// GetClient returns a new rpcclient for the light node
+// TODO: this should be renamed to NewRPCClient or some New variant since it is
+// creating a new item
 func (ln *LightNode) GetClient() rpcclient.Client {
 	return NewLightClient(ln)
 }
@@ -97,6 +101,7 @@ func (n *LightNode) Cancel() {
 	n.cancel()
 }
 
+// OnStart starts the P2P and HeaderSync services
 func (ln *LightNode) OnStart() error {
 	if err := ln.P2P.Start(ln.ctx); err != nil {
 		return err
@@ -109,6 +114,9 @@ func (ln *LightNode) OnStart() error {
 	return nil
 }
 
+// OnStop stops the light node
+//
+// TODO: should this just be Stop?
 func (ln *LightNode) OnStop() {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()

@@ -43,7 +43,7 @@ type BlockSyncService struct {
 	ctx    context.Context
 }
 
-// NewvBlockSyncService returns a new BlockSyncService.
+// NewBlockSyncService returns a new BlockSyncService.
 func NewBlockSyncService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*BlockSyncService, error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
@@ -91,8 +91,10 @@ func (bSyncService *BlockSyncService) initBlockStoreAndStartSyncer(ctx context.C
 	return nil
 }
 
-// Initialize block store if needed and broadcasts provided block.
-// Note: Only returns an error in case block store can't be initialized. Logs error if there's one while broadcasting.
+// WriteToBlockStoreAndBroadcast initializes block store if needed and broadcasts
+// provided block.
+// Note: Only returns an error in case block store can't be initialized. Logs
+// error if there's one while broadcasting.
 func (bSyncService *BlockSyncService) WriteToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
 	// For genesis block initialize the store and start the syncer
 	if int64(block.Height()) == bSyncService.genesis.InitialHeight {
@@ -206,7 +208,7 @@ func (bSyncService *BlockSyncService) Start() error {
 	return nil
 }
 
-// OnStop is a part of Service interface.
+// Stop is a part of Service interface.
 func (bSyncService *BlockSyncService) Stop() error {
 	err := bSyncService.blockStore.Stop(bSyncService.ctx)
 	err = multierr.Append(err, bSyncService.p2pServer.Stop(bSyncService.ctx))
@@ -255,6 +257,7 @@ func newBlockSyncer(
 	return goheadersync.NewSyncer[*types.Block](ex, store, sub, opts...)
 }
 
+// StartSyncer starts the BlockSyncService's syncer
 func (bSyncService *BlockSyncService) StartSyncer() error {
 	bSyncService.syncerStatus.m.Lock()
 	defer bSyncService.syncerStatus.m.Unlock()
