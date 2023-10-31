@@ -477,7 +477,10 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 			continue
 		}
 		// Signal the blockFoundCh to try and retrieve the next block
-		blockFoundCh <- struct{}{}
+		select {
+		case blockFoundCh <- struct{}{}:
+		default:
+		}
 		atomic.AddUint64(&m.daHeight, 1)
 	}
 }

@@ -736,7 +736,8 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 	t.Cleanup(func() {
 		require.NoError(dalc.Stop())
 	})
-
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel() })
 	for i := 0; i < len(nodes); i++ {
 		nodeKey := &p2p.NodeKey{
 			PrivKey: vKeys[i],
@@ -744,7 +745,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 		signingKey, err := GetNodeKey(nodeKey)
 		require.NoError(err)
 		nodes[i], err = newFullNode(
-			context.Background(),
+			ctx,
 			config.NodeConfig{
 				DALayer:    "mock",
 				Aggregator: true,
@@ -839,6 +840,7 @@ func TestValidatorSetHandling(t *testing.T) {
 
 	numNodes := 2
 	rpc := createGenesisValidators(t, numNodes, createApp, &wg)
+	fmt.Println("Finished creating validators, waiting on wg")
 	wg.Wait()
 
 	// test first blocks
