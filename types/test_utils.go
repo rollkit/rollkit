@@ -25,6 +25,39 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 	}, privKey
 }
 
+func GetRandomBlock(height uint64, nTxs int) *Block {
+	block := &Block{
+		SignedHeader: SignedHeader{
+			Header: Header{
+				BaseHeader: BaseHeader{
+					Height: height,
+				},
+				AggregatorsHash: make([]byte, 32),
+			}},
+		Data: Data{
+			Txs: make(Txs, nTxs),
+			IntermediateStateRoots: IntermediateStateRoots{
+				RawRootsList: make([][]byte, nTxs),
+			},
+		},
+	}
+
+	block.SignedHeader.AppHash = GetRandomBytes(32)
+
+	for i := 0; i < nTxs; i++ {
+		block.Data.Txs[i] = GetRandomTx()
+		block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
+	}
+
+	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
+	if nTxs == 0 {
+		block.Data.Txs = nil
+		block.Data.IntermediateStateRoots.RawRootsList = nil
+	}
+
+	return block
+}
+
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
