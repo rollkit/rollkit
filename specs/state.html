@@ -210,7 +210,7 @@
 <ul>
 <li>Invokes app commit, basically finalizing the last execution, by  calling ABCI <code>Commit</code>.</li>
 <li>Updates the mempool to inform that the transactions included in the block can be safely discarded.</li>
-<li>Publishes the events produced during the block exection for indexing.</li>
+<li>Publishes the events produced during the block execution for indexing.</li>
 </ul>
 </li>
 <li>
@@ -302,7 +302,7 @@
 </li>
 <li>post-condition:
 <ul>
-<li>block is commited</li>
+<li>block is committed</li>
 <li>mempool is cleared of block transactions</li>
 <li>block events are published</li>
 <li>state App Hash is updated with the result from <code>ResponseCommit</code></li>
