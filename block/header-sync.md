@@ -14,7 +14,7 @@ The nodes in the P2P network sync headers using the header sync service that imp
 
 ## Details
 
-All three types of nodes (sequencer, full, and light) run the header sync service to maintain the cannonical view of the rollup chain (with respect to the P2P network).
+All three types of nodes (sequencer, full, and light) run the header sync service to maintain the canonical view of the rollup chain (with respect to the P2P network).
 
 The header sync service inherits the `ConnectionGater` from the node's P2P client which enables blocking and allowing peers as needed by specifying the `P2PConfig.BlockedPeers` and `P2PConfig.AllowedPeers`.
 
