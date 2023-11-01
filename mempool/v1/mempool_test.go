@@ -236,7 +236,7 @@ func testReapMaxBytesMaxGas(t *testing.T, txmp *TxMempool, tTxs []testTx, expect
 	require.Len(t, reapedTxs, 50)
 
 	// reap by transaction bytes only
-	reapedTxs = txmp.ReapMaxBytesMaxGas(1000, -1)
+	reapedTxs = txmp.ReapMaxBytesMaxGas(1500, -1)
 	checkFunc(reapedTxs, fmt.Sprint(t.Name(), "reap by transaction bytes only"))
 	require.Equal(t, len(tTxs), txmp.Size())
 	require.Equal(t, expectedSize, txmp.SizeBytes())
