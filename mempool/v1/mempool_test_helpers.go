@@ -69,6 +69,10 @@ func (app *application) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 }
 
 func setup(t testing.TB, cacheSize int, options ...TxMempoolOption) *TxMempool {
+	return setupCustom(t, cacheSize, log.TestingLogger().With("test", t.Name()), options...)
+}
+
+func setupCustom(t testing.TB, cacheSize int, log log.Logger, options ...TxMempoolOption) *TxMempool {
 	t.Helper()
 
 	app := &application{kvstore.NewApplication()}
@@ -86,7 +90,7 @@ func setup(t testing.TB, cacheSize int, options ...TxMempoolOption) *TxMempool {
 		require.NoError(t, appConnMem.Stop())
 	})
 
-	return NewTxMempool(log.TestingLogger().With("test", t.Name()), cfg.Mempool, appConnMem, 0, options...)
+	return NewTxMempool(log, cfg.Mempool, appConnMem, 0, options...)
 }
 
 // mustCheckTx invokes txmp.CheckTx for the given transaction and waits until
