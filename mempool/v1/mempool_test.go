@@ -598,7 +598,6 @@ func TestTxMempool_allEntriesSorted(t *testing.T) {
 
 	// Call allEntriesSorted to get the WrappedTx objects sorted by priority and timestamp
 	sorted := txmp.allEntriesSorted()
-	fmt.Println(sorted)
 
 	// Check that the WrappedTx objects are sorted correctly
 	require.Equal(t, wt2, sorted[0])
