@@ -58,32 +58,37 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 	return block
 }
 
+func GetRandomHeader() Header {
+	return Header{
+		BaseHeader: BaseHeader{
+			Height:  12,
+			Time:    uint64(time.Now().Local().Day()),
+			ChainID: "test",
+		},
+		Version: Version{
+			Block: 1,
+			App:   2,
+		},
+		LastHeaderHash:  GetRandomBytes(32),
+		LastCommitHash:  GetRandomBytes(32),
+		DataHash:        GetRandomBytes(32),
+		ConsensusHash:   GetRandomBytes(32),
+		AppHash:         GetRandomBytes(32),
+		LastResultsHash: GetRandomBytes(32),
+		ProposerAddress: GetRandomBytes(32),
+		AggregatorsHash: GetRandomBytes(32),
+	}
+}
+
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
-		Header: Header{
-			Version: Version{
-				Block: InitStateVersion.Consensus.Block,
-				App:   InitStateVersion.Consensus.App,
-			},
-
-			BaseHeader: BaseHeader{
-				ChainID: "test",
-				Height:  uint64(rand.Int63()), //nolint:gosec,
-				Time:    uint64(time.Now().UnixNano()),
-			},
-			LastHeaderHash:      GetRandomBytes(32),
-			LastCommitHash:      GetRandomBytes(32),
-			DataHash:            GetRandomBytes(32),
-			ConsensusHash:       GetRandomBytes(32),
-			AppHash:             GetRandomBytes(32),
-			LastResultsHash:     GetRandomBytes(32),
-			ProposerAddress:     valSet.Proposer.Address,
-			AggregatorsHash:     valSet.Hash(),
-			NextAggregatorsHash: valSet.Hash(),
-		},
+		Header:     GetRandomHeader(),
 		Validators: valSet,
 	}
+	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
+	signedHeader.Header.AggregatorsHash = valSet.Hash()
+	signedHeader.Header.NextAggregatorsHash = valSet.Hash()
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
