@@ -53,11 +53,6 @@ const (
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
-// copy-pasted from store/store_test.go
-func getRandomBlock(height uint64, nTxs int) *types.Block {
-	return getRandomBlockWithProposer(height, nTxs, types.GetRandomBytes(20))
-}
-
 func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
 	block := &types.Block{
 		SignedHeader: types.SignedHeader{
@@ -377,7 +372,7 @@ func TestGetBlock(t *testing.T) {
 	defer func() {
 		require.NoError(rpc.node.Stop())
 	}()
-	block := getRandomBlock(1, 10)
+	block := types.GetRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	rpc.node.Store.SetHeight(block.Height())
 	require.NoError(err)
@@ -396,7 +391,7 @@ func TestGetCommit(t *testing.T) {
 	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
-	blocks := []*types.Block{getRandomBlock(1, 5), getRandomBlock(2, 6), getRandomBlock(3, 8), getRandomBlock(4, 10)}
+	blocks := []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 6), types.GetRandomBlock(3, 8), types.GetRandomBlock(4, 10)}
 
 	err := rpc.node.Start()
 	require.NoError(err)
@@ -435,7 +430,7 @@ func TestBlockSearch(t *testing.T) {
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		block := getRandomBlock(uint64(h), 5)
+		block := types.GetRandomBlock(uint64(h), 5)
 		err := rpc.node.Store.SaveBlock(block, &types.Commit{})
 		require.NoError(err)
 	}
@@ -498,7 +493,7 @@ func TestGetBlockByHash(t *testing.T) {
 	defer func() {
 		require.NoError(rpc.node.Stop())
 	}()
-	block := getRandomBlock(1, 10)
+	block := types.GetRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	require.NoError(err)
 	abciBlock, err := abciconv.ToABCIBlock(block)
@@ -691,7 +686,7 @@ func TestBlockchainInfo(t *testing.T) {
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		block := getRandomBlock(uint64(h), 5)
+		block := types.GetRandomBlock(uint64(h), 5)
 		err := rpc.node.Store.SaveBlock(block, &types.Commit{})
 		rpc.node.Store.SetHeight(block.Height())
 		require.NoError(err)
