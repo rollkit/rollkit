@@ -32,6 +32,7 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 				BaseHeader: BaseHeader{
 					Height: height,
 				},
+				Version:         Version{Block: InitStateVersion.Consensus.Block},
 				AggregatorsHash: make([]byte, 32),
 			}},
 		Data: Data{
