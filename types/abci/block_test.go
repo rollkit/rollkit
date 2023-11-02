@@ -15,21 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func getRandomBlock() *types.Block {
-	randomHeader := types.GetRandomHeader()
-	return &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: randomHeader,
-		},
-		Data: types.Data{
-			Txs: make(types.Txs, 1),
-			IntermediateStateRoots: types.IntermediateStateRoots{
-				RawRootsList: make([][]byte, 1),
-			},
-		},
-	}
-}
-
 func TestToABCIHeaderPB(t *testing.T) {
 	header := types.GetRandomHeader()
 	expected := cmproto.Header{
@@ -103,7 +88,8 @@ func TestToABCIHeader(t *testing.T) {
 }
 
 func TestToABCIBlock(t *testing.T) {
-	block := getRandomBlock()
+	blockHeight, nTxs := uint64(1), 2
+	block := types.GetRandomBlock(blockHeight, nTxs)
 	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
 		t.Fatal(err)
@@ -136,7 +122,8 @@ func TestToABCIBlock(t *testing.T) {
 }
 
 func TestToABCIBlockMeta(t *testing.T) {
-	block := getRandomBlock()
+	blockHeight, nTxs := uint64(1), 2
+	block := types.GetRandomBlock(blockHeight, nTxs)
 	cmblock, err := ToABCIBlock(block)
 	if err != nil {
 		t.Fatal(err)
