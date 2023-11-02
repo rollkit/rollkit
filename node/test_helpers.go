@@ -117,7 +117,6 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 	})
 }
 
-// TODO: use n and return n validators
 func getGenesisValidatorSetWithSigner(n int) ([]cmtypes.GenesisValidator, crypto.PrivKey) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: genesisValidatorKey,
@@ -125,8 +124,14 @@ func getGenesisValidatorSetWithSigner(n int) ([]cmtypes.GenesisValidator, crypto
 	signingKey, _ := GetNodeKey(nodeKey)
 	pubKey := genesisValidatorKey.PubKey()
 
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	genesisValidators := make([]cmtypes.GenesisValidator, n)
+	for i := 0; i < n; i++ {
+		genesisValidators[i] = cmtypes.GenesisValidator{
+			Address: pubKey.Address(),
+			PubKey:  pubKey,
+			Power:   int64(100),
+			Name:    fmt.Sprintf("gen #%d", i+1),
+		}
 	}
 	return genesisValidators, signingKey
 }
