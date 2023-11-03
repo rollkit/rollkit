@@ -15,7 +15,7 @@ The `Header` struct defines a field called `ProposerAddress` which is the pubkey
 
 The `SignedHeader` struct commits over the header and the proposer address and stores the result in `LastCommitHash`.
 
-A new untrusted header is verified by checking it's `ProposerAddress` and matching it against the best known header. In case of a mismatch, an error is thrown.
+A new untrusted header is verified by checking its `ProposerAddress` and matching it against the best-known header. In case of a mismatch, an error is thrown.
 
 When a new node is syncing, the block manager matches the `proposerKey` against the `Sequencer` field of the `lastState`. If a block is not signed by the expected proposer, it is ignored.
 
