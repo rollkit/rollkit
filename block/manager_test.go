@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -21,9 +22,16 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
+
+	genesisValidatorKey := ed25519.GenPrivKey()
+	pubKey := genesisValidatorKey.PubKey()
+	genesisValidators := []cmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(1), Name: "sequencer"},
+	}
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
+		Validators:    genesisValidators,
 	}
 	sampleState := types.State{
 		ChainID:         "state id",
