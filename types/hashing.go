@@ -30,7 +30,10 @@ func (h *Header) Hash() Hash {
 		LastResultsHash: cmbytes.HexBytes(h.LastResultsHash),
 		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
 		ProposerAddress: h.ProposerAddress,
-		ChainID:         h.ChainID(),
+		// Backward compatibility
+		ValidatorsHash:     h.ProposerAddress,
+		NextValidatorsHash: h.ProposerAddress,
+		ChainID:            h.ChainID(),
 	}
 	return Hash(abciHeader.Hash())
 }
