@@ -30,17 +30,18 @@ func TestGetRandomBytes(t *testing.T) {
 	}
 }
 
-// func TestGetRandomBlock(t *testing.T) {
-// 	// Generate 100 random blocks and check that they are all unique
-// 	blockSet := make(map[Block]bool)
-// 	for i := 0; i < 100; i++ {
-// 		block := GetRandomBlock()
-// 		if _, ok := blockSet[block]; ok {
-// 			t.Errorf("Duplicate block generated: %v", block)
-// 		}
-// 		blockSet[block] = true
-// 	}
-// }
+func TestGetRandomValidatorSet(t *testing.T) {
+	// Generate 100 random validator sets and check that they are all unique
+	valSetSet := make(map[string]bool)
+	for i := 0; i < 100; i++ {
+		valSet := GetRandomValidatorSet()
+		valSetHash := string(valSet.Hash())
+		if _, ok := valSetSet[valSetHash]; ok {
+			t.Errorf("Duplicate validator set generated: %v", valSet)
+		}
+		valSetSet[valSetHash] = true
+	}
+}
 
 func TestGetRandomHeader(t *testing.T) {
 	// Generate 100 random headers and check that they are all unique

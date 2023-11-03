@@ -59,7 +59,7 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 }
 
 func GetRandomHeader() Header {
-	header := Header{
+	return Header{
 		BaseHeader: BaseHeader{
 			Height:  uint64(rand.Int63()), //nolint:gosec,
 			Time:    uint64(time.Now().UnixNano()),
@@ -78,8 +78,6 @@ func GetRandomHeader() Header {
 		ProposerAddress: GetRandomBytes(32),
 		AggregatorsHash: GetRandomBytes(32),
 	}
-	header.NextAggregatorsHash = header.AggregatorsHash
-	return header
 }
 
 func GetRandomNextHeader(header Header) Header {
