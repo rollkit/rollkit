@@ -8,6 +8,8 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
+const testChainID = "test"
+
 // TODO: accept argument for number of validators / proposer index
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 	valSet, _ := GetRandomValidatorSetWithPrivKey()
@@ -26,15 +28,12 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 }
 
 func GetRandomBlock(height uint64, nTxs int) *Block {
+	header := GetRandomHeader()
+	header.BaseHeader.Height = height
 	block := &Block{
 		SignedHeader: SignedHeader{
-			Header: Header{
-				BaseHeader: BaseHeader{
-					Height: height,
-				},
-				Version:         Version{Block: InitStateVersion.Consensus.Block},
-				AggregatorsHash: make([]byte, 32),
-			}},
+			Header: header,
+		},
 		Data: Data{
 			Txs: make(Txs, nTxs),
 			IntermediateStateRoots: IntermediateStateRoots{
@@ -62,13 +61,13 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 func GetRandomHeader() Header {
 	return Header{
 		BaseHeader: BaseHeader{
-			Height:  12,
-			Time:    uint64(time.Now().Local().Day()),
-			ChainID: "test",
+			Height:  uint64(rand.Int63()), //nolint:gosec,
+			Time:    uint64(time.Now().UnixNano()),
+			ChainID: testChainID,
 		},
 		Version: Version{
-			Block: 1,
-			App:   2,
+			Block: InitStateVersion.Consensus.Block,
+			App:   InitStateVersion.Consensus.App,
 		},
 		LastHeaderHash:  GetRandomBytes(32),
 		LastCommitHash:  GetRandomBytes(32),
@@ -102,15 +101,14 @@ func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*
 	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{
 		Header: Header{
+			BaseHeader: BaseHeader{
+				ChainID: testChainID,
+				Height:  signedHeader.Height() + 1,
+				Time:    uint64(signedHeader.Time().Add(1 * time.Second).UnixNano()),
+			},
 			Version: Version{
 				Block: InitStateVersion.Consensus.Block,
 				App:   InitStateVersion.Consensus.App,
-			},
-
-			BaseHeader: BaseHeader{
-				ChainID: "test",
-				Height:  signedHeader.Height() + 1,
-				Time:    uint64(signedHeader.Time().Add(1 * time.Second).UnixNano()),
 			},
 			LastHeaderHash:      signedHeader.Hash(),
 			DataHash:            GetRandomBytes(32),
