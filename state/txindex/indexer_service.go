@@ -20,11 +20,11 @@ const (
 type IndexerService struct {
 	service.BaseService
 
+	ctx context.Context
+
 	txIdxr    TxIndexer
 	blockIdxr indexer.BlockIndexer
 	eventBus  *types.EventBus
-
-	ctx context.Context
 }
 
 // NewIndexerService returns a new service instance.
