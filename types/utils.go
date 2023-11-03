@@ -59,7 +59,7 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 }
 
 func GetRandomHeader() Header {
-	return Header{
+	header := Header{
 		BaseHeader: BaseHeader{
 			Height:  uint64(rand.Int63()), //nolint:gosec,
 			Time:    uint64(time.Now().UnixNano()),
@@ -78,6 +78,19 @@ func GetRandomHeader() Header {
 		ProposerAddress: GetRandomBytes(32),
 		AggregatorsHash: GetRandomBytes(32),
 	}
+	header.NextAggregatorsHash = header.AggregatorsHash
+	return header
+}
+
+func GetRandomNextHeader(header Header) Header {
+	nextHeader := GetRandomHeader()
+	nextHeader.BaseHeader.Height = header.Height() + 1
+	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
+	nextHeader.LastHeaderHash = header.Hash()
+	nextHeader.ProposerAddress = header.ProposerAddress
+	nextHeader.AggregatorsHash = header.AggregatorsHash
+	nextHeader.NextAggregatorsHash = header.NextAggregatorsHash
+	return nextHeader
 }
 
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
@@ -97,28 +110,10 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	return signedHeader, privKey, nil
 }
 
-func GetNextRandomHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*SignedHeader, error) {
+func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*SignedHeader, error) {
 	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{
-		Header: Header{
-			BaseHeader: BaseHeader{
-				ChainID: testChainID,
-				Height:  signedHeader.Height() + 1,
-				Time:    uint64(signedHeader.Time().Add(1 * time.Second).UnixNano()),
-			},
-			Version: Version{
-				Block: InitStateVersion.Consensus.Block,
-				App:   InitStateVersion.Consensus.App,
-			},
-			LastHeaderHash:      signedHeader.Hash(),
-			DataHash:            GetRandomBytes(32),
-			ConsensusHash:       GetRandomBytes(32),
-			AppHash:             GetRandomBytes(32),
-			LastResultsHash:     GetRandomBytes(32),
-			ProposerAddress:     valSet.Proposer.Address,
-			AggregatorsHash:     valSet.Hash(),
-			NextAggregatorsHash: valSet.Hash(),
-		},
+		Header:     GetRandomNextHeader(signedHeader.Header),
 		Validators: valSet,
 	}
 	newSignedHeader.LastCommitHash = signedHeader.Commit.GetCommitHash(
