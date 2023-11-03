@@ -66,7 +66,7 @@ func TestBlockCache(t *testing.T) {
 	require.True(bc.isSeen("hash"), "isSeen should return true for seen hash")
 
 	// Test setHardConfirmed
-	require.False(bc.hardConfirmations["hash"], "hardConfirmations should be false for unseen hash")
+	require.False(bc.isHardConfirmed("hash"), "hardConfirmations should be false for unseen hash")
 	bc.setHardConfirmed("hash")
-	require.True(bc.hardConfirmations["hash"], "hardConfirmations should be true for seen hash")
+	require.True(bc.isHardConfirmed("hash"), "hardConfirmations should be true for seen hash")
 }
