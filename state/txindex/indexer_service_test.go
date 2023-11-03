@@ -38,7 +38,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus, ctx)
+	service := txindex.NewIndexerService(ctx, txIndexer, blockIndexer, eventBus)
 	service.SetLogger(log.TestingLogger())
 	err = service.Start()
 	require.NoError(t, err)
