@@ -3,7 +3,11 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 
 # Define pkgs, run, and cover variables for test so that we can override them in
 # the terminal more easily.
-pkgs := $(shell go list ./...)
+
+# IGNORE_DIRS is a list of directories to ignore when running tests and linters.
+# This list is space separated.
+IGNORE_DIRS ?= third_party
+pkgs := $(shell go list ./... | grep -vE "$(IGNORE_DIRS)")
 run := .
 count := 1
 
