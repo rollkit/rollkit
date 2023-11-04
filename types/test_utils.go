@@ -8,6 +8,8 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
+const TestChainID = "test"
+
 // TODO: accept argument for number of validators / proposer index
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 	valSet, _ := GetRandomValidatorSetWithPrivKey()
