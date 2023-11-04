@@ -8,13 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestLightClient_Panics tests that all methods of LightClient and ensures that
+// they panic as they are not implemented. This is to ensure that when the
+// methods are implemented in the future we don't forget to add testing. When
+// methods are implemented, they should be removed from this test and have their
+// own test written.
 func TestLightClient_Panics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ln := initializeAndStartLightNode(ctx, t)
 	defer cleanUpNode(ln, t)
 
-	// TODO: update test to call all ln methods
 	tests := []struct {
 		name string
 		fn   func()
