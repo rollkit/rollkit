@@ -3,8 +3,9 @@ package block
 import (
 	"testing"
 
-	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestBlockCache(t *testing.T) {

@@ -468,6 +468,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	// that we can continue to try and find blocks that are in the next DA height.
 	// This enables syncing faster than the DA block time.
 	blockFoundCh := make(chan struct{}, 1)
+	defer close(blockFoundCh)
 	for {
 		select {
 		case <-ctx.Done():
