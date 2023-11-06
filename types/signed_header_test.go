@@ -15,7 +15,7 @@ func TestSignedHeader(t *testing.T) {
 	trusted, privKey, err := GetRandomSignedHeader()
 	require.NoError(t, err)
 	// Get the next random header
-	untrustedAdj, err := GetNextRandomHeader(trusted, privKey)
+	untrustedAdj, err := GetRandomNextSignedHeader(trusted, privKey)
 	require.NoError(t, err)
 	t.Run("Test Verify", func(t *testing.T) {
 		testVerify(t, trusted, untrustedAdj, privKey)
