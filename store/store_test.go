@@ -23,20 +23,20 @@ func TestStoreHeight(t *testing.T) {
 		blocks   []*types.Block
 		expected uint64
 	}{
-		{"single block", []*types.Block{getRandomBlock(1, 0)}, 1},
+		{"single block", []*types.Block{types.GetRandomBlock(1, 0)}, 1},
 		{"two consecutive blocks", []*types.Block{
-			getRandomBlock(1, 0),
-			getRandomBlock(2, 0),
+			types.GetRandomBlock(1, 0),
+			types.GetRandomBlock(2, 0),
 		}, 2},
 		{"blocks out of order", []*types.Block{
-			getRandomBlock(2, 0),
-			getRandomBlock(3, 0),
-			getRandomBlock(1, 0),
+			types.GetRandomBlock(2, 0),
+			types.GetRandomBlock(3, 0),
+			types.GetRandomBlock(1, 0),
 		}, 3},
 		{"with a gap", []*types.Block{
-			getRandomBlock(1, 0),
-			getRandomBlock(9, 0),
-			getRandomBlock(10, 0),
+			types.GetRandomBlock(1, 0),
+			types.GetRandomBlock(9, 0),
+			types.GetRandomBlock(10, 0),
 		}, 10},
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -65,10 +65,10 @@ func TestStoreLoad(t *testing.T) {
 		name   string
 		blocks []*types.Block
 	}{
-		{"single block", []*types.Block{getRandomBlock(1, 10)}},
+		{"single block", []*types.Block{types.GetRandomBlock(1, 10)}},
 		{"two consecutive blocks", []*types.Block{
-			getRandomBlock(1, 10),
-			getRandomBlock(2, 20),
+			types.GetRandomBlock(1, 10),
+			types.GetRandomBlock(2, 20),
 		}},
 		// TODO(tzdybal): this test needs extra handling because of lastCommits
 		//{"blocks out of order", []*types.Block{

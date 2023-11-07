@@ -4,7 +4,7 @@ name: lint
 on:
   workflow_call:
     inputs:
-      GO_VERSION:
+      go-version:
         description: "Go version to use"
         type: string
         required: true
@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ inputs.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
         # This steps sets the GIT_DIFF environment variable to true
         # if files defined in PATTERS changed
       - uses: technote-space/get-diff-action@v6.1.2

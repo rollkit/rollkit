@@ -6,7 +6,6 @@ import (
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
 	"testing"
-	"time"
 
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -16,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+<<<<<<< HEAD
 func getRandomHeader() *types.Header {
 	return &types.Header{
 		BaseHeader: types.BaseHeader{
@@ -52,8 +52,10 @@ func getRandomBlock() *types.Block {
 	}
 }
 
+=======
+>>>>>>> main
 func TestToABCIHeaderPB(t *testing.T) {
-	header := getRandomHeader()
+	header := types.GetRandomHeader()
 	expected := cmproto.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -79,7 +81,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 		ChainID:            header.ChainID(),
 	}
 
-	actual, err := ToABCIHeaderPB(header)
+	actual, err := ToABCIHeaderPB(&header)
 	if err != nil {
 		t.Fatalf("ToABCIHeaderPB returned an error: %v", err)
 	}
@@ -88,7 +90,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 }
 
 func TestToABCIHeader(t *testing.T) {
-	header := getRandomHeader()
+	header := types.GetRandomHeader()
 	expected := cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -114,7 +116,7 @@ func TestToABCIHeader(t *testing.T) {
 		ChainID:            header.ChainID(),
 	}
 
-	actual, err := ToABCIHeader(header)
+	actual, err := ToABCIHeader(&header)
 	if err != nil {
 		t.Fatalf("ToABCIHeaderPB returned an error: %v", err)
 	}
@@ -123,7 +125,8 @@ func TestToABCIHeader(t *testing.T) {
 }
 
 func TestToABCIBlock(t *testing.T) {
-	block := getRandomBlock()
+	blockHeight, nTxs := uint64(1), 2
+	block := types.GetRandomBlock(blockHeight, nTxs)
 	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +159,8 @@ func TestToABCIBlock(t *testing.T) {
 }
 
 func TestToABCIBlockMeta(t *testing.T) {
-	block := getRandomBlock()
+	blockHeight, nTxs := uint64(1), 2
+	block := types.GetRandomBlock(blockHeight, nTxs)
 	cmblock, err := ToABCIBlock(block)
 	if err != nil {
 		t.Fatal(err)
