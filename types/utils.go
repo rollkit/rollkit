@@ -85,8 +85,6 @@ func GetRandomNextHeader(header Header) Header {
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
 	nextHeader.ProposerAddress = header.ProposerAddress
-	nextHeader.AggregatorsHash = header.AggregatorsHash
-	nextHeader.NextAggregatorsHash = header.NextAggregatorsHash
 	return nextHeader
 }
 
@@ -97,8 +95,6 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 		Validators: valSet,
 	}
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
-	signedHeader.Header.AggregatorsHash = valSet.Hash()
-	signedHeader.Header.NextAggregatorsHash = valSet.Hash()
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
