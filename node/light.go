@@ -50,7 +50,7 @@ func newLightNode(
 	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error starting proxy app connections: %v", err)
+		return nil, fmt.Errorf("error while starting proxy app connections: %v", err)
 	}
 
 	datastore, err := openDatastore(conf, logger)
@@ -64,7 +64,7 @@ func newLightNode(
 
 	headerSyncService, err := block.NewHeaderSynceService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
-		return nil, fmt.Errorf("HeaderSyncService initialization error: %w", err)
+		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

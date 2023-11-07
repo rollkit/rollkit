@@ -29,6 +29,8 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+const mockDaBlockTime = 100 * time.Millisecond
+
 var (
 	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
 
@@ -163,7 +165,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	for i := uint64(0); i < numBatches; i++ {
 		blocks := make([]*types.Block, blocksSubmittedPerBatch)
 		for j := 0; j < len(blocks); j++ {
-			blocks[j] = getRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
+			blocks[j] = types.GetRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
 		}
 		resp := dalc.SubmitBlocks(ctx, blocks)
 		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
