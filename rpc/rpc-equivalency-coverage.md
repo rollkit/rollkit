@@ -40,15 +40,15 @@ The RPC service assumes that the Rollkit node it interacts with is running and c
 
 ## Implementation
 
-The implementation of the Rollkit RPC service can be found in the [`node/full_client.go`] file in the Rollkit repository.
+The implementation of the Rollkit RPC service can be found in the [`rpc/json/service.go`] file in the Rollkit repository.
 
 ## References
 
 [1] [CometBFT RPC Specification][specification]
-[2] [Full Client Implementation][`node/full_client.go`]
+[2] [RPC Service Implementation][`rpc/json/service.go`]
 
 [specification]: https://docs.cometbft.com/v0.38/spec/rpc/
-[`node/full_client.go`]: https://github.com/rollkit/rollkit/blob/main/node/full_client.go
+[`rpc/json/service.go`]: https://github.com/rollkit/rollkit/blob/main/rpc/json/service.go
 [health]: https://docs.cometbft.com/v0.38/spec/rpc/#health
 [status]: https://docs.cometbft.com/v0.38/spec/rpc/#status
 [netinfo]: https://docs.cometbft.com/v0.38/spec/rpc/#netinfo
