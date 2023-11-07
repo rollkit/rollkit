@@ -13,7 +13,7 @@ require (
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.3
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/rpc v1.2.0
+	github.com/gorilla/rpc v1.2.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger3 v0.0.2
