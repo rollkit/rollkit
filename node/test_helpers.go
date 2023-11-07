@@ -128,7 +128,7 @@ func getGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.Priv
 		Address: pubKey.Address(),
 		PubKey:  pubKey,
 		Power:   int64(100),
-		Name:    fmt.Sprintf("gen #1"),
+		Name:    "gen #1",
 	}}
 	return genesisValidators, signingKey
 }
