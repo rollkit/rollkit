@@ -12,9 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
 	proxy "github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
@@ -71,7 +73,12 @@ func generateSingleKey() crypto.PrivKey {
 
 // newTestNode creates a new test node
 func newTestNode(ctx context.Context, key crypto.PrivKey, signingKey crypto.PrivKey, app *mocks.Application) (*FullNode, error) {
-	return newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	validatorKey := ed25519.GenPrivKey()
+	pubKey := validatorKey.PubKey()
+	genesisValidators := []cmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	}
+	return newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 }
 
 // setupTestNode sets up a test node

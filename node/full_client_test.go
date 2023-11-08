@@ -79,7 +79,25 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	validatorKey := ed25519.GenPrivKey()
+	pubKey := validatorKey.PubKey()
+	genesisValidators := []cmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	}
+	node, err := newFullNode(
+		ctx,
+		config.NodeConfig{
+			DALayer: "mock",
+		},
+		key,
+		signingKey,
+		proxy.NewLocalClientCreator(app),
+		&cmtypes.GenesisDoc{
+			ChainID:    "test",
+			Validators: genesisValidators,
+		},
+		log.TestingLogger(),
+	)
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -984,7 +1002,7 @@ func TestStatus(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
-	vKeys := make([]cmcrypto.PrivKey, 2)
+	vKeys := make([]cmcrypto.PrivKey, 1)
 	validators := make([]*cmtypes.Validator, len(vKeys))
 	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
 	for i := 0; i < len(vKeys); i++ {
