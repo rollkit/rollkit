@@ -41,8 +41,6 @@ var expectedInfo = &abci.ResponseInfo{
 	LastBlockHeight: 0,
 }
 
-var mockTxProcessingTime = 10 * time.Millisecond
-
 func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
 	block := types.GetRandomBlock(height, nTxs)
 	block.SignedHeader.ProposerAddress = proposerAddr
@@ -1170,10 +1168,9 @@ func TestHealth(t *testing.T) {
 	require := require.New(t)
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(abci.ResponseCheckTx{}, nil)
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{}, nil)
 
 	err := rpc.node.Start()
 	require.NoError(err)
