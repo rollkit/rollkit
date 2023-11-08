@@ -479,7 +479,7 @@ func TestTx(t *testing.T) {
 	mockApp.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
 	mockApp.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
@@ -1137,7 +1137,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
