@@ -530,27 +530,18 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	txs := make([]types.Tx, 0, mem.txs.Len())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
-
-		txs = append(txs, memTx.tx)
-
-		dataSize := types.ComputeProtoSizeForTxs([]types.Tx{memTx.tx})
-
-		// Check total size requirement
-		if maxBytes > -1 && runningSize+dataSize > maxBytes {
-			return txs[:len(txs)-1]
-		}
-
-		runningSize += dataSize
-
-		// Check total gas requirement.
+		// Check total gas requirement and total size requirement.
 		// If maxGas is negative, skip this check.
 		// Since newTotalGas < masGas, which
 		// must be non-negative, it follows that this won't overflow.
 		newTotalGas := totalGas + memTx.gasWanted
-		if maxGas > -1 && newTotalGas > maxGas {
-			return txs[:len(txs)-1]
+		totalDataSize := runningSize + types.ComputeProtoSizeForTxs([]types.Tx{memTx.tx})
+		if (maxGas > -1 && newTotalGas > maxGas) || (maxBytes > -1 && totalDataSize > maxBytes) {
+			continue
 		}
 		totalGas = newTotalGas
+		runningSize = totalDataSize
+		txs = append(txs, memTx.tx)
 	}
 	return txs
 }
