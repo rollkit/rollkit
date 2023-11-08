@@ -118,13 +118,6 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
 			err:     nil,
 		},
-		/*{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				return &untrusted, false
-			},
-			err: ErrAggregatorSetHashMismatch,
-		},*/
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
