@@ -465,7 +465,30 @@ Block.Verify()
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="da"><a class="header" href="#da">DA</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="mempool"><a class="header" href="#mempool">Mempool</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="node"><a class="header" href="#node">Node</a></h1>
+<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<p>The mempool module stores transactions which have not yet been included in a block, and provides an interface to check the validity of incoming transactions. It's defined by an interface <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go#L16">here</a>, with an implementation <a href="https://github.com/rollkit/rollkit/blob/main/mempool/v1/mempool.go">here</a>.</p>
+<h2 id="component-description"><a class="header" href="#component-description">Component Description</a></h2>
+<p>Full nodes instantiate a mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L133">here</a>. A <code>p2p.GossipValidator</code> is constructed from the node's mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L391">here</a>, which is used by Rollkit's P2P code to deal with peers who gossip invalid transactions. The mempool is also passed into the <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L136">block manager constructor</a>, which creates a <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L143"><code>BlockExecutor</code></a> from the mempool.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/block-executor.md"><code>BlockExecutor</code></a> calls <code>ReapMaxBytesMaxGas</code> in <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L91"><code>CreateBlock</code></a> to get transactions from the pool for the new block. When <code>commit</code> is called, the <code>BlockExecutor</code> calls <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L255"><code>Update(...)</code></a> on the mempool, removing the old transactions from the pool.</p>
+<h2 id="communication"><a class="header" href="#communication">Communication</a></h2>
+<p>Several RPC methods query the mempool module: <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L128"><code>BroadcastTxCommit</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L190"><code>BroadcastTxAsync</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L207"><code>BroadcastTxSync</code></a> call the mempool's <code>CheckTx(...)</code> method.</p>
+<h2 id="interface"><a class="header" href="#interface">Interface</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function Name</th><th>Input Arguments</th><th>Output Type</th><th>Intended Behavior</th></tr></thead><tbody>
+<tr><td>CheckTx</td><td>tx types.Tx, callback func(*abci.Response), txInfo TxInfo</td><td>error</td><td>Executes a new transaction against the application to determine its validity and whether it should be added to the mempool.</td></tr>
+<tr><td>RemoveTxByKey</td><td>txKey types.TxKey</td><td>error</td><td>Removes a transaction, identified by its key, from the mempool.</td></tr>
+<tr><td>ReapMaxBytesMaxGas</td><td>maxBytes, maxGas int64</td><td>types.Txs</td><td>Reaps transactions from the mempool up to maxBytes bytes total with the condition that the total gasWanted must be less than maxGas. If both maxes are negative, there is no cap on the size of all returned transactions (~ all available transactions).</td></tr>
+<tr><td>ReapMaxTxs</td><td>max int</td><td>types.Txs</td><td>Reaps up to max transactions from the mempool. If max is negative, there is no cap on the size of all returned transactions (~ all available transactions).</td></tr>
+<tr><td>Lock</td><td>N/A</td><td>N/A</td><td>Locks the mempool. The consensus must be able to hold the lock to safely update.</td></tr>
+<tr><td>Unlock</td><td>N/A</td><td>N/A</td><td>Unlocks the mempool.</td></tr>
+<tr><td>Update</td><td>blockHeight uint64, blockTxs types.Txs, deliverTxResponses []*abci.ResponseDeliverTx, newPreFn PreCheckFunc, newPostFn PostCheckFunc</td><td>error</td><td>Informs the mempool that the given txs were committed and can be discarded. This should be called <em>after</em> block is committed by consensus. Lock/Unlock must be managed by the caller.</td></tr>
+<tr><td>FlushAppConn</td><td>N/A</td><td>error</td><td>Flushes the mempool connection to ensure async callback calls are done, e.g., from CheckTx. Lock/Unlock must be managed by the caller.</td></tr>
+<tr><td>Flush</td><td>N/A</td><td>N/A</td><td>Removes all transactions from the mempool and caches.</td></tr>
+<tr><td>TxsAvailable</td><td>N/A</td><td>&lt;-chan struct{}</td><td>Returns a channel which fires once for every height when transactions are available in the mempool. The returned channel may be nil if EnableTxsAvailable was not called.</td></tr>
+<tr><td>EnableTxsAvailable</td><td>N/A</td><td>N/A</td><td>Initializes the TxsAvailable channel, ensuring it will trigger once every height when transactions are available.</td></tr>
+<tr><td>Size</td><td>N/A</td><td>int</td><td>Returns the number of transactions in the mempool.</td></tr>
+<tr><td>SizeBytes</td><td>N/A</td><td>int64</td><td>Returns the total size of all txs in the mempool.</td></tr>
+</tbody></table>
+</div><div style="break-before: page; page-break-before: always;"></div><h1 id="node"><a class="header" href="#node">Node</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="p2p"><a class="header" href="#p2p">P2P</a></h1>
 <p>Every rollup node (both full and light) runs a P2P client using <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a> P2P networking stack for gossiping transactions in the rollup's P2P network. The same P2P client is also used by the header and block sync services for gossiping headers and blocks.</p>
 <p>Following parameters are required for creating a new instance of a P2P client:</p>
@@ -504,7 +527,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <p>[3] <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a></p>
 <p>[4] <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">conngater</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="block-executor"><a class="header" href="#block-executor">Block Executor</a></h1>
-<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The <code>BlockExecutor</code> is a component responsible for creating, applying, and maintaining blocks and state in the system. It interacts with the mempool and the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>.</p>
 <h2 id="detailed-description"><a class="header" href="#detailed-description">Detailed Description</a></h2>
 <p>The <code>BlockExecutor</code> is initialized with a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code>. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.</p>
@@ -685,7 +708,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md">Block Validation</a></p>
 <p>[4] <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI documentation</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="store"><a class="header" href="#store">Store</a></h1>
-<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
+<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
 <p>The Store interface defines methods for storing and retrieving blocks, commits, and the state of the blockchain.</p>
 <h2 id="protocolcomponent-description-2"><a class="header" href="#protocolcomponent-description-2">Protocol/Component Description</a></h2>
 <p>The Store interface defines the following methods:</p>
