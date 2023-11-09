@@ -784,7 +784,7 @@ func TestMempool2Nodes(t *testing.T) {
 	defer func() {
 		require.NoError(node2.Stop())
 	}()
-	waitForAtLeastNBlocks(node2, 1, Store)
+	require.NoError(waitForAtLeastNBlocks(node2, 1, Store))
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer timeoutCancel()
 
