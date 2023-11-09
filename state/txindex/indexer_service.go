@@ -20,6 +20,8 @@ const (
 type IndexerService struct {
 	service.BaseService
 
+	ctx context.Context
+
 	txIdxr    TxIndexer
 	blockIdxr indexer.BlockIndexer
 	eventBus  *types.EventBus
@@ -27,12 +29,13 @@ type IndexerService struct {
 
 // NewIndexerService returns a new service instance.
 func NewIndexerService(
+	ctx context.Context,
 	txIdxr TxIndexer,
 	blockIdxr indexer.BlockIndexer,
 	eventBus *types.EventBus,
 ) *IndexerService {
 
-	is := &IndexerService{txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus}
+	is := &IndexerService{ctx: ctx, txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus}
 	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
 	return is
 }
@@ -59,6 +62,8 @@ func (is *IndexerService) OnStart() error {
 	go func() {
 		for {
 			select {
+			case <-is.ctx.Done():
+				return
 			case <-blockHeadersSub.Cancelled():
 				return
 			case msg := <-blockHeadersSub.Out():
@@ -68,6 +73,8 @@ func (is *IndexerService) OnStart() error {
 
 				for i := int64(0); i < eventDataHeader.NumTxs; i++ {
 					select {
+					case <-is.ctx.Done():
+						return
 					case <-txsSub.Cancelled():
 						return
 					case msg2 := <-txsSub.Out():

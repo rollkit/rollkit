@@ -30,6 +30,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 	abciconv "github.com/rollkit/rollkit/types/abci"
@@ -195,7 +196,7 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, log.TestingLogger())
+	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -500,8 +501,10 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	node, err := newFullNode(context.Background(), config.NodeConfig{
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, err := newFullNode(ctx, config.NodeConfig{
 		DALayer:    "mock",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
@@ -509,7 +512,7 @@ func TestTx(t *testing.T) {
 		}},
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-		log.TestingLogger())
+		test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -527,13 +530,13 @@ func TestTx(t *testing.T) {
 		require.NoError(rpc.node.Stop())
 	}()
 	tx1 := cmtypes.Tx("tx1")
-	res, err := rpc.BroadcastTxSync(context.Background(), tx1)
+	res, err := rpc.BroadcastTxSync(ctx, tx1)
 	assert.NoError(err)
 	assert.NotNil(res)
 
 	time.Sleep(2 * time.Second)
 
-	resTx, errTx := rpc.Tx(context.Background(), res.Hash, true)
+	resTx, errTx := rpc.Tx(ctx, res.Hash, true)
 	assert.NoError(errTx)
 	assert.NotNil(resTx)
 	assert.EqualValues(tx1, resTx.Tx)
@@ -541,7 +544,7 @@ func TestTx(t *testing.T) {
 
 	tx2 := cmtypes.Tx("tx2")
 	assert.Panics(func() {
-		resTx, errTx := rpc.Tx(context.Background(), tx2.Hash(), true)
+		resTx, errTx := rpc.Tx(ctx, tx2.Hash(), true)
 		assert.Nil(resTx)
 		assert.Error(errTx)
 	})
@@ -749,7 +752,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, err := store.NewDefaultInMemoryKVStore()
 	require.Nil(err)
-	err = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
+	err = dalc.Init([8]byte{}, nil, ds, test.NewFileLogger(t))
 	require.Nil(err)
 	err = dalc.Start()
 	require.Nil(err)
@@ -777,7 +780,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 			signingKey,
 			proxy.NewLocalClientCreator(apps[i]),
 			&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-			log.TestingLogger(),
+			test.NewFileLogger(t),
 		)
 		require.NoError(err)
 		require.NotNil(nodes[i])
@@ -935,7 +938,7 @@ func TestStatus(t *testing.T) {
 			ChainID:    "test",
 			Validators: genesisValidators,
 		},
-		log.TestingLogger(),
+		test.NewFileLogger(t),
 	)
 	require.NoError(err)
 	require.NotNil(node)
@@ -1025,7 +1028,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1043,7 +1046,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			GenesisTime:   genesisTime,
 			Validators:    genesisValidators,
 		},
-		log.TestingLogger())
+		test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
 
