@@ -221,7 +221,7 @@ func TestFastDASync(t *testing.T) {
 		require.NoError(node1.Stop())
 	}()
 
-	// Wait for node 1 to sync the first numberOfBLocksToSyncTill
+	// Wait for node 1 to sync the first numberOfBlocksToSyncTill
 	require.NoError(waitForAtLeastNBlocks(node1, numberOfBlocksToSyncTill, Store))
 
 	// Now that node 1 has already synced, start the second node
