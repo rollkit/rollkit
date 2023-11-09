@@ -549,10 +549,11 @@ func (m *Manager) IsProposer() (bool, error) {
 		return false, err
 	}
 
-	if m.genesis.Validators == nil {
-		return false, fmt.Errorf("genesis validators is nil")
+	if len(m.genesis.Validators) > 0 {
+		return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 	}
-	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
+	return false, fmt.Errorf("genesis must have exactly 1 validator")
+
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
