@@ -21,7 +21,6 @@ import (
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
@@ -53,52 +52,9 @@ const (
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
-// copy-pasted from store/store_test.go
-func getRandomBlock(height uint64, nTxs int) *types.Block {
-	return getRandomBlockWithProposer(height, nTxs, types.GetRandomBytes(20))
-}
-
 func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
-	block := &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				BaseHeader: types.BaseHeader{
-					Height: height,
-				},
-				Version:         types.Version{Block: types.InitStateVersion.Consensus.Block},
-				ProposerAddress: proposerAddr,
-				AggregatorsHash: make([]byte, 32),
-			}},
-		Data: types.Data{
-			Txs: make(types.Txs, nTxs),
-			IntermediateStateRoots: types.IntermediateStateRoots{
-				RawRootsList: make([][]byte, nTxs),
-			},
-		},
-	}
-	block.SignedHeader.AppHash = types.GetRandomBytes(32)
-
-	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = types.GetRandomTx()
-		block.Data.IntermediateStateRoots.RawRootsList[i] = types.GetRandomBytes(32)
-	}
-
-	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
-	if nTxs == 0 {
-		block.Data.Txs = nil
-		block.Data.IntermediateStateRoots.RawRootsList = nil
-	}
-
-	cmprotoLC, err := cmtypes.CommitFromProto(&cmproto.Commit{})
-	if err != nil {
-		return nil
-	}
-	lastCommitHash := make(types.Hash, 32)
-	copy(lastCommitHash, cmprotoLC.Hash().Bytes())
-	block.SignedHeader.LastCommitHash = lastCommitHash
-
-	block.SignedHeader.Validators = types.GetRandomValidatorSet()
-
+	block := types.GetRandomBlock(height, nTxs)
+	block.SignedHeader.ProposerAddress = proposerAddr
 	return block
 }
 
@@ -377,7 +333,7 @@ func TestGetBlock(t *testing.T) {
 	defer func() {
 		require.NoError(rpc.node.Stop())
 	}()
-	block := getRandomBlock(1, 10)
+	block := types.GetRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	rpc.node.Store.SetHeight(block.Height())
 	require.NoError(err)
@@ -396,7 +352,7 @@ func TestGetCommit(t *testing.T) {
 	mockApp.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
 	mockApp.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
-	blocks := []*types.Block{getRandomBlock(1, 5), getRandomBlock(2, 6), getRandomBlock(3, 8), getRandomBlock(4, 10)}
+	blocks := []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 6), types.GetRandomBlock(3, 8), types.GetRandomBlock(4, 10)}
 
 	err := rpc.node.Start()
 	require.NoError(err)
@@ -435,7 +391,7 @@ func TestBlockSearch(t *testing.T) {
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		block := getRandomBlock(uint64(h), 5)
+		block := types.GetRandomBlock(uint64(h), 5)
 		err := rpc.node.Store.SaveBlock(block, &types.Commit{})
 		require.NoError(err)
 	}
@@ -498,7 +454,7 @@ func TestGetBlockByHash(t *testing.T) {
 	defer func() {
 		require.NoError(rpc.node.Stop())
 	}()
-	block := getRandomBlock(1, 10)
+	block := types.GetRandomBlock(1, 10)
 	err = rpc.node.Store.SaveBlock(block, &types.Commit{})
 	require.NoError(err)
 	abciBlock, err := abciconv.ToABCIBlock(block)
@@ -526,7 +482,7 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
 	node, err := newFullNode(context.Background(), config.NodeConfig{
 		DALayer:    "newda",
 		Aggregator: true,
@@ -691,7 +647,7 @@ func TestBlockchainInfo(t *testing.T) {
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		block := getRandomBlock(uint64(h), 5)
+		block := types.GetRandomBlock(uint64(h), 5)
 		err := rpc.node.Store.SaveBlock(block, &types.Commit{})
 		rpc.node.Store.SetHeight(block.Height())
 		require.NoError(err)
@@ -1159,7 +1115,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1190,4 +1146,25 @@ func TestFutureGenesisTime(t *testing.T) {
 	wg.Wait()
 
 	assert.True(beginBlockTime.After(genesisTime))
+}
+
+func TestHealth(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	err := rpc.node.Start()
+	require.NoError(err)
+	defer func() {
+		require.NoError(rpc.node.Stop())
+	}()
+
+	resultHealth, err := rpc.Health(context.Background())
+	assert.Nil(err)
+	assert.Empty(resultHealth)
 }

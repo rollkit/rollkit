@@ -13,7 +13,7 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-// Tx represents transactoin.
+// Tx represents transaction.
 type Tx []byte
 
 // Txs represents a slice of transactions.

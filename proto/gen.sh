@@ -7,8 +7,7 @@ TARGET_DIR=./types/pb
 cd $SCRIPT_DIR
 mkdir -p $TARGET_DIR
 rm -rf $TARGET_DIR/*
-docker run -v $PWD:/workspace --workdir /workspace tendermintdev/docker-build-proto sh ./proto/protoc.sh
+docker run -u $UID:$(id -g) -e XDG_CACHE_HOME=/tmp/.cache -v $PWD:/workspace --workdir /workspace tendermintdev/docker-build-proto sh ./proto/protoc.sh
 
-cp -r ./proto/pb/* $TARGET_DIR/
 
 rm -rf $TARGET_DIR/tendermint

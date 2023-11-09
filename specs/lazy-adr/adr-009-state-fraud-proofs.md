@@ -136,7 +136,7 @@ The `GenerateFraudProof` method in the Cosmos SDK app receives this list of stat
 
 // Represents a single-round state fraudProof
 message FraudProof {
-  // The block height during which the fraudulent state transition occured
+  // The block height during which the fraudulent state transition occurred
   uint64 block_height = 1;
   // Intermediate State Root right before the fraudulent state transition
   bytes pre_state_app_hash = 2;
