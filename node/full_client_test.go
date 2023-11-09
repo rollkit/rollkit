@@ -28,8 +28,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/rollkit/rollkit/config"
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -728,81 +726,6 @@ func TestBlockchainInfo(t *testing.T) {
 
 		})
 	}
-}
-
-func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application, wg *sync.WaitGroup) *FullClient {
-	t.Helper()
-	require := require.New(t)
-	vKeys := make([]cmcrypto.PrivKey, numNodes)
-	apps := make([]*mocks.Application, numNodes)
-	nodes := make([]*FullNode, numNodes)
-
-	genesisValidatorKey := ed25519.GenPrivKey()
-	pubKey := genesisValidatorKey.PubKey()
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(1), Name: "sequencer"},
-	}
-
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		apps[i] = appCreator(require, vKeys[0], wg)
-		wg.Add(1)
-	}
-
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, err := store.NewDefaultInMemoryKVStore()
-	require.Nil(err)
-	err = dalc.Init([8]byte{}, nil, ds, test.NewFileLogger(t))
-	require.Nil(err)
-	err = dalc.Start()
-	require.Nil(err)
-	t.Cleanup(func() {
-		require.NoError(dalc.Stop())
-	})
-
-	for i := 0; i < len(nodes); i++ {
-		nodeKey := &p2p.NodeKey{
-			PrivKey: vKeys[i],
-		}
-		signingKey, err := GetNodeKey(nodeKey)
-		require.NoError(err)
-		nodes[i], err = newFullNode(
-			context.Background(),
-			config.NodeConfig{
-				DALayer:    "mock",
-				Aggregator: true,
-				BlockManagerConfig: config.BlockManagerConfig{
-					BlockTime:   1 * time.Second,
-					DABlockTime: 100 * time.Millisecond,
-				},
-			},
-			signingKey,
-			signingKey,
-			proxy.NewLocalClientCreator(apps[i]),
-			&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-			test.NewFileLogger(t),
-		)
-		require.NoError(err)
-		require.NotNil(nodes[i])
-
-		// use same, common DALC, so nodes can share data
-		nodes[i].dalc = dalc
-		nodes[i].blockManager.SetDALC(dalc)
-	}
-
-	rpc := NewFullClient(nodes[0])
-	require.NotNil(rpc)
-
-	for i := 0; i < len(nodes); i++ {
-		node := nodes[i]
-		err := nodes[i].Start()
-		require.NoError(err)
-
-		t.Cleanup(func() {
-			require.NoError(node.Stop())
-		})
-	}
-	return rpc
 }
 
 func TestMempool2Nodes(t *testing.T) {
