@@ -498,7 +498,7 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 	apps := make([]*mocks.Application, num)
 	dalc := &mockda.DataAvailabilityLayerClient{}
 	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
+	_ = dalc.Init([8]byte{}, nil, ds, test.NewFileLoggerCustom(t, test.TempLogFileName(t)))
 	_ = dalc.Start()
 	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	apps[0] = app
@@ -565,7 +565,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		signingKey,
 		proxy.NewLocalClientCreator(app),
 		genesis,
-		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
+		test.NewFileLoggerCustom(t, test.TempLogFileName(t)).With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
 

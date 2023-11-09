@@ -45,7 +45,7 @@ func TestClientStartup(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewFileLoggerCustom(t, test.TempLogFileName(t, testCase.desc)))
+				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewFileLoggerCustom(t, test.TempLogFileName(t)))
 			assert.NoError(err)
 			assert.NotNil(client)
 

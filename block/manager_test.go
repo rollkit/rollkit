@@ -79,7 +79,7 @@ func TestInitialState(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
+			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t))
 			dalc := getMockDALC(logger)
 			defer func() {
 				require.NoError(t, dalc.Stop())
