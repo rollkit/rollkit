@@ -211,9 +211,9 @@ func TestLightClient_Panics(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Panics(t, tt.fn)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Panics(t, test.fn)
 		})
 	}
 }

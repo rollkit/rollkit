@@ -28,12 +28,11 @@ func TestStartup(t *testing.T) {
 }
 
 func TestMempoolDirectly(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 
 	node := initializeAndStartFullNode(ctx, t)
-	assert := assert.New(t)
 	defer cleanUpNode(node, t)
+	assert := assert.New(t)
 
 	peerID := getPeerID(assert)
 	verifyTransactions(node, peerID, assert)

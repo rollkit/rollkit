@@ -18,12 +18,7 @@ import (
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
 	defer func() {
-		if fn, ok := node.(*FullNode); ok {
-			fn.cancel()
-		}
-		if ln, ok := node.(*LightNode); ok {
-			ln.cancel()
-		}
+		node.Cancel()
 	}()
 	assert.NoError(t, node.Stop())
 	assert.False(t, node.IsRunning())
@@ -33,6 +28,7 @@ func initializeAndStartFullNode(ctx context.Context, t *testing.T) *FullNode {
 	node := initializeAndStartNode(ctx, t, "full")
 	return node.(*FullNode)
 }
+
 func initializeAndStartLightNode(ctx context.Context, t *testing.T) *LightNode {
 	node := initializeAndStartNode(ctx, t, "light")
 	return node.(*LightNode)
@@ -73,8 +69,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType string) Node {
 }
 
 func TestNewNode(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 
 	ln := initializeAndStartLightNode(ctx, t)
 	cleanUpNode(ln, t)
