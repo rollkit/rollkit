@@ -1002,23 +1002,10 @@ func TestStatus(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
-	vKeys := make([]cmcrypto.PrivKey, 1)
-	validators := make([]*cmtypes.Validator, len(vKeys))
-	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &cmtypes.Validator{
-			Address:          vKeys[i].PubKey().Address(),
-			PubKey:           vKeys[i].PubKey(),
-			VotingPower:      int64(i + 100),
-			ProposerPriority: int64(i),
-		}
-		genesisValidators[i] = cmtypes.GenesisValidator{
-			Address: vKeys[i].PubKey().Address(),
-			PubKey:  vKeys[i].PubKey(),
-			Power:   int64(i + 100),
-			Name:    "one",
-		}
+	validatorKey := ed25519.GenPrivKey()
+	pubKey := validatorKey.PubKey()
+	genesisValidators := []cmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
 
 	node, err := newFullNode(
@@ -1045,10 +1032,9 @@ func TestStatus(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node)
 
+	// what's the point of SaveValidators?
 	validatorSet := cmtypes.NewValidatorSet(validators)
 	err = node.Store.SaveValidators(1, validatorSet)
-	require.NoError(err)
-	err = node.Store.SaveValidators(2, validatorSet)
 	require.NoError(err)
 	err = node.Store.UpdateState(types.State{})
 	assert.NoError(err)
@@ -1061,7 +1047,7 @@ func TestStatus(t *testing.T) {
 	rpc.node.Store.SetHeight(uint64(earliestBlock.Height()))
 	require.NoError(err)
 
-	latestBlock := getRandomBlockWithProposer(2, 1, validators[1].Address.Bytes())
+	latestBlock := getRandomBlockWithProposer(2, 1, validators[0].Address.Bytes())
 	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(uint64(latestBlock.Height()))
 	require.NoError(err)
@@ -1078,9 +1064,9 @@ func TestStatus(t *testing.T) {
 	assert.Equal(int64(1), resp.SyncInfo.EarliestBlockHeight)
 	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
 
-	assert.Equal(validators[1].Address, resp.ValidatorInfo.Address)
-	assert.Equal(validators[1].PubKey, resp.ValidatorInfo.PubKey)
-	assert.Equal(validators[1].VotingPower, resp.ValidatorInfo.VotingPower)
+	assert.Equal(validators[0].Address, resp.ValidatorInfo.Address)
+	assert.Equal(validators[0].PubKey, resp.ValidatorInfo.PubKey)
+	assert.Equal(validators[0].VotingPower, resp.ValidatorInfo.VotingPower)
 
 	// specific validation
 	assert.Equal(tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
