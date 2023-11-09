@@ -65,15 +65,14 @@ func TestToABCIHeader(t *testing.T) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     cmbytes.HexBytes(header.LastCommitHash),
-		DataHash:           cmbytes.HexBytes(header.DataHash),
-		NextValidatorsHash: nil,
-		ConsensusHash:      cmbytes.HexBytes(header.ConsensusHash),
-		AppHash:            cmbytes.HexBytes(header.AppHash),
-		LastResultsHash:    cmbytes.HexBytes(header.LastResultsHash),
-		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress:    header.ProposerAddress,
-		ChainID:            header.ChainID(),
+		LastCommitHash:  cmbytes.HexBytes(header.LastCommitHash),
+		DataHash:        cmbytes.HexBytes(header.DataHash),
+		ConsensusHash:   cmbytes.HexBytes(header.ConsensusHash),
+		AppHash:         cmbytes.HexBytes(header.AppHash),
+		LastResultsHash: cmbytes.HexBytes(header.LastResultsHash),
+		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
+		ProposerAddress: header.ProposerAddress,
+		ChainID:         header.ChainID(),
 	}
 
 	actual, err := ToABCIHeader(&header)
