@@ -1032,22 +1032,18 @@ func TestStatus(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	// what's the point of SaveValidators?
-	validatorSet := cmtypes.NewValidatorSet(validators)
-	err = node.Store.SaveValidators(1, validatorSet)
-	require.NoError(err)
 	err = node.Store.UpdateState(types.State{})
 	assert.NoError(err)
 
 	rpc := NewFullClient(node)
 	assert.NotNil(rpc)
 
-	earliestBlock := getRandomBlockWithProposer(1, 1, validators[0].Address.Bytes())
+	earliestBlock := getRandomBlockWithProposer(1, 1, pubKey.Bytes())
 	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(uint64(earliestBlock.Height()))
 	require.NoError(err)
 
-	latestBlock := getRandomBlockWithProposer(2, 1, validators[0].Address.Bytes())
+	latestBlock := getRandomBlockWithProposer(2, 1, pubKey.Bytes())
 	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(uint64(latestBlock.Height()))
 	require.NoError(err)
@@ -1064,9 +1060,11 @@ func TestStatus(t *testing.T) {
 	assert.Equal(int64(1), resp.SyncInfo.EarliestBlockHeight)
 	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
 
-	assert.Equal(validators[0].Address, resp.ValidatorInfo.Address)
-	assert.Equal(validators[0].PubKey, resp.ValidatorInfo.PubKey)
-	assert.Equal(validators[0].VotingPower, resp.ValidatorInfo.VotingPower)
+	// Changed the RPC method to get this from the genesis.
+	assert.Equal(genesisValidators[0].Address, resp.ValidatorInfo.Address)
+	assert.Equal(genesisValidators[0].PubKey, resp.ValidatorInfo.PubKey)
+	// hardcode to 1, shouldn't matter because it's a centralized sequencer
+	assert.Equal(int64(1), resp.ValidatorInfo.VotingPower)
 
 	// specific validation
 	assert.Equal(tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
