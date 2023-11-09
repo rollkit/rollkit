@@ -549,6 +549,9 @@ func (m *Manager) IsProposer() (bool, error) {
 		return false, err
 	}
 
+	if m.genesis.Validators == nil {
+		return false, fmt.Errorf("genesis validators is nil")
+	}
 	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
@@ -754,14 +757,6 @@ func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.Sta
 	defer m.lastStateMtx.RUnlock()
 	return m.executor.ApplyBlock(ctx, m.lastState, block)
 }
-
-// Commenting this out until https://github.com/celestiaorg/go-header/pull/128 merged
-/*func (m *Manager) customValidate(h types.SignedHeader) error {
-	if bytes.Equal(h.ProposerAddress, m.lastState.Sequencer.Address().Bytes()) {
-		return nil
-	}
-	return fmt.Errorf("block proposer != centralized sequencer")
-}*/
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
