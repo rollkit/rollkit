@@ -5,7 +5,7 @@ import (
 	"time"
 
 	// TODO(tzdybal): copy to local project?
-	cmtcrypto "github.com/cometbft/cometbft/crypto"
+
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -43,7 +43,7 @@ type State struct {
 
 	// For vA centralized sequencer, replace validator complexity with a sequencer pubkey.
 	// We could just scrape it out of the genesis, but storing it in the State is future-proofing for a key-rotation feature.
-	Sequencer cmtcrypto.PubKey
+	//Sequencer cmtcrypto.PubKey
 
 	// Consensus parameters used for validating blocks.
 	// Changes returned by EndBlock and updated after Commit.
@@ -68,9 +68,6 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		return State{}, fmt.Errorf("must have exactly 1 validator (the centralized sequencer)")
 	}
 
-	// Validators is still an array, because we import this from CometBFT.
-	sequencerPubkey := genDoc.Validators[0].PubKey
-
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
@@ -81,8 +78,6 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
-
-		Sequencer: sequencerPubkey,
 
 		ConsensusParams: cmproto.ConsensusParams{
 			Block: &cmproto.BlockParams{

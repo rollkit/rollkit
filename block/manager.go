@@ -549,7 +549,7 @@ func (m *Manager) IsProposer() (bool, error) {
 		return false, err
 	}
 
-	return bytes.Equal(m.lastState.Sequencer.Bytes(), signerPubBytes), nil
+	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
