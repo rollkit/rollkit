@@ -12,9 +12,9 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.3
-	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/rpc v1.2.0
-	github.com/gorilla/websocket v1.5.0
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/rpc v1.2.1
+	github.com/gorilla/websocket v1.5.1
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger3 v0.0.2
 	github.com/ipfs/go-log v1.0.5
@@ -25,7 +25,7 @@ require (
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rollkit/celestia-openrpc v0.3.0
 	github.com/rs/cors v1.10.1
-	github.com/spf13/cobra v1.7.0
+	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tendermint v0.35.9
