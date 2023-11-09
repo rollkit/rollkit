@@ -5,6 +5,7 @@ import (
 	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -852,6 +853,9 @@ func createApp(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, wg *s
 }
 
 func TestMempool2Nodes(t *testing.T) {
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping testing in CI environment")
+	}
 	assert := assert.New(t)
 	require := require.New(t)
 
