@@ -435,7 +435,7 @@ func createAndStartIndexerService(
 	txIndexer = kv.NewTxIndex(ctx, kvStore)
 	blockIndexer = blockidxkv.New(ctx, newPrefixKV(kvStore, "block_events"))
 
-	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus, ctx)
+	indexerService := txindex.NewIndexerService(ctx, txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))
 
 	if err := indexerService.Start(); err != nil {

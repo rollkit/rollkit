@@ -20,21 +20,22 @@ const (
 type IndexerService struct {
 	service.BaseService
 
+	ctx context.Context
+
 	txIdxr    TxIndexer
 	blockIdxr indexer.BlockIndexer
 	eventBus  *types.EventBus
-
-	ctx context.Context
 }
 
 // NewIndexerService returns a new service instance.
 func NewIndexerService(
+	ctx context.Context,
 	txIdxr TxIndexer,
 	blockIdxr indexer.BlockIndexer,
-	eventBus *types.EventBus, ctx context.Context,
+	eventBus *types.EventBus,
 ) *IndexerService {
 
-	is := &IndexerService{txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus, ctx: ctx}
+	is := &IndexerService{ctx: ctx, txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus}
 	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
 	return is
 }

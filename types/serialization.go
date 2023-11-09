@@ -307,6 +307,9 @@ func (s *State) FromProto(other *pb.State) error {
 }
 
 func txsToByteSlices(txs Txs) [][]byte {
+	if txs == nil {
+		return nil
+	}
 	bytes := make([][]byte, len(txs))
 	for i := range txs {
 		bytes[i] = txs[i]

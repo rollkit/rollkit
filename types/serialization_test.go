@@ -199,3 +199,51 @@ func TestStateRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestTxsRoundtrip(t *testing.T) {
+	// Test the nil case
+	var txs Txs
+	byteSlices := txsToByteSlices(txs)
+	newTxs := byteSlicesToTxs(byteSlices)
+	assert.Nil(t, newTxs)
+
+	// Generate 100 random transactions and convert them to byte slices
+	txs = make(Txs, 100)
+	for i := range txs {
+		txs[i] = []byte{byte(i)}
+	}
+	byteSlices = txsToByteSlices(txs)
+
+	// Convert the byte slices back to transactions
+	newTxs = byteSlicesToTxs(byteSlices)
+
+	// Check that the new transactions match the original transactions
+	assert.Equal(t, len(txs), len(newTxs))
+	for i := range txs {
+		assert.Equal(t, txs[i], newTxs[i])
+	}
+}
+
+func TestSignaturesRoundtrip(t *testing.T) {
+	// Test the nil case
+	var sigs []Signature
+	bytes := signaturesToByteSlices(sigs)
+	newSigs := byteSlicesToSignatures(bytes)
+	assert.Nil(t, newSigs)
+
+	// Generate 100 random signatures and convert them to byte slices
+	sigs = make([]Signature, 100)
+	for i := range sigs {
+		sigs[i] = []byte{byte(i)}
+	}
+	bytes = signaturesToByteSlices(sigs)
+
+	// Convert the byte slices back to signatures
+	newSigs = byteSlicesToSignatures(bytes)
+
+	// Check that the new signatures match the original signatures
+	assert.Equal(t, len(sigs), len(newSigs))
+	for i := range sigs {
+		assert.Equal(t, newSigs[i], sigs[i])
+	}
+}
