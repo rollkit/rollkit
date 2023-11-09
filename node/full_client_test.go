@@ -734,10 +734,14 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 	apps := make([]*mocks.Application, numNodes)
 	nodes := make([]*FullNode, numNodes)
 
-	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
+	genesisValidatorKey := ed25519.GenPrivKey()
+	pubKey := genesisValidatorKey.PubKey()
+	genesisValidators := []cmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(1), Name: "sequencer"},
+	}
+
 	for i := 0; i < len(vKeys); i++ {
 		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = cmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
 		apps[i] = appCreator(require, vKeys[0], wg)
 		wg.Add(1)
 	}
@@ -847,65 +851,15 @@ func createApp(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, wg *s
 	return app
 }
 
-// Tests moving from two validators to one validator and then back to two validators
-func TestValidatorSetHandling(t *testing.T) {
-	assert := assert.New(t)
-
-	var wg sync.WaitGroup
-
-	numNodes := 2
-	rpc := createGenesisValidators(t, numNodes, createApp, &wg)
-	wg.Wait()
-
-	// test first blocks
-	for h := int64(1); h <= 3; h++ {
-		checkValSet(rpc, assert, h, numNodes)
-	}
-
-	// 3rd EndBlock removes the first validator from the list
-	for h := int64(4); h <= 5; h++ {
-		checkValSet(rpc, assert, h, numNodes-1)
-	}
-
-	// test next val set hash in block 4, 5
-
-	// 5th EndBlock adds validator back
-	for h := int64(6); h <= 9; h++ {
-		checkValSet(rpc, assert, h, numNodes)
-	}
-
-	// check for "latest block"
-	checkValSetLatest(rpc, assert, int64(9), numNodes)
-}
-
-// Tests moving from a centralized validator to empty validator set
-func TestValidatorSetHandlingBased(t *testing.T) {
-	assert := assert.New(t)
-	var wg sync.WaitGroup
-	numNodes := 1
-	rpc := createGenesisValidators(t, numNodes, createApp, &wg)
-
-	wg.Wait()
-
-	time.Sleep(100 * time.Millisecond)
-
-	// test first blocks
-	for h := int64(1); h <= 3; h++ {
-		checkValSet(rpc, assert, h, numNodes)
-	}
-
-	// 3rd EndBlock removes the first validator and makes the rollup based
-	for h := int64(4); h <= 9; h++ {
-		checkValSet(rpc, assert, h, numNodes-1)
-	}
-
-	// check for "latest block"
-	checkValSetLatest(rpc, assert, 9, numNodes-1)
-}
-
 func TestMempool2Nodes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
+
+	validatorKey := ed25519.GenPrivKey()
+	pubKey := validatorKey.PubKey()
+	genesisValidators := []cmtypes.GenesisValidator{
+		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
+	}
 
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
@@ -936,7 +890,7 @@ func TestMempool2Nodes(t *testing.T) {
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second,
 		},
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -946,7 +900,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
