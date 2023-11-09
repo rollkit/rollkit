@@ -18,7 +18,6 @@ import (
 	tconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
@@ -801,55 +800,6 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 		})
 	}
 	return rpc
-}
-
-func checkValSet(rpc *FullClient, assert *assert.Assertions, h int64, expectedValCount int) {
-	vals, err := rpc.Validators(context.Background(), &h, nil, nil)
-	assert.NoError(err)
-	assert.NotNil(vals)
-	assert.EqualValues(expectedValCount, vals.Total)
-	assert.Len(vals.Validators, expectedValCount)
-	assert.EqualValues(vals.BlockHeight, h)
-
-	commit, err := rpc.Commit(context.Background(), &h)
-	assert.NoError(err)
-	assert.NotNil(vals)
-
-	h1 := h + 1
-	vals, err = rpc.Validators(context.Background(), &h1, nil, nil)
-	assert.NoError(err)
-	assert.Equal(commit.NextValidatorsHash.Bytes(), cmtypes.NewValidatorSet(vals.Validators).Hash())
-}
-
-func checkValSetLatest(rpc *FullClient, assert *assert.Assertions, lastBlockHeight int64, expectedValCount int) {
-	vals, err := rpc.Validators(context.Background(), nil, nil, nil)
-	assert.NoError(err)
-	assert.NotNil(vals)
-	assert.EqualValues(expectedValCount, vals.Total)
-	assert.Len(vals.Validators, expectedValCount)
-	assert.GreaterOrEqual(vals.BlockHeight, lastBlockHeight)
-}
-
-func createApp(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application {
-	app := &mocks.Application{}
-	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
-	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
-
-	pbValKey, err := encoding.PubKeyToProto(vKeyToRemove.PubKey())
-	require.NoError(err)
-
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
-		wg.Done()
-	}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
-	return app
 }
 
 func TestMempool2Nodes(t *testing.T) {
