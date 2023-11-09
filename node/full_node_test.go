@@ -71,7 +71,7 @@ func generateSingleKey() crypto.PrivKey {
 
 // newTestNode creates a new test node
 func newTestNode(ctx context.Context, key crypto.PrivKey, signingKey crypto.PrivKey, app *mocks.Application) (*FullNode, error) {
-	return newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
+	return newFullNode(ctx, config.NodeConfig{DALayer: "newda"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
 }
 
 // setupTestNode sets up a test node

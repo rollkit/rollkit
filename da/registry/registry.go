@@ -9,7 +9,6 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/celestia"
 	"github.com/rollkit/rollkit/da/grpc"
-	"github.com/rollkit/rollkit/da/mock"
 )
 
 // ErrAlreadyRegistered is used when user tries to register DA using a name already used in registry.
@@ -23,7 +22,6 @@ func (e *ErrAlreadyRegistered) Error() string {
 
 // this is a central registry for all Data Availability Layer Clients
 var clients = map[string]func() da.DataAvailabilityLayerClient{
-	"mock":     func() da.DataAvailabilityLayerClient { return &mock.DataAvailabilityLayerClient{} },
 	"grpc":     func() da.DataAvailabilityLayerClient { return &grpc.DataAvailabilityLayerClient{} },
 	"celestia": func() da.DataAvailabilityLayerClient { return &celestia.DataAvailabilityLayerClient{} },
 	"newda": func() da.DataAvailabilityLayerClient {
