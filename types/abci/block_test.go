@@ -31,15 +31,14 @@ func TestToABCIHeaderPB(t *testing.T) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     header.LastHeaderHash[:],
-		DataHash:           header.DataHash[:],
-		NextValidatorsHash: nil,
-		ConsensusHash:      header.ConsensusHash[:],
-		AppHash:            header.AppHash[:],
-		LastResultsHash:    header.LastResultsHash[:],
-		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress:    header.ProposerAddress,
-		ChainID:            header.ChainID(),
+		LastCommitHash:  header.LastHeaderHash[:],
+		DataHash:        header.DataHash[:],
+		ConsensusHash:   header.ConsensusHash[:],
+		AppHash:         header.AppHash[:],
+		LastResultsHash: header.LastResultsHash[:],
+		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
+		ProposerAddress: header.ProposerAddress,
+		ChainID:         header.ChainID(),
 	}
 
 	actual, err := ToABCIHeaderPB(&header)
