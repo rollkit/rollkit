@@ -102,3 +102,21 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 	_ = dalc.Start()
 	return dalc
 }
+
+func TestGetHardConfirmation(t *testing.T) {
+	require := require.New(t)
+
+	// Create a minimalistic block manager
+	m := &Manager{
+		blockCache: NewBlockCache(),
+	}
+	hash := types.Hash([]byte("hash"))
+
+	// GetHardConfirmation should return false for unseen hash
+	require.False(m.GetHardConfirmation(hash))
+
+	// Set the hash as hard confirmed and verify GetHardConfirmation returns
+	// true
+	m.blockCache.setHardConfirmed(hash.String())
+	require.True(m.GetHardConfirmation(hash))
+}
