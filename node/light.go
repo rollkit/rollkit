@@ -115,8 +115,6 @@ func (ln *LightNode) OnStart() error {
 }
 
 // OnStop stops the light node
-//
-// TODO: should this just be Stop?
 func (ln *LightNode) OnStop() {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()
