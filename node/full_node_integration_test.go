@@ -234,8 +234,9 @@ func TestFastDASync(t *testing.T) {
 	// fails if the nodes do not sync before the timer expires
 	ch := make(chan struct{})
 	defer safeClose(ch)
-	// Set the timer to expire 1 block before the numberOfBlocksToSyncTill
-	timer := time.NewTimer((numberOfBlocksToSyncTill - 1) * bmConfig.DABlockTime)
+	// After the first DA block time passes, the node should signal RetrieveLoop once, and it
+	// should catch up to the latest block height pretty soon after.
+	timer := time.NewTimer(1*bmConfig.DABlockTime + 250*time.Millisecond)
 	go func() {
 		select {
 		case <-ch:
