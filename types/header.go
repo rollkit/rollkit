@@ -74,10 +74,15 @@ func (h *Header) Time() time.Time {
 }
 
 func (h *Header) Verify(untrstH *Header) error {
-	if bytes.Equal(h.ProposerAddress, untrstH.ProposerAddress) {
-		return nil
+	if !bytes.Equal(untrstH.ProposerAddress, h.ProposerAddress) {
+		return &header.VerifyError{
+			Reason: fmt.Errorf("expected proposer (%X) got (%X)",
+				h.ProposerAddress,
+				untrstH.ProposerAddress,
+			),
+		}
 	}
-	return fmt.Errorf("incorrect proposer address")
+	return nil
 }
 
 func (h *Header) Validate() error {
