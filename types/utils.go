@@ -84,8 +84,8 @@ func GetRandomHeader() Header {
 	}
 }
 
-// GetRandomNextHeader returns a signed header with random data and height of +1
-// from the provided signedHeader
+// GetRandomNextHeader returns a header with random data and height of +1 from
+// the provided Header
 func GetRandomNextHeader(header Header) Header {
 	nextHeader := GetRandomHeader()
 	nextHeader.BaseHeader.Height = header.Height() + 1

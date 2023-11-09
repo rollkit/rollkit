@@ -1119,7 +1119,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
