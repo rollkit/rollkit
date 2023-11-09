@@ -18,6 +18,7 @@ const (
 // order to index transactions and blocks coming from the event bus.
 type IndexerService struct {
 	service.BaseService
+	ctx context.Context
 
 	txIdxr           TxIndexer
 	blockIdxr        indexer.BlockIndexer
@@ -27,13 +28,14 @@ type IndexerService struct {
 
 // NewIndexerService returns a new service instance.
 func NewIndexerService(
+	ctx context.Context,
 	txIdxr TxIndexer,
 	blockIdxr indexer.BlockIndexer,
 	eventBus *types.EventBus,
 	terminateOnError bool,
 ) *IndexerService {
 
-	is := &IndexerService{txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus, terminateOnError: terminateOnError}
+	is := &IndexerService{ctx: ctx, txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus, terminateOnError: terminateOnError}
 	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
 	return is
 }
@@ -60,6 +62,8 @@ func (is *IndexerService) OnStart() error {
 	go func() {
 		for {
 			select {
+			case <-is.ctx.Done():
+				return
 			case <-blockSub.Canceled():
 				return
 			case msg := <-blockSub.Out():

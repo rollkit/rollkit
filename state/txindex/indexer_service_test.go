@@ -35,7 +35,9 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	prefixStore := (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0]).(ds.TxnDatastore)
 	blockIndexer := blockidxkv.New(context.Background(), prefixStore)
 
-	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus, false)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	service := txindex.NewIndexerService(ctx, txIndexer, blockIndexer, eventBus, false)
 	service.SetLogger(log.TestingLogger())
 	err = service.Start()
 	require.NoError(t, err)
