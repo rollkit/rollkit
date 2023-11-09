@@ -77,7 +77,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
@@ -494,7 +494,7 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
@@ -730,7 +730,7 @@ func TestMempool2Nodes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	genesisValidators, signingKey1 := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey1 := GetGenesisValidatorSetWithSigner()
 
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
@@ -821,7 +821,7 @@ func TestStatus(t *testing.T) {
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	pubKey := genesisValidators[0].PubKey
 
 	node, err := newFullNode(
@@ -933,7 +933,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

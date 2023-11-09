@@ -20,6 +20,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
 	"github.com/rollkit/rollkit/test/mocks"
+	"github.com/rollkit/rollkit/types"
 )
 
 const (
@@ -56,7 +57,7 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: validatorKey,
 	}
-	signingKey, _ := node.GetNodeKey(nodeKey)
+	signingKey, _ := types.GetNodeKey(nodeKey)
 	pubKey := validatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{
