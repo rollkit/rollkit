@@ -149,12 +149,10 @@ func (m *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 		blockHeight := uint64(block.Height())
 
 		hash := block.Hash()
-		m.logger.Debug("HASH: ", hash[:], hash)
 		blob, err := block.MarshalBinary()
 		if err != nil {
 			return da.ResultSubmitBlocks{BaseResult: da.BaseResult{Code: da.StatusError, Message: err.Error()}}
 		}
-		m.logger.Debug("Submitting blocks to MOCK DA layer!", "height", blockHeight, "dataLayerHeight", daHeight)
 
 		err = m.dalcKV.Put(ctx, getKey(daHeight, blockHeight), hash[:])
 		if err != nil {

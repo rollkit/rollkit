@@ -600,7 +600,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return nil
 		}
-		//block.SignedHeader.Header.NextAggregatorsHash = m.getNextAggregatorsHash()
+
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err

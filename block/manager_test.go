@@ -22,7 +22,6 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-
 	genesisValidatorKey := ed25519.GenPrivKey()
 	pubKey := genesisValidatorKey.PubKey()
 	genesisValidators := []cmtypes.GenesisValidator{

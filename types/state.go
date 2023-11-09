@@ -41,10 +41,6 @@ type State struct {
 	// DAHeight identifies DA block containing the latest applied Rollkit block.
 	DAHeight uint64
 
-	// For vA centralized sequencer, replace validator complexity with a sequencer pubkey.
-	// We could just scrape it out of the genesis, but storing it in the State is future-proofing for a key-rotation feature.
-	//Sequencer cmtcrypto.PubKey
-
 	// Consensus parameters used for validating blocks.
 	// Changes returned by EndBlock and updated after Commit.
 	ConsensusParams                  cmproto.ConsensusParams
