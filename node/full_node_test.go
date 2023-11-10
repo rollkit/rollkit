@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
 	proxy "github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -71,20 +70,15 @@ func generateSingleKey() crypto.PrivKey {
 }
 
 // newTestNode creates a new test node
-func newTestNode(ctx context.Context, key crypto.PrivKey, signingKey crypto.PrivKey, app *mocks.Application) (*FullNode, error) {
-	validatorKey := ed25519.GenPrivKey()
-	pubKey := validatorKey.PubKey()
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
-	}
+func newTestNode(ctx context.Context, key crypto.PrivKey, app *mocks.Application) (*FullNode, error) {
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	return newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 }
 
 // setupTestNode sets up a test node
 func setupTestNode(ctx context.Context, require *require.Assertions) *FullNode {
 	app := setupMockApplication()
-	key, signingKey := generateSingleKey(), generateSingleKey()
-	node, err := newTestNode(ctx, key, signingKey, app)
+	node, err := newTestNode(ctx, generateSingleKey(), app)
 	require.NoError(err)
 	require.NotNil(node)
 	return node
