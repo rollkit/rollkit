@@ -9,6 +9,7 @@ import (
 
 	"github.com/cometbft/cometbft/libs/pubsub/query"
 	"github.com/cometbft/cometbft/types"
+
 	"github.com/rollkit/rollkit/store"
 )
 

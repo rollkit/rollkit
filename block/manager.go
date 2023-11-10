@@ -207,6 +207,11 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
+// GetHardConfirmation returns true if the block is hard confirmed
+func (m *Manager) GetHardConfirmation(hash types.Hash) bool {
+	return m.blockCache.isHardConfirmed(hash.String())
+}
+
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	initialHeight := uint64(m.genesis.InitialHeight)
@@ -459,17 +464,28 @@ func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endH
 
 // RetrieveLoop is responsible for interacting with DA layer.
 func (m *Manager) RetrieveLoop(ctx context.Context) {
+	// blockFoundCh is used to track when we successfully found a block so
+	// that we can continue to try and find blocks that are in the next DA height.
+	// This enables syncing faster than the DA block time.
+	blockFoundCh := make(chan struct{}, 1)
+	defer close(blockFoundCh)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
+		case <-blockFoundCh:
 		}
 		daHeight := atomic.LoadUint64(&m.daHeight)
 		err := m.processNextDABlock(ctx)
 		if err != nil {
 			m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			continue
+		}
+		// Signal the blockFoundCh to try and retrieve the next block
+		select {
+		case blockFoundCh <- struct{}{}:
+		default:
 		}
 		atomic.AddUint64(&m.daHeight, 1)
 	}
@@ -697,6 +713,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	err = m.updateState(newState)
 	if err != nil {
 		return err
+	}
+
+	// Check if the node has shutdown prior to publishing to channels
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
 	}
 
 	// Publish header to channel so that header exchange service can broadcast

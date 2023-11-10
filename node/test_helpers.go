@@ -87,6 +87,15 @@ func getNodeHeightFromStore(node Node) (uint64, error) {
 	return 0, errors.New("not a full node")
 }
 
+// safeClose closes the channel if it's not closed already
+func safeClose(ch chan struct{}) {
+	select {
+	case <-ch:
+	default:
+		close(ch)
+	}
+}
+
 func verifyNodesSynced(node1, node2 Node, source Source) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
 		n1Height, err := getNodeHeight(node1, source)

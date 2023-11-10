@@ -304,7 +304,6 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
-
 	n.Logger.Info("starting P2P client")
 	err := n.p2pClient.Start(n.ctx)
 	if err != nil {
@@ -435,7 +434,7 @@ func createAndStartIndexerService(
 	txIndexer = kv.NewTxIndex(ctx, kvStore)
 	blockIndexer = blockidxkv.New(ctx, newPrefixKV(kvStore, "block_events"))
 
-	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
+	indexerService := txindex.NewIndexerService(ctx, txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))
 
 	if err := indexerService.Start(); err != nil {
