@@ -92,6 +92,11 @@ func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, 
 	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }
 
+// Cancel calls the underlying context's cancel function.
+func (n *LightNode) Cancel() {
+	n.cancel()
+}
+
 func (ln *LightNode) OnStart() error {
 	if err := ln.P2P.Start(ln.ctx); err != nil {
 		return err
