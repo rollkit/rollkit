@@ -301,6 +301,11 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 	}
 }
 
+// Cancel calls the underlying context's cancel function.
+func (n *FullNode) Cancel() {
+	n.cancel()
+}
+
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
 	n.Logger.Info("starting P2P client")

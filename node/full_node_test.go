@@ -9,94 +9,77 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
-	proxy "github.com/cometbft/cometbft/proxy"
-	"github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	testutils "github.com/celestiaorg/utils/test"
 
-	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/test/mocks"
 )
 
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
-
-	assert.False(node.IsRunning())
-
-	err = node.Start()
-	assert.NoError(err)
-	defer func() {
-		assert.NoError(node.Stop())
-	}()
-	assert.True(node.IsRunning())
+	ctx := context.Background()
+	node := initializeAndStartFullNode(ctx, t)
+	defer cleanUpNode(node, t)
 }
 
 func TestMempoolDirectly(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
+	ctx := context.Background()
 
+	node := initializeAndStartFullNode(ctx, t)
+	defer cleanUpNode(node, t)
+	assert := assert.New(t)
+
+	peerID := getPeerID(assert)
+	verifyTransactions(node, peerID, assert)
+	verifyMempoolSize(node, assert)
+}
+
+// setupMockApplication initializes a mock application
+func setupMockApplication() *mocks.Application {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	return app
+}
+
+// generateSingleKey generates a single private key
+func generateSingleKey() crypto.PrivKey {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	return key
+}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &types.GenesisDoc{ChainID: "test"}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(node)
+// getPeerID generates a peer ID
+func getPeerID(assert *assert.Assertions) peer.ID {
+	key := generateSingleKey()
+	peerID, err := peer.IDFromPrivateKey(key)
+	assert.NoError(err)
+	return peerID
+}
 
-	err = node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(node.Stop())
-	}()
+// verifyTransactions checks if transactions are valid
+func verifyTransactions(node *FullNode, peerID peer.ID, assert *assert.Assertions) {
+	transactions := []string{"tx1", "tx2", "tx3", "tx4"}
+	for _, tx := range transactions {
+		err := node.Mempool.CheckTx([]byte(tx), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
+			SenderID: node.mempoolIDs.GetForPeer(peerID),
+		})
+		assert.NoError(err)
+	}
+}
 
-	pid, err := peer.IDFromPrivateKey(anotherKey)
-	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx1"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
-		SenderID: node.mempoolIDs.GetForPeer(pid),
-	})
-	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx2"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
-		SenderID: node.mempoolIDs.GetForPeer(pid),
-	})
-	require.NoError(err)
-	time.Sleep(100 * time.Millisecond)
-	err = node.Mempool.CheckTx([]byte("tx3"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
-		SenderID: node.mempoolIDs.GetForPeer(pid),
-	})
-	require.NoError(err)
-	err = node.Mempool.CheckTx([]byte("tx4"), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
-		SenderID: node.mempoolIDs.GetForPeer(pid),
-	})
-	require.NoError(err)
-
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		if int64(4*len("tx*")) == node.Mempool.SizeBytes() {
+// verifyMempoolSize checks if the mempool size is as expected
+func verifyMempoolSize(node *FullNode, assert *assert.Assertions) {
+	assert.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		expectedSize := int64(4 * len("tx*"))
+		actualSize := node.Mempool.SizeBytes()
+		if expectedSize == actualSize {
 			return nil
 		}
-		return fmt.Errorf("expected size %v, got size %v", int64(4*len("tx*")), node.Mempool.SizeBytes())
+		return fmt.Errorf("expected size %v, got size %v", expectedSize, actualSize)
 	}))
 }
