@@ -549,11 +549,9 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 }
 
 func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := m.proposerKey.Sign(headerBytes)
+	consensusVote := header.MakeConsensusVote()
+
+	sign, err := m.proposerKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
@@ -561,6 +559,29 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 		Signatures: []types.Signature{sign},
 	}, nil
 }
+
+// // makeConsensusVote make a tendermint consensus vote for the sequencer to commit
+// // we have the sequencer signs tendermint consensus vote for compability with tendermint client
+// func (m *Manager) makeConsensusVote(header types.Header) []byte {
+// 	vote := cmtproto.Vote{
+// 		Type:   cmtproto.PrecommitType,
+// 		Height: int64(header.Height()),
+// 		Round:  0,
+// 		// Header hash = block hash in rollkit
+// 		BlockID: cmtproto.BlockID{
+// 			Hash:          cmbytes.HexBytes(header.Hash()),
+// 			PartSetHeader: cmtproto.PartSetHeader{},
+// 		},
+// 		Timestamp: header.Time(),
+// 		// proposerAddress = sequencer = validator
+// 		ValidatorAddress: header.ProposerAddress,
+// 		ValidatorIndex:   0,
+// 	}
+// 	chainID := header.ChainID()
+// 	consensusVoteBytes := cmtypes.VoteSignBytes(chainID, &vote)
+
+// 	return consensusVoteBytes
+// }
 
 func (m *Manager) IsProposer() (bool, error) {
 	m.lastStateMtx.RLock()
