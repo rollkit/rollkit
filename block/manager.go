@@ -243,7 +243,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 			start := time.Now()
 			err := m.publishBlock(ctx)
-			if err != nil {
+			if err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
 			timer.Reset(m.getRemainingSleep(start))
@@ -264,7 +264,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			case <-timer.C:
 				// build a block with all the transactions received in the last 1 second
 				err := m.publishBlock(ctx)
-				if err != nil {
+				if err != nil && ctx.Err() == nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
 				// this can be used to notify multiple subscribers when a block has been built
