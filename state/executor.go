@@ -229,7 +229,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
-		AppHash:                          make(types.Hash, 32),
+		AppHash:                          state.AppHash,
 	}
 	copy(s.LastResultsHash[:], cmtypes.NewResults(abciResponses.DeliverTxs).Hash())
 
