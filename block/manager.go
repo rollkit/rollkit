@@ -727,14 +727,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Publish header to channel so that header exchange service can broadcast
 	select {
 	case <-ctx.Done():
-		return errors.WithMessage(ctx.Err(), "unable to send header to HeaderCh, context done"
+		return errors.WithMessage(ctx.Err(), "unable to send header to HeaderCh, context done")
 	case m.HeaderCh <- &block.SignedHeader:
 	}
 
 	// Publish block to channel so that block exchange service can broadcast
 	select {
 	case <-ctx.Done():
-		return errors.WithMessage(ctx.Err(), "unable to send block to BlockCh, context done"
+		return errors.WithMessage(ctx.Err(), "unable to send block to BlockCh, context done")
 	case m.BlockCh <- block:
 	}
 
