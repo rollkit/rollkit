@@ -1,14 +1,23 @@
 package types
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 const testChainID = "test"
+
+var (
+	errNilKey             = errors.New("key can't be nil")
+	errUnsupportedKeyType = errors.New("unsupported key type")
+)
 
 // TODO: accept argument for number of validators / proposer index
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
@@ -118,6 +127,40 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivK
 	}
 	newSignedHeader.Commit = *commit
 	return newSignedHeader, nil
+}
+
+// GetNodeKey creates libp2p private key from Tendermints NodeKey.
+func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
+	if nodeKey == nil || nodeKey.PrivKey == nil {
+		return nil, errNilKey
+	}
+	switch nodeKey.PrivKey.Type() {
+	case "ed25519":
+		privKey, err := crypto.UnmarshalEd25519PrivateKey(nodeKey.PrivKey.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("error while node private key: %w", err)
+		}
+		return privKey, nil
+	default:
+		return nil, errUnsupportedKeyType
+	}
+}
+
+func GetGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.PrivKey) {
+	genesisValidatorKey := ed25519.GenPrivKey()
+	nodeKey := &p2p.NodeKey{
+		PrivKey: genesisValidatorKey,
+	}
+	signingKey, _ := GetNodeKey(nodeKey)
+	pubKey := genesisValidatorKey.PubKey()
+
+	genesisValidators := []cmtypes.GenesisValidator{{
+		Address: pubKey.Address(),
+		PubKey:  pubKey,
+		Power:   int64(100),
+		Name:    "gen #1",
+	}}
+	return genesisValidators, signingKey
 }
 
 func GetRandomTx() Tx {

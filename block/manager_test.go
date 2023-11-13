@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -22,11 +21,7 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-	genesisValidatorKey := ed25519.GenPrivKey()
-	pubKey := genesisValidatorKey.PubKey()
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(1), Name: "sequencer"},
-	}
+	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
@@ -105,4 +100,22 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 	_ = dalc.Init([8]byte{}, nil, nil, logger)
 	_ = dalc.Start()
 	return dalc
+}
+
+func TestGetHardConfirmation(t *testing.T) {
+	require := require.New(t)
+
+	// Create a minimalistic block manager
+	m := &Manager{
+		blockCache: NewBlockCache(),
+	}
+	hash := types.Hash([]byte("hash"))
+
+	// GetHardConfirmation should return false for unseen hash
+	require.False(m.GetHardConfirmation(hash))
+
+	// Set the hash as hard confirmed and verify GetHardConfirmation returns
+	// true
+	m.blockCache.setHardConfirmed(hash.String())
+	require.True(m.GetHardConfirmation(hash))
 }

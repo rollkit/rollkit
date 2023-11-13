@@ -45,7 +45,7 @@ func TestAggregatorMode(t *testing.T) {
 	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
@@ -141,7 +141,7 @@ func TestLazyAggregator(t *testing.T) {
 	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	blockManagerConfig := config.BlockManagerConfig{
 		// After the genesis header is published, the syncer is started
 		// which takes little longer (due to initialization) and the syncer
@@ -187,6 +187,97 @@ func TestLazyAggregator(t *testing.T) {
 	assert.NoError(err)
 
 	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
+}
+
+// TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
+func TestFastDASync(t *testing.T) {
+	// Test setup, create require and contexts for aggregator and client nodes
+	require := require.New(t)
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Set test params
+	clientNodes := 2
+	bmConfig := getBMConfig()
+	// Set the DABlockTime to a large value to avoid test failures due to
+	// slow CI machines
+	bmConfig.DABlockTime = 1 * time.Second
+	// Set BlockTime to 2x DABlockTime to ensure that the aggregator node is
+	// producing DA blocks faster than rollup blocks. This is to force the
+	// block syncing to align with hard confirmations.
+	bmConfig.BlockTime = 2 * bmConfig.DABlockTime
+	const numberOfBlocksToSyncTill = 5
+
+	// Create the 2 nodes
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
+	node1 := nodes[0]
+	node2 := nodes[1]
+
+	// Start node 1
+	require.NoError(node1.Start())
+	defer func() {
+		require.NoError(node1.Stop())
+	}()
+
+	// Wait for node 1 to sync the first numberOfBlocksToSyncTill
+	require.NoError(waitForAtLeastNBlocks(node1, numberOfBlocksToSyncTill, Store))
+
+	// Now that node 1 has already synced, start the second node
+	require.NoError(node2.Start())
+	defer func() {
+		require.NoError(node2.Stop())
+	}()
+
+	// Start and launch the timer in a go routine to ensure that the test
+	// fails if the nodes do not sync before the timer expires
+	ch := make(chan struct{})
+	defer safeClose(ch)
+	// After the first DA block time passes, the node should signal RetrieveLoop once, and it
+	// should catch up to the latest block height pretty soon after.
+	timer := time.NewTimer(1*bmConfig.DABlockTime + 250*time.Millisecond)
+	go func() {
+		select {
+		case <-ch:
+			// Channel closed before timer expired.
+			return
+		case <-timer.C:
+			// Timer expired before channel closed.
+			safeClose(ch)
+			require.FailNow("nodes did not sync before DA Block time")
+			return
+		}
+	}()
+
+	// Check that the nodes are synced in a loop. We don't use the helper
+	// function here so that we can catch if the channel is closed to exit
+	// the test quickly.
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		select {
+		case <-ch:
+			require.FailNow("channel closed")
+		default:
+		}
+		nHeight, err := getNodeHeight(node2, Store)
+		if err != nil {
+			return err
+		}
+		if nHeight >= uint64(numberOfBlocksToSyncTill) {
+			return nil
+		}
+		return fmt.Errorf("expected height > %v, got %v", numberOfBlocksToSyncTill, nHeight)
+	}))
+
+	// Verify the nodes are synced
+	require.NoError(verifyNodesSynced(node1, node2, Store))
+
+	// Verify that the block we synced to is hard confirmed. This is to
+	// ensure that the test is passing due to the DA syncing, since the P2P
+	// block sync will sync quickly but the block won't be hard confirmed.
+	block, err := node2.Store.LoadBlock(numberOfBlocksToSyncTill)
+	require.NoError(err)
+	require.True(node2.blockManager.GetHardConfirmation(block.Hash()))
 }
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
@@ -548,7 +639,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		ctx = context.Background()
 	}
 
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	genesis := &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
 	// TODO: need to investigate why this needs to be done for light nodes
 	genesis.InitialHeight = 1

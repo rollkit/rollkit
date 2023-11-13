@@ -5,7 +5,6 @@ import (
 	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -76,13 +75,8 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	validatorKey := ed25519.GenPrivKey()
-	pubKey := validatorKey.PubKey()
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
-	}
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
@@ -499,7 +493,7 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
@@ -729,17 +723,10 @@ func TestBlockchainInfo(t *testing.T) {
 }
 
 func TestMempool2Nodes(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping testing in CI environment")
-	}
 	assert := assert.New(t)
 	require := require.New(t)
 
-	validatorKey := ed25519.GenPrivKey()
-	pubKey := validatorKey.PubKey()
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
-	}
+	genesisValidators, signingKey1 := GetGenesisValidatorSetWithSigner()
 
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
@@ -747,7 +734,6 @@ func TestMempool2Nodes(t *testing.T) {
 	app.On(CheckTx, abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	id1, err := peer.IDFromPrivateKey(key1)
@@ -767,9 +753,7 @@ func TestMempool2Nodes(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
-		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second,
-		},
+		BlockManagerConfig: getBMConfig(),
 	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
@@ -782,11 +766,11 @@ func TestMempool2Nodes(t *testing.T) {
 		},
 	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
-	require.NotNil(node1)
+	require.NotNil(node2)
 
 	err = node1.Start()
 	require.NoError(err)
-	time.Sleep(1 * time.Second)
+	require.NoError(waitForFirstBlock(node1, Store))
 
 	defer func() {
 		require.NoError(node1.Stop())
@@ -796,8 +780,7 @@ func TestMempool2Nodes(t *testing.T) {
 	defer func() {
 		require.NoError(node2.Stop())
 	}()
-
-	time.Sleep(4 * time.Second)
+	require.NoError(waitForAtLeastNBlocks(node2, 1, Store))
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer timeoutCancel()
 
@@ -834,13 +817,8 @@ func TestStatus(t *testing.T) {
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-
-	validatorKey := ed25519.GenPrivKey()
-	pubKey := validatorKey.PubKey()
-	genesisValidators := []cmtypes.GenesisValidator{
-		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
-	}
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
+	pubKey := genesisValidators[0].PubKey
 
 	node, err := newFullNode(
 		context.Background(),
@@ -951,7 +929,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
