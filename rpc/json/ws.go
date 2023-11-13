@@ -82,6 +82,7 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 
 		writer := new(bytes.Buffer)
 		h.serveJSONRPCforWS(newResponseWriter(writer), req, ws)
+		// Blocking chan call ok here as we don't have access to context.
 		ws.queue <- writer.Bytes()
 	}
 

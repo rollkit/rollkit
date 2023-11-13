@@ -108,7 +108,11 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 				continue
 			}
 			if wsConn != nil {
-				wsConn.queue <- data
+				select {
+				case <-ctx.Done():
+					return
+				case wsConn.queue <- data:
+				}
 			}
 		}
 	}()

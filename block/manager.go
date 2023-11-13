@@ -17,6 +17,7 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
@@ -437,7 +438,11 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
 				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
-				m.blockInCh <- newBlockEvent{block, daHeight}
+				select {
+				case <-ctx.Done():
+					return
+				case m.blockInCh <- newBlockEvent{block, daHeight}:
+				}
 			}
 		}
 		lastBlockStoreHeight = blockStoreHeight
@@ -511,7 +516,11 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				m.blockCache.setHardConfirmed(blockHash)
 				m.logger.Info("block marked as hard confirmed", "blockHeight", block.Height(), "blockHash", blockHash)
 				if !m.blockCache.isSeen(blockHash) {
-					m.blockInCh <- newBlockEvent{block, daHeight}
+					select {
+					case <-ctx.Done():
+						return errors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+					case m.blockInCh <- newBlockEvent{block, daHeight}:
+					}
 				}
 			}
 			return nil
@@ -715,18 +724,19 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// Check if the node has shutdown prior to publishing to channels
+	// Publish header to channel so that header exchange service can broadcast
 	select {
 	case <-ctx.Done():
-		return nil
-	default:
+		return errors.WithMessage(ctx.Err(), "unable to send header to HeaderCh, context done"
+	case m.HeaderCh <- &block.SignedHeader:
 	}
 
-	// Publish header to channel so that header exchange service can broadcast
-	m.HeaderCh <- &block.SignedHeader
-
 	// Publish block to channel so that block exchange service can broadcast
-	m.BlockCh <- block
+	select {
+	case <-ctx.Done():
+		return errors.WithMessage(ctx.Err(), "unable to send block to BlockCh, context done"
+	case m.BlockCh <- block:
+	}
 
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
