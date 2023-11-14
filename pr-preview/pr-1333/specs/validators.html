@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>DA - Rollkit Specifications</title>
+        <title>Validators - Rollkit Specifications</title>
         <!-- Custom HTML head -->
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html" class="active"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalencey</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalencey</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html" class="active"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -137,17 +137,35 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="da"><a class="header" href="#da">DA</a></h1>
+                        <h1 id="sequencer-selection-scheme"><a class="header" href="#sequencer-selection-scheme">Sequencer Selection Scheme</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The Sequencer Selection scheme describes the process of selecting a block proposer i.e. sequencer from the validator set.</p>
+<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
+<p>There is exactly one sequencer which is configured at genesis. <code>GenesisDoc</code> usually contains an array of validators as it is imported from <code>CometBFT</code>. If there is more than one validator defined
+in the genesis validator set, an error is thrown.</p>
+<p>The <code>State</code> struct defines a <code>Sequencer</code> field which contains the public key of the first and only validator of the genesis.</p>
+<p>The <code>Header</code> struct defines a field called <code>ProposerAddress</code> which is the pubkey of the original proposer of the block.</p>
+<p>The <code>SignedHeader</code> struct commits over the header and the proposer address and stores the result in <code>LastCommitHash</code>.</p>
+<p>A new untrusted header is verified by checking its <code>ProposerAddress</code> and matching it against the best-known header. In case of a mismatch, an error is thrown.</p>
+<p>When a new node is syncing, the block manager matches the <code>proposerKey</code> against the <code>Sequencer</code> field of the <code>lastState</code>. If a block is not signed by the expected proposer, it is ignored.</p>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
+<p>The primary structures encompassing validator information include <code>SignedHeader</code>, <code>Header</code>, and <code>State</code>. Some fields are repurposed from CometBFT as seen in <code>GenesisDoc</code> <code>Validators</code>.</p>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<ol>
+<li>There must be exactly one validator defined in the genesis file, which determines the sequencer for all the blocks.</li>
+</ol>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>The implementation is split across multiple functions including <code>IsProposer</code>, <code>publishBlock</code>, <code>CreateBlock</code>, and <code>Verify</code> among others, which are defined in various files like <code>state.go</code>, <code>manager.go</code>, <code>block.go</code>, <code>header.go</code> etc., within the repository.</p>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md">block manager</a></p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md">Block Manager</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../specs/block-validity.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../specs/store.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
-                            </a>
-                            <a rel="next" href="../specs/full_node.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
                     </nav>
@@ -155,11 +173,8 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../specs/block-validity.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../specs/store.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
-                    </a>
-                    <a rel="next" href="../specs/full_node.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
 

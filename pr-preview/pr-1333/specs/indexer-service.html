@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>DA - Rollkit Specifications</title>
+        <title>Indexer Service - Rollkit Specifications</title>
         <!-- Custom HTML head -->
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html" class="active"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalencey</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html" class="active"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalencey</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -137,16 +137,55 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="da"><a class="header" href="#da">DA</a></h1>
+                        <h1 id="indexer-service"><a class="header" href="#indexer-service">Indexer Service</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The Indexer service indexes transactions and blocks using events emitted by the block executor that can later be used to build services like block explorers that ingest this data.</p>
+<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
+<p>The Indexer service consists of three main components: an event bus, a transaction indexer and a block indexer.</p>
+<h3 id="event-bus"><a class="header" href="#event-bus">Event Bus</a></h3>
+<p>The event bus is a messaging service between the full node and the indexer service. It serves events emitted by the block executor of the full node to the indexer service where events are routed to the relevant indexer component based on type.</p>
+<h3 id="block-indexer"><a class="header" href="#block-indexer">Block Indexer</a></h3>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11">Block Indexer</a> indexes BeginBlock and EndBlock events with an underlying KV store. Block events are indexed by their height, such that matching search criteria returns the respective block height(s).</p>
+<h3 id="transaction-indexer"><a class="header" href="#transaction-indexer">Transaction Indexer</a></h3>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a> is a key-value store-backed indexer that provides functionalities for indexing and searching transactions. It allows for the addition of a batch of transactions, indexing and storing a single transaction, retrieving a transaction specified by hash, and querying for transactions based on specific conditions. The indexer also supports range queries and can return results based on the intersection of multiple conditions.</p>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352"><code>publishEvents</code> method</a> in the block executor is responsible for broadcasting several types of events through the event bus. These events include <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, <code>EventNewBlockEvents</code>, <code>EventNewEvidence</code>, and <code>EventTx</code>. Each of these events carries specific data related to the block or transaction they represent.</p>
+<ol>
+<li>
+<p><code>EventNewBlock</code>: Triggered when a new block is finalized. It carries the block data along with the results of the <code>FinalizeBlock</code> ABCI method.</p>
+</li>
+<li>
+<p><code>EventNewBlockHeader</code>: Triggered alongside the <code>EventNewBlock</code> event. It carries the block header data.</p>
+</li>
+<li>
+<p><code>EventNewBlockEvents</code>: Triggered when a new block is finalized. It carries the block height, the events associated with the block, and the number of transactions in the block.</p>
+</li>
+<li>
+<p><code>EventNewEvidence</code>: Triggered for each piece of evidence in the block. It carries the evidence and the height of the block.</p>
+</li>
+<li>
+<p><code>EventTx</code>: Triggered for each transaction in the block. It carries the result of the <code>DeliverTx</code> ABCI method for the transaction.</p>
+</li>
+</ol>
+<p>The <code>OnStart</code> method in <code>indexer_service.go</code> subscribes to these events. It listens for new blocks and transactions, and upon receiving these events, it indexes the transactions and blocks accordingly. The block indexer indexes <code>EventNewBlockEvents</code>, while the transaction indexer indexes the events inside <code>EventTx</code>. The events, <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, and <code>EventNewEvidence</code> are not currently used by the indexer service.</p>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<p>The indexer service assumes that the messages passed by the block executor are valid block headers and valid transactions with the required fields such that they can be indexed by the respective block indexer and transaction indexer.</p>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20">indexer service</a></p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11">Block Indexer</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352">Publish Events</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20">Indexer Service</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../specs/block-validity.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../specs/header-sync.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                            <a rel="next" href="../specs/full_node.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../specs/mempool.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
@@ -155,10 +194,10 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../specs/block-validity.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../specs/header-sync.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                    <a rel="next" href="../specs/full_node.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../specs/mempool.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
