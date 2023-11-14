@@ -24,6 +24,15 @@ func (tx Tx) Hash() []byte {
 	return tmhash.Sum(tx)
 }
 
+// ToSliceOfBytes converts a Txs to slice of byte slices.
+func (txs Txs) ToSliceOfBytes() [][]byte {
+	txBzs := make([][]byte, len(txs))
+	for i := 0; i < len(txs); i++ {
+		txBzs[i] = txs[i]
+	}
+	return txBzs
+}
+
 // Proof returns a simple merkle proof for this node.
 // Panics if i < 0 or i >= len(txs)
 // TODO: optimize this!

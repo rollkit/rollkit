@@ -22,12 +22,20 @@ import (
 	"github.com/rollkit/rollkit/test/mocks"
 )
 
+func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	return &abci.ResponsePrepareProposal{
+		Txs: req.Txs,
+	}, nil
+}
+
 // copied from rpc
 func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
 		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 			txResults := make([]*abci.ExecTxResult, len(req.Txs))

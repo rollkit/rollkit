@@ -32,6 +32,12 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 )
 
+func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	return &abci.ResponsePrepareProposal{
+		Txs: req.Txs,
+	}, nil
+}
+
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -39,6 +45,8 @@ func TestAggregatorMode(t *testing.T) {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
@@ -99,6 +107,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		beginCnt := 0
 		endCnt := 0
 		commitCnt := 0
+		// prepareProposal := 0
+		// processProposal := 0
 		for _, call := range app.Calls {
 			switch call.Method {
 			case "FinalizeBlock":
@@ -107,6 +117,10 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 				endCnt++
 			case "Commit":
 				commitCnt++
+				// case "PrepareProposal":
+				// 	prepareProposal++
+				// case "ProcessProposal":
+				// 	processProposal++
 			}
 		}
 		aggregatorHeight := nodes[0].Store.Height()
@@ -114,6 +128,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		assert.GreaterOrEqual(beginCnt, adjustedHeight)
 		assert.GreaterOrEqual(endCnt, adjustedHeight)
 		assert.GreaterOrEqual(commitCnt, adjustedHeight)
+		// assert.GreaterOrEqual(prepareProposal, adjustedHeight)
+		// assert.GreaterOrEqual(processProposal, adjustedHeight)
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
@@ -133,6 +149,8 @@ func TestLazyAggregator(t *testing.T) {
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
@@ -536,6 +554,8 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 
 	if ctx == nil {

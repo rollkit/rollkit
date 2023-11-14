@@ -86,8 +86,13 @@ func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) *types.Block {
+func (e *BlockExecutor) CreateBlock(ctx context.Context, height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) (*types.Block, error) {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
+	emptyMaxBytes := maxBytes == -1
+	if emptyMaxBytes {
+		maxBytes = int64(cmtypes.MaxBlockSizeBytes)
+	}
+
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
@@ -121,16 +126,80 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			// Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
+
+	rpp, err := e.proxyApp.PrepareProposal(
+		ctx,
+		&abci.RequestPrepareProposal{
+			MaxTxBytes:         maxBytes,
+			Txs:                mempoolTxs.ToSliceOfBytes(),
+			LocalLastCommit:    abci.ExtendedCommitInfo{},
+			Misbehavior:        []abci.Misbehavior{},
+			Height:             int64(block.Height()),
+			Time:               block.Time(),
+			NextValidatorsHash: block.SignedHeader.NextAggregatorsHash,
+			ProposerAddress:    e.proposerAddress,
+		},
+	)
+	if err != nil {
+		// The App MUST ensure that only valid (and hence 'processable') transactions
+		// enter the mempool. Hence, at this point, we can't have any non-processable
+		// transaction causing an error.
+		//
+		// Also, the App can simply skip any transaction that could cause any kind of trouble.
+		// Either way, we cannot recover in a meaningful way, unless we skip proposing
+		// this block, repair what caused the error and try again. Hence, we return an
+		// error for now (the production code calling this function is expected to panic).
+		return nil, err
+	}
+
+	txl := cmtypes.ToTxs(rpp.Txs)
+	if err := txl.Validate(maxBytes); err != nil {
+		return nil, err
+	}
+
+	block.Data.Txs = toRollkitTxs(txl)
 	block.SignedHeader.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.LastHeaderHash = lastHeaderHash
 	block.SignedHeader.AggregatorsHash = state.Validators.Hash()
 
-	return block
+	return block, nil
+}
+
+func (e *BlockExecutor) ProcessProposal(
+	block *types.Block,
+	state types.State,
+) (bool, error) {
+	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &abci.RequestProcessProposal{
+		Hash:               block.Hash(),
+		Height:             int64(block.Height()),
+		Time:               block.Time(),
+		Txs:                block.Data.Txs.ToSliceOfBytes(),
+		ProposedLastCommit: abci.CommitInfo{},
+		Misbehavior:        []abci.Misbehavior{},
+		ProposerAddress:    e.proposerAddress,
+		NextValidatorsHash: block.SignedHeader.NextAggregatorsHash,
+	})
+	if err != nil {
+		return false, err
+	}
+	if resp.IsStatusUnknown() {
+		panic(fmt.Sprintf("ProcessProposal responded with status %s", resp.Status.String()))
+	}
+
+	return resp.IsAccepted(), nil
 }
 
 // ApplyBlock validates and executes the block.
 func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {
-	err := e.Validate(state, block)
+	isAppValid, err := e.ProcessProposal(block, state)
+	if err != nil {
+		return types.State{}, nil, err
+	}
+	if !isAppValid {
+		return types.State{}, nil, fmt.Errorf("error while processing the proposal: %v", err)
+	}
+
+	err = e.Validate(state, block)
 	if err != nil {
 		return types.State{}, nil, err
 	}

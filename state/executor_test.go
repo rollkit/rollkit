@@ -25,6 +25,12 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	return &abci.ResponsePrepareProposal{
+		Txs: req.Txs,
+	}, nil
+}
+
 func doTestCreateBlock(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -33,7 +39,8 @@ func doTestCreateBlock(t *testing.T) {
 
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse)
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	fmt.Println("App On CheckTx")
 	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
 	fmt.Println("Created New Local Client")
@@ -65,7 +72,8 @@ func doTestCreateBlock(t *testing.T) {
 	state.NextValidators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
-	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
+	block, err := executor.CreateBlock(context.Background(), 1, &types.Commit{}, []byte{}, state)
+	require.NoError(err)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
 	assert.Equal(uint64(1), block.Height())
@@ -73,7 +81,8 @@ func doTestCreateBlock(t *testing.T) {
 	// one small Tx
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block = executor.CreateBlock(2, &types.Commit{}, []byte{}, state)
+	block, err = executor.CreateBlock(context.Background(), 2, &types.Commit{}, []byte{}, state)
+	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Height())
 	assert.Len(block.Data.Txs, 1)
@@ -83,7 +92,8 @@ func doTestCreateBlock(t *testing.T) {
 	require.NoError(err)
 	err = mpool.CheckTx(make([]byte, 100), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block = executor.CreateBlock(3, &types.Commit{}, []byte{}, state)
+	block, err = executor.CreateBlock(context.Background(), 3, &types.Commit{}, []byte{}, state)
+	require.NoError(err)
 	require.NotNil(block)
 	assert.Len(block.Data.Txs, 2)
 }
@@ -105,6 +115,8 @@ func doTestApplyBlock(t *testing.T) {
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse)
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
 		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 			txResults := make([]*abci.ExecTxResult, len(req.Txs))
@@ -167,7 +179,8 @@ func doTestApplyBlock(t *testing.T) {
 
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
+	block, err := executor.CreateBlock(context.Background(), 1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
+	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(1), block.Height())
 	assert.Len(block.Data.Txs, 1)
@@ -196,7 +209,8 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
-	block = executor.CreateBlock(2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
+	block, err = executor.CreateBlock(context.Background(), 2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
+	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Height())
 	assert.Len(block.Data.Txs, 3)

@@ -476,6 +476,8 @@ func TestTx(t *testing.T) {
 
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	mockApp.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	mockApp.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
 	node, err := newFullNode(context.Background(), config.NodeConfig{
@@ -808,7 +810,8 @@ func createApp(require *require.Assertions, vKeyToRemove cmcrypto.PrivKey, wg *s
 
 	pbValKey, err := encoding.PubKeyToProto(vKeyToRemove.PubKey())
 	require.NoError(err)
-
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse).Times(2)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
 		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
@@ -909,6 +912,8 @@ func TestMempool2Nodes(t *testing.T) {
 
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse)
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("CheckTx", mock.Anything, &abci.RequestCheckTx{Tx: []byte("bad")}).Return(&abci.ResponseCheckTx{Code: 1}, nil)
 	app.On("CheckTx", mock.Anything, &abci.RequestCheckTx{Tx: []byte("good")}).Return(&abci.ResponseCheckTx{Code: 0}, nil)
 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
@@ -1123,6 +1128,8 @@ func TestFutureGenesisTime(t *testing.T) {
 	wg.Add(1)
 	mockApp := &mocks.Application{}
 	mockApp.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	mockApp.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	mockApp.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse).Run(func(_ mock.Arguments) {
 		beginBlockTime = time.Now()
 		wg.Done()
