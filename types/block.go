@@ -148,9 +148,8 @@ func (b *Block) Time() time.Time {
 	return b.SignedHeader.Time()
 }
 
-func (b *Block) Verify(*Block) error {
-	//TODO: Update with new header verify method
-	return nil
+func (b *Block) Verify(untrstB *Block) error {
+	return b.SignedHeader.Verify(&untrstB.SignedHeader)
 }
 
 func (b *Block) Validate() error {
