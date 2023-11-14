@@ -7,18 +7,18 @@ import (
 )
 
 type BlockCache struct {
-	blocks            map[uint64]*types.Block
-	hashes            map[string]bool
-	hardConfirmations map[string]bool
-	mtx               *sync.RWMutex
+	blocks     map[uint64]*types.Block
+	hashes     map[string]bool
+	daIncluded map[string]bool
+	mtx        *sync.RWMutex
 }
 
 func NewBlockCache() *BlockCache {
 	return &BlockCache{
-		blocks:            make(map[uint64]*types.Block),
-		hashes:            make(map[string]bool),
-		hardConfirmations: make(map[string]bool),
-		mtx:               new(sync.RWMutex),
+		blocks:     make(map[uint64]*types.Block),
+		hashes:     make(map[string]bool),
+		daIncluded: make(map[string]bool),
+		mtx:        new(sync.RWMutex),
 	}
 }
 
@@ -53,14 +53,14 @@ func (bc *BlockCache) setSeen(hash string) {
 	bc.hashes[hash] = true
 }
 
-func (bc *BlockCache) isHardConfirmed(hash string) bool {
+func (bc *BlockCache) isDAIncluded(hash string) bool {
 	bc.mtx.RLock()
 	defer bc.mtx.RUnlock()
-	return bc.hardConfirmations[hash]
+	return bc.daIncluded[hash]
 }
 
-func (bc *BlockCache) setHardConfirmed(hash string) {
+func (bc *BlockCache) setDAIncluded(hash string) {
 	bc.mtx.Lock()
 	defer bc.mtx.Unlock()
-	bc.hardConfirmations[hash] = true
+	bc.daIncluded[hash] = true
 }
