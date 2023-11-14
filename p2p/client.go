@@ -343,7 +343,7 @@ func (c *Client) findPeers(ctx context.Context) error {
 // tryConnect attempts to connect to a peer and logs error if necessary
 func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 	err := c.host.Connect(ctx, peer)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		c.logger.Error("failed to connect to peer", "peer", peer, "error", err)
 	}
 }
