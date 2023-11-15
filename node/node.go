@@ -13,6 +13,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 )
 
+// Node is the interface for a rollup node
 type Node interface {
 	Start() error
 	GetClient() rpcclient.Client
@@ -21,8 +22,7 @@ type Node interface {
 	Cancel()
 }
 
-// Add Defaults?
-
+// NewNode returns a new Full or Light Node based on the config
 func NewNode(
 	ctx context.Context,
 	conf config.NodeConfig,

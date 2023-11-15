@@ -9,7 +9,7 @@ import (
 	"github.com/rollkit/rollkit/da/mock"
 )
 
-func TestRegistery(t *testing.T) {
+func TestRegistry(t *testing.T) {
 	assert := assert.New(t)
 
 	expected := []string{"mock", "grpc", "celestia"}
