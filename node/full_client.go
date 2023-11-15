@@ -709,8 +709,14 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
+	genesisValidators := c.node.GetGenesis().Validators
+
+	if len(genesisValidators) != 1 {
+		return nil, fmt.Errorf("there should be exactly one validator in genesis")
+	}
+
 	// Changed behavior to get this from genesis
-	genesisValidator := c.node.GetGenesis().Validators[0]
+	genesisValidator := genesisValidators[0]
 	validator := cmtypes.Validator{
 		Address:          genesisValidator.Address,
 		PubKey:           genesisValidator.PubKey,
