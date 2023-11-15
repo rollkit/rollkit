@@ -16,7 +16,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// Source is an enum reperesenting differents sources of height
+// Source is an enum representing different sources of height
 type Source int
 
 const (
