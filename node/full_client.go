@@ -60,6 +60,10 @@ func NewFullClient(node *FullNode) *FullClient {
 	}
 }
 
+// GetClient returns a new RPC client for the full node.
+//
+// TODO: should this be NewRPPCClient? Or should we add the client as a field of
+// the FullNode so that it is just created once?
 func (n *FullNode) GetClient() rpcclient.Client {
 	return NewFullClient(n)
 }
@@ -799,11 +803,13 @@ func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.Result
 	return &ctypes.ResultCheckTx{ResponseCheckTx: *res}, nil
 }
 
+// Header returns a cometbft ResultsHeader for the FullClient
 func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
 	blockMeta := c.getBlockMeta(*height)
 	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
 }
 
+// HeaderByHash loads the block for the provided hash and returns the header
 func (c *FullClient) HeaderByHash(ctx context.Context, hash cmbytes.HexBytes) (*ctypes.ResultHeader, error) {
 	// N.B. The hash parameter is HexBytes so that the reflective parameter
 	// decoding logic in the HTTP service will correctly translate from JSON.

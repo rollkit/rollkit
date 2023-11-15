@@ -19,6 +19,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+// ErrorCode represents RPC error code.
 type ErrorCode int
 
 type respError struct {
@@ -27,6 +28,7 @@ type respError struct {
 	Meta    json.RawMessage `json:"meta,omitempty"`
 }
 
+// Error returns error message string.
 func (e *respError) Error() string {
 	if e.Code >= -32768 && e.Code <= -32000 {
 		return fmt.Sprintf("RPC error (%d): %s", e.Code, e.Message)
