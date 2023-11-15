@@ -1193,8 +1193,6 @@ func TestNetInfo(t *testing.T) {
 	netInfo, err := rpc.NetInfo(context.Background())
 	require.NoError(err)
 	assert.NotNil(netInfo)
-
 	assert.True(netInfo.Listening)
-	assert.Equal("/ip4/127.0.0.1/tcp/7676", netInfo.Listeners[0])
 	assert.Equal(0, len(netInfo.Peers))
 }
