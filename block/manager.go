@@ -566,7 +566,7 @@ func (m *Manager) IsProposer() (bool, error) {
 		return false, err
 	}
 
-	if len(m.genesis.Validators) > 0 {
+	if len(m.genesis.Validators) == 1 {
 		return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 	}
 	return false, fmt.Errorf("genesis must have exactly 1 validator")
