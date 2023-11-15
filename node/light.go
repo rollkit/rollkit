@@ -21,6 +21,7 @@ import (
 
 var _ Node = &LightNode{}
 
+// LightNode is a rollup node that only needs the header service
 type LightNode struct {
 	service.BaseService
 
@@ -28,12 +29,15 @@ type LightNode struct {
 
 	proxyApp proxy.AppConns
 
-	hSyncService *block.HeaderSynceService
+	hSyncService *block.HeaderSyncService
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
+// GetClient returns a new rpcclient for the light node
+// TODO: this should be renamed to NewRPCClient or some New variant since it is
+// creating a new item
 func (ln *LightNode) GetClient() rpcclient.Client {
 	return NewLightClient(ln)
 }
@@ -62,7 +66,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSynceService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -92,6 +96,12 @@ func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, 
 	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }
 
+// Cancel calls the underlying context's cancel function.
+func (n *LightNode) Cancel() {
+	n.cancel()
+}
+
+// OnStart starts the P2P and HeaderSync services
 func (ln *LightNode) OnStart() error {
 	if err := ln.P2P.Start(ln.ctx); err != nil {
 		return err
@@ -104,6 +114,7 @@ func (ln *LightNode) OnStart() error {
 	return nil
 }
 
+// OnStop stops the light node
 func (ln *LightNode) OnStop() {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()

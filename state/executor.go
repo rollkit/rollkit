@@ -22,7 +22,10 @@ import (
 	abciconv "github.com/rollkit/rollkit/types/abci"
 )
 
+// ErrEmptyValSetGenerated is returned when applying the validator changes would result in empty set.
 var ErrEmptyValSetGenerated = errors.New("applying the validator changes would result in empty set")
+
+// ErrAddingValidatorToBased is returned when trying to add a validator to an empty validator set.
 var ErrAddingValidatorToBased = errors.New("cannot add validators to empty validator set")
 
 // BlockExecutor creates and applies blocks and maintains state.
@@ -229,6 +232,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, block *ty
 	return resp.Data, uint64(resp.RetainHeight), err
 }
 
+// Validate validates the state and the block for the executor
 func (e *BlockExecutor) Validate(state types.State, block *types.Block) error {
 	err := block.ValidateBasic()
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/go-header"
 )
 
+// Hash is a 32-byte array which is used to represent a hash result.
 type Hash = header.Hash
 
 // BaseHeader contains the most basic data of a header
@@ -48,31 +49,37 @@ type Header struct {
 	ProposerAddress []byte // original proposer of the block
 }
 
+// New creates a new Header.
 func (h *Header) New() *Header {
 	return new(Header)
 }
 
+// IsZero returns true if the header is nil.
 func (h *Header) IsZero() bool {
 	return h == nil
 }
 
+// ChainID returns chain ID of the header.
 func (h *Header) ChainID() string {
 	return h.BaseHeader.ChainID
 }
 
+// Height returns height of the header.
 func (h *Header) Height() uint64 {
 	return h.BaseHeader.Height
 }
 
+// LastHeader returns last header hash of the header.
 func (h *Header) LastHeader() Hash {
 	return h.LastHeaderHash[:]
 }
 
-// Returns unix time with nanosecond precision
+// Time returns timestamp as unix time with nanosecond precision
 func (h *Header) Time() time.Time {
 	return time.Unix(0, int64(h.BaseHeader.Time))
 }
 
+// Verify verifies the header.
 func (h *Header) Verify(untrstH *Header) error {
 	if !bytes.Equal(untrstH.ProposerAddress, h.ProposerAddress) {
 		return &header.VerifyError{
@@ -85,6 +92,7 @@ func (h *Header) Verify(untrstH *Header) error {
 	return nil
 }
 
+// Validate performs basic validation of a header.
 func (h *Header) Validate() error {
 	return h.ValidateBasic()
 }

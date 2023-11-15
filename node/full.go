@@ -64,7 +64,7 @@ type FullNode struct {
 	eventBus     *cmtypes.EventBus
 	dalc         da.DataAvailabilityLayerClient
 	p2pClient    *p2p.Client
-	hSyncService *block.HeaderSynceService
+	hSyncService *block.HeaderSyncService
 	bSyncService *block.BlockSyncService
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool      mempool.Mempool
@@ -217,8 +217,8 @@ func initMempool(logger log.Logger, proxyApp proxy.AppConns) *mempoolv1.TxMempoo
 	return mempool
 }
 
-func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSynceService, error) {
-	headerSyncService, err := block.NewHeaderSynceService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
+	headerSyncService, err := block.NewHeaderSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -300,6 +300,11 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// Cancel calls the underlying context's cancel function.
+func (n *FullNode) Cancel() {
+	n.cancel()
 }
 
 // OnStart is a part of Service interface.
