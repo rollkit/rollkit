@@ -1172,3 +1172,27 @@ func TestHealth(t *testing.T) {
 	assert.Nil(err)
 	assert.Empty(resultHealth)
 }
+
+func TestNetInfo(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	mockApp, rpc := getRPC(t)
+	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	err := rpc.node.Start()
+	require.NoError(err)
+	defer func() {
+		err := rpc.node.Stop()
+		require.NoError(err)
+	}()
+
+	netInfo, err := rpc.NetInfo(context.Background())
+	require.NoError(err)
+	assert.NotNil(netInfo)
+	assert.True(netInfo.Listening)
+	assert.Equal(0, len(netInfo.Peers))
+}
