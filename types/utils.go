@@ -8,7 +8,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
-const testChainID = "test"
+const TestChainID = "test"
 
 // TODO: accept argument for number of validators / proposer index
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
@@ -63,7 +63,7 @@ func GetRandomHeader() Header {
 		BaseHeader: BaseHeader{
 			Height:  uint64(rand.Int63()), //nolint:gosec,
 			Time:    uint64(time.Now().UnixNano()),
-			ChainID: testChainID,
+			ChainID: TestChainID,
 		},
 		Version: Version{
 			Block: InitStateVersion.Consensus.Block,
