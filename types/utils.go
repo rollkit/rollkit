@@ -20,7 +20,7 @@ var (
 	errUnsupportedKeyType = errors.New("unsupported key type")
 )
 
-// TODO: accept argument for number of validators / proposer index
+// GetRandomValidatorSet returns a validator set with a single validator
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 	valSet, _ := GetRandomValidatorSetWithPrivKey()
 	return valSet
@@ -156,6 +156,8 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 	}
 }
 
+// GetGenesisValidatorSetWithSigner returns a genesis validator set with a
+// single validator and a signing key
 func GetGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.PrivKey) {
 	genesisValidatorKey := ed25519.GenPrivKey()
 	nodeKey := &p2p.NodeKey{
@@ -173,6 +175,7 @@ func GetGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.Priv
 	return genesisValidators, signingKey
 }
 
+// GetRandomTx returns a tx with random data
 func GetRandomTx() Tx {
 	size := rand.Int()%100 + 100 //nolint:gosec
 	return Tx(GetRandomBytes(size))

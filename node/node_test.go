@@ -55,7 +55,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, erro
 		panic(fmt.Sprint("invalid node type", nodeType))
 	}
 	app := setupMockApplication()
-	genesisValidators, signingKey := GetGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
 	key := generateSingleKey()
 	logger := test.NewFileLogger(t)
 	return NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID, Validators: genesisValidators}, logger)
