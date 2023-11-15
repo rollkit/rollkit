@@ -8,6 +8,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
+// TestChainID is a constant used for testing purposes. It represents a mock chain ID.
 const TestChainID = "test"
 
 // GetRandomValidatorSet returns the validator set from
@@ -30,7 +31,7 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 	}, privKey
 }
 
-// GetRandomSignedHeader returns a signed header with random data
+// GetRandomBlock returns a block with random data
 func GetRandomBlock(height uint64, nTxs int) *Block {
 	header := GetRandomHeader()
 	header.BaseHeader.Height = height
@@ -62,6 +63,7 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 	return block
 }
 
+// GetRandomHeader returns a header with random fields and current time
 func GetRandomHeader() Header {
 	return Header{
 		BaseHeader: BaseHeader{
@@ -97,6 +99,7 @@ func GetRandomNextHeader(header Header) Header {
 	return nextHeader
 }
 
+// GetRandomSignedHeader returns a signed header with random data
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
@@ -114,6 +117,8 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	return signedHeader, privKey, nil
 }
 
+// GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
+// the provided signed header
 func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*SignedHeader, error) {
 	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{

@@ -16,26 +16,35 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+// Source is an enum reperesenting differents sources of height
 type Source int
 
 const (
+	// Header is the source of height from the header service
 	Header Source = iota
+	// Block is the source of height from the block service
 	Block
+	// Store is the source of height from the block manager store
 	Store
 )
 
 var genesisValidatorKey = ed25519.GenPrivKey()
 
+// MockTester is a mock testing.T
 type MockTester struct {
 	t *testing.T
 }
 
+// Fail is used to fail the test
 func (m MockTester) Fail() {}
 
+// FailNow is used to fail the test immediately
 func (m MockTester) FailNow() {}
 
+// Logf is used to log a message to the test logger
 func (m MockTester) Logf(format string, args ...interface{}) {}
 
+// Errorf is used to log an error to the test logger
 func (m MockTester) Errorf(format string, args ...interface{}) {}
 
 func waitForFirstBlock(node Node, source Source) error {
