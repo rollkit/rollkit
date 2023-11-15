@@ -147,7 +147,7 @@ func (m *DataAvailabilityLayerClient) SubmitBlocks(ctx context.Context, blocks [
 
 	for _, block := range blocks {
 		blockHeight := uint64(block.Height())
-
+		m.logger.Debug("Submitting blocks to DA layer!", "height", blockHeight, "dataLayerHeight", daHeight)
 		hash := block.Hash()
 		blob, err := block.MarshalBinary()
 		if err != nil {
