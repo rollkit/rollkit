@@ -105,33 +105,6 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch req.Method {
-	// case "header.GetByHeight":
-	// 	var params []interface{}
-	// 	err := json.Unmarshal(req.Params, &params)
-	// 	if err != nil {
-	// 		s.writeError(w, err)
-	// 		return
-	// 	}
-	// 	if len(params) != 1 {
-	// 		s.writeError(w, errors.New("expected 1 param: height (uint64)"))
-	// 		return
-	// 	}
-	// 	height := uint64(params[0].(float64))
-	// 	dah := s.mock.GetHeaderByHeight(height)
-	// 	resp := &response{
-	// 		Jsonrpc: "2.0",
-	// 		Result: header.ExtendedHeader{
-	// 			DAH: dah,
-	// 		},
-	// 		ID:    req.ID,
-	// 		Error: nil,
-	// 	}
-	// 	bytes, err := json.Marshal(resp)
-	// 	if err != nil {
-	// 		s.writeError(w, err)
-	// 		return
-	// 	}
-	// 	s.writeResponse(w, bytes)
 	case "blob.GetAll":
 		var params []interface{}
 		err := json.Unmarshal(req.Params, &params)
