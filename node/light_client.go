@@ -11,11 +11,13 @@ import (
 
 var _ rpcclient.Client = &LightClient{}
 
+// LightClient is a Client interface for the LightNode
 type LightClient struct {
 	types.EventBus
 	node *LightNode
 }
 
+// NewLightClient returns a new LightClient for the LightNode
 func NewLightClient(node *LightNode) *LightClient {
 	return &LightClient{
 		node: node,
@@ -179,10 +181,12 @@ func (c *LightClient) CheckTx(ctx context.Context, tx types.Tx) (*ctypes.ResultC
 	panic("Not implemented")
 }
 
+// Header satisfies the client interface but is not implemented
 func (c *LightClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
 	panic("Not implemented")
 }
 
+// HeaderByHash satisfies the client interface but is not implemented
 func (c *LightClient) HeaderByHash(ctx context.Context, hash cmbytes.HexBytes) (*ctypes.ResultHeader, error) {
 	panic("Not implemented")
 }

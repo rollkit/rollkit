@@ -6,12 +6,13 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// Maintains blocks that need to be published to DA layer
+// PendingBlocks maintains blocks that need to be published to DA layer
 type PendingBlocks struct {
 	pendingBlocks []*types.Block
 	mtx           *sync.RWMutex
 }
 
+// NewPendingBlocks returns a new PendingBlocks struct
 func NewPendingBlocks() *PendingBlocks {
 	return &PendingBlocks{
 		pendingBlocks: make([]*types.Block, 0),

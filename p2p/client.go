@@ -184,6 +184,7 @@ func (c *Client) PubSub() *pubsub.PubSub {
 	return c.ps
 }
 
+// ConnectionGater returns the client's connection gater
 func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
 	return c.gater
 }
