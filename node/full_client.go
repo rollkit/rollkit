@@ -508,9 +508,14 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, perPagePtr *int) (*ctypes.ResultValidators, error) {
 	height := c.normalizeHeight(heightPtr)
 
+	genesisValidators := c.node.GetGenesis().Validators
+
+	if len(genesisValidators) != 1 {
+		return nil, fmt.Errorf("there should be exactly one validator in genesis")
+	}
 	// Since it's a centralized sequencer
 	// changed behavior to get this from genesis
-	genesisValidator := c.node.GetGenesis().Validators[0]
+	genesisValidator := genesisValidators[0]
 	validator := cmtypes.Validator{
 		Address:          genesisValidator.Address,
 		PubKey:           genesisValidator.PubKey,
