@@ -148,8 +148,11 @@ func (b *Block) Time() time.Time {
 	return b.SignedHeader.Time()
 }
 
-func (b *Block) Verify(untrstB *Block) error {
-	return b.SignedHeader.Verify(&untrstB.SignedHeader)
+func (b *Block) Verify(untrustedBlock *Block) error {
+	if untrustedBlock == nil {
+		return errors.New("untrusted block cannot be nil")
+	}
+	return b.SignedHeader.Verify(&untrustedBlock.SignedHeader)
 }
 
 func (b *Block) Validate() error {
