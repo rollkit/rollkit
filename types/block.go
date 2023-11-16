@@ -156,7 +156,7 @@ func (b *Block) Time() time.Time {
 	return b.SignedHeader.Time()
 }
 
-// Verifies a new, untrusted block against a trusted block.
+// Verify Verifies a new, untrusted block against a trusted block.
 func (b *Block) Verify(untrustedBlock *Block) error {
 	if untrustedBlock == nil {
 		return errors.New("untrusted block cannot be nil")
