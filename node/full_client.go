@@ -803,6 +803,9 @@ func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.Result
 // Header returns a cometbft ResultsHeader for the FullClient
 func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
 	blockMeta := c.getBlockMeta(*height)
+	if blockMeta == nil {
+		return nil, fmt.Errorf("block at height %d not found", *height)
+	}
 	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
 }
 
