@@ -39,8 +39,8 @@ func TestBlockCache(t *testing.T) {
 	bc.setSeen("hash")
 	require.True(bc.isSeen("hash"), "isSeen should return true for seen hash")
 
-	// Test setHardConfirmed
-	require.False(bc.isHardConfirmed("hash"), "hardConfirmations should be false for unseen hash")
-	bc.setHardConfirmed("hash")
-	require.True(bc.isHardConfirmed("hash"), "hardConfirmations should be true for seen hash")
+	// Test setDAIncluded
+	require.False(bc.isDAIncluded("hash"), "DAIncluded should be false for unseen hash")
+	bc.setDAIncluded("hash")
+	require.True(bc.isDAIncluded("hash"), "DAIncluded should be true for seen hash")
 }
