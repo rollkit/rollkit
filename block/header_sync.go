@@ -24,10 +24,11 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// P2P Sync Service for header that implements the go-header interface.
+// HeaderSyncService is the P2P Sync Service for header that implements the
+// go-header interface.
 // Contains a header store where synced headers are stored.
 // Uses the go-header library for handling all P2P logic.
-type HeaderSynceService struct {
+type HeaderSyncService struct {
 	conf        config.NodeConfig
 	genesis     *cmtypes.GenesisDoc
 	p2p         *p2p.Client
@@ -43,7 +44,8 @@ type HeaderSynceService struct {
 	ctx    context.Context
 }
 
-func NewHeaderSynceService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSynceService, error) {
+// NewHeaderSyncService returns a new HeaderSyncService.
+func NewHeaderSyncService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
 	}
@@ -61,7 +63,7 @@ func NewHeaderSynceService(ctx context.Context, store ds.TxnDatastore, conf conf
 		return nil, fmt.Errorf("failed to initialize the header store: %w", err)
 	}
 
-	return &HeaderSynceService{
+	return &HeaderSyncService{
 		conf:         conf,
 		genesis:      genesis,
 		p2p:          p2p,
@@ -73,11 +75,11 @@ func NewHeaderSynceService(ctx context.Context, store ds.TxnDatastore, conf conf
 }
 
 // HeaderStore returns the headerstore of the HeaderSynceService
-func (hSyncService *HeaderSynceService) HeaderStore() *goheaderstore.Store[*types.SignedHeader] {
+func (hSyncService *HeaderSyncService) HeaderStore() *goheaderstore.Store[*types.SignedHeader] {
 	return hSyncService.headerStore
 }
 
-func (hSyncService *HeaderSynceService) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.SignedHeader) error {
+func (hSyncService *HeaderSyncService) initHeaderStoreAndStartSyncer(ctx context.Context, initial *types.SignedHeader) error {
 	if initial == nil {
 		return fmt.Errorf("failed to initialize the headerstore and start syncer")
 	}
@@ -90,9 +92,9 @@ func (hSyncService *HeaderSynceService) initHeaderStoreAndStartSyncer(ctx contex
 	return nil
 }
 
-// Initialize header store if needed and broadcasts provided header.
+// WriteToHeaderStoreAndBroadcast initializes header store if needed and broadcasts provided header.
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
-func (hSyncService *HeaderSynceService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
+func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
 	// For genesis header initialize the store and start the syncer
 	if int64(signedHeader.Height()) == hSyncService.genesis.InitialHeight {
 		if err := hSyncService.headerStore.Init(ctx, signedHeader); err != nil {
@@ -111,12 +113,12 @@ func (hSyncService *HeaderSynceService) WriteToHeaderStoreAndBroadcast(ctx conte
 	return nil
 }
 
-func (hSyncService *HeaderSynceService) isInitialized() bool {
+func (hSyncService *HeaderSyncService) isInitialized() bool {
 	return hSyncService.headerStore.Height() > 0
 }
 
-// OnStart is a part of Service interface.
-func (hSyncService *HeaderSynceService) Start() error {
+// Start is a part of Service interface.
+func (hSyncService *HeaderSyncService) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := hSyncService.p2p.PubSub()
 
@@ -203,8 +205,8 @@ func (hSyncService *HeaderSynceService) Start() error {
 	return nil
 }
 
-// OnStop is a part of Service interface.
-func (hSyncService *HeaderSynceService) Stop() error {
+// Stop is a part of Service interface.
+func (hSyncService *HeaderSyncService) Stop() error {
 	err := hSyncService.headerStore.Stop(hSyncService.ctx)
 	err = multierr.Append(err, hSyncService.p2pServer.Stop(hSyncService.ctx))
 	err = multierr.Append(err, hSyncService.ex.Stop(hSyncService.ctx))
@@ -253,7 +255,8 @@ func newSyncer(
 	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opts...)
 }
 
-func (hSyncService *HeaderSynceService) StartSyncer() error {
+// StartSyncer starts the HeaderSyncService's syncer
+func (hSyncService *HeaderSyncService) StartSyncer() error {
 	hSyncService.syncerStatus.m.Lock()
 	defer hSyncService.syncerStatus.m.Unlock()
 	if hSyncService.syncerStatus.started {

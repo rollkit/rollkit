@@ -7,8 +7,9 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"google.golang.org/grpc"
 
+	"github.com/rollkit/go-da/test"
 	grpcda "github.com/rollkit/rollkit/da/grpc"
-	"github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/da/newda"
 	"github.com/rollkit/rollkit/types"
 	"github.com/rollkit/rollkit/types/pb/dalc"
 	"github.com/rollkit/rollkit/types/pb/rollkit"
@@ -17,7 +18,7 @@ import (
 // GetServer creates and returns gRPC server instance.
 func GetServer(kv ds.Datastore, conf grpcda.Config, mockConfig []byte, logger cmlog.Logger) *grpc.Server {
 	srv := grpc.NewServer()
-	mockImpl := &mockImpl{}
+	mockImpl := &mockImpl{mock: &newda.NewDA{DA: test.NewDummyDA()}}
 	err := mockImpl.mock.Init([8]byte{}, mockConfig, kv, logger)
 	if err != nil {
 		logger.Error("failed to initialize mock DALC", "error", err)
@@ -33,7 +34,7 @@ func GetServer(kv ds.Datastore, conf grpcda.Config, mockConfig []byte, logger cm
 }
 
 type mockImpl struct {
-	mock mock.DataAvailabilityLayerClient
+	mock *newda.NewDA
 }
 
 func (m *mockImpl) SubmitBlocks(ctx context.Context, request *dalc.SubmitBlocksRequest) (*dalc.SubmitBlocksResponse, error) {
