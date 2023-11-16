@@ -58,7 +58,7 @@ func TestAggregatorMode(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "newda", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -171,7 +171,7 @@ func TestLazyAggregator(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := NewNode(ctx, config.NodeConfig{
-		DALayer:            "mock",
+		DALayer:            "newda",
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
@@ -661,7 +661,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		ctx,
 		config.NodeConfig{
 			P2P:                p2pConfig,
-			DALayer:            "mock",
+			DALayer:            "newda",
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
 			Light:              isLight,

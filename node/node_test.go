@@ -45,7 +45,7 @@ func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) 
 }
 
 func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, error) {
-	config := config.NodeConfig{DALayer: "mock"}
+	config := config.NodeConfig{DALayer: "newda"}
 	switch nodeType {
 	case "light":
 		config.Light = true
