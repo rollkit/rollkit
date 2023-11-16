@@ -52,7 +52,7 @@ func TestAggregatorMode(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "newda", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -157,7 +157,7 @@ func TestLazyAggregator(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := NewNode(ctx, config.NodeConfig{
-		DALayer:            "mock",
+		DALayer:            "newda",
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
@@ -206,7 +206,7 @@ func TestFastDASync(t *testing.T) {
 	bmConfig.DABlockTime = 1 * time.Second
 	// Set BlockTime to 2x DABlockTime to ensure that the aggregator node is
 	// producing DA blocks faster than rollup blocks. This is to force the
-	// block syncing to align with hard confirmations.
+	// block syncing to align with DA inclusions.
 	bmConfig.BlockTime = 2 * bmConfig.DABlockTime
 	const numberOfBlocksToSyncTill = 5
 
@@ -272,12 +272,12 @@ func TestFastDASync(t *testing.T) {
 	// Verify the nodes are synced
 	require.NoError(verifyNodesSynced(node1, node2, Store))
 
-	// Verify that the block we synced to is hard confirmed. This is to
+	// Verify that the block we synced to is DA included. This is to
 	// ensure that the test is passing due to the DA syncing, since the P2P
-	// block sync will sync quickly but the block won't be hard confirmed.
+	// block sync will sync quickly but the block won't be DA included.
 	block, err := node2.Store.LoadBlock(numberOfBlocksToSyncTill)
 	require.NoError(err)
-	require.True(node2.blockManager.GetHardConfirmation(block.Hash()))
+	require.True(node2.blockManager.IsDAIncluded(block.Hash()))
 }
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
@@ -647,7 +647,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		ctx,
 		config.NodeConfig{
 			P2P:                p2pConfig,
-			DALayer:            "mock",
+			DALayer:            "newda",
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
 			Light:              isLight,

@@ -11,6 +11,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
+// NamespaceID is a unique identifier of a namespace.
 type NamespaceID [8]byte
 
 // Version captures the consensus rules for processing a block in the blockchain,
@@ -82,6 +83,7 @@ func (c *Commit) ToABCICommit(height uint64, hash Hash) *cmtypes.Commit {
 	return &tmCommit
 }
 
+// GetCommitHash returns hash of the commit.
 func (c *Commit) GetCommitHash(header *Header, proposerAddress []byte) []byte {
 	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash())
 	// Rollkit does not support a multi signature scheme so there can only be one signature
@@ -124,26 +126,32 @@ func (b *Block) ValidateBasic() error {
 	return nil
 }
 
+// New returns a new Block.
 func (b *Block) New() *Block {
 	return new(Block)
 }
 
+// IsZero returns true if the block is nil.
 func (b *Block) IsZero() bool {
 	return b == nil
 }
 
+// ChainID returns chain ID of the block.
 func (b *Block) ChainID() string {
 	return b.SignedHeader.ChainID() + "-block"
 }
 
+// Height returns height of the block.
 func (b *Block) Height() uint64 {
 	return b.SignedHeader.Height()
 }
 
+// LastHeader returns last header hash of the block.
 func (b *Block) LastHeader() Hash {
 	return b.SignedHeader.LastHeader()
 }
 
+// Time returns time of the block.
 func (b *Block) Time() time.Time {
 	return b.SignedHeader.Time()
 }
@@ -155,6 +163,7 @@ func (b *Block) Verify(untrustedBlock *Block) error {
 	return b.SignedHeader.Verify(&untrustedBlock.SignedHeader)
 }
 
+// Validate performs basic validation of a block.
 func (b *Block) Validate() error {
 	return b.ValidateBasic()
 }

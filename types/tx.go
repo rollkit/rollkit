@@ -68,6 +68,7 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]p
 	return txsWithISRs, nil
 }
 
+// TxsWithISRsToShares converts a slice of TxWithISRs to a slice of shares.
 func TxsWithISRsToShares(txsWithISRs []pb.TxWithISRs) (txShares []shares.Share, err error) {
 	byteSlices := make([][]byte, len(txsWithISRs))
 	for i, txWithISR := range txsWithISRs {
@@ -81,6 +82,8 @@ func TxsWithISRsToShares(txsWithISRs []pb.TxWithISRs) (txShares []shares.Share, 
 	return txShares, err
 }
 
+// SharesToPostableBytes converts a slice of shares to a slice of bytes that can
+// be posted to the blockchain.
 func SharesToPostableBytes(txShares []shares.Share) (postableData []byte, err error) {
 	for i := 0; i < len(txShares); i++ {
 		raw, err := txShares[i].RawDataWithReserved()
@@ -92,6 +95,8 @@ func SharesToPostableBytes(txShares []shares.Share) (postableData []byte, err er
 	return postableData, nil
 }
 
+// PostableBytesToShares converts a slice of bytes that can be posted to the
+// blockchain to a slice of shares
 func PostableBytesToShares(postableData []byte) (txShares []shares.Share, err error) {
 	css := shares.NewCompactShareSplitterWithIsCompactFalse(appns.TxNamespace, appconsts.ShareVersionZero)
 	err = css.WriteWithNoReservedBytes(postableData)
@@ -102,6 +107,7 @@ func PostableBytesToShares(postableData []byte) (txShares []shares.Share, err er
 	return shares, err
 }
 
+// SharesToTxsWithISRs converts a slice of shares to a slice of TxWithISRs.
 func SharesToTxsWithISRs(txShares []shares.Share) (txsWithISRs []pb.TxWithISRs, err error) {
 	byteSlices, err := shares.ParseCompactShares(txShares)
 	if err != nil {
