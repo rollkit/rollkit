@@ -6,6 +6,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+// BlockCache maintains blocks that are seen and hard confirmed
 type BlockCache struct {
 	blocks            map[uint64]*types.Block
 	hashes            map[string]bool
@@ -13,6 +14,7 @@ type BlockCache struct {
 	mtx               *sync.RWMutex
 }
 
+// NewBlockCache returns a new BlockCache struct
 func NewBlockCache() *BlockCache {
 	return &BlockCache{
 		blocks:            make(map[uint64]*types.Block),

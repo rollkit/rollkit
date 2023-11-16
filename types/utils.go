@@ -8,14 +8,18 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
+// TestChainID is a constant used for testing purposes. It represents a mock chain ID.
 const TestChainID = "test"
 
-// TODO: accept argument for number of validators / proposer index
+// GetRandomValidatorSet returns the validator set from
+// GetRandomValidatorSetWithPrivKey without the private key.
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 	valSet, _ := GetRandomValidatorSetWithPrivKey()
 	return valSet
 }
 
+// GetRandomValidatorSetWithPrivKey returns a validator set with a single
+// validator
 func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey) {
 	privKey := ed25519.GenPrivKey()
 	pubKey := privKey.PubKey()
@@ -27,6 +31,7 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 	}, privKey
 }
 
+// GetRandomBlock returns a block with random data
 func GetRandomBlock(height uint64, nTxs int) *Block {
 	header := GetRandomHeader()
 	header.BaseHeader.Height = height
@@ -58,6 +63,7 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 	return block
 }
 
+// GetRandomHeader returns a header with random fields and current time
 func GetRandomHeader() Header {
 	return Header{
 		BaseHeader: BaseHeader{
@@ -80,6 +86,8 @@ func GetRandomHeader() Header {
 	}
 }
 
+// GetRandomNextHeader returns a header with random data and height of +1 from
+// the provided Header
 func GetRandomNextHeader(header Header) Header {
 	nextHeader := GetRandomHeader()
 	nextHeader.BaseHeader.Height = header.Height() + 1
@@ -91,6 +99,7 @@ func GetRandomNextHeader(header Header) Header {
 	return nextHeader
 }
 
+// GetRandomSignedHeader returns a signed header with random data
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
@@ -108,6 +117,8 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	return signedHeader, privKey, nil
 }
 
+// GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
+// the provided signed header
 func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*SignedHeader, error) {
 	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{
@@ -125,11 +136,14 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivK
 	return newSignedHeader, nil
 }
 
+// GetRandomTx returns a transaction with a random size between 100 and 200
+// bytes.
 func GetRandomTx() Tx {
 	size := rand.Int()%100 + 100 //nolint:gosec
 	return Tx(GetRandomBytes(size))
 }
 
+// GetRandomBytes returns a byte slice of random bytes of length n.
 func GetRandomBytes(n int) []byte {
 	data := make([]byte, n)
 	_, _ = rand.Read(data) //nolint:gosec,staticcheck

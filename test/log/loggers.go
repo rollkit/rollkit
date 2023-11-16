@@ -26,14 +26,14 @@ func TempLogFileName(t *testing.T, suffix string) string {
 	return strings.ReplaceAll(t.Name(), "/", "_") + suffix + ".log"
 }
 
-// NewLogger create a Logger using the name of the test as the filename.
+// NewFileLogger create a Logger using the name of the test as the filename.
 func NewFileLogger(t *testing.T) *FileLogger {
 	// Use the test name but strip out any slashes since they are not
 	// allowed in filenames.
 	return NewFileLoggerCustom(t, TempLogFileName(t, ""))
 }
 
-// NewLoggerCustom create a Logger using the given filename.
+// NewFileLoggerCustom create a Logger using the given filename.
 func NewFileLoggerCustom(t *testing.T, fileName string) *FileLogger {
 	logFile, err := os.CreateTemp("", fileName)
 	if err != nil {

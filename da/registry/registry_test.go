@@ -10,7 +10,7 @@ import (
 	"github.com/rollkit/rollkit/da/newda"
 )
 
-func TestRegistery(t *testing.T) {
+func TestRegistry(t *testing.T) {
 	assert := assert.New(t)
 
 	expected := []string{"grpc", "celestia", "newda"}

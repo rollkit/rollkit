@@ -9,7 +9,8 @@ import (
 const (
 	// DefaultListenAddress is a default listen address for P2P client.
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
-	Version              = "0.4.0"
+	// Version is the current rollkit version and is used for checking RPC compatibility??
+	Version = "0.4.0"
 )
 
 // DefaultNodeConfig keeps default values of NodeConfig
