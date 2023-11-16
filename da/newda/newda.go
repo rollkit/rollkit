@@ -16,24 +16,29 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+// NewDA is a new DA implementation.
 type NewDA struct {
 	DA     newda.DA
 	logger log.Logger
 }
 
+// Init is called once to allow DA client to read configuration and initialize resources.
 func (n *NewDA) Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error {
 	n.logger = logger
 	return nil
 }
 
+// Start creates connection to gRPC server and instantiates gRPC client.
 func (n *NewDA) Start() error {
 	return nil
 }
 
+// Stop closes connection to gRPC server.
 func (n *NewDA) Stop() error {
 	return nil
 }
 
+// SubmitBlocks submits blocks to DA.
 func (n *NewDA) SubmitBlocks(ctx context.Context, blocks []*types.Block) da.ResultSubmitBlocks {
 	blobs := make([][]byte, len(blocks))
 	for i := range blocks {
@@ -66,6 +71,7 @@ func (n *NewDA) SubmitBlocks(ctx context.Context, blocks []*types.Block) da.Resu
 	}
 }
 
+// RetrieveBlocks retrieves blocks from DA.
 func (n *NewDA) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) da.ResultRetrieveBlocks {
 	ids, err := n.DA.GetIDs(dataLayerHeight)
 	if err != nil {
