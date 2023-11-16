@@ -80,7 +80,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
-			DALayer: "newDA",
+			DALayer: "newda",
 		},
 		key,
 		signingKey,
