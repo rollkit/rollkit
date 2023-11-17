@@ -69,8 +69,6 @@ func TestLifecycle(t *testing.T) {
 }
 
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
-	require := require.New(t)
-
 	conf := []byte{}
 	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
 		conf = []byte(mockDaBlockTime.String())
@@ -79,13 +77,13 @@ func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 		conf, _ = json.Marshal(testConfig)
 	}
 	err := dalc.Init(testNamespaceID, conf, nil, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
-	require.NoError(err)
+	require.NoError(t, err)
 
 	err = dalc.Start()
-	require.NoError(err)
+	require.NoError(t, err)
 
 	defer func() {
-		require.NoError(dalc.Stop())
+		require.NoError(t, dalc.Stop())
 	}()
 }
 
@@ -132,8 +130,6 @@ func startMockCelestiaNodeServer() *cmock.Server {
 func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	require := require.New(t)
-	assert := assert.New(t)
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
@@ -145,12 +141,12 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	}
 	kvStore, _ := store.NewDefaultInMemoryKVStore()
 	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
-	require.NoError(err)
+	require.NoError(t, err)
 
 	err = dalc.Start()
-	require.NoError(err)
+	require.NoError(t, err)
 	defer func() {
-		require.NoError(dalc.Stop())
+		require.NoError(t, dalc.Stop())
 	}()
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
@@ -168,7 +164,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 			blocks[j] = types.GetRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
 		}
 		resp := dalc.SubmitBlocks(ctx, blocks)
-		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
+		assert.Equal(t, da.StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 
 		for _, b := range blocks {
@@ -183,16 +179,16 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	for h, cnt := range countAtHeight {
 		t.Log("Retrieving block, DA Height", h)
 		ret := retriever.RetrieveBlocks(ctx, h)
-		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
-		require.NotEmpty(ret.Blocks, h)
-		assert.Equal(cnt%blocksSubmittedPerBatch, 0)
-		assert.Len(ret.Blocks, cnt, h)
+		assert.Equal(t, da.StatusSuccess, ret.Code, ret.Message)
+		require.NotEmpty(t, ret.Blocks, h)
+		assert.Equal(t, cnt%blocksSubmittedPerBatch, 0)
+		assert.Len(t, ret.Blocks, cnt, h)
 	}
 
 	for b, h := range blockToDAHeight {
 		ret := retriever.RetrieveBlocks(ctx, h)
-		assert.Equal(da.StatusSuccess, ret.Code, h)
-		require.NotEmpty(ret.Blocks, h)
-		assert.Contains(ret.Blocks, b, h)
+		assert.Equal(t, da.StatusSuccess, ret.Code, h)
+		require.NotEmpty(t, ret.Blocks, h)
+		assert.Contains(t, ret.Blocks, b, h)
 	}
 }

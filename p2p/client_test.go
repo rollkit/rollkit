@@ -22,7 +22,6 @@ import (
 
 func TestClientStartup(t *testing.T) {
 	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	assert := assert.New(t)
 	testCases := []struct {
 		desc    string
 		p2pconf config.P2PConfig
@@ -46,14 +45,14 @@ func TestClientStartup(t *testing.T) {
 		t.Run(testCase.desc, func(t *testing.T) {
 			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
 				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewFileLoggerCustom(t, test.TempLogFileName(t, testCase.desc)))
-			assert.NoError(err)
-			assert.NotNil(client)
+			assert.NoError(t, err)
+			assert.NotNil(t, client)
 
 			err = client.Start(context.Background())
 			defer func() {
 				_ = client.Close()
 			}()
-			assert.NoError(err)
+			assert.NoError(t, err)
 		})
 	}
 }
@@ -62,7 +61,6 @@ func TestBootstrapping(t *testing.T) {
 	_ = log.SetLogLevel("dht", "INFO")
 	//log.SetDebugLogging()
 
-	assert := assert.New(t)
 	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -77,12 +75,11 @@ func TestBootstrapping(t *testing.T) {
 	clients.WaitForDHT()
 
 	for _, client := range clients {
-		assert.Equal(3, len(client.host.Network().Peers()))
+		assert.Equal(t, 3, len(client.host.Network().Peers()))
 	}
 }
 
 func TestDiscovery(t *testing.T) {
-	assert := assert.New(t)
 	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -97,12 +94,11 @@ func TestDiscovery(t *testing.T) {
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
 
-	assert.Contains(clients[3].host.Network().Peers(), clients[4].host.ID())
-	assert.Contains(clients[4].host.Network().Peers(), clients[3].host.ID())
+	assert.Contains(t, clients[3].host.Network().Peers(), clients[4].host.ID())
+	assert.Contains(t, clients[4].host.Network().Peers(), clients[3].host.ID())
 }
 
 func TestGossiping(t *testing.T) {
-	assert := assert.New(t)
 	logger := test.NewFileLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -116,7 +112,7 @@ func TestGossiping(t *testing.T) {
 	// ensure that Tx is delivered to client
 	assertRecv := func(tx *GossipMessage) bool {
 		logger.Debug("received tx", "body", string(tx.Data), "from", tx.From)
-		assert.Equal(expectedMsg, tx.Data)
+		assert.Equal(t, expectedMsg, tx.Data)
 		wg.Done()
 		return true
 	}
@@ -147,7 +143,7 @@ func TestGossiping(t *testing.T) {
 
 	// gossip from client 4
 	err := clients[4].GossipTx(ctx, expectedMsg)
-	assert.NoError(err)
+	assert.NoError(t, err)
 
 	// wait for clients that should receive Tx
 	wg.Wait()
@@ -190,18 +186,16 @@ func TestSeedStringParsing(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
-			require := require.New(t)
 			logger := &test.MockLogger{}
 			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork",
 				dssync.MutexWrap(datastore.NewMapDatastore()), logger)
-			require.NoError(err)
-			require.NotNil(client)
+			require.NoError(t, err)
+			require.NotNil(t, client)
 			actual := client.parseAddrInfoList(c.input)
-			assert.NotNil(actual)
-			assert.Equal(c.expected, actual)
+			assert.NotNil(t, actual)
+			assert.Equal(t, c.expected, actual)
 			// ensure that errors are logged
-			assert.Equal(c.nErrors, len(logger.ErrLines))
+			assert.Equal(t, c.nErrors, len(logger.ErrLines))
 		})
 	}
 }

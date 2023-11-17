@@ -38,26 +38,25 @@ func TestGetNodeConfig(t *testing.T) {
 }
 func TestViperAndCobra(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
 
 	cmd := &cobra.Command{}
 	AddFlags(cmd)
 
 	v := viper.GetViper()
-	assert.NoError(v.BindPFlags(cmd.Flags()))
+	assert.NoError(t, v.BindPFlags(cmd.Flags()))
 
-	assert.NoError(cmd.Flags().Set(flagAggregator, "true"))
-	assert.NoError(cmd.Flags().Set(flagDALayer, "foobar"))
-	assert.NoError(cmd.Flags().Set(flagDAConfig, `{"json":true}`))
-	assert.NoError(cmd.Flags().Set(flagBlockTime, "1234s"))
-	assert.NoError(cmd.Flags().Set(flagNamespaceID, "0102030405060708"))
+	assert.NoError(t, cmd.Flags().Set(flagAggregator, "true"))
+	assert.NoError(t, cmd.Flags().Set(flagDALayer, "foobar"))
+	assert.NoError(t, cmd.Flags().Set(flagDAConfig, `{"json":true}`))
+	assert.NoError(t, cmd.Flags().Set(flagBlockTime, "1234s"))
+	assert.NoError(t, cmd.Flags().Set(flagNamespaceID, "0102030405060708"))
 
 	nc := DefaultNodeConfig
-	assert.NoError(nc.GetViperConfig(v))
+	assert.NoError(t, nc.GetViperConfig(v))
 
-	assert.Equal(true, nc.Aggregator)
-	assert.Equal("foobar", nc.DALayer)
-	assert.Equal(`{"json":true}`, nc.DAConfig)
-	assert.Equal(1234*time.Second, nc.BlockTime)
-	assert.Equal(types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8}, nc.NamespaceID)
+	assert.Equal(t, true, nc.Aggregator)
+	assert.Equal(t, "foobar", nc.DALayer)
+	assert.Equal(t, `{"json":true}`, nc.DAConfig)
+	assert.Equal(t, 1234*time.Second, nc.BlockTime)
+	assert.Equal(t, types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8}, nc.NamespaceID)
 }

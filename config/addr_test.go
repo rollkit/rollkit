@@ -50,16 +50,15 @@ func TestTranslateAddresses(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
 			// input is changed in place
 			input := c.input
 			err := TranslateAddresses(&input)
 			if c.expectedErr != "" {
-				assert.Error(err)
-				assert.True(strings.HasPrefix(err.Error(), c.expectedErr), "invalid error message")
+				assert.Error(t, err)
+				assert.True(t, strings.HasPrefix(err.Error(), c.expectedErr), "invalid error message")
 			} else {
-				assert.NoError(err)
-				assert.Equal(c.expected, input)
+				assert.NoError(t, err)
+				assert.Equal(t, c.expected, input)
 			}
 		})
 	}
@@ -89,15 +88,14 @@ func TestGetMultiaddr(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
 			actual, err := GetMultiAddr(c.input)
 			if c.expectedErr != "" {
-				assert.Error(err)
-				assert.Nil(actual)
-				assert.True(strings.HasPrefix(err.Error(), c.expectedErr), "invalid error message")
+				assert.Error(t, err)
+				assert.Nil(t, actual)
+				assert.True(t, strings.HasPrefix(err.Error(), c.expectedErr), "invalid error message")
 			} else {
-				assert.NoError(err)
-				assert.Equal(c.expected, actual)
+				assert.NoError(t, err)
+				assert.Equal(t, c.expected, actual)
 			}
 		})
 	}

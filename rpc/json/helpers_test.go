@@ -34,7 +34,6 @@ const (
 // copied from rpc
 func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	t.Helper()
-	require := require.New(t)
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
@@ -63,14 +62,14 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
 	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
-	require.NoError(err)
-	require.NotNil(n)
+	require.NoError(t, err)
+	require.NotNil(t, n)
 
 	err = n.Start()
-	require.NoError(err)
+	require.NoError(t, err)
 
 	local := n.GetClient()
-	require.NotNil(local)
+	require.NotNil(t, local)
 
 	return app, local
 }

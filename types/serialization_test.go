@@ -20,15 +20,13 @@ import (
 func TestBlockSerializationRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	require := require.New(t)
-
 	// create random hashes
 	h := []Hash{}
 	for i := 0; i < 8; i++ {
 		h1 := make(Hash, 32)
 		n, err := rand.Read(h1[:])
-		require.Equal(32, n)
-		require.NoError(err)
+		require.Equal(t, 32, n)
+		require.NoError(t, err)
 		h = append(h, h1)
 	}
 
@@ -88,16 +86,15 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
 			blob, err := c.input.MarshalBinary()
-			assert.NoError(err)
-			assert.NotEmpty(blob)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, blob)
 
 			deserialized := &Block{}
 			err = deserialized.UnmarshalBinary(blob)
-			assert.NoError(err)
+			assert.NoError(t, err)
 
-			assert.Equal(c.input, deserialized)
+			assert.Equal(t, c.input, deserialized)
 		})
 	}
 }
@@ -177,25 +174,23 @@ func TestStateRoundTrip(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			require := require.New(t)
-			assert := assert.New(t)
 			pState, err := c.state.ToProto()
-			require.NoError(err)
-			require.NotNil(pState)
+			require.NoError(t, err)
+			require.NotNil(t, pState)
 
 			bytes, err := pState.Marshal()
-			require.NoError(err)
-			require.NotEmpty(bytes)
+			require.NoError(t, err)
+			require.NotEmpty(t, bytes)
 
 			var newProtoState pb.State
 			var newState State
 			err = newProtoState.Unmarshal(bytes)
-			require.NoError(err)
+			require.NoError(t, err)
 
 			err = newState.FromProto(&newProtoState)
-			require.NoError(err)
+			require.NoError(t, err)
 
-			assert.Equal(c.state, newState)
+			assert.Equal(t, c.state, newState)
 		})
 	}
 }

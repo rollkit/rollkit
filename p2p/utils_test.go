@@ -66,7 +66,6 @@ func getAddr(sk crypto.PrivKey) (multiaddr.Multiaddr, error) {
 
 func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hostDescr, validators []GossipValidator, logger log.Logger) testNet {
 	t.Helper()
-	require := require.New(t)
 
 	mnet := mocknet.New()
 	for i := 0; i < n; i++ {
@@ -77,25 +76,25 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 		if descr.realKey {
 			privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 			addr, err := getAddr(privKey)
-			require.NoError(err)
+			require.NoError(t, err)
 			host, err := mnet.AddPeer(privKey, addr)
-			require.NoError(err)
-			require.NotNil(host)
+			require.NoError(t, err)
+			require.NotNil(t, host)
 		} else {
 			_, err := mnet.GenPeer()
-			require.NoError(err)
+			require.NoError(t, err)
 		}
 	}
 
 	err := mnet.LinkAll()
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// prepare seed node lists
 	seeds := make([]string, n)
 	for src, descr := range conf {
-		require.Less(src, n)
+		require.Less(t, src, n)
 		for _, dst := range descr.conns {
-			require.Less(dst, n)
+			require.Less(t, dst, n)
 			seeds[src] += mnet.Hosts()[dst].Addrs()[0].String() + "/p2p/" + mnet.Peers()[dst].Pretty() + ","
 		}
 		seeds[src] = strings.TrimSuffix(seeds[src], ",")
@@ -106,8 +105,8 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 		client, err := NewClient(config.P2PConfig{Seeds: seeds[i]},
 			mnet.Hosts()[i].Peerstore().PrivKey(mnet.Hosts()[i].ID()),
 			conf[i].chainID, sync.MutexWrap(datastore.NewMapDatastore()), logger)
-		require.NoError(err)
-		require.NotNil(client)
+		require.NoError(t, err)
+		require.NotNil(t, client)
 
 		client.SetTxValidator(validators[i])
 		clients[i] = client
@@ -115,7 +114,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 
 	for i, c := range clients {
 		err := c.startWithHost(ctx, mnet.Hosts()[i])
-		require.NoError(err)
+		require.NoError(t, err)
 	}
 
 	return clients

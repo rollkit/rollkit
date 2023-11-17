@@ -78,19 +78,18 @@ func TestInitialState(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
 			dalc := getMockDALC(logger)
 			defer func() {
 				require.NoError(t, dalc.Stop())
 			}()
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
-			assert.NoError(err)
-			assert.NotNil(agg)
+			assert.NoError(t, err)
+			assert.NotNil(t, agg)
 			agg.lastStateMtx.RLock()
-			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
-			assert.Equal(c.expectedInitialHeight, agg.lastState.InitialHeight)
-			assert.Equal(c.expectedLastBlockHeight, agg.lastState.LastBlockHeight)
+			assert.Equal(t, c.expectedChainID, agg.lastState.ChainID)
+			assert.Equal(t, c.expectedInitialHeight, agg.lastState.InitialHeight)
+			assert.Equal(t, c.expectedLastBlockHeight, agg.lastState.LastBlockHeight)
 			agg.lastStateMtx.RUnlock()
 		})
 	}
@@ -104,8 +103,6 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 }
 
 func TestGetHardConfirmation(t *testing.T) {
-	require := require.New(t)
-
 	// Create a minimalistic block manager
 	m := &Manager{
 		blockCache: NewBlockCache(),
@@ -113,10 +110,10 @@ func TestGetHardConfirmation(t *testing.T) {
 	hash := types.Hash([]byte("hash"))
 
 	// GetHardConfirmation should return false for unseen hash
-	require.False(m.GetHardConfirmation(hash))
+	require.False(t, m.GetHardConfirmation(hash))
 
 	// Set the hash as hard confirmed and verify GetHardConfirmation returns
 	// true
 	m.blockCache.setHardConfirmed(hash.String())
-	require.True(m.GetHardConfirmation(hash))
+	require.True(t, m.GetHardConfirmation(hash))
 }

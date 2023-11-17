@@ -43,18 +43,17 @@ func TestStoreHeight(t *testing.T) {
 	defer cancel()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
 			ds, _ := NewDefaultInMemoryKVStore()
 			bstore := New(ctx, ds)
-			assert.Equal(uint64(0), bstore.Height())
+			assert.Equal(t, uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
 				err := bstore.SaveBlock(block, &types.Commit{})
 				bstore.SetHeight(uint64(block.Height()))
-				assert.NoError(err)
+				assert.NoError(t, err)
 			}
 
-			assert.Equal(c.expected, bstore.Height())
+			assert.Equal(t, c.expected, bstore.Height())
 		})
 	}
 }
@@ -96,9 +95,6 @@ func TestStoreLoad(t *testing.T) {
 	for _, kv := range []ds.TxnDatastore{mKV, dKV} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				assert := assert.New(t)
-				require := require.New(t)
-
 				bstore := New(ctx, kv)
 
 				lastCommit := &types.Commit{}
@@ -107,19 +103,19 @@ func TestStoreLoad(t *testing.T) {
 					block.SignedHeader.Commit = *lastCommit
 					block.SignedHeader.Validators = types.GetRandomValidatorSet()
 					err := bstore.SaveBlock(block, commit)
-					require.NoError(err)
+					require.NoError(t, err)
 					lastCommit = commit
 				}
 
 				for _, expected := range c.blocks {
 					block, err := bstore.LoadBlock(uint64(expected.Height()))
-					assert.NoError(err)
-					assert.NotNil(block)
-					assert.Equal(expected, block)
+					assert.NoError(t, err)
+					assert.NotNil(t, block)
+					assert.Equal(t, expected, block)
 
 					commit, err := bstore.LoadCommit(uint64(expected.Height()))
-					assert.NoError(err)
-					assert.NotNil(commit)
+					assert.NoError(t, err)
+					assert.NotNil(t, commit)
 				}
 			})
 		}
@@ -128,8 +124,6 @@ func TestStoreLoad(t *testing.T) {
 
 func TestRestart(t *testing.T) {
 	t.Parallel()
-
-	assert := assert.New(t)
 
 	validatorSet := types.GetRandomValidatorSet()
 
@@ -144,18 +138,17 @@ func TestRestart(t *testing.T) {
 		Validators:      validatorSet,
 		LastValidators:  validatorSet,
 	})
-	assert.NoError(err)
+	assert.NoError(t, err)
 
 	s2 := New(ctx, kv)
 	_, err = s2.LoadState()
-	assert.NoError(err)
+	assert.NoError(t, err)
 
-	assert.Equal(expectedHeight, s2.Height())
+	assert.Equal(t, expectedHeight, s2.Height())
 }
 
 func TestBlockResponses(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -186,14 +179,14 @@ func TestBlockResponses(t *testing.T) {
 	}
 
 	err := s.SaveBlockResponses(1, expected)
-	assert.NoError(err)
+	assert.NoError(t, err)
 
 	resp, err := s.LoadBlockResponses(123)
-	assert.Error(err)
-	assert.Nil(resp)
+	assert.Error(t, err)
+	assert.Nil(t, resp)
 
 	resp, err = s.LoadBlockResponses(1)
-	assert.NoError(err)
-	assert.NotNil(resp)
-	assert.Equal(expected, resp)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, expected, resp)
 }

@@ -18,24 +18,21 @@ import (
 )
 
 func TestWebSockets(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
 	_, local := getRPC(t)
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
-	require.NoError(err)
+	require.NoError(t, err)
 
 	srv := httptest.NewServer(handler)
 
 	conn, resp, err := websocket.DefaultDialer.Dial(strings.Replace(srv.URL, "http://", "ws://", 1)+"/websocket", nil)
-	require.NoError(err)
-	require.NotNil(resp)
-	require.NotNil(conn)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, conn)
 	defer func() {
 		_ = conn.Close()
 	}()
 
-	assert.Equal(http.StatusSwitchingProtocols, resp.StatusCode)
+	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
 
 	err = conn.WriteMessage(websocket.TextMessage, []byte(`
 {
@@ -47,39 +44,39 @@ func TestWebSockets(t *testing.T) {
     }
 }
 `))
-	assert.NoError(err)
+	assert.NoError(t, err)
 
 	err = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-	assert.NoError(err)
+	assert.NoError(t, err)
 	typ, msg, err := conn.ReadMessage()
-	assert.NoError(err)
-	assert.Equal(websocket.TextMessage, typ)
-	assert.NotEmpty(msg)
+	assert.NoError(t, err)
+	assert.Equal(t, websocket.TextMessage, typ)
+	assert.NotEmpty(t, msg)
 
 	// wait for new block event
 	err = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-	assert.NoError(err)
+	assert.NoError(t, err)
 	typ, msg, err = conn.ReadMessage()
-	assert.NoError(err)
-	assert.Equal(websocket.TextMessage, typ)
-	assert.NotEmpty(msg)
+	assert.NoError(t, err)
+	assert.Equal(t, websocket.TextMessage, typ)
+	assert.NotEmpty(t, msg)
 	var payload cmtypes.EventDataNewBlock
 	err = json.Unmarshal(msg, &payload)
-	assert.NoError(err)
-	assert.NotNil(payload.ResultBeginBlock)
-	assert.NotNil(payload.Block)
-	assert.GreaterOrEqual(payload.Block.Height, int64(1))
-	assert.NotNil(payload.ResultEndBlock)
+	assert.NoError(t, err)
+	assert.NotNil(t, payload.ResultBeginBlock)
+	assert.NotNil(t, payload.Block)
+	assert.GreaterOrEqual(t, payload.Block.Height, int64(1))
+	assert.NotNil(t, payload.ResultEndBlock)
 
 	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &unsubscribeAllArgs{})
-	require.NoError(err)
-	require.NotEmpty(unsubscribeAllReq)
+	require.NoError(t, err)
+	require.NotEmpty(t, unsubscribeAllReq)
 	req := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(unsubscribeAllReq))
 	req.RemoteAddr = conn.LocalAddr().String()
 	rsp := httptest.NewRecorder()
 	handler.ServeHTTP(rsp, req)
-	assert.Equal(http.StatusOK, rsp.Code)
+	assert.Equal(t, http.StatusOK, rsp.Code)
 	jsonResp := response{}
-	assert.NoError(json.Unmarshal(rsp.Body.Bytes(), &jsonResp))
-	assert.Nil(jsonResp.Error)
+	assert.NoError(t, json.Unmarshal(rsp.Body.Bytes(), &jsonResp))
+	assert.Nil(t, jsonResp.Error)
 }

@@ -35,9 +35,8 @@ func TestDataRequestErrorToStatus(t *testing.T) {
 		// Status Error Cases
 		{da.StatusError, randErr},
 	}
-	assert := assert.New(t)
 	for _, tt := range test {
 		t.Logf("Testing %v", tt.err)
-		assert.Equal(tt.statusCode, dataRequestErrorToStatus(tt.err))
+		assert.Equal(t, tt.statusCode, dataRequestErrorToStatus(tt.err))
 	}
 }

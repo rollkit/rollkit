@@ -25,7 +25,6 @@ func TestMockTester(t *testing.T) {
 }
 
 func TestGetNodeHeight(t *testing.T) {
-	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	dalc := &mockda.DataAvailabilityLayerClient{}
@@ -33,7 +32,7 @@ func TestGetNodeHeight(t *testing.T) {
 	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
 	_ = dalc.Start()
 	defer func() {
-		require.NoError(dalc.Stop())
+		require.NoError(t, dalc.Stop())
 	}()
 	num := 2
 	keys := make([]crypto.PrivKey, num)
@@ -45,17 +44,17 @@ func TestGetNodeHeight(t *testing.T) {
 	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, t)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
-	require.NoError(fullNode.Start())
+	require.NoError(t, fullNode.Start())
 	defer func() {
-		require.NoError(fullNode.Stop())
+		require.NoError(t, fullNode.Stop())
 	}()
 
-	require.NoError(lightNode.Start())
+	require.NoError(t, lightNode.Start())
 	defer func() {
-		require.NoError(lightNode.Stop())
+		require.NoError(t, lightNode.Stop())
 	}()
 
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+	require.NoError(t, testutils.Retry(1000, 100*time.Millisecond, func() error {
 		num, err := getNodeHeight(fullNode, Header)
 		if err != nil {
 			return err
@@ -65,7 +64,7 @@ func TestGetNodeHeight(t *testing.T) {
 		}
 		return errors.New("expected height > 0")
 	}))
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+	require.NoError(t, testutils.Retry(1000, 100*time.Millisecond, func() error {
 		num, err := getNodeHeight(fullNode, Block)
 		if err != nil {
 			return err
@@ -75,7 +74,7 @@ func TestGetNodeHeight(t *testing.T) {
 		}
 		return errors.New("expected height > 0")
 	}))
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+	require.NoError(t, testutils.Retry(1000, 100*time.Millisecond, func() error {
 		num, err := getNodeHeight(fullNode, Store)
 		if err != nil {
 			return err
@@ -85,7 +84,7 @@ func TestGetNodeHeight(t *testing.T) {
 		}
 		return errors.New("expected height > 0")
 	}))
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+	require.NoError(t, testutils.Retry(1000, 100*time.Millisecond, func() error {
 		num, err := getNodeHeight(lightNode, Header)
 		if err != nil {
 			return err
