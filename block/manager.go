@@ -207,9 +207,8 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
-// GetHardConfirmation returns true if the block is hard confirmed
-func (m *Manager) GetHardConfirmation(hash types.Hash) bool {
-	return m.blockCache.isHardConfirmed(hash.String())
+func (m *Manager) IsDAIncluded(hash types.Hash) bool {
+	return m.blockCache.isDAIncluded(hash.String())
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
@@ -508,8 +507,8 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				blockHash := block.Hash().String()
-				m.blockCache.setHardConfirmed(blockHash)
-				m.logger.Info("block marked as hard confirmed", "blockHeight", block.Height(), "blockHash", blockHash)
+				m.blockCache.setDAIncluded(blockHash)
+				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
 				if !m.blockCache.isSeen(blockHash) {
 					m.blockInCh <- newBlockEvent{block, daHeight}
 				}
@@ -562,6 +561,7 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	}, nil
 }
 
+// IsProposer returns whether or not the manager is a proposer
 func (m *Manager) IsProposer() (bool, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()

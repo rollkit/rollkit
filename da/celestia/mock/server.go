@@ -12,13 +12,14 @@ import (
 	mux2 "github.com/gorilla/mux"
 
 	"github.com/rollkit/celestia-openrpc/types/blob"
-	"github.com/rollkit/celestia-openrpc/types/header"
-	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/go-da/test"
+	"github.com/rollkit/rollkit/da/newda"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 
+// ErrorCode represents RPC error code.
 type ErrorCode int
 
 type respError struct {
@@ -27,6 +28,7 @@ type respError struct {
 	Meta    json.RawMessage `json:"meta,omitempty"`
 }
 
+// Error returns error message string.
 func (e *respError) Error() string {
 	if e.Code >= -32768 && e.Code <= -32000 {
 		return fmt.Sprintf("RPC error (%d): %s", e.Code, e.Message)
@@ -51,7 +53,7 @@ type response struct {
 
 // Server mocks celestia-node HTTP API.
 type Server struct {
-	mock      *mockda.DataAvailabilityLayerClient
+	mock      *newda.NewDA
 	blockTime time.Duration
 	server    *httptest.Server
 	logger    log.Logger
@@ -60,7 +62,7 @@ type Server struct {
 // NewServer creates new instance of Server.
 func NewServer(blockTime time.Duration, logger log.Logger) *Server {
 	return &Server{
-		mock:      new(mockda.DataAvailabilityLayerClient),
+		mock:      &newda.NewDA{DA: test.NewDummyDA()},
 		blockTime: blockTime,
 		logger:    logger,
 	}
@@ -105,33 +107,6 @@ func (s *Server) rpc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch req.Method {
-	case "header.GetByHeight":
-		var params []interface{}
-		err := json.Unmarshal(req.Params, &params)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		if len(params) != 1 {
-			s.writeError(w, errors.New("expected 1 param: height (uint64)"))
-			return
-		}
-		height := uint64(params[0].(float64))
-		dah := s.mock.GetHeaderByHeight(height)
-		resp := &response{
-			Jsonrpc: "2.0",
-			Result: header.ExtendedHeader{
-				DAH: dah,
-			},
-			ID:    req.ID,
-			Error: nil,
-		}
-		bytes, err := json.Marshal(resp)
-		if err != nil {
-			s.writeError(w, err)
-			return
-		}
-		s.writeResponse(w, bytes)
 	case "blob.GetAll":
 		var params []interface{}
 		err := json.Unmarshal(req.Params, &params)
