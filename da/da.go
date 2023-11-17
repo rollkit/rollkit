@@ -75,7 +75,7 @@ type ResultRetrieveBlocks struct {
 // DAClient is a new DA implementation.
 type DAClient struct {
 	DA     goDA.DA
-	logger log.Logger
+	Logger log.Logger
 }
 
 // SubmitBlocks submits blocks to DA.
@@ -124,14 +124,18 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 		}
 	}
 
-	blobs, err := dac.DA.Get(ids)
-	if err != nil {
-		return ResultRetrieveBlocks{
-			BaseResult: BaseResult{
-				Code:     StatusError,
-				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
-				DAHeight: dataLayerHeight,
-			},
+	var blobs [][]byte
+	// ids can be nil if there are no blocks at the requested height.
+	if ids != nil {
+		blobs, err = dac.DA.Get(ids)
+		if err != nil {
+			return ResultRetrieveBlocks{
+				BaseResult: BaseResult{
+					Code:     StatusError,
+					Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
+					DAHeight: dataLayerHeight,
+				},
+			}
 		}
 	}
 
@@ -140,7 +144,7 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 		var block pb.Block
 		err = proto.Unmarshal(blob, &block)
 		if err != nil {
-			dac.logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
+			dac.Logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
 			continue
 		}
 		blocks[i] = new(types.Block)

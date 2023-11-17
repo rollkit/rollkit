@@ -14,7 +14,6 @@ import (
 
 const (
 	flagAggregator     = "rollkit.aggregator"
-	flagDALayer        = "rollkit.da_layer"
 	flagDAConfig       = "rollkit.da_config"
 	flagBlockTime      = "rollkit.block_time"
 	flagDABlockTime    = "rollkit.da_block_time"
@@ -35,7 +34,6 @@ type NodeConfig struct {
 	// parameters below are Rollkit specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
-	DALayer            string `mapstructure:"da_layer"`
 	DAConfig           string `mapstructure:"da_config"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
@@ -87,7 +85,6 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
-	nc.DALayer = v.GetString(flagDALayer)
 	nc.DAConfig = v.GetString(flagDAConfig)
 	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(flagDABlockTime)
@@ -111,7 +108,6 @@ func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 	cmd.Flags().Bool(flagAggregator, def.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(flagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().String(flagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
 	cmd.Flags().String(flagDAConfig, def.DAConfig, "Data Availability Layer Client config")
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")

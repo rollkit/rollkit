@@ -26,7 +26,6 @@ var DefaultNodeConfig = NodeConfig{
 		DABlockTime: 15 * time.Second,
 		NamespaceID: types.NamespaceID{},
 	},
-	DALayer:  "newda",
 	DAConfig: "",
 	Light:    false,
 	HeaderConfig: HeaderConfig{
