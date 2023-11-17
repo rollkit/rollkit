@@ -95,12 +95,12 @@ The block manager of the full nodes regularly pulls blocks from the DA network a
 #### Out-of-Order Rollup Blocks on DA
 
 Rollkit should support blocks arriving out-of-order on DA, like so:
-![out-of-order blocks](out-of-order-blocks.png)
+![out-of-order blocks](https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/out-of-order-blocks.png?raw=true)
 
 #### Termination Condition
 
 If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
-![termination conidition](termination.png)
+![termination conidition](https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/termination.png?raw=true)
 
 ### Block Sync Service
 
