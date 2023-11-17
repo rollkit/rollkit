@@ -22,7 +22,7 @@ import (
 	cmock "github.com/rollkit/rollkit/da/celestia/mock"
 	grpcda "github.com/rollkit/rollkit/da/grpc"
 	"github.com/rollkit/rollkit/da/grpc/mockserv"
-	"github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/da/newda"
 	"github.com/rollkit/rollkit/da/registry"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
@@ -70,7 +70,7 @@ func TestLifecycle(t *testing.T) {
 
 func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 	conf := []byte{}
-	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
+	if _, ok := dalc.(*newda.NewDA); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
@@ -133,7 +133,7 @@ func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
 
 	// mock DALC will advance block height every 100ms
 	conf := []byte{}
-	if _, ok := dalc.(*mock.DataAvailabilityLayerClient); ok {
+	if _, ok := dalc.(*newda.NewDA); ok {
 		conf = []byte(mockDaBlockTime.String())
 	}
 	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {

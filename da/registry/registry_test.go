@@ -5,18 +5,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/da/newda"
 )
 
 func TestRegistry(t *testing.T) {
-	expected := []string{"mock", "grpc", "celestia"}
+	expected := []string{"grpc", "celestia", "newda"}
+
 	actual := RegisteredClients()
 
 	assert.ElementsMatch(t, expected, actual)
 
 	constructor := func() da.DataAvailabilityLayerClient {
-		return &mock.DataAvailabilityLayerClient{} // cheating, only for tests :D
+		return &newda.NewDA{DA: test.NewDummyDA()} // cheating, only for tests :D
 	}
 	err := Register("testDA", constructor)
 	assert.NoError(t, err)

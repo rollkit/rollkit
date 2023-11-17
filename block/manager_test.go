@@ -102,18 +102,17 @@ func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
 	return dalc
 }
 
-func TestGetHardConfirmation(t *testing.T) {
+func TestIsDAIncluded(t *testing.T) {
 	// Create a minimalistic block manager
 	m := &Manager{
 		blockCache: NewBlockCache(),
 	}
 	hash := types.Hash([]byte("hash"))
 
-	// GetHardConfirmation should return false for unseen hash
-	require.False(t, m.GetHardConfirmation(hash))
+	// IsDAIncluded should return false for unseen hash
+	require.False(t, m.IsDAIncluded(hash))
 
-	// Set the hash as hard confirmed and verify GetHardConfirmation returns
-	// true
-	m.blockCache.setHardConfirmed(hash.String())
-	require.True(t, m.GetHardConfirmation(hash))
+	// Set the hash as DAIncluded and verify IsDAIncluded returns true
+	m.blockCache.setDAIncluded(hash.String())
+	require.True(t, m.IsDAIncluded(hash))
 }

@@ -78,7 +78,8 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
+
+	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "newda"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
@@ -168,7 +169,7 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
+	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "newda"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -457,7 +458,7 @@ func TestTx(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
-		DALayer:    "mock",
+		DALayer:    "newda",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
@@ -661,10 +662,28 @@ func TestBlockchainInfo(t *testing.T) {
 			if test.err {
 				require.Error(t, err)
 			} else {
+
 				require.NoError(t, err)
 				assert.Equal(t, result.LastHeight, heights[9])
 				assert.Contains(t, result.BlockMetas, test.exp[0])
 				assert.Contains(t, result.BlockMetas, test.exp[1])
+				assert.Equal(t, result.BlockMetas[0].BlockID.Hash, test.exp[1].BlockID.Hash)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].BlockID.Hash, test.exp[0].BlockID.Hash)
+				assert.Equal(t, result.BlockMetas[0].Header.Version.Block, test.exp[1].Header.Version.Block)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].Header.Version.Block, test.exp[0].Header.Version.Block)
+				assert.Equal(t, result.BlockMetas[0].Header, test.exp[1].Header)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].Header, test.exp[0].Header)
+				assert.Equal(t, result.BlockMetas[0].Header.DataHash, test.exp[1].Header.DataHash)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].Header.DataHash, test.exp[0].Header.DataHash)
+				assert.Equal(t, result.BlockMetas[0].Header.LastCommitHash, test.exp[1].Header.LastCommitHash)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].Header.LastCommitHash, test.exp[0].Header.LastCommitHash)
+				assert.Equal(t, result.BlockMetas[0].Header.EvidenceHash, test.exp[1].Header.EvidenceHash)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].Header.AppHash, test.exp[0].Header.AppHash)
+				assert.Equal(t, result.BlockMetas[0].Header.AppHash, test.exp[1].Header.AppHash)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].Header.ConsensusHash, test.exp[0].Header.ConsensusHash)
+				assert.Equal(t, result.BlockMetas[0].Header.ConsensusHash, test.exp[1].Header.ConsensusHash)
+				assert.Equal(t, result.BlockMetas[len(result.BlockMetas)-1].Header.ValidatorsHash, test.exp[0].Header.ValidatorsHash)
+				assert.Equal(t, result.BlockMetas[0].Header.NextValidatorsHash, test.exp[1].Header.NextValidatorsHash)
 			}
 
 		})
@@ -706,7 +725,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(t *test
 		nodes[i], err = newFullNode(
 			ctx,
 			config.NodeConfig{
-				DALayer:    "mock",
+				DALayer:    "newda",
 				Aggregator: true,
 				BlockManagerConfig: config.BlockManagerConfig{
 					BlockTime:   1 * time.Second,
@@ -868,7 +887,7 @@ func TestMempool2Nodes(t *testing.T) {
 	// make node1 an aggregator, so that node2 can start gracefully
 	node1, err := newFullNode(ctx, config.NodeConfig{
 		Aggregator: true,
-		DALayer:    "mock",
+		DALayer:    "newda",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
@@ -880,7 +899,7 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NotNil(t, node1)
 
 	node2, err := newFullNode(ctx, config.NodeConfig{
-		DALayer: "mock",
+		DALayer: "newda",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
@@ -960,7 +979,7 @@ func TestStatus(t *testing.T) {
 	node, err := newFullNode(
 		context.Background(),
 		config.NodeConfig{
-			DALayer: "mock",
+			DALayer: "newda",
 			P2P: config.P2PConfig{
 				ListenAddress: "/ip4/0.0.0.0/tcp/26656",
 			},
@@ -1072,7 +1091,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
-		DALayer:    "mock",
+		DALayer:    "newda",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
