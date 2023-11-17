@@ -67,11 +67,7 @@ func startMockGRPCServ() *grpc.Server {
 
 func startMockGRPCClient() (*DAClient, error) {
 	client := proxy.NewClient()
-	lis, err := net.Listen("tcp", "127.0.0.1"+":"+strconv.Itoa(7980))
-	if err != nil {
-		return nil, err
-	}
-	err = client.Start(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	err := client.Start("127.0.0.1:7980", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
