@@ -207,6 +207,7 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
+// IsDAIncluded returns true if the block with the given hash has been seen on DA.
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
 	return m.blockCache.isDAIncluded(hash.String())
 }
