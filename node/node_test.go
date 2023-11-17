@@ -15,7 +15,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-var MockServURL = "127.0.0.0:7980"
+var MockServURL = "127.0.0.1:7980"
 
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {

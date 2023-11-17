@@ -111,7 +111,7 @@ func doTestRetrieve(t *testing.T, dalc *DAClient) {
 		ret := dalc.RetrieveBlocks(ctx, h)
 		assert.Equal(StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Blocks, h)
-		assert.Equal(cnt%blocksSubmittedPerBatch, 0)
+		assert.Equal(cnt, blocksSubmittedPerBatch)
 		assert.Len(ret.Blocks, cnt, h)
 	}
 

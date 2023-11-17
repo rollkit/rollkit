@@ -80,7 +80,7 @@ func TestInitialState(t *testing.T) {
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
 			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
-			assert.NoError(err)
+			require.NoError(t, err)
 			assert.NotNil(agg)
 			agg.lastStateMtx.RLock()
 			assert.Equal(c.expectedChainID, agg.lastState.ChainID)

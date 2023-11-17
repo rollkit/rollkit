@@ -29,6 +29,6 @@ func main() {
 	log.Println("Listening on:", lis.Addr())
 	srv := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
 	if err := srv.Serve(lis); err != nil {
-		log.Println("error while serving:", err)
+		log.Fatal("error while serving:", err)
 	}
 }
