@@ -27,7 +27,6 @@ import (
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
 
 	testutils "github.com/celestiaorg/utils/test"
 )
@@ -47,8 +46,7 @@ func TestAggregatorMode(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		BlockTime: 1 * time.Second,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -151,8 +149,7 @@ func TestLazyAggregator(t *testing.T) {
 		// the blocktime too short. in future, we can add a configuration
 		// in go-header syncer initialization to not rely on blocktime, but the
 		// config variable
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		BlockTime: 1 * time.Second,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

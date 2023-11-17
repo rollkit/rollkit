@@ -13,16 +13,8 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-var (
-	// ErrDataNotFound is used to indicated that requested data failed to be retrieved.
-	ErrDataNotFound = errors.New("data not found")
-	// ErrNamespaceNotFound is used to indicate that the block contains data, but not for the requested namespace.
-	ErrNamespaceNotFound = errors.New("namespace not found in data")
-	// ErrBlobNotFound is used to indicate that the blob was not found.
-	ErrBlobNotFound = errors.New("blob: not found")
-	// ErrEDSNotFound is used to indicate that the EDS was not found.
-	ErrEDSNotFound = errors.New("eds not found")
-)
+// ErrBlobNotFound is used to indicate that the blob was not found.
+var ErrBlobNotFound = errors.New("blob: not found")
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
@@ -123,19 +115,24 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 			},
 		}
 	}
-
-	var blobs [][]byte
 	// ids can be nil if there are no blocks at the requested height.
-	if ids != nil {
-		blobs, err = dac.DA.Get(ids)
-		if err != nil {
-			return ResultRetrieveBlocks{
-				BaseResult: BaseResult{
-					Code:     StatusError,
-					Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
-					DAHeight: dataLayerHeight,
-				},
-			}
+	if ids == nil {
+		return ResultRetrieveBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusNotFound,
+				Message: ErrBlobNotFound.Error(),
+			},
+		}
+	}
+
+	blobs, err := dac.DA.Get(ids)
+	if err != nil {
+		return ResultRetrieveBlocks{
+			BaseResult: BaseResult{
+				Code:     StatusError,
+				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
+				DAHeight: dataLayerHeight,
+			},
 		}
 	}
 

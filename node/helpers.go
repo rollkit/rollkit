@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/types"
 )
 
 // Source is an enum representing different sources of height
@@ -55,7 +54,6 @@ func getBMConfig() config.BlockManagerConfig {
 	return config.BlockManagerConfig{
 		DABlockTime: 100 * time.Millisecond,
 		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
 	}
 }
 

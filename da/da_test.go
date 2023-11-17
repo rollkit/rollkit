@@ -3,13 +3,11 @@ package da
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,63 +31,9 @@ import (
 
 const mockDaBlockTime = 100 * time.Millisecond
 
-var (
-	testNamespaceID = types.NamespaceID{0, 1, 2, 3, 4, 5, 6, 7}
-
-	testConfig = celestia.Config{
-		Timeout:  15 * time.Second,
-		GasLimit: 3000000,
-	}
-)
-
-func dataRequestErrorToStatus(err error) da.StatusCode {
-	switch {
-	case err == nil,
-		// ErrNamespaceNotFound is a success because it means no retries are necessary, the
-		// namespace doesn't exist in the block.
-		// TODO: Once node implements non-inclusion proofs, ErrNamespaceNotFound needs to be verified
-		strings.Contains(err.Error(), da.ErrNamespaceNotFound.Error()):
-		return da.StatusSuccess
-	case strings.Contains(err.Error(), da.ErrDataNotFound.Error()),
-		strings.Contains(err.Error(), da.ErrEDSNotFound.Error()),
-		strings.Contains(err.Error(), da.ErrBlobNotFound.Error()):
-		return da.StatusNotFound
-	default:
-		return da.StatusError
-	}
-}
-
-func TestDataRequestErrorToStatus(t *testing.T) {
-	randErr := errors.New("some random error")
-	var test = []struct {
-		statusCode da.StatusCode
-		err        error
-	}{
-		// Status Success Cases
-		{da.StatusSuccess, nil},
-		{da.StatusSuccess, da.ErrNamespaceNotFound},
-		{da.StatusSuccess, errors.Join(randErr, da.ErrNamespaceNotFound, randErr)},
-
-		// TODO: cases that need investigating, are these possible? If
-		// so, is this the correct status code?
-		{da.StatusSuccess, errors.Join(da.ErrEDSNotFound, da.ErrNamespaceNotFound)},
-		{da.StatusSuccess, errors.Join(da.ErrDataNotFound, da.ErrNamespaceNotFound)},
-
-		// Status not Found Cases
-		{da.StatusNotFound, da.ErrDataNotFound},
-		{da.StatusNotFound, da.ErrEDSNotFound},
-		{da.StatusNotFound, errors.Join(da.ErrEDSNotFound, da.ErrDataNotFound)},
-		{da.StatusNotFound, errors.Join(da.ErrEDSNotFound, randErr)},
-		{da.StatusNotFound, errors.Join(randErr, da.ErrDataNotFound)},
-
-		// Status Error Cases
-		{da.StatusError, randErr},
-	}
-	assert := assert.New(t)
-	for _, tt := range test {
-		t.Logf("Testing %v", tt.err)
-		assert.Equal(tt.statusCode, dataRequestErrorToStatus(tt.err))
-	}
+var testConfig = celestia.Config{
+	Timeout:  15 * time.Second,
+	GasLimit: 3000000,
 }
 
 func TestMain(m *testing.M) {
@@ -110,35 +54,6 @@ func TestMain(m *testing.M) {
 	httpServer.Stop()
 
 	os.Exit(exitCode)
-}
-
-func TestLifecycle(t *testing.T) {
-	for _, dalc := range registry.RegisteredClients() {
-		t.Run(dalc, func(t *testing.T) {
-			doTestLifecycle(t, registry.GetClient(dalc))
-		})
-	}
-}
-
-func doTestLifecycle(t *testing.T, dalc da.DataAvailabilityLayerClient) {
-	require := require.New(t)
-
-	conf := []byte{}
-	if _, ok := dalc.(*newda.NewDA); ok {
-		conf = []byte(mockDaBlockTime.String())
-	}
-	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
-		conf, _ = json.Marshal(testConfig)
-	}
-	err := dalc.Init(testNamespaceID, conf, nil, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
-	require.NoError(err)
-
-	err = dalc.Start()
-	require.NoError(err)
-
-	defer func() {
-		require.NoError(dalc.Stop())
-	}()
 }
 
 func TestRetrieve(t *testing.T) {

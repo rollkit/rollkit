@@ -63,7 +63,6 @@ Block manager configuration options:
 |BlockTime|time.Duration|time interval used for block production and block retrieval from block store ([`defaultBlockTime`][defaultBlockTime])|
 |DABlockTime|time.Duration|time interval used for both block publication to DA network and block retrieval from DA network ([`defaultDABlockTime`][defaultDABlockTime])|
 |DAStartHeight|uint64|block retrieval from DA network starts from this height|
-|NamespaceID|bytes|8 `byte` unique identifier of the rollup|
 
 ### Block Production
 
