@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
+
 	goDA "github.com/rollkit/go-da"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"

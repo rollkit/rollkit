@@ -15,10 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/rollkit/go-da/proxy"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/types"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond
@@ -77,7 +78,7 @@ func startMockGRPCClient() (*DAClient, error) {
 	return &DAClient{DA: client, Logger: log.TestingLogger()}, nil
 }
 
-func doTestRetrieve(t *testing.T, dalc *da.DAClient) {
+func doTestRetrieve(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	require := require.New(t)
@@ -86,7 +87,6 @@ func doTestRetrieve(t *testing.T, dalc *da.DAClient) {
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)
 
-	retriever := dalc.(da.BlockRetriever)
 	countAtHeight := make(map[uint64]int)
 	blockToDAHeight := make(map[*types.Block]uint64)
 	numBatches := uint64(10)
@@ -98,7 +98,7 @@ func doTestRetrieve(t *testing.T, dalc *da.DAClient) {
 			blocks[j] = types.GetRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
 		}
 		resp := dalc.SubmitBlocks(ctx, blocks)
-		assert.Equal(da.StatusSuccess, resp.Code, resp.Message)
+		assert.Equal(StatusSuccess, resp.Code, resp.Message)
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 
 		for _, b := range blocks {
@@ -112,16 +112,16 @@ func doTestRetrieve(t *testing.T, dalc *da.DAClient) {
 
 	for h, cnt := range countAtHeight {
 		t.Log("Retrieving block, DA Height", h)
-		ret := retriever.RetrieveBlocks(ctx, h)
-		assert.Equal(da.StatusSuccess, ret.Code, ret.Message)
+		ret := dalc.RetrieveBlocks(ctx, h)
+		assert.Equal(StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Blocks, h)
 		assert.Equal(cnt%blocksSubmittedPerBatch, 0)
 		assert.Len(ret.Blocks, cnt, h)
 	}
 
 	for b, h := range blockToDAHeight {
-		ret := retriever.RetrieveBlocks(ctx, h)
-		assert.Equal(da.StatusSuccess, ret.Code, h)
+		ret := dalc.RetrieveBlocks(ctx, h)
+		assert.Equal(StatusSuccess, ret.Code, h)
 		require.NotEmpty(ret.Blocks, h)
 		assert.Contains(ret.Blocks, b, h)
 	}

@@ -29,7 +29,6 @@ import (
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -727,15 +726,6 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 	}
 
 	dalc := &da.DAClient{DA: goDATest.NewDummyDA()}
-	ds, err := store.NewDefaultInMemoryKVStore()
-	require.Nil(err)
-	err = dalc.Init([8]byte{}, nil, ds, test.NewFileLogger(t))
-	require.Nil(err)
-	err = dalc.Start()
-	require.Nil(err)
-	t.Cleanup(func() {
-		require.NoError(dalc.Stop())
-	})
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel() })
 	for i := 0; i < len(nodes); i++ {

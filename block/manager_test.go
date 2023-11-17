@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -79,10 +78,7 @@ func TestInitialState(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
-			dalc := getMockDALC(logger)
-			defer func() {
-				require.NoError(t, dalc.Stop())
-			}()
+			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
 			assert.NoError(err)
 			assert.NotNil(agg)
@@ -93,11 +89,6 @@ func TestInitialState(t *testing.T) {
 			agg.lastStateMtx.RUnlock()
 		})
 	}
-}
-
-func getMockDALC(logger log.Logger) *da.DAClient {
-	dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
-	return dalc
 }
 
 func TestIsDAIncluded(t *testing.T) {
