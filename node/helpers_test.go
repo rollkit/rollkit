@@ -12,9 +12,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/store"
+	goDATest "github.com/rollkit/go-da/test"
+	"github.com/rollkit/rollkit/da"
 )
+
+func getMockDA() *da.DAClient {
+	return &da.DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
+}
 
 func TestMockTester(t *testing.T) {
 	m := MockTester{t}
@@ -28,13 +32,7 @@ func TestGetNodeHeight(t *testing.T) {
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
-	_ = dalc.Start()
-	defer func() {
-		require.NoError(dalc.Stop())
-	}()
+	dalc := getMockDA()
 	num := 2
 	keys := make([]crypto.PrivKey, num)
 	for i := 0; i < num; i++ {

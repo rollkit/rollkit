@@ -2,7 +2,6 @@ package da
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -11,70 +10,50 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	cmlog "github.com/cometbft/cometbft/libs/log"
-
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/celestia"
-	cmock "github.com/rollkit/rollkit/da/celestia/mock"
-	grpcda "github.com/rollkit/rollkit/da/grpc"
-	"github.com/rollkit/rollkit/da/grpc/mockserv"
-	"github.com/rollkit/rollkit/da/newda"
-	"github.com/rollkit/rollkit/da/registry"
-	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
+	"github.com/rollkit/go-da/proxy"
+	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/types"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const mockDaBlockTime = 100 * time.Millisecond
-
-var testConfig = celestia.Config{
-	Timeout:  15 * time.Second,
-	GasLimit: 3000000,
-}
 
 func TestMain(m *testing.M) {
 	srv := startMockGRPCServ()
 	if srv == nil {
 		os.Exit(1)
 	}
-
-	httpServer := startMockCelestiaNodeServer()
-	if httpServer == nil {
-		os.Exit(1)
-	}
-
 	exitCode := m.Run()
 
 	// teardown servers
 	srv.GracefulStop()
-	httpServer.Stop()
 
 	os.Exit(exitCode)
 }
 
 func TestRetrieve(t *testing.T) {
-	for _, client := range registry.RegisteredClients() {
-		t.Run(client, func(t *testing.T) {
-			dalc := registry.GetClient(client)
-			_, ok := dalc.(da.BlockRetriever)
-			if ok {
-				doTestRetrieve(t, dalc)
-			}
+	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
+	grpcClient, err := startMockGRPCClient()
+	require.NoError(t, err)
+	clients := map[string]*DAClient{
+		"dummy": dummyClient,
+		"grpc":  grpcClient,
+	}
+	for name, dalc := range clients {
+		t.Run(name, func(t *testing.T) {
+			doTestRetrieve(t, dalc)
 		})
 	}
 }
 
 func startMockGRPCServ() *grpc.Server {
-	conf := grpcda.DefaultConfig
-	logger := cmlog.NewTMLogger(os.Stdout)
-
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
-	srv := mockserv.GetServer(kvStore, conf, []byte(mockDaBlockTime.String()), logger)
-	lis, err := net.Listen("tcp", conf.Host+":"+strconv.Itoa(conf.Port))
+	srv := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
+	lis, err := net.Listen("tcp", "127.0.0.1"+":"+strconv.Itoa(7980))
 	if err != nil {
 		fmt.Println(err)
 		return nil
@@ -85,40 +64,24 @@ func startMockGRPCServ() *grpc.Server {
 	return srv
 }
 
-func startMockCelestiaNodeServer() *cmock.Server {
-	httpSrv := cmock.NewServer(mockDaBlockTime, cmlog.NewTMLogger(os.Stdout))
-	url, err := httpSrv.Start()
+func startMockGRPCClient() (*DAClient, error) {
+	client := proxy.NewClient()
+	lis, err := net.Listen("tcp", "127.0.0.1"+":"+strconv.Itoa(7980))
 	if err != nil {
-		fmt.Println("can't start mock celestia-node RPC server")
-		return nil
+		return nil, err
 	}
-	testConfig.BaseURL = url
-	return httpSrv
+	err = client.Start(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	return &DAClient{DA: client, Logger: log.TestingLogger()}, nil
 }
 
-func doTestRetrieve(t *testing.T, dalc da.DataAvailabilityLayerClient) {
+func doTestRetrieve(t *testing.T, dalc *da.DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	require := require.New(t)
 	assert := assert.New(t)
-
-	// mock DALC will advance block height every 100ms
-	conf := []byte{}
-	if _, ok := dalc.(*newda.NewDA); ok {
-		conf = []byte(mockDaBlockTime.String())
-	}
-	if _, ok := dalc.(*celestia.DataAvailabilityLayerClient); ok {
-		conf, _ = json.Marshal(testConfig)
-	}
-	kvStore, _ := store.NewDefaultInMemoryKVStore()
-	err := dalc.Init(testNamespaceID, conf, kvStore, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
-	require.NoError(err)
-
-	err = dalc.Start()
-	require.NoError(err)
-	defer func() {
-		require.NoError(dalc.Stop())
-	}()
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" some blocks
 	time.Sleep(mockDaBlockTime + 20*time.Millisecond)

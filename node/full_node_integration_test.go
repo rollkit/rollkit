@@ -23,8 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 
@@ -464,13 +462,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	for i := 0; i < num; i++ {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
-	_ = dalc.Start()
-	defer func() {
-		require.NoError(dalc.Stop())
-	}()
+	dalc := getMockDA()
 	bmConfig := getBMConfig()
 	sequencer, _ := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	fullNode, _ := createNode(ctx, 1, false, false, keys, bmConfig, t)
@@ -583,10 +575,7 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
-	_ = dalc.Start()
+	dalc := getMockDA()
 	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
