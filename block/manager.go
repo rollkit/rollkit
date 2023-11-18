@@ -558,9 +558,6 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 
 // IsProposer returns whether or not the manager is a proposer
 func (m *Manager) IsProposer() (bool, error) {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-
 	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
 	if err != nil {
 		return false, err
