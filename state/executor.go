@@ -130,9 +130,12 @@ func (e *BlockExecutor) CreateBlock(ctx context.Context, height uint64, lastComm
 	rpp, err := e.proxyApp.PrepareProposal(
 		ctx,
 		&abci.RequestPrepareProposal{
-			MaxTxBytes:         maxBytes,
-			Txs:                mempoolTxs.ToSliceOfBytes(),
-			LocalLastCommit:    abci.ExtendedCommitInfo{},
+			MaxTxBytes: maxBytes,
+			Txs:        mempoolTxs.ToSliceOfBytes(),
+			LocalLastCommit: abci.ExtendedCommitInfo{
+				Round: 0,
+				Votes: []abci.ExtendedVoteInfo{},
+			},
 			Misbehavior:        []abci.Misbehavior{},
 			Height:             int64(block.Height()),
 			Time:               block.Time(),
