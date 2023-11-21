@@ -65,7 +65,7 @@ func NewFullClient(node *FullNode) *FullClient {
 // TODO: should this be NewRPPCClient? Or should we add the client as a field of
 // the FullNode so that it is just created once?
 func (n *FullNode) GetClient() rpcclient.Client {
-	return NewFullClient(n)
+	return n.client
 }
 
 // ABCIInfo returns basic information about application state.

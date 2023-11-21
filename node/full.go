@@ -7,18 +7,18 @@ import (
 	"errors"
 	"fmt"
 
-	ds "github.com/ipfs/go-datastore"
-	ktds "github.com/ipfs/go-datastore/keytransform"
-	"github.com/libp2p/go-libp2p/core/crypto"
-	"go.uber.org/multierr"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
 	proxy "github.com/cometbft/cometbft/proxy"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
+	ds "github.com/ipfs/go-datastore"
+	ktds "github.com/ipfs/go-datastore/keytransform"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -59,6 +59,7 @@ type FullNode struct {
 	genChunks []string
 
 	nodeConfig config.NodeConfig
+	client     rpcclient.Client
 
 	proxyApp     proxy.AppConns
 	eventBus     *cmtypes.EventBus
@@ -87,6 +88,7 @@ type FullNode struct {
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.NodeConfig,
+	client rpcclient.Client,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
