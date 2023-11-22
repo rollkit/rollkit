@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/proxy"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
@@ -52,7 +52,8 @@ func TestAggregatorMode(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "newda", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	var client rpcclient.Client
+	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, client, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -156,12 +157,13 @@ func TestLazyAggregator(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	var client rpcclient.Client
 	node, err := NewNode(ctx, config.NodeConfig{
 		DALayer:            "newda",
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key, signingKey, client, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 
@@ -173,7 +175,7 @@ func TestLazyAggregator(t *testing.T) {
 
 	require.NoError(waitForFirstBlock(node.(*FullNode), Header))
 
-	client := node.GetClient()
+	client = node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
@@ -643,6 +645,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	genesis := &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
 	// TODO: need to investigate why this needs to be done for light nodes
 	genesis.InitialHeight = 1
+	var client rpcclient.Client
 	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
@@ -654,6 +657,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		},
 		keys[n],
 		signingKey,
+		client,
 		proxy.NewLocalClientCreator(app),
 		genesis,
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))

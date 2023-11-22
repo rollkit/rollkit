@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -79,7 +80,8 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "newda"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
+	var client rpcclient.Client
+	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "mock"}, client, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -177,7 +179,8 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "newda"}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
+	var client rpcclient.Client
+	n, _ := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock"}, client, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -485,12 +488,14 @@ func TestTx(t *testing.T) {
 	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	var client rpcclient.Client
 	node, err := newFullNode(ctx, config.NodeConfig{
 		DALayer:    "newda",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
+		client,
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 		test.NewFileLogger(t))
@@ -761,6 +766,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 		}
 		signingKey, err := GetNodeKey(nodeKey)
 		require.NoError(err)
+		var client rpcclient.Client
 		nodes[i], err = newFullNode(
 			ctx,
 			config.NodeConfig{
@@ -771,6 +777,7 @@ func createGenesisValidators(t *testing.T, numNodes int, appCreator func(require
 					DABlockTime: 100 * time.Millisecond,
 				},
 			},
+			client,
 			signingKey,
 			signingKey,
 			proxy.NewLocalClientCreator(apps[i]),
@@ -929,6 +936,7 @@ func TestMempool2Nodes(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	var client rpcclient.Client
 	// make node1 an aggregator, so that node2 can start gracefully
 	node1, err := newFullNode(ctx, config.NodeConfig{
 		Aggregator: true,
@@ -939,17 +947,16 @@ func TestMempool2Nodes(t *testing.T) {
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second,
 		},
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
+	}, client, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node1)
-
 	node2, err := newFullNode(ctx, config.NodeConfig{
 		DALayer: "newda",
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
+	}, client, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -1023,7 +1030,7 @@ func TestStatus(t *testing.T) {
 			Name:    "one",
 		}
 	}
-
+	var client rpcclient.Client
 	node, err := newFullNode(
 		context.Background(),
 		config.NodeConfig{
@@ -1036,6 +1043,7 @@ func TestStatus(t *testing.T) {
 				BlockTime: 10 * time.Millisecond,
 			},
 		},
+		client,
 		key,
 		signingKey,
 		proxy.NewLocalClientCreator(app),
@@ -1140,12 +1148,14 @@ func TestFutureGenesisTime(t *testing.T) {
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	var client rpcclient.Client
 	node, err := newFullNode(ctx, config.NodeConfig{
 		DALayer:    "newda",
 		Aggregator: true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
 		}},
+		client,
 		key, signingKey,
 		proxy.NewLocalClientCreator(mockApp),
 		&cmtypes.GenesisDoc{

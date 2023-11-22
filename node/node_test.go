@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	proxy "github.com/cometbft/cometbft/proxy"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/rollkit/rollkit/config"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // cleanUpNode stops the node and checks if it is running
@@ -54,10 +54,11 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, erro
 	default:
 		panic(fmt.Sprint("invalid node type", nodeType))
 	}
+	var client rpcclient.Client
 	app := setupMockApplication()
 	key, signingKey := generateSingleKey(), generateSingleKey()
 	logger := test.NewFileLogger(t)
-	return NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID}, logger)
+	return NewNode(ctx, config, key, signingKey, client, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID}, logger)
 }
 
 // setupTestNode sets up a test node

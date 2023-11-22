@@ -25,7 +25,8 @@ var _ Node = &LightNode{}
 type LightNode struct {
 	service.BaseService
 
-	P2P *p2p.Client
+	P2P    *p2p.Client
+	client rpcclient.Client
 
 	proxyApp proxy.AppConns
 
@@ -39,13 +40,17 @@ type LightNode struct {
 // TODO: this should be renamed to NewRPCClient or some New variant since it is
 // creating a new item
 func (ln *LightNode) GetClient() rpcclient.Client {
-	return NewLightClient(ln)
+	if ln.client == nil {
+		ln.client = NewLightClient(ln)
+	}
+	return ln.client
 }
 
 func newLightNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
+	client rpcclient.Client,
 	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
@@ -61,12 +66,12 @@ func newLightNode(
 	if err != nil {
 		return nil, err
 	}
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"))
+	p2pClient, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"))
 	if err != nil {
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSyncService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSynceService(ctx, datastore, conf, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -74,7 +79,7 @@ func newLightNode(
 	ctx, cancel := context.WithCancel(ctx)
 
 	node := &LightNode{
-		P2P:          client,
+		P2P:          p2pClient,
 		proxyApp:     proxyApp,
 		hSyncService: headerSyncService,
 		cancel:       cancel,

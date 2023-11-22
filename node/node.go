@@ -28,6 +28,7 @@ func NewNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
+	client rpcclient.Client,
 	appClient proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
@@ -36,6 +37,7 @@ func NewNode(
 		return newFullNode(
 			ctx,
 			conf,
+			client,
 			p2pKey,
 			signingKey,
 			appClient,
@@ -47,6 +49,7 @@ func NewNode(
 			ctx,
 			conf,
 			p2pKey,
+			client,
 			appClient,
 			genesis,
 			logger,
