@@ -114,9 +114,9 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
-			aggBlock, err := nodes[0].Store.LoadBlock(h)
+			aggBlock, err := nodes[0].Store.GetBlock(h)
 			require.NoError(t, err)
-			nodeBlock, err := nodes[i].Store.LoadBlock(h)
+			nodeBlock, err := nodes[i].Store.GetBlock(h)
 			require.NoError(t, err)
 			assert.Equal(t, aggBlock, nodeBlock, fmt.Sprintf("height: %d", h))
 		}
@@ -266,8 +266,7 @@ func TestFastDASync(t *testing.T) {
 	// Verify that the block we synced to is DA included. This is to
 	// ensure that the test is passing due to the DA syncing, since the P2P
 	// block sync will sync quickly but the block won't be DA included.
-	block, err := node2.Store.LoadBlock(numberOfBlocksToSyncTill)
-
+	block, err := node2.Store.GetBlock(numberOfBlocksToSyncTill)
 	require.NoError(t, err)
 	require.True(t, node2.blockManager.IsDAIncluded(block.Hash()))
 }

@@ -59,7 +59,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 }
 
 func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.LoadBlock(uint64(n))
+	b, err := rpc.node.Store.GetBlock(uint64(n))
 	if err != nil {
 		return nil
 	}
