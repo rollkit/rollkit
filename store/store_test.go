@@ -130,8 +130,6 @@ func TestRestart(t *testing.T) {
 
 	assert := assert.New(t)
 
-	validatorSet := types.GetRandomValidatorSet()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	kv, _ := NewDefaultInMemoryKVStore()
@@ -139,9 +137,6 @@ func TestRestart(t *testing.T) {
 	expectedHeight := uint64(10)
 	err := s1.UpdateState(types.State{
 		LastBlockHeight: expectedHeight,
-		NextValidators:  validatorSet,
-		Validators:      validatorSet,
-		LastValidators:  validatorSet,
 	})
 	assert.NoError(err)
 

@@ -457,7 +457,7 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	} else {
 		h = uint64(*height)
 	}
-	block, err := c.node.Store.LoadBlock(h)
+	block, err := c.node.Store.GetBlock(h)
 	if err != nil {
 		return nil, err
 	}
@@ -499,25 +499,28 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 // Validators returns paginated list of validators at given height.
 func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, perPagePtr *int) (*ctypes.ResultValidators, error) {
 	height := c.normalizeHeight(heightPtr)
-	validators, err := c.node.Store.GetValidators(height)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load validators for height %d: %w", height, err)
+	genesisValidators := c.node.GetGenesis().Validators
+
+	if len(genesisValidators) != 1 {
+		return nil, fmt.Errorf("there should be exactly one validator in genesis")
+	}
+	// Since it's a centralized sequencer
+	// changed behavior to get this from genesis
+	genesisValidator := genesisValidators[0]
+	validator := cmtypes.Validator{
+		Address:          genesisValidator.Address,
+		PubKey:           genesisValidator.PubKey,
+		VotingPower:      int64(1),
+		ProposerPriority: int64(1),
 	}
 
-	totalCount := len(validators.Validators)
-	perPage := validatePerPage(perPagePtr)
-	page, err := validatePage(pagePtr, perPage, totalCount)
-	if err != nil {
-		return nil, err
-	}
-
-	skipCount := validateSkipCount(page, perPage)
-	v := validators.Validators[skipCount : skipCount+min(perPage, totalCount-skipCount)]
 	return &ctypes.ResultValidators{
 		BlockHeight: int64(height),
-		Validators:  v,
-		Count:       len(v),
-		Total:       totalCount,
+		Validators: []*cmtypes.Validator{
+			&validator,
+		},
+		Count: 1,
+		Total: 1,
 	}, nil
 }
 
@@ -697,11 +700,20 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
 
-	validators, err := c.node.Store.GetValidators(latest.Height())
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch the validator info at latest block: %w", err)
+	genesisValidators := c.node.GetGenesis().Validators
+
+	if len(genesisValidators) != 1 {
+		return nil, fmt.Errorf("there should be exactly one validator in genesis")
 	}
-	_, validator := validators.GetByAddress(latest.SignedHeader.ProposerAddress)
+
+	// Changed behavior to get this from genesis
+	genesisValidator := genesisValidators[0]
+	validator := cmtypes.Validator{
+		Address:          genesisValidator.Address,
+		PubKey:           genesisValidator.PubKey,
+		VotingPower:      int64(1),
+		ProposerPriority: int64(1),
+	}
 
 	state, err := c.node.Store.GetState()
 	if err != nil {

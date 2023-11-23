@@ -1,18 +1,26 @@
 package types
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
 // TestChainID is a constant used for testing purposes. It represents a mock chain ID.
 const TestChainID = "test"
 
-// GetRandomValidatorSet returns the validator set from
-// GetRandomValidatorSetWithPrivKey without the private key.
+var (
+	errNilKey             = errors.New("key can't be nil")
+	errUnsupportedKeyType = errors.New("unsupported key type")
+)
+
+// GetRandomValidatorSet returns a validator set with a single validator
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 	valSet, _ := GetRandomValidatorSetWithPrivKey()
 	return valSet
@@ -82,7 +90,6 @@ func GetRandomHeader() Header {
 		AppHash:         GetRandomBytes(32),
 		LastResultsHash: GetRandomBytes(32),
 		ProposerAddress: GetRandomBytes(32),
-		AggregatorsHash: GetRandomBytes(32),
 	}
 }
 
@@ -94,8 +101,6 @@ func GetRandomNextHeader(header Header) Header {
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
 	nextHeader.ProposerAddress = header.ProposerAddress
-	nextHeader.AggregatorsHash = header.AggregatorsHash
-	nextHeader.NextAggregatorsHash = header.NextAggregatorsHash
 	return nextHeader
 }
 
@@ -107,8 +112,6 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 		Validators: valSet,
 	}
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
-	signedHeader.Header.AggregatorsHash = valSet.Hash()
-	signedHeader.Header.NextAggregatorsHash = valSet.Hash()
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
@@ -136,8 +139,43 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivK
 	return newSignedHeader, nil
 }
 
-// GetRandomTx returns a transaction with a random size between 100 and 200
-// bytes.
+// GetNodeKey creates libp2p private key from Tendermints NodeKey.
+func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
+	if nodeKey == nil || nodeKey.PrivKey == nil {
+		return nil, errNilKey
+	}
+	switch nodeKey.PrivKey.Type() {
+	case "ed25519":
+		privKey, err := crypto.UnmarshalEd25519PrivateKey(nodeKey.PrivKey.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling node private key: %w", err)
+		}
+		return privKey, nil
+	default:
+		return nil, errUnsupportedKeyType
+	}
+}
+
+// GetGenesisValidatorSetWithSigner returns a genesis validator set with a
+// single validator and a signing key
+func GetGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.PrivKey) {
+	genesisValidatorKey := ed25519.GenPrivKey()
+	nodeKey := &p2p.NodeKey{
+		PrivKey: genesisValidatorKey,
+	}
+	signingKey, _ := GetNodeKey(nodeKey)
+	pubKey := genesisValidatorKey.PubKey()
+
+	genesisValidators := []cmtypes.GenesisValidator{{
+		Address: pubKey.Address(),
+		PubKey:  pubKey,
+		Power:   int64(100),
+		Name:    "gen #1",
+	}}
+	return genesisValidators, signingKey
+}
+
+// GetRandomTx returns a tx with random data
 func GetRandomTx() Tx {
 	size := rand.Int()%100 + 100 //nolint:gosec
 	return Tx(GetRandomBytes(size))
