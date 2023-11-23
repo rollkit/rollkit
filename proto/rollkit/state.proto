@@ -26,7 +26,7 @@ message State {
   tendermint.types.ConsensusParams consensus_params = 8 [(gogoproto.nullable) = false];
   uint64 last_height_consensus_params_changed = 9;
 
-  bytes last_results_hash = 14;
+  bytes last_results_hash = 10;
 
-  bytes app_hash = 15;
+  bytes app_hash = 11;
 }
