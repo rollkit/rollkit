@@ -47,12 +47,6 @@ type Header struct {
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	ProposerAddress []byte // original proposer of the block
-
-	// Hash of block aggregator set, at a time of block creation
-	AggregatorsHash Hash
-
-	// Hash of next block aggregator set, at a time of block creation
-	NextAggregatorsHash Hash
 }
 
 // New creates a new Header.
@@ -87,26 +81,14 @@ func (h *Header) Time() time.Time {
 
 // Verify verifies the header.
 func (h *Header) Verify(untrstH *Header) error {
-	// perform actual verification
-	if untrstH.Height() == h.Height()+1 {
-		// Check the validator hashes are the same in the case headers are adjacent
-		if !bytes.Equal(untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]) {
-			return &header.VerifyError{
-				Reason: fmt.Errorf("expected old header validators (%X) to match those from new header (%X)",
-					h.NextAggregatorsHash,
-					untrstH.AggregatorsHash,
-				),
-			}
+	if !bytes.Equal(untrstH.ProposerAddress, h.ProposerAddress) {
+		return &header.VerifyError{
+			Reason: fmt.Errorf("expected proposer (%X) got (%X)",
+				h.ProposerAddress,
+				untrstH.ProposerAddress,
+			),
 		}
 	}
-
-	// TODO: There must be a way to verify non-adjacent headers
-	// Ensure that untrusted commit has enough of trusted commit's power.
-	// err := h.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID, untrst.Commit, light.DefaultTrustLevel)
-	// if err != nil {
-	// 	return &VerifyError{err}
-	// }
-
 	return nil
 }
 

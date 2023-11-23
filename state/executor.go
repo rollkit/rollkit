@@ -128,7 +128,6 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	}
 	block.SignedHeader.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.LastHeaderHash = lastHeaderHash
-	block.SignedHeader.AggregatorsHash = state.Validators.Hash()
 
 	return block
 }
@@ -189,32 +188,6 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciResponses *cmstate.ABCIResponses, validatorUpdates []*cmtypes.Validator) (types.State, error) {
-	nValSet := state.NextValidators.Copy()
-	lastHeightValSetChanged := state.LastHeightValidatorsChanged
-	// Rollkit can work without validators
-	if len(nValSet.Validators) > 0 {
-		if len(validatorUpdates) > 0 {
-			err := nValSet.UpdateWithChangeSet(validatorUpdates)
-			if err != nil {
-				if err.Error() != ErrEmptyValSetGenerated.Error() {
-					return state, err
-				}
-				nValSet = &cmtypes.ValidatorSet{
-					Validators: make([]*cmtypes.Validator, 0),
-					Proposer:   nil,
-				}
-			}
-			// Change results from this height but only applies to the next next height.
-			lastHeightValSetChanged = block.Height() + 1 + 1
-		}
-
-		if len(nValSet.Validators) > 0 {
-			nValSet.IncrementProposerPriority(1)
-		}
-		// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
-	} else if len(validatorUpdates) > 0 {
-		return state, ErrAddingValidatorToBased
-	}
 
 	s := types.State{
 		Version:         state.Version,
@@ -226,10 +199,6 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, abciR
 			Hash: cmbytes.HexBytes(block.Hash()),
 			// for now, we don't care about part set headers
 		},
-		NextValidators:                   nValSet,
-		Validators:                       nValSet,
-		LastValidators:                   state.Validators.Copy(),
-		LastHeightValidatorsChanged:      lastHeightValSetChanged,
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
 		AppHash:                          make(types.Hash, 32),
@@ -287,10 +256,6 @@ func (e *BlockExecutor) Validate(state types.State, block *types.Block) error {
 		return errors.New("LastResultsHash mismatch")
 	}
 
-	if !bytes.Equal(block.SignedHeader.AggregatorsHash[:], state.Validators.Hash()) {
-		return errors.New("AggregatorsHash mismatch")
-	}
-
 	return nil
 }
 
@@ -322,7 +287,6 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 	abciHeader.ChainID = e.chainID
-	abciHeader.ValidatorsHash = state.Validators.Hash()
 	beginBlockRequest := abci.RequestBeginBlock{
 		Hash:   hash[:],
 		Header: abciHeader,
@@ -359,7 +323,6 @@ func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.
 	}
 
 	abciBlock, err := abciconv.ToABCIBlock(block)
-	abciBlock.Header.ValidatorsHash = state.Validators.Hash()
 	if err != nil {
 		return err
 	}
