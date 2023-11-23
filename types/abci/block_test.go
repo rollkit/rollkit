@@ -90,8 +90,8 @@ func TestToABCIBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
+	val := block.SignedHeader.Validators.Validators[0].Address
+	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash(), val, block.Time())
 
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress

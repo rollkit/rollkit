@@ -7,6 +7,11 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
+
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtypes "github.com/cometbft/cometbft/types"
 )
 
 // Hash is a 32-byte array which is used to represent a hash result.
@@ -104,6 +109,29 @@ func (h *Header) ValidateBasic() error {
 	}
 
 	return nil
+}
+
+// makeConsensusVote make a tendermint consensus vote for the sequencer to commit
+// we have the sequencer signs tendermint consensus vote for compability with tendermint client
+func (h *Header) MakeConsensusVote() []byte {
+	vote := cmtproto.Vote{
+		Type:   cmtproto.PrecommitType,
+		Height: int64(h.Height()),
+		Round:  0,
+		// Header hash = block hash in rollkit
+		BlockID: cmtproto.BlockID{
+			Hash:          cmbytes.HexBytes(h.Hash()),
+			PartSetHeader: cmtproto.PartSetHeader{},
+		},
+		Timestamp: h.Time(),
+		// proposerAddress = sequencer = validator
+		ValidatorAddress: h.ProposerAddress,
+		ValidatorIndex:   0,
+	}
+	chainID := h.ChainID()
+	consensusVoteBytes := cmtypes.VoteSignBytes(chainID, &vote)
+
+	return consensusVoteBytes
 }
 
 var _ header.Header[*Header] = &Header{}

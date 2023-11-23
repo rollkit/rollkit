@@ -387,10 +387,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b, responses)
+		appHash, _, err := m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
+		newState.AppHash = appHash
 
 		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
 		if err != nil {
@@ -543,11 +544,9 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 }
 
 func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := m.proposerKey.Sign(headerBytes)
+	consensusVote := header.MakeConsensusVote()
+
+	sign, err := m.proposerKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
@@ -555,6 +554,29 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 		Signatures: []types.Signature{sign},
 	}, nil
 }
+
+// // makeConsensusVote make a tendermint consensus vote for the sequencer to commit
+// // we have the sequencer signs tendermint consensus vote for compability with tendermint client
+// func (m *Manager) makeConsensusVote(header types.Header) []byte {
+// 	vote := cmtproto.Vote{
+// 		Type:   cmtproto.PrecommitType,
+// 		Height: int64(header.Height()),
+// 		Round:  0,
+// 		// Header hash = block hash in rollkit
+// 		BlockID: cmtproto.BlockID{
+// 			Hash:          cmbytes.HexBytes(header.Hash()),
+// 			PartSetHeader: cmtproto.PartSetHeader{},
+// 		},
+// 		Timestamp: header.Time(),
+// 		// proposerAddress = sequencer = validator
+// 		ValidatorAddress: header.ProposerAddress,
+// 		ValidatorIndex:   0,
+// 	}
+// 	chainID := header.ChainID()
+// 	consensusVoteBytes := cmtypes.VoteSignBytes(chainID, &vote)
+
+// 	return consensusVoteBytes
+// }
 
 // IsProposer returns whether or not the manager is a proposer
 func (m *Manager) IsProposer() (bool, error) {
@@ -672,10 +694,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.pendingBlocks.addPendingBlock(block)
 
 	// Commit the new state and block which writes to disk on the proxy app
-	_, _, err = m.executor.Commit(ctx, newState, block, responses)
+	appHash, _, err := m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
 		return err
 	}
+	newState.AppHash = appHash
 
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(blockHeight, responses)

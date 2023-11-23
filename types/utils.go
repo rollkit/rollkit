@@ -57,6 +57,9 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 
 	block.SignedHeader.AppHash = GetRandomBytes(32)
 
+	val, _ := cmtypes.RandValidatorSet(1, 10)
+	block.SignedHeader.Validators = val
+
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = GetRandomTx()
 		block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
@@ -189,11 +192,9 @@ func GetRandomBytes(n int) []byte {
 }
 
 func getCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := privKey.Sign(headerBytes)
+	consensusVote := header.MakeConsensusVote()
+
+	sign, err := privKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
