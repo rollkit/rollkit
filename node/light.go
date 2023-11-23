@@ -31,15 +31,15 @@ type LightNode struct {
 
 	hSyncService *block.HeaderSyncService
 
+	client rpcclient.Client
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // GetClient returns a new rpcclient for the light node
-// TODO: this should be renamed to NewRPCClient or some New variant since it is
-// creating a new item
 func (ln *LightNode) GetClient() rpcclient.Client {
-	return NewLightClient(ln)
+	return ln.client
 }
 
 func newLightNode(
@@ -84,6 +84,8 @@ func newLightNode(
 	node.P2P.SetTxValidator(node.falseValidator())
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
+
+	node.client = NewLightClient(node)
 
 	return node, nil
 }
