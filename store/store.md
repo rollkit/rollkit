@@ -11,16 +11,16 @@ The Store interface defines the following methods:
 - `Height`: Returns the height of the highest block in the store.
 - `SetHeight`: Sets given height in the store if it's higher than the existing height in the store.
 - `SaveBlock`: Saves a block along with its seen commit.
-- `LoadBlock`: Returns a block at a given height.
-- `LoadBlockByHash`: Returns a block with a given block header hash.
+- `GetBlock`: Returns a block at a given height.
+- `GetBlockByHash`: Returns a block with a given block header hash.
 - `SaveBlockResponses`: Saves block responses in the Store.
-- `LoadBlockResponses`: Returns block results at a given height.
-- `LoadCommit`: Returns a commit for a block at a given height.
-- `LoadCommitByHash`: Returns a commit for a block with a given block header hash.
+- `GetBlockResponses`: Returns block results at a given height.
+- `GetCommit`: Returns a commit for a block at a given height.
+- `GetCommitByHash`: Returns a commit for a block with a given block header hash.
 - `UpdateState`: Updates the state saved in the Store. Only one State is stored.
-- `LoadState`: Returns the last state saved with UpdateState.
+- `GetState`: Returns the last state saved with UpdateState.
 - `SaveValidators`: Saves the validator set at a given height.
-- `LoadValidators`: Returns the validator set at a given height.
+- `GetValidators`: Returns the validator set at a given height.
 
 The `TxnDatastore` interface inside [go-datastore] is used for constructing different key-value stores for the underlying storage of a full node. The are two different implementations of `TxnDatastore` in [kv.go]:
 
@@ -39,7 +39,7 @@ For the main node data, `DefaultStore` struct, an implementation of the Store in
 - `responsesPrefix` with value "r": Used to store responses related to the blocks.
 - `validatorsPrefix` with value "v": Used to store validator sets at a given height.
 
-For example, in a call to `LoadBlockByHash` for some block hash `<block_hash>`, the key used in the full node's base key-value store will be `/0/b/<block_hash>` where `0` is the main store prefix and `b` is the block prefix. Similarly, in a call to `LoadValidators` for some height `<height>`, the key used in the full node's base key-value store will be `/0/v/<height>` where `0` is the main store prefix and `v` is the validator set prefix.
+For example, in a call to `GetBlockByHash` for some block hash `<block_hash>`, the key used in the full node's base key-value store will be `/0/b/<block_hash>` where `0` is the main store prefix and `b` is the block prefix. Similarly, in a call to `GetValidators` for some height `<height>`, the key used in the full node's base key-value store will be `/0/v/<height>` where `0` is the main store prefix and `v` is the validator set prefix.
 
 Inside the key-value store, the value of these various types of data like `Block`, `Commit`, etc is stored as a byte array which is encoded and decoded using the corresponding Protobuf [marshal and unmarshal methods][serialization].
 

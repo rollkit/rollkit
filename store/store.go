@@ -94,20 +94,20 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 	return nil
 }
 
-// LoadBlock returns block at given height, or error if it's not found in Store.
+// GetBlock returns block at given height, or error if it's not found in Store.
 // TODO(tzdybal): what is more common access pattern? by height or by hash?
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
-func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
+func (s *DefaultStore) GetBlock(height uint64) (*types.Block, error) {
 	h, err := s.loadHashFromIndex(height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
-	return s.LoadBlockByHash(h)
+	return s.GetBlockByHash(h)
 }
 
-// LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockByHash(hash types.Hash) (*types.Block, error) {
+// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
+func (s *DefaultStore) GetBlockByHash(hash types.Hash) (*types.Block, error) {
 	blockData, err := s.db.Get(s.ctx, ds.NewKey(getBlockKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load block data: %w", err)
@@ -130,8 +130,8 @@ func (s *DefaultStore) SaveBlockResponses(height uint64, responses *abci.Respons
 	return s.db.Put(s.ctx, ds.NewKey(getResponsesKey(height)), data)
 }
 
-// LoadBlockResponses returns block results at given height, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockResponses(height uint64) (*abci.ResponseFinalizeBlock, error) {
+// GetBlockResponses returns block results at given height, or error if it's not found in Store.
+func (s *DefaultStore) GetBlockResponses(height uint64) (*abci.ResponseFinalizeBlock, error) {
 	data, err := s.db.Get(s.ctx, ds.NewKey(getResponsesKey(height)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve block results from height %v: %w", height, err)
@@ -144,17 +144,17 @@ func (s *DefaultStore) LoadBlockResponses(height uint64) (*abci.ResponseFinalize
 	return &responses, nil
 }
 
-// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
-func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
+// GetCommit returns commit for a block at given height, or error if it's not found in Store.
+func (s *DefaultStore) GetCommit(height uint64) (*types.Commit, error) {
 	hash, err := s.loadHashFromIndex(height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
-	return s.LoadCommitByHash(hash)
+	return s.GetCommitByHash(hash)
 }
 
-// LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadCommitByHash(hash types.Hash) (*types.Commit, error) {
+// GetCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
+func (s *DefaultStore) GetCommitByHash(hash types.Hash) (*types.Commit, error) {
 	commitData, err := s.db.Get(s.ctx, ds.NewKey(getCommitKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve commit from hash %v: %w", hash, err)
@@ -181,8 +181,8 @@ func (s *DefaultStore) UpdateState(state types.State) error {
 	return s.db.Put(s.ctx, ds.NewKey(getStateKey()), data)
 }
 
-// LoadState returns last state saved with UpdateState.
-func (s *DefaultStore) LoadState() (types.State, error) {
+// GetState returns last state saved with UpdateState.
+func (s *DefaultStore) GetState() (types.State, error) {
 	blob, err := s.db.Get(s.ctx, ds.NewKey(getStateKey()))
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to retrieve state: %w", err)
@@ -213,8 +213,8 @@ func (s *DefaultStore) SaveValidators(height uint64, validatorSet *cmtypes.Valid
 	return s.db.Put(s.ctx, ds.NewKey(getValidatorsKey(height)), blob)
 }
 
-// LoadValidators loads validator set at given block height from store.
-func (s *DefaultStore) LoadValidators(height uint64) (*cmtypes.ValidatorSet, error) {
+// GetValidators loads validator set at given block height from store.
+func (s *DefaultStore) GetValidators(height uint64) (*cmtypes.ValidatorSet, error) {
 	blob, err := s.db.Get(s.ctx, ds.NewKey(getValidatorsKey(height)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Validators for height %v: %w", height, err)

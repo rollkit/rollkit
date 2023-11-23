@@ -111,12 +111,12 @@ func TestStoreLoad(t *testing.T) {
 				}
 
 				for _, expected := range c.blocks {
-					block, err := bstore.LoadBlock(uint64(expected.Height()))
+					block, err := bstore.GetBlock(uint64(expected.Height()))
 					assert.NoError(err)
 					assert.NotNil(block)
 					assert.Equal(expected, block)
 
-					commit, err := bstore.LoadCommit(uint64(expected.Height()))
+					commit, err := bstore.GetCommit(uint64(expected.Height()))
 					assert.NoError(err)
 					assert.NotNil(commit)
 				}
@@ -146,7 +146,7 @@ func TestRestart(t *testing.T) {
 	assert.NoError(err)
 
 	s2 := New(ctx, kv)
-	_, err = s2.LoadState()
+	_, err = s2.GetState()
 	assert.NoError(err)
 
 	assert.Equal(expectedHeight, s2.Height())
@@ -183,11 +183,11 @@ func TestBlockResponses(t *testing.T) {
 	err := s.SaveBlockResponses(1, expected)
 	assert.NoError(err)
 
-	resp, err := s.LoadBlockResponses(123)
+	resp, err := s.GetBlockResponses(123)
 	assert.Error(err)
 	assert.Nil(resp)
 
-	resp, err = s.LoadBlockResponses(1)
+	resp, err = s.GetBlockResponses(1)
 	assert.NoError(err)
 	assert.NotNil(resp)
 	assert.Equal(expected, resp)
