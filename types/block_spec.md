@@ -87,10 +87,12 @@ Block.Verify()
 | **Field Name** | **Valid State**                                                          | **Validation**                                                                              |
 |----------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | Header         | Valid header for the block                                               | `Header` passes `ValidateBasic()` and `Verify()`                                            |
-| Commit         | 1 valid signature from the expected proposer                             | `Commit` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
-| Validators     | Array of Aggregators, should be length 1 (or zero for based rollup case) | `Validators` passes `ValidateBasic()`                                                       |
+| Commit         | 1 valid signature from the centralized sequencer                             | `Commit` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
+| Validators     | Array of Aggregators, must have length exactly 1. | `Validators` passes `ValidateBasic()`                                                       |
 
 ## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L25)
+
+***Note***: The `AggregatorsHash` and `NextAggregatorsHash` fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the centralized sequencer set as the 1 validator in the genesis block.
 
 | **Field Name**      | **Valid State**                                                                            | **Validation**                        |
 |---------------------|--------------------------------------------------------------------------------------------|---------------------------------------|
@@ -107,8 +109,6 @@ Block.Verify()
 | AppHash             | The correct state root after executing the block's transactions against the accepted state | checked during block execution        |
 | LastResultsHash     | Correct results from executing transactions                                                | checked during block execution        |
 | ProposerAddress     | Address of the expected proposer                                                           | checked in the `Verify()` step          |
-| AggregatorsHash     | Matches the NextAggregatorsHash of the previous accepted block                             | checked in the `Verify()` step          |
-| NextAggregatorsHash | Set during block execution, according to the ABCI app                                      | checked during block execution        |
 
 ## [Commit](https://github.com/rollkit/rollkit/blob/main/types/block.go#L48)
 

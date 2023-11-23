@@ -92,6 +92,16 @@ The block manager of the sequencer full nodes regularly publishes the produced b
 
 The block manager of the full nodes regularly pulls blocks from the DA network at `DABlockTime` intervals and starts off with a DA height read from the last state stored in the local store or `DAStartHeight` configuration parameter, whichever is the latest. The block manager also actively maintains and increments the `daHeight` counter after every DA pull. The pull happens by making the `RetrieveBlocks(daHeight)` request using the Data Availability Light Client (DALC) retriever, which can return either `Success`, `NotFound`, or `Error`. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the `daHeight` counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block `NotFound` scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the `daHeight` counter in this case. Finally, for the `Success` scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the `DABlockTime` and `BlockTime` intervals.
 
+#### Out-of-Order Rollup Blocks on DA
+
+Rollkit should support blocks arriving out-of-order on DA, like so:
+![out-of-order blocks](https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/out-of-order-blocks.png?raw=true)
+
+#### Termination Condition
+
+If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
+![termination conidition](https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/termination.png?raw=true)
+
 ### Block Sync Service
 
 The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to the [go-header] service to be gossiped blocks over the P2P network.
