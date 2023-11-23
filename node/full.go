@@ -361,6 +361,7 @@ func (n *FullNode) OnStop() {
 	err = multierr.Append(err, n.p2pClient.Close())
 	err = multierr.Append(err, n.hSyncService.Stop())
 	err = multierr.Append(err, n.bSyncService.Stop())
+	err = multierr.Append(err, n.IndexerService.Stop())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
