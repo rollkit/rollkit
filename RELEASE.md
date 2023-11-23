@@ -2,6 +2,7 @@
 
 ## Steps
 
+* Update config version in [config/defaults.go](https://github.com/rollkit/rollkit/blob/main/config/defaults.go)
 * Release new Rollkit version
 * Update [Rollkit/Cosmos-SDK](https://github.com/rollkit/cosmos-sdk) with the newly released Rollkit version
 * Release new Rollkit/Cosmos-SDK version
