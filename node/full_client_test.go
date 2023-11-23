@@ -57,7 +57,7 @@ func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *t
 }
 
 func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.LoadBlock(uint64(n))
+	b, err := rpc.node.Store.GetBlock(uint64(n))
 	if err != nil {
 		return nil
 	}
@@ -897,7 +897,7 @@ func TestStatus(t *testing.T) {
 
 	// specific validation
 	assert.Equal(tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
-	state, err := rpc.node.Store.LoadState()
+	state, err := rpc.node.Store.GetState()
 	assert.NoError(err)
 	defaultProtocolVersion := p2p.NewProtocolVersion(
 		version.P2PProtocol,

@@ -97,7 +97,7 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	s, err := store.LoadState()
+	s, err := store.GetState()
 	if err != nil {
 		s, err = types.NewFromGenesisDoc(genesis)
 	}
@@ -585,11 +585,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if newHeight == uint64(m.genesis.InitialHeight) {
 		lastCommit = &types.Commit{}
 	} else {
-		lastCommit, err = m.store.LoadCommit(height)
+		lastCommit, err = m.store.GetCommit(height)
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
-		lastBlock, err := m.store.LoadBlock(height)
+		lastBlock, err := m.store.GetBlock(height)
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
@@ -601,7 +601,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
-	pendingBlock, err := m.store.LoadBlock(newHeight)
+	pendingBlock, err := m.store.GetBlock(newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
 		block = pendingBlock
