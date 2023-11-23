@@ -46,8 +46,7 @@ var _ rpcclient.Client = &FullClient{}
 type FullClient struct {
 	*cmtypes.EventBus
 	config *config.RPCConfig
-
-	node *FullNode
+	node   *FullNode
 }
 
 // NewFullClient returns Client working with given node.
@@ -57,14 +56,6 @@ func NewFullClient(node *FullNode) *FullClient {
 		config:   config.DefaultRPCConfig(),
 		node:     node,
 	}
-}
-
-// GetClient returns a new RPC client for the full node.
-//
-// TODO: should this be NewRPPCClient? Or should we add the client as a field of
-// the FullNode so that it is just created once?
-func (n *FullNode) GetClient() rpcclient.Client {
-	return NewFullClient(n)
 }
 
 // ABCIInfo returns basic information about application state.

@@ -18,6 +18,7 @@ import (
 	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
 	proxy "github.com/cometbft/cometbft/proxy"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/block"
@@ -70,6 +71,7 @@ type FullNode struct {
 	mempoolIDs   *mempoolIDs
 	Store        store.Store
 	blockManager *block.Manager
+	client       rpcclient.Client
 
 	// Preserves cometBFT compatibility
 	TxIndexer      txindex.TxIndexer
@@ -167,6 +169,7 @@ func newFullNode(
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 	node.p2pClient.SetTxValidator(node.newTxValidator())
+	node.client = NewFullClient(node)
 
 	return node, nil
 }
@@ -299,6 +302,11 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// GetClient returns the RPC client for the full node.
+func (n *FullNode) GetClient() rpcclient.Client {
+	return n.client
 }
 
 // Cancel calls the underlying context's cancel function.
