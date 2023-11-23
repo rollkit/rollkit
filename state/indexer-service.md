@@ -6,7 +6,7 @@ The Indexer service indexes transactions and blocks using events emitted by the 
 
 ## Protocol/Component Description
 
-The Indexer service consists of three main components: an event bus, a transaction indexer and a block indexer.
+The Indexer service is started and stopped along with a Full Node. It consists of three main components: an event bus, a transaction indexer and a block indexer.
 
 ### Event Bus
 
