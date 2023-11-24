@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The `Data Availability Layer Client (DALC)` defines the interaction between the rollup and the Data Availability layer. It provides an interface for submitting and retrieving blocks, ensuring consistency and reliability in data storage and retrieval. By default a [celestia implementation] of the [DALC interface] is provided.
+The `Data Availability Layer Client (DALC)` defines the interaction between the rollup and the Data Availability layer. It provides an interface for submitting and retrieving blocks, ensuring consistency and reliability in data storage and retrieval. By default a [celestia implementation] of the [DALC Interface] is provided.
 
 ## Detailed Description
 
@@ -66,14 +66,16 @@ In case of an error, the request will be retried with an exponentially increasin
 
 ## Implementation
 
-See [data availability layer interface]
+See [data availability layer client interface]
 
 ## References
 
 [1] [DALC Interface][data availability layer client interface]
+
 [2] [Celestia Implementation][celestia implementation]
+
 [3] [Block Serialization] [block serialization]
 
-[data availability client interface]: https://github.com/rollkit/rollkit/blob/v0.11.4/proto/dalc/dalc.proto
+[data availability layer client interface]: https://github.com/rollkit/rollkit/blob/v0.11.4/proto/dalc/dalc.proto
 [celestia implementation]: https://github.com/rollkit/rollkit/tree/v0.11.4/da/celestia
 [block serialization]: https://github.com/rollkit/rollkit/tree/v0.11.4/types/serialization.go
