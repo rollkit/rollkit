@@ -120,11 +120,10 @@ func (sh *SignedHeader) ValidateBasic() error {
 	signature := sh.Commit.Signatures[0]
 	proposer := sh.Validators.GetProposer()
 	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
-	msg, err := sh.Header.MarshalBinary()
-	if err != nil {
-		return errors.New("signature verification failed, unable to marshal header")
-	}
-	if !pubKey.VerifySignature(msg, signature) {
+
+	vote := sh.Header.MakeCometBFTVote()
+
+	if !pubKey.VerifySignature(vote, signature) {
 		return ErrSignatureVerificationFailed
 	}
 
