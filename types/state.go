@@ -5,6 +5,7 @@ import (
 	"time"
 
 	// TODO(tzdybal): copy to local project?
+
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -40,12 +41,6 @@ type State struct {
 	// DAHeight identifies DA block containing the latest applied Rollkit block.
 	DAHeight uint64
 
-	// In the MVP implementation, there will be only one Validator
-	NextValidators              *types.ValidatorSet
-	Validators                  *types.ValidatorSet
-	LastValidators              *types.ValidatorSet
-	LastHeightValidatorsChanged uint64
-
 	// Consensus parameters used for validating blocks.
 	// Changes returned by EndBlock and updated after Commit.
 	ConsensusParams                  cmproto.ConsensusParams
@@ -65,17 +60,8 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		return State{}, fmt.Errorf("error in genesis doc: %w", err)
 	}
 
-	var validatorSet, nextValidatorSet *types.ValidatorSet
-	if genDoc.Validators == nil {
-		validatorSet = types.NewValidatorSet(nil)
-		nextValidatorSet = types.NewValidatorSet(nil)
-	} else {
-		validators := make([]*types.Validator, len(genDoc.Validators))
-		for i, val := range genDoc.Validators {
-			validators[i] = types.NewValidator(val.PubKey, val.Power)
-		}
-		validatorSet = types.NewValidatorSet(validators)
-		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
+	if len(genDoc.Validators) != 1 {
+		return State{}, fmt.Errorf("must have exactly 1 validator (the centralized sequencer)")
 	}
 
 	s := State{
@@ -88,11 +74,6 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
-
-		NextValidators:              nextValidatorSet,
-		Validators:                  validatorSet,
-		LastValidators:              types.NewValidatorSet(nil),
-		LastHeightValidatorsChanged: uint64(genDoc.InitialHeight),
 
 		ConsensusParams: cmproto.ConsensusParams{
 			Block: &cmproto.BlockParams{

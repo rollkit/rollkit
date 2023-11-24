@@ -39,15 +39,13 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			Height: 3,
 			Time:   4567,
 		},
-		LastHeaderHash:      h[0],
-		LastCommitHash:      h[1],
-		DataHash:            h[2],
-		ConsensusHash:       h[3],
-		AppHash:             h[4],
-		LastResultsHash:     h[5],
-		ProposerAddress:     []byte{4, 3, 2, 1},
-		AggregatorsHash:     h[6],
-		NextAggregatorsHash: h[7],
+		LastHeaderHash:  h[0],
+		LastCommitHash:  h[1],
+		DataHash:        h[2],
+		ConsensusHash:   h[3],
+		AppHash:         h[4],
+		LastResultsHash: h[5],
+		ProposerAddress: []byte{4, 3, 2, 1},
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
@@ -102,8 +100,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	valSet := GetRandomValidatorSet()
-
 	cases := []struct {
 		name  string
 		state State
@@ -111,9 +107,6 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			"with max bytes",
 			State{
-				LastValidators: valSet,
-				Validators:     valSet,
-				NextValidators: valSet,
 				ConsensusParams: cmproto.ConsensusParams{
 					Block: &cmproto.BlockParams{
 						MaxBytes: 123,
@@ -142,12 +135,8 @@ func TestStateRoundTrip(t *testing.T) {
 						Hash:  nil,
 					},
 				},
-				LastBlockTime:               time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
-				DAHeight:                    3344,
-				NextValidators:              valSet,
-				Validators:                  valSet,
-				LastValidators:              valSet,
-				LastHeightValidatorsChanged: 8272,
+				LastBlockTime: time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
+				DAHeight:      3344,
 				ConsensusParams: cmproto.ConsensusParams{
 					Block: &cmproto.BlockParams{
 						MaxBytes: 12345,

@@ -30,10 +30,16 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case
 		err     error                        // Expected error
 	}{
+		// 1. Test valid
+		// Verify valid adjacent headers
+		// Expect success
 		{
 			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
 			err:     nil,
 		},
+		// 2. Test invalid LastHeaderHash link
+		// break the LastHeaderHash link between the trusted and untrusted header
+		// Expect failure
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
@@ -44,6 +50,9 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrLastHeaderHashMismatch,
 			},
 		},
+		// 3. Test LastCommitHash link between trusted and untrusted header
+		// break the LastCommitHash link between the trusted and untrusted header
+		// Expect failure
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
@@ -54,6 +63,9 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrLastCommitHashMismatch,
 			},
 		},
+		// 3. Test non-adjacent
+		// increments the BaseHeader.Height so it's unexpected
+		// Expect failure
 		{
 			prepare: func() (*SignedHeader, bool) {
 				// Checks for non-adjacency
@@ -105,14 +117,6 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 		{
 			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
 			err:     nil,
-		},
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				untrusted.AggregatorsHash = header.Hash(GetRandomBytes(32))
-				return &untrusted, false
-			},
-			err: ErrAggregatorSetHashMismatch,
 		},
 		{
 			prepare: func() (*SignedHeader, bool) {

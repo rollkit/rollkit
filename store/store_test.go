@@ -121,8 +121,6 @@ func TestStoreLoad(t *testing.T) {
 func TestRestart(t *testing.T) {
 	t.Parallel()
 
-	validatorSet := types.GetRandomValidatorSet()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	kv, _ := NewDefaultInMemoryKVStore()
@@ -130,9 +128,6 @@ func TestRestart(t *testing.T) {
 	expectedHeight := uint64(10)
 	err := s1.UpdateState(types.State{
 		LastBlockHeight: expectedHeight,
-		NextValidators:  validatorSet,
-		Validators:      validatorSet,
-		LastValidators:  validatorSet,
 	})
 	assert.NoError(t, err)
 
@@ -179,7 +174,7 @@ func TestBlockResponses(t *testing.T) {
 	resp, err := s.GetBlockResponses(123)
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-  
+
 	resp, err = s.GetBlockResponses(1)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)

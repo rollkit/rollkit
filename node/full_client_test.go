@@ -17,8 +17,8 @@ import (
 	tconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/cometbft/cometbft/libs/bytes"
+	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -27,8 +27,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/rollkit/rollkit/config"
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -76,10 +74,22 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "newda"}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
+	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	node, err := newFullNode(
+		ctx,
+		config.NodeConfig{
+			DALayer: "newda",
+		},
+		key,
+		signingKey,
+		proxy.NewLocalClientCreator(app),
+		&cmtypes.GenesisDoc{
+			ChainID:    "test",
+			Validators: genesisValidators,
+		},
+		log.TestingLogger(),
+	)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
@@ -454,7 +464,7 @@ func TestTx(t *testing.T) {
 	mockApp := &mocks.Application{}
 	mockApp.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
@@ -690,188 +700,15 @@ func TestBlockchainInfo(t *testing.T) {
 	}
 }
 
-func createGenesisValidators(t *testing.T, numNodes int, appCreator func(t *testing.T, vKeyToRemove cmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application, wg *sync.WaitGroup) *FullClient {
-	t.Helper()
-	vKeys := make([]cmcrypto.PrivKey, numNodes)
-	apps := make([]*mocks.Application, numNodes)
-	nodes := make([]*FullNode, numNodes)
-
-	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		genesisValidators[i] = cmtypes.GenesisValidator{Address: vKeys[i].PubKey().Address(), PubKey: vKeys[i].PubKey(), Power: int64(i + 100), Name: fmt.Sprintf("gen #%d", i)}
-		apps[i] = appCreator(t, vKeys[0], wg)
-		wg.Add(1)
-	}
-
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, err := store.NewDefaultInMemoryKVStore()
-	require.Nil(t, err)
-	err = dalc.Init([8]byte{}, nil, ds, test.NewFileLogger(t))
-	require.Nil(t, err)
-	err = dalc.Start()
-	require.Nil(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, dalc.Stop())
-	})
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(func() { cancel() })
-	for i := 0; i < len(nodes); i++ {
-		nodeKey := &p2p.NodeKey{
-			PrivKey: vKeys[i],
-		}
-		signingKey, err := GetNodeKey(nodeKey)
-		require.NoError(t, err)
-		nodes[i], err = newFullNode(
-			ctx,
-			config.NodeConfig{
-				DALayer:    "newda",
-				Aggregator: true,
-				BlockManagerConfig: config.BlockManagerConfig{
-					BlockTime:   1 * time.Second,
-					DABlockTime: 100 * time.Millisecond,
-				},
-			},
-			signingKey,
-			signingKey,
-			proxy.NewLocalClientCreator(apps[i]),
-			&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
-			test.NewFileLogger(t),
-		)
-		require.NoError(t, err)
-		require.NotNil(t, nodes[i])
-
-		// use same, common DALC, so nodes can share data
-		nodes[i].dalc = dalc
-		nodes[i].blockManager.SetDALC(dalc)
-	}
-
-	rpc := NewFullClient(nodes[0])
-	require.NotNil(t, rpc)
-
-	for i := 0; i < len(nodes); i++ {
-		node := nodes[i]
-		err := nodes[i].Start()
-		require.NoError(t, err)
-
-		t.Cleanup(func() {
-			require.NoError(t, node.Stop())
-		})
-	}
-	return rpc
-}
-
-func checkValSet(t *testing.T, rpc *FullClient, h int64, expectedValCount int) {
-	vals, err := rpc.Validators(context.Background(), &h, nil, nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, vals)
-	assert.EqualValues(t, expectedValCount, vals.Total)
-	assert.Len(t, vals.Validators, expectedValCount)
-	assert.EqualValues(t, vals.BlockHeight, h)
-
-	commit, err := rpc.Commit(context.Background(), &h)
-	assert.NoError(t, err)
-	assert.NotNil(t, vals)
-
-	h1 := h + 1
-	vals, err = rpc.Validators(context.Background(), &h1, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, commit.NextValidatorsHash.Bytes(), cmtypes.NewValidatorSet(vals.Validators).Hash())
-}
-
-func checkValSetLatest(t *testing.T, rpc *FullClient, lastBlockHeight int64, expectedValCount int) {
-	vals, err := rpc.Validators(context.Background(), nil, nil, nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, vals)
-	assert.EqualValues(t, expectedValCount, vals.Total)
-	assert.Len(t, vals.Validators, expectedValCount)
-	assert.GreaterOrEqual(t, vals.BlockHeight, lastBlockHeight)
-}
-
-func createApp(t *testing.T, vKeyToRemove cmcrypto.PrivKey, wg *sync.WaitGroup) *mocks.Application {
-	app := &mocks.Application{}
-	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
-	app.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On(BeginBlock, mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On(Commit, mock.Anything).Return(abci.ResponseCommit{})
-
-	pbValKey, err := encoding.PubKeyToProto(vKeyToRemove.PubKey())
-	require.NoError(t, err)
-
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Times(2)
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 0}}}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{{PubKey: pbValKey, Power: 100}}}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Times(5)
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{}).Run(func(args mock.Arguments) {
-		wg.Done()
-	}).Once()
-	app.On(EndBlock, mock.Anything).Return(abci.ResponseEndBlock{})
-	return app
-}
-
-// Tests moving from two validators to one validator and then back to two validators
-func TestValidatorSetHandling(t *testing.T) {
-	var wg sync.WaitGroup
-
-	numNodes := 2
-	rpc := createGenesisValidators(t, numNodes, createApp, &wg)
-	t.Log("Finished creating validators, waiting on wg")
-	wg.Wait()
-
-	// test first blocks
-	for h := int64(1); h <= 3; h++ {
-		checkValSet(t, rpc, h, numNodes)
-	}
-
-	// 3rd EndBlock removes the first validator from the list
-	for h := int64(4); h <= 5; h++ {
-		checkValSet(t, rpc, h, numNodes-1)
-	}
-
-	// test next val set hash in block 4, 5
-
-	// 5th EndBlock adds validator back
-	for h := int64(6); h <= 9; h++ {
-		checkValSet(t, rpc, h, numNodes)
-	}
-
-	// check for "latest block"
-	checkValSetLatest(t, rpc, int64(9), numNodes)
-}
-
-// Tests moving from a centralized validator to empty validator set
-func TestValidatorSetHandlingBased(t *testing.T) {
-	var wg sync.WaitGroup
-	numNodes := 1
-	rpc := createGenesisValidators(t, numNodes, createApp, &wg)
-
-	wg.Wait()
-
-	time.Sleep(100 * time.Millisecond)
-
-	// test first blocks
-	for h := int64(1); h <= 3; h++ {
-		checkValSet(t, rpc, h, numNodes)
-	}
-
-	// 3rd EndBlock removes the first validator and makes the rollup based
-	for h := int64(4); h <= 9; h++ {
-		checkValSet(t, rpc, h, numNodes-1)
-	}
-
-	// check for "latest block"
-	checkValSetLatest(t, rpc, 9, numNodes-1)
-}
-
 func TestMempool2Nodes(t *testing.T) {
+	genesisValidators, signingKey1 := types.GetGenesisValidatorSetWithSigner()
+
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	app.On(CheckTx, abci.RequestCheckTx{Tx: []byte("bad")}).Return(abci.ResponseCheckTx{Code: 1})
 	app.On(CheckTx, abci.RequestCheckTx{Tx: []byte("good")}).Return(abci.ResponseCheckTx{Code: 0})
 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 
 	id1, err := peer.IDFromPrivateKey(key1)
@@ -891,10 +728,8 @@ func TestMempool2Nodes(t *testing.T) {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
-		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second,
-		},
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
+		BlockManagerConfig: getBMConfig(),
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(t, err)
 	require.NotNil(t, node1)
 
@@ -904,13 +739,13 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test"}, test.NewFileLogger(t))
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(t, err)
-	require.NotNil(t, node1)
+	require.NotNil(t, node2)
 
 	err = node1.Start()
 	require.NoError(t, err)
-	time.Sleep(1 * time.Second)
+	require.NoError(t, waitForFirstBlock(node1, Store))
 
 	defer func() {
 		require.NoError(t, node1.Stop())
@@ -920,8 +755,7 @@ func TestMempool2Nodes(t *testing.T) {
 	defer func() {
 		require.NoError(t, node2.Stop())
 	}()
-
-	time.Sleep(4 * time.Second)
+	require.NoError(waitForAtLeastNBlocks(node2, 1, Store))
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer timeoutCancel()
 
@@ -955,26 +789,8 @@ func TestStatus(t *testing.T) {
 	app := &mocks.Application{}
 	app.On(InitChain, mock.Anything).Return(abci.ResponseInitChain{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-
-	vKeys := make([]cmcrypto.PrivKey, 2)
-	validators := make([]*cmtypes.Validator, len(vKeys))
-	genesisValidators := make([]cmtypes.GenesisValidator, len(vKeys))
-	for i := 0; i < len(vKeys); i++ {
-		vKeys[i] = ed25519.GenPrivKey()
-		validators[i] = &cmtypes.Validator{
-			Address:          vKeys[i].PubKey().Address(),
-			PubKey:           vKeys[i].PubKey(),
-			VotingPower:      int64(i + 100),
-			ProposerPriority: int64(i),
-		}
-		genesisValidators[i] = cmtypes.GenesisValidator{
-			Address: vKeys[i].PubKey().Address(),
-			PubKey:  vKeys[i].PubKey(),
-			Power:   int64(i + 100),
-			Name:    "one",
-		}
-	}
+	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	pubKey := genesisValidators[0].PubKey
 
 	node, err := newFullNode(
 		context.Background(),
@@ -1000,23 +816,18 @@ func TestStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
-	validatorSet := cmtypes.NewValidatorSet(validators)
-	err = node.Store.SaveValidators(1, validatorSet)
-	require.NoError(t, err)
-	err = node.Store.SaveValidators(2, validatorSet)
-	require.NoError(t, err)
-	err = node.Store.UpdateState(types.State{LastValidators: validatorSet, NextValidators: validatorSet, Validators: validatorSet})
+	err = node.Store.UpdateState(types.State{})
 	assert.NoError(t, err)
 
 	rpc := NewFullClient(node)
 	assert.NotNil(t, rpc)
 
-	earliestBlock := getRandomBlockWithProposer(1, 1, validators[0].Address.Bytes())
+	earliestBlock := getRandomBlockWithProposer(1, 1, pubKey.Bytes())
 	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(uint64(earliestBlock.Height()))
 	require.NoError(t, err)
 
-	latestBlock := getRandomBlockWithProposer(2, 1, validators[1].Address.Bytes())
+	latestBlock := getRandomBlockWithProposer(2, 1, pubKey.Bytes())
 	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(uint64(latestBlock.Height()))
 	require.NoError(t, err)
@@ -1033,9 +844,11 @@ func TestStatus(t *testing.T) {
 	assert.Equal(t, int64(1), resp.SyncInfo.EarliestBlockHeight)
 	assert.Equal(t, int64(2), resp.SyncInfo.LatestBlockHeight)
 
-	assert.Equal(t, validators[1].Address, resp.ValidatorInfo.Address)
-	assert.Equal(t, validators[1].PubKey, resp.ValidatorInfo.PubKey)
-	assert.Equal(t, validators[1].VotingPower, resp.ValidatorInfo.VotingPower)
+	// Changed the RPC method to get this from the genesis.
+	assert.Equal(t, genesisValidators[0].Address, resp.ValidatorInfo.Address)
+	assert.Equal(t, genesisValidators[0].PubKey, resp.ValidatorInfo.PubKey)
+	// hardcode to 1, shouldn't matter because it's a centralized sequencer
+	assert.Equal(t, int64(1), resp.ValidatorInfo.VotingPower)
 
 	// specific validation
 	assert.Equal(t, tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
@@ -1086,7 +899,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On(DeliverTx, mock.Anything).Return(abci.ResponseDeliverTx{})
 	mockApp.On(CheckTx, mock.Anything).Return(abci.ResponseCheckTx{})
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner()
+	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
