@@ -2,48 +2,57 @@
 
 ## Abstract
 
-The `Data Availability` package is a component responsible for submitting and retrieving data from the DA layer. The [Data Availability Interface][data availability interface] describes the methods required to implement a DA layer. By default a [celestia implementation] of the DA interface is provided, but support can be added to any layer.
+The `Data Availability Layer Client (DALC)` defines the interaction between the rollup and the Data Availability layer. It provides an interface for submitting and retrieving blocks, ensuring consistency and reliability in data storage and retrieval. By default a [celestia implementation] of the [DALC interface] is provided.
 
 ## Detailed Description
 
-`pkg da` defines the generic DA interface.
+The DALC interface is defined as:
 
-The interface definition is as follows:
-
-```go
-// DA defines very generic interface for interaction with Data Availability layers.
-type DA interface {
-	// Get returns Blob for each given ID, or an error.
-	//
-	// Error should be returned if ID is not formatted properly, there is no Blob for given ID or any other client-level
-	// error occurred (dropped connection, timeout, etc).
-	Get(ids []ID) ([]Blob, error)
-
-	// GetIDs returns IDs of all Blobs located in DA at given height.
-	GetIDs(height uint64) ([]ID, error)
-
-	// Commit creates a Commitment for each given Blob.
-	Commit(blobs []Blob) ([]Commitment, error)
-
-	// Submit submits the Blobs to Data Availability layer.
-	//
-	// This method is synchronous. Upon successful submission to Data Availability layer, it returns ID identifying blob
-	// in DA and Proof of inclusion.
-	Submit(blobs []Blob) ([]ID, []Proof, error)
-
-	// Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the Blobs.
-	Validate(ids []ID, proofs []Proof) ([]bool, error)
+```protobuf
+service DALCService {
+	rpc SubmitBlocks(SubmitBlocksRequest) returns (SubmitBlocksResponse) {}
+	rpc RetrieveBlocks(RetrieveBlocksRequest) returns (RetrieveBlocksResponse) {}
 }
 ```
+
+The `SubmitBlocks` method submits rollup blocks to the Data Availability layer. The response is defined as:
+
+```protobuf
+message DAResponse {
+	StatusCode code = 1;
+	string message = 2;
+	uint64 da_height = 3 [(gogoproto.customname) = "DAHeight"];
+}
+```
+
+Where `StatusCode` is defined as:
+
+```protobuf
+enum StatusCode {
+	STATUS_CODE_UNSPECIFIED = 0;
+	STATUS_CODE_SUCCESS = 1;
+	STATUS_CODE_TIMEOUT = 2;
+	STATUS_CODE_ERROR   = 3;
+}
+```
+
+`DAResponse` `code` contains the status code:
+
+    * `STATUS_CODE_SUCCESS` defines a successful submission.
+    * `STATUS_CODE_SUCCESS` defines a successful submission.
+    * `STATUS_CODE_SUCCESS` defines a successful submission.
+
+`DAResponse` `message` field may contain any additional data layer information for e.g. block hash in case of success or a detailed error message in case of failure.
+
+`DAResponse` height field contains the block height of inclusion of the Data Availability layer transaction.
+
 ## Message Structure/Communication Format
 
-The package provides protobuf definitions for the message formats used to transport the messages across the grpc client and server.
+The gRPC service uses protobufs for communication between the rollup and the Data Availability layer.
 
-`service DAService` defines the grpc service which provides a grpc service that implements the above DA interface.
+Rollup blocks are serialised into binary as protobufs as per the encoding/decoding scheme defined in [block serialization].
 
 ## Assumptions and Considerations
-
-Upon successful submission to the Data Availability layer, it returns an ID identifying the blob in the DA and a proof of inclusion.
 
 When trying to submit a block to the Celestia, the following failure cases are possible:
 
@@ -53,16 +62,18 @@ When trying to submit a block to the Celestia, the following failure cases are p
 * we call submit but get no response (node crashed for example)
 * we submit a tx but it is impossible to fit as it is too big (too many bytes) so it fails
 
-In case of a failure, the request will be retried with an exponentially increasing back-off starting with 100ms and capped at the DA block time, until the request is successful.
+In case of an error, the request will be retried with an exponentially increasing back-off starting with 100ms and capped at the DA block time, until the request is successful.
 
 ## Implementation
 
-See [data availability interface]
+See [data availability layer interface]
 
 ## References
 
-[1] [Data Availability Interface][data availability interface]
+[1] [DALC Interface][data availability layer client interface]
 [2] [Celestia Implementation][celestia implementation]
+[3] [Block Serialization] [block serialization]
 
-[data availability interface]: https://github.com/rollkit/go-da
-[celestia implementation]: https://github.com/rollkit/celestia-da
+[data availability client interface]: https://github.com/rollkit/rollkit/blob/v0.11.4/proto/dalc/dalc.proto
+[celestia implementation]: https://github.com/rollkit/rollkit/tree/v0.11.4/da/celestia
+[block serialization]: https://github.com/rollkit/rollkit/tree/v0.11.4/types/serialization.go
