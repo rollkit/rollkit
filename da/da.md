@@ -54,11 +54,11 @@ Rollup blocks are serialised into binary as protobufs as per the encoding/decodi
 
 ## Assumptions and Considerations
 
-When trying to submit a block to the Celestia, the following failure cases are possible:
+When trying to submit a block to the Data Availability layer, the following failure cases are possible:
 
-* submitting the Celestia transaction (rollup Block) into the mempool, but is not accepted for some reason e.g. mempool is full
-* submitting the Celestia transaction (rollup Block) into the mempool, but there is a nonce clash with a different transaction but the same nonce but different transaction. Example PFB submission plus TIA transfer using the same nonce. The one from rollkit will fail and never be included
-* submitting the Celestia transaction (rollup Block) but the gas was misconfigured too low so it will be stuck in the mempool
+* submitting the Data Availability layer transaction (rollup Block) into the mempool, but is not accepted for some reason e.g. mempool is full
+* submitting the Data Availability layer transaction (rollup Block) into the mempool, but there is a nonce clash with a different transaction but the same nonce but different transaction. Example PFB submission plus TIA transfer using the same nonce. The one from rollkit will fail and never be included
+* submitting the Data Availability layer transaction (rollup Block) but the gas was misconfigured too low so it will be stuck in the mempool
 * we call submit but get no response (node crashed for example)
 * we submit a tx but it is impossible to fit as it is too big (too many bytes) so it fails
 
