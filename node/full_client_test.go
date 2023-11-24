@@ -755,7 +755,7 @@ func TestMempool2Nodes(t *testing.T) {
 	defer func() {
 		require.NoError(t, node2.Stop())
 	}()
-	require.NoError(waitForAtLeastNBlocks(node2, 1, Store))
+	require.NoError(t, waitForAtLeastNBlocks(node2, 1, Store))
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer timeoutCancel()
 
@@ -852,7 +852,7 @@ func TestStatus(t *testing.T) {
 
 	// specific validation
 	assert.Equal(t, tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
-	state, err := rpc.node.Store.LoadState()
+	state, err := rpc.node.Store.GetState()
 	assert.NoError(t, err)
 	defaultProtocolVersion := p2p.NewProtocolVersion(
 		version.P2PProtocol,
