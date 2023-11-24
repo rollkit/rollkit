@@ -543,11 +543,10 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 }
 
 func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := m.proposerKey.Sign(headerBytes)
+	// note: for compatibility with tendermint light client
+	consensusVote := header.MakeCometBFTVote()
+
+	sign, err := m.proposerKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
