@@ -38,9 +38,9 @@ enum StatusCode {
 
 `DAResponse` `code` contains the status code:
 
-    * `STATUS_CODE_SUCCESS` is returned in case of a successful submission.
-    * `STATUS_CODE_TIMEOUT` is returned in case of a submission timeout.
-    * `STATUS_CODE_ERROR` is returned in case of a submission failure.
+* `STATUS_CODE_SUCCESS` is returned in case of a successful submission.
+* `STATUS_CODE_TIMEOUT` is returned in case of a submission timeout.
+* `STATUS_CODE_ERROR` is returned in case of a submission failure.
 
 `DAResponse` `message` field may contain any additional data layer information for e.g. block hash in case of success or a detailed error message in case of failure.
 
