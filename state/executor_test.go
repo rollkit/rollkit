@@ -61,7 +61,7 @@ func doTestCreateBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxGas = 100000
 
 	// empty block
-	block, err := executor.CreateBlock(context.Background(), 1, &types.Commit{}, []byte{}, state)
+	block, err := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
@@ -70,7 +70,7 @@ func doTestCreateBlock(t *testing.T) {
 	// one small Tx
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(context.Background(), 2, &types.Commit{}, []byte{}, state)
+	block, err = executor.CreateBlock(2, &types.Commit{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Height())
@@ -81,7 +81,7 @@ func doTestCreateBlock(t *testing.T) {
 	require.NoError(err)
 	err = mpool.CheckTx(make([]byte, 100), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(context.Background(), 3, &types.Commit{}, []byte{}, state)
+	block, err = executor.CreateBlock(3, &types.Commit{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Len(block.Data.Txs, 2)
@@ -164,7 +164,7 @@ func doTestApplyBlock(t *testing.T) {
 
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err := executor.CreateBlock(context.Background(), 1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
+	block, err := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(1), block.Height())
@@ -194,7 +194,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
-	block, err = executor.CreateBlock(context.Background(), 2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
+	block, err = executor.CreateBlock(2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, []byte{}, newState)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Height())

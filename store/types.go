@@ -26,7 +26,7 @@ type Store interface {
 	// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
 	SaveBlockResponses(height uint64, responses *abci.ResponseFinalizeBlock) error
 
-	// LoadBlockResponses returns block results at given height, or error if it's not found in Store.
+	// GetBlockResponses returns block results at given height, or error if it's not found in Store.
 	GetBlockResponses(height uint64) (*abci.ResponseFinalizeBlock, error)
 
 	// GetCommit returns commit for a block at given height, or error if it's not found in Store.

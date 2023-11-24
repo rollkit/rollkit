@@ -829,6 +829,8 @@ func TestStatus(t *testing.T) {
 
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
 	pubKey := genesisValidators[0].PubKey
@@ -1000,10 +1002,9 @@ func TestNetInfo(t *testing.T) {
 	require := require.New(t)
 
 	mockApp, rpc := getRPC(t)
-	mockApp.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	mockApp.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	mockApp.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	err := rpc.node.Start()
 	require.NoError(err)

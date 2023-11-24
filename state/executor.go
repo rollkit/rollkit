@@ -89,7 +89,7 @@ func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(ctx context.Context, height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) (*types.Block, error) {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) (*types.Block, error) {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	emptyMaxBytes := maxBytes == -1
 	if emptyMaxBytes {
@@ -131,7 +131,7 @@ func (e *BlockExecutor) CreateBlock(ctx context.Context, height uint64, lastComm
 	}
 
 	rpp, err := e.proxyApp.PrepareProposal(
-		ctx,
+		context.TODO(),
 		&abci.RequestPrepareProposal{
 			MaxTxBytes: maxBytes,
 			Txs:        mempoolTxs.ToSliceOfBytes(),

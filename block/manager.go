@@ -606,7 +606,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block, err = m.createBlock(ctx, newHeight, lastCommit, lastHeaderHash)
+		block, err = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		if err != nil {
 			return nil
 		}
@@ -759,10 +759,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) (*types.Block, error) {
+func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) (*types.Block, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(ctx, height, lastCommit, lastHeaderHash, m.lastState)
+	return m.executor.CreateBlock(height, lastCommit, lastHeaderHash, m.lastState)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {
