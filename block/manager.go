@@ -387,10 +387,12 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b, responses)
+
+		appHash, _, err := m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
+		newState.AppHash = appHash
 
 		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
 		if err != nil {
@@ -634,17 +636,22 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
 	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
 	if err != nil {
 		return err
 	}
 
+	// also need the block hash in signed header for light client compatibility
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
 		return err
 	}
+
+	// need to set validators into signed header for light client compatibility
+	// because valset isn't change so always set the valset is the same with valset in genesis.
+	block.SignedHeader.Validators = m.getValidatorSet(ctx)
+	block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
 
 	// set the commit to current block's signed header
 	block.SignedHeader.Commit = *commit
@@ -711,6 +718,20 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
+func (m *Manager) getValidatorSet(ctx context.Context) *cmtypes.ValidatorSet {
+	genesisValset := m.genesis.Validators
+	var validatorSet *cmtypes.ValidatorSet
+	validators := make([]*cmtypes.Validator, len(genesisValset))
+
+	// nits
+	for i, val := range genesisValset {
+		validators[i] = cmtypes.NewValidator(val.PubKey, val.Power)
+	}
+
+	validatorSet = cmtypes.NewValidatorSet(validators)
+
+	return validatorSet
+}
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submitted := false
 	backoff := initialBackoff

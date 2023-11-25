@@ -321,7 +321,6 @@ func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.
 	if e.eventBus == nil {
 		return nil
 	}
-
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	if err != nil {
 		return err
