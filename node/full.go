@@ -341,12 +341,11 @@ func (n *FullNode) OnStart() error {
 		go n.blockManager.BlockSubmissionLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 		go n.blockPublishLoop(n.ctx)
-	} else {
-		go n.blockManager.RetrieveLoop(n.ctx)
-		go n.blockManager.BlockStoreRetrieveLoop(n.ctx)
-		go n.blockManager.SyncLoop(n.ctx, n.cancel)
+		return nil
 	}
-
+	go n.blockManager.RetrieveLoop(n.ctx)
+	go n.blockManager.BlockStoreRetrieveLoop(n.ctx)
+	go n.blockManager.SyncLoop(n.ctx, n.cancel)
 	return nil
 }
 
