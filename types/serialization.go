@@ -149,6 +149,7 @@ func (h *Header) ToProto() *pb.Header {
 		LastResultsHash: h.LastResultsHash[:],
 		ProposerAddress: h.ProposerAddress[:],
 		ChainId:         h.BaseHeader.ChainID,
+		ValidatorHash:   h.ValidatorHash,
 	}
 }
 
@@ -169,7 +170,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
 		copy(h.ProposerAddress, other.ProposerAddress)
 	}
-
+	h.ValidatorHash = other.ValidatorHash
 	return nil
 }
 

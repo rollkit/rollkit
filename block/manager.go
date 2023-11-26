@@ -371,6 +371,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	if signedHeader != nil {
 		commit = &b.SignedHeader.Commit
 	}
+	valset := m.getValidatorSet(ctx)
 
 	if b != nil && commit != nil {
 		bHeight := uint64(b.Height())
@@ -379,6 +380,13 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err := m.executor.Validate(m.lastState, b); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
+
+		// need to set validators into  header for light client compatibility
+		// because valset isn't change so always set the valset is the same with valset in genesis.
+		// TODO: set it once when create block manager instead of set per block
+		b.SignedHeader.Validators = valset
+		b.SignedHeader.ValidatorHash = b.SignedHeader.Validators.Hash()
+
 		newState, responses, err := m.executor.ApplyBlock(ctx, m.lastState, b)
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
@@ -621,7 +629,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// need to set validators into  header for light client compatibility
 		// because valset isn't change so always set the valset is the same with valset in genesis.
 		// TODO: set it once when create block manager instead of set per block
-		block.SignedHeader.Header.ValidatorHash = valset.Hash()
 		block.SignedHeader.Validators = valset
 		block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
 

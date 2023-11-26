@@ -49,8 +49,11 @@ message Header {
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	bytes proposer_address = 10;
 
+	// validatorhash for compatibility with light client. It needed for IBC rollkit
+	bytes validator_hash = 11;
+
 	// Chain ID the block belongs to
-	string chain_id = 11;
+	string chain_id = 12;
 }
 
 message Commit {

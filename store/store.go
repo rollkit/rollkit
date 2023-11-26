@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -242,7 +241,7 @@ func (s *DefaultStore) loadHashFromIndex(height uint64) (header.Hash, error) {
 		return nil, fmt.Errorf("failed to load block hash for height %v: %w", height, err)
 	}
 	if len(blob) != 32 {
-		return nil, errors.New("invalid hash length")
+		return nil, fmt.Errorf("invalid hash len %d", len(blob))
 	}
 	return blob, nil
 }

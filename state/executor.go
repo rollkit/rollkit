@@ -326,6 +326,7 @@ func (e *BlockExecutor) publishEvents(resp *cmstate.ABCIResponses, block *types.
 	if err != nil {
 		return err
 	}
+	abciBlock.Header.ValidatorsHash = block.SignedHeader.Validators.Hash()
 
 	err = multierr.Append(err, e.eventBus.PublishEventNewBlock(cmtypes.EventDataNewBlock{
 		Block:            abciBlock,
