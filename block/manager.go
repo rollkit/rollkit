@@ -568,6 +568,7 @@ func (m *Manager) IsProposer() (bool, error) {
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
+
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
 	var err error
@@ -599,6 +600,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	var block *types.Block
 	var commit *types.Commit
+	valset := m.getValidatorSet(ctx)
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
@@ -615,6 +617,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return nil
 		}
+
+		// need to set validators into  header for light client compatibility
+		// because valset isn't change so always set the valset is the same with valset in genesis.
+		// TODO: set it once when create block manager instead of set per block
+		block.SignedHeader.Header.ValidatorHash = valset.Hash()
+		block.SignedHeader.Validators = valset
+		block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
+
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
@@ -635,28 +645,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
 	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
 	if err != nil {
 		return err
 	}
 
-	valset := m.getValidatorSet(ctx)
-	// need to set validators into  header for light client compatibility
-	// because valset isn't change so always set the valset is the same with valset in genesis.
-	// TODO: set it once when create block manager instead of set per block
-	block.SignedHeader.Header.ValidatorHash = valset.Hash()
-
 	// also need the block hash in signed header for light client compatibility
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
 		return err
 	}
-
-	// need to set validators into signed header for light client compatibility
-	// because valset isn't change so always set the valset is the same with valset in genesis.
-	block.SignedHeader.Validators = valset
-	block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
 
 	// set the commit to current block's signed header
 	block.SignedHeader.Commit = *commit

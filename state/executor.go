@@ -282,6 +282,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	})
 
 	hash := block.Hash()
+
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
