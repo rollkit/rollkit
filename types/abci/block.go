@@ -1,8 +1,6 @@
 package abci
 
 import (
-	"fmt"
-
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -80,10 +78,6 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	valsAddr := block.SignedHeader.Validators
 	// we only have one centralize sequencer = 1 validators
 	val := valsAddr.Validators[0].Address
-
-	fmt.Println("========block hash===============")
-	fmt.Println(block.Hash())
-	fmt.Println("==========block hash=============")
 
 	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash(), val, block.Time())
 	// This assumes that we have only one signature

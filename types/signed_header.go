@@ -102,6 +102,10 @@ func (sh *SignedHeader) ValidateBasic() error {
 	if err := sh.Commit.ValidateBasic(); err != nil {
 		return err
 	}
+	// fmt.Println("=======SignedHeader) ValidateBasic===============")
+	// res, _ := json.Marshal(sh)
+	// fmt.Println(string(res))
+	// fmt.Println("=========SignedHeader) ValidateBasic=============")
 
 	// Handle Based Rollup case
 	if sh.Validators == nil || len(sh.Validators.Validators) == 0 {

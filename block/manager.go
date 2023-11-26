@@ -615,7 +615,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return nil
 		}
-
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
@@ -642,6 +641,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	valset := m.getValidatorSet(ctx)
+	// need to set validators into  header for light client compatibility
+	// because valset isn't change so always set the valset is the same with valset in genesis.
+	// TODO: set it once when create block manager instead of set per block
+	block.SignedHeader.Header.ValidatorHash = valset.Hash()
+
 	// also need the block hash in signed header for light client compatibility
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
@@ -650,7 +655,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// need to set validators into signed header for light client compatibility
 	// because valset isn't change so always set the valset is the same with valset in genesis.
-	block.SignedHeader.Validators = m.getValidatorSet(ctx)
+	block.SignedHeader.Validators = valset
 	block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
 
 	// set the commit to current block's signed header
