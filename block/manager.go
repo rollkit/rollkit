@@ -431,12 +431,19 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			}
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
-				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
+				// Check for shut down event prior to logging
+				// and sending block to blockInCh. The reason
+				// for checking for the shutdown event
+				// separately is due to the inconsistent nature
+				// of the select statement when multiple cases
+				// are satisfied.
 				select {
 				case <-ctx.Done():
 					return
-				case m.blockInCh <- newBlockEvent{block, daHeight}:
+				default:
 				}
+				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
+				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
 		}
 		lastBlockStoreHeight = blockStoreHeight
@@ -510,11 +517,18 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				m.blockCache.setDAIncluded(blockHash)
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
 				if !m.blockCache.isSeen(blockHash) {
+					// Check for shut down event prior to logging
+					// and sending block to blockInCh. The reason
+					// for checking for the shutdown event
+					// separately is due to the inconsistent nature
+					// of the select statement when multiple cases
+					// are satisfied.
 					select {
 					case <-ctx.Done():
 						return errors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
-					case m.blockInCh <- newBlockEvent{block, daHeight}:
+					default:
 					}
+					m.blockInCh <- newBlockEvent{block, daHeight}
 				}
 			}
 			return nil
@@ -699,20 +713,21 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Check for shut down event prior to sending the header and block to
+	// their respective channels. The reason for checking for the shutdown
+	// event separately is due to the inconsistent nature of the select
+	// statement when multiple cases are satisfied.
+	select {
+	case <-ctx.Done():
+		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
+	default:
+	}
 
 	// Publish header to channel so that header exchange service can broadcast
-	select {
-	case <-ctx.Done():
-		return errors.WithMessage(ctx.Err(), "unable to send header to HeaderCh, context done")
-	case m.HeaderCh <- &block.SignedHeader:
-	}
+	m.HeaderCh <- &block.SignedHeader
 
 	// Publish block to channel so that block exchange service can broadcast
-	select {
-	case <-ctx.Done():
-		return errors.WithMessage(ctx.Err(), "unable to send block to BlockCh, context done")
-	case m.BlockCh <- block:
-	}
+	m.BlockCh <- block
 
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
