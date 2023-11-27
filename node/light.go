@@ -21,6 +21,7 @@ import (
 
 var _ Node = &LightNode{}
 
+// LightNode is a rollup node that only needs the header service
 type LightNode struct {
 	service.BaseService
 
@@ -28,14 +29,17 @@ type LightNode struct {
 
 	proxyApp proxy.AppConns
 
-	hSyncService *block.HeaderSynceService
+	hSyncService *block.HeaderSyncService
+
+	client rpcclient.Client
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
+// GetClient returns a new rpcclient for the light node
 func (ln *LightNode) GetClient() rpcclient.Client {
-	return NewLightClient(ln)
+	return ln.client
 }
 
 func newLightNode(
@@ -62,7 +66,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSynceService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -81,6 +85,8 @@ func newLightNode(
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
 
+	node.client = NewLightClient(node)
+
 	return node, nil
 }
 
@@ -97,6 +103,7 @@ func (n *LightNode) Cancel() {
 	n.cancel()
 }
 
+// OnStart starts the P2P and HeaderSync services
 func (ln *LightNode) OnStart() error {
 	if err := ln.P2P.Start(ln.ctx); err != nil {
 		return err
@@ -109,6 +116,7 @@ func (ln *LightNode) OnStart() error {
 	return nil
 }
 
+// OnStop stops the light node
 func (ln *LightNode) OnStop() {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()

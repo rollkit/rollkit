@@ -30,16 +30,16 @@ sequenceDiagram
     Sequencer->>Full Node 2: Gossip Block
     Full Node 1->>Full Node 1: Verify Block
     Full Node 1->>Full Node 2: Gossip Block
-    Full Node 1->>Full Node 1: Mark Block Soft-Confirmed
+    Full Node 1->>Full Node 1: Mark Block Soft Confirmed
 
     Full Node 2->>Full Node 2: Verify Block
-    Full Node 2->>Full Node 2: Mark Block Soft-Confirmed
+    Full Node 2->>Full Node 2: Mark Block Soft Confirmed
 
     DA Layer->>Full Node 1: Retrieve Block
-    Full Node 1->>Full Node 1: Mark Block Hard-Confirmed
+    Full Node 1->>Full Node 1: Mark Block DA Included
 
     DA Layer->>Full Node 2: Retrieve Block
-    Full Node 2->>Full Node 2: Mark Block Hard-Confirmed
+    Full Node 2->>Full Node 2: Mark Block DA Included
 ```
 
 ## Protocol/Component Description
@@ -90,7 +90,17 @@ The block manager of the sequencer full nodes regularly publishes the produced b
 
 ### Block Retrieval from DA Network
 
-The block manager of the full nodes regularly pulls blocks from the DA network at `DABlockTime` intervals and starts off with a DA height read from the last state stored in the local store or `DAStartHeight` configuration parameter, whichever is the latest. The block manager also actively maintains and increments the `daHeight` counter after every DA pull. The pull happens by making the `RetrieveBlocks(daHeight)` request using the Data Availability Light Client (DALC) retriever, which can return either `Success`, `NotFound`, or `Error`. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the `daHeight` counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block `NotFound` scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the `daHeight` counter in this case. Finally, for the `Success` scenario, first, blocks that are successfully retrieved are marked as hard confirmed and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the `DABlockTime` and `BlockTime` intervals.
+The block manager of the full nodes regularly pulls blocks from the DA network at `DABlockTime` intervals and starts off with a DA height read from the last state stored in the local store or `DAStartHeight` configuration parameter, whichever is the latest. The block manager also actively maintains and increments the `daHeight` counter after every DA pull. The pull happens by making the `RetrieveBlocks(daHeight)` request using the Data Availability Light Client (DALC) retriever, which can return either `Success`, `NotFound`, or `Error`. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the `daHeight` counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block `NotFound` scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the `daHeight` counter in this case. Finally, for the `Success` scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the `DABlockTime` and `BlockTime` intervals.
+
+#### Out-of-Order Rollup Blocks on DA
+
+Rollkit should support blocks arriving out-of-order on DA, like so:
+![out-of-order blocks](https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/out-of-order-blocks.png?raw=true)
+
+#### Termination Condition
+
+If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
+![termination conidition](https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/termination.png?raw=true)
 
 ### Block Sync Service
 
@@ -109,13 +119,13 @@ For non-sequencer full nodes, Blocks gossiped through the P2P network are retrie
 Starting off with a block store height of zero, for every `blockTime` unit of time, a signal is sent to the `blockStoreCh` channel in the block manager and when this signal is received, the `BlockStoreRetrieveLoop` retrieves blocks from the block store.
 It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
 For each retrieved block, it sends a new block event to the `blockInCh` channel which is the same channel in which blocks retrieved from the DA layer are sent.
-This block is marked as soft-confirmed by the validating full node until the same block is seen on the DA layer and then marked hard-confirmed.
+This block is marked as soft confirmed by the validating full node until the same block is seen on the DA layer and then marked DA-included.
 
 Although a sequencer does not need to retrieve blocks from the P2P network, it still runs the `BlockStoreRetrieveLoop`.
 
-#### About Soft/Hard Confirmations
+#### About Soft Confirmations and DA Inclusions
 
-The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked hard confirmed. The hard confirmations can be considered to have a higher level of finality.
+The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA included. DA included blocks can be considered to have a higher level of finality.
 
 ### State Update after Block Retrieval
 
@@ -145,7 +155,7 @@ The communication between the full node and block manager:
 * The default mode for sequencer nodes is normal (not lazy).
 * The sequencer can produce empty blocks.
 * The block manager uses persistent storage (disk) when the `root_dir` and `db_path` configuration parameters are specified in `config.toml` file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.
-* The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was hard confirmed by DA retrieval. The block is only set hard confirmed in this case.
+* The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.
 * The block sync store is created by prefixing `blockSync` on the main data store.
 * The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.
 * Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.

@@ -45,7 +45,7 @@ func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) 
 }
 
 func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, error) {
-	config := config.NodeConfig{DALayer: "mock"}
+	config := config.NodeConfig{DALayer: "newda"}
 	switch nodeType {
 	case "light":
 		config.Light = true
@@ -55,9 +55,10 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, erro
 		panic(fmt.Sprint("invalid node type", nodeType))
 	}
 	app := setupMockApplication()
-	key, signingKey := generateSingleKey(), generateSingleKey()
+	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	key := generateSingleKey()
 	logger := test.NewFileLogger(t)
-	return NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID}, logger)
+	return NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID, Validators: genesisValidators}, logger)
 }
 
 // setupTestNode sets up a test node

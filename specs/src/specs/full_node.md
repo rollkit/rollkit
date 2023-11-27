@@ -1,0 +1,1 @@
+../../../node/full_node.md

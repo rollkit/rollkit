@@ -18,6 +18,7 @@ import (
 	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
 	proxy "github.com/cometbft/cometbft/proxy"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/block"
@@ -64,13 +65,14 @@ type FullNode struct {
 	eventBus     *cmtypes.EventBus
 	dalc         da.DataAvailabilityLayerClient
 	p2pClient    *p2p.Client
-	hSyncService *block.HeaderSynceService
+	hSyncService *block.HeaderSyncService
 	bSyncService *block.BlockSyncService
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
 	Store        store.Store
 	blockManager *block.Manager
+	client       rpcclient.Client
 
 	// Preserves cometBFT compatibility
 	TxIndexer      txindex.TxIndexer
@@ -168,6 +170,7 @@ func newFullNode(
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 	node.p2pClient.SetTxValidator(node.newTxValidator())
+	node.client = NewFullClient(node)
 
 	return node, nil
 }
@@ -217,8 +220,8 @@ func initMempool(logger log.Logger, proxyApp proxy.AppConns) *mempoolv1.TxMempoo
 	return mempool
 }
 
-func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSynceService, error) {
-	headerSyncService, err := block.NewHeaderSynceService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
+	headerSyncService, err := block.NewHeaderSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -302,6 +305,11 @@ func (n *FullNode) blockPublishLoop(ctx context.Context) {
 	}
 }
 
+// GetClient returns the RPC client for the full node.
+func (n *FullNode) GetClient() rpcclient.Client {
+	return n.client
+}
+
 // Cancel calls the underlying context's cancel function.
 func (n *FullNode) Cancel() {
 	n.cancel()
@@ -362,6 +370,7 @@ func (n *FullNode) OnStop() {
 	err = multierr.Append(err, n.p2pClient.Close())
 	err = multierr.Append(err, n.hSyncService.Stop())
 	err = multierr.Append(err, n.bSyncService.Stop())
+	err = multierr.Append(err, n.IndexerService.Stop())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
 	"github.com/rollkit/rollkit/test/mocks"
+	"github.com/rollkit/rollkit/types"
 )
 
 const (
@@ -56,13 +57,13 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: validatorKey,
 	}
-	signingKey, _ := node.GetNodeKey(nodeKey)
+	signingKey, _ := types.GetNodeKey(nodeKey)
 	pubKey := validatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
-	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "mock", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	n, err := node.NewNode(context.Background(), config.NodeConfig{Aggregator: true, DALayer: "newda", BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 
