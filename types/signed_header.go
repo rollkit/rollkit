@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtypes "github.com/cometbft/cometbft/types"
 )
 
 // SignedHeader combines Header and its Commit.
@@ -15,8 +14,7 @@ import (
 // Used mostly for gossiping.
 type SignedHeader struct {
 	Header
-	Commit     Commit
-	Validators *cmtypes.ValidatorSet
+	Commit Commit
 }
 
 // New creates a new SignedHeader.
@@ -103,22 +101,13 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	// Handle Based Rollup case
-	if sh.Validators == nil || len(sh.Validators.Validators) == 0 {
-		return nil
-	}
-
-	if err := sh.Validators.ValidateBasic(); err != nil {
-		return err
-	}
-
 	// Make sure there is exactly one signature
 	if len(sh.Commit.Signatures) != 1 {
 		return errors.New("expected exactly one signature")
 	}
 
 	signature := sh.Commit.Signatures[0]
-	proposer := sh.Validators.GetProposer()
+	proposer := sh.Header.ProposerAddress
 	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
 	msg, err := sh.Header.MarshalBinary()
 	if err != nil {
