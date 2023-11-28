@@ -53,7 +53,8 @@ func doTestCreateBlock(t *testing.T) {
 	fmt.Println("Made NID")
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
-	executor := NewBlockExecutor([]byte("test address"), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger)
+	proposerKey := ed25519.GenPrivKey().PubKey()
+	executor := NewBlockExecutor(proposerKey.Bytes(), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger)
 	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
