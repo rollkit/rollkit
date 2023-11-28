@@ -243,7 +243,7 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 // updateConsensusParams updates the consensus parameters based on the provided updates.
 func (e *BlockExecutor) updateConsensusParams(height uint64, params cmtypes.ConsensusParams, consensusParamUpdates *cmproto.ConsensusParams) (cmproto.ConsensusParams, uint64, error) {
 	nextParams := params.Update(consensusParamUpdates)
-	if err := nextParams.ValidateBasic(); err != nil {
+	if err := types.ConsensusParamsValidateBasic(nextParams); err != nil {
 		return cmproto.ConsensusParams{}, 0, fmt.Errorf("validating new consensus params: %w", err)
 	}
 	if err := nextParams.ValidateUpdate(consensusParamUpdates, int64(height)); err != nil {
@@ -255,7 +255,7 @@ func (e *BlockExecutor) updateConsensusParams(height uint64, params cmtypes.Cons
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, finalizeBlockResponse *abci.ResponseFinalizeBlock) (types.State, error) {
 	height := block.Height()
 	if finalizeBlockResponse.ConsensusParamUpdates != nil {
-		nextParamsProto, appVersion, err := e.updateConsensusParams(height, cmtypes.ConsensusParamsFromProto(state.ConsensusParams), finalizeBlockResponse.ConsensusParamUpdates)
+		nextParamsProto, appVersion, err := e.updateConsensusParams(height, types.ConsensusParamsFromProto(state.ConsensusParams), finalizeBlockResponse.ConsensusParamUpdates)
 		if err != nil {
 			return state, err
 		}
