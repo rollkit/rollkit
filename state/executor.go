@@ -214,22 +214,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return types.State{}, nil, err
 	}
 
-	abciValUpdates := resp.ValidatorUpdates
-
-	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
-	if err != nil {
-		return state, nil, fmt.Errorf("error in validator updates: %v", err)
-	}
-
-	validatorUpdates, err := cmtypes.PB2TM.ValidatorUpdates(abciValUpdates)
-	if err != nil {
-		return state, nil, err
-	}
-	if len(validatorUpdates) > 0 {
-		e.logger.Debug("updates to validators", "updates", cmtypes.ValidatorListString(validatorUpdates))
-	}
-
-	state, err = e.updateState(state, block, resp, validatorUpdates)
+	state, err = e.updateState(state, block, resp)
 	if err != nil {
 		return types.State{}, nil, err
 	}
@@ -255,25 +240,31 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	return appHash, retainHeight, nil
 }
 
-func (e *BlockExecutor) updateState(state types.State, block *types.Block, finalizeBlockResponse *abci.ResponseFinalizeBlock, validatorUpdates []*cmtypes.Validator) (types.State, error) {
-	nextParamsProto, nextVersion, lastHeightParamsChanged := state.ConsensusParams, state.Version, state.LastHeightConsensusParamsChanged
+// updateConsensusParams updates the consensus parameters based on the provided updates.
+func (e *BlockExecutor) updateConsensusParams(height uint64, params cmtypes.ConsensusParams, consensusParamUpdates *cmproto.ConsensusParams) (cmproto.ConsensusParams, uint64, error) {
+	nextParams := params.Update(consensusParamUpdates)
+	if err := nextParams.ValidateBasic(); err != nil {
+		return cmproto.ConsensusParams{}, 0, fmt.Errorf("validating new consensus params: %w", err)
+	}
+	if err := nextParams.ValidateUpdate(consensusParamUpdates, int64(height)); err != nil {
+		return cmproto.ConsensusParams{}, 0, fmt.Errorf("updating consensus params: %w", err)
+	}
+	return nextParams.ToProto(), nextParams.Version.App, nil
+}
+
+func (e *BlockExecutor) updateState(state types.State, block *types.Block, finalizeBlockResponse *abci.ResponseFinalizeBlock) (types.State, error) {
 	height := block.Height()
 	if finalizeBlockResponse.ConsensusParamUpdates != nil {
-		updatedParams := cmtypes.ConsensusParamsFromProto(nextParamsProto).Update(finalizeBlockResponse.ConsensusParamUpdates)
-		if err := updatedParams.ValidateBasic(); err != nil {
-			return state, fmt.Errorf("validating new consensus params: %w", err)
+		nextParamsProto, appVersion, err := e.updateConsensusParams(height, cmtypes.ConsensusParamsFromProto(state.ConsensusParams), finalizeBlockResponse.ConsensusParamUpdates)
+		if err != nil {
+			return state, err
 		}
-
-		if err := updatedParams.ValidateUpdate(finalizeBlockResponse.ConsensusParamUpdates, int64(height)); err != nil {
-			return state, fmt.Errorf("updating consensus params: %w", err)
-		}
-
-		nextParamsProto = updatedParams.ToProto()
-		nextVersion.Consensus.App = updatedParams.Version.App
-
 		// Change results from this height but only applies to the next height.
-		lastHeightParamsChanged = height + 1
+		state.LastHeightConsensusParamsChanged = height + 1
+		state.Version.Consensus.App = appVersion
+		state.ConsensusParams = nextParamsProto
 	}
+
 	s := types.State{
 		Version:         state.Version,
 		ChainID:         state.ChainID,
@@ -284,8 +275,8 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 			Hash: cmbytes.HexBytes(block.Hash()),
 			// for now, we don't care about part set headers
 		},
-		ConsensusParams:                  nextParamsProto,
-		LastHeightConsensusParamsChanged: lastHeightParamsChanged,
+		ConsensusParams:                  state.ConsensusParams,
+		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
 		AppHash:                          make(types.Hash, 32),
 	}
 	copy(s.LastResultsHash[:], cmtypes.NewResults(finalizeBlockResponse.TxResults).Hash())
