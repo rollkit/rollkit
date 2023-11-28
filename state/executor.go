@@ -8,7 +8,6 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
@@ -167,6 +166,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	return block, nil
 }
 
+// ProcessProposal calls the corresponding ABCI method on the app.
 func (e *BlockExecutor) ProcessProposal(
 	block *types.Block,
 	state types.State,
@@ -458,28 +458,4 @@ func fromRollkitTxs(rollkitTxs types.Txs) cmtypes.Txs {
 		txs[i] = []byte(rollkitTxs[i])
 	}
 	return txs
-}
-
-func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate, params *cmproto.ValidatorParams) error {
-	for _, valUpdate := range abciUpdates {
-		if valUpdate.GetPower() < 0 {
-			return fmt.Errorf("voting power can't be negative %v", valUpdate)
-		} else if valUpdate.GetPower() == 0 {
-			// continue, since this is deleting the validator, and thus there is no
-			// pubkey to check
-			continue
-		}
-
-		// Check if validator's pubkey matches an ABCI type in the consensus params
-		pk, err := cryptoenc.PubKeyFromProto(valUpdate.PubKey)
-		if err != nil {
-			return err
-		}
-
-		if !cmtypes.IsValidPubkeyType(cmtypes.ValidatorParams{PubKeyTypes: params.PubKeyTypes}, pk.Type()) {
-			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
-				valUpdate, pk.Type())
-		}
-	}
-	return nil
 }
