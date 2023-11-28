@@ -228,13 +228,14 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 	if len(validatorUpdates) > 0 {
 		e.logger.Debug("updates to validators", "updates", cmtypes.ValidatorListString(validatorUpdates))
 	}
-	if state.ConsensusParams.Block.MaxBytes == 0 {
-		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
-	}
 
 	state, err = e.updateState(state, block, resp, validatorUpdates)
 	if err != nil {
 		return types.State{}, nil, err
+	}
+
+	if state.ConsensusParams.Block.MaxBytes == 0 {
+		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
 	}
 
 	return state, resp, nil
@@ -255,18 +256,36 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 }
 
 func (e *BlockExecutor) updateState(state types.State, block *types.Block, finalizeBlockResponse *abci.ResponseFinalizeBlock, validatorUpdates []*cmtypes.Validator) (types.State, error) {
+	nextParamsProto, nextVersion, lastHeightParamsChanged := state.ConsensusParams, state.Version, state.LastHeightConsensusParamsChanged
+	height := block.Height()
+	if finalizeBlockResponse.ConsensusParamUpdates != nil {
+		updatedParams := cmtypes.ConsensusParamsFromProto(nextParamsProto).Update(finalizeBlockResponse.ConsensusParamUpdates)
+		if err := updatedParams.ValidateBasic(); err != nil {
+			return state, fmt.Errorf("validating new consensus params: %w", err)
+		}
+
+		if err := updatedParams.ValidateUpdate(finalizeBlockResponse.ConsensusParamUpdates, int64(height)); err != nil {
+			return state, fmt.Errorf("updating consensus params: %w", err)
+		}
+
+		nextParamsProto = updatedParams.ToProto()
+		nextVersion.Consensus.App = updatedParams.Version.App
+
+		// Change results from this height but only applies to the next height.
+		lastHeightParamsChanged = height + 1
+	}
 	s := types.State{
 		Version:         state.Version,
 		ChainID:         state.ChainID,
 		InitialHeight:   state.InitialHeight,
-		LastBlockHeight: block.Height(),
+		LastBlockHeight: height,
 		LastBlockTime:   block.Time(),
 		LastBlockID: cmtypes.BlockID{
 			Hash: cmbytes.HexBytes(block.Hash()),
 			// for now, we don't care about part set headers
 		},
-		ConsensusParams:                  state.ConsensusParams,
-		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
+		ConsensusParams:                  nextParamsProto,
+		LastHeightConsensusParamsChanged: lastHeightParamsChanged,
 		AppHash:                          make(types.Hash, 32),
 	}
 	copy(s.LastResultsHash[:], cmtypes.NewResults(finalizeBlockResponse.TxResults).Hash())
