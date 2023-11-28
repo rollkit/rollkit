@@ -25,6 +25,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
+	"github.com/rollkit/rollkit/types"
 
 	testutils "github.com/celestiaorg/utils/test"
 )
