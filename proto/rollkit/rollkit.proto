@@ -47,7 +47,7 @@ message Header {
 	// from the signature when using secp256k.
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
-	bytes proposer_address = 10;
+	bytes proposer_pubkey = 10;
 
 	// Chain ID the block belongs to
 	string chain_id = 11;
@@ -60,7 +60,6 @@ message Commit {
 message SignedHeader {
 	Header header = 1;
 	Commit commit = 2;
-	tendermint.types.ValidatorSet validators = 3;
 }
 
 message Data {

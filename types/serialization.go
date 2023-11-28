@@ -76,14 +76,9 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
-	vSet, err := sh.Validators.ToProto()
-	if err != nil {
-		return nil, err
-	}
 	return &pb.SignedHeader{
-		Header:     sh.Header.ToProto(),
-		Commit:     sh.Commit.ToProto(),
-		Validators: vSet,
+		Header: sh.Header.ToProto(),
+		Commit: sh.Commit.ToProto(),
 	}, nil
 }
 
@@ -98,14 +93,6 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		return err
 	}
 
-	if other.Validators != nil && other.Validators.GetProposer() != nil {
-		validators, err := types.ValidatorSetFromProto(other.Validators)
-		if err != nil {
-			return err
-		}
-
-		sh.Validators = validators
-	}
 	return nil
 }
 
@@ -147,7 +134,7 @@ func (h *Header) ToProto() *pb.Header {
 		ConsensusHash:   h.ConsensusHash[:],
 		AppHash:         h.AppHash[:],
 		LastResultsHash: h.LastResultsHash[:],
-		ProposerAddress: h.ProposerAddress[:],
+		ProposerPubkey:  h.ProposerPubkey[:],
 		ChainId:         h.BaseHeader.ChainID,
 	}
 }
@@ -165,9 +152,9 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.ConsensusHash = other.ConsensusHash
 	h.AppHash = other.AppHash
 	h.LastResultsHash = other.LastResultsHash
-	if len(other.ProposerAddress) > 0 {
-		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
-		copy(h.ProposerAddress, other.ProposerAddress)
+	if len(other.ProposerPubkey) > 0 {
+		h.ProposerPubkey = make([]byte, len(other.ProposerPubkey))
+		copy(h.ProposerPubkey, other.ProposerPubkey)
 	}
 
 	return nil

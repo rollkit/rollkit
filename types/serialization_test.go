@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -47,13 +46,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		ConsensusHash:   h[3],
 		AppHash:         h[4],
 		LastResultsHash: h[5],
-		ProposerAddress: []byte{4, 3, 2, 1},
+		ProposerPubkey:  []byte{4, 3, 2, 1},
 	}
-
-	pubKey1 := ed25519.GenPrivKey().PubKey()
-	pubKey2 := ed25519.GenPrivKey().PubKey()
-	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
-	validator2 := &cmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
 
 	cases := []struct {
 		name  string
@@ -65,13 +59,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				Header: h1,
 				Commit: Commit{
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
-				},
-				Validators: &cmtypes.ValidatorSet{
-					Validators: []*cmtypes.Validator{
-						validator1,
-						validator2,
-					},
-					Proposer: validator1,
 				},
 			},
 			Data: Data{
