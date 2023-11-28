@@ -125,8 +125,9 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivK
 	newSignedHeader := &SignedHeader{
 		Header: GetRandomNextHeader(signedHeader.Header),
 	}
+	var pubkey ed25519.PubKey = signedHeader.ProposerPubkey
 	newSignedHeader.LastCommitHash = signedHeader.Commit.GetCommitHash(
-		&newSignedHeader.Header, signedHeader.ProposerPubkey,
+		&newSignedHeader.Header, pubkey.Address().Bytes(),
 	)
 	commit, err := getCommit(newSignedHeader.Header, privKey)
 	if err != nil {

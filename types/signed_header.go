@@ -71,7 +71,7 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 		}
 	}
 	var pubkey ed25519.PubKey = sh.ProposerPubkey
-	sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, pubkey.Address())
+	sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, pubkey.Address().Bytes())
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
 			Reason: fmt.Errorf("%w: expected %v, but got %v",
