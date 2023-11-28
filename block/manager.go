@@ -96,7 +96,7 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	s, err := store.LoadState()
+	s, err := store.GetState()
 	if err != nil {
 		s, err = types.NewFromGenesisDoc(genesis)
 	}
@@ -204,7 +204,7 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
-// IsDAIncluded returns whether or not the block with the given hash is DA included.
+// IsDAIncluded returns true if the block with the given hash has been seen on DA.
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
 	return m.blockCache.isDAIncluded(hash.String())
 }
@@ -239,7 +239,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 			start := time.Now()
 			err := m.publishBlock(ctx)
-			if err != nil {
+			if err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
 			timer.Reset(m.getRemainingSleep(start))
@@ -260,7 +260,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			case <-timer.C:
 				// build a block with all the transactions received in the last 1 second
 				err := m.publishBlock(ctx)
-				if err != nil {
+				if err != nil && ctx.Err() == nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
 				// this can be used to notify multiple subscribers when a block has been built
@@ -392,12 +392,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
-		}
-
-		// SaveValidators commits the DB tx
-		err = m.saveValidatorsToStore(bHeight)
-		if err != nil {
-			return err
 		}
 
 		m.store.SetHeight(bHeight)
@@ -561,19 +555,12 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 
 // IsProposer returns whether or not the manager is a proposer
 func (m *Manager) IsProposer() (bool, error) {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	// if proposer is not set, assume self proposer
-	if m.lastState.Validators.Proposer == nil {
-		return true, nil
-	}
-
 	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
 	if err != nil {
 		return false, err
 	}
 
-	return bytes.Equal(m.lastState.Validators.Proposer.PubKey.Bytes(), signerPubBytes), nil
+	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -595,11 +582,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if newHeight == uint64(m.genesis.InitialHeight) {
 		lastCommit = &types.Commit{}
 	} else {
-		lastCommit, err = m.store.LoadCommit(height)
+		lastCommit, err = m.store.GetCommit(height)
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
-		lastBlock, err := m.store.LoadBlock(height)
+		lastBlock, err := m.store.GetBlock(height)
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
@@ -611,7 +598,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
-	pendingBlock, err := m.store.LoadBlock(newHeight)
+	pendingBlock, err := m.store.GetBlock(newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
 		block = pendingBlock
@@ -624,7 +611,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return nil
 		}
-		block.SignedHeader.Header.NextAggregatorsHash = m.getNextAggregatorsHash()
+
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
 			return err
@@ -632,8 +619,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
-
-		block.SignedHeader.Validators = m.getLastStateValidators()
 
 		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
@@ -654,8 +639,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	block.SignedHeader.Header.NextAggregatorsHash = newState.NextValidators.Hash()
-
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
 		return err
@@ -663,8 +646,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// set the commit to current block's signed header
 	block.SignedHeader.Commit = *commit
-
-	block.SignedHeader.Validators = m.getLastStateValidators()
 
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, block); err != nil {
@@ -695,12 +676,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(blockHeight, responses)
-	if err != nil {
-		return err
-	}
-
-	// SaveValidators commits the DB tx
-	err = m.saveValidatorsToStore(blockHeight)
 	if err != nil {
 		return err
 	}
@@ -773,24 +748,6 @@ func (m *Manager) updateState(s types.State) error {
 	return nil
 }
 
-func (m *Manager) saveValidatorsToStore(height uint64) error {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.store.SaveValidators(height, m.lastState.Validators)
-}
-
-func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.lastState.Validators
-}
-
-func (m *Manager) getNextAggregatorsHash() types.Hash {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.lastState.NextValidators.Hash()
-}
-
 func (m *Manager) getLastBlockTime() time.Time {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
@@ -808,6 +765,7 @@ func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.Sta
 	defer m.lastStateMtx.RUnlock()
 	return m.executor.ApplyBlock(ctx, m.lastState, block)
 }
+
 func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
@@ -840,13 +798,4 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
 	s.LastResultsHash = merkle.HashFromByteSlices(nil)
 
-	if len(res.Validators) > 0 {
-		vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
-		if err != nil {
-			// TODO(tzdybal): handle error properly
-			panic(err)
-		}
-		s.Validators = cmtypes.NewValidatorSet(vals)
-		s.NextValidators = cmtypes.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
-	}
 }

@@ -153,10 +153,12 @@ func (b *Block) Time() time.Time {
 	return b.SignedHeader.Time()
 }
 
-// Verify verifies the block.
-func (b *Block) Verify(*Block) error {
-	//TODO: Update with new header verify method
-	return nil
+// Verify Verifies a new, untrusted block against a trusted block.
+func (b *Block) Verify(untrustedBlock *Block) error {
+	if untrustedBlock == nil {
+		return errors.New("untrusted block cannot be nil")
+	}
+	return b.SignedHeader.Verify(&untrustedBlock.SignedHeader)
 }
 
 // Validate performs basic validation of a block.

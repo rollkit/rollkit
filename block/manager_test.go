@@ -20,17 +20,16 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
+	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
+		Validators:    genesisValidators,
 	}
 	sampleState := types.State{
 		ChainID:         "state id",
 		InitialHeight:   123,
 		LastBlockHeight: 128,
-		LastValidators:  types.GetRandomValidatorSet(),
-		Validators:      types.GetRandomValidatorSet(),
-		NextValidators:  types.GetRandomValidatorSet(),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

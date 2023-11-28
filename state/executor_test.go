@@ -60,17 +60,6 @@ func doTestCreateBlock(t *testing.T) {
 	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
-	vKey := ed25519.GenPrivKey()
-	validators := []*cmtypes.Validator{
-		{
-			Address:          vKey.PubKey().Address(),
-			PubKey:           vKey.PubKey(),
-			VotingPower:      int64(100),
-			ProposerPriority: int64(1),
-		},
-	}
-	state.Validators = cmtypes.NewValidatorSet(validators)
-	state.NextValidators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block := executor.CreateBlock(1, &types.Commit{}, []byte{}, state)
@@ -150,11 +139,7 @@ func doTestApplyBlock(t *testing.T) {
 			ProposerPriority: int64(1),
 		},
 	}
-	state := types.State{
-		NextValidators: cmtypes.NewValidatorSet(validators),
-		Validators:     cmtypes.NewValidatorSet(validators),
-		LastValidators: cmtypes.NewValidatorSet(validators),
-	}
+	state := types.State{}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
 	state.ConsensusParams.Block = &cmproto.BlockParams{}

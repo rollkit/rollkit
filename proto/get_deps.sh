@@ -19,7 +19,7 @@ CM_PROTO_FILES=(
   p2p/types.proto
 )
 
-echo Fetching protobuf dependencies from CommetBFT $CM_VERSION
+echo Fetching protobuf dependencies from CometBFT $CM_VERSION
 for FILE in "${CM_PROTO_FILES[@]}"; do
   echo Fetching "$FILE"
   mkdir -p "tendermint/$(dirname $FILE)"

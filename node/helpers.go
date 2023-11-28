@@ -7,10 +7,6 @@ import (
 	"time"
 
 	testutils "github.com/celestiaorg/utils/test"
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	p2p "github.com/cometbft/cometbft/p2p"
-	cmtypes "github.com/cometbft/cometbft/types"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
 )
@@ -26,8 +22,6 @@ const (
 	// Store is the source of height from the block manager store
 	Store
 )
-
-var genesisValidatorKey = ed25519.GenPrivKey()
 
 // MockTester is a mock testing.T
 type MockTester struct {
@@ -131,20 +125,4 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
 	})
-}
-
-func getGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.PrivKey) {
-	nodeKey := &p2p.NodeKey{
-		PrivKey: genesisValidatorKey,
-	}
-	signingKey, _ := GetNodeKey(nodeKey)
-	pubKey := genesisValidatorKey.PubKey()
-
-	genesisValidators := []cmtypes.GenesisValidator{{
-		Address: pubKey.Address(),
-		PubKey:  pubKey,
-		Power:   int64(100),
-		Name:    "gen #1",
-	}}
-	return genesisValidators, signingKey
 }

@@ -20,7 +20,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.12.0
 	github.com/prometheus/client_golang v1.17.0
-	github.com/rollkit/go-da v0.0.0-20231024133951-57bc36006772
+	github.com/rollkit/go-da v0.0.0-20231117151938-ee3b613d7a3a
 	github.com/rs/cors v1.10.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
