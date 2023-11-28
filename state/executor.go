@@ -30,11 +30,11 @@ var ErrAddingValidatorToBased = errors.New("cannot add validators to empty valid
 
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
-	proposerAddress []byte
-	namespaceID     types.NamespaceID
-	chainID         string
-	proxyApp        proxy.AppConnConsensus
-	mempool         mempool.Mempool
+	proposerPubkey []byte
+	namespaceID    types.NamespaceID
+	chainID        string
+	proxyApp       proxy.AppConnConsensus
+	mempool        mempool.Mempool
 
 	eventBus *cmtypes.EventBus
 
@@ -43,15 +43,15 @@ type BlockExecutor struct {
 
 // NewBlockExecutor creates new instance of BlockExecutor.
 // Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerPubkey []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
-		proposerAddress: proposerAddress,
-		namespaceID:     namespaceID,
-		chainID:         chainID,
-		proxyApp:        proxyApp,
-		mempool:         mempool,
-		eventBus:        eventBus,
-		logger:          logger,
+		proposerPubkey: proposerPubkey,
+		namespaceID:    namespaceID,
+		chainID:        chainID,
+		proxyApp:       proxyApp,
+		mempool:        mempool,
+		eventBus:       eventBus,
+		logger:         logger,
 	}
 }
 
@@ -115,7 +115,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 				ConsensusHash:   make(types.Hash, 32),
 				AppHash:         state.AppHash,
 				LastResultsHash: state.LastResultsHash,
-				ProposerAddress: e.proposerAddress,
+				ProposerPubkey:  e.proposerPubkey,
 			},
 			Commit: *lastCommit,
 		},
@@ -126,7 +126,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			// Evidence:               types.EvidenceData{Evidence: nil},
 		},
 	}
-	block.SignedHeader.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
+	block.SignedHeader.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerPubkey)
 	block.SignedHeader.LastHeaderHash = lastHeaderHash
 
 	return block

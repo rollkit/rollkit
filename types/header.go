@@ -46,7 +46,7 @@ type Header struct {
 	// from the signature when using secp256k.
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
-	ProposerAddress []byte // original proposer of the block
+	ProposerPubkey []byte // original proposer of the block
 }
 
 // New creates a new Header.
@@ -81,11 +81,11 @@ func (h *Header) Time() time.Time {
 
 // Verify verifies the header.
 func (h *Header) Verify(untrstH *Header) error {
-	if !bytes.Equal(untrstH.ProposerAddress, h.ProposerAddress) {
+	if !bytes.Equal(untrstH.ProposerPubkey, h.ProposerPubkey) {
 		return &header.VerifyError{
 			Reason: fmt.Errorf("expected proposer (%X) got (%X)",
-				h.ProposerAddress,
-				untrstH.ProposerAddress,
+				h.ProposerPubkey,
+				untrstH.ProposerPubkey,
 			),
 		}
 	}
@@ -99,8 +99,8 @@ func (h *Header) Validate() error {
 
 // ValidateBasic performs basic validation of a header.
 func (h *Header) ValidateBasic() error {
-	if len(h.ProposerAddress) == 0 {
-		return ErrNoProposerAddress
+	if len(h.ProposerPubkey) == 0 {
+		return ErrNoProposerPubkey
 	}
 
 	return nil

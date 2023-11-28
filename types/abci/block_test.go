@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -17,6 +18,7 @@ import (
 
 func TestToABCIHeaderPB(t *testing.T) {
 	header := types.GetRandomHeader()
+	var pubkey ed25519.PubKey = header.ProposerPubkey
 	expected := cmproto.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -37,7 +39,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 		AppHash:         header.AppHash[:],
 		LastResultsHash: header.LastResultsHash[:],
 		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress: header.ProposerAddress,
+		ProposerAddress: pubkey.Address().Bytes(),
 		ChainID:         header.ChainID(),
 	}
 
@@ -51,6 +53,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 
 func TestToABCIHeader(t *testing.T) {
 	header := types.GetRandomHeader()
+	var pubkey ed25519.PubKey = header.ProposerPubkey
 	expected := cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -71,7 +74,7 @@ func TestToABCIHeader(t *testing.T) {
 		AppHash:         cmbytes.HexBytes(header.AppHash),
 		LastResultsHash: cmbytes.HexBytes(header.LastResultsHash),
 		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress: header.ProposerAddress,
+		ProposerAddress: pubkey.Address().Bytes(),
 		ChainID:         header.ChainID(),
 	}
 
@@ -86,6 +89,7 @@ func TestToABCIHeader(t *testing.T) {
 func TestToABCIBlock(t *testing.T) {
 	blockHeight, nTxs := uint64(1), 2
 	block := types.GetRandomBlock(blockHeight, nTxs)
+	var pubkey ed25519.PubKey = block.SignedHeader.ProposerPubkey
 	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +98,7 @@ func TestToABCIBlock(t *testing.T) {
 	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
 
 	if len(abciCommit.Signatures) == 1 {
-		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
+		abciCommit.Signatures[0].ValidatorAddress = pubkey.Address()
 	}
 
 	abciBlock := cmtypes.Block{

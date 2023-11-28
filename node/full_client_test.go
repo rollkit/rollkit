@@ -50,9 +50,9 @@ const (
 
 var mockTxProcessingTime = 10 * time.Millisecond
 
-func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
+func getRandomBlockWithProposer(height uint64, nTxs int, proposerPubkey []byte) *types.Block {
 	block := types.GetRandomBlock(height, nTxs)
-	block.SignedHeader.ProposerAddress = proposerAddr
+	block.SignedHeader.ProposerPubkey = proposerPubkey
 	return block
 }
 

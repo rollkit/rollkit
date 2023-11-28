@@ -133,14 +133,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NotNil(headerSub)
 
 	vKey := ed25519.GenPrivKey()
-	validators := []*cmtypes.Validator{
-		{
-			Address:          vKey.PubKey().Address(),
-			PubKey:           vKey.PubKey(),
-			VotingPower:      int64(100),
-			ProposerPriority: int64(1),
-		},
-	}
+
 	state := types.State{}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
@@ -164,7 +157,6 @@ func doTestApplyBlock(t *testing.T) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
 	require.NoError(err)
@@ -192,7 +184,6 @@ func doTestApplyBlock(t *testing.T) {
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
-	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
 	require.NoError(err)

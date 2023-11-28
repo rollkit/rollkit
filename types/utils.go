@@ -89,7 +89,7 @@ func GetRandomHeader() Header {
 		ConsensusHash:   GetRandomBytes(32),
 		AppHash:         GetRandomBytes(32),
 		LastResultsHash: GetRandomBytes(32),
-		ProposerAddress: GetRandomBytes(32),
+		ProposerPubkey:  GetRandomBytes(32),
 	}
 }
 
@@ -100,18 +100,17 @@ func GetRandomNextHeader(header Header) Header {
 	nextHeader.BaseHeader.Height = header.Height() + 1
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
-	nextHeader.ProposerAddress = header.ProposerAddress
+	nextHeader.ProposerPubkey = header.ProposerPubkey
 	return nextHeader
 }
 
 // GetRandomSignedHeader returns a signed header with random data
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
-	valSet, privKey := GetRandomValidatorSetWithPrivKey()
+	_, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
-		Header:     GetRandomHeader(),
-		Validators: valSet,
+		Header: GetRandomHeader(),
 	}
-	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
+	signedHeader.Header.ProposerPubkey = privKey.PubKey().Bytes()
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
@@ -123,13 +122,11 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 // GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
 // the provided signed header
 func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*SignedHeader, error) {
-	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{
-		Header:     GetRandomNextHeader(signedHeader.Header),
-		Validators: valSet,
+		Header: GetRandomNextHeader(signedHeader.Header),
 	}
 	newSignedHeader.LastCommitHash = signedHeader.Commit.GetCommitHash(
-		&newSignedHeader.Header, signedHeader.ProposerAddress,
+		&newSignedHeader.Header, signedHeader.ProposerPubkey,
 	)
 	commit, err := getCommit(newSignedHeader.Header, privKey)
 	if err != nil {

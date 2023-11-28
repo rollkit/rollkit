@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -9,6 +10,7 @@ import (
 
 // Hash returns ABCI-compatible hash of a header.
 func (h *Header) Hash() Hash {
+	var pubkey ed25519.PubKey = h.ProposerPubkey
 	abciHeader := cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: h.Version.Block,
@@ -29,10 +31,13 @@ func (h *Header) Hash() Hash {
 		AppHash:         cmbytes.HexBytes(h.AppHash),
 		LastResultsHash: cmbytes.HexBytes(h.LastResultsHash),
 		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress: h.ProposerAddress,
+		ProposerAddress: pubkey.Address(),
 		// Backward compatibility
-		ValidatorsHash:     h.ProposerAddress,
-		NextValidatorsHash: h.ProposerAddress,
+		/* Eventually, these will need to be populated with
+		   something that passes validation from the IBC Tendermint Light Client.
+		*/
+		ValidatorsHash:     pubkey.Address(),
+		NextValidatorsHash: pubkey.Address(),
 		ChainID:            h.ChainID(),
 	}
 	return Hash(abciHeader.Hash())

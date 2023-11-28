@@ -137,10 +137,10 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.ProposerAddress = nil
+				untrusted.ProposerPubkey = nil
 				return &untrusted, true
 			},
-			err: ErrNoProposerAddress,
+			err: ErrNoProposerPubkey,
 		},
 	}
 

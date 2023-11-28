@@ -31,8 +31,8 @@ var (
 	// ErrNonAdjacentHeaders is returned when the headers are not adjacent.
 	ErrNonAdjacentHeaders = errors.New("non-adjacent headers")
 
-	// ErrNoProposerAddress is returned when the proposer address is not set.
-	ErrNoProposerAddress = errors.New("no proposer address")
+	// ErrNoProposerPubkey is returned when the proposer address is not set.
+	ErrNoProposerPubkey = errors.New("no proposer address")
 
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
 	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
@@ -70,7 +70,8 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 			),
 		}
 	}
-	sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
+	var pubkey ed25519.PubKey = sh.ProposerPubkey
+	sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, pubkey.Address())
 	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
 		return &header.VerifyError{
 			Reason: fmt.Errorf("%w: expected %v, but got %v",
@@ -107,8 +108,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	signature := sh.Commit.Signatures[0]
-	proposer := sh.Header.ProposerAddress
-	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
+	var pubKey ed25519.PubKey = sh.ProposerPubkey
 	msg, err := sh.Header.MarshalBinary()
 	if err != nil {
 		return errors.New("signature verification failed, unable to marshal header")

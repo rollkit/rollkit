@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/ed25519"
+
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
@@ -704,7 +706,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Publish block to channel so that block exchange service can broadcast
 	m.BlockCh <- block
 
-	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
+	var pubkey ed25519.PubKey = block.SignedHeader.ProposerPubkey
+	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(pubkey.Address().Bytes()), "height", blockHeight)
 
 	return nil
 }

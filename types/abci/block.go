@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -12,6 +13,7 @@ import (
 // ToABCIHeaderPB converts Rollkit header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Rollkit header (like ChainID).
 func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
+	var pubkey ed25519.PubKey = header.ProposerPubkey
 	return cmproto.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -32,7 +34,7 @@ func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
 		AppHash:         header.AppHash[:],
 		LastResultsHash: header.LastResultsHash[:],
 		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress: header.ProposerAddress,
+		ProposerAddress: pubkey.Address().Bytes(),
 		ChainID:         header.ChainID(),
 	}, nil
 }
@@ -40,6 +42,7 @@ func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
 // ToABCIHeader converts Rollkit header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Rollkit header (like ChainID).
 func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
+	var pubkey ed25519.PubKey = header.ProposerPubkey
 	return cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -60,7 +63,7 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 		AppHash:         cmbytes.HexBytes(header.AppHash),
 		LastResultsHash: cmbytes.HexBytes(header.LastResultsHash),
 		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress: header.ProposerAddress,
+		ProposerAddress: pubkey.Address().Bytes(),
 		ChainID:         header.ChainID(),
 	}, nil
 }
@@ -68,6 +71,7 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 // ToABCIBlock converts Rolkit block into block format defined by ABCI.
 // Returned block should pass `ValidateBasic`.
 func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
+	var pubkey ed25519.PubKey = block.SignedHeader.Header.ProposerPubkey
 	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
@@ -75,7 +79,7 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
-		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
+		abciCommit.Signatures[0].ValidatorAddress = pubkey.Address()
 	}
 	abciBlock := cmtypes.Block{
 		Header: abciHeader,
