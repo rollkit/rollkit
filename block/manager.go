@@ -493,6 +493,14 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
+				// Don't waste resources on blocks with unexpected signers
+				if !bytes.Equal(block.SignedHeader.ProposerPubkey, m.genesis.Validators[0].PubKey.Bytes()) {
+					continue
+				}
+				// Don't waste resources on invalid blocks
+				if block.ValidateBasic() != nil {
+					continue
+				}
 				blockHash := block.Hash().String()
 				m.blockCache.setDAIncluded(blockHash)
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
