@@ -13,7 +13,6 @@ import (
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	"github.com/cometbft/cometbft/proxy"
@@ -187,14 +186,6 @@ func NewManager(
 		pendingBlocks:     NewPendingBlocks(),
 	}
 	return agg, nil
-}
-
-func getAddress(key crypto.PrivKey) ([]byte, error) {
-	rawKey, err := key.GetPublic().Raw()
-	if err != nil {
-		return nil, err
-	}
-	return cmcrypto.AddressHash(rawKey), nil
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
