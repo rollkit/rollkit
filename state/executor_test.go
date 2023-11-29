@@ -119,7 +119,8 @@ func doTestApplyBlock(t *testing.T) {
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
+	vKey := ed25519.GenPrivKey()
+	executor := NewBlockExecutor(vKey.PubKey().Bytes(), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -132,8 +133,6 @@ func doTestApplyBlock(t *testing.T) {
 	headerSub, err := eventBus.Subscribe(context.Background(), "test", headerQuery, 100)
 	require.NoError(err)
 	require.NotNil(headerSub)
-
-	vKey := ed25519.GenPrivKey()
 
 	state := types.State{}
 	state.InitialHeight = 1
