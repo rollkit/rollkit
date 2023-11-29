@@ -127,11 +127,6 @@ func NewManager(
 		s.DAHeight = conf.DAStartHeight
 	}
 
-	proposerAddress, err := getAddress(proposerKey)
-	if err != nil {
-		return nil, err
-	}
-
 	if conf.DABlockTime == 0 {
 		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
 		conf.DABlockTime = defaultDABlockTime
@@ -142,7 +137,11 @@ func NewManager(
 		conf.BlockTime = defaultBlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
+	proposerPubkeyBytes, err := proposerKey.GetPublic().Raw()
+	if err != nil {
+		return nil, err
+	}
+	exec := state.NewBlockExecutor(proposerPubkeyBytes, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
