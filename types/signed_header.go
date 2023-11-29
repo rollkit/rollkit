@@ -32,7 +32,7 @@ var (
 	ErrNonAdjacentHeaders = errors.New("non-adjacent headers")
 
 	// ErrNoProposerPubkey is returned when the proposer address is not set.
-	ErrNoProposerPubkey = errors.New("no proposer address")
+	ErrNoProposerPubkey = errors.New("no proposer pubkey")
 
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
 	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
