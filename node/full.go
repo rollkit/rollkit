@@ -206,7 +206,7 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 
 func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
 	daClient := goDAProxy.NewClient()
-	err := daClient.Start(nodeConfig.DAConfig, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	err := daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing GRPC connection to DA layer: %w", err)
 	}

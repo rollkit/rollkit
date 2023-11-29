@@ -11,7 +11,7 @@ import (
 
 const (
 	flagAggregator     = "rollkit.aggregator"
-	flagDAConfig       = "rollkit.da_config"
+	flagDAAddress      = "rollkit.da_address"
 	flagBlockTime      = "rollkit.block_time"
 	flagDABlockTime    = "rollkit.da_block_time"
 	flagDAStartHeight  = "rollkit.da_start_height"
@@ -30,7 +30,7 @@ type NodeConfig struct {
 	// parameters below are Rollkit specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
-	DAConfig           string `mapstructure:"da_config"`
+	DAAddress          string `mapstructure:"da_address"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
 	LazyAggregator     bool `mapstructure:"lazy_aggregator"`
@@ -80,7 +80,7 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(flagAggregator)
-	nc.DAConfig = v.GetString(flagDAConfig)
+	nc.DAAddress = v.GetString(flagDAAddress)
 	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(flagDABlockTime)
 	nc.BlockTime = v.GetDuration(flagBlockTime)
@@ -97,7 +97,7 @@ func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 	cmd.Flags().Bool(flagAggregator, def.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(flagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().String(flagDAConfig, def.DAConfig, "Data Availability Layer Client config")
+	cmd.Flags().String(flagDAAddress, def.DAAddress, "DA address (default: localhost:26650)")
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")

@@ -32,7 +32,7 @@ const (
 	Commit     = "Commit"
 )
 
-var MockServURL = "127.0.0.1:7980"
+var MockServerAddr = ":7980"
 
 // copied from rpc
 func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
@@ -65,7 +65,7 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	genesisValidators := []cmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
-	n, err := node.NewNode(context.Background(), config.NodeConfig{DAConfig: MockServURL, Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	n, err := node.NewNode(context.Background(), config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 

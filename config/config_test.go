@@ -45,13 +45,13 @@ func TestViperAndCobra(t *testing.T) {
 	assert.NoError(v.BindPFlags(cmd.Flags()))
 
 	assert.NoError(cmd.Flags().Set(flagAggregator, "true"))
-	assert.NoError(cmd.Flags().Set(flagDAConfig, `{"json":true}`))
+	assert.NoError(cmd.Flags().Set(flagDAAddress, `{"json":true}`))
 	assert.NoError(cmd.Flags().Set(flagBlockTime, "1234s"))
 
 	nc := DefaultNodeConfig
 	assert.NoError(nc.GetViperConfig(v))
 
 	assert.Equal(true, nc.Aggregator)
-	assert.Equal(`{"json":true}`, nc.DAConfig)
+	assert.Equal(`{"json":true}`, nc.DAAddress)
 	assert.Equal(1234*time.Second, nc.BlockTime)
 }

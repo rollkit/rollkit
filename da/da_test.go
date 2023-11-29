@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-func TestRetrieve(t *testing.T) {
+func TestSubmitRetrieve(t *testing.T) {
 	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
 	grpcClient, err := startMockGRPCClient()
 	require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestRetrieve(t *testing.T) {
 	}
 	for name, dalc := range clients {
 		t.Run(name, func(t *testing.T) {
-			doTestRetrieve(t, dalc)
+			doTestSubmitRetrieve(t, dalc)
 		})
 	}
 }
@@ -74,7 +74,7 @@ func startMockGRPCClient() (*DAClient, error) {
 	return &DAClient{DA: client, Logger: log.TestingLogger()}, nil
 }
 
-func doTestRetrieve(t *testing.T, dalc *DAClient) {
+func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	require := require.New(t)
