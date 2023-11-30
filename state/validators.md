@@ -4,20 +4,18 @@
 
 The Sequencer Selection scheme describes the process of selecting a block proposer i.e. sequencer from the validator set.
 
+In the first version of Rollkit, this is a fixed pubkey, belonging to the centralized sequencer. The validator set may only ever have one "validator", the centralized sequencer.
+
 ## Protocol/Component Description
 
 There is exactly one sequencer which is configured at genesis. `GenesisDoc` usually contains an array of validators as it is imported from `CometBFT`. If there is more than one validator defined
 in the genesis validator set, an error is thrown.
-
-The `State` struct defines a `Sequencer` field which contains the public key of the first and only validator of the genesis.
 
 The `Header` struct defines a field called `ProposerAddress` which is the pubkey of the original proposer of the block.
 
 The `SignedHeader` struct commits over the header and the proposer address and stores the result in `LastCommitHash`.
 
 A new untrusted header is verified by checking its `ProposerAddress` and matching it against the best-known header. In case of a mismatch, an error is thrown.
-
-When a new node is syncing, the block manager matches the `proposerKey` against the `Sequencer` field of the `lastState`. If a block is not signed by the expected proposer, it is ignored.
 
 ## Message Structure/Communication Format
 
