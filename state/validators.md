@@ -4,7 +4,7 @@
 
 The Sequencer Selection scheme describes the process of selecting a block proposer i.e. sequencer from the validator set.
 
-In vA of Rollkit, this is a fixed pubkey, belonging to the centralized sequencer. The validator set may only ever have one "validator", the centralized sequencer.
+In the first version of Rollkit, this is a fixed pubkey, belonging to the centralized sequencer. The validator set may only ever have one "validator", the centralized sequencer.
 
 ## Protocol/Component Description
 
