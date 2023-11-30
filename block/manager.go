@@ -16,6 +16,7 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
@@ -426,6 +427,17 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			}
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
+				// Check for shut down event prior to logging
+				// and sending block to blockInCh. The reason
+				// for checking for the shutdown event
+				// separately is due to the inconsistent nature
+				// of the select statement when multiple cases
+				// are satisfied.
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
@@ -501,6 +513,17 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				m.blockCache.setDAIncluded(blockHash)
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
 				if !m.blockCache.isSeen(blockHash) {
+					// Check for shut down event prior to logging
+					// and sending block to blockInCh. The reason
+					// for checking for the shutdown event
+					// separately is due to the inconsistent nature
+					// of the select statement when multiple cases
+					// are satisfied.
+					select {
+					case <-ctx.Done():
+						return errors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+					default:
+					}
 					m.blockInCh <- newBlockEvent{block, daHeight}
 				}
 			}
@@ -689,11 +712,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	// Check if the node has shutdown prior to publishing to channels
+	// Check for shut down event prior to sending the header and block to
+	// their respective channels. The reason for checking for the shutdown
+	// event separately is due to the inconsistent nature of the select
+	// statement when multiple cases are satisfied.
 	select {
 	case <-ctx.Done():
-		return nil
+		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
 	default:
 	}
 
