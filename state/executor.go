@@ -29,7 +29,6 @@ var ErrAddingValidatorToBased = errors.New("cannot add validators to empty valid
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
 	proposerAddress []byte
-	namespaceID     types.NamespaceID
 	chainID         string
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
@@ -40,11 +39,9 @@ type BlockExecutor struct {
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
-// Proposer address and namespace ID will be used in all newly created blocks.
-func NewBlockExecutor(proposerAddress []byte, namespaceID [8]byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
-		namespaceID:     namespaceID,
 		chainID:         chainID,
 		proxyApp:        proxyApp,
 		mempool:         mempool,
