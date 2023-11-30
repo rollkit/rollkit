@@ -11,6 +11,8 @@ import (
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"go.uber.org/multierr"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
@@ -21,10 +23,10 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
+	goDAProxy "github.com/rollkit/go-da/proxy"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/registry"
 	"github.com/rollkit/rollkit/mempool"
 	mempoolv1 "github.com/rollkit/rollkit/mempool/v1"
 	"github.com/rollkit/rollkit/p2p"
@@ -63,7 +65,7 @@ type FullNode struct {
 
 	proxyApp     proxy.AppConns
 	eventBus     *cmtypes.EventBus
-	dalc         da.DataAvailabilityLayerClient
+	dalc         *da.DAClient
 	p2pClient    *p2p.Client
 	hSyncService *block.HeaderSyncService
 	bSyncService *block.BlockSyncService
@@ -202,16 +204,13 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }
 
-func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (da.DataAvailabilityLayerClient, error) {
-	dalc := registry.GetClient(nodeConfig.DALayer)
-	if dalc == nil {
-		return nil, fmt.Errorf("errror while getting data availability client named '%s'", nodeConfig.DALayer)
-	}
-	err := dalc.Init(nodeConfig.NamespaceID, []byte(nodeConfig.DAConfig), dalcKV, logger.With("module", "da_client"))
+func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
+	daClient := goDAProxy.NewClient()
+	err := daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, fmt.Errorf("error while initializing data availability layer client: %w", err)
+		return nil, fmt.Errorf("error while establishing GRPC connection to DA layer: %w", err)
 	}
-	return dalc, nil
+	return &da.DAClient{DA: daClient, Logger: logger.With("module", "da_client")}, nil
 }
 
 func initMempool(logger log.Logger, proxyApp proxy.AppConns) *mempoolv1.TxMempool {
@@ -236,7 +235,7 @@ func initBlockSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfi
 	return blockSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc da.DataAvailabilityLayerClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService) (*block.Manager, error) {
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService) (*block.Manager, error) {
 	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.BlockStore())
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
@@ -331,16 +330,13 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting block sync service: %w", err)
 	}
 
-	if err = n.dalc.Start(); err != nil {
-		return fmt.Errorf("error while starting data availability layer client: %w", err)
-	}
-
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
 		go n.blockManager.AggregationLoop(n.ctx, n.nodeConfig.LazyAggregator)
 		go n.blockManager.BlockSubmissionLoop(n.ctx)
 		go n.headerPublishLoop(n.ctx)
 		go n.blockPublishLoop(n.ctx)
+		return nil
 	}
 	go n.blockManager.RetrieveLoop(n.ctx)
 	go n.blockManager.BlockStoreRetrieveLoop(n.ctx)
@@ -366,8 +362,7 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 func (n *FullNode) OnStop() {
 	n.Logger.Info("halting full node...")
 	n.cancel()
-	err := n.dalc.Stop()
-	err = multierr.Append(err, n.p2pClient.Close())
+	err := n.p2pClient.Close()
 	err = multierr.Append(err, n.hSyncService.Stop())
 	err = multierr.Append(err, n.bSyncService.Stop())
 	err = multierr.Append(err, n.IndexerService.Stop())
@@ -406,7 +401,11 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 		n.Logger.Debug("transaction received", "bytes", len(m.Data))
 		checkTxResCh := make(chan *abci.Response, 1)
 		err := n.Mempool.CheckTx(m.Data, func(resp *abci.Response) {
-			checkTxResCh <- resp
+			select {
+			case <-n.ctx.Done():
+				return
+			case checkTxResCh <- resp:
+			}
 		}, mempool.TxInfo{
 			SenderID:    n.mempoolIDs.GetForPeer(m.From),
 			SenderP2PID: corep2p.ID(m.From),
