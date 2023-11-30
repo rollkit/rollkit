@@ -77,7 +77,7 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 			Reason: fmt.Errorf("%w: expected %v, but got %v",
 				untrstH.LastCommitHash[:], sHLastCommitHash,
 				ErrLastCommitHashMismatch,
-				untrstH.LastCommitHash[:], sHLastCommitHash,
+				untrstH.LastCommitHash[:], sHHash,
 			),
 		}
 	}
