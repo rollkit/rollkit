@@ -103,10 +103,11 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	// Handle Based Rollup case
-	if sh.Validators == nil || len(sh.Validators.Validators) == 0 {
-		return nil
+	if len(sh.Validators.Validators) != 1 {
+		return errors.New("validators must have length exactly 1 (the centralized sequencer)")
 	}
+
+	sh.Validators.Validators[0].Address.Bytes() != sh.ProposerAddress
 
 	if err := sh.Validators.ValidateBasic(); err != nil {
 		return err
