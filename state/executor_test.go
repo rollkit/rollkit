@@ -49,12 +49,11 @@ func doTestCreateBlock(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(client)
 
-	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	fmt.Println("Made NID")
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
 	proposerKey := ed25519.GenPrivKey().PubKey()
-	executor := NewBlockExecutor(proposerKey.Bytes(), nsID, "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger)
+	executor := NewBlockExecutor(proposerKey.Bytes(), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger)
 	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
@@ -113,14 +112,13 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(client)
 
-	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	chainID := "test"
 
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
 	vKey := ed25519.GenPrivKey()
-	executor := NewBlockExecutor(vKey.PubKey().Bytes(), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
+	executor := NewBlockExecutor(vKey.PubKey().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)

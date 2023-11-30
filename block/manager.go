@@ -67,8 +67,7 @@ type Manager struct {
 
 	executor *state.BlockExecutor
 
-	dalc      da.DataAvailabilityLayerClient
-	retriever da.BlockRetriever
+	dalc *da.DAClient
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
@@ -113,7 +112,7 @@ func NewManager(
 	store store.Store,
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,
-	dalc da.DataAvailabilityLayerClient,
+	dalc *da.DAClient,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	blockStore *goheaderstore.Store[*types.Block],
@@ -140,7 +139,7 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
-	exec := state.NewBlockExecutor(proposerPubkeyBytes, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerPubkeyBytes, genesis.ChainID, mempool, proxyApp, eventBus, logger)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -168,7 +167,6 @@ func NewManager(
 		store:       store,
 		executor:    exec,
 		dalc:        dalc,
-		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
@@ -189,9 +187,8 @@ func NewManager(
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
-func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
+func (m *Manager) SetDALC(dalc *da.DAClient) {
 	m.dalc = dalc
-	m.retriever = dalc.(da.BlockRetriever)
 }
 
 // GetStoreHeight returns the manager's store height
@@ -525,7 +522,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 
 func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
 	var err error
-	blockRes := m.retriever.RetrieveBlocks(ctx, daHeight)
+	blockRes := m.dalc.RetrieveBlocks(ctx, daHeight)
 	switch blockRes.Code {
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)

@@ -6,15 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
@@ -71,18 +70,14 @@ func TestInitialState(t *testing.T) {
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	conf := config.BlockManagerConfig{
-		BlockTime:   10 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		BlockTime: 10 * time.Second,
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
-			dalc := getMockDALC(logger)
-			defer func() {
-				require.NoError(t, dalc.Stop())
-			}()
+			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
 			assert.NoError(err)
 			assert.NotNil(agg)
@@ -93,13 +88,6 @@ func TestInitialState(t *testing.T) {
 			agg.lastStateMtx.RUnlock()
 		})
 	}
-}
-
-func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	_ = dalc.Init([8]byte{}, nil, nil, logger)
-	_ = dalc.Start()
-	return dalc
 }
 
 func TestIsDAIncluded(t *testing.T) {
