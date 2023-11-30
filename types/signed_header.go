@@ -104,6 +104,19 @@ func (sh *SignedHeader) VerifyCentralizedSequencer(genesis *cmtypes.GenesisDoc) 
 	return nil
 }
 
+func ValidatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
+	if val1 == val2 {
+		// happy case is if they are pointers to the same struct.
+		return true
+	}
+	// if not, do a field-by-field comparison
+	return val1.PubKey.Equals(val2.PubKey) &&
+		bytes.Equal(val1.Address.Bytes(), val2.Address.Bytes()) &&
+		val1.VotingPower == val2.VotingPower &&
+		val1.ProposerPriority == val2.ProposerPriority
+
+}
+
 // ValidateBasic performs basic validation of a signed header.
 func (sh *SignedHeader) ValidateBasic() error {
 	if err := sh.Header.ValidateBasic(); err != nil {
@@ -119,8 +132,8 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return errors.New("validators must have length exactly 1 (the centralized sequencer)")
 	}
 
-	// Comparison of pointers, they should be equal
-	if sh.Validators.Proposer != sh.Validators.Validators[0] {
+	// Stringified them to compare. Perhaps there's a more performant way?
+	if !ValidatorsEqual(sh.Validators.Proposer, sh.Validators.Validators[0]) {
 		return errors.New("proposer in sh.Validators not correctly set")
 	}
 
