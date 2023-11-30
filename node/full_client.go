@@ -121,7 +121,11 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*cty
 	// add to mempool and wait for CheckTx result
 	checkTxResCh := make(chan *abci.Response, 1)
 	err = c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
-		checkTxResCh <- res
+		select {
+		case <-ctx.Done():
+			return
+		case checkTxResCh <- res:
+		}
 	}, mempool.TxInfo{})
 	if err != nil {
 		c.Logger.Error("Error on broadcastTxCommit", "err", err)
@@ -200,7 +204,11 @@ func (c *FullClient) BroadcastTxAsync(ctx context.Context, tx cmtypes.Tx) (*ctyp
 func (c *FullClient) BroadcastTxSync(ctx context.Context, tx cmtypes.Tx) (*ctypes.ResultBroadcastTx, error) {
 	resCh := make(chan *abci.Response, 1)
 	err := c.node.Mempool.CheckTx(tx, func(res *abci.Response) {
-		resCh <- res
+		select {
+		case <-ctx.Done():
+			return
+		case resCh <- res:
+		}
 	}, mempool.TxInfo{})
 	if err != nil {
 		return nil, err
