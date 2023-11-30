@@ -2,8 +2,6 @@ package config
 
 import (
 	"time"
-
-	"github.com/rollkit/rollkit/types"
 )
 
 const (
@@ -25,11 +23,9 @@ var DefaultNodeConfig = NodeConfig{
 	BlockManagerConfig: BlockManagerConfig{
 		BlockTime:   1 * time.Second,
 		DABlockTime: 15 * time.Second,
-		NamespaceID: types.NamespaceID{},
 	},
-	DALayer:  "newda",
-	DAConfig: "",
-	Light:    false,
+	DAAddress: ":26650",
+	Light:     false,
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
