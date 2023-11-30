@@ -9,7 +9,7 @@ require (
 	github.com/creachadair/taskgroup v0.6.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.13.0
-	github.com/gogo/protobuf v1.3.3
+	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/rpc v1.2.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/ipfs/go-datastore v0.6.0
@@ -178,5 +178,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
-
-replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4

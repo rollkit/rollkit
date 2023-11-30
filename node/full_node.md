@@ -60,7 +60,7 @@ The Full Node communicates with other nodes in the network using the P2P client.
 
 ## Assumptions and Considerations
 
-The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors. The DA layer specified in the node configuration should be in the list of registered clients in the [DA registry].
+The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors.
 
 ## Implementation
 
@@ -88,11 +88,9 @@ See [full node]
 
 [10] [Data Availability Layer Client][dalc]
 
-[11] [DA registry][DA registry]
+[11] [Header Sync Service][Header Sync Service]
 
-[12] [Header Sync Service][Header Sync Service]
-
-[13] [Block Sync Service][Block Sync Service]
+[12] [Block Sync Service][Block Sync Service]
 
 [full node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [ABCI app connections]: https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md
@@ -104,6 +102,5 @@ See [full node]
 [store interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
-[DA registry]: https://github.com/rollkit/rollkit/blob/main/da/registry/registry.go
 [Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/header_sync.go
 [Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/block_sync.go
