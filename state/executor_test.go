@@ -116,7 +116,6 @@ func doTestApplyBlock(t *testing.T) {
 	mpool := mempoolv1.NewTxMempool(logger, cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
 
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
@@ -145,6 +144,8 @@ func doTestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
+
+	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
 
 	_ = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.Response) {}, mempool.TxInfo{})
 	require.NoError(err)
