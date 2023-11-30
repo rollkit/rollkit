@@ -97,7 +97,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	aggApp.AssertExpectations(t)
 
 	for i, app := range apps {
-		app.AssertNumberOfCalls(t, "FinalizeBlock", 2)
+		app.AssertNumberOfCalls(t, "FinalizeBlock", 1)
 		app.AssertExpectations(t)
 
 		// assert that we have most of the blocks from aggregator
