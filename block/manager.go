@@ -384,10 +384,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b, responses)
+		appHash, _, err := m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
+		newState.AppHash = appHash
 
 		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
 		if err != nil {
