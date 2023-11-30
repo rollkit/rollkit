@@ -93,6 +93,7 @@ var (
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
 )
 
+// VerifyCentralizedSequencer checks if a SignedHeader came from the expected centralized sequencer, given a genesis file.
 func (sh *SignedHeader) VerifyCentralizedSequencer(genesis *cmtypes.GenesisDoc) error {
 	if len(genesis.Validators) != 1 {
 		return errors.New("provided genesis must have 1 validator (the centralized sequencer)")
