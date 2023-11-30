@@ -23,8 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -47,12 +45,11 @@ func TestAggregatorMode(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		BlockTime: 1 * time.Second,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DALayer: "newda", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -151,13 +148,12 @@ func TestLazyAggregator(t *testing.T) {
 		// the blocktime too short. in future, we can add a configuration
 		// in go-header syncer initialization to not rely on blocktime, but the
 		// config variable
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		BlockTime: 1 * time.Second,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := NewNode(ctx, config.NodeConfig{
-		DALayer:            "newda",
+		DAAddress:          MockServerAddr,
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
@@ -468,13 +464,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	for i := 0; i < num; i++ {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
-	_ = dalc.Start()
-	defer func() {
-		require.NoError(dalc.Stop())
-	}()
+	dalc := getMockDA()
 	bmConfig := getBMConfig()
 	sequencer, _ := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	fullNode, _ := createNode(ctx, 1, false, false, keys, bmConfig, t)
@@ -587,10 +577,7 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, test.NewFileLoggerCustom(t, test.TempLogFileName(t, "dalc")))
-	_ = dalc.Start()
+	dalc := getMockDA()
 	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
@@ -646,8 +633,8 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
+			DAAddress:          MockServerAddr,
 			P2P:                p2pConfig,
-			DALayer:            "newda",
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
 			Light:              isLight,
