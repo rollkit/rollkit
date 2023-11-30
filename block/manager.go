@@ -354,6 +354,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	var commit *types.Commit
 	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
 
+	lastBlock, ok := m.blockCache.getBlock(currentHeight)
+	if !ok {
+		return nil
+	}
 	b, ok := m.blockCache.getBlock(currentHeight + 1)
 	if !ok {
 		return nil
@@ -365,6 +369,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	}
 
 	if b != nil && commit != nil {
+		err := lastBlock.SignedHeader.Verify(&b.SignedHeader)
+		if err != nil {
+			return fmt.Errorf("failed to validate block: %w", err)
+		}
 		bHeight := uint64(b.Height())
 		m.logger.Info("Syncing block", "height", bHeight)
 		// Validate the received block before applying
