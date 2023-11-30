@@ -88,7 +88,7 @@ See [full node]
 
 [10] [Data Availability Layer Client][dalc]
 
-[11] [DA registry][DA registry]
+[11] [go-da][go-da]
 
 [12] [Header Sync Service][Header Sync Service]
 
