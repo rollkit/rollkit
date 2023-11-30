@@ -60,7 +60,7 @@ The Full Node communicates with other nodes in the network using the P2P client.
 
 ## Assumptions and Considerations
 
-The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors. The DA layer specified in the node configuration should be in the list of registered clients in the [DA registry].
+The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors. The DA address specified in the node configuration (`--rollkit.da_address` flag) should be an instance of the [go-da] interface.
 
 ## Implementation
 
@@ -104,6 +104,6 @@ See [full node]
 [store interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
-[DA registry]: https://github.com/rollkit/rollkit/blob/main/da/registry/registry.go
+[go-da]: https://github.com/rollkit/rollkit/blob/main/da/registry/registry.go
 [Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/header_sync.go
 [Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/block_sync.go
