@@ -53,7 +53,7 @@ config|config.BlockManagerConfig|block manager configurations (see config option
 genesis|*cmtypes.GenesisDoc|initialize the block manager with genesis state (genesis configuration defined in `config/genesis.json` file under the app directory)
 store|store.Store|local datastore for storing rollup blocks and states (default local store path is `$db_dir/rollkit` and `db_dir` specified in the `config.toml` file under the app directory)
 mempool, proxyapp, eventbus|mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus|for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
-dalc|da.DataAvailabilityLayerClient|the data availability light client used to submit and retrieve blocks to DA network
+dalc|da.DAClient|the data availability light client used to submit and retrieve blocks to DA network
 blockstore|*goheaderstore.Store[*types.Block]|to retrieve blocks gossiped over the P2P network
 
 Block manager configuration options:
@@ -63,7 +63,6 @@ Block manager configuration options:
 |BlockTime|time.Duration|time interval used for block production and block retrieval from block store ([`defaultBlockTime`][defaultBlockTime])|
 |DABlockTime|time.Duration|time interval used for both block publication to DA network and block retrieval from DA network ([`defaultDABlockTime`][defaultDABlockTime])|
 |DAStartHeight|uint64|block retrieval from DA network starts from this height|
-|NamespaceID|bytes|8 `byte` unique identifier of the rollup|
 
 ### Block Production
 
