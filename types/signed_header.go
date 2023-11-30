@@ -93,6 +93,16 @@ var (
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
 )
 
+func (sh *SignedHeader) VerifyCentralizedSequencer(genesis *cmtypes.GenesisDoc) error {
+	if len(genesis.Validators) != 1 {
+		return errors.New("provided genesis must have 1 validator (the centralized sequencer)")
+	}
+	if !bytes.Equal(sh.Validators.Proposer.PubKey.Bytes(), genesis.Validators[0].PubKey.Bytes()) {
+		return errors.New("signed header proposer does not match the centralized sequencer specified in the genesis file")
+	}
+	return nil
+}
+
 // ValidateBasic performs basic validation of a signed header.
 func (sh *SignedHeader) ValidateBasic() error {
 	if err := sh.Header.ValidateBasic(); err != nil {
@@ -103,11 +113,19 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
+	// Rollkit vA enforces a centralized sequencer.
 	if len(sh.Validators.Validators) != 1 {
 		return errors.New("validators must have length exactly 1 (the centralized sequencer)")
 	}
 
-	sh.Validators.Validators[0].Address.Bytes() != sh.ProposerAddress
+	// Comparison of pointers, they should be equal
+	if sh.Validators.Proposer != sh.Validators.Validators[0] {
+		return errors.New("proposer in sh.Validators not correctly set")
+	}
+
+	if !bytes.Equal(sh.Validators.Validators[0].Address.Bytes(), sh.ProposerAddress) {
+		return errors.New("proposer address in SignedHeader not correctly set")
+	}
 
 	if err := sh.Validators.ValidateBasic(); err != nil {
 		return err
@@ -120,8 +138,11 @@ func (sh *SignedHeader) ValidateBasic() error {
 
 	signature := sh.Commit.Signatures[0]
 	proposer := sh.Validators.GetProposer()
-	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
+
 	msg, err := sh.Header.MarshalBinary()
+	sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature)
+
+	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
 	if err != nil {
 		return errors.New("signature verification failed, unable to marshal header")
 	}

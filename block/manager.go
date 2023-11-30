@@ -498,7 +498,12 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
-				if !block.SignedHeader.Validators.
+				validSequencer := block.SignedHeader.VerifyCentralizedSequencer(m.genesis) == nil
+				validBlock := block.SignedHeader.ValidateBasic() == nil
+				if !validSequencer || !validBlock {
+					// block is junk
+					continue
+				}
 				blockHash := block.Hash().String()
 				m.blockCache.setDAIncluded(blockHash)
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
