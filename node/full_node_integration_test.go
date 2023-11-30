@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -639,7 +640,17 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		ctx = context.Background()
 	}
 
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	pubkeyBytes, err := keys[0].GetPublic().Raw()
+	require.NoError(err)
+	var pubkey ed25519.PubKey = pubkeyBytes
+	genesisValidators := []cmtypes.GenesisValidator{
+		{
+			Address: pubkey.Address(),
+			PubKey:  pubkey,
+			Power:   int64(1),
+			Name:    "sequencer",
+		},
+	}
 	genesis := &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
 	// TODO: need to investigate why this needs to be done for light nodes
 	genesis.InitialHeight = 1
@@ -653,7 +664,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 			Light:              isLight,
 		},
 		keys[n],
-		signingKey,
+		keys[n],
 		proxy.NewLocalClientCreator(app),
 		genesis,
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
