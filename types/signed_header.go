@@ -104,6 +104,7 @@ func (sh *SignedHeader) VerifyCentralizedSequencer(genesis *cmtypes.GenesisDoc) 
 	return nil
 }
 
+// ValidatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparisson.
 func ValidatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
 	if val1 == val2 {
 		// happy case is if they are pointers to the same struct.
