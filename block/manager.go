@@ -511,8 +511,12 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				validSequencer := block.SignedHeader.VerifyCentralizedSequencer(m.genesis) == nil
+				if !validSequencer {
+					// block is junk
+					continue
+				}
 				validBlock := block.SignedHeader.ValidateBasic() == nil
-				if !validSequencer || !validBlock {
+				if !validBlock {
 					// block is junk
 					continue
 				}
