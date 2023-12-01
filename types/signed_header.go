@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
@@ -151,19 +150,14 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	signature := sh.Commit.Signatures[0]
-	proposer := sh.Validators.GetProposer()
 
 	msg, err := sh.Header.MarshalBinary()
-	sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature)
-
-	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
 	if err != nil {
 		return errors.New("signature verification failed, unable to marshal header")
 	}
-	if !pubKey.VerifySignature(msg, signature) {
+	if !sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature) {
 		return ErrSignatureVerificationFailed
 	}
-
 	return nil
 }
 
