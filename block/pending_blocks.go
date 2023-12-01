@@ -1,6 +1,7 @@
 package block
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/rollkit/rollkit/types"
@@ -27,6 +28,9 @@ func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
 	for _, block := range pb.pendingBlocks {
 		blocks = append(blocks, block)
 	}
+	sort.Slice(blocks, func(i, j int) bool {
+		return blocks[i].Height() < blocks[j].Height()
+	})
 	return blocks
 }
 
