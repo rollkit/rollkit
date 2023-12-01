@@ -92,17 +92,6 @@ var (
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
 )
 
-// VerifyCentralizedSequencer checks if a SignedHeader came from the expected centralized sequencer, given a genesis file.
-func (sh *SignedHeader) VerifyCentralizedSequencer(genesis *cmtypes.GenesisDoc) error {
-	if len(genesis.Validators) != 1 {
-		return errors.New("provided genesis must have 1 validator (the centralized sequencer)")
-	}
-	if !bytes.Equal(sh.Validators.Proposer.PubKey.Bytes(), genesis.Validators[0].PubKey.Bytes()) {
-		return fmt.Errorf("signed header proposer public key %x does not match the centralized sequencer public key %x specified in the genesis file", sh.Validators.Proposer.PubKey.Bytes(), genesis.Validators[0].PubKey.Bytes())
-	}
-	return nil
-}
-
 // ValidatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
 func ValidatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
 	if val1 == val2 {
@@ -127,6 +116,10 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
+	if err := sh.Validators.ValidateBasic(); err != nil {
+		return err
+	}
+
 	// Rollkit vA enforces a centralized sequencer.
 	if sh.Validators == nil || len(sh.Validators.Validators) != 1 {
 		return errors.New("validators must have length exactly 1 (the centralized sequencer)")
@@ -140,10 +133,6 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return errors.New("proposer address in SignedHeader does not match the expected centralized sequencer address")
 	}
 
-	if err := sh.Validators.ValidateBasic(); err != nil {
-		return err
-	}
-
 	// Make sure there is exactly one signature
 	if len(sh.Commit.Signatures) != 1 {
 		return errors.New("expected exactly one signature")
@@ -154,12 +143,6 @@ func (sh *SignedHeader) ValidateBasic() error {
 	msg, err := sh.Header.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("signature verification failed, unable to marshal header: %v", err)
-	}
-	if sh.Validators.Validators[0].PubKey == nil {
-		return errors.New("public key in validator is nil")
-	}
-	if signature == nil {
-		return errors.New("signature in commit is nil")
 	}
 	if !sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature) {
 		return ErrSignatureVerificationFailed
