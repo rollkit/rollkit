@@ -129,11 +129,10 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	// Rollkit vA enforces a centralized sequencer.
-	if len(sh.Validators.Validators) != 1 {
+	if sh.Validators == nil || len(sh.Validators.Validators) != 1 {
 		return errors.New("validators must have length exactly 1 (the centralized sequencer)")
 	}
 
-	// Stringified them to compare. Perhaps there's a more performant way?
 	if !ValidatorsEqual(sh.Validators.Proposer, sh.Validators.Validators[0]) {
 		return errors.New("proposer in sh.Validators not correctly set")
 	}
