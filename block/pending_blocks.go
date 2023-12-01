@@ -12,7 +12,7 @@ type PendingBlocks struct {
 	mtx           *sync.RWMutex
 }
 
-// NewPendingBlocks returns a new PendingBlocks struct
+// NewPendingBlocks returns a new PendingBlocks struct.
 func NewPendingBlocks() *PendingBlocks {
 	return &PendingBlocks{
 		pendingBlocks: make([]*types.Block, 0),
