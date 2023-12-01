@@ -8,14 +8,14 @@ import (
 
 // PendingBlocks maintains blocks that need to be published to DA layer
 type PendingBlocks struct {
-	pendingBlocks []*types.Block
+	pendingBlocks map[uint64]*types.Block
 	mtx           *sync.RWMutex
 }
 
 // NewPendingBlocks returns a new PendingBlocks struct
 func NewPendingBlocks() *PendingBlocks {
 	return &PendingBlocks{
-		pendingBlocks: make([]*types.Block, 0),
+		pendingBlocks: make(map[uint64]*types.Block),
 		mtx:           new(sync.RWMutex),
 	}
 }
@@ -23,7 +23,11 @@ func NewPendingBlocks() *PendingBlocks {
 func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
 	pb.mtx.RLock()
 	defer pb.mtx.RUnlock()
-	return pb.pendingBlocks
+	blocks := make([]*types.Block, 0)
+	for _, block := range pb.pendingBlocks {
+		blocks = append(blocks, block)
+	}
+	return blocks
 }
 
 func (pb *PendingBlocks) isEmpty() bool {
@@ -34,11 +38,13 @@ func (pb *PendingBlocks) isEmpty() bool {
 func (pb *PendingBlocks) addPendingBlock(block *types.Block) {
 	pb.mtx.Lock()
 	defer pb.mtx.Unlock()
-	pb.pendingBlocks = append(pb.pendingBlocks, block)
+	pb.pendingBlocks[block.Height()] = block
 }
 
-func (pb *PendingBlocks) resetPendingBlocks() {
+func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 	pb.mtx.Lock()
 	defer pb.mtx.Unlock()
-	pb.pendingBlocks = make([]*types.Block, 0)
+	for _, block := range blocks {
+		delete(pb.pendingBlocks, block.Height())
+	}
 }
