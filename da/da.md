@@ -1,81 +1,35 @@
 # DA
 
-## Abstract
+Rollkit provides a wrapper for [go-da][go-da], a generic data availability interface for modular blockchains, called `DAClient` with wrapper functionalities like `SubmitBlocks` and `RetrieveBlocks` to help block manager interact with DA more easily.
 
-The `Data Availability Layer Client (DALC)` defines the interaction between the rollup and the Data Availability layer. It provides an interface for submitting and retrieving blocks, ensuring consistency and reliability in data storage and retrieval. By default a [celestia implementation] of the [DALC Interface][data availability layer client interface] is provided.
+## Details
 
-## Detailed Description
+`DAClient` under the hood uses a GRPC implementation of the [go-da][go-da] DA interface. Using the `DAAddress` specified in the node's config, node creates a GRPC connection to it using go-da's gprc implementation [grpc-proxy][grpc-proxy] which is then used under the hood of `DAClient` to communicated with the underlying DA.
 
-The DALC interface is defined as:
+Given a set of blocks to be submitted to DA by the block manager, the `SubmitBlocks` first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the `Submit` method on the underlying DA implementation. On successful submission (`StatusSuccess`), the DA block height which included in the rollup blocks is returned.
 
-```protobuf
-service DALCService {
-	rpc SubmitBlocks(SubmitBlocksRequest) returns (SubmitBlocksResponse) {}
-	rpc RetrieveBlocks(RetrieveBlocksRequest) returns (RetrieveBlocksResponse) {}
-}
-```
+The `Submit` call may result in an error (`StatusError`) based on the underlying DA implementations on following scenarios:
 
-The `SubmitBlocks` method submits rollup blocks to the Data Availability layer. The response is defined as:
+* the total blobs size exceeds the underlying DA's limits (includes empty blobs)
+* the implementation specific failures, e.g., for [celestia-da][celestia-da], invalid namespace, unable to create the commitment or proof, setting low gas price, etc, could return error.
 
-```protobuf
-message DAResponse {
-	StatusCode code = 1;
-	string message = 2;
-	uint64 da_height = 3 [(gogoproto.customname) = "DAHeight"];
-}
-```
+The `RetrieveBlocks` retrieves the rollup blocks for a given DA height using [go-da][go-da] `GetIDs` and `Get` methods. If there are no blocks available for a given DA height, `StatusNotFound` is returned (which is not an error case). The retrieved blobs are converted back to rollup blocks and returned on successful retrieval.
 
-Where `StatusCode` is defined as:
-
-```protobuf
-enum StatusCode {
-	STATUS_CODE_UNSPECIFIED = 0;
-	STATUS_CODE_SUCCESS = 1;
-	STATUS_CODE_TIMEOUT = 2;
-	STATUS_CODE_ERROR   = 3;
-}
-```
-
-`DAResponse` `code` contains the status code:
-
-* `STATUS_CODE_SUCCESS` is returned in case of a successful submission.
-* `STATUS_CODE_TIMEOUT` is returned in case of a submission timeout.
-* `STATUS_CODE_ERROR` is returned in case of a submission failure.
-
-`DAResponse` `message` field may contain any additional data layer information for e.g. block hash in case of success or a detailed error message in case of failure.
-
-`DAResponse` `da_height` field contains the block height of inclusion of the Data Availability layer transaction.
-
-## Message Structure/Communication Format
-
-The gRPC service uses protobufs for communication between the rollup and the Data Availability layer.
-
-Rollup blocks are serialised into binary as protobufs as per the encoding/decoding scheme defined in [block serialization].
-
-## Assumptions and Considerations
-
-When trying to submit a block to the Data Availability layer, the following failure cases are possible:
-
-* submitting the Data Availability layer transaction (rollup Block) into the mempool, but is not accepted for some reason e.g. mempool is full.
-* submitting the Data Availability layer transaction (rollup Block) into the mempool, but there is a nonce clash with a different transaction such as a coin transfer. The one from rollkit might fail and never be included.
-* submitting the Data Availability layer transaction (rollup Block) but the gas was misconfigured too low so it will be stuck in the mempool.
-* we call submit but get no response (node crashed for example).
-* we submit a tx but it is impossible to fit as it is too big (too many bytes) so it fails.
-
-In case of an error, the request will be retried with an exponentially increasing back-off starting with 100ms and capped at the DA block time, a maximum of 30 times until the request is successful.
+Both `SubmitBlocks` and `RetrieveBlocks` may be unsuccessful if the DA node and the DA blockchain that the DA implementation is using have failures. For example, failures such as, DA mempool is full, DA submit transaction is nonce clashing with other transaction from the DA submitter account, DA node is not synced, etc.
 
 ## Implementation
 
-See [data availability layer client interface]
+See [da implementation]
 
 ## References
 
-[1] [DALC Interface][data availability layer client interface]
+[1] [go-da][go-da]
 
-[2] [Celestia Implementation][celestia implementation]
+[2] [celestia-da][celestia-da]
 
-[3] [Block Serialization] [block serialization]
+[3] [grpc-proxy][grpc-proxy]
 
-[data availability layer client interface]: https://github.com/rollkit/rollkit/blob/v0.11.4/proto/dalc/dalc.proto
-[celestia implementation]: https://github.com/rollkit/rollkit/tree/v0.11.4/da/celestia
-[block serialization]: https://github.com/rollkit/rollkit/tree/v0.11.4/types/serialization.go
+[da implementation]: https://github.com/rollkit/rollkit/blob/main/da/da.go
+[go-da]: https://github.com/rollkit/go-da
+[celestia-da]: https://github.com/rollkit/celestia-da
+[grpc-proxy]: https://github.com/rollkit/go-da/proxy
