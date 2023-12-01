@@ -592,6 +592,24 @@ func (m *Manager) IsProposer() (bool, error) {
 	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
+func (m *Manager) getValsForCentralizedSequencer() (*cmtypes.ValidatorSet, error) {
+	if m.genesis == nil || len(m.genesis.Validators) != 1 {
+		return nil, fmt.Errorf("genesis must contain exactly 1 validator, the centralized sequencer")
+	}
+	seq := &cmtypes.Validator{
+		Address:          m.genesis.Validators[0].Address,
+		PubKey:           m.genesis.Validators[0].PubKey,
+		VotingPower:      int64(1),
+		ProposerPriority: int64(1),
+	}
+
+	vset := cmtypes.ValidatorSet{
+		Proposer:   seq,
+		Validators: []*cmtypes.Validator{seq},
+	}
+	return &vset, nil
+}
+
 func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
@@ -655,6 +673,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return err
 		}
 	}
+	vals, err := m.getValsForCentralizedSequencer()
+	if err != nil {
+		return err
+	}
+	block.SignedHeader.Validators = vals
 
 	// Apply the block but DONT commit
 	newState, responses, err := m.applyBlock(ctx, block)
