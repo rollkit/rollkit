@@ -360,26 +360,27 @@ func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
 	}
 }
 
-// trySyncNextBlock tries to progress one step (one block) in sync process.
+// trySyncNextBlock tries to execute as many blocks as possible.
 //
-// To be able to apply block and height h, we need to have its Commit. It is contained in block at height h+1.
-// If block at height h+1 is not available, value of last gossiped commit is checked.
+// For every block, to be able to apply block at height h, we need to have its Commit. It is contained in block at height h+1.
 // If commit for block h is available, we proceed with sync process, and remove synced block from sync cache.
 func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
-	var commit *types.Commit
-	currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
+	for {
+		currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
+		b, ok := m.blockCache.getBlock(currentHeight + 1)
+		if b == nil || !ok {
+			return nil
+		}
 
-	b, ok := m.blockCache.getBlock(currentHeight + 1)
-	if !ok {
-		return nil
-	}
+		var commit *types.Commit
+		signedHeader := &b.SignedHeader
+		if signedHeader != nil {
+			commit = &b.SignedHeader.Commit
+		}
 
-	signedHeader := &b.SignedHeader
-	if signedHeader != nil {
-		commit = &b.SignedHeader.Commit
-	}
-
-	if b != nil && commit != nil {
+		if commit == nil {
+			return nil
+		}
 		bHeight := uint64(b.Height())
 		m.logger.Info("Syncing block", "height", bHeight)
 		// Validate the received block before applying
@@ -404,6 +405,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
+		// Height gets updated
 		m.store.SetHeight(bHeight)
 
 		if daHeight > newState.DAHeight {
@@ -415,8 +417,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		m.blockCache.deleteBlock(currentHeight + 1)
 	}
-
-	return nil
 }
 
 // BlockStoreRetrieveLoop is responsible for retrieving blocks from the Block Store.
