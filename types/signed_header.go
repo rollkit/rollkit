@@ -137,7 +137,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	if !bytes.Equal(sh.Validators.Validators[0].Address.Bytes(), sh.ProposerAddress) {
-		return errors.New("proposer address in SignedHeader not correctly set")
+		return errors.New("proposer address in SignedHeader does not match the expected centralized sequencer address")
 	}
 
 	if err := sh.Validators.ValidateBasic(); err != nil {
