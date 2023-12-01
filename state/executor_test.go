@@ -256,13 +256,12 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
-	nsID := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	chainID := "test"
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(t, eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), nsID, chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
 
 	state := types.State{
 		ConsensusParams: cmproto.ConsensusParams{
