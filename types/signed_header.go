@@ -98,7 +98,7 @@ func (sh *SignedHeader) VerifyCentralizedSequencer(genesis *cmtypes.GenesisDoc) 
 		return errors.New("provided genesis must have 1 validator (the centralized sequencer)")
 	}
 	if !bytes.Equal(sh.Validators.Proposer.PubKey.Bytes(), genesis.Validators[0].PubKey.Bytes()) {
-		return errors.New("signed header proposer does not match the centralized sequencer specified in the genesis file")
+		return fmt.Errorf("signed header proposer public key %x does not match the centralized sequencer public key %x specified in the genesis file", sh.Validators.Proposer.PubKey.Bytes(), genesis.Validators[0].PubKey.Bytes())
 	}
 	return nil
 }
