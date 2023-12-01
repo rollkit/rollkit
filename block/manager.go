@@ -511,7 +511,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
-				validSequencer := block.SignedHeader.VerifyCentralizedSequencer(m.genesis) == nil
+				validSequencer := bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes())
 				if !validSequencer {
 					// block is junk
 					continue
