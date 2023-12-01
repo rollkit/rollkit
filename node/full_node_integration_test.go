@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -208,6 +209,7 @@ func TestFastDASync(t *testing.T) {
 
 	// Create the 2 nodes
 	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
+
 	node1 := nodes[0]
 	node2 := nodes[1]
 
@@ -626,7 +628,18 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		ctx = context.Background()
 	}
 
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	pubkeyBytes, err := keys[0].GetPublic().Raw()
+	require.NoError(err)
+	var pubkey ed25519.PubKey = pubkeyBytes
+	genesisValidators := []cmtypes.GenesisValidator{
+		{
+			Address: pubkey.Address(),
+			PubKey:  pubkey,
+			Power:   int64(1),
+			Name:    "sequencer",
+		},
+	}
+
 	genesis := &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
 	// TODO: need to investigate why this needs to be done for light nodes
 	genesis.InitialHeight = 1
@@ -640,7 +653,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 			Light:              isLight,
 		},
 		keys[n],
-		signingKey,
+		keys[n],
 		proxy.NewLocalClientCreator(app),
 		genesis,
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
