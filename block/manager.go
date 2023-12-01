@@ -672,17 +672,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
 
-		// SaveBlock commits the DB tx
-		err = m.store.SaveBlock(block, commit)
-		if err != nil {
-			return err
-		}
 	}
 	vals, err := m.getValsForCentralizedSequencer()
 	if err != nil {
 		return err
 	}
 	block.SignedHeader.Validators = vals
+	// SaveBlock commits the DB tx
 	err = m.store.SaveBlock(block, commit)
 	if err != nil {
 		return err
