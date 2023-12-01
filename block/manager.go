@@ -17,6 +17,7 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
@@ -66,8 +67,7 @@ type Manager struct {
 
 	executor *state.BlockExecutor
 
-	dalc      da.DataAvailabilityLayerClient
-	retriever da.BlockRetriever
+	dalc *da.DAClient
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
@@ -112,7 +112,7 @@ func NewManager(
 	store store.Store,
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,
-	dalc da.DataAvailabilityLayerClient,
+	dalc *da.DAClient,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	blockStore *goheaderstore.Store[*types.Block],
@@ -140,7 +140,7 @@ func NewManager(
 		conf.BlockTime = defaultBlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, conf.NamespaceID, genesis.ChainID, mempool, proxyApp, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -168,7 +168,6 @@ func NewManager(
 		store:       store,
 		executor:    exec,
 		dalc:        dalc,
-		retriever:   dalc.(da.BlockRetriever), // TODO(tzdybal): do it in more gentle way (after MVP)
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:          make(chan *types.SignedHeader, channelLength),
@@ -197,9 +196,8 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
-func (m *Manager) SetDALC(dalc da.DataAvailabilityLayerClient) {
+func (m *Manager) SetDALC(dalc *da.DAClient) {
 	m.dalc = dalc
-	m.retriever = dalc.(da.BlockRetriever)
 }
 
 // GetStoreHeight returns the manager's store height
@@ -430,6 +428,17 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 			}
 			daHeight := atomic.LoadUint64(&m.daHeight)
 			for _, block := range blocks {
+				// Check for shut down event prior to logging
+				// and sending block to blockInCh. The reason
+				// for checking for the shutdown event
+				// separately is due to the inconsistent nature
+				// of the select statement when multiple cases
+				// are satisfied.
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
 				m.blockInCh <- newBlockEvent{block, daHeight}
 			}
@@ -505,6 +514,17 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				m.blockCache.setDAIncluded(blockHash)
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
 				if !m.blockCache.isSeen(blockHash) {
+					// Check for shut down event prior to logging
+					// and sending block to blockInCh. The reason
+					// for checking for the shutdown event
+					// separately is due to the inconsistent nature
+					// of the select statement when multiple cases
+					// are satisfied.
+					select {
+					case <-ctx.Done():
+						return errors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+					default:
+					}
 					m.blockInCh <- newBlockEvent{block, daHeight}
 				}
 			}
@@ -525,7 +545,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 
 func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
 	var err error
-	blockRes := m.retriever.RetrieveBlocks(ctx, daHeight)
+	blockRes := m.dalc.RetrieveBlocks(ctx, daHeight)
 	switch blockRes.Code {
 	case da.StatusError:
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
@@ -690,11 +710,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	// Check if the node has shutdown prior to publishing to channels
+	// Check for shut down event prior to sending the header and block to
+	// their respective channels. The reason for checking for the shutdown
+	// event separately is due to the inconsistent nature of the select
+	// statement when multiple cases are satisfied.
 	select {
 	case <-ctx.Done():
-		return nil
+		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
 	default:
 	}
 

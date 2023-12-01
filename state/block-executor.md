@@ -6,9 +6,9 @@ The `BlockExecutor` is a component responsible for creating, applying, and maint
 
 ## Detailed Description
 
-The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `chain ID`, `mempool`, `proxyApp`, `eventBus`, and `logger`. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.
+The `BlockExecutor` is initialized with a proposer address, `chain ID`, `mempool`, `proxyApp`, `eventBus`, and `logger`. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.
 
-- `NewBlockExecutor`: This method creates a new instance of `BlockExecutor`. It takes a proposer address, `namespace ID`, `chain ID`, `mempool`, `proxyApp`, `eventBus`, and `logger` as parameters. See [block manager] for details.
+- `NewBlockExecutor`: This method creates a new instance of `BlockExecutor`. It takes a proposer address, `chain ID`, `mempool`, `proxyApp`, `eventBus`, and `logger` as parameters. See [block manager] for details.
 
 - `InitChain`: This method initializes the chain by calling ABCI `InitChainSync` using the consensus connection to the app. It takes a `GenesisDoc` as a parameter. It sends a ABCI `RequestInitChain` message with the genesis parameters including:
   - Genesis Time
