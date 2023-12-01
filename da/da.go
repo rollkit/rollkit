@@ -49,14 +49,6 @@ type ResultSubmitBlocks struct {
 	// Hash hash.Hash
 }
 
-// ResultCheckBlock contains information about block availability, returned from DA layer client.
-type ResultCheckBlock struct {
-	BaseResult
-	// DataAvailable is the actual answer whether the block is available or not.
-	// It can be true if and only if Code is equal to StatusSuccess.
-	DataAvailable bool
-}
-
 // ResultRetrieveBlocks contains batch of blocks returned from DA layer client.
 type ResultRetrieveBlocks struct {
 	BaseResult
