@@ -155,6 +155,12 @@ func (sh *SignedHeader) ValidateBasic() error {
 	if err != nil {
 		return fmt.Errorf("signature verification failed, unable to marshal header: %v", err)
 	}
+	if sh.Validators.Validators[0].PubKey == nil {
+	    return errors.New("public key in validator is nil")
+	}
+	if signature == nil {
+	    return errors.New("signature in commit is nil")
+	}
 	if !sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature) {
 		return ErrSignatureVerificationFailed
 	}
