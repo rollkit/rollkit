@@ -685,7 +685,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	block.SignedHeader.Validators = vals
 	err = m.store.SaveBlock(block, commit)
 	if err != nil {
-	    return err
+		return err
 	}
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
