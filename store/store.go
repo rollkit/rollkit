@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"go.uber.org/multierr"
 
@@ -19,12 +17,11 @@ import (
 )
 
 var (
-	blockPrefix      = "b"
-	indexPrefix      = "i"
-	commitPrefix     = "c"
-	statePrefix      = "s"
-	responsesPrefix  = "r"
-	validatorsPrefix = "v"
+	blockPrefix     = "b"
+	indexPrefix     = "i"
+	commitPrefix    = "c"
+	statePrefix     = "s"
+	responsesPrefix = "r"
 )
 
 // DefaultStore is a default store implmementation.
@@ -198,41 +195,6 @@ func (s *DefaultStore) GetState() (types.State, error) {
 	return state, err
 }
 
-// SaveValidators stores validator set for given block height in store.
-func (s *DefaultStore) SaveValidators(height uint64, validatorSet *cmtypes.ValidatorSet) error {
-	pbValSet, err := validatorSet.ToProto()
-	if err != nil {
-		return fmt.Errorf("failed to marshal ValidatorSet to protobuf: %w", err)
-	}
-	blob, err := pbValSet.Marshal()
-	if err != nil {
-		return fmt.Errorf("failed to marshal ValidatorSet: %w", err)
-	}
-
-	return s.db.Put(s.ctx, ds.NewKey(getValidatorsKey(height)), blob)
-}
-
-// GetValidators loads validator set at given block height from store.
-func (s *DefaultStore) GetValidators(height uint64) (*cmtypes.ValidatorSet, error) {
-	blob, err := s.db.Get(s.ctx, ds.NewKey(getValidatorsKey(height)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load Validators for height %v: %w", height, err)
-	}
-	var pbValSet cmproto.ValidatorSet
-	err = pbValSet.Unmarshal(blob)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal to protobuf: %w", err)
-	}
-	if len(pbValSet.Validators) == 0 {
-		return &cmtypes.ValidatorSet{
-			Validators: make([]*cmtypes.Validator, 0),
-			Proposer:   nil,
-		}, nil
-	}
-
-	return cmtypes.ValidatorSetFromProto(&pbValSet)
-}
-
 // loadHashFromIndex returns the hash of a block given its height
 func (s *DefaultStore) loadHashFromIndex(height uint64) (header.Hash, error) {
 	blob, err := s.db.Get(s.ctx, ds.NewKey(getIndexKey(height)))
@@ -264,8 +226,4 @@ func getStateKey() string {
 
 func getResponsesKey(height uint64) string {
 	return GenerateKey([]interface{}{responsesPrefix, height})
-}
-
-func getValidatorsKey(height uint64) string {
-	return GenerateKey([]interface{}{validatorsPrefix, height})
 }
