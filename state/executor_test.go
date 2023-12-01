@@ -271,7 +271,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 				MaxGas:   100000,
 			},
 			Validator: &cmproto.ValidatorParams{
-				PubKeyTypes: []string{"tendermint/PubKeyEd25519"},
+				PubKeyTypes: []string{cmtypes.ABCIPubKeyTypeEd25519},
 			},
 			Version: &cmproto.VersionParams{
 				App: 1,
