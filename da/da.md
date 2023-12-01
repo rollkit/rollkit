@@ -32,4 +32,4 @@ See [da implementation]
 [da implementation]: https://github.com/rollkit/rollkit/blob/main/da/da.go
 [go-da]: https://github.com/rollkit/go-da
 [celestia-da]: https://github.com/rollkit/celestia-da
-[grpc-proxy]: https://github.com/rollkit/go-da/proxy
+[grpc-proxy]: https://github.com/rollkit/go-da/tree/main/proxy
