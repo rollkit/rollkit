@@ -376,11 +376,12 @@ func (c *FullClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensu
 }
 
 // ConsensusParams returns consensus params at given height.
-//
-// Currently, consensus params changes are not supported and this method returns params as defined in genesis.
 func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// TODO(tzdybal): implement consensus params handling: https://github.com/rollkit/rollkit/issues/291
-	params := c.node.GetGenesis().ConsensusParams
+	state, err := c.node.Store.GetState()
+	if err != nil {
+		return nil, err
+	}
+	params := state.ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),
 		ConsensusParams: cmtypes.ConsensusParams{
