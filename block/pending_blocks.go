@@ -21,6 +21,8 @@ func NewPendingBlocks() *PendingBlocks {
 	}
 }
 
+// getPendingBlocks returns a sorted slice of pending blocks
+// that need to be published to DA layer in order of block height
 func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
 	pb.mtx.RLock()
 	defer pb.mtx.RUnlock()
