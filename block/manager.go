@@ -87,6 +87,10 @@ type Manager struct {
 
 	logger log.Logger
 
+	// Rollkit doesn't have "validators", but
+	// we store the sequencer in this struct for compatibility.
+	validatorSet *cmtypes.ValidatorSet
+
 	// For usage by Lazy Aggregator mode
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
@@ -118,6 +122,18 @@ func NewManager(
 	blockStore *goheaderstore.Store[*types.Block],
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
+	// genesis should have exactly one "validator", the centralized sequencer.
+	// this should have been validated in the above call to getInitialState.
+	sequencer := &cmtypes.Validator{
+		Address:          genesis.Validators[0].Address,
+		PubKey:           genesis.Validators[0].PubKey,
+		VotingPower:      int64(1),
+		ProposerPriority: int64(1),
+	}
+	vset := cmtypes.ValidatorSet{
+		Proposer:   sequencer,
+		Validators: []*cmtypes.Validator{sequencer},
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +195,7 @@ func NewManager(
 		blockCache:        NewBlockCache(),
 		retrieveCh:        make(chan struct{}, 1),
 		logger:            logger,
+		validatorSet:      &vset,
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
@@ -596,24 +613,6 @@ func (m *Manager) IsProposer() (bool, error) {
 	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
-func (m *Manager) getValsForCentralizedSequencer() (*cmtypes.ValidatorSet, error) {
-	if m.genesis == nil || len(m.genesis.Validators) != 1 {
-		return nil, fmt.Errorf("genesis must contain exactly 1 validator, the centralized sequencer")
-	}
-	seq := &cmtypes.Validator{
-		Address:          m.genesis.Validators[0].Address,
-		PubKey:           m.genesis.Validators[0].PubKey,
-		VotingPower:      int64(1),
-		ProposerPriority: int64(1),
-	}
-
-	vset := cmtypes.ValidatorSet{
-		Proposer:   seq,
-		Validators: []*cmtypes.Validator{seq},
-	}
-	return &vset, nil
-}
-
 func (m *Manager) publishBlock(ctx context.Context) error {
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
@@ -672,11 +671,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block.SignedHeader.Commit = *commit
 
 	}
-	vals, err := m.getValsForCentralizedSequencer()
-	if err != nil {
-		return err
-	}
-	block.SignedHeader.Validators = vals
+	block.SignedHeader.Validators = m.validatorSet
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlock(block, commit)
 	if err != nil {
