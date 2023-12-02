@@ -24,7 +24,7 @@ func NewPendingBlocks() *PendingBlocks {
 func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
 	pb.mtx.RLock()
 	defer pb.mtx.RUnlock()
-	blocks := make([]*types.Block, 0)
+	blocks := make([]*types.Block, 0, len(pb.pendingBlocks))
 	for _, block := range pb.pendingBlocks {
 		blocks = append(blocks, block)
 	}
