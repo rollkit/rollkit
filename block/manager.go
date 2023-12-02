@@ -533,7 +533,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 					// block is junk
 					continue
 				}
-				validBlock := block.SignedHeader.ValidateBasic() == nil
+				validBlock := block.ValidateBasic() == nil
 				if !validBlock {
 					// block is junk
 					continue
