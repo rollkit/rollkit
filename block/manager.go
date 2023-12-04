@@ -657,27 +657,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 		block = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
-
-		block.SignedHeader.DataHash, err = block.Data.Hash()
-		if err != nil {
-			return nil
-		}
-
-		commit, err = m.getCommit(block.SignedHeader.Header)
-		if err != nil {
-			return err
-		}
-
-		// set the commit to current block's signed header
-		block.SignedHeader.Commit = *commit
-
 	}
+
 	block.SignedHeader.Validators = m.validatorSet
-	// SaveBlock commits the DB tx
-	err = m.store.SaveBlock(block, commit)
-	if err != nil {
-		return err
-	}
+
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
 		return err
