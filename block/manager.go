@@ -657,6 +657,24 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 		block = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
+
+		/*
+		  here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
+		  to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
+		  these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
+		*/
+		block.SignedHeader.DataHash, err = block.Data.Hash()
+		if err != nil {
+			return nil
+		}
+
+		commit, err = m.getCommit(block.SignedHeader.Header)
+		if err != nil {
+			return err
+		}
+
+		// set the commit to current block's signed header
+		block.SignedHeader.Commit = *commit
 	}
 
 	block.SignedHeader.Validators = m.validatorSet
