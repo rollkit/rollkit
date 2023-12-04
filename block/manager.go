@@ -360,27 +360,21 @@ func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
 	}
 }
 
-// trySyncNextBlock tries to execute as many blocks as possible.
+// trySyncNextBlock tries to execute as many blocks as possible from the blockCache.
+//
+//	Note: the blockCache contains only valid blocks that are not yet synced
 //
 // For every block, to be able to apply block at height h, we need to have its Commit. It is contained in block at height h+1.
-// If commit for block h is available, we proceed with sync process, and remove synced block from sync cache.
+// If commit for block h+1 is available, we proceed with sync process, and remove synced block from sync cache.
 func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	for {
-		currentHeight := m.store.Height() // TODO(tzdybal): maybe store a copy in memory
+		currentHeight := m.store.Height()
 		b, ok := m.blockCache.getBlock(currentHeight + 1)
 		if b == nil || !ok {
+			m.logger.Debug("block not found in cache", "height", currentHeight+1)
 			return nil
 		}
 
-		var commit *types.Commit
-		signedHeader := &b.SignedHeader
-		if signedHeader != nil {
-			commit = &b.SignedHeader.Commit
-		}
-
-		if commit == nil {
-			return nil
-		}
 		bHeight := uint64(b.Height())
 		m.logger.Info("Syncing block", "height", bHeight)
 		// Validate the received block before applying
@@ -391,7 +385,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
-		err = m.store.SaveBlock(b, commit)
+		err = m.store.SaveBlock(b, &b.SignedHeader.Commit)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
