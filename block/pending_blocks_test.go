@@ -4,8 +4,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestGetPendingBlocks(t *testing.T) {
