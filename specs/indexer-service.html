@@ -141,7 +141,7 @@
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
 <p>The Indexer service indexes transactions and blocks using events emitted by the block executor that can later be used to build services like block explorers that ingest this data.</p>
 <h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
-<p>The Indexer service consists of three main components: an event bus, a transaction indexer and a block indexer.</p>
+<p>The Indexer service is started and stopped along with a Full Node. It consists of three main components: an event bus, a transaction indexer and a block indexer.</p>
 <h3 id="event-bus"><a class="header" href="#event-bus">Event Bus</a></h3>
 <p>The event bus is a messaging service between the full node and the indexer service. It serves events emitted by the block executor of the full node to the indexer service where events are routed to the relevant indexer component based on type.</p>
 <h3 id="block-indexer"><a class="header" href="#block-indexer">Block Indexer</a></h3>
