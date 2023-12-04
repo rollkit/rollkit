@@ -7,7 +7,7 @@ toolchain go1.21.4
 require (
 	github.com/celestiaorg/go-header v0.4.1
 	github.com/celestiaorg/utils v0.1.0
-	github.com/cometbft/cometbft v0.38.0-rc3
+	github.com/cometbft/cometbft v0.38.2
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.13.0
