@@ -98,7 +98,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
 				Code:    StatusError,
-				Message: ErrBlobSizeOverLimit.Error(),
+				Message: "failed to submit blocks: oversized block: " + ErrBlobSizeOverLimit.Error(),
 			},
 		}
 	}
@@ -108,6 +108,15 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			BaseResult: BaseResult{
 				Code:    StatusError,
 				Message: "failed to submit blocks: " + err.Error(),
+			},
+		}
+	}
+
+	if len(ids) == 0 {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "failed to submit blocks: unexpected len(ids): 0",
 			},
 		}
 	}

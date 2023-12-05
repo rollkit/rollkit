@@ -40,5 +40,8 @@ func (pb *PendingBlocks) addPendingBlock(block *types.Block) {
 func (pb *PendingBlocks) resetPendingBlocks(submitted uint64) {
 	pb.mtx.Lock()
 	defer pb.mtx.Unlock()
+	if submitted > uint64(len(pb.pendingBlocks)) {
+		submitted = uint64(len(pb.pendingBlocks))
+	}
 	pb.pendingBlocks = pb.pendingBlocks[submitted:]
 }
