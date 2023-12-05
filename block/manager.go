@@ -751,6 +751,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
+		default:
 		}
 	}
 
