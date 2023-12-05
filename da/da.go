@@ -87,7 +87,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			}
 		}
 		if blobSize+uint64(len(blob)) > maxBlobSize {
-			dac.Logger.Info("skipping blocks over size limit", "index", i, "blobSize", blobSize, "maxBlobSize", maxBlobSize)
+			dac.Logger.Info("blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
 			break
 		}
 		blobSize += uint64(len(blob))

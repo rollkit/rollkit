@@ -86,26 +86,23 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	countAtHeight := make(map[uint64]int)
 	blockToDAHeight := make(map[*types.Block]uint64)
 	numBatches := uint64(10)
-	blocksSubmittedPerBatch := 10
+	numBlocks := 10
 
 	for i := uint64(0); i < numBatches; i++ {
-		blocks := make([]*types.Block, blocksSubmittedPerBatch)
+		blocks := make([]*types.Block, numBlocks)
 		for j := 0; j < len(blocks); j++ {
 			blocks[j] = types.GetRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
 		}
-		var daHeight uint64
 		for len(blocks) != 0 {
 			resp := dalc.SubmitBlocks(ctx, blocks)
 			assert.Equal(StatusSuccess, resp.Code, resp.Message)
+			for _, block := range blocks[:resp.SubmittedCount] {
+				blockToDAHeight[block] = resp.DAHeight
+				countAtHeight[resp.DAHeight]++
+			}
 			blocks = blocks[resp.SubmittedCount:]
-			daHeight = resp.DAHeight
 		}
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
-
-		for _, b := range blocks {
-			blockToDAHeight[b] = daHeight
-			countAtHeight[daHeight]++
-		}
 	}
 
 	// wait a bit more than mockDaBlockTime, so mock can "produce" last blocks
@@ -116,7 +113,6 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 		ret := dalc.RetrieveBlocks(ctx, h)
 		assert.Equal(StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Blocks, h)
-		assert.Equal(cnt, blocksSubmittedPerBatch)
 		assert.Len(ret.Blocks, cnt, h)
 	}
 
