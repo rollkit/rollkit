@@ -83,7 +83,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			dac.Logger.Info("skipping blocks over max blob size limit", "i", i, "blobSize", blobSize, "maxBlobSize", maxBlobSize)
 			break
 		}
-		blobs[i] = blob
+		blobs = append(blobs, blob)
 	}
 	ids, _, err := dac.DA.Submit(blobs)
 	if err != nil {
