@@ -177,3 +177,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
+
+replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
+
+replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.0.0-20231205014837-cdabafc49d2c
