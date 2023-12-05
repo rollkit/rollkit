@@ -65,7 +65,9 @@ type DAClient struct {
 
 // SubmitBlocks submits blocks to DA.
 func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) ResultSubmitBlocks {
-	blobs := make([][]byte, len(blocks))
+	var blobs [][]byte
+	var blobSize uint64
+	maxBlobSize := dac.DA.Config()
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
 		if err != nil {
@@ -75,6 +77,11 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 					Message: "failed to serialize block",
 				},
 			}
+		}
+		blobSize += uint64(len(blob))
+		if blobSize > maxBlobSize {
+			dac.Logger.Info("skipping blocks over max blob size limit", "i", i, "blobSize", blobSize, "maxBlobSize", maxBlobSize)
+			break
 		}
 		blobs[i] = blob
 	}
