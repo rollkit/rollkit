@@ -74,7 +74,15 @@ type DAClient struct {
 func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) ResultSubmitBlocks {
 	var blobs [][]byte
 	var blobSize uint64
-	maxBlobSize := dac.DA.Config()
+	maxBlobSize, err := dac.DA.Config()
+	if err != nil {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "unable to configure max blob size",
+			},
+		}
+	}
 	var submitted uint64
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
