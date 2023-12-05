@@ -180,4 +180,4 @@ require (
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 
-replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.0.0-20231205023222-2f98fe5ecb08
+replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.0.0-20231205023803-ecf042c7d6d2
