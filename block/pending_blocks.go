@@ -37,8 +37,8 @@ func (pb *PendingBlocks) addPendingBlock(block *types.Block) {
 	pb.pendingBlocks = append(pb.pendingBlocks, block)
 }
 
-func (pb *PendingBlocks) resetPendingBlocks() {
+func (pb *PendingBlocks) resetPendingBlocks(submitted uint64) {
 	pb.mtx.Lock()
 	defer pb.mtx.Unlock()
-	pb.pendingBlocks = make([]*types.Block, 0)
+	pb.pendingBlocks = pb.pendingBlocks[submitted:]
 }

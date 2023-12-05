@@ -39,6 +39,8 @@ type BaseResult struct {
 	Message string
 	// DAHeight informs about a height on Data Availability Layer for given result.
 	DAHeight uint64
+	// Count returns number of successfully submitted blocks.
+	Count uint64
 }
 
 // ResultSubmitBlocks contains information returned from DA layer after blocks submission.
@@ -68,6 +70,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 	var blobs [][]byte
 	var blobSize uint64
 	maxBlobSize := dac.DA.Config()
+	var count uint64
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
 		if err != nil {
@@ -83,6 +86,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			dac.Logger.Info("skipping blocks over size limit", "i", i, "blobSize", blobSize, "maxBlobSize", maxBlobSize)
 			break
 		}
+		count = uint64(i)
 		blobs = append(blobs, blob)
 	}
 	ids, _, err := dac.DA.Submit(blobs)
@@ -99,6 +103,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 		BaseResult: BaseResult{
 			Code:     StatusSuccess,
 			DAHeight: binary.LittleEndian.Uint64(ids[0]),
+			Count:    count,
 		},
 	}
 }
