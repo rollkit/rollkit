@@ -138,6 +138,23 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="da"><a class="header" href="#da">DA</a></h1>
+<p>Rollkit provides a wrapper for <a href="https://github.com/rollkit/go-da">go-da</a>, a generic data availability interface for modular blockchains, called <code>DAClient</code> with wrapper functionalities like <code>SubmitBlocks</code> and <code>RetrieveBlocks</code> to help block manager interact with DA more easily.</p>
+<h2 id="details"><a class="header" href="#details">Details</a></h2>
+<p><code>DAClient</code> under the hood uses a GRPC implementation of the <a href="https://github.com/rollkit/go-da">go-da</a> DA interface. Using the <code>DAAddress</code> specified in the node's config, node creates a GRPC connection to it using go-da's gprc implementation <a href="https://github.com/rollkit/go-da/tree/main/proxy">grpc-proxy</a> which is then used under the hood of <code>DAClient</code> to communicated with the underlying DA.</p>
+<p>Given a set of blocks to be submitted to DA by the block manager, the <code>SubmitBlocks</code> first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the <code>Submit</code> method on the underlying DA implementation. On successful submission (<code>StatusSuccess</code>), the DA block height which included in the rollup blocks is returned.</p>
+<p>The <code>Submit</code> call may result in an error (<code>StatusError</code>) based on the underlying DA implementations on following scenarios:</p>
+<ul>
+<li>the total blobs size exceeds the underlying DA's limits (includes empty blobs)</li>
+<li>the implementation specific failures, e.g., for <a href="https://github.com/rollkit/celestia-da">celestia-da</a>, invalid namespace, unable to create the commitment or proof, setting low gas price, etc, could return error.</li>
+</ul>
+<p>The <code>RetrieveBlocks</code> retrieves the rollup blocks for a given DA height using <a href="https://github.com/rollkit/go-da">go-da</a> <code>GetIDs</code> and <code>Get</code> methods. If there are no blocks available for a given DA height, <code>StatusNotFound</code> is returned (which is not an error case). The retrieved blobs are converted back to rollup blocks and returned on successful retrieval.</p>
+<p>Both <code>SubmitBlocks</code> and <code>RetrieveBlocks</code> may be unsuccessful if the DA node and the DA blockchain that the DA implementation is using have failures. For example, failures such as, DA mempool is full, DA submit transaction is nonce clashing with other transaction from the DA submitter account, DA node is not synced, etc.</p>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">da implementation</a></p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/rollkit/go-da">go-da</a></p>
+<p>[2] <a href="https://github.com/rollkit/celestia-da">celestia-da</a></p>
+<p>[3] <a href="https://github.com/rollkit/go-da/tree/main/proxy">grpc-proxy</a></p>
 
                     </main>
 

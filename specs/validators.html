@@ -140,14 +140,13 @@
                         <h1 id="sequencer-selection-scheme"><a class="header" href="#sequencer-selection-scheme">Sequencer Selection Scheme</a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
 <p>The Sequencer Selection scheme describes the process of selecting a block proposer i.e. sequencer from the validator set.</p>
+<p>In the first version of Rollkit, this is a fixed pubkey, belonging to the centralized sequencer. The validator set may only ever have one &quot;validator&quot;, the centralized sequencer.</p>
 <h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
 <p>There is exactly one sequencer which is configured at genesis. <code>GenesisDoc</code> usually contains an array of validators as it is imported from <code>CometBFT</code>. If there is more than one validator defined
 in the genesis validator set, an error is thrown.</p>
-<p>The <code>State</code> struct defines a <code>Sequencer</code> field which contains the public key of the first and only validator of the genesis.</p>
 <p>The <code>Header</code> struct defines a field called <code>ProposerAddress</code> which is the pubkey of the original proposer of the block.</p>
 <p>The <code>SignedHeader</code> struct commits over the header and the proposer address and stores the result in <code>LastCommitHash</code>.</p>
 <p>A new untrusted header is verified by checking its <code>ProposerAddress</code> and matching it against the best-known header. In case of a mismatch, an error is thrown.</p>
-<p>When a new node is syncing, the block manager matches the <code>proposerKey</code> against the <code>Sequencer</code> field of the <code>lastState</code>. If a block is not signed by the expected proposer, it is ignored.</p>
 <h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
 <p>The primary structures encompassing validator information include <code>SignedHeader</code>, <code>Header</code>, and <code>State</code>. Some fields are repurposed from CometBFT as seen in <code>GenesisDoc</code> <code>Validators</code>.</p>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>

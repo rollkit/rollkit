@@ -168,7 +168,7 @@
 <h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
 <p>The Full Node communicates with other nodes in the network using the P2P client. It also communicates with the application using the ABCI proxy connections. The communication format is based on the P2P and ABCI protocols.</p>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
-<p>The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors. The DA layer specified in the node configuration should be in the list of registered clients in the <a href="https://github.com/rollkit/rollkit/blob/main/da/registry/registry.go">DA registry</a>.</p>
+<p>The Full Node assumes that the configuration, private keys, client creator, genesis document, and logger are correctly passed in by the Cosmos SDK. It also assumes that the P2P client, data availability layer client, mempool, block manager, and other services can be started and stopped without errors.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full node</a></p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
@@ -182,9 +182,8 @@
 <p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">Store Interface</a></p>
 <p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
-<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/da/registry/registry.go">DA registry</a></p>
-<p>[12] <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">Header Sync Service</a></p>
-<p>[13] <a href="https://github.com/rollkit/rollkit/blob/main/block/block_sync.go">Block Sync Service</a></p>
+<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">Header Sync Service</a></p>
+<p>[12] <a href="https://github.com/rollkit/rollkit/blob/main/block/block_sync.go">Block Sync Service</a></p>
 
                     </main>
 
