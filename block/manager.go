@@ -315,7 +315,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", blockHash,
 			)
-			if m.blockCache.isSeen(blockHash) || blockHeight <= m.store.Height() {
+			if blockHeight <= m.store.Height() || m.blockCache.isSeen(blockHash) {
 				m.logger.Debug("block already seen", "height", blockHeight, "block hash", blockHash)
 				continue
 			}
