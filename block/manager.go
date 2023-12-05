@@ -735,7 +735,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
-	var submitted bool
+	submitted := false
 	backoff := initialBackoff
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
 		blocks := m.pendingBlocks.getPendingBlocks()
