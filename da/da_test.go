@@ -93,13 +93,18 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 		for j := 0; j < len(blocks); j++ {
 			blocks[j] = types.GetRandomBlock(i*numBatches+uint64(j), rand.Int()%20) //nolint:gosec
 		}
-		resp := dalc.SubmitBlocks(ctx, blocks)
-		assert.Equal(StatusSuccess, resp.Code, resp.Message)
+		var daHeight uint64
+		for len(blocks) != 0 {
+			resp := dalc.SubmitBlocks(ctx, blocks)
+			assert.Equal(StatusSuccess, resp.Code, resp.Message)
+			blocks = blocks[resp.Count:]
+			daHeight = resp.DAHeight
+		}
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 
 		for _, b := range blocks {
-			blockToDAHeight[b] = resp.DAHeight
-			countAtHeight[resp.DAHeight]++
+			blockToDAHeight[b] = daHeight
+			countAtHeight[daHeight]++
 		}
 	}
 

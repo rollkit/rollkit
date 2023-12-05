@@ -178,6 +178,4 @@ require (
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
 
-replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
-
-replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.0.0-20231205024001-329a32e7e65d
+replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.0.0-20231205202218-f9d78ab6308b
