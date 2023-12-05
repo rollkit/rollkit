@@ -167,6 +167,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	return block, nil
 }
 
+// ProcessProposal processes the proposal.
 func (e *BlockExecutor) ProcessProposal(
 	block *types.Block,
 	state types.State,
