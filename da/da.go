@@ -14,8 +14,13 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-// ErrBlobNotFound is used to indicate that the blob was not found.
-var ErrBlobNotFound = errors.New("blob: not found")
+var (
+	// ErrBlobNotFound is used to indicate that the blob was not found.
+	ErrBlobNotFound = errors.New("blob: not found")
+
+	// ErrBlobSizeOverLimit is used to indicate that the blob size is over limit
+	ErrBlobSizeOverLimit = errors.New("blob: over size limit")
+)
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
@@ -39,8 +44,8 @@ type BaseResult struct {
 	Message string
 	// DAHeight informs about a height on Data Availability Layer for given result.
 	DAHeight uint64
-	// Count returns number of successfully submitted blocks.
-	Count uint64
+	// SubmittedCount is the number of successfully submitted blocks.
+	SubmittedCount uint64
 }
 
 // ResultSubmitBlocks contains information returned from DA layer after blocks submission.
@@ -70,7 +75,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 	var blobs [][]byte
 	var blobSize uint64
 	maxBlobSize := dac.DA.Config()
-	var count uint64
+	var submitted uint64
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
 		if err != nil {
@@ -86,8 +91,16 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			break
 		}
 		blobSize += uint64(len(blob))
-		count += 1
+		submitted += 1
 		blobs = append(blobs, blob)
+	}
+	if submitted == 0 {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: ErrBlobSizeOverLimit.Error(),
+			},
+		}
 	}
 	ids, _, err := dac.DA.Submit(blobs)
 	if err != nil {
@@ -101,9 +114,9 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 
 	return ResultSubmitBlocks{
 		BaseResult: BaseResult{
-			Code:     StatusSuccess,
-			DAHeight: binary.LittleEndian.Uint64(ids[0]),
-			Count:    count,
+			Code:           StatusSuccess,
+			DAHeight:       binary.LittleEndian.Uint64(ids[0]),
+			SubmittedCount: submitted,
 		},
 	}
 }

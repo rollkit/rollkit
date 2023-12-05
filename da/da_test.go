@@ -97,7 +97,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 		for len(blocks) != 0 {
 			resp := dalc.SubmitBlocks(ctx, blocks)
 			assert.Equal(StatusSuccess, resp.Code, resp.Message)
-			blocks = blocks[resp.Count:]
+			blocks = blocks[resp.SubmittedCount:]
 			daHeight = resp.DAHeight
 		}
 		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec

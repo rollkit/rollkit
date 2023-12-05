@@ -741,8 +741,8 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 		blocks := m.pendingBlocks.getPendingBlocks()
 		res := m.dalc.SubmitBlocks(ctx, blocks)
 		if res.Code == da.StatusSuccess {
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight, "count", res.Count)
-			if int(res.Count) == len(blocks) {
+			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
+			if int(res.SubmittedCount) == len(blocks) {
 				submitted = true
 			}
 		} else {
@@ -750,7 +750,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		}
-		m.pendingBlocks.resetPendingBlocks(res.Count)
+		m.pendingBlocks.resetPendingBlocks(res.SubmittedCount)
 	}
 
 	if !submitted {
