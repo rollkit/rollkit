@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The mempool module stores transactions which have not yet been included in a block, and provides an interface to check the validity of incoming transactions. It's defined by an interface [here](https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go#L16), with an implementation [here](https://github.com/rollkit/rollkit/blob/main/mempool/v1/mempool.go).
+The mempool module stores transactions which have not yet been included in a block, and provides an interface to check the validity of incoming transactions. It's defined by an interface [here](https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go#L16), with an implementation [here](https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go).
 
 ## Component Description
 
