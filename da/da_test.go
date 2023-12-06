@@ -2,6 +2,7 @@ package da
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -12,11 +13,13 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/rollkit/go-da"
 	"github.com/rollkit/go-da/proxy"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/types"
@@ -35,6 +38,51 @@ func TestMain(m *testing.M) {
 	srv.GracefulStop()
 
 	os.Exit(exitCode)
+}
+
+// MockDA is a mock for the DA interface
+type MockDA struct {
+	mock.Mock
+}
+
+func (m *MockDA) MaxBlobSize() (uint64, error) {
+	args := m.Called()
+	return args.Get(0).(uint64), args.Error(1)
+}
+
+func (m *MockDA) Get(ids []da.ID) ([]da.Blob, error) {
+	args := m.Called(ids)
+	return args.Get(0).([]da.Blob), args.Error(1)
+}
+
+func (m *MockDA) GetIDs(height uint64) ([]da.ID, error) {
+	args := m.Called(height)
+	return args.Get(0).([]da.ID), args.Error(1)
+}
+
+func (m *MockDA) Commit(blobs []da.Blob) ([]da.Commitment, error) {
+	args := m.Called(blobs)
+	return args.Get(0).([]da.Commitment), args.Error(1)
+}
+
+func (m *MockDA) Submit(blobs []da.Blob) ([]da.ID, []da.Proof, error) {
+	args := m.Called(blobs)
+	return args.Get(0).([]da.ID), args.Get(1).([]da.Proof), args.Error(2)
+}
+
+func (m *MockDA) Validate(ids []da.ID, proofs []da.Proof) ([]bool, error) {
+	args := m.Called(ids, proofs)
+	return args.Get(0).([]bool), args.Error(1)
+}
+
+func TestMockDA(t *testing.T) {
+	mockDA := &MockDA{}
+	// Set up the mock to return an error for MaxBlobSize
+	mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("mock error"))
+	dalc := &DAClient{DA: mockDA, Logger: log.TestingLogger()}
+	t.Run("max_blob_size_error", func(t *testing.T) {
+		doTestMaxBlockSizeError(t, dalc)
+	})
 }
 
 func TestSubmitRetrieve(t *testing.T) {
@@ -84,6 +132,15 @@ func startMockGRPCClient() (*DAClient, error) {
 		return nil, err
 	}
 	return &DAClient{DA: client, Logger: log.TestingLogger()}, nil
+}
+
+func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	assert := assert.New(t)
+	resp := dalc.SubmitBlocks(ctx, []*types.Block{})
+	assert.Contains(resp.Message, "unable to configure max blob size", "should return max blob size error")
 }
 
 func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
