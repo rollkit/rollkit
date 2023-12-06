@@ -2,7 +2,7 @@ package block
 
 import (
 	"context"
-	"crypto/rand"
+	crand "crypto/rand"
 	"testing"
 	"time"
 
@@ -18,17 +18,6 @@ import (
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
-
-func TestCentralizedSequencer(t *testing.T) {
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
-	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "genesis id",
-		InitialHeight: 100,
-		Validators:    genesisValidators,
-	}
-	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, "centralized_seq"))
-	dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
-}
 
 func TestInitialState(t *testing.T) {
 	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
@@ -79,7 +68,7 @@ func TestInitialState(t *testing.T) {
 		},
 	}
 
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	conf := config.BlockManagerConfig{
 		BlockTime: 10 * time.Second,
 	}
