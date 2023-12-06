@@ -118,7 +118,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 			blocks[i] = types.GetRandomBlock(batch*numBatches+uint64(i), rand.Int()%20) //nolint:gosec
 		}
 		submitAndRecordBlocks(blocks)
-		time.Sleep(time.Duration(rand.Int63n(mockDaBlockTime.Milliseconds())) + mockDaBlockTime + 20*time.Millisecond)
+		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
 	}
 
 	validateBlockRetrieval := func(height uint64, expectedCount int) {
@@ -204,7 +204,6 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 		require.NoError(err)
 
 		if uint64(len(blob1)+len(blob2)) > limit {
-			println(i)
 			break
 		}
 	}
