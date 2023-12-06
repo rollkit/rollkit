@@ -62,10 +62,12 @@ func TestCentralizedSequencer(t *testing.T) {
 
 	dalc := getMockDA()
 	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock})
+	fmt.Println(submitResp)
 	require.Equal(submitResp.Code, da.StatusSuccess)
 
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime: 1 * time.Second,
+		BlockTime:     1 * time.Second,
+		DAStartHeight: 1,
 	}
 	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, log.TestingLogger())
 	require.NoError(err)
