@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/p2p"
 	"github.com/stretchr/testify/assert"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -24,12 +25,57 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/da"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 
 	testutils "github.com/celestiaorg/utils/test"
 )
+
+func TestCentralizedSequencer(t *testing.T) {
+	require := require.New(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	genDoc, privkey := types.GetGenesisWithPrivkey()
+	nodeKey := &p2p.NodeKey{
+		PrivKey: privkey,
+	}
+	signingKey, err := types.GetNodeKey(nodeKey)
+	require.NoError(err)
+
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
+	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
+	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
+	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
+	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
+	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
+
+	vals := types.GetValidatorSetFromGenesis(genDoc)
+	validBlock, err := types.GetFirstBlock(privkey, &vals, false, false)
+	require.NoError(err)
+	junkProposerBlock, err := types.GetFirstBlock(privkey, &vals, true, false)
+	require.NoError(err)
+	sigInvalidBlock, err := types.GetFirstBlock(privkey, &vals, false, true)
+	require.NoError(err)
+
+	dalc := getMockDA()
+	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock})
+	require.Equal(submitResp.Code, da.StatusSuccess)
+
+	blockManagerConfig := config.BlockManagerConfig{
+		BlockTime: 1 * time.Second,
+	}
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, log.TestingLogger())
+	require.NoError(err)
+	node.dalc = dalc
+
+	err = node.Start()
+	require.NoError(err)
+	time.Sleep(10 * time.Second)
+
+}
 
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
