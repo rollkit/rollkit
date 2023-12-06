@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
       - run: go mod tidy
@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: set up go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
       - name: Run unit test
@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: set up go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
       - name: Integration Tests
