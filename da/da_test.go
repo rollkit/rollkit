@@ -161,7 +161,7 @@ func doTestSubmitOversizedBlock(t *testing.T, dalc *DAClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	limit, err := dalc.DA.Config()
+	limit, err := dalc.DA.MaxBlobSize()
 	require.NoError(err)
 	oversizedBlock := types.GetRandomBlock(1, int(limit))
 	resp := dalc.SubmitBlocks(ctx, []*types.Block{oversizedBlock})
@@ -189,7 +189,7 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	limit, err := dalc.DA.Config()
+	limit, err := dalc.DA.MaxBlobSize()
 	require.NoError(err)
 
 	// two large blocks, over blob limit to force partial submit
