@@ -379,7 +379,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	for {
 		currentHeight := m.store.Height()
 		b, ok := m.blockCache.getBlock(currentHeight + 1)
-		if b == nil || !ok {
+		if !ok {
 			m.logger.Debug("block not found in cache", "height", currentHeight+1)
 			return nil
 		}
