@@ -35,4 +35,4 @@ See [block manager]
 
 [1] [Block Manager][block manager]
 
-[block manager]: https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md
+[block manager]: https://github.com/rollkit/rollkit/blob/main/block/block-manager.md
