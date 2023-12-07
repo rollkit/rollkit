@@ -122,21 +122,13 @@ func NewManager(
 	blockStore *goheaderstore.Store[*types.Block],
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
-	// genesis should have exactly one "validator", the centralized sequencer.
-	// this should have been validated in the above call to getInitialState.
-	sequencer := &cmtypes.Validator{
-		Address:          genesis.Validators[0].Address,
-		PubKey:           genesis.Validators[0].PubKey,
-		VotingPower:      int64(1),
-		ProposerPriority: int64(1),
-	}
-	vset := cmtypes.ValidatorSet{
-		Proposer:   sequencer,
-		Validators: []*cmtypes.Validator{sequencer},
-	}
 	if err != nil {
 		return nil, err
 	}
+	// genesis should have exactly one "validator", the centralized sequencer.
+	// this should have been validated in the above call to getInitialState.
+	valSet := types.GetValidatorSetFromGenesis(genesis)
+
 	if s.DAHeight < conf.DAStartHeight {
 		s.DAHeight = conf.DAStartHeight
 	}
@@ -195,7 +187,7 @@ func NewManager(
 		blockCache:        NewBlockCache(),
 		retrieveCh:        make(chan struct{}, 1),
 		logger:            logger,
-		validatorSet:      &vset,
+		validatorSet:      &valSet,
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
