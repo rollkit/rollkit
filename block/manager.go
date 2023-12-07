@@ -528,14 +528,12 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
-				validSequencer := bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes())
-				if !validSequencer {
-					// block is junk
+				// received block is not from the expected centralized sequencer
+				if !bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) {
 					continue
 				}
-				validBlock := block.ValidateBasic() == nil
-				if !validBlock {
-					// block is junk
+				// early validation to reject junk blocks
+				if block.ValidateBasic() != nil {
 					continue
 				}
 				blockHash := block.Hash().String()

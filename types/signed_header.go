@@ -121,7 +121,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	// Rollkit vA enforces a centralized sequencer.
-	if sh.Validators == nil || len(sh.Validators.Validators) != 1 {
+	if len(sh.Validators.Validators) != 1 {
 		return errors.New("validators must have length exactly 1 (the centralized sequencer)")
 	}
 
