@@ -69,6 +69,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	node.blockManager.SetDALC(dalc)
 
 	err = node.Start()
+	defer node.Stop()
 	require.NoError(err)
 
 	lastState, err := node.Store.GetState()
