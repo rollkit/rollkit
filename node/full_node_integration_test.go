@@ -101,7 +101,7 @@ func TestCentralizedSequencer(t *testing.T) {
 		}
 		return nil
 	}))
-	node.Stop()
+	require.NoError(node.Stop())
 	cancel()
 
 }
