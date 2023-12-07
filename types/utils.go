@@ -156,6 +156,7 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 	}
 }
 
+// GetFirstBlock creates a 1st block given the lastResults after executing genesis. Optionally can generate malicious blocks with junkProposer and sigInvalid.
 func GetFirstBlock(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, lastResults Hash, junkProposer bool, sigInvalid bool) (*Block, error) {
 	blockData := Data{
 		Txs: make(Txs, 5),
@@ -193,6 +194,7 @@ func GetFirstBlock(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, lastRe
 	}, nil
 }
 
+// GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
 func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
@@ -224,6 +226,7 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 	return &signedHeader, nil
 }
 
+// GetGenesisWithPrivkey is a more convenient version of GetGenesisValidatorSetWithSigner, for usage in TestCentralizedSequencer
 func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
 	genesisValidatorKey := ed25519.GenPrivKey()
 	pubKey := genesisValidatorKey.PubKey()
@@ -242,6 +245,7 @@ func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
 	return genDoc, genesisValidatorKey
 }
 
+// GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
 func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 	vals := []*cmtypes.Validator{
 		{
