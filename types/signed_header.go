@@ -92,8 +92,8 @@ var (
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
 )
 
-// ValidatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
-func ValidatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
+// validatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
+func validatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
 	if val1 == val2 {
 		// happy case is if they are pointers to the same struct.
 		return true
@@ -104,6 +104,23 @@ func ValidatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
 		val1.VotingPower == val2.VotingPower &&
 		val1.ProposerPriority == val2.ProposerPriority
 
+}
+
+func (sh *SignedHeader) checkCentralizedSequencer() error {
+	validators := sh.Validators.Validators
+	if len(validators) != 1 {
+		return errors.New("cannot have more than 1 validator (the centralized sequencer)")
+	}
+	// make sure the proposer address is the same as the first validator in the validator set
+	first := validators[0]
+	if !bytes.Equal(first.Address.Bytes(), sh.ProposerAddress) {
+		return errors.New("proposer address in SignedHeader does not match the expected centralized sequencer address")
+	}
+	// check proposer against the first validator in the validator set
+	if !validatorsEqual(sh.Validators.Proposer, first) {
+		return errors.New("proposer in sh.Validators does not match the expected centralized sequencer")
+	}
+	return nil
 }
 
 // ValidateBasic performs basic validation of a signed header.
@@ -120,17 +137,9 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	// Rollkit vA enforces a centralized sequencer.
-	if len(sh.Validators.Validators) != 1 {
-		return errors.New("validators must have length exactly 1 (the centralized sequencer)")
-	}
-
-	if !ValidatorsEqual(sh.Validators.Proposer, sh.Validators.Validators[0]) {
-		return errors.New("proposer in sh.Validators does not match the expected centralized sequencer")
-	}
-
-	if !bytes.Equal(sh.Validators.Validators[0].Address.Bytes(), sh.ProposerAddress) {
-		return errors.New("proposer address in SignedHeader does not match the expected centralized sequencer address")
+	// Rollkit vA uses a centralized sequencer.
+	if err := sh.checkCentralizedSequencer(); err != nil {
+		return err
 	}
 
 	// Make sure there is exactly one signature
