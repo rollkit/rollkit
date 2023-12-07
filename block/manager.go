@@ -86,6 +86,10 @@ type Manager struct {
 
 	logger log.Logger
 
+	// Rollkit doesn't have "validators", but
+	// we store the sequencer in this struct for compatibility.
+	validatorSet *cmtypes.ValidatorSet
+
 	// For usage by Lazy Aggregator mode
 	buildingBlock     bool
 	txsAvailable      <-chan struct{}
@@ -120,6 +124,10 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
+	// genesis should have exactly one "validator", the centralized sequencer.
+	// this should have been validated in the above call to getInitialState.
+	valSet := types.GetValidatorSetFromGenesis(genesis)
+
 	if s.DAHeight < conf.DAStartHeight {
 		s.DAHeight = conf.DAStartHeight
 	}
@@ -178,6 +186,7 @@ func NewManager(
 		blockCache:        NewBlockCache(),
 		retrieveCh:        make(chan struct{}, 1),
 		logger:            logger,
+		validatorSet:      &valSet,
 		txsAvailable:      txsAvailableCh,
 		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
@@ -510,6 +519,14 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
+				// received block is not from the expected centralized sequencer
+				if !bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) {
+					continue
+				}
+				// early validation to reject junk blocks
+				if block.ValidateBasic() != nil {
+					continue
+				}
 				blockHash := block.Hash().String()
 				m.blockCache.setDAIncluded(blockHash)
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
@@ -633,6 +650,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
+		/*
+		  here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
+		  to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
+		  these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
+		*/
 		block.SignedHeader.DataHash, err = block.Data.Hash()
 		if err != nil {
 			return nil
@@ -645,15 +667,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
-
-		// SaveBlock commits the DB tx
 		err = m.store.SaveBlock(block, commit)
 		if err != nil {
 			return err
 		}
 	}
 
-	// Apply the block but DONT commit
+	block.SignedHeader.Validators = m.validatorSet
+
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
 		return err

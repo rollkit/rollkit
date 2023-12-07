@@ -156,6 +156,111 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 	}
 }
 
+// GetFirstBlock creates a 1st block given the lastResults after executing genesis. Optionally can generate malicious blocks with junkProposer and sigInvalid.
+func GetFirstBlock(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, lastResults Hash, junkProposer bool, sigInvalid bool) (*Block, error) {
+	blockData := Data{
+		Txs: make(Txs, 5),
+		IntermediateStateRoots: IntermediateStateRoots{
+			RawRootsList: make([][]byte, 5),
+		},
+	}
+	for i := 0; i < 5; i++ {
+		blockData.Txs[i] = GetRandomTx()
+		blockData.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
+	}
+	h, err := GetFirstSignedHeader(privkey, valSet)
+	if err != nil {
+		return nil, err
+	}
+	h.DataHash, err = blockData.Hash()
+	if err != nil {
+		return nil, err
+	}
+	h.LastResultsHash = lastResults
+	commit, err := getCommit(h.Header, privkey)
+	if err != nil {
+		return nil, err
+	}
+	h.Commit = *commit
+	if junkProposer {
+		h.ProposerAddress = GetRandomBytes(32)
+	}
+	if sigInvalid {
+		h.Commit.Signatures[0] = GetRandomBytes(32)
+	}
+	return &Block{
+		SignedHeader: *h,
+		Data:         blockData,
+	}, nil
+}
+
+// GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
+func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
+	header := Header{
+		BaseHeader: BaseHeader{
+			Height:  1, //nolint:gosec,
+			Time:    uint64(time.Now().UnixNano()),
+			ChainID: TestChainID,
+		},
+		Version: Version{
+			Block: InitStateVersion.Consensus.Block,
+			App:   InitStateVersion.Consensus.App,
+		},
+		LastHeaderHash:  GetRandomBytes(32),
+		LastCommitHash:  GetRandomBytes(32),
+		DataHash:        GetRandomBytes(32),
+		ConsensusHash:   GetRandomBytes(32),
+		AppHash:         make([]byte, 32),
+		LastResultsHash: GetRandomBytes(32),
+		ProposerAddress: valSet.Proposer.Address.Bytes(),
+	}
+	signedHeader := SignedHeader{
+		Header:     header,
+		Validators: valSet,
+	}
+	commit, err := getCommit(header, privkey)
+	signedHeader.Commit = *commit
+	if err != nil {
+		return nil, err
+	}
+	return &signedHeader, nil
+}
+
+// GetGenesisWithPrivkey is a more convenient version of GetGenesisValidatorSetWithSigner, for usage in TestCentralizedSequencer
+func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
+	genesisValidatorKey := ed25519.GenPrivKey()
+	pubKey := genesisValidatorKey.PubKey()
+
+	genesisValidators := []cmtypes.GenesisValidator{{
+		Address: pubKey.Address(),
+		PubKey:  pubKey,
+		Power:   int64(1),
+		Name:    "sequencer",
+	}}
+	genDoc := &cmtypes.GenesisDoc{
+		ChainID:       TestChainID,
+		InitialHeight: 0,
+		Validators:    genesisValidators,
+	}
+	return genDoc, genesisValidatorKey
+}
+
+// GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
+func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
+	vals := []*cmtypes.Validator{
+		{
+			Address:          g.Validators[0].Address,
+			PubKey:           g.Validators[0].PubKey,
+			VotingPower:      int64(1),
+			ProposerPriority: int64(1),
+		},
+	}
+	return cmtypes.ValidatorSet{
+		Validators: vals,
+		Proposer:   vals[0],
+	}
+}
+
 // GetGenesisValidatorSetWithSigner returns a genesis validator set with a
 // single validator and a signing key
 func GetGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.PrivKey) {
