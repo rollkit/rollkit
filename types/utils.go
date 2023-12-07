@@ -193,57 +193,6 @@ func GetFirstBlock(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, lastRe
 	}, nil
 }
 
-func GetSecondBlock(privkey ed25519.PrivKey, prev *Block) (*Block, error) {
-	blockData := Data{
-		Txs: make(Txs, 5),
-		IntermediateStateRoots: IntermediateStateRoots{
-			RawRootsList: make([][]byte, 5),
-		},
-	}
-	for i := 0; i < 5; i++ {
-		blockData.Txs[i] = GetRandomTx()
-		blockData.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
-	}
-	dataHash, err := blockData.Hash()
-	if err != nil {
-		return nil, err
-	}
-	valset := prev.SignedHeader.Validators
-	header := Header{
-		BaseHeader: BaseHeader{
-			Height:  2, //nolint:gosec,
-			Time:    uint64(time.Now().UnixNano()),
-			ChainID: TestChainID,
-		},
-		Version: Version{
-			Block: InitStateVersion.Consensus.Block,
-			App:   InitStateVersion.Consensus.App,
-		},
-		LastHeaderHash:  prev.SignedHeader.Header.Hash(),
-		LastCommitHash:  prev.SignedHeader.Commit.GetCommitHash(&prev.SignedHeader.Header, prev.SignedHeader.Validators.Proposer.Address),
-		DataHash:        dataHash,
-		ConsensusHash:   GetRandomBytes(32),
-		AppHash:         GetRandomBytes(32),
-		LastResultsHash: GetRandomBytes(32),
-		ProposerAddress: valset.Proposer.Address.Bytes(),
-	}
-	sH := SignedHeader{
-		Header:     header,
-		Validators: prev.SignedHeader.Validators,
-	}
-	commit, err := getCommit(header, privkey)
-	if err != nil {
-		return nil, err
-	}
-	sH.Commit = *commit
-	block := Block{
-		SignedHeader: sH,
-		Data:         blockData,
-	}
-	return &block, nil
-
-}
-
 func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{

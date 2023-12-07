@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -86,17 +87,20 @@ func TestCentralizedSequencer(t *testing.T) {
 	require.NoError(err)
 	err = sigInvalidBlock.ValidateBasic()
 	require.Error(err)
-	secondBlock, err := types.GetSecondBlock(privkey, validBlock)
-	require.NoError(err)
-	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock, secondBlock})
+	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock})
 	fmt.Println(submitResp)
 	require.Equal(submitResp.Code, da.StatusSuccess)
 
-	time.Sleep(1 * time.Second)
-
-	block, err := node.Store.GetBlock(1)
-	require.NoError(err)
-	require.Equal(block.Hash(), validBlock.Hash())
+	require.NoError(testutils.Retry(1000, 1*time.Millisecond, func() error {
+		block, err := node.Store.GetBlock(1)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(block.Hash(), validBlock.Hash()) {
+			return fmt.Errorf("unexpected block")
+		}
+		return nil
+	}))
 
 }
 
