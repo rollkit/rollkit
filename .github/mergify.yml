@@ -6,4 +6,4 @@ pull_request_rules:
     actions:
       backport:
         branches:
-          - v0.10.x-lts
+          - v0.10.x
