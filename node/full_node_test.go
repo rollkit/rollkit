@@ -52,6 +52,8 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	store := fullNode.Store
 	height := store.Height()
 	b1, signingKey := types.GetRandomBlockWithKey(height+1, 0)
+	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
+	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
 
 	// Update state with hashes genertaed from block
 	state, err := store.GetState()
@@ -63,13 +65,10 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	manager.SetLastState(state)
 
 	require.NoError(t, err)
+
+	// Add second block to blockInCh
+	// This should not trigger a sync since b1 hasn't been seen yet
 	blockInCh := manager.GetBlockInCh()
-	blockInCh <- block.NewBlockEvent{
-		Block:    b1,
-		DAHeight: state.DAHeight,
-	}
-	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
-	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
 	blockInCh <- block.NewBlockEvent{
 		Block:    b2,
 		DAHeight: state.DAHeight,
@@ -77,10 +76,21 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 
 	err = node.Start()
 	require.NoError(t, err)
+	defer cleanUpNode(node, t)
+
+	waitUntilBlockHashSeen(node, b2.Hash().String())
+
+	newHeight := store.Height()
+	require.Equal(t, height, newHeight)
+
+	// Adding first block to blockInCh should sync both blocks
+	blockInCh <- block.NewBlockEvent{
+		Block:    b1,
+		DAHeight: state.DAHeight,
+	}
 
 	waitForAtLeastNBlocks(node, 2, Store)
 	require.NoError(t, err)
-	defer cleanUpNode(node, t)
 }
 
 // setupMockApplication initializes a mock application

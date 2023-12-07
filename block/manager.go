@@ -223,6 +223,10 @@ func (m *Manager) GetBlockInCh() chan NewBlockEvent {
 	return m.blockInCh
 }
 
+func (m *Manager) IsBlockHashSeen(blockHash string) bool {
+	return m.blockCache.isSeen(blockHash)
+}
+
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
 	return m.blockCache.isDAIncluded(hash.String())
