@@ -140,7 +140,7 @@ func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
 
 	assert := assert.New(t)
 	resp := dalc.SubmitBlocks(ctx, []*types.Block{})
-	assert.Contains(resp.Message, "unable to configure max blob size", "should return max blob size error")
+	assert.Contains(resp.Message, "unable to get DA max blob size", "should return max blob size error")
 }
 
 func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
