@@ -746,11 +746,11 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			if int(res.SubmittedCount) == len(blocks) {
 				submitted = true
 			}
-			submitted := blocks[:res.SubmittedCount]
-			for _, block := range submitted {
+			submittedBlocks := blocks[:res.SubmittedCount]
+			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
-			m.pendingBlocks.removeSubmittedBlocks(submitted)
+			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
 		case da.StatusError, da.StatusNotFound, da.StatusUnknown:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
