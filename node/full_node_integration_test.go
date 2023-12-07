@@ -38,6 +38,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	genDoc, privkey := types.GetGenesisWithPrivkey()
+	genDoc.AppHash = make([]byte, 32)
 	nodeKey := &p2p.NodeKey{
 		PrivKey: privkey,
 	}
@@ -53,29 +54,49 @@ func TestCentralizedSequencer(t *testing.T) {
 	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
 
 	vals := types.GetValidatorSetFromGenesis(genDoc)
-	validBlock, err := types.GetFirstBlock(privkey, &vals, false, false)
-	require.NoError(err)
-	junkProposerBlock, err := types.GetFirstBlock(privkey, &vals, true, false)
-	require.NoError(err)
-	sigInvalidBlock, err := types.GetFirstBlock(privkey, &vals, false, true)
-	require.NoError(err)
 
 	dalc := getMockDA()
-	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock})
-	fmt.Println(submitResp)
-	require.Equal(submitResp.Code, da.StatusSuccess)
 
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:     1 * time.Second,
 		DAStartHeight: 1,
+		DABlockTime:   1 * time.Millisecond,
 	}
 	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, log.TestingLogger())
 	require.NoError(err)
 	node.dalc = dalc
+	node.blockManager.SetDALC(dalc)
 
 	err = node.Start()
 	require.NoError(err)
-	time.Sleep(10 * time.Second)
+
+	lastState, err := node.Store.GetState()
+	require.NoError(err)
+	lastResults := lastState.LastResultsHash
+
+	validBlock, err := types.GetFirstBlock(privkey, &vals, lastResults, false, false)
+	require.NoError(err)
+	err = validBlock.ValidateBasic()
+	require.NoError(err)
+	junkProposerBlock, err := types.GetFirstBlock(privkey, &vals, lastResults, true, false)
+	require.NoError(err)
+	err = junkProposerBlock.ValidateBasic()
+	require.Error(err)
+	sigInvalidBlock, err := types.GetFirstBlock(privkey, &vals, lastResults, false, true)
+	require.NoError(err)
+	err = sigInvalidBlock.ValidateBasic()
+	require.Error(err)
+	secondBlock, err := types.GetSecondBlock(privkey, validBlock)
+	require.NoError(err)
+	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock, secondBlock})
+	fmt.Println(submitResp)
+	require.Equal(submitResp.Code, da.StatusSuccess)
+
+	time.Sleep(1 * time.Second)
+
+	block, err := node.Store.GetBlock(1)
+	require.NoError(err)
+	require.Equal(block.Hash(), validBlock.Hash())
 
 }
 
