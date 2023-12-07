@@ -91,7 +91,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	fmt.Println(submitResp)
 	require.Equal(submitResp.Code, da.StatusSuccess)
 
-	require.NoError(testutils.Retry(10000, 1*time.Millisecond, func() error {
+	require.NoError(testutils.Retry(3000, 1*time.Millisecond, func() error {
 		block, err := node.Store.GetBlock(1)
 		if err != nil {
 			return err
