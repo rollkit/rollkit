@@ -51,7 +51,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	require.True(t, ok)
 	store := fullNode.Store
 	height := store.Height()
-	b := types.GetRandomBlock(height+1, 2)
+	b := types.GetRandomBlock(height+1, 0)
 
 	// Update state with hashes genertaed from block
 	state, err := store.GetState()
@@ -85,6 +85,7 @@ func setupMockApplication() *mocks.Application {
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(&abci.ResponseFinalizeBlock{}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	return app
 }
 
