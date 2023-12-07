@@ -307,6 +307,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToBlockStoreCh()
 		case blockEvent := <-m.blockInCh:
+			// Only validated blocks are sent to blockInCh, so we can safely assume that blockEvent.block is valid
 			block := blockEvent.block
 			daHeight := blockEvent.daHeight
 			blockHash := block.Hash().String()
@@ -316,7 +317,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", blockHash,
 			)
-			if m.blockCache.isSeen(blockHash) {
+			if m.blockCache.isSeen(blockHash) || blockHeight <= m.store.Height() {
 				m.logger.Debug("block already seen", "height", blockHeight, "block hash", blockHash)
 				continue
 			}
