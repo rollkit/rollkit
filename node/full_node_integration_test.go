@@ -61,7 +61,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime:     1 * time.Second,
 		DAStartHeight: 1,
-		DABlockTime:   1 * time.Millisecond,
+		DABlockTime:   1 * time.Second,
 	}
 	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, log.TestingLogger())
 	require.NoError(err)
