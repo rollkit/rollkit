@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/test/mocks"
+	"github.com/rollkit/rollkit/types"
 )
 
 // simply check that node is starting and stopping without panicking
@@ -37,6 +39,35 @@ func TestMempoolDirectly(t *testing.T) {
 	peerID := getPeerID(assert)
 	verifyTransactions(node, peerID, assert)
 	verifyMempoolSize(node, assert)
+}
+
+func TestTrySyncNextBlockMultiple(t *testing.T) {
+	//t.Skip("TODO: fix this test")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node := setupTestNode(ctx, t, "full")
+	fullNode, ok := node.(*FullNode)
+	require.True(t, ok)
+	store := fullNode.Store
+
+	height := store.Height()
+	block := types.GetRandomBlock(height+1, 2)
+
+	// Update state with hashes genertaed from block
+	state, err := store.GetState()
+	require.NoError(t, err)
+	state.AppHash = block.SignedHeader.AppHash
+	state.LastResultsHash = block.SignedHeader.LastResultsHash
+	err = store.UpdateState(state)
+	require.NoError(t, err)
+
+	err = node.Start()
+	require.NoError(t, err)
+	result := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{block})
+	_ = result
+	waitForAtLeastNBlocks(node, 2, Store)
+	require.NoError(t, err)
+	defer cleanUpNode(node, t)
 }
 
 // setupMockApplication initializes a mock application
