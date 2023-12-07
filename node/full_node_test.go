@@ -51,13 +51,13 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	require.True(t, ok)
 	store := fullNode.Store
 	height := store.Height()
-	b := types.GetRandomBlock(height+1, 0)
+	b1, signingKey := types.GetRandomBlockWithKey(height+1, 0)
 
 	// Update state with hashes genertaed from block
 	state, err := store.GetState()
 	require.NoError(t, err)
-	state.AppHash = b.SignedHeader.AppHash
-	state.LastResultsHash = b.SignedHeader.LastResultsHash
+	state.AppHash = b1.SignedHeader.AppHash
+	state.LastResultsHash = b1.SignedHeader.LastResultsHash
 
 	manager := fullNode.blockManager
 	manager.SetLastState(state)
@@ -65,14 +65,20 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	require.NoError(t, err)
 	blockInCh := manager.GetBlockInCh()
 	blockInCh <- block.NewBlockEvent{
-		Block:    b,
+		Block:    b1,
+		DAHeight: state.DAHeight,
+	}
+	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
+	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
+	blockInCh <- block.NewBlockEvent{
+		Block:    b2,
 		DAHeight: state.DAHeight,
 	}
 
 	err = node.Start()
 	require.NoError(t, err)
 
-	waitForAtLeastNBlocks(node, 1, Store)
+	waitForAtLeastNBlocks(node, 2, Store)
 	require.NoError(t, err)
 	defer cleanUpNode(node, t)
 }
@@ -84,7 +90,7 @@ func setupMockApplication() *mocks.Application {
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(&abci.ResponseFinalizeBlock{}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(&abci.ResponseFinalizeBlock{AppHash: []byte{1, 2, 3, 4}}, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	return app
 }

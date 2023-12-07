@@ -42,37 +42,54 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 
 // GetRandomBlock returns a block with random data
 func GetRandomBlock(height uint64, nTxs int) *Block {
-	block := &Block{
-		Data: Data{
-			Txs: make(Txs, nTxs),
-			IntermediateStateRoots: IntermediateStateRoots{
-				RawRootsList: make([][]byte, nTxs),
-			},
-		},
-	}
+	block, _ := GetRandomBlockWithKey(height, nTxs)
+	return block
+}
 
-	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = GetRandomTx()
-		block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
-	}
-
-	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
-	if nTxs == 0 {
-		block.Data.Txs = nil
-		block.Data.IntermediateStateRoots.RawRootsList = nil
-	}
+// GetRandomBlock returns a block with random data
+func GetRandomBlockWithKey(height uint64, nTxs int) (*Block, ed25519.PrivKey) {
+	block := getBlockDataWith(nTxs)
 	dataHash, err := block.Data.Hash()
 	if err != nil {
 		panic(err)
 	}
 
-	signedHeader, _, err := GetRandomSignedHeaderWith(height, dataHash)
+	signedHeader, privKey, err := GetRandomSignedHeaderWith(height, dataHash)
 	if err != nil {
 		panic(err)
 	}
 	block.SignedHeader = *signedHeader
 
-	return block
+	return block, privKey
+}
+
+func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Hash, nTxs int) *Block {
+	nextBlock := getBlockDataWith(nTxs)
+	dataHash, err := block.Data.Hash()
+	if err != nil {
+		panic(err)
+	}
+	nextBlock.SignedHeader.Header.ProposerAddress = block.SignedHeader.Header.ProposerAddress
+	nextBlock.SignedHeader.Header.AppHash = appHash
+
+	valSet := block.SignedHeader.Validators
+	newSignedHeader := &SignedHeader{
+		Header:     GetRandomNextHeader(block.SignedHeader.Header),
+		Validators: valSet,
+	}
+	newSignedHeader.LastResultsHash = nil
+	newSignedHeader.Header.DataHash = dataHash
+	newSignedHeader.AppHash = appHash
+	newSignedHeader.LastCommitHash = block.SignedHeader.Commit.GetCommitHash(
+		&newSignedHeader.Header, block.SignedHeader.ProposerAddress,
+	)
+	commit, err := getCommit(newSignedHeader.Header, privKey)
+	if err != nil {
+		panic(err)
+	}
+	newSignedHeader.Commit = *commit
+	nextBlock.SignedHeader = *newSignedHeader
+	return nextBlock
 }
 
 // GetRandomHeader returns a header with random fields and current time
@@ -212,4 +229,27 @@ func getCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
 	return &Commit{
 		Signatures: []Signature{sign},
 	}, nil
+}
+
+func getBlockDataWith(nTxs int) *Block {
+	block := &Block{
+		Data: Data{
+			Txs: make(Txs, nTxs),
+			IntermediateStateRoots: IntermediateStateRoots{
+				RawRootsList: make([][]byte, nTxs),
+			},
+		},
+	}
+
+	for i := 0; i < nTxs; i++ {
+		block.Data.Txs[i] = GetRandomTx()
+		block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
+	}
+
+	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
+	if nTxs == 0 {
+		block.Data.Txs = nil
+		block.Data.IntermediateStateRoots.RawRootsList = nil
+	}
+	return block
 }
