@@ -79,7 +79,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
 				Code:    StatusError,
-				Message: "unable to configure max blob size",
+				Message: "unable to get DA max blob size",
 			},
 		}
 	}
