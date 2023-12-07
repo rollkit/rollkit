@@ -531,11 +531,13 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				validSequencer := bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes())
 				if !validSequencer {
 					// block is junk
+					fmt.Println("found a junk block!")
 					continue
 				}
 				validBlock := block.ValidateBasic() == nil
 				if !validBlock {
 					// block is junk
+					fmt.Println("Found an invalid block!")
 					continue
 				}
 				blockHash := block.Hash().String()
