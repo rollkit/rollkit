@@ -268,7 +268,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 		},
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
-		AppHash:                          make(types.Hash, 32),
+		AppHash:                          finalizeBlockResponse.AppHash,
 	}
 	copy(s.LastResultsHash[:], cmtypes.NewResults(finalizeBlockResponse.TxResults).Hash())
 
