@@ -17,6 +17,7 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 
+	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -49,23 +50,29 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
-
 	height := store.Height()
-	block := types.GetRandomBlock(height+1, 2)
+	b := types.GetRandomBlock(height+1, 2)
 
 	// Update state with hashes genertaed from block
 	state, err := store.GetState()
 	require.NoError(t, err)
-	state.AppHash = block.SignedHeader.AppHash
-	state.LastResultsHash = block.SignedHeader.LastResultsHash
-	err = store.UpdateState(state)
+	state.AppHash = b.SignedHeader.AppHash
+	state.LastResultsHash = b.SignedHeader.LastResultsHash
+
+	manager := fullNode.blockManager
+	manager.SetLastState(state)
+
 	require.NoError(t, err)
+	blockInCh := manager.GetBlockInCh()
+	blockInCh <- block.NewBlockEvent{
+		Block:    b,
+		DAHeight: state.DAHeight,
+	}
 
 	err = node.Start()
 	require.NoError(t, err)
-	result := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{block})
-	_ = result
-	waitForAtLeastNBlocks(node, 2, Store)
+
+	waitForAtLeastNBlocks(node, 1, Store)
 	require.NoError(t, err)
 	defer cleanUpNode(node, t)
 }
@@ -77,6 +84,7 @@ func setupMockApplication() *mocks.Application {
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(&abci.ResponseFinalizeBlock{}, nil)
 	return app
 }
 
