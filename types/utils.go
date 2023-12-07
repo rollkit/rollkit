@@ -46,7 +46,7 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 	return block
 }
 
-// GetRandomBlock returns a block with random data
+// GetRandomBlockWithKey returns a block with random data and a signing key
 func GetRandomBlockWithKey(height uint64, nTxs int) (*Block, ed25519.PrivKey) {
 	block := getBlockDataWith(nTxs)
 	dataHash, err := block.Data.Hash()
@@ -63,6 +63,7 @@ func GetRandomBlockWithKey(height uint64, nTxs int) (*Block, ed25519.PrivKey) {
 	return block, privKey
 }
 
+// GetRandomNextBlock returns a block with random data and height of +1 from the provided block
 func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Hash, nTxs int) *Block {
 	nextBlock := getBlockDataWith(nTxs)
 	dataHash, err := block.Data.Hash()
@@ -131,7 +132,7 @@ func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	return GetRandomSignedHeaderWith(height, GetRandomBytes(32))
 }
 
-// GetRandomSignedHeader returns a signed header with random data
+// GetRandomSignedHeaderWith returns a signed header with specified height and data hash, and random data for other fields
 func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{

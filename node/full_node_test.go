@@ -42,8 +42,8 @@ func TestMempoolDirectly(t *testing.T) {
 	verifyMempoolSize(node, assert)
 }
 
+// Tests that the node is able to sync multiple blocks even if blocks arrive out of order
 func TestTrySyncNextBlockMultiple(t *testing.T) {
-	//t.Skip("TODO: fix this test")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node := setupTestNode(ctx, t, "full")
