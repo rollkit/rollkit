@@ -518,7 +518,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	daHeight := atomic.LoadUint64(&m.daHeight)
 
 	var err error
-	//m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
+	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
 		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
 		if fetchErr == nil {
@@ -526,7 +526,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
 				return nil
 			}
-			//m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
+			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
 				validSequencer := bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes())
 				if !validSequencer {
