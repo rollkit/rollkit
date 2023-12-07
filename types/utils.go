@@ -41,12 +41,12 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 
 // GetRandomBlock returns a block with random data
 func GetRandomBlock(height uint64, nTxs int) *Block {
-	header := GetRandomHeader()
-	header.BaseHeader.Height = height
+	signedHeader, _, err := GetRandomSignedHeaderWithHeight(height)
+	if err != nil {
+		panic(err)
+	}
 	block := &Block{
-		SignedHeader: SignedHeader{
-			Header: header,
-		},
+		SignedHeader: *signedHeader,
 		Data: Data{
 			Txs: make(Txs, nTxs),
 			IntermediateStateRoots: IntermediateStateRoots{
@@ -106,11 +106,18 @@ func GetRandomNextHeader(header Header) Header {
 
 // GetRandomSignedHeader returns a signed header with random data
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
+	height := uint64(rand.Int63()) //nolint:gosec
+	return GetRandomSignedHeaderWithHeight(height)
+}
+
+// GetRandomSignedHeader returns a signed header with random data
+func GetRandomSignedHeaderWithHeight(height uint64) (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
 		Header:     GetRandomHeader(),
 		Validators: valSet,
 	}
+	signedHeader.Header.BaseHeader.Height = height
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
