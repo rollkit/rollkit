@@ -675,6 +675,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
+		err = m.store.SaveBlock(block, commit)
+		if err != nil {
+			return err
+		}
 	}
 
 	block.SignedHeader.Validators = m.validatorSet

@@ -70,6 +70,7 @@ func TestCentralizedSequencer(t *testing.T) {
 
 	err = node.Start()
 	require.NoError(err)
+	defer require.NoError(node.Stop())
 
 	lastState, err := node.Store.GetState()
 	require.NoError(err)
@@ -101,8 +102,6 @@ func TestCentralizedSequencer(t *testing.T) {
 		}
 		return nil
 	}))
-	require.NoError(node.Stop())
-	cancel()
 
 }
 
