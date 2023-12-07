@@ -47,6 +47,7 @@ const blockInChLength = 10000
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
 
+// NewBlockEvent is used to pass block and DA height to blockInCh
 type NewBlockEvent struct {
 	Block    *types.Block
 	DAHeight uint64
@@ -208,6 +209,7 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 	m.dalc = dalc
 }
 
+// SetLastState is used to set lastState used by Manager.
 func (m *Manager) SetLastState(state types.State) {
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
@@ -219,10 +221,12 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
+// GetBlockInCh returns the manager's blockInCh
 func (m *Manager) GetBlockInCh() chan NewBlockEvent {
 	return m.blockInCh
 }
 
+// IsBlockHashSeen returns true if the block with the given hash has been seen.
 func (m *Manager) IsBlockHashSeen(blockHash string) bool {
 	return m.blockCache.isSeen(blockHash)
 }
