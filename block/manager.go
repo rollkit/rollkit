@@ -381,30 +381,37 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		b, ok := m.blockCache.getBlock(currentHeight + 1)
 		if !ok {
 			m.logger.Debug("block not found in cache", "height", currentHeight+1)
+			fmt.Println("block not found in cache", "height", currentHeight+1)
 			return nil
 		}
 
 		bHeight := uint64(b.Height())
 		m.logger.Info("Syncing block", "height", bHeight)
+		fmt.Println("Syncing block", "height", bHeight)
 		// Validate the received block before applying
 		if err := m.executor.Validate(m.lastState, b); err != nil {
+			fmt.Printf("failed to validate block: %w /n", err)
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
+			fmt.Printf("failed to ApplyBlock: %w /n", err)
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
 		err = m.store.SaveBlock(b, &b.SignedHeader.Commit)
 		if err != nil {
+			fmt.Printf("failed to save block: %w /n", err)
 			return fmt.Errorf("failed to save block: %w", err)
 		}
 		_, _, err = m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
+			fmt.Printf("failed to Commit: %w /n", err)
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
 		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
 		if err != nil {
+			fmt.Printf("failed to save block responses: %w /n", err)
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
@@ -417,6 +424,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		err = m.updateState(newState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
+			fmt.Println("failed to save updated state", "error", err)
 		}
 		m.blockCache.deleteBlock(currentHeight + 1)
 	}
