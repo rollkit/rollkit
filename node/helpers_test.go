@@ -10,6 +10,7 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	goDATest "github.com/rollkit/go-da/test"
@@ -30,6 +31,7 @@ func TestMockTester(t *testing.T) {
 
 func TestGetNodeHeight(t *testing.T) {
 	require := require.New(t)
+	assert := assert.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	dalc := getMockDA()
@@ -45,12 +47,12 @@ func TestGetNodeHeight(t *testing.T) {
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 	require.NoError(fullNode.Start())
 	defer func() {
-		require.NoError(fullNode.Stop())
+		assert.NoError(fullNode.Stop())
 	}()
 
-	require.NoError(lightNode.Start())
+	assert.NoError(lightNode.Start())
 	defer func() {
-		require.NoError(lightNode.Stop())
+		assert.NoError(lightNode.Stop())
 	}()
 
 	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
