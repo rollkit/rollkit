@@ -401,7 +401,9 @@ func (mem *CListMempool) resCbFirstTime(
 				"height", memTx.height,
 				"total", mem.Size(),
 			)
+			mem.updateMtx.Lock()
 			mem.notifyTxsAvailable()
+			mem.updateMtx.Unlock()
 		} else {
 			// ignore bad transaction
 			mem.logger.Debug(
@@ -487,7 +489,9 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 
 			// incase the recheck removed all txs
 			if mem.Size() > 0 {
+				mem.updateMtx.Lock()
 				mem.notifyTxsAvailable()
+				mem.updateMtx.Unlock()
 			}
 		}
 	default:
@@ -625,7 +629,9 @@ func (mem *CListMempool) Update(
 			// mem.recheckCursor re-scans mem.txs and possibly removes some txs.
 			// Before mem.Reap(), we should wait for mem.recheckCursor to be nil.
 		} else {
+			mem.updateMtx.Lock()
 			mem.notifyTxsAvailable()
+			mem.updateMtx.Unlock()
 		}
 	}
 
