@@ -66,7 +66,7 @@ func GetRandomBlockWithKey(height uint64, nTxs int) (*Block, ed25519.PrivKey) {
 // GetRandomNextBlock returns a block with random data and height of +1 from the provided block
 func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Hash, nTxs int) *Block {
 	nextBlock := getBlockDataWith(nTxs)
-	dataHash, err := block.Data.Hash()
+	dataHash, err := nextBlock.Data.Hash()
 	if err != nil {
 		panic(err)
 	}
