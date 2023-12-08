@@ -68,7 +68,7 @@ vet:
 ## test: Running unit tests
 test: vet
 	@echo "--> Running unit tests"
-	@go test -v -race -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=10
+	@go test -v -race -covermode=atomic -coverprofile=coverage.txt ./node -run $(run) -count=10
 .PHONY: test
 
 ## proto-gen: Generate protobuf files. Requires docker.
