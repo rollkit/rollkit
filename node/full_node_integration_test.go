@@ -446,6 +446,41 @@ func TestHeaderExchange(t *testing.T) {
 	t.Run("SingleAggregatorSingleFullNodeSingleLightNode", testSingleAggregatorSingleFullNodeSingleLightNode)
 }
 
+func TestSubmitBlocksToDA(t *testing.T) {
+	require := require.New(t)
+
+	clientNodes := 1
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	nodes, _ := createNodes(
+		ctx,
+		context.Background(),
+		clientNodes,
+		config.BlockManagerConfig{
+			DABlockTime: 20 * time.Millisecond,
+			BlockTime:   10 * time.Millisecond,
+		},
+		t,
+	)
+	seq := nodes[0]
+	require.NoError(seq.Start())
+	defer func() {
+		require.NoError(seq.Stop())
+	}()
+
+	timer := time.NewTimer(5 * seq.nodeConfig.DABlockTime)
+	<-timer.C
+
+	numberOfBlocksToSyncTill := seq.Store.Height()
+
+	//Make sure all produced blocks made it to DA
+	for i := uint64(1); i <= numberOfBlocksToSyncTill; i++ {
+		block, err := seq.Store.GetBlock(i)
+		require.NoError(err)
+		require.True(seq.blockManager.IsDAIncluded(block.Hash()), block.Height())
+	}
+}
+
 func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	require := require.New(t)
 
