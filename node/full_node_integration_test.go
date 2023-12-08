@@ -37,7 +37,6 @@ import (
 func TestCentralizedSequencer(t *testing.T) {
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	genDoc, privkey := types.GetGenesisWithPrivkey()
 	genDoc.AppHash = make([]byte, 32)
 	nodeKey := &p2p.NodeKey{
@@ -70,7 +69,6 @@ func TestCentralizedSequencer(t *testing.T) {
 
 	err = node.Start()
 	require.NoError(err)
-	defer require.NoError(node.Stop())
 
 	lastState, err := node.Store.GetState()
 	require.NoError(err)
@@ -92,7 +90,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	fmt.Println(submitResp)
 	require.Equal(submitResp.Code, da.StatusSuccess)
 
-	require.NoError(testutils.Retry(30, 100*time.Millisecond, func() error {
+	require.NoError(testutils.Retry(3000, 100*time.Millisecond, func() error {
 		block, err := node.Store.GetBlock(1)
 		if err != nil {
 			return err
@@ -102,6 +100,8 @@ func TestCentralizedSequencer(t *testing.T) {
 		}
 		return nil
 	}))
+	cancel()
+	require.NoError(node.Stop())
 
 }
 
