@@ -928,7 +928,6 @@ func TestStatus(t *testing.T) {
 }
 
 func TestFutureGenesisTime(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
