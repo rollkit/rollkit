@@ -74,22 +74,26 @@ func (is *IndexerService) OnStart() error {
 				batch := NewBatch(numTxs)
 
 				for i := int64(0); i < numTxs; i++ {
-					msg2 := <-txsSub.Out()
-					txResult := msg2.Data().(types.EventDataTx).TxResult
+					select {
+					case <-is.ctx.Done():
+						return
+					case msg2 := <-txsSub.Out():
+						txResult := msg2.Data().(types.EventDataTx).TxResult
 
-					if err = batch.Add(&txResult); err != nil {
-						is.Logger.Error(
-							"failed to add tx to batch",
-							"height", height,
-							"index", txResult.Index,
-							"err", err,
-						)
+						if err = batch.Add(&txResult); err != nil {
+							is.Logger.Error(
+								"failed to add tx to batch",
+								"height", height,
+								"index", txResult.Index,
+								"err", err,
+							)
 
-						if is.terminateOnError {
-							if err := is.Stop(); err != nil {
-								is.Logger.Error("failed to stop", "err", err)
+							if is.terminateOnError {
+								if err := is.Stop(); err != nil {
+									is.Logger.Error("failed to stop", "err", err)
+								}
+								return
 							}
-							return
 						}
 					}
 				}
