@@ -85,13 +85,37 @@ jobs:
         id: set-outputs
         run: echo "has_release_label=${{ fromJSON(steps.get_pr_data.outputs.result).hasReleaseLabel }}" >> "$GITHUB_OUTPUT"
 
-  # Make a release if this is a manually trigger job, i.e. workflow_dispatch, or
-  # there was a merged pr with the create-release label
-  release:
-    needs: [lint, test, proto, get_merged_pr_labels]
+  # branch_name trims ref/heads/ from github.ref to access a clean branch name
+  branch_name:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.trim_ref.outputs.branch }}
+    steps:
+      - name: Trim branch name
+        id: trim_ref
+        run: |
+          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+
+  # Make a release if this is a manually trigger job, i.e. workflow_dispatch
+  release-dispatch:
+    needs: [lint, test, proto, branch_name]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    permissions: "write-all"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version Release
+        uses: rollkit/.github/.github/actions/version-release@v0.2.2
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          version-bump: ${{inputs.version}}
+          release-branch: ${{needs.branch_name.outputs.branch}}
+
+  # Make a release if there was a merged pr with the create-release label
+  release-merge:
+    needs: [lint, test, proto, get_merged_pr_labels, branch_name]
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
       contains(github.ref, 'refs/heads/main') &&
       needs.get_merged_pr_labels.outputs.has_release_label)
@@ -102,4 +126,5 @@ jobs:
         uses: rollkit/.github/.github/actions/version-release@v0.2.2
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
-          version-bump: ${{inputs.version}}
+          version-bump: "patch"
+          release-branch: ${{needs.branch_name.outputs.branch}}
