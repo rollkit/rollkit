@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
@@ -93,6 +92,37 @@ var (
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
 )
 
+// validatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
+func validatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
+	if val1 == val2 {
+		// happy case is if they are pointers to the same struct.
+		return true
+	}
+	// if not, do a field-by-field comparison
+	return val1.PubKey.Equals(val2.PubKey) &&
+		bytes.Equal(val1.Address.Bytes(), val2.Address.Bytes()) &&
+		val1.VotingPower == val2.VotingPower &&
+		val1.ProposerPriority == val2.ProposerPriority
+
+}
+
+func (sh *SignedHeader) checkCentralizedSequencer() error {
+	validators := sh.Validators.Validators
+	if len(validators) != 1 {
+		return errors.New("cannot have more than 1 validator (the centralized sequencer)")
+	}
+	// make sure the proposer address is the same as the first validator in the validator set
+	first := validators[0]
+	if !bytes.Equal(first.Address.Bytes(), sh.ProposerAddress) {
+		return errors.New("proposer address in SignedHeader does not match the expected centralized sequencer address")
+	}
+	// check proposer against the first validator in the validator set
+	if !validatorsEqual(sh.Validators.Proposer, first) {
+		return errors.New("proposer in sh.Validators does not match the expected centralized sequencer")
+	}
+	return nil
+}
+
 // ValidateBasic performs basic validation of a signed header.
 func (sh *SignedHeader) ValidateBasic() error {
 	if err := sh.Header.ValidateBasic(); err != nil {
@@ -103,12 +133,12 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	// Handle Based Rollup case
-	if sh.Validators == nil || len(sh.Validators.Validators) == 0 {
-		return nil
+	if err := sh.Validators.ValidateBasic(); err != nil {
+		return err
 	}
 
-	if err := sh.Validators.ValidateBasic(); err != nil {
+	// Rollkit vA uses a centralized sequencer.
+	if err := sh.checkCentralizedSequencer(); err != nil {
 		return err
 	}
 
@@ -118,16 +148,14 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	signature := sh.Commit.Signatures[0]
-	proposer := sh.Validators.GetProposer()
-	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
+
 	msg, err := sh.Header.MarshalBinary()
 	if err != nil {
-		return errors.New("signature verification failed, unable to marshal header")
+		return fmt.Errorf("signature verification failed, unable to marshal header: %v", err)
 	}
-	if !pubKey.VerifySignature(msg, signature) {
+	if !sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature) {
 		return ErrSignatureVerificationFailed
 	}
-
 	return nil
 }
 
