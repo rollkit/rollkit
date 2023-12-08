@@ -171,7 +171,9 @@ func TestGenesisChunked(t *testing.T) {
 	mockApp.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	privKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	n, _ := newFullNode(context.Background(), config.NodeConfig{DAAddress: MockServerAddr}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
