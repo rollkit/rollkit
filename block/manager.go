@@ -390,28 +390,28 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		fmt.Println("Syncing block", "height", bHeight)
 		// Validate the received block before applying
 		if err := m.executor.Validate(m.lastState, b); err != nil {
-			fmt.Printf("failed to validate block: %w /n", err)
+			fmt.Printf("failed to validate block: %s /n", err)
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
-			fmt.Printf("failed to ApplyBlock: %w /n", err)
+			fmt.Printf("failed to ApplyBlock: %s /n", err)
 			return fmt.Errorf("failed to ApplyBlock: %w", err)
 		}
 		err = m.store.SaveBlock(b, &b.SignedHeader.Commit)
 		if err != nil {
-			fmt.Printf("failed to save block: %w /n", err)
+			fmt.Printf("failed to save block: %s /n", err)
 			return fmt.Errorf("failed to save block: %w", err)
 		}
 		_, _, err = m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
-			fmt.Printf("failed to Commit: %w /n", err)
+			fmt.Printf("failed to Commit: %s /n", err)
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
 		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
 		if err != nil {
-			fmt.Printf("failed to save block responses: %w /n", err)
+			fmt.Printf("failed to save block responses: %s /n", err)
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
