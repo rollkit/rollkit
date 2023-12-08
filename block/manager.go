@@ -711,6 +711,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
+		if ctx.Err() != nil {
+			return err
+		}
 		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 		panic(err)
 	}
