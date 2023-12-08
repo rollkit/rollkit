@@ -96,19 +96,23 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
 	startNodes(nodes, apps, t)
 
-	defer func() {
-		for _, node := range nodes {
-			assert.NoError(node.Stop())
-		}
-	}()
+	numBlocksToWaitFor := 5
+
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(waitForAtLeastNBlocks(nodes[i], numBlocksToWaitFor, Store))
+	}
+
+	for _, node := range nodes {
+		assert.NoError(node.Stop())
+	}
 	aggApp := apps[0]
 	apps = apps[1:]
 
-	aggApp.AssertNumberOfCalls(t, "FinalizeBlock", 2)
+	aggApp.AssertNumberOfCalls(t, "FinalizeBlock", numBlocksToWaitFor)
 	aggApp.AssertExpectations(t)
 
 	for i, app := range apps {
-		app.AssertNumberOfCalls(t, "FinalizeBlock", 1)
+		app.AssertNumberOfCalls(t, "FinalizeBlock", numBlocksToWaitFor)
 		app.AssertExpectations(t)
 
 		// assert that we have most of the blocks from aggregator
@@ -131,13 +135,6 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 				// 	processProposal++
 			}
 		}
-		aggregatorHeight := nodes[0].Store.Height()
-		adjustedHeight := int(aggregatorHeight - 3) // 3 is completely arbitrary
-		assert.GreaterOrEqual(beginCnt, adjustedHeight)
-		assert.GreaterOrEqual(endCnt, adjustedHeight)
-		assert.GreaterOrEqual(commitCnt, adjustedHeight)
-		// assert.GreaterOrEqual(prepareProposal, adjustedHeight)
-		// assert.GreaterOrEqual(processProposal, adjustedHeight)
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
