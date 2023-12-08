@@ -96,12 +96,13 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
 	startNodes(nodes, apps, t)
 
+	// wait for nodes to start up and sync up till numBlocksToWaitFor
 	numBlocksToWaitFor := 5
-
 	for i := 1; i < len(nodes); i++ {
 		require.NoError(waitForAtLeastNBlocks(nodes[i], numBlocksToWaitFor, Store))
 	}
 
+	// Stop all the nodes before checking the calls to ABCI methods were done correctly
 	for _, node := range nodes {
 		assert.NoError(node.Stop())
 	}
