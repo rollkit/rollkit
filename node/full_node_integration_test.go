@@ -89,7 +89,13 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	require := require.New(t)
 
 	clientNodes := 4
-	nodes, apps := createAndStartNodes(clientNodes, t)
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
+	startNodes(nodes, apps, t)
+
 	defer func() {
 		for _, node := range nodes {
 			assert.NoError(node.Stop())
@@ -553,17 +559,6 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, Header))
 	require.NoError(verifyNodesSynced(sequencer, fullNode, Header))
 	require.NoError(verifyNodesSynced(fullNode, lightNode, Header))
-}
-
-// Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
-func createAndStartNodes(clientNodes int, t *testing.T) ([]*FullNode, []*mocks.Application) {
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	defer aggCancel()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
-	startNodes(nodes, apps, t)
-	return nodes, apps
 }
 
 // Starts the given nodes using the given wait group to synchronize them
