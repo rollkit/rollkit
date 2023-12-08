@@ -55,7 +55,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
 	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
 
-	// Update state with hashes genertaed from block
+	// Update state with hashes generated from block
 	state, err := store.GetState()
 	require.NoError(t, err)
 	state.AppHash = b1.SignedHeader.AppHash
@@ -78,8 +78,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanUpNode(node, t)
 
-	err = waitUntilBlockHashSeen(node, b2.Hash().String())
-	require.NoError(t, err)
+	require.NoError(t, waitUntilBlockHashSeen(node, b2.Hash().String()))
 
 	newHeight := store.Height()
 	require.Equal(t, height, newHeight)
@@ -90,8 +89,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 		DAHeight: state.DAHeight,
 	}
 
-	err = waitForAtLeastNBlocks(node, 2, Store)
-	require.NoError(t, err)
+	require.NoError(t, waitForAtLeastNBlocks(node, 2, Store))
 }
 
 // setupMockApplication initializes a mock application
