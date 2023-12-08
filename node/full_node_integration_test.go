@@ -42,7 +42,9 @@ func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal
 
 func TestCentralizedSequencer(t *testing.T) {
 	require := require.New(t)
+	assert := assert.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	genDoc, privkey := types.GetGenesisWithPrivkey()
 	genDoc.AppHash = make([]byte, 32)
 	nodeKey := &p2p.NodeKey{
@@ -74,6 +76,9 @@ func TestCentralizedSequencer(t *testing.T) {
 	node.blockManager.SetDALC(dalc)
 
 	err = node.Start()
+	defer func() {
+		assert.NoError(node.Stop())
+	}()
 	require.NoError(err)
 
 	lastState, err := node.Store.GetState()
@@ -106,9 +111,6 @@ func TestCentralizedSequencer(t *testing.T) {
 		}
 		return nil
 	}))
-	cancel()
-	require.NoError(node.Stop())
-
 }
 
 func TestAggregatorMode(t *testing.T) {
