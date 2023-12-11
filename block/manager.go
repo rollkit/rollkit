@@ -728,10 +728,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.pendingBlocks.addPendingBlock(block)
 
 	// Commit the new state and block which writes to disk on the proxy app
-	_, _, err = m.executor.Commit(ctx, newState, block, responses)
+	appHash, _, err := m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
 		return err
 	}
+
+	// Update app hash in state
+	newState.AppHash = appHash
 
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(blockHeight, responses)
