@@ -770,11 +770,16 @@ func (m *Manager) getValidatorSet(ctx context.Context) *cmtypes.ValidatorSet {
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submitted := false
 	backoff := initialBackoff
+	var blocks []*types.Block
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlocks(ctx, m.pendingBlocks.getPendingBlocks())
+		blocks = m.pendingBlocks.getPendingBlocks()
+		res := m.dalc.SubmitBlocks(ctx, blocks)
 		if res.Code == da.StatusSuccess {
 			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight)
 			submitted = true
+			for _, block := range blocks {
+				m.blockCache.setDAIncluded(block.Hash().String())
+			}
 		} else {
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
@@ -785,7 +790,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	if !submitted {
 		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
 	}
-	m.pendingBlocks.resetPendingBlocks()
+	m.pendingBlocks.removeSubmittedBlocks(blocks)
 	return nil
 }
 
