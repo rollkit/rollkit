@@ -386,6 +386,11 @@ func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
 // If commit for block h+1 is available, we proceed with sync process, and remove synced block from sync cache.
 func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		currentHeight := m.store.Height()
 		b, ok := m.blockCache.getBlock(currentHeight + 1)
 		if !ok {
@@ -529,6 +534,11 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
 		if fetchErr == nil {
 			if blockResp.Code == da.StatusNotFound {
