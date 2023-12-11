@@ -76,7 +76,12 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
+	valsAddr := block.SignedHeader.Validators
+	// we only have one centralize sequencer = 1 validators
+	val := valsAddr.Validators[0].Address
+
+	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash(), val, block.Time())
+
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress

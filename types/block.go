@@ -59,7 +59,7 @@ type IntermediateStateRoots struct {
 // ToABCICommit converts Rollkit commit into commit format defined by ABCI.
 // This function only converts fields that are available in Rollkit commit.
 // Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
-func (c *Commit) ToABCICommit(height uint64, hash Hash) *cmtypes.Commit {
+func (c *Commit) ToABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time) *cmtypes.Commit {
 	tmCommit := cmtypes.Commit{
 		Height: int64(height),
 		Round:  0,
@@ -71,8 +71,10 @@ func (c *Commit) ToABCICommit(height uint64, hash Hash) *cmtypes.Commit {
 	}
 	for i, sig := range c.Signatures {
 		commitSig := cmtypes.CommitSig{
-			BlockIDFlag: cmtypes.BlockIDFlagCommit,
-			Signature:   sig,
+			BlockIDFlag:      cmtypes.BlockIDFlagCommit,
+			Signature:        sig,
+			ValidatorAddress: val,
+			Timestamp:        time,
 		}
 		tmCommit.Signatures[i] = commitSig
 	}
@@ -82,7 +84,7 @@ func (c *Commit) ToABCICommit(height uint64, hash Hash) *cmtypes.Commit {
 
 // GetCommitHash returns hash of the commit.
 func (c *Commit) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash())
+	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time())
 	// Rollkit does not support a multi signature scheme so there can only be one signature
 	if len(c.Signatures) == 1 {
 		lastABCICommit.Signatures[0].ValidatorAddress = proposerAddress
