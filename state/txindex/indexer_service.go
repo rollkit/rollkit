@@ -130,6 +130,6 @@ func (is *IndexerService) OnStart() error {
 // OnStop implements service.Service by unsubscribing from all transactions.
 func (is *IndexerService) OnStop() {
 	if is.eventBus.IsRunning() {
-		_ = is.eventBus.UnsubscribeAll(context.Background(), subscriber)
+		_ = is.eventBus.UnsubscribeAll(is.ctx, subscriber)
 	}
 }

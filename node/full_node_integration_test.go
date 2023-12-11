@@ -100,8 +100,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock})
 	fmt.Println(submitResp)
 	require.Equal(submitResp.Code, da.StatusSuccess)
-
-	require.NoError(testutils.Retry(3000, 100*time.Millisecond, func() error {
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
 		block, err := node.Store.GetBlock(1)
 		if err != nil {
 			return err
