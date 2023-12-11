@@ -11,7 +11,7 @@ import (
 
 // ToABCIHeaderPB converts Rollkit header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Rollkit header (like ChainID).
-func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
+func ToABCIHeaderPB(header *types.Header, validatorHash cmbytes.HexBytes) (cmproto.Header, error) {
 	return cmproto.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -26,20 +26,22 @@ func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:  header.LastHeaderHash[:],
-		DataHash:        header.DataHash[:],
-		ConsensusHash:   header.ConsensusHash[:],
-		AppHash:         header.AppHash[:],
-		LastResultsHash: header.LastResultsHash[:],
-		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress: header.ProposerAddress,
-		ChainID:         header.ChainID(),
+		LastCommitHash:     header.LastHeaderHash[:],
+		DataHash:           header.DataHash[:],
+		ConsensusHash:      header.ConsensusHash[:],
+		AppHash:            header.AppHash[:],
+		LastResultsHash:    header.LastResultsHash[:],
+		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
+		ProposerAddress:    header.ProposerAddress,
+		ChainID:            header.ChainID(),
+		ValidatorsHash:     validatorHash,
+		NextValidatorsHash: validatorHash,
 	}, nil
 }
 
 // ToABCIHeader converts Rollkit header to Header format defined in ABCI.
 // Caller should fill all the fields that are not available in Rollkit header (like ChainID).
-func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
+func ToABCIHeader(header *types.Header, validatorHash cmbytes.HexBytes) (cmtypes.Header, error) {
 	return cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -54,21 +56,23 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:  cmbytes.HexBytes(header.LastCommitHash),
-		DataHash:        cmbytes.HexBytes(header.DataHash),
-		ConsensusHash:   cmbytes.HexBytes(header.ConsensusHash),
-		AppHash:         cmbytes.HexBytes(header.AppHash),
-		LastResultsHash: cmbytes.HexBytes(header.LastResultsHash),
-		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
-		ProposerAddress: header.ProposerAddress,
-		ChainID:         header.ChainID(),
+		LastCommitHash:     cmbytes.HexBytes(header.LastCommitHash),
+		DataHash:           cmbytes.HexBytes(header.DataHash),
+		ConsensusHash:      cmbytes.HexBytes(header.ConsensusHash),
+		AppHash:            cmbytes.HexBytes(header.AppHash),
+		ValidatorsHash:     validatorHash,
+		NextValidatorsHash: validatorHash,
+		LastResultsHash:    cmbytes.HexBytes(header.LastResultsHash),
+		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
+		ProposerAddress:    header.ProposerAddress,
+		ChainID:            header.ChainID(),
 	}, nil
 }
 
 // ToABCIBlock converts Rolkit block into block format defined by ABCI.
 // Returned block should pass `ValidateBasic`.
 func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
-	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
+	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header, block.SignedHeader.Validators.Hash())
 	if err != nil {
 		return nil, err
 	}
