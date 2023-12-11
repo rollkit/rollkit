@@ -333,7 +333,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, ctx.Err()
 	default:
 	}
-	abciHeader, err := abciconv.ToABCIHeaderPB(&block.SignedHeader.Header, block.SignedHeader.Validators.Hash())
+	abciHeader, err := abciconv.ToABCIHeaderPB(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
 	}

@@ -41,7 +41,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 		ChainID:         header.ChainID(),
 	}
 
-	actual, err := ToABCIHeaderPB(&header, nil)
+	actual, err := ToABCIHeaderPB(&header)
 	if err != nil {
 		t.Fatalf("ToABCIHeaderPB returned an error: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestToABCIHeader(t *testing.T) {
 		ChainID:         header.ChainID(),
 	}
 
-	actual, err := ToABCIHeader(&header, nil)
+	actual, err := ToABCIHeader(&header)
 	if err != nil {
 		t.Fatalf("ToABCIHeaderPB returned an error: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestToABCIHeader(t *testing.T) {
 func TestToABCIBlock(t *testing.T) {
 	blockHeight, nTxs := uint64(1), 2
 	block := types.GetRandomBlock(blockHeight, nTxs)
-	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header, nil)
+	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
 
 	if err != nil {
 		t.Fatal(err)

@@ -51,6 +51,9 @@ type Header struct {
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	ProposerAddress []byte // original proposer of the block
+
+	// need this field for compatible with light client
+	ValidatorHash Hash
 }
 
 // New creates a new Header.
