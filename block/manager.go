@@ -516,6 +516,12 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 }
 
 func (m *Manager) processNextDABlock(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// TODO(tzdybal): extract configuration option
 	maxRetries := 10
 	daHeight := atomic.LoadUint64(&m.daHeight)
@@ -616,6 +622,12 @@ func (m *Manager) IsProposer() (bool, error) {
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
 	var err error
