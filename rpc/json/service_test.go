@@ -2,13 +2,21 @@ package json
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/p2p"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/rollkit/rollkit/test/mocks"
+	"github.com/stretchr/testify/mock"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,6 +139,157 @@ func TestStringyRequest(t *testing.T) {
 
 	assert.Equal(http.StatusOK, resp.Code)
 	assert.Equal(respJSON, resp.Body.String())
+}
+
+func TestRESTSerialization(t *testing.T) {
+	tests := []struct {
+		name         string
+		endpoint     string
+		mockCode     int
+		mockResp     interface{}
+		mockError    error
+		expectedResp string
+	}{
+		{
+			name:      "Health",
+			endpoint:  "/health",
+			mockCode:  200,
+			mockResp:  &coretypes.ResultHealth{},
+			mockError: nil,
+			expectedResp: `{
+  "jsonrpc": "2.0",
+  "id": -1,
+  "result": {}
+}`,
+		},
+		{
+			name:     "Status",
+			endpoint: "/status",
+			mockCode: 200,
+			mockResp: &coretypes.ResultStatus{
+				NodeInfo: p2p.DefaultNodeInfo{
+					ProtocolVersion: p2p.ProtocolVersion{
+						P2P:   8,
+						Block: 11,
+						App:   0,
+					},
+					DefaultNodeID: "b93270b358a72a2db30089f3856475bb1f918d6d",
+					ListenAddr:    "tcp://0.0.0.0:26656",
+					Network:       "cosmoshub-4",
+					Version:       "v0.34.8",
+					Channels:      mustHexToBytes("40202122233038606100"),
+					Moniker:       "aib-hub-node",
+					Other: p2p.DefaultNodeInfoOther{
+						TxIndex:    "on",
+						RPCAddress: "tcp://0.0.0.0:26657",
+					},
+				},
+				SyncInfo: coretypes.SyncInfo{
+					LatestBlockHash:     mustHexToBytes("50F03C0EAACA8BCA7F9C14189ACE9C05A9A1BBB5268DB63DC6A3C848D1ECFD27"),
+					LatestAppHash:       mustHexToBytes("2316CFF7644219F4F15BEE456435F280E2B38955EEA6D4617CCB6D7ABF781C22"),
+					LatestBlockHeight:   5622165,
+					LatestBlockTime:     mustTimeParse("2021-03-25T14:00:43.356134226Z"),
+					EarliestBlockHash:   mustHexToBytes("1455A0C15AC49BB506992EC85A3CD4D32367E53A087689815E01A524231C3ADF"),
+					EarliestAppHash:     mustHexToBytes("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"),
+					EarliestBlockHeight: 5200791,
+					EarliestBlockTime:   mustTimeParse("2019-12-11T16:11:34Z"),
+					CatchingUp:          false,
+				},
+				ValidatorInfo: coretypes.ValidatorInfo{
+					Address:     mustHexToBytes("38FB765D0092470989360ECA1C89CD06C2C1583C"),
+					PubKey:      mustGetPubKey("Z+8kntVegi1sQiWLYwFSVLNWqdAUGEy7lskL78gxLZI="),
+					VotingPower: 0,
+				},
+			},
+			mockError: nil,
+			expectedResp: `{
+  "jsonrpc": "2.0",
+  "id": -1,
+  "result": {
+    "node_info": {
+      "protocol_version": {
+        "p2p": "8",
+        "block": "11",
+        "app": "0"
+      },
+      "id": "b93270b358a72a2db30089f3856475bb1f918d6d",
+      "listen_addr": "tcp://0.0.0.0:26656",
+      "network": "cosmoshub-4",
+      "version": "v0.34.8",
+      "channels": "40202122233038606100",
+      "moniker": "aib-hub-node",
+      "other": {
+        "tx_index": "on",
+        "rpc_address": "tcp://0.0.0.0:26657"
+      }
+    },
+    "sync_info": {
+      "latest_block_hash": "50F03C0EAACA8BCA7F9C14189ACE9C05A9A1BBB5268DB63DC6A3C848D1ECFD27",
+      "latest_app_hash": "2316CFF7644219F4F15BEE456435F280E2B38955EEA6D4617CCB6D7ABF781C22",
+      "latest_block_height": "5622165",
+      "latest_block_time": "2021-03-25T14:00:43.356134226Z",
+      "earliest_block_hash": "1455A0C15AC49BB506992EC85A3CD4D32367E53A087689815E01A524231C3ADF",
+      "earliest_app_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "earliest_block_height": "5200791",
+      "earliest_block_time": "2019-12-11T16:11:34Z",
+      "catching_up": false
+    },
+    "validator_info": {
+      "address": "38FB765D0092470989360ECA1C89CD06C2C1583C",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "Z+8kntVegi1sQiWLYwFSVLNWqdAUGEy7lskL78gxLZI="
+      },
+      "voting_power": "0"
+    }
+  }
+}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &mocks.Client{}
+			client.On(tt.name, mock.Anything).Return(tt.mockResp, tt.mockError)
+			handler, err := GetHTTPHandler(client, log.TestingLogger())
+			require.NoError(t, err)
+			require.NotNil(t, handler)
+
+			req := httptest.NewRequest(http.MethodPost, tt.endpoint, nil)
+			resp := httptest.NewRecorder()
+			handler.ServeHTTP(resp, req)
+
+			s := resp.Body.String()
+			assert.NotEmpty(t, s)
+
+			assert.Equal(t, tt.mockCode, resp.Code)
+			assert.JSONEq(t, tt.expectedResp, s)
+		})
+	}
+}
+
+func mustGetPubKey(b64 string) ed25519.PubKey {
+	decodeString, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		panic(err)
+	}
+	return decodeString
+}
+
+func mustHexToBytes(hexStr string) []byte {
+	bytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+}
+
+func mustTimeParse(str string) time.Time {
+	t, err := time.Parse(time.RFC3339Nano, str)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 // func TestSubscription(t *testing.T) {
