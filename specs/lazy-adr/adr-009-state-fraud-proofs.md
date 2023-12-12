@@ -98,7 +98,7 @@ message ResponseGetAppHash {
 
 This `GetAppHash` ABCI method returns an equivalent of `CommitID` hash in the ABCI method `Commit` and thus provides a way to extract ISRs from an app without doing any disk write operations.
 
-Full nodes use these ISRs to detect fraudulent state transitions. A full node must also execute all state transitions (`BeginBlock`, `DeliverTx`, and `EndBlock` calls) and compute its own Intermediate State Roots (ISRs). After each state transition, a full node compares the corresponding ISR with the ISR given by the Sequencer. If it finds a mismatch between its own computed ISR and and one given by the Sequencer, a fraudulent transition is detected and it moves on to generate a State Fraud Proof.
+Full nodes use these ISRs to detect fraudulent state transitions. A full node must also execute all state transitions (`BeginBlock`, `DeliverTx`, and `EndBlock` calls) and compute its own Intermediate State Roots (ISRs). After each state transition, a full node compares the corresponding ISR with the ISR given by the Sequencer. If it finds a mismatch between its own computed ISR and one given by the Sequencer, a fraudulent transition is detected and it moves on to generate a State Fraud Proof.
 
 ### Generating State Fraud Proofs
 
@@ -112,11 +112,11 @@ service ABCIApplication {
 }
 ```
 
-With this new ABCI method, a Rollkit Full Node can send a request to a Cosmos SDK app to generate a Fraud Proof. In this request, it includes a list of all the state transitions from the start of the block upto the fraudulent state transition. The last non-nil state transition in this list corresponds to the fraudulent state transition.
+With this new ABCI method, a Rollkit Full Node can send a request to a Cosmos SDK app to generate a Fraud Proof. In this request, it includes a list of all the state transitions from the start of the block up to the fraudulent state transition. The last non-nil state transition in this list corresponds to the fraudulent state transition.
 
 ```protobuf
 message RequestGenerateFraudProof {
-  // All state transitions upto and including the fraudulent state transition
+  // All state transitions up to and including the fraudulent state transition
   RequestBeginBlock begin_block_request = 1 [(gogoproto.nullable) = false];
   repeated RequestDeliverTx deliver_tx_requests = 2;
   RequestEndBlock end_block_request = 3;
