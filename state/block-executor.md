@@ -99,7 +99,7 @@ The `BlockExecutor` assumes that there is consensus connection available to the 
   - pre-condition:
     - block has been applied
   - post-condition:
-    - block is commited
+    - block is committed
     - mempool is cleared of block transactions
     - block events are published
     - state App Hash is updated with the result from `ResponseCommit`
