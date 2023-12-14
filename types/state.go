@@ -60,9 +60,9 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		return State{}, fmt.Errorf("error in genesis doc: %w", err)
 	}
 
-	//if genDoc.InitialHeight != 1 {
-	//	return State{}, fmt.Errorf("genDoc InitialHeight must be 1")
-	//}
+	if genDoc.InitialHeight != 1 {
+		return State{}, fmt.Errorf("genDoc InitialHeight must be 1")
+	}
 
 	if len(genDoc.Validators) != 1 {
 		return State{}, fmt.Errorf("must have exactly 1 validator (the centralized sequencer)")

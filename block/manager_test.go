@@ -6,9 +6,12 @@ import (
 	"testing"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	goDATest "github.com/rollkit/go-da/test"
@@ -16,10 +19,12 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
 func TestInitialState(t *testing.T) {
+	require := require.New(t)
 	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
@@ -32,6 +37,12 @@ func TestInitialState(t *testing.T) {
 		InitialHeight:   123,
 		LastBlockHeight: 128,
 	}
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	proxyApp := proxy.NewLocalClientCreator(app)
+	appCons := proxy.NewAppConns(proxyApp, proxy.NopMetrics())
+	require.NoError(appCons.Start())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -41,7 +52,7 @@ func TestInitialState(t *testing.T) {
 	es2, _ := store.NewDefaultInMemoryKVStore()
 	fullStore := store.New(ctx, es2)
 	err := fullStore.UpdateState(sampleState)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	cases := []struct {
 		name                    string
@@ -79,7 +90,7 @@ func TestInitialState(t *testing.T) {
 			assert := assert.New(t)
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
 			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, appCons.Consensus(), dalc, nil, logger, nil)
 			assert.NoError(err)
 			assert.NotNil(agg)
 			agg.lastStateMtx.RLock()
