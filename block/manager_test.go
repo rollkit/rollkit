@@ -23,8 +23,9 @@ func TestInitialState(t *testing.T) {
 	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
-		InitialHeight: 100,
+		InitialHeight: 1,
 		Validators:    genesisValidators,
+		AppState:      []byte("{'key':'value'}"),
 	}
 	sampleState := types.State{
 		ChainID:         "state id",
