@@ -192,27 +192,6 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		app.AssertNumberOfCalls(t, "FinalizeBlock", numBlocksToWaitFor)
 		app.AssertExpectations(t)
 
-		// assert that we have most of the blocks from aggregator
-		beginCnt := 0
-		endCnt := 0
-		commitCnt := 0
-		// prepareProposal := 0
-		// processProposal := 0
-		for _, call := range app.Calls {
-			switch call.Method {
-			case "FinalizeBlock":
-				beginCnt++
-			case "CheckTx":
-				endCnt++
-			case "Commit":
-				commitCnt++
-				// case "PrepareProposal":
-				// 	prepareProposal++
-				// case "ProcessProposal":
-				// 	processProposal++
-			}
-		}
-
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
 			aggBlock, err := nodes[0].Store.GetBlock(h)
