@@ -47,14 +47,14 @@ func (is *IndexerService) OnStart() error {
 	// canceled due to not pulling messages fast enough. Cause this might
 	// sometimes happen when there are no other subscribers.
 	blockSub, err := is.eventBus.SubscribeUnbuffered(
-		context.Background(),
+		is.ctx,
 		subscriber,
 		types.EventQueryNewBlockEvents)
 	if err != nil {
 		return err
 	}
 
-	txsSub, err := is.eventBus.SubscribeUnbuffered(context.Background(), subscriber, types.EventQueryTx)
+	txsSub, err := is.eventBus.SubscribeUnbuffered(is.ctx, subscriber, types.EventQueryTx)
 	if err != nil {
 		return err
 	}
@@ -130,6 +130,6 @@ func (is *IndexerService) OnStart() error {
 // OnStop implements service.Service by unsubscribing from all transactions.
 func (is *IndexerService) OnStop() {
 	if is.eventBus.IsRunning() {
-		_ = is.eventBus.UnsubscribeAll(context.Background(), subscriber)
+		_ = is.eventBus.UnsubscribeAll(is.ctx, subscriber)
 	}
 }

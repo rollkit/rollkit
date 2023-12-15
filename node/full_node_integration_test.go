@@ -43,8 +43,6 @@ func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal
 func TestCentralizedSequencer(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	genDoc, privkey := types.GetGenesisWithPrivkey()
 	genDoc.AppHash = make([]byte, 32)
 	nodeKey := &p2p.NodeKey{
@@ -70,7 +68,9 @@ func TestCentralizedSequencer(t *testing.T) {
 		DAStartHeight: 1,
 		DABlockTime:   1 * time.Second,
 	}
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, log.TestingLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, test.NewFileLogger(t))
 	require.NoError(err)
 	node.dalc = dalc
 	node.blockManager.SetDALC(dalc)
@@ -100,8 +100,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock})
 	fmt.Println(submitResp)
 	require.Equal(submitResp.Code, da.StatusSuccess)
-
-	require.NoError(testutils.Retry(3000, 100*time.Millisecond, func() error {
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
 		block, err := node.Store.GetBlock(1)
 		if err != nil {
 			return err
@@ -482,16 +481,20 @@ func TestSubmitBlocksToDA(t *testing.T) {
 		assert.NoError(seq.Stop())
 	}()
 
-	timer := time.NewTimer(5 * seq.nodeConfig.DABlockTime)
-	<-timer.C
-
 	numberOfBlocksToSyncTill := seq.Store.Height()
 
 	//Make sure all produced blocks made it to DA
 	for i := uint64(1); i <= numberOfBlocksToSyncTill; i++ {
-		block, err := seq.Store.GetBlock(i)
-		require.NoError(err)
-		require.True(seq.blockManager.IsDAIncluded(block.Hash()), block.Height())
+		require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+			block, err := seq.Store.GetBlock(i)
+			if err != nil {
+				return err
+			}
+			if !seq.blockManager.IsDAIncluded(block.Hash()) {
+				return fmt.Errorf("block %d not DA included", block.Height())
+			}
+			return nil
+		}))
 	}
 }
 

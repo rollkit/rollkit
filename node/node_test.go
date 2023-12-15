@@ -19,9 +19,6 @@ var MockServerAddr = ":7980"
 
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
-	defer func() {
-		node.Cancel()
-	}()
 	assert.NoError(t, node.Stop())
 	assert.False(t, node.IsRunning())
 }
