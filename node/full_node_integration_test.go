@@ -196,13 +196,13 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	checkCalls := func(app *mocks.Application, numBlocks int) error {
 		calls := app.Calls
 		numCalls := 0
-		for call := range calls {
-			if calls[call].Method == "FinalizeBlock" {
+		for _, call := range calls {
+			if call.Method == "FinalizeBlock" {
 				numCalls++
 			}
 		}
 		if numBlocks > numCalls {
-			return fmt.Errorf("expected at least %d calls to FinalizeBlock, got %d", numBlocks, numCalls)
+			return fmt.Errorf("expected at least %d calls to FinalizeBlock, got %d calls", numBlocks, numCalls)
 		}
 		return nil
 	}
