@@ -101,11 +101,21 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	s, err := store.GetState()
-	if err != nil || s.LastBlockHeight < uint64(genesis.InitialHeight) {
-		s, err = types.NewFromGenesisDoc(genesis)
+	b, err := store.GetBlock(uint64(genesis.InitialHeight))
+	if err != nil {
+		// we've never seen this genesis before. Trust it.
+		return types.NewFromGenesisDoc(genesis)
 	}
-	return s, err
+	if !bytes.Equal(b.SignedHeader.AppHash, genesis.AppHash.Bytes()) {
+		// we have a block at this height, but it doesn't match. Trust the genesis, we're hard-forking.
+		return types.NewFromGenesisDoc(genesis)
+	}
+	s, err := store.GetState()
+	if err != nil {
+		// we don't have a state. Trust the genesis.
+		return types.NewFromGenesisDoc(genesis)
+	}
+	return s, nil
 }
 
 // NewManager creates new block Manager.
