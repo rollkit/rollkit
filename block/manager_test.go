@@ -43,15 +43,18 @@ func TestInitialState(t *testing.T) {
 	fullStore := store.New(ctx, es2)
 	b, _ := types.GetRandomBlockWithKey(100, 1)
 	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
-	fullStore.SaveBlock(b, &b.SignedHeader.Commit)
-	err := fullStore.UpdateState(sampleState)
+	err := fullStore.SaveBlock(b, &b.SignedHeader.Commit)
+	require.NoError(err)
+	err = fullStore.UpdateState(sampleState)
 	require.NoError(err)
 
 	es3, _ := store.NewDefaultInMemoryKVStore()
 	overrideStore := store.New(ctx, es3)
-	overrideStore.UpdateState(sampleState)
+	err = overrideStore.UpdateState(sampleState)
+	require.NoError(err)
 	b.SignedHeader.AppHash = types.GetRandomBytes(32)
-	overrideStore.SaveBlock(b, &b.SignedHeader.Commit)
+	err = overrideStore.SaveBlock(b, &b.SignedHeader.Commit)
+	require.NoError(err)
 
 	cases := []struct {
 		name                    string
