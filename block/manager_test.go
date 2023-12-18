@@ -20,11 +20,13 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
+	require := require.New(t)
 	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
 		Validators:    genesisValidators,
+		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
 		ChainID:         "state id",
@@ -39,8 +41,17 @@ func TestInitialState(t *testing.T) {
 
 	es2, _ := store.NewDefaultInMemoryKVStore()
 	fullStore := store.New(ctx, es2)
+	b, _ := types.GetRandomBlockWithKey(100, 1)
+	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
+	fullStore.SaveBlock(b, &b.SignedHeader.Commit)
 	err := fullStore.UpdateState(sampleState)
-	require.NoError(t, err)
+	require.NoError(err)
+
+	es3, _ := store.NewDefaultInMemoryKVStore()
+	overrideStore := store.New(ctx, es3)
+	overrideStore.UpdateState(sampleState)
+	b.SignedHeader.AppHash = types.GetRandomBytes(32)
+	overrideStore.SaveBlock(b, &b.SignedHeader.Commit)
 
 	cases := []struct {
 		name                    string
@@ -50,6 +61,7 @@ func TestInitialState(t *testing.T) {
 		expectedLastBlockHeight uint64
 		expectedChainID         string
 	}{
+		// When the store is empty, it should always load state from the supplied genesis.
 		{
 			name:                    "empty_store",
 			store:                   emptyStore,
@@ -58,6 +70,7 @@ func TestInitialState(t *testing.T) {
 			expectedLastBlockHeight: 0,
 			expectedChainID:         genesis.ChainID,
 		},
+		// Unless the user-supplied genesis contradicts a past block, trust the last saved state.
 		{
 			name:                    "state_in_store",
 			store:                   fullStore,
@@ -65,6 +78,15 @@ func TestInitialState(t *testing.T) {
 			expectedInitialHeight:   uint64(sampleState.InitialHeight),
 			expectedLastBlockHeight: uint64(sampleState.LastBlockHeight),
 			expectedChainID:         sampleState.ChainID,
+		},
+		// if the user-supplied genesis DOES contradict a past block, assume we're hard-forking, and trust the user.
+		{
+			name:                    "genesis_overrides",
+			store:                   overrideStore,
+			genesis:                 genesis,
+			expectedInitialHeight:   uint64(genesis.InitialHeight),
+			expectedLastBlockHeight: 0,
+			expectedChainID:         genesis.ChainID,
 		},
 	}
 
