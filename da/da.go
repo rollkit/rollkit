@@ -14,8 +14,13 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-// ErrBlobNotFound is used to indicate that the blob was not found.
-var ErrBlobNotFound = errors.New("blob: not found")
+var (
+	// ErrBlobNotFound is used to indicate that the blob was not found.
+	ErrBlobNotFound = errors.New("blob: not found")
+
+	// ErrBlobSizeOverLimit is used to indicate that the blob size is over limit
+	ErrBlobSizeOverLimit = errors.New("blob: over size limit")
+)
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
@@ -39,6 +44,8 @@ type BaseResult struct {
 	Message string
 	// DAHeight informs about a height on Data Availability Layer for given result.
 	DAHeight uint64
+	// SubmittedCount is the number of successfully submitted blocks.
+	SubmittedCount uint64
 }
 
 // ResultSubmitBlocks contains information returned from DA layer after blocks submission.
@@ -65,7 +72,18 @@ type DAClient struct {
 
 // SubmitBlocks submits blocks to DA.
 func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) ResultSubmitBlocks {
-	blobs := make([][]byte, len(blocks))
+	var blobs [][]byte
+	var blobSize uint64
+	maxBlobSize, err := dac.DA.MaxBlobSize()
+	if err != nil {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "unable to get DA max blob size",
+			},
+		}
+	}
+	var submitted uint64
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
 		if err != nil {
@@ -76,7 +94,21 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 				},
 			}
 		}
-		blobs[i] = blob
+		if blobSize+uint64(len(blob)) > maxBlobSize {
+			dac.Logger.Info("blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			break
+		}
+		blobSize += uint64(len(blob))
+		submitted += 1
+		blobs = append(blobs, blob)
+	}
+	if submitted == 0 {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "failed to submit blocks: oversized block: " + ErrBlobSizeOverLimit.Error(),
+			},
+		}
 	}
 	ids, _, err := dac.DA.Submit(blobs)
 	if err != nil {
@@ -88,10 +120,20 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 		}
 	}
 
+	if len(ids) == 0 {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "failed to submit blocks: unexpected len(ids): 0",
+			},
+		}
+	}
+
 	return ResultSubmitBlocks{
 		BaseResult: BaseResult{
-			Code:     StatusSuccess,
-			DAHeight: binary.LittleEndian.Uint64(ids[0]),
+			Code:           StatusSuccess,
+			DAHeight:       binary.LittleEndian.Uint64(ids[0]),
+			SubmittedCount: submitted,
 		},
 	}
 }

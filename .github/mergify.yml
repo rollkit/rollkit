@@ -1,12 +1,4 @@
 pull_request_rules:
-  - name: backport patches to v0.11.x branch
-    conditions:
-      - base=main
-      - label=backport:v0.11.x
-    actions:
-      backport:
-        branches:
-          - v0.11.x
   - name: backport patches to v0.10.x branch
     conditions:
       - base=main
@@ -14,4 +6,4 @@ pull_request_rules:
     actions:
       backport:
         branches:
-          - v0.10.x-lts
+          - v0.10.x

@@ -268,7 +268,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 		},
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
-		AppHash:                          make(types.Hash, 32),
+		AppHash:                          finalizeBlockResponse.AppHash,
 	}
 	copy(s.LastResultsHash[:], cmtypes.NewResults(finalizeBlockResponse.TxResults).Hash())
 
@@ -327,6 +327,12 @@ func (e *BlockExecutor) Validate(state types.State, block *types.Block) error {
 }
 
 func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *types.Block) (*abci.ResponseFinalizeBlock, error) {
+	// Only execute if the node hasn't already shut down
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	abciHeader, err := abciconv.ToABCIHeaderPB(&block.SignedHeader.Header)
 	if err != nil {
 		return nil, err
@@ -337,7 +343,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
-	finalizeBlockResponse, err := e.proxyApp.FinalizeBlock(context.TODO(), &abci.RequestFinalizeBlock{
+	finalizeBlockResponse, err := e.proxyApp.FinalizeBlock(ctx, &abci.RequestFinalizeBlock{
 		Hash:               block.Hash(),
 		NextValidatorsHash: nil,
 		ProposerAddress:    abciHeader.ProposerAddress,

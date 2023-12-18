@@ -2,7 +2,6 @@ package store
 
 import (
 	abci "github.com/cometbft/cometbft/abci/types"
-	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/types"
 )
@@ -39,8 +38,4 @@ type Store interface {
 	UpdateState(state types.State) error
 	// GetState returns last state saved with UpdateState.
 	GetState() (types.State, error)
-
-	SaveValidators(height uint64, validatorSet *cmtypes.ValidatorSet) error
-
-	GetValidators(height uint64) (*cmtypes.ValidatorSet, error)
 }

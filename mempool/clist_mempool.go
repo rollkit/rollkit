@@ -29,6 +29,7 @@ type CListMempool struct {
 
 	// notify listeners (ie. consensus) when txs are available
 	notifiedTxsAvailable bool
+	txAvailMtx           sync.Mutex
 	txsAvailable         chan struct{} // fires once for each height, when the mempool is not empty
 
 	config *config.MempoolConfig
@@ -501,6 +502,8 @@ func (mem *CListMempool) TxsAvailable() <-chan struct{} {
 }
 
 func (mem *CListMempool) notifyTxsAvailable() {
+	mem.txAvailMtx.Lock()
+	defer mem.txAvailMtx.Unlock()
 	if mem.Size() == 0 {
 		panic("notified txs available but mempool is empty!")
 	}

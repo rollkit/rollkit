@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -41,34 +42,55 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 
 // GetRandomBlock returns a block with random data
 func GetRandomBlock(height uint64, nTxs int) *Block {
-	header := GetRandomHeader()
-	header.BaseHeader.Height = height
-	block := &Block{
-		SignedHeader: SignedHeader{
-			Header: header,
-		},
-		Data: Data{
-			Txs: make(Txs, nTxs),
-			IntermediateStateRoots: IntermediateStateRoots{
-				RawRootsList: make([][]byte, nTxs),
-			},
-		},
-	}
-
-	block.SignedHeader.AppHash = GetRandomBytes(32)
-
-	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = GetRandomTx()
-		block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
-	}
-
-	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
-	if nTxs == 0 {
-		block.Data.Txs = nil
-		block.Data.IntermediateStateRoots.RawRootsList = nil
-	}
-
+	block, _ := GetRandomBlockWithKey(height, nTxs)
 	return block
+}
+
+// GetRandomBlockWithKey returns a block with random data and a signing key
+func GetRandomBlockWithKey(height uint64, nTxs int) (*Block, ed25519.PrivKey) {
+	block := getBlockDataWith(nTxs)
+	dataHash, err := block.Data.Hash()
+	if err != nil {
+		panic(err)
+	}
+
+	signedHeader, privKey, err := GetRandomSignedHeaderWith(height, dataHash)
+	if err != nil {
+		panic(err)
+	}
+	block.SignedHeader = *signedHeader
+
+	return block, privKey
+}
+
+// GetRandomNextBlock returns a block with random data and height of +1 from the provided block
+func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Hash, nTxs int) *Block {
+	nextBlock := getBlockDataWith(nTxs)
+	dataHash, err := nextBlock.Data.Hash()
+	if err != nil {
+		panic(err)
+	}
+	nextBlock.SignedHeader.Header.ProposerAddress = block.SignedHeader.Header.ProposerAddress
+	nextBlock.SignedHeader.Header.AppHash = appHash
+
+	valSet := block.SignedHeader.Validators
+	newSignedHeader := &SignedHeader{
+		Header:     GetRandomNextHeader(block.SignedHeader.Header),
+		Validators: valSet,
+	}
+	newSignedHeader.LastResultsHash = nil
+	newSignedHeader.Header.DataHash = dataHash
+	newSignedHeader.AppHash = appHash
+	newSignedHeader.LastCommitHash = block.SignedHeader.Commit.GetCommitHash(
+		&newSignedHeader.Header, block.SignedHeader.ProposerAddress,
+	)
+	commit, err := getCommit(newSignedHeader.Header, privKey)
+	if err != nil {
+		panic(err)
+	}
+	newSignedHeader.Commit = *commit
+	nextBlock.SignedHeader = *newSignedHeader
+	return nextBlock
 }
 
 // GetRandomHeader returns a header with random fields and current time
@@ -106,11 +128,19 @@ func GetRandomNextHeader(header Header) Header {
 
 // GetRandomSignedHeader returns a signed header with random data
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
+	height := uint64(rand.Int63()) //nolint:gosec
+	return GetRandomSignedHeaderWith(height, GetRandomBytes(32))
+}
+
+// GetRandomSignedHeaderWith returns a signed header with specified height and data hash, and random data for other fields
+func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHeader, ed25519.PrivKey, error) {
 	valSet, privKey := GetRandomValidatorSetWithPrivKey()
 	signedHeader := &SignedHeader{
 		Header:     GetRandomHeader(),
 		Validators: valSet,
 	}
+	signedHeader.Header.BaseHeader.Height = height
+	signedHeader.Header.DataHash = dataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
@@ -153,6 +183,111 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 		return privKey, nil
 	default:
 		return nil, errUnsupportedKeyType
+	}
+}
+
+// GetFirstBlock creates a 1st block given the lastResults after executing genesis. Optionally can generate malicious blocks with junkProposer and sigInvalid.
+func GetFirstBlock(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, lastResults Hash, junkProposer bool, sigInvalid bool) (*Block, error) {
+	blockData := Data{
+		Txs: make(Txs, 5),
+		IntermediateStateRoots: IntermediateStateRoots{
+			RawRootsList: make([][]byte, 5),
+		},
+	}
+	for i := 0; i < 5; i++ {
+		blockData.Txs[i] = GetRandomTx()
+		blockData.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
+	}
+	h, err := GetFirstSignedHeader(privkey, valSet)
+	if err != nil {
+		return nil, err
+	}
+	h.DataHash, err = blockData.Hash()
+	if err != nil {
+		return nil, err
+	}
+	h.LastResultsHash = lastResults
+	commit, err := getCommit(h.Header, privkey)
+	if err != nil {
+		return nil, err
+	}
+	h.Commit = *commit
+	if junkProposer {
+		h.ProposerAddress = GetRandomBytes(32)
+	}
+	if sigInvalid {
+		h.Commit.Signatures[0] = GetRandomBytes(32)
+	}
+	return &Block{
+		SignedHeader: *h,
+		Data:         blockData,
+	}, nil
+}
+
+// GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
+func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
+	header := Header{
+		BaseHeader: BaseHeader{
+			Height:  1, //nolint:gosec,
+			Time:    uint64(time.Now().UnixNano()),
+			ChainID: TestChainID,
+		},
+		Version: Version{
+			Block: InitStateVersion.Consensus.Block,
+			App:   InitStateVersion.Consensus.App,
+		},
+		LastHeaderHash:  GetRandomBytes(32),
+		LastCommitHash:  GetRandomBytes(32),
+		DataHash:        GetRandomBytes(32),
+		ConsensusHash:   GetRandomBytes(32),
+		AppHash:         make([]byte, 32),
+		LastResultsHash: GetRandomBytes(32),
+		ProposerAddress: valSet.Proposer.Address.Bytes(),
+	}
+	signedHeader := SignedHeader{
+		Header:     header,
+		Validators: valSet,
+	}
+	commit, err := getCommit(header, privkey)
+	signedHeader.Commit = *commit
+	if err != nil {
+		return nil, err
+	}
+	return &signedHeader, nil
+}
+
+// GetGenesisWithPrivkey is a more convenient version of GetGenesisValidatorSetWithSigner, for usage in TestCentralizedSequencer
+func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
+	genesisValidatorKey := ed25519.GenPrivKey()
+	pubKey := genesisValidatorKey.PubKey()
+
+	genesisValidators := []cmtypes.GenesisValidator{{
+		Address: pubKey.Address(),
+		PubKey:  pubKey,
+		Power:   int64(1),
+		Name:    "sequencer",
+	}}
+	genDoc := &cmtypes.GenesisDoc{
+		ChainID:       TestChainID,
+		InitialHeight: 0,
+		Validators:    genesisValidators,
+	}
+	return genDoc, genesisValidatorKey
+}
+
+// GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
+func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
+	vals := []*cmtypes.Validator{
+		{
+			Address:          g.Validators[0].Address,
+			PubKey:           g.Validators[0].PubKey,
+			VotingPower:      int64(1),
+			ProposerPriority: int64(1),
+		},
+	}
+	return cmtypes.ValidatorSet{
+		Validators: vals,
+		Proposer:   vals[0],
 	}
 }
 
@@ -200,4 +335,27 @@ func getCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
 	return &Commit{
 		Signatures: []Signature{sign},
 	}, nil
+}
+
+func getBlockDataWith(nTxs int) *Block {
+	block := &Block{
+		Data: Data{
+			Txs: make(Txs, nTxs),
+			IntermediateStateRoots: IntermediateStateRoots{
+				RawRootsList: make([][]byte, nTxs),
+			},
+		},
+	}
+
+	for i := 0; i < nTxs; i++ {
+		block.Data.Txs[i] = GetRandomTx()
+		block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
+	}
+
+	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
+	if nTxs == 0 {
+		block.Data.Txs = nil
+		block.Data.IntermediateStateRoots.RawRootsList = nil
+	}
+	return block
 }

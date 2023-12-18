@@ -49,7 +49,17 @@ func newLightNode(
 	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
-) (*LightNode, error) {
+) (ln *LightNode, err error) {
+	// Create context with cancel so that all services using the context can
+	// catch the cancel signal when the node shutdowns
+	ctx, cancel := context.WithCancel(ctx)
+	defer func() {
+		// If there is an error, cancel the context
+		if err != nil {
+			cancel()
+		}
+	}()
+
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
 	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
 	proxyApp.SetLogger(logger.With("module", "proxy"))
@@ -70,8 +80,6 @@ func newLightNode(
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
-
-	ctx, cancel := context.WithCancel(ctx)
 
 	node := &LightNode{
 		P2P:          client,

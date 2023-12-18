@@ -2,7 +2,7 @@ package block
 
 import (
 	"context"
-	"crypto/rand"
+	crand "crypto/rand"
 	"testing"
 	"time"
 
@@ -68,7 +68,7 @@ func TestInitialState(t *testing.T) {
 		},
 	}
 
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	conf := config.BlockManagerConfig{
 		BlockTime: 10 * time.Second,
 	}

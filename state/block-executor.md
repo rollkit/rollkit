@@ -118,7 +118,7 @@ See [block executor]
 
 [4] [ABCI documentation][ABCI interface]
 
-[block executor]: https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go
-[block manager]: https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md
-[block validation]: https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md
+[block executor]: https://github.com/rollkit/rollkit/blob/main/state/executor.go
+[block manager]: https://github.com/rollkit/rollkit/blob/main/block/block-manager.md
+[block validation]: https://github.com/rollkit/rollkit/blob/main/types/block_spec.md
 [ABCI interface]: https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md
