@@ -103,11 +103,13 @@ type Manager struct {
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
 	b, err := store.GetBlock(uint64(genesis.InitialHeight))
 	if err != nil {
-		// we've never seen this genesis before. Trust it.
+		// we've never seen a block at InitialHeight.
+		// assume we're syncing from a trusted snapshot
 		return types.NewFromGenesisDoc(genesis)
 	}
 	if !bytes.Equal(b.SignedHeader.AppHash, genesis.AppHash.Bytes()) {
-		// we have a block at this height, but it doesn't match. Trust the genesis, we're hard-forking.
+		// the user-supplied genesis overrides a previously-seen block
+		// must be a hard-fork.
 		return types.NewFromGenesisDoc(genesis)
 	}
 	s, err := store.GetState()
