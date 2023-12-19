@@ -60,11 +60,8 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	require.NoError(t, err)
 	state.AppHash = b1.SignedHeader.AppHash
 	state.LastResultsHash = b1.SignedHeader.LastResultsHash
-
 	manager := fullNode.blockManager
 	manager.SetLastState(state)
-
-	require.NoError(t, err)
 
 	// Add second block to blockInCh
 	// This should not trigger a sync since b1 hasn't been seen yet

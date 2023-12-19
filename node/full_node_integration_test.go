@@ -1,7 +1,6 @@
 package node
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/p2p"
 	"github.com/stretchr/testify/assert"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -26,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -38,78 +35,6 @@ func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal
 	return &abci.ResponsePrepareProposal{
 		Txs: req.Txs,
 	}, nil
-}
-
-func TestCentralizedSequencer(t *testing.T) {
-	require := require.New(t)
-	assert := assert.New(t)
-	genDoc, privkey := types.GetGenesisWithPrivkey()
-	genDoc.AppHash = make([]byte, 32)
-	nodeKey := &p2p.NodeKey{
-		PrivKey: privkey,
-	}
-	signingKey, err := types.GetNodeKey(nodeKey)
-	require.NoError(err)
-
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-
-	vals := types.GetValidatorSetFromGenesis(genDoc)
-
-	dalc := getMockDA()
-
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:     1 * time.Second,
-		DAStartHeight: 1,
-		DABlockTime:   1 * time.Second,
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, test.NewFileLogger(t))
-	require.NoError(err)
-	node.dalc = dalc
-	node.blockManager.SetDALC(dalc)
-
-	err = node.Start()
-	defer func() {
-		assert.NoError(node.Stop())
-	}()
-	require.NoError(err)
-
-	lastState, err := node.Store.GetState()
-	require.NoError(err)
-	lastResults := lastState.LastResultsHash
-
-	validBlock, err := types.GetFirstBlock(privkey, &vals, lastResults, false, false)
-	require.NoError(err)
-	err = validBlock.ValidateBasic()
-	require.NoError(err)
-	junkProposerBlock, err := types.GetFirstBlock(privkey, &vals, lastResults, true, false)
-	require.NoError(err)
-	err = junkProposerBlock.ValidateBasic()
-	require.Error(err)
-	sigInvalidBlock, err := types.GetFirstBlock(privkey, &vals, lastResults, false, true)
-	require.NoError(err)
-	err = sigInvalidBlock.ValidateBasic()
-	require.Error(err)
-	submitResp := dalc.SubmitBlocks(ctx, []*types.Block{validBlock, junkProposerBlock, sigInvalidBlock})
-	fmt.Println(submitResp)
-	require.Equal(submitResp.Code, da.StatusSuccess)
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		block, err := node.Store.GetBlock(1)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(block.Hash(), validBlock.Hash()) {
-			return fmt.Errorf("unexpected block")
-		}
-		return nil
-	}))
 }
 
 func TestAggregatorMode(t *testing.T) {

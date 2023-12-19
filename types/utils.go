@@ -186,44 +186,6 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 	}
 }
 
-// GetFirstBlock creates a 1st block given the lastResults after executing genesis. Optionally can generate malicious blocks with junkProposer and sigInvalid.
-func GetFirstBlock(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, lastResults Hash, junkProposer bool, sigInvalid bool) (*Block, error) {
-	blockData := Data{
-		Txs: make(Txs, 5),
-		IntermediateStateRoots: IntermediateStateRoots{
-			RawRootsList: make([][]byte, 5),
-		},
-	}
-	for i := 0; i < 5; i++ {
-		blockData.Txs[i] = GetRandomTx()
-		blockData.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
-	}
-	h, err := GetFirstSignedHeader(privkey, valSet)
-	if err != nil {
-		return nil, err
-	}
-	h.DataHash, err = blockData.Hash()
-	if err != nil {
-		return nil, err
-	}
-	h.LastResultsHash = lastResults
-	commit, err := getCommit(h.Header, privkey)
-	if err != nil {
-		return nil, err
-	}
-	h.Commit = *commit
-	if junkProposer {
-		h.ProposerAddress = GetRandomBytes(32)
-	}
-	if sigInvalid {
-		h.Commit.Signatures[0] = GetRandomBytes(32)
-	}
-	return &Block{
-		SignedHeader: *h,
-		Data:         blockData,
-	}, nil
-}
-
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
 func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
 	header := Header{
