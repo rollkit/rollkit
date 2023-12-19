@@ -77,6 +77,19 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrNonAdjacentHeaders,
 			},
 		},
+		// 4. Test proposer verification
+		// changes the proposed address to a random address
+		// Expect failure
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
+				untrusted.Header.ProposerAddress = GetRandomBytes(32)
+				return &untrusted, true
+			},
+			err: &header.VerifyError{
+				Reason: ErrProposerVerificationFailed,
+			},
+		},
 	}
 
 	for testIndex, test := range tests {
@@ -114,10 +127,16 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case
 		err     error                        // Expected error
 	}{
+		// 1. Test valid
+		// Validate block
+		// Expect success
 		{
 			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
 			err:     nil,
 		},
+		// 2. Test chain ID changed
+		// breaks signature verification by changing the chain ID
+		// Expect failure
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
@@ -126,7 +145,11 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			},
 			err: ErrSignatureVerificationFailed,
 		},
+		// 3. Test app version changed
+		// breaks signature verification by changing app version
+		// Expect failure
 		{
+			// Test case where the App version is incremented by 1
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				untrusted.Version.App = untrusted.Version.App + 1
@@ -134,7 +157,11 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			},
 			err: ErrSignatureVerificationFailed,
 		},
+		// 3. Test invalid signature fails
+		// breaks signature verification by changing the signature
+		// Expect failure
 		{
+			// Test case where the first signature in the commit is replaced with random bytes
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				untrusted.Commit.Signatures[0] = GetRandomBytes(32)
@@ -142,7 +169,11 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			},
 			err: ErrSignatureVerificationFailed,
 		},
+		// 4. Test invalid proposer address
+		// breaks signature verification by changing the proposer address
+		// Expect failure
 		{
+			// Test case where the ProposerAddress is set to nil
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				untrusted.ProposerAddress = nil

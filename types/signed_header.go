@@ -32,9 +32,6 @@ var (
 	// ErrNonAdjacentHeaders is returned when the headers are not adjacent.
 	ErrNonAdjacentHeaders = errors.New("non-adjacent headers")
 
-	// ErrNoProposerAddress is returned when the proposer address is not set.
-	ErrNoProposerAddress = errors.New("no proposer address")
-
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
 	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
 

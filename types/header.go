@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,13 @@ import (
 
 // Hash is a 32-byte array which is used to represent a hash result.
 type Hash = header.Hash
+
+var (
+	// ErrNoProposerAddress is returned when the proposer address is not set.
+	ErrNoProposerAddress = errors.New("no proposer address")
+
+	ErrProposerVerificationFailed = errors.New("proposer verification failed")
+)
 
 // BaseHeader contains the most basic data of a header
 type BaseHeader struct {
@@ -83,7 +91,8 @@ func (h *Header) Time() time.Time {
 func (h *Header) Verify(untrstH *Header) error {
 	if !bytes.Equal(untrstH.ProposerAddress, h.ProposerAddress) {
 		return &header.VerifyError{
-			Reason: fmt.Errorf("expected proposer (%X) got (%X)",
+			Reason: fmt.Errorf("%w: expected proposer (%X) got (%X)",
+				ErrProposerVerificationFailed,
 				h.ProposerAddress,
 				untrstH.ProposerAddress,
 			),
