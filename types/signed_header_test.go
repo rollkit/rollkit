@@ -137,6 +137,14 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
+				untrusted.Commit.Signatures[0] = GetRandomBytes(32)
+				return &untrusted, false // Signature verification should fail
+			},
+			err: ErrSignatureVerificationFailed,
+		},
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
 				untrusted.ProposerAddress = nil
 				return &untrusted, true
 			},
