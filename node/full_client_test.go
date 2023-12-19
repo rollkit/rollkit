@@ -777,7 +777,7 @@ func TestMempool2Nodes(t *testing.T) {
 		DAAddress: MockServerAddr,
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
-			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
+			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Loggable()["peerID"].(string),
 		},
 	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
 	require.NoError(err)
