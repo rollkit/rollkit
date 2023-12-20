@@ -179,8 +179,20 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			},
 			err: ErrNoProposerAddress,
 		},
-		// 6. Test invalid validator set length
-		// Set the validator set length to be not one
+
+		// 6. Test proposer address mismatch between that of signed header and validator set
+		// Set the proposer address in the signed header to be different from that of the validator set
+		// Expect failure
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
+				untrusted.ProposerAddress = GetRandomBytes(32)
+				return &untrusted, true
+			},
+			err: ErrProposerAddressMismatch,
+		},
+		// 7. Test invalid validator set length
+		// Set the validator set length to be something other than 1
 		// Expect failure
 		{
 			prepare: func() (*SignedHeader, bool) {
@@ -204,6 +216,24 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 				return &untrusted, true
 			},
 			err: ErrInvalidValidatorSetLengthMismatch,
+		},
+		// 8. Test proposer not in validator set
+		// Set the proposer address to be different from that of the validator set
+		// Expect failure
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
+				vKey := ed25519.GenPrivKey()
+				untrusted.ProposerAddress = vKey.PubKey().Address().Bytes()
+				untrusted.Validators.Proposer = &cmtypes.Validator{
+					Address:          vKey.PubKey().Address(),
+					PubKey:           vKey.PubKey(),
+					VotingPower:      int64(100),
+					ProposerPriority: int64(1),
+				}
+				return &untrusted, true
+			},
+			err: ErrProposerNotInValSet,
 		},
 	}
 
