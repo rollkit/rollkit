@@ -270,6 +270,7 @@ func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
 	return genDoc, genesisValidatorKey
 }
 
+// PrivKeyToSigningKey converts a privKey to a signing key
 func PrivKeyToSigningKey(privKey ed25519.PrivKey) (crypto.PrivKey, error) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: privKey,
@@ -291,6 +292,7 @@ func GetRandomBytes(n int) []byte {
 	return data
 }
 
+// GetCommit returns a commit with a signature from the given private key over the given header
 func GetCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
 	headerBytes, err := header.MarshalBinary()
 	if err != nil {
