@@ -8,27 +8,26 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/dgraph-io/badger/v3"
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
-	badger3 "github.com/ipfs/go-ds-badger3"
+
+	badger4 "github.com/celestiaorg/go-ds-badger4"
 )
 
 // NewDefaultInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
 func NewDefaultInMemoryKVStore() (ds.TxnDatastore, error) {
-	inMemoryOptions := &badger3.Options{
+	inMemoryOptions := &badger4.Options{
 		GcDiscardRatio: 0.2,
 		GcInterval:     15 * time.Minute,
 		GcSleep:        10 * time.Second,
-		Options:        badger.DefaultOptions("").WithInMemory(true),
+		Options:        badger4.DefaultOptions.WithInMemory(true),
 	}
-	return badger3.NewDatastore("", inMemoryOptions)
+	return badger4.NewDatastore("", inMemoryOptions)
 }
 
-// NewDefaultKVStore creates instance of default key-value store.
 func NewDefaultKVStore(rootDir, dbPath, dbName string) (ds.TxnDatastore, error) {
 	path := filepath.Join(rootify(rootDir, dbPath), dbName)
-	return badger3.NewDatastore(path, nil)
+	return badger4.NewDatastore(path, nil)
 }
 
 // PrefixEntries retrieves all entries in the datastore whose keys have the supplied prefix
