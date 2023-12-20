@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -63,7 +64,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrLastCommitHashMismatch,
 			},
 		},
-		// 3. Test non-adjacent
+		// 4. Test non-adjacent
 		// increments the BaseHeader.Height so it's unexpected
 		// Expect failure
 		{
@@ -77,7 +78,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrNonAdjacentHeaders,
 			},
 		},
-		// 4. Test proposer verification
+		// 5. Test proposer verification
 		// changes the proposed address to a random address
 		// Expect failure
 		{
@@ -149,7 +150,6 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 		// breaks signature verification by changing app version
 		// Expect failure
 		{
-			// Test case where the App version is incremented by 1
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				untrusted.Version.App = untrusted.Version.App + 1
@@ -157,11 +157,10 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			},
 			err: ErrSignatureVerificationFailed,
 		},
-		// 3. Test invalid signature fails
+		// 4. Test invalid signature fails
 		// breaks signature verification by changing the signature
 		// Expect failure
 		{
-			// Test case where the first signature in the commit is replaced with random bytes
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				untrusted.Commit.Signatures[0] = GetRandomBytes(32)
@@ -169,17 +168,42 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			},
 			err: ErrSignatureVerificationFailed,
 		},
-		// 4. Test invalid proposer address
-		// breaks signature verification by changing the proposer address
+		// 5. Test nil proposer address
+		// Sets the proposer address to nil
 		// Expect failure
 		{
-			// Test case where the ProposerAddress is set to nil
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				untrusted.ProposerAddress = nil
 				return &untrusted, true
 			},
 			err: ErrNoProposerAddress,
+		},
+		// 6. Test invalid validator set length
+		// Set the validator set length to be not one
+		// Expect failure
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
+				v1Key, v2Key := ed25519.GenPrivKey(), ed25519.GenPrivKey()
+				validators := []*cmtypes.Validator{
+					{
+						Address:          v1Key.PubKey().Address(),
+						PubKey:           v1Key.PubKey(),
+						VotingPower:      int64(50),
+						ProposerPriority: int64(1),
+					},
+					{
+						Address:          v2Key.PubKey().Address(),
+						PubKey:           v2Key.PubKey(),
+						VotingPower:      int64(50),
+						ProposerPriority: int64(1),
+					},
+				}
+				untrusted.Validators = cmtypes.NewValidatorSet(validators)
+				return &untrusted, true
+			},
+			err: ErrInvalidValidatorSetLengthMismatch,
 		},
 	}
 

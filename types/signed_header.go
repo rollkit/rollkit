@@ -129,7 +129,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 
 	// Rollkit vA uses a centralized sequencer, so there should only be one validator
 	if len(sh.Validators.Validators) != 1 {
-		return errors.New("cannot have more than 1 validator (the centralized sequencer)")
+		return ErrInvalidValidatorSetLengthMismatch
 	}
 
 	// Check that the proposer address in the signed header matches the proposer address in the validator set
