@@ -179,3 +179,5 @@ require (
 )
 
 replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.0.0-20231207150926-93600f28d67d
+
+replace github.com/dgraph-io/badger/v4 => github.com/dgraph-io/badger/v4 v4.2.1-0.20231218065111-7b5baa11879c
