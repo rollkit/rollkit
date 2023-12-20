@@ -90,6 +90,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	require.NoError(t, waitForAtLeastNBlocks(node, 2, Store))
 }
 
+// Tests that the node ignores invalid blocks posted to the DA layer
 func TestInvalidBlocksIgnored(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
