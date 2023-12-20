@@ -18,6 +18,7 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 
 	"github.com/rollkit/rollkit/block"
+	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -46,12 +47,12 @@ func TestMempoolDirectly(t *testing.T) {
 func TestTrySyncNextBlockMultiple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node := setupTestNode(ctx, t, "full")
+	node, _ := setupTestNode(ctx, t, "full")
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
 	height := store.Height()
-	b1, signingKey := types.GetRandomBlockWithKey(height+1, 0)
+	b1, signingKey := types.GetRandomBlockWithKey(height+1, 0, nil)
 	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
 	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
 
@@ -87,6 +88,62 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	}
 
 	require.NoError(t, waitForAtLeastNBlocks(node, 2, Store))
+}
+
+func TestInvalidBlocksIgnored(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, signingKey := setupTestNode(ctx, t, "full")
+	fullNode, ok := node.(*FullNode)
+	require.True(t, ok)
+	store := fullNode.Store
+
+	manager := fullNode.blockManager
+	height := store.Height()
+	b1, _ := types.GetRandomBlockWithKey(height+1, 0, signingKey)
+
+	// Update state with hashes generated from block
+	state, err := store.GetState()
+	require.NoError(t, err)
+	state.AppHash = b1.SignedHeader.AppHash
+	state.LastResultsHash = b1.SignedHeader.LastResultsHash
+	manager.SetLastState(state)
+
+	// Set up mock DA
+	dalc := getMockDA()
+	fullNode.dalc = dalc
+	manager.SetDALC(dalc)
+
+	require.NoError(t, b1.ValidateBasic())
+
+	// Create a block with an invalid proposer address
+	junkProposerBlock := *b1
+	junkProposerBlock.SignedHeader.ProposerAddress = types.GetRandomBytes(32)
+
+	// Recompute signature over the block with the invalid proposer address
+	commit, err := types.GetCommit(junkProposerBlock.SignedHeader.Header, signingKey)
+	require.NoError(t, err)
+	junkProposerBlock.SignedHeader.Commit = *commit
+	require.ErrorIs(t, junkProposerBlock.ValidateBasic(), types.ErrProposerAddressMismatch)
+
+	// Create a block with an invalid commit
+	junkCommitBlock := *b1
+	junkCommitBlock.SignedHeader.Commit.Signatures = []types.Signature{types.GetRandomBytes(32)}
+	require.ErrorIs(t, junkCommitBlock.ValidateBasic(), types.ErrSignatureVerificationFailed)
+
+	// Validate b1 to make sure it's still valid
+	require.NoError(t, b1.ValidateBasic())
+
+	err = node.Start()
+	require.NoError(t, err)
+	defer cleanUpNode(node, t)
+
+	// Submit invalid blocks to the mock DA
+	// This should not trigger a sync since they should be ignored
+	submitResp := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{&junkProposerBlock, &junkCommitBlock, b1})
+	require.Equal(t, submitResp.Code, da.StatusSuccess)
+
+	require.NoError(t, waitUntilBlockHashSeen(node, b1.Hash().String()))
 }
 
 // setupMockApplication initializes a mock application

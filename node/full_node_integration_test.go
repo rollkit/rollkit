@@ -50,13 +50,15 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
 		BlockTime: 1 * time.Second,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -163,7 +165,9 @@ func TestLazyAggregator(t *testing.T) {
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
 		// After the genesis header is published, the syncer is started
 		// which takes little longer (due to initialization) and the syncer
@@ -182,7 +186,7 @@ func TestLazyAggregator(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 
