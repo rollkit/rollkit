@@ -5,17 +5,16 @@ go 1.21.1
 toolchain go1.21.4
 
 require (
+	github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125235544-5604cb7c10bb
 	github.com/celestiaorg/go-header v0.4.1
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/cosmos/gogoproto v1.4.11
-	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/rpc v1.2.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/ipfs/go-datastore v0.6.0
-	github.com/ipfs/go-ds-badger3 v0.0.2
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.30.0
 	github.com/libp2p/go-libp2p-kad-dht v0.23.0
@@ -40,7 +39,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
-	github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125235544-5604cb7c10bb // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
