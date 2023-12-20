@@ -25,6 +25,7 @@ func NewDefaultInMemoryKVStore() (ds.TxnDatastore, error) {
 	return badger4.NewDatastore("", inMemoryOptions)
 }
 
+// NewDefaultKVStore creates instance of default key-value store.
 func NewDefaultKVStore(rootDir, dbPath, dbName string) (ds.TxnDatastore, error) {
 	path := filepath.Join(rootify(rootDir, dbPath), dbName)
 	return badger4.NewDatastore(path, nil)
