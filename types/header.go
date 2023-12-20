@@ -17,6 +17,7 @@ var (
 	// ErrNoProposerAddress is returned when the proposer address is not set.
 	ErrNoProposerAddress = errors.New("no proposer address")
 
+	// ErrProposerVerificationFailed is returned when the proposer verification fails.
 	ErrProposerVerificationFailed = errors.New("proposer verification failed")
 )
 
