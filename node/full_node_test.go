@@ -139,11 +139,14 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	defer cleanUpNode(node, t)
 
 	// Submit invalid blocks to the mock DA
-	// This should not trigger a sync since they should be ignored
+	// Invalid blocks should be ignored by the node
 	submitResp := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{&junkProposerBlock, &junkCommitBlock, b1})
 	require.Equal(t, submitResp.Code, da.StatusSuccess)
 
+	// Only the valid block gets synced
 	require.NoError(t, waitUntilBlockHashSeen(node, b1.Hash().String()))
+	require.True(t, b1.Hash().String() == junkCommitBlock.Hash().String())
+	require.False(t, manager.IsBlockHashSeen(junkProposerBlock.Hash().String()))
 }
 
 // setupMockApplication initializes a mock application
