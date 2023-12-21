@@ -42,6 +42,9 @@ type Header struct {
 	// to transaction receipts/results.
 	LastResultsHash Hash
 
+	// compablity with tendermint light client
+	ValidatorHash Hash
+
 	// Note that the address can be derived from the pubkey which can be derived
 	// from the signature when using secp256k.
 	// We keep this in case users choose another signature format where the
