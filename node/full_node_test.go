@@ -47,12 +47,12 @@ func TestMempoolDirectly(t *testing.T) {
 func TestTrySyncNextBlockMultiple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, _ := setupTestNode(ctx, t, "full")
+	node, signingKey := setupTestNode(ctx, t, "full")
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
 	height := store.Height()
-	b1, signingKey := types.GetRandomBlockWithKey(height+1, 0, nil)
+	b1, _ := types.GetRandomBlockWithKey(height+1, 0, signingKey)
 	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
 	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
 
