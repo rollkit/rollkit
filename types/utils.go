@@ -123,6 +123,7 @@ func GetRandomNextHeader(header Header) Header {
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
 	nextHeader.ProposerAddress = header.ProposerAddress
+	nextHeader.ValidatorHash = header.ValidatorHash
 	return nextHeader
 }
 
@@ -142,6 +143,7 @@ func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHead
 	signedHeader.Header.BaseHeader.Height = height
 	signedHeader.Header.DataHash = dataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
+	signedHeader.Header.ValidatorHash = valSet.Hash()
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
@@ -324,10 +326,8 @@ func GetRandomBytes(n int) []byte {
 }
 
 func getCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	headerBytes := header.MakeCometBFTVote()
+
 	sign, err := privKey.Sign(headerBytes)
 	if err != nil {
 		return nil, err
