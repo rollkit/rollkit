@@ -171,8 +171,8 @@ func doTestApplyBlock(t *testing.T) {
 	block.SignedHeader.DataHash = dataHash
 
 	// Update the signature on the block to current from last
-	headerBytes, _ := block.SignedHeader.Header.MarshalBinary()
-	sig, _ := vKey.Sign(headerBytes)
+	voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
+	sig, _ := vKey.Sign(voteBytes)
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}
@@ -200,8 +200,8 @@ func doTestApplyBlock(t *testing.T) {
 	assert.NoError(err)
 	block.SignedHeader.DataHash = dataHash
 
-	headerBytes, _ = block.SignedHeader.Header.MarshalBinary()
-	sig, _ = vKey.Sign(headerBytes)
+	voteBytes = block.SignedHeader.Header.MakeCometBFTVote()
+	sig, _ = vKey.Sign(voteBytes)
 	block.SignedHeader.Commit = types.Commit{
 		Signatures: []types.Signature{sig},
 	}

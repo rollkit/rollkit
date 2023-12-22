@@ -683,6 +683,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
+		block.SignedHeader.Validators = m.validatorSet
+		block.SignedHeader.ValidatorHash = m.validatorSet.Hash()
+
 		/*
 		  here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
 		  to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
@@ -727,7 +730,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// set the commit to current block's signed header
 	block.SignedHeader.Commit = *commit
-
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, block); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)

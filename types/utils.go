@@ -112,6 +112,7 @@ func GetRandomHeader() Header {
 		AppHash:         GetRandomBytes(32),
 		LastResultsHash: GetRandomBytes(32),
 		ProposerAddress: GetRandomBytes(32),
+		ValidatorHash:   GetRandomBytes(32),
 	}
 }
 
@@ -142,6 +143,7 @@ func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHead
 	signedHeader.Header.BaseHeader.Height = height
 	signedHeader.Header.DataHash = dataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
+	signedHeader.Header.ValidatorHash = valSet.Hash()
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
@@ -324,11 +326,8 @@ func GetRandomBytes(n int) []byte {
 }
 
 func getCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := privKey.Sign(headerBytes)
+	consensusVote := header.MakeCometBFTVote()
+	sign, err := privKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
