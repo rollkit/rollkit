@@ -386,6 +386,11 @@ func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
 // If commit for block h+1 is available, we proceed with sync process, and remove synced block from sync cache.
 func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		currentHeight := m.store.Height()
 		b, ok := m.blockCache.getBlock(currentHeight + 1)
 		if !ok {
@@ -516,6 +521,12 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 }
 
 func (m *Manager) processNextDABlock(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// TODO(tzdybal): extract configuration option
 	maxRetries := 10
 	daHeight := atomic.LoadUint64(&m.daHeight)
@@ -523,6 +534,11 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	var err error
 	m.logger.Debug("trying to retrieve block from DA", "daHeight", daHeight)
 	for r := 0; r < maxRetries; r++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
 		if fetchErr == nil {
 			if blockResp.Code == da.StatusNotFound {
@@ -614,6 +630,12 @@ func (m *Manager) IsProposer() (bool, error) {
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	var lastCommit *types.Commit
 	var lastHeaderHash types.Hash
 	var err error

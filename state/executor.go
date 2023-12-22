@@ -8,7 +8,6 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
@@ -167,7 +166,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	return block, nil
 }
 
-// ProcessProposal processes the proposal.
+// ProcessProposal calls the corresponding ABCI method on the app.
 func (e *BlockExecutor) ProcessProposal(
 	block *types.Block,
 	state types.State,
@@ -215,27 +214,13 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return types.State{}, nil, err
 	}
 
-	abciValUpdates := resp.ValidatorUpdates
-
-	err = validateValidatorUpdates(abciValUpdates, state.ConsensusParams.Validator)
-	if err != nil {
-		return state, nil, fmt.Errorf("error in validator updates: %v", err)
-	}
-
-	validatorUpdates, err := cmtypes.PB2TM.ValidatorUpdates(abciValUpdates)
-	if err != nil {
-		return state, nil, err
-	}
-	if len(validatorUpdates) > 0 {
-		e.logger.Debug("updates to validators", "updates", cmtypes.ValidatorListString(validatorUpdates))
-	}
-	if state.ConsensusParams.Block.MaxBytes == 0 {
-		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
-	}
-
-	state, err = e.updateState(state, block, resp, validatorUpdates)
+	state, err = e.updateState(state, block, resp)
 	if err != nil {
 		return types.State{}, nil, err
+	}
+
+	if state.ConsensusParams.Block.MaxBytes == 0 {
+		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
 	}
 
 	return state, resp, nil
@@ -255,12 +240,36 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, block *ty
 	return appHash, retainHeight, nil
 }
 
-func (e *BlockExecutor) updateState(state types.State, block *types.Block, finalizeBlockResponse *abci.ResponseFinalizeBlock, validatorUpdates []*cmtypes.Validator) (types.State, error) {
+// updateConsensusParams updates the consensus parameters based on the provided updates.
+func (e *BlockExecutor) updateConsensusParams(height uint64, params cmtypes.ConsensusParams, consensusParamUpdates *cmproto.ConsensusParams) (cmproto.ConsensusParams, uint64, error) {
+	nextParams := params.Update(consensusParamUpdates)
+	if err := types.ConsensusParamsValidateBasic(nextParams); err != nil {
+		return cmproto.ConsensusParams{}, 0, fmt.Errorf("validating new consensus params: %w", err)
+	}
+	if err := nextParams.ValidateUpdate(consensusParamUpdates, int64(height)); err != nil {
+		return cmproto.ConsensusParams{}, 0, fmt.Errorf("updating consensus params: %w", err)
+	}
+	return nextParams.ToProto(), nextParams.Version.App, nil
+}
+
+func (e *BlockExecutor) updateState(state types.State, block *types.Block, finalizeBlockResponse *abci.ResponseFinalizeBlock) (types.State, error) {
+	height := block.Height()
+	if finalizeBlockResponse.ConsensusParamUpdates != nil {
+		nextParamsProto, appVersion, err := e.updateConsensusParams(height, types.ConsensusParamsFromProto(state.ConsensusParams), finalizeBlockResponse.ConsensusParamUpdates)
+		if err != nil {
+			return state, err
+		}
+		// Change results from this height but only applies to the next height.
+		state.LastHeightConsensusParamsChanged = height + 1
+		state.Version.Consensus.App = appVersion
+		state.ConsensusParams = nextParamsProto
+	}
+
 	s := types.State{
 		Version:         state.Version,
 		ChainID:         state.ChainID,
 		InitialHeight:   state.InitialHeight,
-		LastBlockHeight: block.Height(),
+		LastBlockHeight: height,
 		LastBlockTime:   block.Time(),
 		LastBlockID: cmtypes.BlockID{
 			Hash: cmbytes.HexBytes(block.Hash()),
@@ -455,28 +464,4 @@ func fromRollkitTxs(rollkitTxs types.Txs) cmtypes.Txs {
 		txs[i] = []byte(rollkitTxs[i])
 	}
 	return txs
-}
-
-func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate, params *cmproto.ValidatorParams) error {
-	for _, valUpdate := range abciUpdates {
-		if valUpdate.GetPower() < 0 {
-			return fmt.Errorf("voting power can't be negative %v", valUpdate)
-		} else if valUpdate.GetPower() == 0 {
-			// continue, since this is deleting the validator, and thus there is no
-			// pubkey to check
-			continue
-		}
-
-		// Check if validator's pubkey matches an ABCI type in the consensus params
-		pk, err := cryptoenc.PubKeyFromProto(valUpdate.PubKey)
-		if err != nil {
-			return err
-		}
-
-		if !cmtypes.IsValidPubkeyType(cmtypes.ValidatorParams{PubKeyTypes: params.PubKeyTypes}, pk.Type()) {
-			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
-				valUpdate, pk.Type())
-		}
-	}
-	return nil
 }

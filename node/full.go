@@ -95,7 +95,17 @@ func newFullNode(
 	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	logger log.Logger,
-) (*FullNode, error) {
+) (fn *FullNode, err error) {
+	// Create context with cancel so that all services using the context can
+	// catch the cancel signal when the node shutdowns
+	ctx, cancel := context.WithCancel(ctx)
+	defer func() {
+		// If there is an error, cancel the context
+		if err != nil {
+			cancel()
+		}
+	}()
+
 	proxyApp, err := initProxyApp(clientCreator, logger)
 	if err != nil {
 		return nil, err
@@ -146,8 +156,6 @@ func newFullNode(
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := context.WithCancel(ctx)
 
 	node := &FullNode{
 		proxyApp:       proxyApp,

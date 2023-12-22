@@ -112,7 +112,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*cty
 		return nil, err
 	}
 	defer func() {
-		if err := c.EventBus.Unsubscribe(context.Background(), subscriber, q); err != nil {
+		if err := c.EventBus.Unsubscribe(ctx, subscriber, q); err != nil {
 			c.Logger.Error("Error unsubscribing from eventBus", "err", err)
 		}
 	}()
@@ -376,11 +376,12 @@ func (c *FullClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensu
 }
 
 // ConsensusParams returns consensus params at given height.
-//
-// Currently, consensus params changes are not supported and this method returns params as defined in genesis.
 func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	// TODO(tzdybal): implement consensus params handling: https://github.com/rollkit/rollkit/issues/291
-	params := c.node.GetGenesis().ConsensusParams
+	state, err := c.node.Store.GetState()
+	if err != nil {
+		return nil, err
+	}
+	params := state.ConsensusParams
 	return &ctypes.ResultConsensusParams{
 		BlockHeight: int64(c.normalizeHeight(height)),
 		ConsensusParams: cmtypes.ConsensusParams{
@@ -889,7 +890,7 @@ func (c *FullClient) resubscribe(subscriber string, q cmpubsub.Query) cmtypes.Su
 			return nil
 		}
 
-		sub, err := c.EventBus.Subscribe(context.Background(), subscriber, q)
+		sub, err := c.EventBus.Subscribe(c.node.ctx, subscriber, q)
 		if err == nil {
 			return sub
 		}
