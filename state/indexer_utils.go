@@ -43,7 +43,7 @@ func compareInt(op1 *big.Int, op2 interface{}) (int, bool, error) {
 	}
 }
 
-// CheckBounds checks if the value of the event is within the bounds of the query.
+// CheckBounds checks if the given value falls within the specified query range.
 func CheckBounds(ranges indexer.QueryRange, v interface{}) (bool, error) {
 	// These functions fetch the lower and upper bounds of the query
 	// It is expected that for x > 5, the value of lowerBound is 6.
