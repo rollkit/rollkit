@@ -33,9 +33,9 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 	privKey := ed25519.GenPrivKey()
 	pubKey := privKey.PubKey()
 	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 100},
 		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
+			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 100},
 		},
 	}, privKey
 }

@@ -434,7 +434,9 @@ func TestRollKitABCIHeaderVerifiability(t *testing.T) {
 				continue
 			}
 
-			light.Verify(&trustedHeader, fixedValSet, &commit.SignedHeader, fixedValSet, 3*time.Hour, b.Time(), 10*time.Second, cmtmath.Fraction{Numerator: 2, Denominator: 1})
+			err = light.Verify(&trustedHeader, fixedValSet, &commit.SignedHeader, fixedValSet, 3*time.Hour, b.Time(), 10*time.Second, cmtmath.Fraction{Numerator: 2, Denominator: 1})
+			require.NoError(err)
+
 			trustedHeader = commit.SignedHeader
 		}
 	})
