@@ -26,11 +26,14 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
+	"github.com/cometbft/cometbft/light"
 	"github.com/rollkit/rollkit/config"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 	abciconv "github.com/rollkit/rollkit/types/abci"
+
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 )
 
 var expectedInfo = &abci.ResponseInfo{
@@ -375,6 +378,66 @@ func TestGetCommit(t *testing.T) {
 		require.NoError(err)
 		require.NotNil(commit)
 		assert.Equal(int64(blocks[3].Height()), commit.Height)
+	})
+}
+
+func TestCometBFTLightClientCompability(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	mockApp, rpc := getRPC(t)
+	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+
+	// creat 3 consecutive signed blocks
+	block1, privKey := types.GetRandomBlockWithKey(1, 1)
+
+	block2 := types.GetRandomNextBlock(block1, privKey, []byte{}, 2)
+
+	block3 := types.GetRandomNextBlock(block2, privKey, []byte{}, 3)
+
+	blocks := []*types.Block{block1, block2, block3}
+
+	// start the node for testing
+	err := rpc.node.Start()
+	require.NoError(err)
+	defer func() {
+		assert.NoError(rpc.node.Stop())
+	}()
+
+	// save the 3 blocks
+	for _, b := range blocks {
+		err = rpc.node.Store.SaveBlock(b, &b.SignedHeader.Commit)
+		rpc.node.Store.SetHeight(b.Height())
+		require.NoError(err)
+	}
+
+	// Check if the block header provided by rpc.Commit() can be verified using tendermint light client
+	t.Run("checking rollkit ABCI header verifiability", func(t *testing.T) {
+		// trusted header to verify against
+		var trustedHeader cmtypes.SignedHeader
+		setTrustedHeader := false
+		// valset of single sequencer is constant
+		fixedValSet := block1.SignedHeader.Validators
+
+		// for each block (except block 1), verify it's ABCI header with previous block's ABCI header as trusted header
+		for _, b := range blocks {
+			h := int64(b.Height())
+			commit, err := rpc.Commit(context.Background(), &h)
+			require.NoError(err)
+			require.NotNil(commit)
+			require.NotNil(commit.SignedHeader)
+			assert.Equal(h, commit.Height)
+
+			// if there's no trusted header to verify against, set trusted header and skip verifying
+			if !setTrustedHeader {
+				trustedHeader = commit.SignedHeader
+				setTrustedHeader = true
+				continue
+			}
+
+			light.Verify(&trustedHeader, fixedValSet, &commit.SignedHeader, fixedValSet, 3*time.Hour, b.Time(), 10*time.Second, cmtmath.Fraction{Numerator: 2, Denominator: 1})
+			trustedHeader = commit.SignedHeader
+		}
 	})
 }
 

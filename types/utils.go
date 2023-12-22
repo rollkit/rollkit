@@ -144,6 +144,7 @@ func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHead
 	signedHeader.Header.DataHash = dataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	signedHeader.Header.ValidatorHash = valSet.Hash()
+	signedHeader.Header.BaseHeader.Time = uint64(time.Now().Unix()) + height*10
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err

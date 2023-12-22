@@ -7,7 +7,7 @@ toolchain go1.21.4
 require (
 	github.com/celestiaorg/go-header v0.4.1
 	github.com/celestiaorg/utils v0.1.0
-	github.com/cometbft/cometbft v0.38.0-rc3
+	github.com/cometbft/cometbft v0.38.2
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/go-kit/kit v0.13.0
@@ -143,6 +143,7 @@ require (
 	github.com/quic-go/quic-go v0.37.6 // indirect
 	github.com/quic-go/webtransport-go v0.5.3 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
+	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
