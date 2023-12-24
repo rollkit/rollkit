@@ -245,6 +245,7 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 		ConsensusHash:   GetRandomBytes(32),
 		AppHash:         make([]byte, 32),
 		LastResultsHash: GetRandomBytes(32),
+		ValidatorHash:   valSet.Hash(),
 		ProposerAddress: valSet.Proposer.Address.Bytes(),
 	}
 	signedHeader := SignedHeader{
