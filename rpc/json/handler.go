@@ -57,6 +57,9 @@ func (h *handler) serveJSONRPC(w http.ResponseWriter, r *http.Request) {
 func (h *handler) serveJSONRPCforWS(w http.ResponseWriter, r *http.Request, wsConn *wsConn) {
 	// Create a new codec request.
 	codecReq := h.codec.NewRequest(r)
+	if wsConn != nil {
+		wsConn.codecReq = codecReq
+	}
 	// Get service method to be called.
 	method, err := codecReq.Method()
 	if err != nil {

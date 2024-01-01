@@ -3,6 +3,7 @@ package json
 import (
 	"bytes"
 	"encoding/json"
+	cmjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/go-kit/kit/transport/http/jsonrpc"
 	"net/http"
 	"net/http/httptest"
@@ -68,7 +69,7 @@ func TestWebSockets(t *testing.T) {
 	err = json.Unmarshal(msg, &jsrpcResp)
 	require.NoError(err)
 	var payload cmtypes.EventDataNewBlock
-	err = json.Unmarshal(jsrpcResp.Result, &payload)
+	err = cmjson.Unmarshal(jsrpcResp.Result, &payload)
 	require.NoError(err)
 	assert.NotNil(payload.ResultFinalizeBlock)
 	assert.NotNil(payload.Block)

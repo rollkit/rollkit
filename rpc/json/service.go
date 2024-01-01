@@ -103,8 +103,7 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 	}
 
 	go func() {
-		codec := json2.NewCodec()
-		codecReq := codec.NewRequest(req)
+		codecReq := wsConn.codecReq
 		for msg := range sub {
 			var raw json.RawMessage
 			raw, err = cmjson.Marshal(msg.Data)

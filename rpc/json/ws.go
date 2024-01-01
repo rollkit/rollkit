@@ -2,6 +2,7 @@ package json
 
 import (
 	"bytes"
+	"github.com/gorilla/rpc/v2"
 	"io"
 	"net/http"
 
@@ -11,9 +12,10 @@ import (
 )
 
 type wsConn struct {
-	conn   *websocket.Conn
-	queue  chan []byte
-	logger log.Logger
+	conn     *websocket.Conn
+	codecReq rpc.CodecRequest
+	queue    chan []byte
+	logger   log.Logger
 }
 
 func (wsc *wsConn) sendLoop() {
@@ -62,7 +64,7 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 	go ws.sendLoop()
 
 	for {
-		mt, r, err := wsc.NextReader()
+		mt, rdr, err := wsc.NextReader()
 		if err != nil {
 			h.logger.Error("failed to read next WebSocket message", "error", err)
 			break
@@ -73,8 +75,9 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 			h.logger.Debug("expected text message")
 			continue
 		}
-		req, err := http.NewRequest(http.MethodGet, "", r)
+		req, err := http.NewRequest(http.MethodGet, "", rdr)
 		req.RemoteAddr = remoteAddr
+
 		if err != nil {
 			h.logger.Error("failed to create request", "error", err)
 			continue
