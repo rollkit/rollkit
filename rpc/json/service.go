@@ -1,9 +1,11 @@
 package json
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	cmjson "github.com/cometbft/cometbft/libs/json"
 	"net/http"
 	"reflect"
 	"time"
@@ -101,12 +103,20 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 	}
 
 	go func() {
+		codec := json2.NewCodec()
+		codecReq := codec.NewRequest(req)
 		for msg := range sub {
-			data, err := json.Marshal(msg.Data)
+			var raw json.RawMessage
+			raw, err = cmjson.Marshal(msg.Data)
+			btz := new(bytes.Buffer)
+			w := newResponseWriter(btz)
 			if err != nil {
-				s.logger.Error("failed to marshal response data", "error", err)
-				continue
+				codecReq.WriteError(w, http.StatusInternalServerError, err)
+				return
 			}
+			codecReq.WriteResponse(w, raw)
+
+			data := btz.Bytes()
 			if wsConn != nil {
 				wsConn.queue <- data
 			}

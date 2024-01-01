@@ -3,6 +3,7 @@ package json
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/go-kit/kit/transport/http/jsonrpc"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -63,8 +64,11 @@ func TestWebSockets(t *testing.T) {
 	require.NoError(err)
 	assert.Equal(websocket.TextMessage, typ)
 	assert.NotEmpty(msg)
+	var jsrpcResp jsonrpc.Response
+	err = json.Unmarshal(msg, &jsrpcResp)
+	require.NoError(err)
 	var payload cmtypes.EventDataNewBlock
-	err = json.Unmarshal(msg, &payload)
+	err = json.Unmarshal(jsrpcResp.Result, &payload)
 	require.NoError(err)
 	assert.NotNil(payload.ResultFinalizeBlock)
 	assert.NotNil(payload.Block)
