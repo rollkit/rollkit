@@ -1,6 +1,7 @@
 package types
 
 import (
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
@@ -334,4 +335,24 @@ func byteSlicesToSignatures(bytes [][]byte) []Signature {
 		sigs[i] = bytes[i]
 	}
 	return sigs
+}
+
+// ConsensusParamsFromProto converts protobuf consensus parameters to consensus parameters
+func ConsensusParamsFromProto(pbParams cmproto.ConsensusParams) types.ConsensusParams {
+	c := types.ConsensusParams{
+		Block: types.BlockParams{
+			MaxBytes: pbParams.Block.MaxBytes,
+			MaxGas:   pbParams.Block.MaxGas,
+		},
+		Validator: types.ValidatorParams{
+			PubKeyTypes: pbParams.Validator.PubKeyTypes,
+		},
+		Version: types.VersionParams{
+			App: pbParams.Version.App,
+		},
+	}
+	if pbParams.Abci != nil {
+		c.ABCI.VoteExtensionsEnableHeight = pbParams.Abci.GetVoteExtensionsEnableHeight()
+	}
+	return c
 }
