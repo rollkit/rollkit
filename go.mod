@@ -22,7 +22,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.12.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.17.0
-	github.com/rollkit/go-da v0.0.0-20231117151938-ee3b613d7a3a
+	github.com/rollkit/go-da v0.0.0-20231207150926-93600f28d67d
 	github.com/rs/cors v1.10.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
@@ -49,7 +49,7 @@ require (
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
-	github.com/dgraph-io/badger/v4 v4.1.0 // indirect
+	github.com/dgraph-io/badger/v4 v4.2.1-0.20231218065111-7b5baa11879c // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -177,7 +177,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
-
-replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.0.0-20231207150926-93600f28d67d
-
-replace github.com/dgraph-io/badger/v4 => github.com/dgraph-io/badger/v4 v4.2.1-0.20231218065111-7b5baa11879c
