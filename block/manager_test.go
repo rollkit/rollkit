@@ -2,24 +2,100 @@ package block
 
 import (
 	"context"
-	crand "crypto/rand"
 	"testing"
-	"time"
 
 	cmtypes "github.com/cometbft/cometbft/types"
-	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goDATest "github.com/rollkit/go-da/test"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
-func TestInitialState(t *testing.T) {
+func TestInitialStateNoBlock(t *testing.T) {
+	require := require.New(t)
+	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "genesis id",
+		InitialHeight: 100,
+		Validators:    genesisValidators,
+		AppHash:       []byte("app hash"),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	emptyStore := store.New(ctx, es)
+	s, err := getInitialState(emptyStore, genesis)
+	require.NoError(err)
+	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
+}
+
+func TestInitialStateOverrideError(t *testing.T) {
+	require := require.New(t)
+	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "genesis id",
+		InitialHeight: 100,
+		Validators:    genesisValidators,
+		AppHash:       []byte("app hash"),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	overrideStore := store.New(ctx, es)
+	b, _ := types.GetRandomBlockWithKey(100, 1)
+	overrideStore.SaveBlock(b, &b.SignedHeader.Commit)
+	_, err := getInitialState(overrideStore, genesis)
+	require.EqualError(err, "store does not match genesis. were you trying to hard-fork?")
+}
+
+func TestInitialStateStoreMatchingGenesis(t *testing.T) {
+	require := require.New(t)
+	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "genesis id",
+		InitialHeight: 100,
+		Validators:    genesisValidators,
+		AppHash:       []byte("app hash"),
+	}
+	sampleState := types.State{
+		ChainID:         "state id",
+		InitialHeight:   100,
+		LastBlockHeight: 128,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	matchingStore := store.New(ctx, es)
+	b, _ := types.GetRandomBlockWithKey(100, 1)
+	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
+	matchingStore.SaveBlock(b, &b.SignedHeader.Commit)
+	matchingStore.UpdateState(sampleState)
+	s, err := getInitialState(matchingStore, genesis)
+	require.NoError(err)
+	require.Equal(uint64(sampleState.InitialHeight), s.InitialHeight)
+}
+
+func TestInitialErrorNoSavedState(t *testing.T) {
+	require := require.New(t)
+	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "genesis id",
+		InitialHeight: 100,
+		Validators:    genesisValidators,
+		AppHash:       []byte("app hash"),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	matchingStore := store.New(ctx, es)
+	b, _ := types.GetRandomBlockWithKey(100, 1)
+	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
+	matchingStore.SaveBlock(b, &b.SignedHeader.Commit)
+	_, err := getInitialState(matchingStore, genesis)
+	require.EqualError(err, "store contains blocks, but no saved state.")
+}
+
+/*func TestInitialState(t *testing.T) {
 	require := require.New(t)
 	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
 	genesis := &cmtypes.GenesisDoc{
@@ -113,7 +189,7 @@ func TestInitialState(t *testing.T) {
 			agg.lastStateMtx.RUnlock()
 		})
 	}
-}
+}*/
 
 func TestIsDAIncluded(t *testing.T) {
 	require := require.New(t)
