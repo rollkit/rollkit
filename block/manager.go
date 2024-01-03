@@ -114,8 +114,7 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 	}
 	s, err := store.GetState()
 	if err != nil {
-		// we don't have a state. Trust the genesis.
-		return types.NewFromGenesisDoc(genesis)
+		return types.State{}, fmt.Errorf("store contains blocks, but no saved state.")
 	}
 	return s, nil
 }
