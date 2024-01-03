@@ -109,8 +109,8 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 	}
 	if !bytes.Equal(b.SignedHeader.AppHash, genesis.AppHash.Bytes()) {
 		// the user-supplied genesis overrides a previously-seen block
-		// must be a hard-fork.
-		return types.NewFromGenesisDoc(genesis)
+		// throw an error because users should replace the store when hard-forking
+		return types.State{}, fmt.Errorf("store does not match genesis. were you trying to hard-fork?")
 	}
 	s, err := store.GetState()
 	if err != nil {
