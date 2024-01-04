@@ -6,6 +6,7 @@ toolchain go1.21.4
 
 require (
 	github.com/celestiaorg/go-header v0.4.1
+	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/cosmos/gogoproto v1.4.11
@@ -33,6 +34,35 @@ require (
 	golang.org/x/net v0.19.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
+)
+
+require (
+	cosmossdk.io/math v1.1.2 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
+	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
+	github.com/celestiaorg/go-fraud v0.2.0 // indirect
+	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
+	github.com/celestiaorg/rsmt2d v0.11.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+	github.com/containerd/continuity v0.4.1 // indirect
+	github.com/docker/cli v24.0.2+incompatible // indirect
+	github.com/docker/docker v24.0.2+incompatible // indirect
+	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/filecoin-project/go-jsonrpc v0.3.1 // indirect
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
+	github.com/imdario/mergo v0.3.16 // indirect
+	github.com/klauspost/reedsolomon v1.11.8 // indirect
+	github.com/moby/term v0.5.0 // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
+	github.com/opencontainers/runc v1.1.7 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
+	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
+	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 require (
@@ -130,6 +160,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.11.0 // indirect
 	github.com/opencontainers/runtime-spec v1.1.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/ory/dockertest/v3 v3.10.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/petermattis/goid v0.0.0-20230317030725-371a4b8eda08 // indirect
@@ -143,7 +174,7 @@ require (
 	github.com/quic-go/quic-go v0.37.6 // indirect
 	github.com/quic-go/webtransport-go v0.5.3 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rollkit/celestia-openrpc v0.3.0
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
