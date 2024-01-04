@@ -216,7 +216,7 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 func initDALC2(nodeConfig config.NodeConfig, _ ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
 	ctx := context.Background()
 	// TODO(tnv1): Need get token from config for ignore the hardcode token
-	client, err := openrpc.NewClient(ctx, nodeConfig.DAAddress, "hardcode here")
+	client, err := openrpc.NewClient(ctx, nodeConfig.DAAddress, nodeConfig.AuthToken)
 	if err != nil {
 		return nil, err
 	}
