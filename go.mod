@@ -5,8 +5,6 @@ go 1.21.1
 toolchain go1.21.4
 
 require (
-	github.com/celestiaorg/go-ds-badger4 v0.0.0-20231125235544-5604cb7c10bb
-	github.com/celestiaorg/go-header v0.4.1
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/cosmos/gogoproto v1.4.11
@@ -32,6 +30,11 @@ require (
 	golang.org/x/net v0.19.0
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.31.0
+)
+
+require (
+	github.com/celestiaorg/go-header v0.5.1
+	github.com/ipfs/go-ds-badger4 v0.1.5
 )
 
 require (

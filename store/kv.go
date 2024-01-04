@@ -11,7 +11,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
 
-	badger4 "github.com/celestiaorg/go-ds-badger4"
+	badger4 "github.com/ipfs/go-ds-badger4"
 )
 
 // NewDefaultInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
