@@ -337,7 +337,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			block := blockEvent.Block
 			daHeight := blockEvent.DAHeight
 			blockHash := block.Hash().String()
-			blockHeight := uint64(block.Height())
+			blockHeight := block.Height()
 			m.logger.Debug("block body retrieved",
 				"height", blockHeight,
 				"daHeight", daHeight,
@@ -398,7 +398,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return nil
 		}
 
-		bHeight := uint64(b.Height())
+		bHeight := b.Height()
 		m.logger.Info("Syncing block", "height", bHeight)
 		// Validate the received block before applying
 		if err := m.executor.Validate(m.lastState, b); err != nil {
@@ -417,7 +417,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		err = m.store.SaveBlockResponses(uint64(bHeight), responses)
+		err = m.store.SaveBlockResponses(bHeight, responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
@@ -711,7 +711,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
-		return err
+		if ctx.Err() != nil {
+			return err
+		}
+		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
+		panic(err)
 	}
 
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock

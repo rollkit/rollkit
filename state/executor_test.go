@@ -247,3 +247,67 @@ func doTestApplyBlock(t *testing.T) {
 func TestApplyBlockWithFraudProofsDisabled(t *testing.T) {
 	doTestApplyBlock(t)
 }
+
+func TestUpdateStateConsensusParams(t *testing.T) {
+	logger := log.TestingLogger()
+	app := &mocks.Application{}
+	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
+	require.NoError(t, err)
+	require.NotNil(t, client)
+
+	chainID := "test"
+
+	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	eventBus := cmtypes.NewEventBus()
+	require.NoError(t, eventBus.Start())
+	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
+
+	state := types.State{
+		ConsensusParams: cmproto.ConsensusParams{
+			Block: &cmproto.BlockParams{
+				MaxBytes: 100,
+				MaxGas:   100000,
+			},
+			Validator: &cmproto.ValidatorParams{
+				PubKeyTypes: []string{cmtypes.ABCIPubKeyTypeEd25519},
+			},
+			Version: &cmproto.VersionParams{
+				App: 1,
+			},
+			Abci: &cmproto.ABCIParams{},
+		},
+	}
+
+	block := types.GetRandomBlock(1234, 2)
+
+	txResults := make([]*abci.ExecTxResult, len(block.Data.Txs))
+	for idx := range block.Data.Txs {
+		txResults[idx] = &abci.ExecTxResult{
+			Code: abci.CodeTypeOK,
+		}
+	}
+
+	resp := &abci.ResponseFinalizeBlock{
+		ConsensusParamUpdates: &cmproto.ConsensusParams{
+			Block: &cmproto.BlockParams{
+				MaxBytes: 200,
+				MaxGas:   200000,
+			},
+			Validator: &cmproto.ValidatorParams{
+				PubKeyTypes: []string{cmtypes.ABCIPubKeyTypeEd25519},
+			},
+			Version: &cmproto.VersionParams{
+				App: 2,
+			},
+		},
+		TxResults: txResults,
+	}
+
+	updatedState, err := executor.updateState(state, block, resp)
+	require.NoError(t, err)
+
+	assert.Equal(t, uint64(1235), updatedState.LastHeightConsensusParamsChanged)
+	assert.Equal(t, int64(200), updatedState.ConsensusParams.Block.MaxBytes)
+	assert.Equal(t, int64(200000), updatedState.ConsensusParams.Block.MaxGas)
+	assert.Equal(t, uint64(2), updatedState.ConsensusParams.Version.App)
+}

@@ -187,7 +187,7 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	} else {
 		bytes, err := cmjson.Marshal(result)
 		if err != nil {
-			resp.Error = &json2.Error{Code: json2.ErrorCode(json2.E_INTERNAL), Data: err.Error()}
+			resp.Error = &json2.Error{Code: json2.E_INTERNAL, Data: err.Error()}
 		} else {
 			resp.Result = bytes
 		}
