@@ -43,7 +43,7 @@ func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) 
 	return node
 }
 
-func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, error, ed25519.PrivKey) {
+func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey, error) {
 	config := config.NodeConfig{DAAddress: MockServerAddr}
 	switch nodeType {
 	case "light":
@@ -57,17 +57,17 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, erro
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	if err != nil {
-		return nil, err, nil
+		return nil, nil, err
 	}
 	key := generateSingleKey()
 	logger := test.NewFileLogger(t)
 	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, logger)
-	return node, err, genesisValidatorKey
+	return node, genesisValidatorKey, err
 }
 
 // setupTestNode sets up a test node
 func setupTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey) {
-	node, err, privKey := newTestNode(ctx, t, nodeType)
+	node, privKey, err := newTestNode(ctx, t, nodeType)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	return node, privKey
