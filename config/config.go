@@ -18,6 +18,7 @@ const (
 	flagLight          = "rollkit.light"
 	flagTrustedHash    = "rollkit.trusted_hash"
 	flagLazyAggregator = "rollkit.lazy_aggregator"
+	flagAuthToken      = "rollkit.auth_token"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -88,6 +89,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
 	nc.Light = v.GetBool(flagLight)
 	nc.TrustedHash = v.GetString(flagTrustedHash)
+	nc.AuthToken = v.GetString(flagAuthToken)
 	return nil
 }
 
@@ -104,4 +106,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
+	cmd.Flags().String(flagAuthToken, def.AuthToken, "auth token")
 }
