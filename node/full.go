@@ -23,10 +23,12 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
+	openrpc "github.com/rollkit/celestia-openrpc"
 	goDAProxy "github.com/rollkit/go-da/proxy"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/celestia"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/state/indexer"
@@ -122,7 +124,7 @@ func newFullNode(
 	}
 
 	dalcKV := newPrefixKV(baseKV, dalcPrefix)
-	dalc, err := initDALC(nodeConfig, dalcKV, logger)
+	dalc, err := initDALC2(nodeConfig, dalcKV, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +211,17 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 		return store.NewDefaultInMemoryKVStore()
 	}
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
+}
+
+func initDALC2(nodeConfig config.NodeConfig, _ ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
+	ctx := context.Background()
+	// TODO(tnv1): Need get token from config for ignore the hardcode token
+	client, err := openrpc.NewClient(ctx, nodeConfig.DAAddress, "hardcode here")
+	if err != nil {
+		return nil, err
+	}
+	celestiaDA := celestia.NewCelestiaDA(ctx, client)
+	return &da.DAClient{DA: celestiaDA, Logger: logger.With("module", "da_client")}, nil
 }
 
 func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
