@@ -77,7 +77,7 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 
 	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getBlockKey(hash)), blockBlob))
 	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getCommitKey(hash)), commitBlob))
-	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getIndexKey(uint64(block.Height()))), hash[:]))
+	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getIndexKey(block.Height())), hash[:]))
 
 	if err != nil {
 		bb.Discard(s.ctx)
@@ -192,7 +192,7 @@ func (s *DefaultStore) GetState() (types.State, error) {
 
 	var state types.State
 	err = state.FromProto(&pbState)
-	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
+	atomic.StoreUint64(&s.height, state.LastBlockHeight)
 	return state, err
 }
 
