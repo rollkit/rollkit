@@ -133,11 +133,6 @@ func NewManager(
 		s.DAHeight = conf.DAStartHeight
 	}
 
-	proposerAddress, err := getAddress(proposerKey)
-	if err != nil {
-		return nil, err
-	}
-
 	if conf.DABlockTime == 0 {
 		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
 		conf.DABlockTime = defaultDABlockTime
@@ -146,6 +141,11 @@ func NewManager(
 	if conf.BlockTime == 0 {
 		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
 		conf.BlockTime = defaultBlockTime
+	}
+
+	proposerAddress, err := getAddress(proposerKey)
+	if err != nil {
+		return nil, err
 	}
 
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger)
@@ -465,6 +465,10 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 					return
 				default:
 				}
+				// early validation to reject junk blocks
+				if !m.isUsingExpectedCentralizedSequencer(block) {
+					continue
+				}
 				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
 				m.blockInCh <- NewBlockEvent{block, daHeight}
 			}
@@ -547,12 +551,8 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
-				// received block is not from the expected centralized sequencer
-				if !bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) {
-					continue
-				}
 				// early validation to reject junk blocks
-				if block.ValidateBasic() != nil {
+				if !m.isUsingExpectedCentralizedSequencer(block) {
 					continue
 				}
 				blockHash := block.Hash().String()
@@ -586,6 +586,10 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 		}
 	}
 	return err
+}
+
+func (m *Manager) isUsingExpectedCentralizedSequencer(block *types.Block) bool {
+	return bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) && block.ValidateBasic() == nil
 }
 
 func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
