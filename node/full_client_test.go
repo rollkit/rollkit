@@ -869,12 +869,12 @@ func TestStatus(t *testing.T) {
 
 	earliestBlock := getRandomBlockWithProposer(1, 1, pubKey.Bytes())
 	err = rpc.node.Store.SaveBlock(earliestBlock, &types.Commit{})
-	rpc.node.Store.SetHeight(uint64(earliestBlock.Height()))
+	rpc.node.Store.SetHeight(earliestBlock.Height())
 	require.NoError(err)
 
 	latestBlock := getRandomBlockWithProposer(2, 1, pubKey.Bytes())
 	err = rpc.node.Store.SaveBlock(latestBlock, &types.Commit{})
-	rpc.node.Store.SetHeight(uint64(latestBlock.Height()))
+	rpc.node.Store.SetHeight(latestBlock.Height())
 	require.NoError(err)
 
 	err = node.Start()

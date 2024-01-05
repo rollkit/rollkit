@@ -182,36 +182,37 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	for _, node := range nodes {
 		assert.NoError(node.Stop())
 	}
+
+	// Now that the nodes have stopped, it should be safe to access the mock
+	// calls outside of the mutex controlled methods.
+	//
+	// The reason we do this is because in the beginning of the test, we
+	// check that we have produced at least N blocks, which means we could
+	// have over produced. So when checking the calls, we also want to check
+	// that we called FinalizeBlock at least N times.
 	aggApp := apps[0]
 	apps = apps[1:]
 
-	aggApp.AssertNumberOfCalls(t, "FinalizeBlock", numBlocksToWaitFor)
+	checkCalls := func(app *mocks.Application, numBlocks int) error {
+		calls := app.Calls
+		numCalls := 0
+		for _, call := range calls {
+			if call.Method == "FinalizeBlock" {
+				numCalls++
+			}
+		}
+		if numBlocks > numCalls {
+			return fmt.Errorf("expected at least %d calls to FinalizeBlock, got %d calls", numBlocks, numCalls)
+		}
+		return nil
+	}
+
+	require.NoError(checkCalls(aggApp, numBlocksToWaitFor))
 	aggApp.AssertExpectations(t)
 
 	for i, app := range apps {
-		app.AssertNumberOfCalls(t, "FinalizeBlock", numBlocksToWaitFor)
+		require.NoError(checkCalls(app, numBlocksToWaitFor))
 		app.AssertExpectations(t)
-
-		// assert that we have most of the blocks from aggregator
-		beginCnt := 0
-		endCnt := 0
-		commitCnt := 0
-		// prepareProposal := 0
-		// processProposal := 0
-		for _, call := range app.Calls {
-			switch call.Method {
-			case "FinalizeBlock":
-				beginCnt++
-			case "CheckTx":
-				endCnt++
-			case "Commit":
-				commitCnt++
-				// case "PrepareProposal":
-				// 	prepareProposal++
-				// case "ProcessProposal":
-				// 	processProposal++
-			}
-		}
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {

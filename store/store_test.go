@@ -49,7 +49,7 @@ func TestStoreHeight(t *testing.T) {
 
 			for _, block := range c.blocks {
 				err := bstore.SaveBlock(block, &types.Commit{})
-				bstore.SetHeight(uint64(block.Height()))
+				bstore.SetHeight(block.Height())
 				assert.NoError(err)
 			}
 
@@ -111,12 +111,12 @@ func TestStoreLoad(t *testing.T) {
 				}
 
 				for _, expected := range c.blocks {
-					block, err := bstore.GetBlock(uint64(expected.Height()))
+					block, err := bstore.GetBlock(expected.Height())
 					assert.NoError(err)
 					assert.NotNil(block)
 					assert.Equal(expected, block)
 
-					commit, err := bstore.GetCommit(uint64(expected.Height()))
+					commit, err := bstore.GetCommit(expected.Height())
 					assert.NoError(err)
 					assert.NotNil(commit)
 				}
