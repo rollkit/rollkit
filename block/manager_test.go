@@ -75,7 +75,7 @@ func TestInitialStateStoreMatchingGenesis(t *testing.T) {
 	require.NoError(err)
 	s, err := getInitialState(matchingStore, genesis)
 	require.NoError(err)
-	require.Equal(uint64(sampleState.InitialHeight), s.InitialHeight)
+	require.Equal(sampleState.InitialHeight, s.InitialHeight)
 }
 
 func TestInitialErrorNoSavedState(t *testing.T) {
