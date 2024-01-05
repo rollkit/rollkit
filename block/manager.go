@@ -101,20 +101,19 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	b, err := store.GetBlock(uint64(genesis.InitialHeight))
-	if err != nil {
-		// we've never seen a block at InitialHeight.
-		// assume we're syncing from a trusted snapshot
-		return types.NewFromGenesisDoc(genesis)
-	}
-	if !bytes.Equal(b.SignedHeader.AppHash, genesis.AppHash.Bytes()) {
-		// the user-supplied genesis overrides a previously-seen block
-		// throw an error because users should replace the store when hard-forking
-		return types.State{}, fmt.Errorf("store does not match genesis. were you trying to hard-fork?")
-	}
 	s, err := store.GetState()
 	if err != nil {
-		return types.State{}, fmt.Errorf("store contains blocks, but no saved state.")
+		// Starting from scratch
+		s, err = types.NewFromGenesisDoc(genesis)
+	}
+	// Pick-up where we left last time, without overwriting the state
+	// Make sure the last block height from the loaded state and genesis initial heights are consecutive
+	if s.LastBlockHeight+1 != uint64(genesis.InitialHeight) {
+		return types.State{}, fmt.Errorf("")
+	}
+	// Make sure the loaded app hash matches the genesis
+	if !bytes.Equal(s.AppHash, genesis.AppHash.Bytes()) {
+		return types.State{}, fmt.Errorf("")
 	}
 	return s, nil
 }
