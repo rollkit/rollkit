@@ -59,6 +59,7 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 		queue:  make(chan []byte),
 		logger: h.logger,
 	}
+	// SeveyTODO
 	go ws.sendLoop()
 
 	for {

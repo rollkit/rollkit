@@ -34,6 +34,7 @@ import (
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -82,8 +83,9 @@ type FullNode struct {
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx           context.Context
+	cancel        context.CancelFunc
+	threadManager *types.ThreadManager
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -175,6 +177,7 @@ func newFullNode(
 		bSyncService:   blockSyncService,
 		ctx:            ctx,
 		cancel:         cancel,
+		threadManager:  types.NewThreadManager(),
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -339,15 +342,15 @@ func (n *FullNode) OnStart() error {
 
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
-		go n.blockManager.AggregationLoop(n.ctx, n.nodeConfig.LazyAggregator)
-		go n.blockManager.BlockSubmissionLoop(n.ctx)
-		go n.headerPublishLoop(n.ctx)
-		go n.blockPublishLoop(n.ctx)
+		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx, n.nodeConfig.LazyAggregator) })
+		n.threadManager.Go(func() { n.blockManager.BlockSubmissionLoop(n.ctx) })
+		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
+		n.threadManager.Go(func() { n.blockPublishLoop(n.ctx) })
 		return nil
 	}
-	go n.blockManager.RetrieveLoop(n.ctx)
-	go n.blockManager.BlockStoreRetrieveLoop(n.ctx)
-	go n.blockManager.SyncLoop(n.ctx, n.cancel)
+	n.threadManager.Go(func() { n.blockManager.RetrieveLoop(n.ctx) })
+	n.threadManager.Go(func() { n.blockManager.BlockStoreRetrieveLoop(n.ctx) })
+	n.threadManager.Go(func() { n.blockManager.SyncLoop(n.ctx, n.cancel) })
 	return nil
 }
 
@@ -369,6 +372,8 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 func (n *FullNode) OnStop() {
 	n.Logger.Info("halting full node...")
 	n.cancel()
+	n.threadManager.Wait()
+	n.Logger.Info("shutting down full node sub services...")
 	err := n.p2pClient.Close()
 	err = multierr.Append(err, n.hSyncService.Stop())
 	err = multierr.Append(err, n.bSyncService.Stop())

@@ -100,6 +100,7 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 		return nil, fmt.Errorf("failed to subscribe: %w", err)
 	}
 
+	// SeveyTODO
 	go func() {
 		for msg := range sub {
 			data, err := json.Marshal(msg.Data)
