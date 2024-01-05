@@ -97,6 +97,9 @@ type Manager struct {
 	doneBuildingBlock chan struct{}
 
 	pendingBlocks *PendingBlocks
+
+	// for reporting metrics
+	metrics *Metrics
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -120,6 +123,8 @@ func NewManager(
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	blockStore *goheaderstore.Store[*types.Block],
+	seqMetrics *Metrics,
+	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -148,7 +153,7 @@ func NewManager(
 		conf.BlockTime = defaultBlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -192,6 +197,7 @@ func NewManager(
 		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
 		pendingBlocks:     NewPendingBlocks(),
+		metrics:           seqMetrics,
 	}
 	return agg, nil
 }
@@ -772,6 +778,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	m.recordMetrics(block)
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -791,6 +798,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
 	return nil
+}
+
+func (m *Manager) recordMetrics(block *types.Block) {
+	m.metrics.NumTxs.Set(float64(len(block.Data.Txs)))
+	m.metrics.TotalTxs.Add(float64(len(block.Data.Txs)))
+	m.metrics.BlockSizeBytes.Set(float64(block.Size()))
+	m.metrics.CommittedHeight.Set(float64(block.Height()))
 }
 
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
@@ -841,6 +855,7 @@ func (m *Manager) updateState(s types.State) error {
 		return err
 	}
 	m.lastState = s
+	m.metrics.Height.Set(float64(s.LastBlockHeight))
 	return nil
 }
 

@@ -33,7 +33,8 @@ type NodeConfig struct {
 	DAAddress          string `mapstructure:"da_address"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
-	LazyAggregator     bool `mapstructure:"lazy_aggregator"`
+	LazyAggregator     bool                         `mapstructure:"lazy_aggregator"`
+	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -71,6 +72,9 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 			nodeConf.RPC.MaxOpenConnections = cmConf.RPC.MaxOpenConnections
 			nodeConf.RPC.TLSCertFile = cmConf.RPC.TLSCertFile
 			nodeConf.RPC.TLSKeyFile = cmConf.RPC.TLSKeyFile
+		}
+		if cmConf.Instrumentation != nil {
+			nodeConf.Instrumentation = cmConf.Instrumentation
 		}
 	}
 }
