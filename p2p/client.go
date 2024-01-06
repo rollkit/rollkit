@@ -335,7 +335,6 @@ func (c *Client) findPeers(ctx context.Context) error {
 	}
 
 	for peer := range peerCh {
-		// SeveyTODO
 		go c.tryConnect(ctx, peer)
 	}
 
@@ -361,7 +360,6 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// SeveyTODO
 	go c.txGossiper.ProcessMessages(ctx)
 
 	return nil

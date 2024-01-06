@@ -101,7 +101,6 @@ func (s *Server) startRPC() error {
 		handler = c.Handler(handler)
 	}
 
-	// SeveyTODO
 	go func() {
 		err := s.serve(listener, handler)
 		if err != http.ErrServerClosed {

@@ -59,7 +59,6 @@ func (is *IndexerService) OnStart() error {
 		return err
 	}
 
-	// SeveyTODO
 	go func() {
 		for {
 			select {
