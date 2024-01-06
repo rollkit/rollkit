@@ -2,6 +2,8 @@ package types
 
 import "sync"
 
+// ThreadManager is a simple wrapper around sync.WaitGroup to make it easier to
+// manage threads
 type ThreadManager struct {
 	wg sync.WaitGroup
 }
