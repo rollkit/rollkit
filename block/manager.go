@@ -800,8 +800,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submitted := false
 	backoff := initialBackoff
+	blocks := m.pendingBlocks.getPendingBlocks()
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		blocks := m.pendingBlocks.getPendingBlocks()
 		res := m.dalc.SubmitBlocks(ctx, blocks)
 		switch res.Code {
 		case da.StatusSuccess:
