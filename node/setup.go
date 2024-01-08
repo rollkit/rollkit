@@ -3,6 +3,7 @@ package node
 import (
 	cmcfg "github.com/cometbft/cometbft/config"
 	proxy "github.com/cometbft/cometbft/proxy"
+
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/p2p"

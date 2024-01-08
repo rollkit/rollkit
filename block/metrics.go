@@ -28,6 +28,9 @@ type Metrics struct {
 	CommittedHeight metrics.Gauge `metrics_name:"latest_block_height"`
 }
 
+// PrometheusMetrics returns Metrics build using Prometheus client library.
+// Optionally, labels can be provided along with their values ("foo",
+// "fooValue").
 func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	labels := []string{}
 	for i := 0; i < len(labelsAndValues); i += 2 {
@@ -67,6 +70,7 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	}
 }
 
+// NopMetrics returns no-op Metrics.
 func NopMetrics() *Metrics {
 	return &Metrics{
 		Height:          discard.NewGauge(),

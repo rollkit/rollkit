@@ -24,6 +24,9 @@ type Metrics struct {
 	ConsensusParamUpdates metrics.Counter
 }
 
+// PrometheusMetrics returns Metrics build using Prometheus client library.
+// Optionally, labels can be provided along with their values ("foo",
+// "fooValue").
 func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	labels := []string{}
 	for i := 0; i < len(labelsAndValues); i += 2 {
@@ -47,6 +50,7 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	}
 }
 
+// NopMetrics returns no-op Metrics.
 func NopMetrics() *Metrics {
 	return &Metrics{
 		BlockProcessingTime:   discard.NewHistogram(),
