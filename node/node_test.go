@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	cmconfig "github.com/cometbft/cometbft/config"
 	proxy "github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +58,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, erro
 	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
 	key := generateSingleKey()
 	logger := test.NewFileLogger(t)
-	return NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID, Validators: genesisValidators}, logger)
+	return NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID, Validators: genesisValidators}, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
 }
 
 // setupTestNode sets up a test node

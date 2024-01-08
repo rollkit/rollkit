@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	cmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/stretchr/testify/assert"
@@ -70,7 +71,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, test.NewFileLogger(t))
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: false, BlockManagerConfig: blockManagerConfig}, signingKey, signingKey, proxy.NewLocalClientCreator(app), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
 	require.NoError(err)
 	node.dalc = dalc
 	node.blockManager.SetDALC(dalc)
@@ -131,7 +132,7 @@ func TestAggregatorMode(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -257,7 +258,7 @@ func TestLazyAggregator(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 
@@ -785,6 +786,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		keys[n],
 		proxy.NewLocalClientCreator(app),
 		genesis,
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
 	require.NoError(err)
 	require.NotNil(node)

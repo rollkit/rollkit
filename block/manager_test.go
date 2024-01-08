@@ -14,6 +14,7 @@ import (
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
@@ -78,7 +79,7 @@ func TestInitialState(t *testing.T) {
 			assert := assert.New(t)
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
 			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil, NopMetrics(), state.NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(agg)
 			agg.lastStateMtx.RLock()
