@@ -57,7 +57,11 @@ func NewBlockSyncService(ctx context.Context, store ds.TxnDatastore, conf config
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	ss, err := goheaderstore.NewStore[*types.Block](storeBatch, goheaderstore.WithStorePrefix("blockSync"))
+	ss, err := goheaderstore.NewStore[*types.Block](
+		storeBatch,
+		goheaderstore.WithStorePrefix("blockSync"),
+		goheaderstore.WithMetrics(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize the block store: %w", err)
 	}
@@ -129,6 +133,7 @@ func (bSyncService *BlockSyncService) Start() error {
 		ps,
 		pubsub.DefaultMsgIdFn,
 		goheaderp2p.WithSubscriberNetworkID(chainIDBlock),
+		goheaderp2p.WithSubscriberMetrics(),
 	)
 	if err != nil {
 		return err
@@ -229,6 +234,7 @@ func newBlockP2PServer(
 ) (*goheaderp2p.ExchangeServer[*types.Block], error) {
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
+		goheaderp2p.WithMetrics[goheaderp2p.ServerParameters](),
 	)
 	return goheaderp2p.NewExchangeServer[*types.Block](host, store, opts...)
 }
@@ -243,6 +249,7 @@ func newBlockP2PExchange(
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
 		goheaderp2p.WithChainID(chainID),
+		goheaderp2p.WithMetrics[goheaderp2p.ClientParameters](),
 	)
 	return goheaderp2p.NewExchange[*types.Block](host, peers, conngater, opts...)
 }
@@ -254,6 +261,9 @@ func newBlockSyncer(
 	sub header.Subscriber[*types.Block],
 	opts []goheadersync.Option,
 ) (*goheadersync.Syncer[*types.Block], error) {
+	opts = append(opts,
+		goheadersync.WithMetrics(),
+	)
 	return goheadersync.NewSyncer[*types.Block](ex, store, sub, opts...)
 }
 
