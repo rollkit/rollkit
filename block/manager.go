@@ -101,7 +101,9 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	s, err := store.GetState()
+	var s types.State
+	var err error
+	s, err = store.GetState()
 	if err != nil {
 		// Starting from scratch
 		// we tolerate if the user supplied an empty store, and defer to supplied genesis.
