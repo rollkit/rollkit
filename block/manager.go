@@ -116,7 +116,7 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 			return types.State{}, fmt.Errorf("supplied genesis contradicts the stored state")
 		}
 	}
-	return s, nil
+	return s, err
 }
 
 // NewManager creates new block Manager.
