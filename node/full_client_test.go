@@ -65,7 +65,9 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
@@ -74,10 +76,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 		key,
 		signingKey,
 		proxy.NewLocalClientCreator(app),
-		&cmtypes.GenesisDoc{
-			ChainID:    "test",
-			Validators: genesisValidators,
-		},
+		genesisDoc,
 		log.TestingLogger(),
 	)
 	require.NoError(err)
@@ -492,7 +491,9 @@ func TestTx(t *testing.T) {
 	mockApp.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
 	mockApp.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
@@ -502,7 +503,7 @@ func TestTx(t *testing.T) {
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
-		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
+		genesisDoc,
 		test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
@@ -740,7 +741,9 @@ func TestMempool2Nodes(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	genesisValidators, signingKey1 := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey1, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
@@ -769,7 +772,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
 		BlockManagerConfig: getBMConfig(),
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), genesisDoc, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -779,7 +782,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node2)
 
@@ -834,8 +837,10 @@ func TestStatus(t *testing.T) {
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
-	pubKey := genesisValidators[0].PubKey
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
+	pubKey := genesisDoc.Validators[0].PubKey
 
 	node, err := newFullNode(
 		context.Background(),
@@ -852,10 +857,7 @@ func TestStatus(t *testing.T) {
 		key,
 		signingKey,
 		proxy.NewLocalClientCreator(app),
-		&cmtypes.GenesisDoc{
-			ChainID:    "test",
-			Validators: genesisValidators,
-		},
+		genesisDoc,
 		test.NewFileLogger(t),
 	)
 	require.NoError(err)
@@ -890,8 +892,8 @@ func TestStatus(t *testing.T) {
 	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
 
 	// Changed the RPC method to get this from the genesis.
-	assert.Equal(genesisValidators[0].Address, resp.ValidatorInfo.Address)
-	assert.Equal(genesisValidators[0].PubKey, resp.ValidatorInfo.PubKey)
+	assert.Equal(genesisDoc.Validators[0].Address, resp.ValidatorInfo.Address)
+	assert.Equal(genesisDoc.Validators[0].PubKey, resp.ValidatorInfo.PubKey)
 	// hardcode to 1, shouldn't matter because it's a centralized sequencer
 	assert.Equal(int64(1), resp.ValidatorInfo.VotingPower)
 
@@ -945,7 +947,9 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	genesisTime := time.Now().Local().Add(time.Second * time.Duration(1))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -961,7 +965,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			ChainID:       "test",
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,
-			Validators:    genesisValidators,
+			Validators:    genesisDoc.Validators,
 		},
 		test.NewFileLogger(t))
 	require.NoError(err)

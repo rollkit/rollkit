@@ -13,11 +13,11 @@ import (
 
 func TestInitialStateNoBlock(t *testing.T) {
 	require := require.New(t)
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
-		Validators:    genesisValidators,
+		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -31,18 +31,18 @@ func TestInitialStateNoBlock(t *testing.T) {
 
 func TestInitialStateOverrideError(t *testing.T) {
 	require := require.New(t)
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, privKey := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
-		Validators:    genesisValidators,
+		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
 	overrideStore := store.New(ctx, es)
-	b, _ := types.GetRandomBlockWithKey(100, 1)
+	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
 	err := overrideStore.SaveBlock(b, &b.SignedHeader.Commit)
 	require.NoError(err)
 	_, err = getInitialState(overrideStore, genesis)
@@ -51,11 +51,11 @@ func TestInitialStateOverrideError(t *testing.T) {
 
 func TestInitialStateStoreMatchingGenesis(t *testing.T) {
 	require := require.New(t)
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, privKey := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
-		Validators:    genesisValidators,
+		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
@@ -67,7 +67,7 @@ func TestInitialStateStoreMatchingGenesis(t *testing.T) {
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
 	matchingStore := store.New(ctx, es)
-	b, _ := types.GetRandomBlockWithKey(100, 1)
+	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
 	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
 	err := matchingStore.SaveBlock(b, &b.SignedHeader.Commit)
 	require.NoError(err)
@@ -80,18 +80,18 @@ func TestInitialStateStoreMatchingGenesis(t *testing.T) {
 
 func TestInitialErrorNoSavedState(t *testing.T) {
 	require := require.New(t)
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, privKey := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
-		Validators:    genesisValidators,
+		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
 	matchingStore := store.New(ctx, es)
-	b, _ := types.GetRandomBlockWithKey(100, 1)
+	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
 	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
 	err := matchingStore.SaveBlock(b, &b.SignedHeader.Commit)
 	require.NoError(err)
