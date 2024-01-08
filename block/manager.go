@@ -104,16 +104,15 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 	s, err := store.GetState()
 	if err != nil {
 		// Starting from scratch
+		// we tolerate if the user supplied an empty store, and defer to supplied genesis.
 		s, err = types.NewFromGenesisDoc(genesis)
 	}
-	// Pick-up where we left last time, without overwriting the state
-	// Make sure the last block height from the loaded state and genesis initial heights are consecutive
-	if s.LastBlockHeight+1 != uint64(genesis.InitialHeight) {
-		return types.State{}, fmt.Errorf("")
-	}
-	// Make sure the loaded app hash matches the genesis
-	if !bytes.Equal(s.AppHash, genesis.AppHash.Bytes()) {
-		return types.State{}, fmt.Errorf("")
+
+	// Ensure that genesis does not contradict the stored state.
+	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
+		if !bytes.Equal(s.AppHash, genesis.AppHash.Bytes()) {
+			return types.State{}, fmt.Errorf("supplied genesis contradicts the stored state")
+		}
 	}
 	return s, nil
 }
