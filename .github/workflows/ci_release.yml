@@ -65,7 +65,7 @@ jobs:
       # steps that rely on this step and others if this step is skipped.
       - name: Query listPullRequestsAssociatedWithCommit for the PR information
         if: ${{ github.event_name == 'push' }}
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: get_pr_data
         with:
           script: |
