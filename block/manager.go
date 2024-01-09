@@ -406,7 +406,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
-			return fmt.Errorf("failed to ApplyBlock: %w", err)
+			if ctx.Err() != nil {
+				return err
+			}
+			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
+			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
 		}
 		err = m.store.SaveBlock(b, &b.SignedHeader.Commit)
 		if err != nil {
