@@ -101,20 +101,27 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	var s types.State
-	var err error
-	s, err = store.GetState()
+	// Load the state from store.
+	s, err := store.GetState()
 	if err != nil {
-		// Starting from scratch
-		// we tolerate if the user supplied an empty store, and defer to supplied genesis.
+		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		s, err = types.NewFromGenesisDoc(genesis)
+	} else {
+		// Perform a sanity-check to stop the user from
+		// using a higher genesis than the last stored state.
+		// if they meant to hard-fork, they should have cleared the stored State
+		if uint64(genesis.InitialHeight) > s.LastBlockHeight {
+			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
+		}
 	}
 
-	// Ensure that genesis does not contradict the stored state.
-	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
-		if !bytes.Equal(s.AppHash, genesis.AppHash.Bytes()) {
-			return types.State{}, fmt.Errorf("supplied genesis contradicts the stored state")
-		}
+	// The store should not contain a block at genesis.InitialHeight + 1
+	// because InitChain is called at that height, but a block is not built and stored.
+	// this indicates the user didn't properly clear the store when hard-forking.
+	// Perform a sanity-check:
+	_, loadBlockErr := store.GetBlock(s.InitialHeight)
+	if loadBlockErr == nil {
+		return types.State{}, fmt.Errorf("unexpected stored block at genesis.InitialHeight (%d)", s.InitialHeight)
 	}
 	return s, err
 }

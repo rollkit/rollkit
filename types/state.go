@@ -71,7 +71,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 
 		DAHeight: 1,
 
-		LastBlockHeight: 0,
+		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
 

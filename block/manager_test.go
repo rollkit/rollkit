@@ -11,12 +11,12 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-func TestInitialStateNoBlock(t *testing.T) {
+func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "genesis id",
-		InitialHeight: 100,
+		ChainID:       "myChain",
+		InitialHeight: 1,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
@@ -25,64 +25,64 @@ func TestInitialStateNoBlock(t *testing.T) {
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(ctx, es)
 	s, err := getInitialState(emptyStore, genesis)
+	require.Equal(int64(s.LastBlockHeight), genesis.InitialHeight-1)
 	require.NoError(err)
 	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
 }
 
-func TestInitialStateOverrideError(t *testing.T) {
+func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
-	genesisDoc, privKey := types.GetGenesisWithPrivkey()
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "genesis id",
-		InitialHeight: 100,
-		Validators:    genesisDoc.Validators,
-		AppHash:       []byte("app hash"),
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	es, _ := store.NewDefaultInMemoryKVStore()
-	overrideStore := store.New(ctx, es)
-	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
-	err := overrideStore.SaveBlock(b, &b.SignedHeader.Commit)
-	require.NoError(err)
-	_, err = getInitialState(overrideStore, genesis)
-	require.EqualError(err, "store does not match genesis. were you trying to hard-fork?")
-}
-
-func TestInitialStateStoreMatchingGenesis(t *testing.T) {
-	require := require.New(t)
-	genesisDoc, privKey := types.GetGenesisWithPrivkey()
-	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "genesis id",
-		InitialHeight: 100,
+		ChainID:       "myChain",
+		InitialHeight: 1,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
-		ChainID:         "state id",
-		InitialHeight:   100,
-		LastBlockHeight: 128,
+		ChainID:         "myChain",
+		InitialHeight:   1,
+		LastBlockHeight: 100,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
-	matchingStore := store.New(ctx, es)
-	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
-	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
-	err := matchingStore.SaveBlock(b, &b.SignedHeader.Commit)
+	store := store.New(ctx, es)
+	store.UpdateState(sampleState)
+	s, err := getInitialState(store, genesis)
+	require.Equal(int64(s.LastBlockHeight), int64(100))
 	require.NoError(err)
-	err = matchingStore.UpdateState(sampleState)
-	require.NoError(err)
-	s, err := getInitialState(matchingStore, genesis)
-	require.NoError(err)
-	require.Equal(sampleState.InitialHeight, s.InitialHeight)
+	require.Equal(s.InitialHeight, uint64(1))
 }
 
-func TestInitialErrorNoSavedState(t *testing.T) {
+func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
+	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "myChain",
+		InitialHeight: 2,
+		Validators:    genesisDoc.Validators,
+		AppHash:       []byte("app hash"),
+	}
+	sampleState := types.State{
+		ChainID:         "myChain",
+		InitialHeight:   1,
+		LastBlockHeight: 0,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	store := store.New(ctx, es)
+	store.UpdateState(sampleState)
+	_, err := getInitialState(store, genesis)
+	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
+}
+
+func TestInitialStateUnexpectedStoredBlock(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, privKey := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "genesis id",
+		ChainID:       "myChain",
 		InitialHeight: 100,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
@@ -90,13 +90,11 @@ func TestInitialErrorNoSavedState(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
-	matchingStore := store.New(ctx, es)
+	store := store.New(ctx, es)
 	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
-	b.SignedHeader.AppHash = genesis.AppHash.Bytes()
-	err := matchingStore.SaveBlock(b, &b.SignedHeader.Commit)
-	require.NoError(err)
-	_, err = getInitialState(matchingStore, genesis)
-	require.EqualError(err, "store contains blocks, but no saved state.")
+	store.SaveBlock(b, &b.SignedHeader.Commit)
+	_, err := getInitialState(store, genesis)
+	require.EqualError(err, "unexpected stored block at genesis.InitialHeight (100)")
 }
 
 func TestIsDAIncluded(t *testing.T) {
