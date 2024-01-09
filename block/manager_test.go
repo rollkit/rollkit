@@ -76,7 +76,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(ctx, es)
 	err := store.UpdateState(sampleState)
 	require.NoError(err)
-	_, err := getInitialState(store, genesis)
+	_, err = getInitialState(store, genesis)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
