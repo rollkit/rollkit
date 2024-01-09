@@ -94,8 +94,9 @@ func TestInitialStateUnexpectedStoredBlock(t *testing.T) {
 	es, _ := store.NewDefaultInMemoryKVStore()
 	store := store.New(ctx, es)
 	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
-	store.SaveBlock(b, &b.SignedHeader.Commit)
-	_, err := getInitialState(store, genesis)
+	err := store.SaveBlock(b, &b.SignedHeader.Commit)
+	require.NoError(err)
+	_, err = getInitialState(store, genesis)
 	require.EqualError(err, "unexpected stored block at genesis.InitialHeight (100)")
 }
 
