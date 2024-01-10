@@ -83,3 +83,8 @@ proto-lint:
 	@echo "--> Linting Protobuf files"
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
+
+codecov-lint:
+	@echo "--> Linting codecov.yml"
+	@curl --data-binary @codecov.yml https://codecov.io/validate
+.PHONY: codecov-lint

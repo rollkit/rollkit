@@ -1,0 +1,9 @@
+coverage:
+  ignore:
+    - "go.mod"
+    - "go.sum"
+    - "*.md"
+    - "assets/**"
+    - ".github/**"
+    - "specs/**"
+    - "third_party/**"
