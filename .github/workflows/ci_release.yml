@@ -118,7 +118,7 @@ jobs:
     if: |
       (github.event_name == 'push' &&
       contains(github.ref, 'refs/heads/main') &&
-      needs.get_merged_pr_labels.outputs.has_release_label)
+      needs.get_merged_pr_labels.outputs.has_release_label == "true")
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
