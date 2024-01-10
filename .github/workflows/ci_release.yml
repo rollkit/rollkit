@@ -5,8 +5,7 @@ on:
       - main
     # Trigger on version tags
     tags:
-      - 'v[0-9]+\.[0-9]+\.[0-9]+'
-      - 'v[0-9]+\.[0-9]+\.[0-9]+-rc(?:[0-9]+|\.[0-9]+)'
+      - "v*"
   pull_request:
   merge_group:
   workflow_dispatch:
@@ -118,7 +117,7 @@ jobs:
     if: |
       (github.event_name == 'push' &&
       contains(github.ref, 'refs/heads/main') &&
-      needs.get_merged_pr_labels.outputs.has_release_label)
+      needs.get_merged_pr_labels.outputs.has_release_label == 'true')
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
