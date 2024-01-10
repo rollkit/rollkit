@@ -106,6 +106,7 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 	if err != nil {
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		s, err = types.NewFromGenesisDoc(genesis)
+		store.SetHeight(s.LastBlockHeight)
 	} else {
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
