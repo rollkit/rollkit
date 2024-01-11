@@ -20,11 +20,11 @@ import (
 )
 
 func TestInitialState(t *testing.T) {
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
-		Validators:    genesisValidators,
+		Validators:    genesisDoc.Validators,
 	}
 	sampleState := types.State{
 		ChainID:         "state id",
@@ -62,8 +62,8 @@ func TestInitialState(t *testing.T) {
 			name:                    "state_in_store",
 			store:                   fullStore,
 			genesis:                 genesis,
-			expectedInitialHeight:   uint64(sampleState.InitialHeight),
-			expectedLastBlockHeight: uint64(sampleState.LastBlockHeight),
+			expectedInitialHeight:   sampleState.InitialHeight,
+			expectedLastBlockHeight: sampleState.LastBlockHeight,
 			expectedChainID:         sampleState.ChainID,
 		},
 	}
