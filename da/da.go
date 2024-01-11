@@ -111,7 +111,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			},
 		}
 	}
-	ids, _, err := dac.DA.Submit(blobs, -1)
+	ids, _, err := dac.DA.Submit(blobs, dac.GasPrice)
 	if err != nil {
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
