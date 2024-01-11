@@ -13,6 +13,7 @@ import (
 
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 
 	"github.com/rollkit/rollkit/third_party/log"
@@ -104,7 +105,13 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 	}
 
 	go func() {
-		codecReq := wsConn.codecReq
+		var codecReq rpc.CodecRequest
+		if wsConn != nil {
+			codecReq = wsConn.codecReq
+		} else {
+			codecReq = json2.NewCodec().NewRequest(req)
+		}
+
 		for msg := range sub {
 			var raw json.RawMessage
 			raw, err = cmjson.Marshal(msg.Data)
