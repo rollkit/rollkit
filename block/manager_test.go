@@ -77,7 +77,7 @@ func TestInitialState(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
-			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
+			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger}
 			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
 			assert.NoError(err)
 			assert.NotNil(agg)

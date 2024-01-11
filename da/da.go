@@ -66,8 +66,9 @@ type ResultRetrieveBlocks struct {
 
 // DAClient is a new DA implementation.
 type DAClient struct {
-	DA     goDA.DA
-	Logger log.Logger
+	DA       goDA.DA
+	GasPrice float64
+	Logger   log.Logger
 }
 
 // SubmitBlocks submits blocks to DA.
