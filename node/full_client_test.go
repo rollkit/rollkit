@@ -27,6 +27,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/cometbft/cometbft/light"
+
 	"github.com/rollkit/rollkit/config"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
