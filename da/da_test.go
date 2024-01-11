@@ -65,7 +65,7 @@ func (m *MockDA) Commit(blobs []da.Blob) ([]da.Commitment, error) {
 	return args.Get(0).([]da.Commitment), args.Error(1)
 }
 
-func (m *MockDA) Submit(blobs []da.Blob) ([]da.ID, []da.Proof, error) {
+func (m *MockDA) Submit(blobs []da.Blob, gasPrice float64) ([]da.ID, []da.Proof, error) {
 	args := m.Called(blobs)
 	return args.Get(0).([]da.ID), args.Get(1).([]da.Proof), args.Error(2)
 }
