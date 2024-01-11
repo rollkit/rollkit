@@ -96,7 +96,7 @@ func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Ha
 	newSignedHeader.LastCommitHash = block.SignedHeader.Commit.GetCommitHash(
 		&newSignedHeader.Header, block.SignedHeader.ProposerAddress,
 	)
-	commit, err := getCommit(newSignedHeader.Header, privKey)
+	commit, err := GetCommit(newSignedHeader.Header, privKey)
 	if err != nil {
 		panic(err)
 	}
@@ -162,7 +162,7 @@ func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash, privKey ed25
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	signedHeader.Header.ValidatorHash = valSet.Hash()
 	signedHeader.Header.BaseHeader.Time = uint64(time.Now().Unix()) + height*10
-	commit, err := getCommit(signedHeader.Header, privKey)
+	commit, err := GetCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -181,7 +181,7 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivK
 	newSignedHeader.LastCommitHash = signedHeader.Commit.GetCommitHash(
 		&newSignedHeader.Header, signedHeader.ProposerAddress,
 	)
-	commit, err := getCommit(newSignedHeader.Header, privKey)
+	commit, err := GetCommit(newSignedHeader.Header, privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 		Header:     header,
 		Validators: valSet,
 	}
-	commit, err := getCommit(header, privkey)
+	commit, err := GetCommit(header, privkey)
 	signedHeader.Commit = *commit
 	if err != nil {
 		return nil, err
@@ -296,7 +296,7 @@ func GetRandomBytes(n int) []byte {
 	return data
 }
 
-func getCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
+func GetCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
 	consensusVote := header.MakeCometBFTVote()
 	sign, err := privKey.Sign(consensusVote)
 	if err != nil {
