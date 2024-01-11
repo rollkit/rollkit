@@ -83,7 +83,7 @@ mock-gen:
 	@echo "-> Generating mocks"
 	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/rpc/client --name Client
 	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/abci/types --name Application
-.PHONY: proto-gen
+.PHONY: mock-gen
 
 
 ## proto-lint: Lint protobuf files. Requires docker.
