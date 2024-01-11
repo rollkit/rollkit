@@ -65,7 +65,7 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 	go ws.sendLoop()
 
 	for {
-		mt, rdr, err := wsc.NextReader()
+		mt, r, err := wsc.NextReader()
 		if err != nil {
 			h.logger.Error("failed to read next WebSocket message", "error", err)
 			break
@@ -76,9 +76,8 @@ func (h *handler) wsHandler(w http.ResponseWriter, r *http.Request) {
 			h.logger.Debug("expected text message")
 			continue
 		}
-		req, err := http.NewRequest(http.MethodGet, "", rdr)
+		req, err := http.NewRequest(http.MethodGet, "", r)
 		req.RemoteAddr = remoteAddr
-
 		if err != nil {
 			h.logger.Error("failed to create request", "error", err)
 			continue
