@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/multierr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -80,6 +83,7 @@ type FullNode struct {
 	TxIndexer      txindex.TxIndexer
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
+	prometheusSrv  *http.Server
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -325,8 +329,34 @@ func (n *FullNode) Cancel() {
 	n.cancel()
 }
 
+// startPrometheusServer starts a Prometheus HTTP server, listening for metrics
+// collectors on addr.
+func (n *FullNode) startPrometheusServer() *http.Server {
+	srv := &http.Server{
+		Addr: n.nodeConfig.Instrumentation.PrometheusListenAddr,
+		Handler: promhttp.InstrumentMetricHandler(
+			prometheus.DefaultRegisterer, promhttp.HandlerFor(
+				prometheus.DefaultGatherer,
+				promhttp.HandlerOpts{MaxRequestsInFlight: n.nodeConfig.Instrumentation.MaxOpenConnections},
+			),
+		),
+		ReadHeaderTimeout: readHeaderTimeout,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			// Error starting or closing listener:
+			n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
+		}
+	}()
+	return srv
+}
+
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
+	// begin prometheus metrics gathering if it is enabled
+	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
+		n.prometheusSrv = n.startPrometheusServer()
+	}
 	n.Logger.Info("starting P2P client")
 	err := n.p2pClient.Start(n.ctx)
 	if err != nil {
@@ -377,6 +407,9 @@ func (n *FullNode) OnStop() {
 	err = multierr.Append(err, n.hSyncService.Stop())
 	err = multierr.Append(err, n.bSyncService.Stop())
 	err = multierr.Append(err, n.IndexerService.Stop())
+	if n.prometheusSrv != nil {
+		err = multierr.Append(err, n.prometheusSrv.Shutdown(n.ctx))
+	}
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 

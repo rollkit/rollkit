@@ -1,6 +1,8 @@
 package node
 
 import (
+	"time"
+
 	cmcfg "github.com/cometbft/cometbft/config"
 	proxy "github.com/cometbft/cometbft/proxy"
 
@@ -9,6 +11,8 @@ import (
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/state"
 )
+
+const readHeaderTimeout = 10 * time.Second
 
 // MetricsProvider returns a consensus, p2p and mempool Metrics.
 type MetricsProvider func(chainID string) (*block.Metrics, *p2p.Metrics, *mempool.Metrics, *state.Metrics, *proxy.Metrics)
