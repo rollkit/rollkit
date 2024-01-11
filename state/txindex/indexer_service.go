@@ -47,14 +47,14 @@ func (is *IndexerService) OnStart() error {
 	// canceled due to not pulling messages fast enough. Cause this might
 	// sometimes happen when there are no other subscribers.
 	blockSub, err := is.eventBus.SubscribeUnbuffered(
-		context.Background(),
+		is.ctx,
 		subscriber,
 		types.EventQueryNewBlockEvents)
 	if err != nil {
 		return err
 	}
 
-	txsSub, err := is.eventBus.SubscribeUnbuffered(context.Background(), subscriber, types.EventQueryTx)
+	txsSub, err := is.eventBus.SubscribeUnbuffered(is.ctx, subscriber, types.EventQueryTx)
 	if err != nil {
 		return err
 	}
@@ -74,22 +74,26 @@ func (is *IndexerService) OnStart() error {
 				batch := NewBatch(numTxs)
 
 				for i := int64(0); i < numTxs; i++ {
-					msg2 := <-txsSub.Out()
-					txResult := msg2.Data().(types.EventDataTx).TxResult
+					select {
+					case <-is.ctx.Done():
+						return
+					case msg2 := <-txsSub.Out():
+						txResult := msg2.Data().(types.EventDataTx).TxResult
 
-					if err = batch.Add(&txResult); err != nil {
-						is.Logger.Error(
-							"failed to add tx to batch",
-							"height", height,
-							"index", txResult.Index,
-							"err", err,
-						)
+						if err = batch.Add(&txResult); err != nil {
+							is.Logger.Error(
+								"failed to add tx to batch",
+								"height", height,
+								"index", txResult.Index,
+								"err", err,
+							)
 
-						if is.terminateOnError {
-							if err := is.Stop(); err != nil {
-								is.Logger.Error("failed to stop", "err", err)
+							if is.terminateOnError {
+								if err := is.Stop(); err != nil {
+									is.Logger.Error("failed to stop", "err", err)
+								}
+								return
 							}
-							return
 						}
 					}
 				}
@@ -126,6 +130,6 @@ func (is *IndexerService) OnStart() error {
 // OnStop implements service.Service by unsubscribing from all transactions.
 func (is *IndexerService) OnStop() {
 	if is.eventBus.IsRunning() {
-		_ = is.eventBus.UnsubscribeAll(context.Background(), subscriber)
+		_ = is.eventBus.UnsubscribeAll(is.ctx, subscriber)
 	}
 }

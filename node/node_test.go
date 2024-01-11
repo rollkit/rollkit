@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	proxy "github.com/cometbft/cometbft/proxy"
-	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,9 +19,6 @@ var MockServerAddr = ":7980"
 
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
-	defer func() {
-		node.Cancel()
-	}()
 	assert.NoError(t, node.Stop())
 	assert.False(t, node.IsRunning())
 }
@@ -38,7 +35,7 @@ func initializeAndStartLightNode(ctx context.Context, t *testing.T) *LightNode {
 
 // initializeAndStartNode initializes and starts a test node
 func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) Node {
-	node := setupTestNode(ctx, t, nodeType)
+	node, _ := setupTestNode(ctx, t, nodeType)
 	require.False(t, node.IsRunning())
 	err := node.Start()
 	require.NoError(t, err)
@@ -46,7 +43,7 @@ func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) 
 	return node
 }
 
-func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, error) {
+func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey, error) {
 	config := config.NodeConfig{DAAddress: MockServerAddr}
 	switch nodeType {
 	case "light":
@@ -57,18 +54,23 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, erro
 		panic(fmt.Sprint("invalid node type", nodeType))
 	}
 	app := setupMockApplication()
-	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	if err != nil {
+		return nil, nil, err
+	}
 	key := generateSingleKey()
 	logger := test.NewFileLogger(t)
-	return NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: types.TestChainID, Validators: genesisValidators}, logger)
+	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, logger)
+	return node, genesisValidatorKey, err
 }
 
 // setupTestNode sets up a test node
-func setupTestNode(ctx context.Context, t *testing.T, nodeType string) Node {
-	node, err := newTestNode(ctx, t, nodeType)
+func setupTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey) {
+	node, privKey, err := newTestNode(ctx, t, nodeType)
 	require.NoError(t, err)
 	require.NotNil(t, node)
-	return node
+	return node, privKey
 }
 
 func TestNewNode(t *testing.T) {

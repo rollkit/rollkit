@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
@@ -32,9 +31,6 @@ func (sh *SignedHeader) IsZero() bool {
 var (
 	// ErrNonAdjacentHeaders is returned when the headers are not adjacent.
 	ErrNonAdjacentHeaders = errors.New("non-adjacent headers")
-
-	// ErrNoProposerAddress is returned when the proposer address is not set.
-	ErrNoProposerAddress = errors.New("no proposer address")
 
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
 	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
@@ -88,10 +84,34 @@ var (
 	// ErrAggregatorSetHashMismatch is returned when the aggregator set hash
 	// in the signed header doesn't match the hash of the validator set.
 	ErrAggregatorSetHashMismatch = errors.New("aggregator set hash in signed header and hash of validator set do not match")
+
 	// ErrSignatureVerificationFailed is returned when the signature
 	// verification fails
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
+
+	// ErrInvalidValidatorSetLengthMismatch is returned when the validator set length is not exactly one
+	ErrInvalidValidatorSetLengthMismatch = errors.New("must have exactly one validator (the centralized sequencer)")
+
+	// ErrProposerAddressMismatch is returned when the proposer address in the signed header does not match the proposer address in the validator set
+	ErrProposerAddressMismatch = errors.New("proposer address in SignedHeader does not match the proposer address in the validator set")
+
+	// ErrProposerNotInValSet is returned when the proposer address in the validator set is not in the validator set
+	ErrProposerNotInValSet = errors.New("proposer address in the validator set is not in the validator set")
 )
+
+// validatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
+func validatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
+	if val1 == val2 {
+		// happy case is if they are pointers to the same struct.
+		return true
+	}
+	// if not, do a field-by-field comparison
+	return val1.PubKey.Equals(val2.PubKey) &&
+		bytes.Equal(val1.Address.Bytes(), val2.Address.Bytes()) &&
+		val1.VotingPower == val2.VotingPower &&
+		val1.ProposerPriority == val2.ProposerPriority
+
+}
 
 // ValidateBasic performs basic validation of a signed header.
 func (sh *SignedHeader) ValidateBasic() error {
@@ -103,13 +123,23 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	// Handle Based Rollup case
-	if sh.Validators == nil || len(sh.Validators.Validators) == 0 {
-		return nil
-	}
-
 	if err := sh.Validators.ValidateBasic(); err != nil {
 		return err
+	}
+
+	// Rollkit vA uses a centralized sequencer, so there should only be one validator
+	if len(sh.Validators.Validators) != 1 {
+		return ErrInvalidValidatorSetLengthMismatch
+	}
+
+	// Check that the proposer address in the signed header matches the proposer address in the validator set
+	if !bytes.Equal(sh.ProposerAddress, sh.Validators.Proposer.Address.Bytes()) {
+		return ErrProposerAddressMismatch
+	}
+
+	// Check that the proposer is the only validator in the validator set
+	if !validatorsEqual(sh.Validators.Proposer, sh.Validators.Validators[0]) {
+		return ErrProposerNotInValSet
 	}
 
 	// Make sure there is exactly one signature
@@ -118,16 +148,14 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	signature := sh.Commit.Signatures[0]
-	proposer := sh.Validators.GetProposer()
-	var pubKey ed25519.PubKey = proposer.PubKey.Bytes()
+
 	msg, err := sh.Header.MarshalBinary()
 	if err != nil {
-		return errors.New("signature verification failed, unable to marshal header")
+		return fmt.Errorf("signature verification failed, unable to marshal header: %v", err)
 	}
-	if !pubKey.VerifySignature(msg, signature) {
+	if !sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature) {
 		return ErrSignatureVerificationFailed
 	}
-
 	return nil
 }
 
