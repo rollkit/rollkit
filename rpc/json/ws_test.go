@@ -3,13 +3,14 @@ package json
 import (
 	"bytes"
 	"encoding/json"
-	cmjson "github.com/cometbft/cometbft/libs/json"
-	"github.com/go-kit/kit/transport/http/jsonrpc"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	cmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/go-kit/kit/transport/http/jsonrpc"
 
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"

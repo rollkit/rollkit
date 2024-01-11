@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	cmjson "github.com/cometbft/cometbft/libs/json"
 	"net/http"
 	"reflect"
 	"time"
+
+	cmjson "github.com/cometbft/cometbft/libs/json"
 
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
