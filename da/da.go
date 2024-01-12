@@ -66,8 +66,9 @@ type ResultRetrieveBlocks struct {
 
 // DAClient is a new DA implementation.
 type DAClient struct {
-	DA     goDA.DA
-	Logger log.Logger
+	DA       goDA.DA
+	GasPrice float64
+	Logger   log.Logger
 }
 
 // SubmitBlocks submits blocks to DA.
@@ -110,7 +111,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			},
 		}
 	}
-	ids, _, err := dac.DA.Submit(blobs)
+	ids, _, err := dac.DA.Submit(blobs, dac.GasPrice)
 	if err != nil {
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{

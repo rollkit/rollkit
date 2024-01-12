@@ -18,6 +18,7 @@ const (
 	flagLight          = "rollkit.light"
 	flagTrustedHash    = "rollkit.trusted_hash"
 	flagLazyAggregator = "rollkit.lazy_aggregator"
+	flagDAGasPrice     = "rollkit.da_gas_price"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -33,7 +34,8 @@ type NodeConfig struct {
 	DAAddress          string `mapstructure:"da_address"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
-	LazyAggregator     bool `mapstructure:"lazy_aggregator"`
+	LazyAggregator     bool    `mapstructure:"lazy_aggregator"`
+	DAGasPrice         float64 `mapstructure:"da_gas_price"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -87,6 +89,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
 	nc.Light = v.GetBool(flagLight)
 	nc.TrustedHash = v.GetString(flagTrustedHash)
+	nc.DAGasPrice = v.GetFloat64(flagDAGasPrice)
 	return nil
 }
 
@@ -100,6 +103,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(flagDAAddress, def.DAAddress, "DA address (host:port)")
 	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Float64(flagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")
 	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().Bool(flagLight, def.Light, "run light client")
 	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")

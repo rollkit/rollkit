@@ -24,8 +24,9 @@ var DefaultNodeConfig = NodeConfig{
 		BlockTime:   1 * time.Second,
 		DABlockTime: 15 * time.Second,
 	},
-	DAAddress: ":26650",
-	Light:     false,
+	DAAddress:  ":26650",
+	DAGasPrice: -1,
+	Light:      false,
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
