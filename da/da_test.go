@@ -65,8 +65,8 @@ func (m *MockDA) Commit(blobs []da.Blob) ([]da.Commitment, error) {
 	return args.Get(0).([]da.Commitment), args.Error(1)
 }
 
-func (m *MockDA) Submit(blobs []da.Blob) ([]da.ID, []da.Proof, error) {
-	args := m.Called(blobs)
+func (m *MockDA) Submit(blobs []da.Blob, gasPrice float64) ([]da.ID, []da.Proof, error) {
+	args := m.Called(blobs, gasPrice)
 	return args.Get(0).([]da.ID), args.Get(1).([]da.Proof), args.Error(2)
 }
 
@@ -79,14 +79,14 @@ func TestMockDA(t *testing.T) {
 	mockDA := &MockDA{}
 	// Set up the mock to return an error for MaxBlobSize
 	mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("mock error"))
-	dalc := &DAClient{DA: mockDA, Logger: log.TestingLogger()}
+	dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
 	t.Run("max_blob_size_error", func(t *testing.T) {
 		doTestMaxBlockSizeError(t, dalc)
 	})
 }
 
 func TestSubmitRetrieve(t *testing.T) {
-	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
+	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: log.TestingLogger()}
 	grpcClient, err := startMockGRPCClient()
 	require.NoError(t, err)
 	clients := map[string]*DAClient{
@@ -131,7 +131,7 @@ func startMockGRPCClient() (*DAClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DAClient{DA: client, Logger: log.TestingLogger()}, nil
+	return &DAClient{DA: client, GasPrice: -1, Logger: log.TestingLogger()}, nil
 }
 
 func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
