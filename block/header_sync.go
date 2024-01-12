@@ -58,7 +58,11 @@ func NewHeaderSyncService(ctx context.Context, store ds.TxnDatastore, conf confi
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	ss, err := goheaderstore.NewStore[*types.SignedHeader](storeBatch, goheaderstore.WithStorePrefix("headerSync"))
+	ss, err := goheaderstore.NewStore[*types.SignedHeader](
+		storeBatch,
+		goheaderstore.WithStorePrefix("headerSync"),
+		goheaderstore.WithMetrics(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize the header store: %w", err)
 	}
@@ -127,6 +131,7 @@ func (hSyncService *HeaderSyncService) Start() error {
 		ps,
 		pubsub.DefaultMsgIdFn,
 		goheaderp2p.WithSubscriberNetworkID(hSyncService.genesis.ChainID),
+		goheaderp2p.WithSubscriberMetrics(),
 	)
 	if err != nil {
 		return err
@@ -226,6 +231,7 @@ func newP2PServer(
 ) (*goheaderp2p.ExchangeServer[*types.SignedHeader], error) {
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
+		goheaderp2p.WithMetrics[goheaderp2p.ServerParameters](),
 	)
 	return goheaderp2p.NewExchangeServer[*types.SignedHeader](host, store, opts...)
 }
@@ -240,6 +246,7 @@ func newP2PExchange(
 	opts = append(opts,
 		goheaderp2p.WithNetworkID[goheaderp2p.ClientParameters](network),
 		goheaderp2p.WithChainID(chainID),
+		goheaderp2p.WithMetrics[goheaderp2p.ClientParameters](),
 	)
 
 	return goheaderp2p.NewExchange[*types.SignedHeader](host, peers, conngater, opts...)
@@ -252,6 +259,9 @@ func newSyncer(
 	sub header.Subscriber[*types.SignedHeader],
 	opts []goheadersync.Option,
 ) (*goheadersync.Syncer[*types.SignedHeader], error) {
+	opts = append(opts,
+		goheadersync.WithMetrics(),
+	)
 	return goheadersync.NewSyncer[*types.SignedHeader](ex, store, sub, opts...)
 }
 

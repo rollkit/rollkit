@@ -30,6 +30,7 @@ func NewNode(
 	signingKey crypto.PrivKey,
 	appClient proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
+	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
 	if !conf.Light {
@@ -40,6 +41,7 @@ func NewNode(
 			signingKey,
 			appClient,
 			genesis,
+			metricsProvider,
 			logger,
 		)
 	} else {
@@ -49,6 +51,7 @@ func NewNode(
 			p2pKey,
 			appClient,
 			genesis,
+			metricsProvider,
 			logger,
 		)
 	}

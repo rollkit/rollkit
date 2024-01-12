@@ -165,3 +165,13 @@ func (b *Block) Verify(untrustedBlock *Block) error {
 func (b *Block) Validate() error {
 	return b.ValidateBasic()
 }
+
+// Size returns size of the block in bytes.
+func (b *Block) Size() int {
+	pbb, err := b.ToProto()
+	if err != nil {
+		return 0
+	}
+
+	return pbb.Size()
+}
