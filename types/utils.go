@@ -296,6 +296,7 @@ func GetRandomBytes(n int) []byte {
 	return data
 }
 
+// GetCommit returns a commit for a header signed by a privKey
 func GetCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
 	consensusVote := header.MakeCometBFTVote()
 	sign, err := privKey.Sign(consensusVote)
