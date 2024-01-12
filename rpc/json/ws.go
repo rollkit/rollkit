@@ -5,15 +5,18 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gorilla/rpc/v2"
+
 	"github.com/gorilla/websocket"
 
 	"github.com/rollkit/rollkit/third_party/log"
 )
 
 type wsConn struct {
-	conn   *websocket.Conn
-	queue  chan []byte
-	logger log.Logger
+	conn     *websocket.Conn
+	codecReq rpc.CodecRequest
+	queue    chan []byte
+	logger   log.Logger
 }
 
 func (wsc *wsConn) sendLoop() {
