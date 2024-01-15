@@ -7,6 +7,10 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
+var (
+	EmptyEvidenceHash = new(cmtypes.EvidenceData).Hash()
+)
+
 // Hash returns ABCI-compatible hash of a header.
 func (h *Header) Hash() Hash {
 	abciHeader := cmtypes.Header{
@@ -28,7 +32,7 @@ func (h *Header) Hash() Hash {
 		ConsensusHash:   cmbytes.HexBytes(h.ConsensusHash),
 		AppHash:         cmbytes.HexBytes(h.AppHash),
 		LastResultsHash: cmbytes.HexBytes(h.LastResultsHash),
-		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
+		EvidenceHash:    EmptyEvidenceHash,
 		ProposerAddress: h.ProposerAddress,
 		// Backward compatibility
 		ValidatorsHash:     h.ProposerAddress,
