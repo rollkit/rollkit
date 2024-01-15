@@ -43,9 +43,15 @@ func New(ds ds.TxnDatastore) Store {
 
 // SetHeight sets the height saved in the Store if it is higher than the existing height
 func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) {
-	storeHeight := atomic.LoadUint64(&s.height)
-	if height > storeHeight {
-		_ = atomic.CompareAndSwapUint64(&s.height, storeHeight, height)
+	for {
+		storeHeight := atomic.LoadUint64(&s.height)
+		if height <= storeHeight {
+			break
+		}
+		if atomic.CompareAndSwapUint64(&s.height,
+			storeHeight, height) {
+			break
+		}
 	}
 }
 
