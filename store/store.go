@@ -9,7 +9,6 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	ds "github.com/ipfs/go-datastore"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/go-header"
 
@@ -79,17 +78,17 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
 
-	err = multierr.Append(err, bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob))
+	err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
 	if err != nil {
 		bb.Discard(ctx)
 		return err
 	}
-	err = multierr.Append(err, bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob))
+	err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
 	if err != nil {
 		bb.Discard(ctx)
 		return err
 	}
-	err = multierr.Append(err, bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:]))
+	err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
 	if err != nil {
 		bb.Discard(ctx)
 		return err
