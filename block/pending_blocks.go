@@ -31,6 +31,8 @@ func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
 	return blocks
 }
 
+// copyBlocks creates a copy of the pending blocks in a thread-safe manner.
+// It returns a slice of pointers to the copied blocks.
 func copyBlocks(pb *PendingBlocks) []*types.Block {
 	pb.mtx.RLock()
 	defer pb.mtx.RUnlock()
