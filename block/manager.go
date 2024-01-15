@@ -285,8 +285,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			// the buildBlock channel is signalled when Txns become available
 			// in the mempool, or after transactions remain in the mempool after
 			// building a block.
-			case <-m.txsAvailable:
-				if !m.buildingBlock {
+			case _, ok := <-m.txsAvailable:
+				if ok && !m.buildingBlock {
 					m.buildingBlock = true
 					timer.Reset(1 * time.Second)
 				}
