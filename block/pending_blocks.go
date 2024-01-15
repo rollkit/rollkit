@@ -24,15 +24,20 @@ func NewPendingBlocks() *PendingBlocks {
 // getPendingBlocks returns a sorted slice of pending blocks
 // that need to be published to DA layer in order of block height
 func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
+	blocks := copyBlocks(pb)
+	sort.Slice(blocks, func(i, j int) bool {
+		return blocks[i].Height() < blocks[j].Height()
+	})
+	return blocks
+}
+
+func copyBlocks(pb *PendingBlocks) []*types.Block {
 	pb.mtx.RLock()
 	defer pb.mtx.RUnlock()
 	blocks := make([]*types.Block, 0, len(pb.pendingBlocks))
 	for _, block := range pb.pendingBlocks {
 		blocks = append(blocks, block)
 	}
-	sort.Slice(blocks, func(i, j int) bool {
-		return blocks[i].Height() < blocks[j].Height()
-	})
 	return blocks
 }
 
