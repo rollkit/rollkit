@@ -36,11 +36,11 @@ func TestInitialState(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
-	emptyStore := store.New(ctx, es)
+	emptyStore := store.New(es)
 
 	es2, _ := store.NewDefaultInMemoryKVStore()
-	fullStore := store.New(ctx, es2)
-	err := fullStore.UpdateState(sampleState)
+	fullStore := store.New(es2)
+	err := fullStore.UpdateState(ctx, sampleState)
 	require.NoError(t, err)
 
 	cases := []struct {

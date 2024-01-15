@@ -104,7 +104,7 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	s, err := store.GetState()
+	s, err := store.GetState(context.Background())
 	if err != nil {
 		s, err = types.NewFromGenesisDoc(genesis)
 	}
@@ -161,7 +161,7 @@ func NewManager(
 		}
 
 		updateState(&s, res)
-		if err := store.UpdateState(s); err != nil {
+		if err := store.UpdateState(context.Background(), s); err != nil {
 			return nil, err
 		}
 	}
@@ -418,7 +418,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
 		}
-		err = m.store.SaveBlock(b, &b.SignedHeader.Commit)
+		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
@@ -427,18 +427,18 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		err = m.store.SaveBlockResponses(bHeight, responses)
+		err = m.store.SaveBlockResponses(ctx, bHeight, responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
 		// Height gets updated
-		m.store.SetHeight(bHeight)
+		m.store.SetHeight(ctx, bHeight)
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
-		err = m.updateState(newState)
+		err = m.updateState(ctx, newState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
@@ -669,11 +669,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if newHeight == uint64(m.genesis.InitialHeight) {
 		lastCommit = &types.Commit{}
 	} else {
-		lastCommit, err = m.store.GetCommit(height)
+		lastCommit, err = m.store.GetCommit(ctx, height)
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
-		lastBlock, err := m.store.GetBlock(height)
+		lastBlock, err := m.store.GetBlock(ctx, height)
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
@@ -685,7 +685,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
-	pendingBlock, err := m.store.GetBlock(newHeight)
+	pendingBlock, err := m.store.GetBlock(ctx, newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
 		block = pendingBlock
@@ -714,7 +714,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
-		err = m.store.SaveBlock(block, commit)
+		err = m.store.SaveBlock(ctx, block, commit)
 		if err != nil {
 			return err
 		}
@@ -752,13 +752,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	blockHeight := block.Height()
 	// Update the stored height before submitting to the DA layer and committing to the DB
-	m.store.SetHeight(blockHeight)
+	m.store.SetHeight(ctx, blockHeight)
 
 	blockHash := block.Hash().String()
 	m.blockCache.setSeen(blockHash)
 
 	// SaveBlock commits the DB tx
-	err = m.store.SaveBlock(block, commit)
+	err = m.store.SaveBlock(ctx, block, commit)
 	if err != nil {
 		return err
 	}
@@ -773,7 +773,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(blockHeight, responses)
+	err = m.store.SaveBlockResponses(ctx, blockHeight, responses)
 	if err != nil {
 		return err
 	}
@@ -781,7 +781,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
-	err = m.updateState(newState)
+	err = m.updateState(ctx, newState)
 	if err != nil {
 		return err
 	}
@@ -857,10 +857,10 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 }
 
 // Updates the state stored in manager's store along the manager's lastState
-func (m *Manager) updateState(s types.State) error {
+func (m *Manager) updateState(ctx context.Context, s types.State) error {
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
-	err := m.store.UpdateState(s)
+	err := m.store.UpdateState(ctx, s)
 	if err != nil {
 		return err
 	}

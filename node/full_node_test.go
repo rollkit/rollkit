@@ -57,7 +57,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
 
 	// Update state with hashes generated from block
-	state, err := store.GetState()
+	state, err := store.GetState(ctx)
 	require.NoError(t, err)
 	state.AppHash = b1.SignedHeader.AppHash
 	state.LastResultsHash = b1.SignedHeader.LastResultsHash
@@ -104,7 +104,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	b1, _ := types.GetRandomBlockWithKey(height+1, 0, signingKey)
 
 	// Update state with hashes generated from block
-	state, err := store.GetState()
+	state, err := store.GetState(ctx)
 	require.NoError(t, err)
 	state.AppHash = b1.SignedHeader.AppHash
 	state.LastResultsHash = b1.SignedHeader.LastResultsHash
