@@ -269,15 +269,13 @@ func newBlockSyncer(
 
 // StartSyncer starts the BlockSyncService's syncer
 func (bSyncService *BlockSyncService) StartSyncer() error {
-	bSyncService.syncerStatus.m.Lock()
-	defer bSyncService.syncerStatus.m.Unlock()
-	if bSyncService.syncerStatus.started {
+	if bSyncService.syncerStatus.isStarted() {
 		return nil
 	}
 	err := bSyncService.syncer.Start(bSyncService.ctx)
 	if err != nil {
 		return err
 	}
-	bSyncService.syncerStatus.started = true
+	bSyncService.syncerStatus.started.Store(true)
 	return nil
 }
