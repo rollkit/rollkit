@@ -155,7 +155,7 @@ func newFullNode(
 
 	mempool := initMempool(logger, proxyApp, memplMetrics)
 
-	store := store.New(ctx, mainKV)
+	store := store.New(mainKV)
 	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockSyncService, seqMetrics, smMetrics)
 	if err != nil {
 		return nil, err
