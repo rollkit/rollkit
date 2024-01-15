@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	// EmptyEvidenceHash is the hash of an empty EvidenceData
 	EmptyEvidenceHash = new(cmtypes.EvidenceData).Hash()
 )
 
