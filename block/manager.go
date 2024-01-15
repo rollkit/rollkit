@@ -652,12 +652,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	default:
 	}
 
-	var lastCommit *types.Commit
-	var lastHeaderHash types.Hash
-	var err error
-	height := m.store.Height()
-	newHeight := height + 1
-
 	isProposer, err := m.IsProposer()
 	if err != nil {
 		return fmt.Errorf("error while checking for proposer: %w", err)
@@ -665,6 +659,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if !isProposer {
 		return nil
 	}
+
+	var lastCommit *types.Commit
+	var lastHeaderHash types.Hash
+	height := m.store.Height()
+	newHeight := height + 1
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
