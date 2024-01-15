@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/multierr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -29,6 +32,7 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/state/indexer"
 	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
 	"github.com/rollkit/rollkit/state/txindex"
@@ -80,6 +84,7 @@ type FullNode struct {
 	TxIndexer      txindex.TxIndexer
 	BlockIndexer   indexer.BlockIndexer
 	IndexerService *txindex.IndexerService
+	prometheusSrv  *http.Server
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -96,6 +101,7 @@ func newFullNode(
 	signingKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
+	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
 	// Create context with cancel so that all services using the context can
@@ -108,7 +114,9 @@ func newFullNode(
 		}
 	}()
 
-	proxyApp, err := initProxyApp(clientCreator, logger)
+	seqMetrics, p2pMetrics, memplMetrics, smMetrics, abciMetrics := metricsProvider(genesis.ChainID)
+
+	proxyApp, err := initProxyApp(clientCreator, logger, abciMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +137,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"))
+	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -145,10 +153,10 @@ func newFullNode(
 		return nil, err
 	}
 
-	mempool := initMempool(logger, proxyApp)
+	mempool := initMempool(logger, proxyApp, memplMetrics)
 
 	store := store.New(ctx, mainKV)
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockSyncService)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockSyncService, seqMetrics, smMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -181,14 +189,14 @@ func newFullNode(
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
-	node.p2pClient.SetTxValidator(node.newTxValidator())
+	node.p2pClient.SetTxValidator(node.newTxValidator(p2pMetrics))
 	node.client = NewFullClient(node)
 
 	return node, nil
 }
 
-func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
+func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger, metrics *proxy.Metrics) (proxy.AppConns, error) {
+	proxyApp := proxy.NewAppConns(clientCreator, metrics)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error while starting proxy app connections: %v", err)
@@ -220,11 +228,11 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing GRPC connection to DA layer: %w", err)
 	}
-	return &da.DAClient{DA: daClient, Logger: logger.With("module", "da_client")}, nil
+	return &da.DAClient{DA: daClient, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
 }
 
-func initMempool(logger log.Logger, proxyApp proxy.AppConns) *mempool.CListMempool {
-	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0)
+func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
+	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0, mempool.WithMetrics(memplMetrics))
 	mempool.EnableTxsAvailable()
 	return mempool
 }
@@ -245,8 +253,8 @@ func initBlockSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfi
 	return blockSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService) (*block.Manager, error) {
-	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.BlockStore())
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
+	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.BlockStore(), seqMetrics, execMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
@@ -324,8 +332,34 @@ func (n *FullNode) Cancel() {
 	n.cancel()
 }
 
+// startPrometheusServer starts a Prometheus HTTP server, listening for metrics
+// collectors on addr.
+func (n *FullNode) startPrometheusServer() *http.Server {
+	srv := &http.Server{
+		Addr: n.nodeConfig.Instrumentation.PrometheusListenAddr,
+		Handler: promhttp.InstrumentMetricHandler(
+			prometheus.DefaultRegisterer, promhttp.HandlerFor(
+				prometheus.DefaultGatherer,
+				promhttp.HandlerOpts{MaxRequestsInFlight: n.nodeConfig.Instrumentation.MaxOpenConnections},
+			),
+		),
+		ReadHeaderTimeout: readHeaderTimeout,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			// Error starting or closing listener:
+			n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
+		}
+	}()
+	return srv
+}
+
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart() error {
+	// begin prometheus metrics gathering if it is enabled
+	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
+		n.prometheusSrv = n.startPrometheusServer()
+	}
 	n.Logger.Info("starting P2P client")
 	err := n.p2pClient.Start(n.ctx)
 	if err != nil {
@@ -378,6 +412,9 @@ func (n *FullNode) OnStop() {
 	err = multierr.Append(err, n.hSyncService.Stop())
 	err = multierr.Append(err, n.bSyncService.Stop())
 	err = multierr.Append(err, n.IndexerService.Stop())
+	if n.prometheusSrv != nil {
+		err = multierr.Append(err, n.prometheusSrv.Shutdown(n.ctx))
+	}
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
@@ -408,9 +445,16 @@ func (n *FullNode) AppClient() proxy.AppConns {
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
 // transaction. If the transaction is valid, then it is added to the mempool
-func (n *FullNode) newTxValidator() p2p.GossipValidator {
+func (n *FullNode) newTxValidator(metrics *p2p.Metrics) p2p.GossipValidator {
 	return func(m *p2p.GossipMessage) bool {
 		n.Logger.Debug("transaction received", "bytes", len(m.Data))
+		msgBytes := m.Data
+		labels := []string{
+			"peer_id", m.From.String(),
+			"chID", n.genesis.ChainID,
+		}
+		metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		metrics.MessageReceiveBytesTotal.With("message_type", "tx").Add(float64(len(msgBytes)))
 		checkTxResCh := make(chan *abci.ResponseCheckTx, 1)
 		err := n.Mempool.CheckTx(m.Data, func(resp *abci.ResponseCheckTx) {
 			select {

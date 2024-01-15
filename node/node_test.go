@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	cmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	proxy "github.com/cometbft/cometbft/proxy"
 	"github.com/stretchr/testify/assert"
@@ -61,7 +62,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25
 	}
 	key := generateSingleKey()
 	logger := test.NewFileLogger(t)
-	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, logger)
+	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
 	return node, genesisValidatorKey, err
 }
 

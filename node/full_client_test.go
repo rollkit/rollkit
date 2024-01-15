@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	tconfig "github.com/cometbft/cometbft/config"
+	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/bytes"
@@ -77,6 +77,7 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 		signingKey,
 		proxy.NewLocalClientCreator(app),
 		genesisDoc,
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		log.TestingLogger(),
 	)
 	require.NoError(err)
@@ -172,7 +173,7 @@ func TestGenesisChunked(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, test.NewFileLogger(t))
+	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -504,6 +505,7 @@ func TestTx(t *testing.T) {
 		}},
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		genesisDoc,
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)
@@ -772,7 +774,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
 		BlockManagerConfig: getBMConfig(),
-	}, key1, signingKey1, proxy.NewLocalClientCreator(app), genesisDoc, log.TestingLogger())
+	}, key1, signingKey1, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
 
@@ -782,7 +784,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Pretty(),
 		},
-	}, key2, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, log.TestingLogger())
+	}, key2, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node2)
 
@@ -858,6 +860,7 @@ func TestStatus(t *testing.T) {
 		signingKey,
 		proxy.NewLocalClientCreator(app),
 		genesisDoc,
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		test.NewFileLogger(t),
 	)
 	require.NoError(err)
@@ -898,7 +901,7 @@ func TestStatus(t *testing.T) {
 	assert.Equal(int64(1), resp.ValidatorInfo.VotingPower)
 
 	// specific validation
-	assert.Equal(tconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
+	assert.Equal(cmconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
 	state, err := rpc.node.Store.GetState()
 	assert.NoError(err)
 	defaultProtocolVersion := p2p.NewProtocolVersion(
@@ -967,6 +970,7 @@ func TestFutureGenesisTime(t *testing.T) {
 			GenesisTime:   genesisTime,
 			Validators:    genesisDoc.Validators,
 		},
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		test.NewFileLogger(t))
 	require.NoError(err)
 	require.NotNil(node)

@@ -20,7 +20,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.12.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.18.0
-	github.com/rollkit/go-da v0.0.0-20231207150926-93600f28d67d
+	github.com/rollkit/go-da v0.2.0
 	github.com/rs/cors v1.10.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2

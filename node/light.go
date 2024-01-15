@@ -48,6 +48,7 @@ func newLightNode(
 	p2pKey crypto.PrivKey,
 	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
+	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
 	// Create context with cancel so that all services using the context can
@@ -60,8 +61,10 @@ func newLightNode(
 		}
 	}()
 
+	_, p2pMetrics, _, _, abciMetrics := metricsProvider(genesis.ChainID)
+
 	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
-	proxyApp := proxy.NewAppConns(clientCreator, proxy.NopMetrics())
+	proxyApp := proxy.NewAppConns(clientCreator, abciMetrics)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error while starting proxy app connections: %v", err)
@@ -71,7 +74,7 @@ func newLightNode(
 	if err != nil {
 		return nil, err
 	}
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"))
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}

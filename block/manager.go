@@ -98,6 +98,9 @@ type Manager struct {
 	doneBuildingBlock chan struct{}
 
 	pendingBlocks *PendingBlocks
+
+	// for reporting metrics
+	metrics *Metrics
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -145,6 +148,8 @@ func NewManager(
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	blockStore *goheaderstore.Store[*types.Block],
+	seqMetrics *Metrics,
+	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -173,7 +178,7 @@ func NewManager(
 		return nil, err
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -217,6 +222,7 @@ func NewManager(
 		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
 		pendingBlocks:     NewPendingBlocks(),
+		metrics:           seqMetrics,
 	}
 	return agg, nil
 }
@@ -304,8 +310,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			// the buildBlock channel is signalled when Txns become available
 			// in the mempool, or after transactions remain in the mempool after
 			// building a block.
-			case <-m.txsAvailable:
-				if !m.buildingBlock {
+			case _, ok := <-m.txsAvailable:
+				if ok && !m.buildingBlock {
 					m.buildingBlock = true
 					timer.Reset(1 * time.Second)
 				}
@@ -671,12 +677,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	default:
 	}
 
-	var lastCommit *types.Commit
-	var lastHeaderHash types.Hash
-	var err error
-	height := m.store.Height()
-	newHeight := height + 1
-
 	isProposer, err := m.IsProposer()
 	if err != nil {
 		return fmt.Errorf("error while checking for proposer: %w", err)
@@ -684,6 +684,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if !isProposer {
 		return nil
 	}
+
+	var lastCommit *types.Commit
+	var lastHeaderHash types.Hash
+	height := m.store.Height()
+	newHeight := height + 1
 
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
@@ -805,6 +810,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	m.recordMetrics(block)
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -826,6 +832,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
+func (m *Manager) recordMetrics(block *types.Block) {
+	m.metrics.NumTxs.Set(float64(len(block.Data.Txs)))
+	m.metrics.TotalTxs.Add(float64(len(block.Data.Txs)))
+	m.metrics.BlockSizeBytes.Set(float64(block.Size()))
+	m.metrics.CommittedHeight.Set(float64(block.Height()))
+}
+
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submitted := false
 	backoff := initialBackoff
@@ -843,11 +856,14 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
 			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
-		case da.StatusError, da.StatusNotFound, da.StatusUnknown:
+		case da.StatusError, da.StatusNotFound:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		default:
+			m.logger.Error("DA layer unknown status", "error", res.Message, "attempt", attempt)
+			time.Sleep(backoff)
+			backoff = m.exponentialBackoff(backoff)
 		}
 	}
 
@@ -874,6 +890,7 @@ func (m *Manager) updateState(s types.State) error {
 		return err
 	}
 	m.lastState = s
+	m.metrics.Height.Set(float64(s.LastBlockHeight))
 	return nil
 }
 
