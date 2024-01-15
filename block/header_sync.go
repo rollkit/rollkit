@@ -267,15 +267,13 @@ func newSyncer(
 
 // StartSyncer starts the HeaderSyncService's syncer
 func (hSyncService *HeaderSyncService) StartSyncer() error {
-	hSyncService.syncerStatus.m.Lock()
-	defer hSyncService.syncerStatus.m.Unlock()
-	if hSyncService.syncerStatus.started {
+	if hSyncService.syncerStatus.isStarted() {
 		return nil
 	}
 	err := hSyncService.syncer.Start(hSyncService.ctx)
 	if err != nil {
 		return err
 	}
-	hSyncService.syncerStatus.started = true
+	hSyncService.syncerStatus.started.Store(true)
 	return nil
 }
