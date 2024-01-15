@@ -605,8 +605,7 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(block *types.Block) bool {
 func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
 	var err error
 	blockRes := m.dalc.RetrieveBlocks(ctx, daHeight)
-	switch blockRes.Code {
-	case da.StatusError:
+	if blockRes.Code == da.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
 	}
 	return blockRes, err
