@@ -15,6 +15,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
@@ -103,10 +104,15 @@ type Manager struct {
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState()
-	if err != nil {
+	if err == ds.ErrNotFound {
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		s, err = types.NewFromGenesisDoc(genesis)
+		if err != nil {
+			return types.State{}, err
+		}
 		store.SetHeight(s.LastBlockHeight)
+	} else if err != nil {
+		return types.State{}, err
 	} else {
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.

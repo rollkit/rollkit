@@ -182,7 +182,11 @@ func (s *DefaultStore) UpdateState(state types.State) error {
 func (s *DefaultStore) GetState() (types.State, error) {
 	blob, err := s.db.Get(s.ctx, ds.NewKey(getStateKey()))
 	if err != nil {
-		return types.State{}, fmt.Errorf("failed to retrieve state: %w", err)
+		if err == ds.ErrNotFound {
+			return types.State{}, err
+		} else {
+			return types.State{}, fmt.Errorf("failed to retrieve state: %w", err)
+		}
 	}
 	var pbState pb.State
 	err = pbState.Unmarshal(blob)
