@@ -36,7 +36,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 		ConsensusHash:   header.ConsensusHash[:],
 		AppHash:         header.AppHash[:],
 		LastResultsHash: header.LastResultsHash[:],
-		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
+		EvidenceHash:    types.EmptyEvidenceHash,
 		ProposerAddress: header.ProposerAddress,
 		ChainID:         header.ChainID(),
 	}
@@ -70,7 +70,7 @@ func TestToABCIHeader(t *testing.T) {
 		ConsensusHash:   cmbytes.HexBytes(header.ConsensusHash),
 		AppHash:         cmbytes.HexBytes(header.AppHash),
 		LastResultsHash: cmbytes.HexBytes(header.LastResultsHash),
-		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
+		EvidenceHash:    types.EmptyEvidenceHash,
 		ProposerAddress: header.ProposerAddress,
 		ChainID:         header.ChainID(),
 	}

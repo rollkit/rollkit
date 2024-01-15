@@ -31,7 +31,7 @@ func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
 		ConsensusHash:   header.ConsensusHash[:],
 		AppHash:         header.AppHash[:],
 		LastResultsHash: header.LastResultsHash[:],
-		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
+		EvidenceHash:    types.EmptyEvidenceHash,
 		ProposerAddress: header.ProposerAddress,
 		ChainID:         header.ChainID(),
 	}, nil
@@ -59,7 +59,7 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 		ConsensusHash:   cmbytes.HexBytes(header.ConsensusHash),
 		AppHash:         cmbytes.HexBytes(header.AppHash),
 		LastResultsHash: cmbytes.HexBytes(header.LastResultsHash),
-		EvidenceHash:    new(cmtypes.EvidenceData).Hash(),
+		EvidenceHash:    types.EmptyEvidenceHash,
 		ProposerAddress: header.ProposerAddress,
 		ChainID:         header.ChainID(),
 	}, nil
