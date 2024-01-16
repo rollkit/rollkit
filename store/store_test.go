@@ -44,12 +44,12 @@ func TestStoreHeight(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ds, _ := NewDefaultInMemoryKVStore()
-			bstore := New(ctx, ds)
+			bstore := New(ds)
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
-				err := bstore.SaveBlock(block, &types.Commit{})
-				bstore.SetHeight(block.Height())
+				err := bstore.SaveBlock(ctx, block, &types.Commit{})
+				bstore.SetHeight(ctx, block.Height())
 				assert.NoError(err)
 			}
 
@@ -98,25 +98,25 @@ func TestStoreLoad(t *testing.T) {
 				assert := assert.New(t)
 				require := require.New(t)
 
-				bstore := New(ctx, kv)
+				bstore := New(kv)
 
 				lastCommit := &types.Commit{}
 				for _, block := range c.blocks {
 					commit := &types.Commit{}
 					block.SignedHeader.Commit = *lastCommit
 					block.SignedHeader.Validators = types.GetRandomValidatorSet()
-					err := bstore.SaveBlock(block, commit)
+					err := bstore.SaveBlock(ctx, block, commit)
 					require.NoError(err)
 					lastCommit = commit
 				}
 
 				for _, expected := range c.blocks {
-					block, err := bstore.GetBlock(expected.Height())
+					block, err := bstore.GetBlock(ctx, expected.Height())
 					assert.NoError(err)
 					assert.NotNil(block)
 					assert.Equal(expected, block)
 
-					commit, err := bstore.GetCommit(expected.Height())
+					commit, err := bstore.GetCommit(ctx, expected.Height())
 					assert.NoError(err)
 					assert.NotNil(commit)
 				}
@@ -133,15 +133,15 @@ func TestRestart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	kv, _ := NewDefaultInMemoryKVStore()
-	s1 := New(ctx, kv)
+	s1 := New(kv)
 	expectedHeight := uint64(10)
-	err := s1.UpdateState(types.State{
+	err := s1.UpdateState(ctx, types.State{
 		LastBlockHeight: expectedHeight,
 	})
 	assert.NoError(err)
 
-	s2 := New(ctx, kv)
-	_, err = s2.GetState()
+	s2 := New(kv)
+	_, err = s2.GetState(ctx)
 	assert.NoError(err)
 
 	assert.Equal(expectedHeight, s2.Height())
@@ -154,7 +154,7 @@ func TestBlockResponses(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	kv, _ := NewDefaultInMemoryKVStore()
-	s := New(ctx, kv)
+	s := New(kv)
 
 	expected := &abcitypes.ResponseFinalizeBlock{
 		Events: []abcitypes.Event{{
@@ -175,14 +175,14 @@ func TestBlockResponses(t *testing.T) {
 		},
 	}
 
-	err := s.SaveBlockResponses(1, expected)
+	err := s.SaveBlockResponses(ctx, 1, expected)
 	assert.NoError(err)
 
-	resp, err := s.GetBlockResponses(123)
+	resp, err := s.GetBlockResponses(ctx, 123)
 	assert.Error(err)
 	assert.Nil(resp)
 
-	resp, err = s.GetBlockResponses(1)
+	resp, err = s.GetBlockResponses(ctx, 1)
 	assert.NoError(err)
 	assert.NotNil(resp)
 	assert.Equal(expected, resp)
