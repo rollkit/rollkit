@@ -839,6 +839,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 				submitted = true
 			}
 			submittedBlocks := blocks[:res.SubmittedCount]
+			blocks = blocks[res.SubmittedCount:]
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
