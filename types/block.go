@@ -102,6 +102,9 @@ func (c *Commit) ValidateBasic() error {
 	if len(c.Signatures) == 0 {
 		return errors.New("no signatures")
 	}
+	if len(c.Signatures[0]) == 0 {
+		return errors.New("signature is empty")
+	}
 	return nil
 }
 

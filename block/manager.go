@@ -262,6 +262,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 
 	timer := time.NewTimer(0)
+	defer timer.Stop()
 
 	if !lazy {
 		for {
@@ -792,14 +793,16 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
-	default:
+	// Publish header to channel so that header exchange service can broadcast
+	case m.HeaderCh <- &block.SignedHeader:
 	}
 
-	// Publish header to channel so that header exchange service can broadcast
-	m.HeaderCh <- &block.SignedHeader
-
+	select {
+	case <-ctx.Done():
+		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
 	// Publish block to channel so that block exchange service can broadcast
-	m.BlockCh <- block
+	case m.BlockCh <- block:
+	}
 
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
