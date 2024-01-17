@@ -829,17 +829,18 @@ func (m *Manager) recordMetrics(block *types.Block) {
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submitted := false
 	backoff := initialBackoff
-	blocks := m.pendingBlocks.getPendingBlocks()
+	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlocks(ctx, blocks)
+		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit)
 		switch res.Code {
 		case da.StatusSuccess:
 			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
-			if int(res.SubmittedCount) == len(blocks) {
+			if int(res.SubmittedCount) == len(blocksToSubmit) {
 				submitted = true
 			}
-			submittedBlocks := blocks[:res.SubmittedCount]
-			blocks = blocks[res.SubmittedCount:]
+			submittedBlocks := blocksToSubmit[:res.SubmittedCount]
+			// blocksToSubmit should only contain blocks that have not been submitted
+			blocksToSubmit = blocksToSubmit[res.SubmittedCount:]
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
