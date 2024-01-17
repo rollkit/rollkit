@@ -20,14 +20,14 @@ func TestBlockCache(t *testing.T) {
 	bc.setBlock(height, block)
 	gotBlock, ok := bc.getBlock(height)
 	require.True(ok, "getBlock should return true after setBlock")
-	require.Equal(block, gotBlock)
+	require.Equal(*block, gotBlock)
 
 	// Test overwriting a block
 	block1 := types.GetRandomBlock(height, nTxs)
 	bc.setBlock(height, block1)
 	gotBlock1, ok1 := bc.getBlock(height)
 	require.True(ok1, "getBlock should return true after overwriting a block")
-	require.Equal(block1, gotBlock1)
+	require.Equal(*block1, gotBlock1)
 
 	// Test deleteBlock
 	bc.deleteBlock(height)

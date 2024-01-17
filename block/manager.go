@@ -407,10 +407,10 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		bHeight := b.Height()
 		m.logger.Info("Syncing block", "height", bHeight)
 		// Validate the received block before applying
-		if err := m.executor.Validate(m.lastState, b); err != nil {
+		if err := m.executor.Validate(m.lastState, &b); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
-		newState, responses, err := m.applyBlock(ctx, b)
+		newState, responses, err := m.applyBlock(ctx, &b)
 		if err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -418,11 +418,11 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
 		}
-		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
+		err = m.store.SaveBlock(ctx, &b, &b.SignedHeader.Commit)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b, responses)
+		_, _, err = m.executor.Commit(ctx, newState, &b, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
