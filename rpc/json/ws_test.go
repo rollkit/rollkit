@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	cmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/go-kit/kit/transport/http/jsonrpc"
+
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
@@ -63,8 +66,11 @@ func TestWebSockets(t *testing.T) {
 	require.NoError(err)
 	assert.Equal(websocket.TextMessage, typ)
 	assert.NotEmpty(msg)
+	var jsrpcResp jsonrpc.Response
+	err = json.Unmarshal(msg, &jsrpcResp)
+	require.NoError(err)
 	var payload cmtypes.EventDataNewBlock
-	err = json.Unmarshal(msg, &payload)
+	err = cmjson.Unmarshal(jsrpcResp.Result, &payload)
 	require.NoError(err)
 	assert.NotNil(payload.ResultFinalizeBlock)
 	assert.NotNil(payload.Block)

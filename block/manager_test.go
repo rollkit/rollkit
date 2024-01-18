@@ -14,17 +14,18 @@ import (
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
 func TestInitialState(t *testing.T) {
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "genesis id",
 		InitialHeight: 100,
-		Validators:    genesisValidators,
+		Validators:    genesisDoc.Validators,
 	}
 	sampleState := types.State{
 		ChainID:         "state id",
@@ -35,11 +36,11 @@ func TestInitialState(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
-	emptyStore := store.New(ctx, es)
+	emptyStore := store.New(es)
 
 	es2, _ := store.NewDefaultInMemoryKVStore()
-	fullStore := store.New(ctx, es2)
-	err := fullStore.UpdateState(sampleState)
+	fullStore := store.New(es2)
+	err := fullStore.UpdateState(ctx, sampleState)
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -77,8 +78,8 @@ func TestInitialState(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
-			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
+			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger}
+			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil, NopMetrics(), state.NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(agg)
 			agg.lastStateMtx.RLock()

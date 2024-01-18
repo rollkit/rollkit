@@ -18,7 +18,7 @@ import (
 )
 
 func getMockDA() *da.DAClient {
-	return &da.DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
+	return &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: log.TestingLogger()}
 }
 
 func TestMockTester(t *testing.T) {

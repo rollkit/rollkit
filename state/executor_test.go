@@ -50,7 +50,7 @@ func doTestCreateBlock(t *testing.T) {
 	fmt.Println("Made NID")
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
-	executor := NewBlockExecutor([]byte("test address"), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger)
+	executor := NewBlockExecutor([]byte("test address"), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, logger, NopMetrics())
 	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
@@ -157,7 +157,7 @@ func doTestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 	chainID := "test"
-	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
+	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger, NopMetrics())
 
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
@@ -260,7 +260,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(t, eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger)
+	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, logger, NopMetrics())
 
 	state := types.State{
 		ConsensusParams: cmproto.ConsensusParams{

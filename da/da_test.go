@@ -45,32 +45,32 @@ type MockDA struct {
 	mock.Mock
 }
 
-func (m *MockDA) MaxBlobSize() (uint64, error) {
+func (m *MockDA) MaxBlobSize(ctx context.Context) (uint64, error) {
 	args := m.Called()
 	return args.Get(0).(uint64), args.Error(1)
 }
 
-func (m *MockDA) Get(ids []da.ID) ([]da.Blob, error) {
+func (m *MockDA) Get(ctx context.Context, ids []da.ID) ([]da.Blob, error) {
 	args := m.Called(ids)
 	return args.Get(0).([]da.Blob), args.Error(1)
 }
 
-func (m *MockDA) GetIDs(height uint64) ([]da.ID, error) {
+func (m *MockDA) GetIDs(ctx context.Context, height uint64) ([]da.ID, error) {
 	args := m.Called(height)
 	return args.Get(0).([]da.ID), args.Error(1)
 }
 
-func (m *MockDA) Commit(blobs []da.Blob) ([]da.Commitment, error) {
+func (m *MockDA) Commit(ctx context.Context, blobs []da.Blob) ([]da.Commitment, error) {
 	args := m.Called(blobs)
 	return args.Get(0).([]da.Commitment), args.Error(1)
 }
 
-func (m *MockDA) Submit(blobs []da.Blob) ([]da.ID, []da.Proof, error) {
-	args := m.Called(blobs)
+func (m *MockDA) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64) ([]da.ID, []da.Proof, error) {
+	args := m.Called(blobs, gasPrice)
 	return args.Get(0).([]da.ID), args.Get(1).([]da.Proof), args.Error(2)
 }
 
-func (m *MockDA) Validate(ids []da.ID, proofs []da.Proof) ([]bool, error) {
+func (m *MockDA) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof) ([]bool, error) {
 	args := m.Called(ids, proofs)
 	return args.Get(0).([]bool), args.Error(1)
 }
@@ -79,14 +79,14 @@ func TestMockDA(t *testing.T) {
 	mockDA := &MockDA{}
 	// Set up the mock to return an error for MaxBlobSize
 	mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("mock error"))
-	dalc := &DAClient{DA: mockDA, Logger: log.TestingLogger()}
+	dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
 	t.Run("max_blob_size_error", func(t *testing.T) {
 		doTestMaxBlockSizeError(t, dalc)
 	})
 }
 
 func TestSubmitRetrieve(t *testing.T) {
-	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
+	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: log.TestingLogger()}
 	grpcClient, err := startMockGRPCClient()
 	require.NoError(t, err)
 	clients := map[string]*DAClient{
@@ -131,7 +131,7 @@ func startMockGRPCClient() (*DAClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DAClient{DA: client, Logger: log.TestingLogger()}, nil
+	return &DAClient{DA: client, GasPrice: -1, Logger: log.TestingLogger()}, nil
 }
 
 func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
@@ -218,7 +218,7 @@ func doTestSubmitOversizedBlock(t *testing.T, dalc *DAClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	limit, err := dalc.DA.MaxBlobSize()
+	limit, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(err)
 	oversizedBlock := types.GetRandomBlock(1, int(limit))
 	resp := dalc.SubmitBlocks(ctx, []*types.Block{oversizedBlock})
@@ -246,7 +246,7 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	limit, err := dalc.DA.MaxBlobSize()
+	limit, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(err)
 
 	// two large blocks, over blob limit to force partial submit

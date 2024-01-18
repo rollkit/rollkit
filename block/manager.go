@@ -97,11 +97,14 @@ type Manager struct {
 	doneBuildingBlock chan struct{}
 
 	pendingBlocks *PendingBlocks
+
+	// for reporting metrics
+	metrics *Metrics
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
-	s, err := store.GetState()
+	s, err := store.GetState(context.Background())
 	if err != nil {
 		s, err = types.NewFromGenesisDoc(genesis)
 	}
@@ -120,6 +123,8 @@ func NewManager(
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	blockStore *goheaderstore.Store[*types.Block],
+	seqMetrics *Metrics,
+	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
 	if err != nil {
@@ -133,11 +138,6 @@ func NewManager(
 		s.DAHeight = conf.DAStartHeight
 	}
 
-	proposerAddress, err := getAddress(proposerKey)
-	if err != nil {
-		return nil, err
-	}
-
 	if conf.DABlockTime == 0 {
 		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
 		conf.DABlockTime = defaultDABlockTime
@@ -148,7 +148,12 @@ func NewManager(
 		conf.BlockTime = defaultBlockTime
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger)
+	proposerAddress, err := getAddress(proposerKey)
+	if err != nil {
+		return nil, err
+	}
+
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -156,7 +161,7 @@ func NewManager(
 		}
 
 		updateState(&s, res)
-		if err := store.UpdateState(s); err != nil {
+		if err := store.UpdateState(context.Background(), s); err != nil {
 			return nil, err
 		}
 	}
@@ -192,6 +197,7 @@ func NewManager(
 		doneBuildingBlock: make(chan struct{}),
 		buildingBlock:     false,
 		pendingBlocks:     NewPendingBlocks(),
+		metrics:           seqMetrics,
 	}
 	return agg, nil
 }
@@ -279,8 +285,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			// the buildBlock channel is signalled when Txns become available
 			// in the mempool, or after transactions remain in the mempool after
 			// building a block.
-			case <-m.txsAvailable:
-				if !m.buildingBlock {
+			case _, ok := <-m.txsAvailable:
+				if ok && !m.buildingBlock {
 					m.buildingBlock = true
 					timer.Reset(1 * time.Second)
 				}
@@ -406,9 +412,13 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		newState, responses, err := m.applyBlock(ctx, b)
 		if err != nil {
-			return fmt.Errorf("failed to ApplyBlock: %w", err)
+			if ctx.Err() != nil {
+				return err
+			}
+			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
+			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
 		}
-		err = m.store.SaveBlock(b, &b.SignedHeader.Commit)
+		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
@@ -417,18 +427,18 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		err = m.store.SaveBlockResponses(bHeight, responses)
+		err = m.store.SaveBlockResponses(ctx, bHeight, responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
 		// Height gets updated
-		m.store.SetHeight(bHeight)
+		m.store.SetHeight(ctx, bHeight)
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
 		}
-		err = m.updateState(newState)
+		err = m.updateState(ctx, newState)
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
@@ -464,6 +474,10 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				default:
+				}
+				// early validation to reject junk blocks
+				if !m.isUsingExpectedCentralizedSequencer(block) {
+					continue
 				}
 				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
 				m.blockInCh <- NewBlockEvent{block, daHeight}
@@ -547,12 +561,8 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			}
 			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
 			for _, block := range blockResp.Blocks {
-				// received block is not from the expected centralized sequencer
-				if !bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) {
-					continue
-				}
 				// early validation to reject junk blocks
-				if block.ValidateBasic() != nil {
+				if !m.isUsingExpectedCentralizedSequencer(block) {
 					continue
 				}
 				blockHash := block.Hash().String()
@@ -588,11 +598,14 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	return err
 }
 
+func (m *Manager) isUsingExpectedCentralizedSequencer(block *types.Block) bool {
+	return bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) && block.ValidateBasic() == nil
+}
+
 func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
 	var err error
 	blockRes := m.dalc.RetrieveBlocks(ctx, daHeight)
-	switch blockRes.Code {
-	case da.StatusError:
+	if blockRes.Code == da.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
 	}
 	return blockRes, err
@@ -637,12 +650,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	default:
 	}
 
-	var lastCommit *types.Commit
-	var lastHeaderHash types.Hash
-	var err error
-	height := m.store.Height()
-	newHeight := height + 1
-
 	isProposer, err := m.IsProposer()
 	if err != nil {
 		return fmt.Errorf("error while checking for proposer: %w", err)
@@ -651,15 +658,20 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return nil
 	}
 
+	var lastCommit *types.Commit
+	var lastHeaderHash types.Hash
+	height := m.store.Height()
+	newHeight := height + 1
+
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
 		lastCommit = &types.Commit{}
 	} else {
-		lastCommit, err = m.store.GetCommit(height)
+		lastCommit, err = m.store.GetCommit(ctx, height)
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
-		lastBlock, err := m.store.GetBlock(height)
+		lastBlock, err := m.store.GetBlock(ctx, height)
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
@@ -671,7 +683,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
-	pendingBlock, err := m.store.GetBlock(newHeight)
+	pendingBlock, err := m.store.GetBlock(ctx, newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
 		block = pendingBlock
@@ -703,7 +715,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the commit to current block's signed header
 		block.SignedHeader.Commit = *commit
-		err = m.store.SaveBlock(block, commit)
+		err = m.store.SaveBlock(ctx, block, commit)
 		if err != nil {
 			return err
 		}
@@ -741,13 +753,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	blockHeight := block.Height()
 	// Update the stored height before submitting to the DA layer and committing to the DB
-	m.store.SetHeight(blockHeight)
+	m.store.SetHeight(ctx, blockHeight)
 
 	blockHash := block.Hash().String()
 	m.blockCache.setSeen(blockHash)
 
 	// SaveBlock commits the DB tx
-	err = m.store.SaveBlock(block, commit)
+	err = m.store.SaveBlock(ctx, block, commit)
 	if err != nil {
 		return err
 	}
@@ -764,7 +776,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.AppHash = appHash
 
 	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(blockHeight, responses)
+	err = m.store.SaveBlockResponses(ctx, blockHeight, responses)
 	if err != nil {
 		return err
 	}
@@ -772,10 +784,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
-	err = m.updateState(newState)
+	err = m.updateState(ctx, newState)
 	if err != nil {
 		return err
 	}
+	m.recordMetrics(block)
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -797,11 +810,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
+func (m *Manager) recordMetrics(block *types.Block) {
+	m.metrics.NumTxs.Set(float64(len(block.Data.Txs)))
+	m.metrics.TotalTxs.Add(float64(len(block.Data.Txs)))
+	m.metrics.BlockSizeBytes.Set(float64(block.Size()))
+	m.metrics.CommittedHeight.Set(float64(block.Height()))
+}
+
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submitted := false
 	backoff := initialBackoff
+	blocks := m.pendingBlocks.getPendingBlocks()
 	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		blocks := m.pendingBlocks.getPendingBlocks()
 		res := m.dalc.SubmitBlocks(ctx, blocks)
 		switch res.Code {
 		case da.StatusSuccess:
@@ -814,11 +834,14 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
 			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
-		case da.StatusError, da.StatusNotFound, da.StatusUnknown:
+		case da.StatusError, da.StatusNotFound:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		default:
+			m.logger.Error("DA layer unknown status", "error", res.Message, "attempt", attempt)
+			time.Sleep(backoff)
+			backoff = m.exponentialBackoff(backoff)
 		}
 	}
 
@@ -837,14 +860,15 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 }
 
 // Updates the state stored in manager's store along the manager's lastState
-func (m *Manager) updateState(s types.State) error {
+func (m *Manager) updateState(ctx context.Context, s types.State) error {
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
-	err := m.store.UpdateState(s)
+	err := m.store.UpdateState(ctx, s)
 	if err != nil {
 		return err
 	}
 	m.lastState = s
+	m.metrics.Height.Set(float64(s.LastBlockHeight))
 	return nil
 }
 

@@ -323,7 +323,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 
 	blocks := make([]*cmtypes.BlockMeta, 0, maxHeight-minHeight+1)
 	for height := maxHeight; height >= minHeight; height-- {
-		block, err := c.node.Store.GetBlock(uint64(height))
+		block, err := c.node.Store.GetBlock(ctx, uint64(height))
 		if err != nil {
 			return nil, err
 		}
@@ -377,7 +377,7 @@ func (c *FullClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensu
 
 // ConsensusParams returns consensus params at given height.
 func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	state, err := c.node.Store.GetState()
+	state, err := c.node.Store.GetState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +414,7 @@ func (c *FullClient) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 // If height is nil, it returns information about last known block.
 func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	heightValue := c.normalizeHeight(height)
-	block, err := c.node.Store.GetBlock(heightValue)
+	block, err := c.node.Store.GetBlock(ctx, heightValue)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 
 // BlockByHash returns BlockID and block itself for given hash.
 func (c *FullClient) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
-	block, err := c.node.Store.GetBlockByHash(hash)
+	block, err := c.node.Store.GetBlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -466,11 +466,11 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	} else {
 		h = uint64(*height)
 	}
-	block, err := c.node.Store.GetBlock(h)
+	block, err := c.node.Store.GetBlock(ctx, h)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.node.Store.GetBlockResponses(h)
+	resp, err := c.node.Store.GetBlockResponses(ctx, h)
 	if err != nil {
 		return nil, err
 	}
@@ -488,11 +488,11 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 // Commit returns signed header (aka commit) at given height.
 func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	heightValue := c.normalizeHeight(height)
-	com, err := c.node.Store.GetCommit(heightValue)
+	com, err := c.node.Store.GetCommit(ctx, heightValue)
 	if err != nil {
 		return nil, err
 	}
-	b, err := c.node.Store.GetBlock(heightValue)
+	b, err := c.node.Store.GetBlock(ctx, heightValue)
 	if err != nil {
 		return nil, err
 	}
@@ -553,7 +553,7 @@ func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.R
 
 	var proof cmtypes.TxProof
 	if prove {
-		block, _ := c.node.Store.GetBlock(uint64(height))
+		block, _ := c.node.Store.GetBlock(ctx, uint64(height))
 		blockProof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
 		proof = cmtypes.TxProof{
 			RootHash: blockProof.RootHash,
@@ -682,7 +682,7 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 	// Fetch the blocks
 	blocks := make([]*ctypes.ResultBlock, 0, pageSize)
 	for i := skipCount; i < skipCount+pageSize; i++ {
-		b, err := c.node.Store.GetBlock(uint64(results[i]))
+		b, err := c.node.Store.GetBlock(ctx, uint64(results[i]))
 		if err != nil {
 			return nil, err
 		}
@@ -703,12 +703,12 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 
 // Status returns detailed information about current status of the node.
 func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
-	latest, err := c.node.Store.GetBlock(c.node.Store.Height())
+	latest, err := c.node.Store.GetBlock(ctx, c.node.Store.Height())
 	if err != nil {
 		return nil, fmt.Errorf("failed to find latest block: %w", err)
 	}
 
-	initial, err := c.node.Store.GetBlock(uint64(c.node.GetGenesis().InitialHeight))
+	initial, err := c.node.Store.GetBlock(ctx, uint64(c.node.GetGenesis().InitialHeight))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
@@ -728,7 +728,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		ProposerPriority: int64(1),
 	}
 
-	state, err := c.node.Store.GetState()
+	state, err := c.node.Store.GetState(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the last saved state: %w", err)
 	}
@@ -819,7 +819,7 @@ func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.Result
 
 // Header returns a cometbft ResultsHeader for the FullClient
 func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
-	blockMeta := c.getBlockMeta(*height)
+	blockMeta := c.getBlockMeta(ctx, *height)
 	if blockMeta == nil {
 		return nil, fmt.Errorf("block at height %d not found", *height)
 	}
@@ -832,7 +832,7 @@ func (c *FullClient) HeaderByHash(ctx context.Context, hash cmbytes.HexBytes) (*
 	// decoding logic in the HTTP service will correctly translate from JSON.
 	// See https://github.com/cometbft/cometbft/issues/6802 for context.
 
-	block, err := c.node.Store.GetBlockByHash(types.Hash(hash))
+	block, err := c.node.Store.GetBlockByHash(ctx, types.Hash(hash))
 	if err != nil {
 		return nil, err
 	}
@@ -915,8 +915,8 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 	return heightValue
 }
 
-func (rpc *FullClient) getBlockMeta(n int64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.GetBlock(uint64(n))
+func (rpc *FullClient) getBlockMeta(ctx context.Context, n int64) *cmtypes.BlockMeta {
+	b, err := rpc.node.Store.GetBlock(ctx, uint64(n))
 	if err != nil {
 		return nil
 	}
