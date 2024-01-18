@@ -22,17 +22,17 @@ func NewBlockCache() *BlockCache {
 	}
 }
 
-func (bc *BlockCache) getBlock(height uint64) (types.Block, bool) {
+func (bc *BlockCache) getBlock(height uint64) (*types.Block, bool) {
 	block, ok := bc.blocks.Load(height)
 	if !ok {
-		return types.Block{}, false
+		return nil, false
 	}
-	return block.(types.Block), true
+	return block.(*types.Block), true
 }
 
 func (bc *BlockCache) setBlock(height uint64, block *types.Block) {
 	if block != nil {
-		bc.blocks.Store(height, *block)
+		bc.blocks.Store(height, block)
 	}
 }
 
