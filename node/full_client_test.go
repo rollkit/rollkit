@@ -391,7 +391,7 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	// creat 3 consecutive signed blocks
-	block1, privKey := types.GetRandomBlockWithKey(1, 1)
+	block1, privKey := types.GetRandomBlockWithKey(1, 1, nil)
 
 	block2 := types.GetRandomNextBlock(block1, privKey, []byte{}, 2)
 
@@ -405,11 +405,12 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 	defer func() {
 		assert.NoError(rpc.node.Stop())
 	}()
+	ctx := context.Background()
 
 	// save the 3 blocks
 	for _, b := range blocks {
-		err = rpc.node.Store.SaveBlock(b, &b.SignedHeader.Commit)
-		rpc.node.Store.SetHeight(b.Height())
+		err = rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
+		rpc.node.Store.SetHeight(ctx, b.Height())
 		require.NoError(err)
 	}
 

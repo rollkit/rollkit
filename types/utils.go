@@ -32,24 +32,24 @@ func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey) {
 	privKey := ed25519.GenPrivKey()
 	pubKey := privKey.PubKey()
-	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*cmtypes.Validator{
+	valset := cmtypes.NewValidatorSet(
+		[]*cmtypes.Validator{
 			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 1},
 		},
-	}, privKey
+	)
+	return valset, privKey
 }
 
 // GetValidatorSet returns a validator set with a single validator
 // with the given key
 func GetValidatorSet(privKey ed25519.PrivKey) *cmtypes.ValidatorSet {
 	pubKey := privKey.PubKey()
-	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
+	valset := cmtypes.NewValidatorSet(
+		[]*cmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 1},
 		},
-	}
+	)
+	return valset
 }
 
 // GetRandomBlock returns a block with random data
