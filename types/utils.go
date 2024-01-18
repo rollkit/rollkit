@@ -35,7 +35,7 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 	return &cmtypes.ValidatorSet{
 		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
 		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
+			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 1},
 		},
 	}, privKey
 }
@@ -124,6 +124,7 @@ func GetRandomNextHeader(header Header) Header {
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
 	nextHeader.ProposerAddress = header.ProposerAddress
+	nextHeader.ValidatorHash = header.ValidatorHash
 	return nextHeader
 }
 
@@ -144,7 +145,7 @@ func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHead
 	signedHeader.Header.DataHash = dataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	signedHeader.Header.ValidatorHash = valSet.Hash()
-	signedHeader.Header.BaseHeader.Time = uint64(time.Now().Unix()) + height*10
+	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + height*10
 	commit, err := getCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
