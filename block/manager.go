@@ -827,18 +827,21 @@ func (m *Manager) recordMetrics(block *types.Block) {
 }
 
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
-	submitted := false
+	submittedAll := false
 	backoff := initialBackoff
 	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
-	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
+	numTotalBlocks := len(blocksToSubmit)
+	numSubmittedBlocks := 0
+	for attempt := 1; ctx.Err() == nil && !submittedAll && attempt <= maxSubmitAttempts; attempt++ {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit)
 		switch res.Code {
 		case da.StatusSuccess:
 			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
 			if int(res.SubmittedCount) == len(blocksToSubmit) {
-				submitted = true
+				submittedAll = true
 			}
 			submittedBlocks, notSubmittedBlocks := blocksToSubmit[:res.SubmittedCount], blocksToSubmit[res.SubmittedCount:]
+			numSubmittedBlocks += len(submittedBlocks)
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
@@ -855,8 +858,13 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 		}
 	}
 
-	if !submitted {
-		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+	if !submittedAll {
+		return fmt.Errorf(
+			"failed to submit all blocks to DA layer, submitted %d of %d blocks after %d attempts",
+			numSubmittedBlocks,
+			numTotalBlocks,
+			maxSubmitAttempts,
+		)
 	}
 	return nil
 }
