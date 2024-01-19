@@ -787,16 +787,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
-	// Publish header to channel so that header exchange service can broadcast
-	case m.HeaderCh <- &block.SignedHeader:
+	default:
 	}
 
-	select {
-	case <-ctx.Done():
-		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
+	// Publish header to channel so that header exchange service can broadcast
+	m.HeaderCh <- &block.SignedHeader
+
 	// Publish block to channel so that block exchange service can broadcast
-	case m.BlockCh <- block:
-	}
+	m.BlockCh <- block
 
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
