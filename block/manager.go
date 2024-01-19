@@ -831,17 +831,17 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	backoff := initialBackoff
 	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
 	numTotalBlocks := len(blocksToSubmit)
-	numSubmittedBlocks := 0
+	numSubmittedBlocks := uint64(0)
 	for attempt := 1; ctx.Err() == nil && !submittedAll && attempt <= maxSubmitAttempts; attempt++ {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit)
 		switch res.Code {
 		case da.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
-			if int(res.SubmittedCount) == len(blocksToSubmit) {
+			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
+			if res.SubmittedCount == uint64(len(blocksToSubmit)) {
 				submittedAll = true
 			}
 			submittedBlocks, notSubmittedBlocks := blocksToSubmit[:res.SubmittedCount], blocksToSubmit[res.SubmittedCount:]
-			numSubmittedBlocks += len(submittedBlocks)
+			numSubmittedBlocks += uint64(len(submittedBlocks))
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
@@ -852,7 +852,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		default:
-			m.logger.Error("DA layer unknown status", "error", res.Message, "attempt", attempt)
+			m.logger.Error("DA layer unknown status response", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		}
