@@ -97,6 +97,10 @@ var (
 
 	// ErrProposerNotInValSet is returned when the proposer address in the validator set is not in the validator set
 	ErrProposerNotInValSet = errors.New("proposer address in the validator set is not in the validator set")
+
+	ErrNoSignatures = errors.New("no signatures")
+
+	ErrSignatureEmpty = errors.New("signature is empty")
 )
 
 // validatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
