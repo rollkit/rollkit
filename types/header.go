@@ -124,7 +124,7 @@ func (h *Header) ValidateBasic() error {
 }
 
 // MakeCometBFTVote make a cometBFT consensus vote for the sequencer to commit
-// we have the sequencer signs cometBFT consensus vote for compability with cometBFT client
+// we have the sequencer signs cometBFT consensus vote for compatibility with cometBFT client
 func (h *Header) MakeCometBFTVote() []byte {
 	vote := cmtproto.Vote{
 		Type:   cmtproto.PrecommitType,
