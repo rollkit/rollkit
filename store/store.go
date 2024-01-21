@@ -78,20 +78,34 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
 
-	err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
-	if err != nil {
+	// err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
+	// if err != nil {
+	// 	bb.Discard(ctx)
+	// 	return err
+	// }
+	// err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
+	// if err != nil {
+	// 	bb.Discard(ctx)
+	// 	return err
+	// }
+	// err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
+	// if err != nil {
+	// 	bb.Discard(ctx)
+	// 	return err
+	// }
+
+	var putErr error // putError contains multiple error if there were issue with multiple 'Put' operatiosn.
+
+	putErr = errors.Join(
+		putErr,
+		bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob),
+		bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob),
+		bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:]),
+	)
+
+	if putErr != nil {
 		bb.Discard(ctx)
-		return err
-	}
-	err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
-	if err != nil {
-		bb.Discard(ctx)
-		return err
-	}
-	err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
-	if err != nil {
-		bb.Discard(ctx)
-		return err
+		return putErr
 	}
 
 	if err = bb.Commit(ctx); err != nil {
