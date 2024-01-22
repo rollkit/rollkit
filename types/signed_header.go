@@ -98,8 +98,10 @@ var (
 	// ErrProposerNotInValSet is returned when the proposer address in the validator set is not in the validator set
 	ErrProposerNotInValSet = errors.New("proposer address in the validator set is not in the validator set")
 
+	// ErrNoSignatures is returned when there are no signatures
 	ErrNoSignatures = errors.New("no signatures")
 
+	// ErrSignatureEmpty is returned when signature is empty
 	ErrSignatureEmpty = errors.New("signature is empty")
 )
 
