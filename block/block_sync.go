@@ -120,7 +120,7 @@ func (bSyncService *BlockSyncService) WriteToBlockStoreAndBroadcast(ctx context.
 		if isGenesis {
 			return nil
 		}
-		return fmt.Errorf("failed to broadcast block header: %w", err)
+		return fmt.Errorf("failed to broadcast block: %w", err)
 	}
 	return nil
 }
