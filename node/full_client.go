@@ -498,6 +498,9 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	}
 
 	// we only have one centralize sequencer = 1 validators
+        if len(b.SignedHeader.Validators.Validators[0]) == 0 {
+            return nil, errors.New("empty validator set found in block")
+        }
 	val := b.SignedHeader.Validators.Validators[0].Address
 	commit := com.ToABCICommit(heightValue, b.Hash(), val, b.SignedHeader.Time())
 
