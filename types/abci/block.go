@@ -1,6 +1,8 @@
 package abci
 
 import (
+	"errors"
+
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -78,6 +80,10 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	}
 
 	// we have one validator
+	if len(block.SignedHeader.Validators.Validators) == 0 {
+		return nil, errors.New("empty validator set found in block")
+	}
+
 	val := block.SignedHeader.Validators.Validators[0].Address
 	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash(), val, block.Time())
 

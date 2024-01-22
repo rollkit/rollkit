@@ -96,6 +96,7 @@ func TestToABCIBlock(t *testing.T) {
 	}
 
 	// we only have one centralize sequencer
+	assert.Equal(t, 1, len(block.SignedHeader.Validators.Validators))
 	val := block.SignedHeader.Validators.Validators[0].Address
 
 	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash(), val, block.Time())
