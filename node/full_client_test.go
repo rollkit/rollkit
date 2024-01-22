@@ -417,6 +417,12 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 
 	// Check if the block header provided by rpc.Commit() can be verified using tendermint light client
 	t.Run("checking rollkit ABCI header verifiability", func(t *testing.T) {
+		var (
+			trustingPeriod = 3 * time.Hour
+			trustLevel     = cmtmath.Fraction{Numerator: 2, Denominator: 1}
+			maxClockDrift  = 10 * time.Second
+		)
+
 		// trusted header to verify against
 		var trustedHeader cmtypes.SignedHeader
 		setTrustedHeader := false
@@ -439,7 +445,8 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 				continue
 			}
 
-			err = light.Verify(&trustedHeader, fixedValSet, &commit.SignedHeader, fixedValSet, 3*time.Hour, b.Time(), 10*time.Second, cmtmath.Fraction{Numerator: 2, Denominator: 1})
+			// verify the ABCI header
+			err = light.Verify(&trustedHeader, fixedValSet, &commit.SignedHeader, fixedValSet, trustingPeriod, b.Time(), maxClockDrift, trustLevel)
 			require.NoError(err, "failed to pass light.Verify()")
 
 			trustedHeader = commit.SignedHeader
