@@ -93,9 +93,8 @@ type Manager struct {
 	validatorSet *cmtypes.ValidatorSet
 
 	// For usage by Lazy Aggregator mode
-	buildingBlock     bool
-	txsAvailable      <-chan struct{}
-	doneBuildingBlock chan struct{}
+	buildingBlock bool
+	txsAvailable  <-chan struct{}
 
 	pendingBlocks *PendingBlocks
 
@@ -200,21 +199,20 @@ func NewManager(
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:          make(chan *types.SignedHeader, channelLength),
-		BlockCh:           make(chan *types.Block, channelLength),
-		blockInCh:         make(chan NewBlockEvent, blockInChLength),
-		blockStoreCh:      make(chan struct{}, 1),
-		blockStore:        blockStore,
-		lastStateMtx:      new(sync.RWMutex),
-		blockCache:        NewBlockCache(),
-		retrieveCh:        make(chan struct{}, 1),
-		logger:            logger,
-		validatorSet:      &valSet,
-		txsAvailable:      txsAvailableCh,
-		doneBuildingBlock: make(chan struct{}),
-		buildingBlock:     false,
-		pendingBlocks:     NewPendingBlocks(),
-		metrics:           seqMetrics,
+		HeaderCh:      make(chan *types.SignedHeader, channelLength),
+		BlockCh:       make(chan *types.Block, channelLength),
+		blockInCh:     make(chan NewBlockEvent, blockInChLength),
+		blockStoreCh:  make(chan struct{}, 1),
+		blockStore:    blockStore,
+		lastStateMtx:  new(sync.RWMutex),
+		blockCache:    NewBlockCache(),
+		retrieveCh:    make(chan struct{}, 1),
+		logger:        logger,
+		validatorSet:  &valSet,
+		txsAvailable:  txsAvailableCh,
+		buildingBlock: false,
+		pendingBlocks: NewPendingBlocks(),
+		metrics:       seqMetrics,
 	}
 	return agg, nil
 }
@@ -279,6 +277,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	}
 
 	timer := time.NewTimer(0)
+	defer timer.Stop()
 
 	if !lazy {
 		for {
@@ -313,10 +312,6 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				if err != nil && ctx.Err() == nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
-				// this can be used to notify multiple subscribers when a block has been built
-				// intended to help improve the UX of lightclient frontends and wallets.
-				close(m.doneBuildingBlock)
-				m.doneBuildingBlock = make(chan struct{})
 				m.buildingBlock = false
 			}
 		}
@@ -622,8 +617,7 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(block *types.Block) bool {
 func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
 	var err error
 	blockRes := m.dalc.RetrieveBlocks(ctx, daHeight)
-	switch blockRes.Code {
-	case da.StatusError:
+	if blockRes.Code == da.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
 	}
 	return blockRes, err

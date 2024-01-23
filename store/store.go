@@ -77,20 +77,18 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
+	defer bb.Discard(ctx)
 
 	err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
 	if err != nil {
-		bb.Discard(ctx)
 		return err
 	}
 	err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
 	if err != nil {
-		bb.Discard(ctx)
 		return err
 	}
 	err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
 	if err != nil {
-		bb.Discard(ctx)
 		return err
 	}
 

@@ -8,61 +8,58 @@ import (
 
 // BlockCache maintains blocks that are seen and hard confirmed
 type BlockCache struct {
-	blocks     map[uint64]*types.Block
-	hashes     map[string]bool
-	daIncluded map[string]bool
-	mtx        *sync.RWMutex
+	blocks     *sync.Map
+	hashes     *sync.Map
+	daIncluded *sync.Map
 }
 
 // NewBlockCache returns a new BlockCache struct
 func NewBlockCache() *BlockCache {
 	return &BlockCache{
-		blocks:     make(map[uint64]*types.Block),
-		hashes:     make(map[string]bool),
-		daIncluded: make(map[string]bool),
-		mtx:        new(sync.RWMutex),
+		blocks:     new(sync.Map),
+		hashes:     new(sync.Map),
+		daIncluded: new(sync.Map),
 	}
 }
 
 func (bc *BlockCache) getBlock(height uint64) (*types.Block, bool) {
-	bc.mtx.Lock()
-	defer bc.mtx.Unlock()
-	block, ok := bc.blocks[height]
-	return block, ok
+	block, ok := bc.blocks.Load(height)
+	if !ok {
+		return nil, false
+	}
+	return block.(*types.Block), true
 }
 
 func (bc *BlockCache) setBlock(height uint64, block *types.Block) {
-	bc.mtx.Lock()
-	defer bc.mtx.Unlock()
-	bc.blocks[height] = block
+	if block != nil {
+		bc.blocks.Store(height, block)
+	}
 }
 
 func (bc *BlockCache) deleteBlock(height uint64) {
-	bc.mtx.Lock()
-	defer bc.mtx.Unlock()
-	delete(bc.blocks, height)
+	bc.blocks.Delete(height)
 }
 
 func (bc *BlockCache) isSeen(hash string) bool {
-	bc.mtx.Lock()
-	defer bc.mtx.Unlock()
-	return bc.hashes[hash]
+	seen, ok := bc.hashes.Load(hash)
+	if !ok {
+		return false
+	}
+	return seen.(bool)
 }
 
 func (bc *BlockCache) setSeen(hash string) {
-	bc.mtx.Lock()
-	defer bc.mtx.Unlock()
-	bc.hashes[hash] = true
+	bc.hashes.Store(hash, true)
 }
 
 func (bc *BlockCache) isDAIncluded(hash string) bool {
-	bc.mtx.RLock()
-	defer bc.mtx.RUnlock()
-	return bc.daIncluded[hash]
+	daIncluded, ok := bc.daIncluded.Load(hash)
+	if !ok {
+		return false
+	}
+	return daIncluded.(bool)
 }
 
 func (bc *BlockCache) setDAIncluded(hash string) {
-	bc.mtx.Lock()
-	defer bc.mtx.Unlock()
-	bc.daIncluded[hash] = true
+	bc.daIncluded.Store(hash, true)
 }
