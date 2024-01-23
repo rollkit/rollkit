@@ -78,26 +78,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
-func TestInitialStateUnexpectedStoredBlock(t *testing.T) {
-	require := require.New(t)
-	genesisDoc, privKey := types.GetGenesisWithPrivkey()
-	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "myChain",
-		InitialHeight: 100,
-		Validators:    genesisDoc.Validators,
-		AppHash:       []byte("app hash"),
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	es, _ := store.NewDefaultInMemoryKVStore()
-	store := store.New(es)
-	b, _ := types.GetRandomBlockWithKey(100, 1, privKey)
-	err := store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
-	require.NoError(err)
-	_, err = getInitialState(store, genesis)
-	require.EqualError(err, "unexpected stored block at genesis.InitialHeight (100)")
-}
-
 func TestIsDAIncluded(t *testing.T) {
 	require := require.New(t)
 

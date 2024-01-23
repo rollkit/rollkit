@@ -125,14 +125,6 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 		}
 	}
 
-	// The store should not contain a block at genesis.InitialHeight
-	// because InitChain is called at that height, but a block is not built and stored.
-	// this indicates the user didn't properly clear the store when hard-forking.
-	// Perform a sanity-check:
-	_, loadBlockErr := store.GetBlock(context.Background(), s.InitialHeight)
-	if loadBlockErr == nil {
-		return types.State{}, fmt.Errorf("unexpected stored block at genesis.InitialHeight (%d)", s.InitialHeight)
-	}
 	return s, nil
 }
 
