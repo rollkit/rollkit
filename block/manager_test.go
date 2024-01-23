@@ -94,3 +94,32 @@ func TestIsDAIncluded(t *testing.T) {
 	m.blockCache.setDAIncluded(hash.String())
 	require.True(m.IsDAIncluded(hash))
 }
+
+// Happy case, all blocks A, B, C are submitted on first round
+func TestSubmitBlocksToDAHappy(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
+
+	// Create a minimalistic block manager
+	m := &Manager{
+		dalc:          &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger},
+		blockCache:    NewBlockCache(),
+		pendingBlocks: NewPendingBlocks(),
+		logger:        logger,
+	}
+
+	// Prepare blocks A, B, C to add to manager's pendingBlocks
+	numTxs, numBlocks := 3, 5
+	blocks := make([]*types.Block, numBlocks)
+	for i := 0; i < numBlocks; i++ {
+		blocks[i] = types.GetRandomBlock(uint64(i), numTxs)
+		m.pendingBlocks.addPendingBlock(blocks[i])
+	}
+
+	err := m.submitBlocksToDA(ctx)
+	require.NoError(err)
+
+	// Blocks A and B are submitted first round because including c triggers size limit. C is then submitted on second round.
+
+}
