@@ -235,6 +235,28 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 			},
 			err: ErrProposerNotInValSet,
 		},
+		// 9. Test no signatures
+		// Set the signature list to be empty
+		// Expect failure
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
+				untrusted.Commit.Signatures = make([]Signature, 0)
+				return &untrusted, false
+			},
+			err: ErrNoSignatures,
+		},
+		// 10. Test empty signature values in signature list
+		// Set the signature to be an empty value in signature list
+		// Expect failure
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
+				untrusted.Commit.Signatures[0] = Signature{}
+				return &untrusted, false
+			},
+			err: ErrSignatureEmpty,
+		},
 	}
 
 	for testIndex, test := range tests {

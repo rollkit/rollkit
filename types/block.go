@@ -103,7 +103,10 @@ func (d *Data) ValidateBasic() error {
 // ValidateBasic performs basic validation of a commit.
 func (c *Commit) ValidateBasic() error {
 	if len(c.Signatures) == 0 {
-		return errors.New("no signatures")
+		return ErrNoSignatures
+	}
+	if len(c.Signatures[0]) == 0 {
+		return ErrSignatureEmpty
 	}
 	return nil
 }
