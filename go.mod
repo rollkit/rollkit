@@ -6,7 +6,7 @@ toolchain go1.21.4
 
 require (
 	github.com/celestiaorg/utils v0.1.0
-	github.com/cometbft/cometbft v0.38.0-rc3
+	github.com/cometbft/cometbft v0.38.4
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
