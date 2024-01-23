@@ -133,7 +133,7 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 	if loadBlockErr == nil {
 		return types.State{}, fmt.Errorf("unexpected stored block at genesis.InitialHeight (%d)", s.InitialHeight)
 	}
-	return s, err
+	return s, nil
 }
 
 // NewManager creates new block Manager.
