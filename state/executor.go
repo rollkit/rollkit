@@ -393,7 +393,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, fmt.Errorf("expected tx results length to match size of transactions in block. Expected %d, got %d", len(block.Data.Txs), len(finalizeBlockResponse.TxResults))
 	}
 
-	e.logger.Info("executed block", "height", abciHeader.Height, "app_hash", finalizeBlockResponse.AppHash)
+	e.logger.Info("executed block", "height", abciHeader.Height, "app_hash", fmt.Sprintf("%X", finalizeBlockResponse.AppHash))
 
 	return finalizeBlockResponse, nil
 }
