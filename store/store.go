@@ -77,6 +77,7 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
+	defer bb.Discard(ctx)
 
 	var putErr error // putError contains multiple error if there were issue with multiple 'Put' operatiosn.
 
