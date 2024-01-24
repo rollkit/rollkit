@@ -89,7 +89,6 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 	)
 
 	if putErr != nil {
-		bb.Discard(ctx)
 		return putErr
 	}
 
