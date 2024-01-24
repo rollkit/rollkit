@@ -24,15 +24,22 @@ func NewPendingBlocks() *PendingBlocks {
 // getPendingBlocks returns a sorted slice of pending blocks
 // that need to be published to DA layer in order of block height
 func (pb *PendingBlocks) getPendingBlocks() []*types.Block {
+	blocks := copyBlocks(pb)
+	sort.Slice(blocks, func(i, j int) bool {
+		return blocks[i].Height() < blocks[j].Height()
+	})
+	return blocks
+}
+
+// copyBlocks creates a copy of the pending blocks in a thread-safe manner.
+// It returns a slice of pointers to the copied blocks.
+func copyBlocks(pb *PendingBlocks) []*types.Block {
 	pb.mtx.RLock()
 	defer pb.mtx.RUnlock()
 	blocks := make([]*types.Block, 0, len(pb.pendingBlocks))
 	for _, block := range pb.pendingBlocks {
 		blocks = append(blocks, block)
 	}
-	sort.Slice(blocks, func(i, j int) bool {
-		return blocks[i].Height() < blocks[j].Height()
-	})
 	return blocks
 }
 

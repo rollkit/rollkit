@@ -40,21 +40,33 @@ func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey)
 	}, privKey
 }
 
+// GetValidatorSet returns a validator set with a single validator
+// with the given key
+func GetValidatorSet(privKey ed25519.PrivKey) *cmtypes.ValidatorSet {
+	pubKey := privKey.PubKey()
+	return &cmtypes.ValidatorSet{
+		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
+		Validators: []*cmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address()},
+		},
+	}
+}
+
 // GetRandomBlock returns a block with random data
 func GetRandomBlock(height uint64, nTxs int) *Block {
-	block, _ := GetRandomBlockWithKey(height, nTxs)
+	block, _ := GetRandomBlockWithKey(height, nTxs, nil)
 	return block
 }
 
 // GetRandomBlockWithKey returns a block with random data and a signing key
-func GetRandomBlockWithKey(height uint64, nTxs int) (*Block, ed25519.PrivKey) {
+func GetRandomBlockWithKey(height uint64, nTxs int, privKey ed25519.PrivKey) (*Block, ed25519.PrivKey) {
 	block := getBlockDataWith(nTxs)
 	dataHash, err := block.Data.Hash()
 	if err != nil {
 		panic(err)
 	}
 
-	signedHeader, privKey, err := GetRandomSignedHeaderWith(height, dataHash)
+	signedHeader, privKey, err := GetRandomSignedHeaderWith(height, dataHash, privKey)
 	if err != nil {
 		panic(err)
 	}
@@ -84,7 +96,7 @@ func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Ha
 	newSignedHeader.LastCommitHash = block.SignedHeader.Commit.GetCommitHash(
 		&newSignedHeader.Header, block.SignedHeader.ProposerAddress,
 	)
-	commit, err := getCommit(newSignedHeader.Header, privKey)
+	commit, err := GetCommit(newSignedHeader.Header, privKey)
 	if err != nil {
 		panic(err)
 	}
@@ -129,12 +141,17 @@ func GetRandomNextHeader(header Header) Header {
 // GetRandomSignedHeader returns a signed header with random data
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
 	height := uint64(rand.Int63()) //nolint:gosec
-	return GetRandomSignedHeaderWith(height, GetRandomBytes(32))
+	return GetRandomSignedHeaderWith(height, GetRandomBytes(32), nil)
 }
 
 // GetRandomSignedHeaderWith returns a signed header with specified height and data hash, and random data for other fields
-func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHeader, ed25519.PrivKey, error) {
-	valSet, privKey := GetRandomValidatorSetWithPrivKey()
+func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash, privKey ed25519.PrivKey) (*SignedHeader, ed25519.PrivKey, error) {
+	valSet := &cmtypes.ValidatorSet{}
+	if privKey != nil {
+		valSet = GetValidatorSet(privKey)
+	} else {
+		valSet, privKey = GetRandomValidatorSetWithPrivKey()
+	}
 	signedHeader := &SignedHeader{
 		Header:     GetRandomHeader(),
 		Validators: valSet,
@@ -142,7 +159,7 @@ func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash) (*SignedHead
 	signedHeader.Header.BaseHeader.Height = height
 	signedHeader.Header.DataHash = dataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
-	commit, err := getCommit(signedHeader.Header, privKey)
+	commit, err := GetCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -161,7 +178,7 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivK
 	newSignedHeader.LastCommitHash = signedHeader.Commit.GetCommitHash(
 		&newSignedHeader.Header, signedHeader.ProposerAddress,
 	)
-	commit, err := getCommit(newSignedHeader.Header, privKey)
+	commit, err := GetCommit(newSignedHeader.Header, privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -184,44 +201,6 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 	default:
 		return nil, errUnsupportedKeyType
 	}
-}
-
-// GetFirstBlock creates a 1st block given the lastResults after executing genesis. Optionally can generate malicious blocks with junkProposer and sigInvalid.
-func GetFirstBlock(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, lastResults Hash, junkProposer bool, sigInvalid bool) (*Block, error) {
-	blockData := Data{
-		Txs: make(Txs, 5),
-		IntermediateStateRoots: IntermediateStateRoots{
-			RawRootsList: make([][]byte, 5),
-		},
-	}
-	for i := 0; i < 5; i++ {
-		blockData.Txs[i] = GetRandomTx()
-		blockData.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
-	}
-	h, err := GetFirstSignedHeader(privkey, valSet)
-	if err != nil {
-		return nil, err
-	}
-	h.DataHash, err = blockData.Hash()
-	if err != nil {
-		return nil, err
-	}
-	h.LastResultsHash = lastResults
-	commit, err := getCommit(h.Header, privkey)
-	if err != nil {
-		return nil, err
-	}
-	h.Commit = *commit
-	if junkProposer {
-		h.ProposerAddress = GetRandomBytes(32)
-	}
-	if sigInvalid {
-		h.Commit.Signatures[0] = GetRandomBytes(32)
-	}
-	return &Block{
-		SignedHeader: *h,
-		Data:         blockData,
-	}, nil
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
@@ -248,31 +227,12 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 		Header:     header,
 		Validators: valSet,
 	}
-	commit, err := getCommit(header, privkey)
+	commit, err := GetCommit(header, privkey)
 	signedHeader.Commit = *commit
 	if err != nil {
 		return nil, err
 	}
 	return &signedHeader, nil
-}
-
-// GetGenesisWithPrivkey is a more convenient version of GetGenesisValidatorSetWithSigner, for usage in TestCentralizedSequencer
-func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
-	genesisValidatorKey := ed25519.GenPrivKey()
-	pubKey := genesisValidatorKey.PubKey()
-
-	genesisValidators := []cmtypes.GenesisValidator{{
-		Address: pubKey.Address(),
-		PubKey:  pubKey,
-		Power:   int64(1),
-		Name:    "sequencer",
-	}}
-	genDoc := &cmtypes.GenesisDoc{
-		ChainID:       TestChainID,
-		InitialHeight: 0,
-		Validators:    genesisValidators,
-	}
-	return genDoc, genesisValidatorKey
 }
 
 // GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
@@ -291,23 +251,32 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 	}
 }
 
-// GetGenesisValidatorSetWithSigner returns a genesis validator set with a
-// single validator and a signing key
-func GetGenesisValidatorSetWithSigner() ([]cmtypes.GenesisValidator, crypto.PrivKey) {
+// GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
+func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
 	genesisValidatorKey := ed25519.GenPrivKey()
-	nodeKey := &p2p.NodeKey{
-		PrivKey: genesisValidatorKey,
-	}
-	signingKey, _ := GetNodeKey(nodeKey)
 	pubKey := genesisValidatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{{
 		Address: pubKey.Address(),
 		PubKey:  pubKey,
-		Power:   int64(100),
-		Name:    "gen #1",
+		Power:   int64(1),
+		Name:    "sequencer",
 	}}
-	return genesisValidators, signingKey
+	genDoc := &cmtypes.GenesisDoc{
+		ChainID:       TestChainID,
+		InitialHeight: 0,
+		Validators:    genesisValidators,
+	}
+	return genDoc, genesisValidatorKey
+}
+
+// PrivKeyToSigningKey converts a privKey to a signing key
+func PrivKeyToSigningKey(privKey ed25519.PrivKey) (crypto.PrivKey, error) {
+	nodeKey := &p2p.NodeKey{
+		PrivKey: privKey,
+	}
+	signingKey, err := GetNodeKey(nodeKey)
+	return signingKey, err
 }
 
 // GetRandomTx returns a tx with random data
@@ -323,7 +292,8 @@ func GetRandomBytes(n int) []byte {
 	return data
 }
 
-func getCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
+// GetCommit returns a commit with a signature from the given private key over the given header
+func GetCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
 	headerBytes, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err

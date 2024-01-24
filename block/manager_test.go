@@ -2,92 +2,80 @@ package block
 
 import (
 	"context"
-	crand "crypto/rand"
 	"testing"
-	"time"
 
 	cmtypes "github.com/cometbft/cometbft/types"
-	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goDATest "github.com/rollkit/go-da/test"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
-func TestInitialState(t *testing.T) {
-	genesisValidators, _ := types.GetGenesisValidatorSetWithSigner()
+func TestInitialStateClean(t *testing.T) {
+	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "genesis id",
-		InitialHeight: 100,
-		Validators:    genesisValidators,
+		ChainID:       "myChain",
+		InitialHeight: 1,
+		Validators:    genesisDoc.Validators,
+		AppHash:       []byte("app hash"),
+	}
+	es, _ := store.NewDefaultInMemoryKVStore()
+	emptyStore := store.New(es)
+	s, err := getInitialState(emptyStore, genesis)
+	require.Equal(int64(s.LastBlockHeight), genesis.InitialHeight-1)
+	require.NoError(err)
+	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
+}
+
+func TestInitialStateStored(t *testing.T) {
+	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "myChain",
+		InitialHeight: 1,
+		Validators:    genesisDoc.Validators,
+		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
-		ChainID:         "state id",
-		InitialHeight:   123,
-		LastBlockHeight: 128,
+		ChainID:         "myChain",
+		InitialHeight:   1,
+		LastBlockHeight: 100,
 	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
-	emptyStore := store.New(ctx, es)
+	store := store.New(es)
+	err := store.UpdateState(ctx, sampleState)
+	require.NoError(err)
+	s, err := getInitialState(store, genesis)
+	require.Equal(int64(s.LastBlockHeight), int64(100))
+	require.NoError(err)
+	require.Equal(s.InitialHeight, uint64(1))
+}
 
-	es2, _ := store.NewDefaultInMemoryKVStore()
-	fullStore := store.New(ctx, es2)
-	err := fullStore.UpdateState(sampleState)
-	require.NoError(t, err)
-
-	cases := []struct {
-		name                    string
-		store                   store.Store
-		genesis                 *cmtypes.GenesisDoc
-		expectedInitialHeight   uint64
-		expectedLastBlockHeight uint64
-		expectedChainID         string
-	}{
-		{
-			name:                    "empty_store",
-			store:                   emptyStore,
-			genesis:                 genesis,
-			expectedInitialHeight:   uint64(genesis.InitialHeight),
-			expectedLastBlockHeight: 0,
-			expectedChainID:         genesis.ChainID,
-		},
-		{
-			name:                    "state_in_store",
-			store:                   fullStore,
-			genesis:                 genesis,
-			expectedInitialHeight:   sampleState.InitialHeight,
-			expectedLastBlockHeight: sampleState.LastBlockHeight,
-			expectedChainID:         sampleState.ChainID,
-		},
+func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
+	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "myChain",
+		InitialHeight: 2,
+		Validators:    genesisDoc.Validators,
+		AppHash:       []byte("app hash"),
 	}
-
-	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	conf := config.BlockManagerConfig{
-		BlockTime: 10 * time.Second,
+	sampleState := types.State{
+		ChainID:         "myChain",
+		InitialHeight:   1,
+		LastBlockHeight: 0,
 	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
-			logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, c.name))
-			dalc := &da.DAClient{DA: goDATest.NewDummyDA(), Logger: logger}
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, nil)
-			assert.NoError(err)
-			assert.NotNil(agg)
-			agg.lastStateMtx.RLock()
-			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
-			assert.Equal(c.expectedInitialHeight, agg.lastState.InitialHeight)
-			assert.Equal(c.expectedLastBlockHeight, agg.lastState.LastBlockHeight)
-			agg.lastStateMtx.RUnlock()
-		})
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	store := store.New(es)
+	err := store.UpdateState(ctx, sampleState)
+	require.NoError(err)
+	_, err = getInitialState(store, genesis)
+	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
 func TestIsDAIncluded(t *testing.T) {

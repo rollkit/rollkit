@@ -5,8 +5,7 @@ on:
       - main
     # Trigger on version tags
     tags:
-      - 'v[0-9]+\.[0-9]+\.[0-9]+'
-      - 'v[0-9]+\.[0-9]+\.[0-9]+-rc(?:[0-9]+|\.[0-9]+)'
+      - "v*"
   pull_request:
   merge_group:
   workflow_dispatch:
@@ -65,7 +64,7 @@ jobs:
       # steps that rely on this step and others if this step is skipped.
       - name: Query listPullRequestsAssociatedWithCommit for the PR information
         if: ${{ github.event_name == 'push' }}
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: get_pr_data
         with:
           script: |
@@ -118,7 +117,7 @@ jobs:
     if: |
       (github.event_name == 'push' &&
       contains(github.ref, 'refs/heads/main') &&
-      needs.get_merged_pr_labels.outputs.has_release_label)
+      needs.get_merged_pr_labels.outputs.has_release_label == 'true')
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4

@@ -100,7 +100,10 @@ func (d *Data) ValidateBasic() error {
 // ValidateBasic performs basic validation of a commit.
 func (c *Commit) ValidateBasic() error {
 	if len(c.Signatures) == 0 {
-		return errors.New("no signatures")
+		return ErrNoSignatures
+	}
+	if len(c.Signatures[0]) == 0 {
+		return ErrSignatureEmpty
 	}
 	return nil
 }
@@ -164,4 +167,14 @@ func (b *Block) Verify(untrustedBlock *Block) error {
 // Validate performs basic validation of a block.
 func (b *Block) Validate() error {
 	return b.ValidateBasic()
+}
+
+// Size returns size of the block in bytes.
+func (b *Block) Size() int {
+	pbb, err := b.ToProto()
+	if err != nil {
+		return 0
+	}
+
+	return pbb.Size()
 }

@@ -67,13 +67,15 @@ type Client struct {
 	cancel context.CancelFunc
 
 	logger log.Logger
+
+	metrics *Metrics
 }
 
 // NewClient creates new Client object.
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
 	if privKey == nil {
 		return nil, errNoPrivKey
 	}
@@ -92,6 +94,7 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds
 		privKey: privKey,
 		chainID: chainID,
 		logger:  logger,
+		metrics: metrics,
 	}, nil
 }
 

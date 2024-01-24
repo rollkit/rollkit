@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,11 @@ import (
 	"reflect"
 	"time"
 
+	cmjson "github.com/cometbft/cometbft/libs/json"
+
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 
 	"github.com/rollkit/rollkit/third_party/log"
@@ -101,12 +105,25 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 	}
 
 	go func() {
+		var codecReq rpc.CodecRequest
+		if wsConn != nil {
+			codecReq = wsConn.codecReq
+		} else {
+			codecReq = json2.NewCodec().NewRequest(req)
+		}
+
 		for msg := range sub {
-			data, err := json.Marshal(msg.Data)
+			var raw json.RawMessage
+			raw, err = cmjson.Marshal(msg.Data)
+			btz := new(bytes.Buffer)
+			w := newResponseWriter(btz)
 			if err != nil {
-				s.logger.Error("failed to marshal response data", "error", err)
-				continue
+				codecReq.WriteError(w, http.StatusInternalServerError, err)
+				return
 			}
+			codecReq.WriteResponse(w, raw)
+
+			data := btz.Bytes()
 			if wsConn != nil {
 				wsConn.queue <- data
 			}

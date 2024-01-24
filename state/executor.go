@@ -35,10 +35,12 @@ type BlockExecutor struct {
 	eventBus *cmtypes.EventBus
 
 	logger log.Logger
+
+	metrics *Metrics
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
-func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger, metrics *Metrics) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		chainID:         chainID,
@@ -46,6 +48,7 @@ func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Me
 		mempool:         mempool,
 		eventBus:        eventBus,
 		logger:          logger,
+		metrics:         metrics,
 	}
 }
 
@@ -214,6 +217,10 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return types.State{}, nil, err
 	}
 
+	if resp.ConsensusParamUpdates != nil {
+		e.metrics.ConsensusParamUpdates.Add(1)
+	}
+
 	state, err = e.updateState(state, block, resp)
 	if err != nil {
 		return types.State{}, nil, err
@@ -352,6 +359,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, err
 	}
 
+	startTime := time.Now().UnixNano()
 	finalizeBlockResponse, err := e.proxyApp.FinalizeBlock(ctx, &abci.RequestFinalizeBlock{
 		Hash:               block.Hash(),
 		NextValidatorsHash: nil,
@@ -365,7 +373,8 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		Misbehavior: abciBlock.Evidence.Evidence.ToABCI(),
 		Txs:         abciBlock.Txs.ToSliceOfBytes(),
 	})
-
+	endTime := time.Now().UnixNano()
+	e.metrics.BlockProcessingTime.Observe(float64(endTime-startTime) / 1000000)
 	if err != nil {
 		e.logger.Error("error in proxyAppConn.FinalizeBlock", "err", err)
 		return nil, err
@@ -384,7 +393,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 		return nil, fmt.Errorf("expected tx results length to match size of transactions in block. Expected %d, got %d", len(block.Data.Txs), len(finalizeBlockResponse.TxResults))
 	}
 
-	e.logger.Info("executed block", "height", abciHeader.Height, "app_hash", finalizeBlockResponse.AppHash)
+	e.logger.Info("executed block", "height", abciHeader.Height, "app_hash", fmt.Sprintf("%X", finalizeBlockResponse.AppHash))
 
 	return finalizeBlockResponse, nil
 }
