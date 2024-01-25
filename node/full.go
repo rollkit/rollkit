@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/multierr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -409,11 +408,14 @@ func (n *FullNode) OnStop() {
 	n.threadManager.Wait()
 	n.Logger.Info("shutting down full node sub services...")
 	err := n.p2pClient.Close()
-	err = multierr.Append(err, n.hSyncService.Stop())
-	err = multierr.Append(err, n.bSyncService.Stop())
-	err = multierr.Append(err, n.IndexerService.Stop())
+	err = errors.Join(
+		err,
+		n.hSyncService.Stop(),
+		n.bSyncService.Stop(),
+		n.IndexerService.Stop(),
+	)
 	if n.prometheusSrv != nil {
-		err = multierr.Append(err, n.prometheusSrv.Shutdown(n.ctx))
+		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
 	}
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }

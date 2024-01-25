@@ -79,17 +79,17 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 	}
 	defer bb.Discard(ctx)
 
-	err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
-	if err != nil {
-		return err
-	}
-	err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
-	if err != nil {
-		return err
-	}
-	err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
-	if err != nil {
-		return err
+	var putErr error
+
+	putErr = errors.Join(
+		putErr,
+		bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob),
+		bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob),
+		bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:]),
+	)
+
+	if putErr != nil {
+		return putErr
 	}
 
 	if err = bb.Commit(ctx); err != nil {

@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
@@ -216,11 +215,14 @@ func (bSyncService *BlockSyncService) Start() error {
 // Stop is a part of Service interface.
 func (bSyncService *BlockSyncService) Stop() error {
 	err := bSyncService.blockStore.Stop(bSyncService.ctx)
-	err = multierr.Append(err, bSyncService.p2pServer.Stop(bSyncService.ctx))
-	err = multierr.Append(err, bSyncService.ex.Stop(bSyncService.ctx))
-	err = multierr.Append(err, bSyncService.sub.Stop(bSyncService.ctx))
+	err = errors.Join(
+		err,
+		bSyncService.p2pServer.Stop(bSyncService.ctx),
+		bSyncService.ex.Stop(bSyncService.ctx),
+		bSyncService.sub.Stop(bSyncService.ctx),
+	)
 	if bSyncService.syncerStatus.isStarted() {
-		err = multierr.Append(err, bSyncService.syncer.Stop(bSyncService.ctx))
+		err = errors.Join(err, bSyncService.syncer.Stop(bSyncService.ctx))
 	}
 	return err
 }

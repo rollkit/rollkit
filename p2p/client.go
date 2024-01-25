@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -23,7 +24,6 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
-	"go.uber.org/multierr"
 
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 
@@ -154,7 +154,7 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 func (c *Client) Close() error {
 	c.cancel()
 
-	return multierr.Combine(
+	return errors.Join(
 		c.txGossiper.Close(),
 		c.dht.Close(),
 		c.host.Close(),
