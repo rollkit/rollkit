@@ -3,11 +3,10 @@ reviewers:
     - code-owners
   groups:
     code-owners:
-      - Nashqueue
+      - Manav-Aggarwal
       - tzdybal
       - gupadhyaya
     rollkit:
-      - Manav-Aggarwal
       - S1nus
       - tuxcanfly
     devops:
