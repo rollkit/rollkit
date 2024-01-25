@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 
@@ -12,6 +13,14 @@ import (
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+)
+
+const (
+	// submitTimeout is the timeout for block submission
+	submitTimeout = 60 * time.Second
+
+	// retrieveTimeout is the timeout for block submission
+	retrieveTimeout = 60 * time.Second
 )
 
 var (
@@ -111,7 +120,9 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			},
 		}
 	}
+	ctx, cancel := context.WithTimeout(ctx, submitTimeout)
 	ids, _, err := dac.DA.Submit(ctx, blobs, dac.GasPrice)
+	cancel()
 	if err != nil {
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
@@ -161,7 +172,9 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 		}
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, retrieveTimeout)
 	blobs, err := dac.DA.Get(ctx, ids)
+	cancel()
 	if err != nil {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
