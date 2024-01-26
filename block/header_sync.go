@@ -116,7 +116,7 @@ func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx contex
 		// for the genesis header, broadcast error is expected as we have already initialized the store
 		// for starting the syncer. Hence, we ignore the error.
 		// exact reason: validation failed, err header verification failed: known header: '1' <= current '1'
-		if isGenesis {
+		if isGenesis && errors.Is(err, pubsub.ValidationError{Reason: pubsub.RejectValidationFailed}) {
 			return nil
 		}
 		return fmt.Errorf("failed to broadcast block header: %w", err)
