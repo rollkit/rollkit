@@ -8,6 +8,7 @@ reviewers:
       - gupadhyaya
       - S1nus
       - tuxcanfly
+      - MSevey
 files:
   "**":
     - rollkit
