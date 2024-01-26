@@ -19,7 +19,7 @@ const (
 	// submitTimeout is the timeout for block submission
 	submitTimeout = 60 * time.Second
 
-	// retrieveTimeout is the timeout for block submission
+	// retrieveTimeout is the timeout for block retrieval
 	retrieveTimeout = 60 * time.Second
 )
 
