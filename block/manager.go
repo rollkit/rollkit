@@ -599,7 +599,6 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 		}
 
 		// Track the error
-		// err = multierr.Append(err, fetchErr)
 		err = errors.Join(err, fetchErr)
 		// Delay before retrying
 		select {
