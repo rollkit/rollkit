@@ -19,6 +19,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	pkgErrors "github.com/pkg/errors"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
@@ -588,8 +589,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 					// are satisfied.
 					select {
 					case <-ctx.Done():
-						return errors.New("unable to send block to blockInCh, context done")
-						// return errors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+						return pkgErrors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
 					default:
 					}
 					m.blockInCh <- NewBlockEvent{block, daHeight}
@@ -803,8 +803,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// statement when multiple cases are satisfied.
 	select {
 	case <-ctx.Done():
-		return errors.New("unable to send header and block, context done")
-		// return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
+		return pkgErrors.WithMessage(ctx.Err(), "unable to send header and block, context done")
 	default:
 	}
 
