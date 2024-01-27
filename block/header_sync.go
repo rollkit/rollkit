@@ -99,8 +99,9 @@ func (hSyncService *HeaderSyncService) initHeaderStoreAndStartSyncer(ctx context
 // WriteToHeaderStoreAndBroadcast initializes header store if needed and broadcasts provided header.
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
 func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
+	isGenesis := int64(signedHeader.Height()) == hSyncService.genesis.InitialHeight
 	// For genesis header initialize the store and start the syncer
-	if int64(signedHeader.Height()) == hSyncService.genesis.InitialHeight {
+	if isGenesis {
 		if err := hSyncService.headerStore.Init(ctx, signedHeader); err != nil {
 			return fmt.Errorf("failed to initialize header store")
 		}
@@ -112,7 +113,13 @@ func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx contex
 
 	// Broadcast for subscribers
 	if err := hSyncService.sub.Broadcast(ctx, signedHeader); err != nil {
-		hSyncService.logger.Error("failed to broadcast block header", "error", err)
+		// for the genesis header, broadcast error is expected as we have already initialized the store
+		// for starting the syncer. Hence, we ignore the error.
+		// exact reason: validation failed, err header verification failed: known header: '1' <= current '1'
+		if isGenesis && errors.Is(err, pubsub.ValidationError{Reason: pubsub.RejectValidationFailed}) {
+			return nil
+		}
+		return fmt.Errorf("failed to broadcast block header: %w", err)
 	}
 	return nil
 }
