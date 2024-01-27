@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-
 	"errors"
 	"fmt"
 	"sync"
