@@ -769,7 +769,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
 			EarliestBlockHeight: int64(initial.Height()),
 			EarliestBlockTime:   initial.Time(),
-			CatchingUp:          true, // the client is always syncing in the background to the latest height
+			CatchingUp:          false, // hard-code this to "false" to pass Go IBC relayer's legacy encoding check
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
 			Address:     validator.Address,
