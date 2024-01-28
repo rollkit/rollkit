@@ -19,6 +19,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	pkgErrors "github.com/pkg/errors"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
@@ -708,9 +709,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		/*
-		  here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
-		  to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
-		  these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
+		   here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
+		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
+		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
 		block.SignedHeader.DataHash, err = block.Data.Hash()
 		if err != nil {
