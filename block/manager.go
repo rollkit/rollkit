@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -17,8 +18,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/pkg/errors"
-	"go.uber.org/multierr"
+	pkgErrors "github.com/pkg/errors"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -589,7 +589,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 					// are satisfied.
 					select {
 					case <-ctx.Done():
-						return errors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+						return pkgErrors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
 					default:
 					}
 					m.blockInCh <- NewBlockEvent{block, daHeight}
@@ -599,7 +599,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 		}
 
 		// Track the error
-		err = multierr.Append(err, fetchErr)
+		err = errors.Join(err, fetchErr)
 		// Delay before retrying
 		select {
 		case <-ctx.Done():
@@ -709,9 +709,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		/*
-		  here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
-		  to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
-		  these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
+		   here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
+		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
+		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
 		block.SignedHeader.DataHash, err = block.Data.Hash()
 		if err != nil {
@@ -803,7 +803,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// statement when multiple cases are satisfied.
 	select {
 	case <-ctx.Done():
-		return errors.WithMessage(ctx.Err(), "unable to send header and block, context done")
+		return pkgErrors.WithMessage(ctx.Err(), "unable to send header and block, context done")
 	default:
 	}
 

@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/cometbft/cometbft/libs/log"
@@ -11,7 +12,6 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -132,7 +132,7 @@ func (ln *LightNode) OnStop() {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()
 	err := ln.P2P.Close()
-	err = multierr.Append(err, ln.hSyncService.Stop())
+	err = errors.Join(err, ln.hSyncService.Stop())
 	ln.Logger.Error("errors while stopping node:", "errors", err)
 }
 

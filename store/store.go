@@ -79,15 +79,15 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 
 	err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create a new key for Block Blob: %w", err)
 	}
 	err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
 	err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
 	}
 
 	if err = bb.Commit(ctx); err != nil {
