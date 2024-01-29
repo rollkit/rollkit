@@ -26,9 +26,8 @@ var (
 
 // DefaultStore is a default store implmementation.
 type DefaultStore struct {
-	db ds.TxnDatastore
-
-	height uint64
+	db     ds.TxnDatastore
+	height atomic.Uint64
 }
 
 var _ Store = &DefaultStore{}
@@ -43,12 +42,11 @@ func New(ds ds.TxnDatastore) Store {
 // SetHeight sets the height saved in the Store if it is higher than the existing height
 func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) {
 	for {
-		storeHeight := atomic.LoadUint64(&s.height)
+		storeHeight := s.height.Load()
 		if height <= storeHeight {
 			break
 		}
-		if atomic.CompareAndSwapUint64(&s.height,
-			storeHeight, height) {
+		if s.height.CompareAndSwap(storeHeight, height) {
 			break
 		}
 	}
@@ -56,7 +54,7 @@ func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) {
 
 // Height returns height of the highest block saved in the Store.
 func (s *DefaultStore) Height() uint64 {
-	return atomic.LoadUint64(&s.height)
+	return s.height.Load()
 }
 
 // SaveBlock adds block to the store along with corresponding commit.
@@ -200,7 +198,7 @@ func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
 
 	var state types.State
 	err = state.FromProto(&pbState)
-	atomic.StoreUint64(&s.height, state.LastBlockHeight)
+	s.height.Store(state.LastBlockHeight)
 	return state, err
 }
 
