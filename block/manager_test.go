@@ -23,7 +23,7 @@ func TestInitialStateClean(t *testing.T) {
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
 	s, err := getInitialState(emptyStore, genesis)
-	require.Equal(int64(s.LastBlockHeight), genesis.InitialHeight-1)
+	require.Equal(s.LastBlockHeight, uint64(genesis.InitialHeight-1))
 	require.NoError(err)
 	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
 }
@@ -49,7 +49,7 @@ func TestInitialStateStored(t *testing.T) {
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	s, err := getInitialState(store, genesis)
-	require.Equal(int64(s.LastBlockHeight), int64(100))
+	require.Equal(s.LastBlockHeight, uint64(100))
 	require.NoError(err)
 	require.Equal(s.InitialHeight, uint64(1))
 }

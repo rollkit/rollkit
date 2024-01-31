@@ -98,7 +98,7 @@ func (hSyncService *HeaderSyncService) initHeaderStoreAndStartSyncer(ctx context
 // WriteToHeaderStoreAndBroadcast initializes header store if needed and broadcasts provided header.
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
 func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
-	isGenesis := int64(signedHeader.Height()) == hSyncService.genesis.InitialHeight
+	isGenesis := signedHeader.Height() == uint64(hSyncService.genesis.InitialHeight)
 	// For genesis header initialize the store and start the syncer
 	if isGenesis {
 		if err := hSyncService.headerStore.Init(ctx, signedHeader); err != nil {

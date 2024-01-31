@@ -190,8 +190,8 @@ func verifyTransactions(node *FullNode, peerID peer.ID, assert *assert.Assertion
 // verifyMempoolSize checks if the mempool size is as expected
 func verifyMempoolSize(node *FullNode, assert *assert.Assertions) {
 	assert.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		expectedSize := int64(4 * len("tx*"))
-		actualSize := node.Mempool.SizeBytes()
+		expectedSize := uint64(4 * len("tx*"))
+		actualSize := uint64(node.Mempool.SizeBytes())
 		if expectedSize == actualSize {
 			return nil
 		}
