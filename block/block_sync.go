@@ -99,7 +99,7 @@ func (bSyncService *BlockSyncService) initBlockStoreAndStartSyncer(ctx context.C
 // Note: Only returns an error in case block store can't be initialized. Logs
 // error if there's one while broadcasting.
 func (bSyncService *BlockSyncService) WriteToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
-	isGenesis := int64(block.Height()) == bSyncService.genesis.InitialHeight
+	isGenesis := block.Height() == uint64(bSyncService.genesis.InitialHeight)
 	// For genesis block initialize the store and start the syncer
 	if isGenesis {
 		if err := bSyncService.blockStore.Init(ctx, block); err != nil {
