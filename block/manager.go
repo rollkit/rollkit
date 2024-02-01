@@ -15,6 +15,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
@@ -103,11 +104,27 @@ type Manager struct {
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
+	// Load the state from store.
 	s, err := store.GetState(context.Background())
-	if err != nil {
+	if errors.Is(err, ds.ErrNotFound) {
+		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		s, err = types.NewFromGenesisDoc(genesis)
+		if err != nil {
+			return types.State{}, err
+		}
+		store.SetHeight(context.Background(), s.LastBlockHeight)
+	} else if err != nil {
+		return types.State{}, err
+	} else {
+		// Perform a sanity-check to stop the user from
+		// using a higher genesis than the last stored state.
+		// if they meant to hard-fork, they should have cleared the stored State
+		if uint64(genesis.InitialHeight) > s.LastBlockHeight {
+			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
+		}
 	}
-	return s, err
+
+	return s, nil
 }
 
 // NewManager creates new block Manager.

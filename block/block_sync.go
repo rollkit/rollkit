@@ -100,8 +100,9 @@ func (bSyncService *BlockSyncService) initBlockStoreAndStartSyncer(ctx context.C
 // Note: Only returns an error in case block store can't be initialized. Logs
 // error if there's one while broadcasting.
 func (bSyncService *BlockSyncService) WriteToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
+	isGenesis := int64(block.Height()) == bSyncService.genesis.InitialHeight
 	// For genesis block initialize the store and start the syncer
-	if int64(block.Height()) == bSyncService.genesis.InitialHeight {
+	if isGenesis {
 		if err := bSyncService.blockStore.Init(ctx, block); err != nil {
 			return fmt.Errorf("failed to initialize block store")
 		}
@@ -113,7 +114,13 @@ func (bSyncService *BlockSyncService) WriteToBlockStoreAndBroadcast(ctx context.
 
 	// Broadcast for subscribers
 	if err := bSyncService.sub.Broadcast(ctx, block); err != nil {
-		bSyncService.logger.Error("failed to broadcast block", "error", err)
+		// for the genesis header, broadcast error is expected as we have already initialized the store
+		// for starting the syncer. Hence, we ignore the error.
+		// exact reason: validation failed, err header verification failed: known header: '1' <= current '1'
+		if isGenesis && errors.Is(err, pubsub.ValidationError{Reason: pubsub.RejectValidationFailed}) {
+			return nil
+		}
+		return fmt.Errorf("failed to broadcast block: %w", err)
 	}
 	return nil
 }

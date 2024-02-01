@@ -96,7 +96,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 		require.Less(src, n)
 		for _, dst := range descr.conns {
 			require.Less(dst, n)
-			seeds[src] += mnet.Hosts()[dst].Addrs()[0].String() + "/p2p/" + mnet.Peers()[dst].Pretty() + ","
+			seeds[src] += mnet.Hosts()[dst].Addrs()[0].String() + "/p2p/" + mnet.Peers()[dst].Loggable()["peerID"].(string) + ","
 		}
 		seeds[src] = strings.TrimSuffix(seeds[src], ",")
 	}

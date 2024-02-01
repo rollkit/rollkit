@@ -671,7 +671,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		r := i
 		id, err := peer.IDFromPrivateKey(keys[r])
 		require.NoError(err)
-		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+r) + "/p2p/" + id.Pretty() + ","
+		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+r) + "/p2p/" + id.Loggable()["peerID"].(string) + ","
 	}
 	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
 
