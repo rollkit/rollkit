@@ -121,8 +121,8 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, submitTimeout)
+	defer cancel()
 	ids, _, err := dac.DA.Submit(ctx, blobs, dac.GasPrice)
-	cancel()
 	if err != nil {
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
@@ -173,8 +173,8 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, retrieveTimeout)
+	defer cancel()
 	blobs, err := dac.DA.Get(ctx, ids)
-	cancel()
 	if err != nil {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
