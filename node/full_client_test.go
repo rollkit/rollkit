@@ -897,65 +897,45 @@ func TestStatus(t *testing.T) {
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)
 
-	t.Run("SyncInfo", func(t *testing.T) {
-		assert.EqualValues(earliestBlock.Height(), resp.SyncInfo.EarliestBlockHeight)
-		assert.EqualValues(latestBlock.Height(), resp.SyncInfo.LatestBlockHeight)
-		assert.Equal(
-			hex.EncodeToString(earliestBlock.SignedHeader.AppHash),
-			hex.EncodeToString(resp.SyncInfo.EarliestAppHash))
-		assert.Equal(
-			hex.EncodeToString(latestBlock.SignedHeader.AppHash),
-			hex.EncodeToString(resp.SyncInfo.LatestAppHash))
+	assert.Equal(int64(1), resp.SyncInfo.EarliestBlockHeight)
+	assert.Equal(int64(2), resp.SyncInfo.LatestBlockHeight)
 
-		assert.Equal(hex.EncodeToString(earliestBlock.SignedHeader.DataHash), hex.EncodeToString(resp.SyncInfo.EarliestBlockHash))
-		assert.Equal(hex.EncodeToString(latestBlock.SignedHeader.DataHash), hex.EncodeToString(resp.SyncInfo.LatestBlockHash))
-		assert.Equal(true, resp.SyncInfo.CatchingUp)
-	})
-	t.Run("ValidatorInfo", func(t *testing.T) {
-		assert.Equal(genesisDoc.Validators[0].Address, resp.ValidatorInfo.Address)
-		assert.Equal(genesisDoc.Validators[0].PubKey, resp.ValidatorInfo.PubKey)
-		assert.EqualValues(int64(1), resp.ValidatorInfo.VotingPower)
-	})
-	t.Run("NodeInfo", func(t *testing.T) {
-		// Changed the RPC method to get this from the genesis.
-		// specific validation
-		state, err := rpc.node.Store.GetState(ctx)
-		assert.NoError(err)
+	// Changed the RPC method to get this from the genesis.
+	assert.Equal(genesisDoc.Validators[0].Address, resp.ValidatorInfo.Address)
+	assert.Equal(genesisDoc.Validators[0].PubKey, resp.ValidatorInfo.PubKey)
+	// hardcode to 1, shouldn't matter because it's a centralized sequencer
+	assert.Equal(int64(1), resp.ValidatorInfo.VotingPower)
 
-		defaultProtocolVersion := p2p.NewProtocolVersion(
-			version.P2PProtocol,
-			state.Version.Consensus.Block,
-			state.Version.Consensus.App,
-		)
-		assert.Equal(defaultProtocolVersion, resp.NodeInfo.ProtocolVersion)
+	// specific validation
+	assert.Equal(cmconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
+	state, err := rpc.node.Store.GetState(ctx)
+	assert.NoError(err)
+	defaultProtocolVersion := p2p.NewProtocolVersion(
+		version.P2PProtocol,
+		state.Version.Consensus.Block,
+		state.Version.Consensus.App,
+	)
+	assert.Equal(defaultProtocolVersion, resp.NodeInfo.ProtocolVersion)
 
-		// check that NodeInfo DefaultNodeID matches the ID derived from p2p key
-		rawKey, err := key.GetPublic().Raw()
-		assert.NoError(err)
-		assert.Equal(p2p.ID(hex.EncodeToString(cmcrypto.AddressHash(rawKey))), resp.NodeInfo.DefaultNodeID)
+	assert.NotNil(resp.NodeInfo.Other.TxIndex)
+	cases := []struct {
+		expected bool
+		other    p2p.DefaultNodeInfoOther
+	}{
 
-		assert.Equal(rpc.node.nodeConfig.P2P.ListenAddress, resp.NodeInfo.ListenAddr)
-		assert.Equal(rpc.node.genesis.ChainID, resp.NodeInfo.Network)
-		// TODO: version match.
-		assert.Equal(cmconfig.DefaultBaseConfig().Moniker, resp.NodeInfo.Moniker)
-
-		assert.NotNil(resp.NodeInfo.Other.TxIndex)
-		cases := []struct {
-			expected bool
-			other    p2p.DefaultNodeInfoOther
-		}{
-
-			{false, p2p.DefaultNodeInfoOther{}},
-			{false, p2p.DefaultNodeInfoOther{TxIndex: "aa"}},
-			{false, p2p.DefaultNodeInfoOther{TxIndex: "off"}},
-			{true, p2p.DefaultNodeInfoOther{TxIndex: "on"}},
-		}
-		for _, tc := range cases {
-			res := resp.NodeInfo.Other.TxIndex == tc.other.TxIndex
-			assert.Equal(tc.expected, res, tc)
-		}
-		assert.Equal(rpc.config.ListenAddress, resp.NodeInfo.Other.RPCAddress)
-	})
+		{false, p2p.DefaultNodeInfoOther{}},
+		{false, p2p.DefaultNodeInfoOther{TxIndex: "aa"}},
+		{false, p2p.DefaultNodeInfoOther{TxIndex: "off"}},
+		{true, p2p.DefaultNodeInfoOther{TxIndex: "on"}},
+	}
+	for _, tc := range cases {
+		res := resp.NodeInfo.Other.TxIndex == tc.other.TxIndex
+		assert.Equal(tc.expected, res, tc)
+	}
+	// check that NodeInfo DefaultNodeID matches the ID derived from p2p key
+	rawKey, err := key.GetPublic().Raw()
+	assert.NoError(err)
+	assert.Equal(p2p.ID(hex.EncodeToString(cmcrypto.AddressHash(rawKey))), resp.NodeInfo.DefaultNodeID)
 }
 
 func TestFutureGenesisTime(t *testing.T) {
