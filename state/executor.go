@@ -143,7 +143,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			Misbehavior:        []abci.Misbehavior{},
 			Height:             int64(block.Height()),
 			Time:               block.Time(),
-			NextValidatorsHash: nil,
+			NextValidatorsHash: e.valsetHash,
 			ProposerAddress:    e.proposerAddress,
 		},
 	)
@@ -187,7 +187,7 @@ func (e *BlockExecutor) ProcessProposal(
 		},
 		Misbehavior:        []abci.Misbehavior{},
 		ProposerAddress:    e.proposerAddress,
-		NextValidatorsHash: nil,
+		NextValidatorsHash: e.valsetHash,
 	})
 	if err != nil {
 		return false, err
@@ -364,7 +364,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	startTime := time.Now().UnixNano()
 	finalizeBlockResponse, err := e.proxyApp.FinalizeBlock(ctx, &abci.RequestFinalizeBlock{
 		Hash:               block.Hash(),
-		NextValidatorsHash: nil,
+		NextValidatorsHash: e.valsetHash,
 		ProposerAddress:    abciHeader.ProposerAddress,
 		Height:             abciHeader.Height,
 		Time:               abciHeader.Time,
