@@ -1,6 +1,7 @@
 package da
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -67,7 +68,12 @@ func (m *MockDA) Commit(ctx context.Context, blobs []da.Blob) ([]da.Commitment, 
 
 func (m *MockDA) Submit(ctx context.Context, blobs []da.Blob, gasPrice float64) ([]da.ID, []da.Proof, error) {
 	args := m.Called(blobs, gasPrice)
-	return args.Get(0).([]da.ID), args.Get(1).([]da.Proof), args.Error(2)
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	default:
+		return args.Get(0).([]da.ID), args.Get(1).([]da.Proof), args.Error(2)
+	}
 }
 
 func (m *MockDA) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof) ([]bool, error) {
@@ -75,12 +81,30 @@ func (m *MockDA) Validate(ctx context.Context, ids []da.ID, proofs []da.Proof) (
 	return args.Get(0).([]bool), args.Error(1)
 }
 
-func TestMockDA(t *testing.T) {
-	mockDA := &MockDA{}
-	// Set up the mock to return an error for MaxBlobSize
-	mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("mock error"))
-	dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
+func TestMockDAErrors(t *testing.T) {
+	t.Run("submit_timeout", func(t *testing.T) {
+		mockDA := &MockDA{}
+		dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
+		blocks := []*types.Block{types.GetRandomBlock(1, 0)}
+		var blobs []da.Blob
+		for _, block := range blocks {
+			blockBytes, err := block.MarshalBinary()
+			require.NoError(t, err)
+			blobs = append(blobs, blockBytes)
+		}
+		// Set up the mock to throw context deadline exceeded
+		mockDA.On("MaxBlobSize").Return(uint64(1234), nil)
+		mockDA.
+			On("Submit", blobs, float64(-1)).
+			After(100*time.Millisecond).
+			Return([]da.ID{bytes.Repeat([]byte{0x00}, 8)}, []da.Proof{[]byte("proof")}, nil)
+		doTestSubmitTimeout(t, dalc, blocks)
+	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
+		mockDA := &MockDA{}
+		dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
+		// Set up the mock to return an error for MaxBlobSize
+		mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("mock error"))
 		doTestMaxBlockSizeError(t, dalc)
 	})
 }
@@ -132,6 +156,16 @@ func startMockGRPCClient() (*DAClient, error) {
 		return nil, err
 	}
 	return &DAClient{DA: client, GasPrice: -1, Logger: log.TestingLogger()}, nil
+}
+
+func doTestSubmitTimeout(t *testing.T, dalc *DAClient, blocks []*types.Block) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	assert := assert.New(t)
+	submitTimeout = 50 * time.Millisecond
+	resp := dalc.SubmitBlocks(ctx, blocks)
+	assert.Contains(resp.Message, "context deadline exceeded", "should return context timeout error")
 }
 
 func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {

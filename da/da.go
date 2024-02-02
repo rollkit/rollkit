@@ -15,7 +15,7 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-const (
+var (
 	// submitTimeout is the timeout for block submission
 	submitTimeout = 60 * time.Second
 
