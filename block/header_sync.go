@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
@@ -99,7 +98,7 @@ func (hSyncService *HeaderSyncService) initHeaderStoreAndStartSyncer(ctx context
 // WriteToHeaderStoreAndBroadcast initializes header store if needed and broadcasts provided header.
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
 func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
-	isGenesis := int64(signedHeader.Height()) == hSyncService.genesis.InitialHeight
+	isGenesis := signedHeader.Height() == uint64(hSyncService.genesis.InitialHeight)
 	// For genesis header initialize the store and start the syncer
 	if isGenesis {
 		if err := hSyncService.headerStore.Init(ctx, signedHeader); err != nil {
@@ -220,11 +219,14 @@ func (hSyncService *HeaderSyncService) Start() error {
 // Stop is a part of Service interface.
 func (hSyncService *HeaderSyncService) Stop() error {
 	err := hSyncService.headerStore.Stop(hSyncService.ctx)
-	err = multierr.Append(err, hSyncService.p2pServer.Stop(hSyncService.ctx))
-	err = multierr.Append(err, hSyncService.ex.Stop(hSyncService.ctx))
-	err = multierr.Append(err, hSyncService.sub.Stop(hSyncService.ctx))
+	err = errors.Join(
+		err,
+		hSyncService.p2pServer.Stop(hSyncService.ctx),
+		hSyncService.ex.Stop(hSyncService.ctx),
+		hSyncService.sub.Stop(hSyncService.ctx),
+	)
 	if hSyncService.syncerStatus.isStarted() {
-		err = multierr.Append(err, hSyncService.syncer.Stop(hSyncService.ctx))
+		err = errors.Join(err, hSyncService.syncer.Stop(hSyncService.ctx))
 	}
 	return err
 }

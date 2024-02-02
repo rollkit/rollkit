@@ -2,8 +2,7 @@ package p2p
 
 import (
 	"context"
-
-	"go.uber.org/multierr"
+	"errors"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -77,7 +76,7 @@ func NewGossiper(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.
 func (g *Gossiper) Close() error {
 	err := g.ps.UnregisterTopicValidator(g.topic.String())
 	g.sub.Cancel()
-	return multierr.Combine(
+	return errors.Join(
 		err,
 		g.topic.Close(),
 	)

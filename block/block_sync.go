@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
-	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
@@ -100,7 +99,7 @@ func (bSyncService *BlockSyncService) initBlockStoreAndStartSyncer(ctx context.C
 // Note: Only returns an error in case block store can't be initialized. Logs
 // error if there's one while broadcasting.
 func (bSyncService *BlockSyncService) WriteToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
-	isGenesis := int64(block.Height()) == bSyncService.genesis.InitialHeight
+	isGenesis := block.Height() == uint64(bSyncService.genesis.InitialHeight)
 	// For genesis block initialize the store and start the syncer
 	if isGenesis {
 		if err := bSyncService.blockStore.Init(ctx, block); err != nil {
@@ -223,11 +222,14 @@ func (bSyncService *BlockSyncService) Start() error {
 // Stop is a part of Service interface.
 func (bSyncService *BlockSyncService) Stop() error {
 	err := bSyncService.blockStore.Stop(bSyncService.ctx)
-	err = multierr.Append(err, bSyncService.p2pServer.Stop(bSyncService.ctx))
-	err = multierr.Append(err, bSyncService.ex.Stop(bSyncService.ctx))
-	err = multierr.Append(err, bSyncService.sub.Stop(bSyncService.ctx))
+	err = errors.Join(
+		err,
+		bSyncService.p2pServer.Stop(bSyncService.ctx),
+		bSyncService.ex.Stop(bSyncService.ctx),
+		bSyncService.sub.Stop(bSyncService.ctx),
+	)
 	if bSyncService.syncerStatus.isStarted() {
-		err = multierr.Append(err, bSyncService.syncer.Stop(bSyncService.ctx))
+		err = errors.Join(err, bSyncService.syncer.Stop(bSyncService.ctx))
 	}
 	return err
 }
