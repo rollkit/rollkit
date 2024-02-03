@@ -45,6 +45,9 @@ const channelLength = 100
 // Applies to the blockInCh, 10000 is a large enough number for blocks per DA block.
 const blockInChLength = 10000
 
+// Don't let pending blocks get backed up more than DA can keep up with
+const maxPendingBlocks = 5
+
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
 
@@ -286,6 +289,10 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				return
 			case <-timer.C:
 			}
+			if len(m.pendingBlocks.getPendingBlocks()) > maxPendingBlocks {
+				m.logger.Info("too many pending blocks, waiting for DA layer to catch up")
+				continue
+			}
 			start := time.Now()
 			err := m.publishBlock(ctx)
 			if err != nil && ctx.Err() == nil {
@@ -308,6 +315,10 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				}
 			case <-timer.C:
 				// build a block with all the transactions received in the last 1 second
+				if len(m.pendingBlocks.getPendingBlocks()) > maxPendingBlocks {
+					m.logger.Info("too many pending blocks, waiting for DA layer to catch up")
+					continue
+				}
 				err := m.publishBlock(ctx)
 				if err != nil && ctx.Err() == nil {
 					m.logger.Error("error while publishing block", "error", err)
