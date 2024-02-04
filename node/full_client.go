@@ -497,7 +497,7 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 		return nil, err
 	}
 
-	// we only have one centralize sequencer = 1 validators
+	// we should have a single validator
 	if len(b.SignedHeader.Validators.Validators) == 0 {
 		return nil, errors.New("empty validator set found in block")
 	}
