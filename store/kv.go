@@ -41,15 +41,17 @@ func PrefixEntries(ctx context.Context, store ds.Datastore, prefix string) (dsq.
 }
 
 // GenerateKey ...
-func GenerateKey(fields []interface{}) string {
-	var b bytes.Buffer
+func GenerateKey(fields []string) (string, error) {
+	var b strings.Builder
 	b.WriteString("/")
 	for _, f := range fields {
-		b.Write([]byte(fmt.Sprintf("%v", f) + "/"))
+		_, err := b.WriteString(f + "/")
+		if err != nil {
+			return "", err
+		}
 	}
-	return path.Clean(b.String())
+	return path.Clean(b.String()), nil
 }
-
 // rootify works just like in cosmos-sdk
 func rootify(rootDir, dbPath string) string {
 	if filepath.IsAbs(dbPath) {
