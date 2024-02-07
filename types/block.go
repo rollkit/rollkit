@@ -31,8 +31,8 @@ var _ encoding.BinaryUnmarshaler = &Block{}
 
 // Data defines Rollkit block data.
 type Data struct {
-	Txs                    Txs
-	IntermediateStateRoots IntermediateStateRoots
+	Txs Txs
+	// IntermediateStateRoots IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896
 	// Evidence               EvidenceData
 }

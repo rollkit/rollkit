@@ -70,7 +70,7 @@ message SignedHeader {
 
 message Data {
   repeated bytes txs = 1;
-  repeated bytes intermediate_state_roots = 2;
+  // repeated bytes intermediate_state_roots = 2;
 }
 
 message Block {
