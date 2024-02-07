@@ -330,7 +330,7 @@ func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 		if m.pendingBlocks.isEmpty() {
 			continue
 		}
-		err := m.submitBlocksToDA(ctx)
+		_, err := m.submitBlocksToDA(ctx)
 		if err != nil {
 			m.logger.Error("error while submitting block to DA", "error", err)
 		}
@@ -826,13 +826,13 @@ func (m *Manager) recordMetrics(block *types.Block) {
 	m.metrics.CommittedHeight.Set(float64(block.Height()))
 }
 
-func (m *Manager) submitBlocksToDA(ctx context.Context) error {
+func (m *Manager) submitBlocksToDA(ctx context.Context) (uint64, error) {
 	submittedAll := false
 	backoff := initialBackoff
 	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
 	numTotalBlocks := len(blocksToSubmit)
-	numSubmittedBlocks := uint64(0)
-	for attempt := 1; ctx.Err() == nil && !submittedAll && attempt <= maxSubmitAttempts; attempt++ {
+	numSubmittedBlocks, attempt := uint64(0), uint64(0)
+	for ctx.Err() == nil && !submittedAll && attempt < maxSubmitAttempts {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit)
 		switch res.Code {
 		case da.StatusSuccess:
@@ -847,6 +847,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			}
 			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
 			blocksToSubmit = notSubmittedBlocks
+
 		case da.StatusError, da.StatusNotFound:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
@@ -856,17 +857,18 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		}
+		attempt += 1
 	}
 
 	if !submittedAll {
-		return fmt.Errorf(
+		return attempt, fmt.Errorf(
 			"failed to submit all blocks to DA layer, submitted %d of %d blocks after %d attempts",
 			numSubmittedBlocks,
 			numTotalBlocks,
 			maxSubmitAttempts,
 		)
 	}
-	return nil
+	return attempt, nil
 }
 
 func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {

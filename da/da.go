@@ -83,7 +83,7 @@ type DAClient struct {
 // SubmitBlocks submits blocks to DA.
 func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) ResultSubmitBlocks {
 	var blobs [][]byte
-	var blobSize uint64
+	blobSize := uint64(0)
 	maxBlobSize, err := dac.DA.MaxBlobSize(ctx)
 	if err != nil {
 		return ResultSubmitBlocks{

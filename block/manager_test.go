@@ -120,8 +120,9 @@ func TestSubmitBlocksToDAHappy(t *testing.T) {
 		m.pendingBlocks.addPendingBlock(blocks[i])
 	}
 
-	err := m.submitBlocksToDA(ctx)
+	numAttempts, err := m.submitBlocksToDA(ctx)
 	require.NoError(err)
+	require.Equal(numAttempts, uint64(1))
 
 	// Blocks A and B are submitted first round because including c triggers size limit. C is then submitted on second round.
 
