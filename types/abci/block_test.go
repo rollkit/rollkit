@@ -31,14 +31,16 @@ func TestToABCIHeaderPB(t *testing.T) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:  header.LastHeaderHash[:],
-		DataHash:        header.DataHash[:],
-		ConsensusHash:   header.ConsensusHash[:],
-		AppHash:         header.AppHash[:],
-		LastResultsHash: header.LastResultsHash[:],
-		EvidenceHash:    types.EmptyEvidenceHash,
-		ProposerAddress: header.ProposerAddress,
-		ChainID:         header.ChainID(),
+		LastCommitHash:     header.LastHeaderHash[:],
+		DataHash:           header.DataHash[:],
+		ConsensusHash:      header.ConsensusHash[:],
+		AppHash:            header.AppHash[:],
+		LastResultsHash:    header.LastResultsHash[:],
+		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
+		ProposerAddress:    header.ProposerAddress,
+		ChainID:            header.ChainID(),
+		ValidatorsHash:     header.ValidatorHash,
+		NextValidatorsHash: header.ValidatorHash,
 	}
 
 	actual, err := ToABCIHeaderPB(&header)
@@ -65,14 +67,16 @@ func TestToABCIHeader(t *testing.T) {
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:  cmbytes.HexBytes(header.LastCommitHash),
-		DataHash:        cmbytes.HexBytes(header.DataHash),
-		ConsensusHash:   cmbytes.HexBytes(header.ConsensusHash),
-		AppHash:         cmbytes.HexBytes(header.AppHash),
-		LastResultsHash: cmbytes.HexBytes(header.LastResultsHash),
-		EvidenceHash:    types.EmptyEvidenceHash,
-		ProposerAddress: header.ProposerAddress,
-		ChainID:         header.ChainID(),
+		LastCommitHash:     cmbytes.HexBytes(header.LastCommitHash),
+		DataHash:           cmbytes.HexBytes(header.DataHash),
+		ConsensusHash:      cmbytes.HexBytes(header.ConsensusHash),
+		AppHash:            cmbytes.HexBytes(header.AppHash),
+		LastResultsHash:    cmbytes.HexBytes(header.LastResultsHash),
+		EvidenceHash:       new(cmtypes.EvidenceData).Hash(),
+		ProposerAddress:    header.ProposerAddress,
+		ChainID:            header.ChainID(),
+		ValidatorsHash:     cmbytes.HexBytes(header.ValidatorHash),
+		NextValidatorsHash: cmbytes.HexBytes(header.ValidatorHash),
 	}
 
 	actual, err := ToABCIHeader(&header)
@@ -91,7 +95,11 @@ func TestToABCIBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash())
+	// we only have one centralize sequencer
+	assert.Equal(t, 1, len(block.SignedHeader.Validators.Validators))
+	val := block.SignedHeader.Validators.Validators[0].Address
+
+	abciCommit := block.SignedHeader.Commit.ToABCICommit(block.Height(), block.Hash(), val, block.Time())
 
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress

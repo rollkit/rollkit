@@ -152,7 +152,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.Version.App = untrusted.Version.App + 1
+				untrusted.BaseHeader.Height = untrusted.BaseHeader.Height + 1
 				return &untrusted, false // Signature verification should fail
 			},
 			err: ErrSignatureVerificationFailed,

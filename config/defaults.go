@@ -11,7 +11,7 @@ const (
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
 	// Version is the current rollkit version
 	// Please keep updated with each new release
-	Version = "0.12.0"
+	Version = "0.38.5"
 )
 
 // DefaultNodeConfig keeps default values of NodeConfig

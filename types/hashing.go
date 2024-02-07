@@ -36,8 +36,8 @@ func (h *Header) Hash() Hash {
 		EvidenceHash:    EmptyEvidenceHash,
 		ProposerAddress: h.ProposerAddress,
 		// Backward compatibility
-		ValidatorsHash:     h.ProposerAddress,
-		NextValidatorsHash: h.ProposerAddress,
+		ValidatorsHash:     cmbytes.HexBytes(h.ValidatorHash),
+		NextValidatorsHash: cmbytes.HexBytes(h.ValidatorHash),
 		ChainID:            h.ChainID(),
 	}
 	return Hash(abciHeader.Hash())

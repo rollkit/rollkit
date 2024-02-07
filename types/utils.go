@@ -32,24 +32,24 @@ func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey) {
 	privKey := ed25519.GenPrivKey()
 	pubKey := privKey.PubKey()
-	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
+	valset := cmtypes.NewValidatorSet(
+		[]*cmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 1},
 		},
-	}, privKey
+	)
+	return valset, privKey
 }
 
 // GetValidatorSet returns a validator set with a single validator
 // with the given key
 func GetValidatorSet(privKey ed25519.PrivKey) *cmtypes.ValidatorSet {
 	pubKey := privKey.PubKey()
-	return &cmtypes.ValidatorSet{
-		Proposer: &cmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
+	valset := cmtypes.NewValidatorSet(
+		[]*cmtypes.Validator{
+			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 1},
 		},
-	}
+	)
+	return valset
 }
 
 // GetRandomBlock returns a block with random data
@@ -124,6 +124,7 @@ func GetRandomHeader() Header {
 		AppHash:         GetRandomBytes(32),
 		LastResultsHash: GetRandomBytes(32),
 		ProposerAddress: GetRandomBytes(32),
+		ValidatorHash:   GetRandomBytes(32),
 	}
 }
 
@@ -135,6 +136,7 @@ func GetRandomNextHeader(header Header) Header {
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
 	nextHeader.ProposerAddress = header.ProposerAddress
+	nextHeader.ValidatorHash = header.ValidatorHash
 	return nextHeader
 }
 
@@ -159,6 +161,9 @@ func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash, privKey ed25
 	signedHeader.Header.BaseHeader.Height = height
 	signedHeader.Header.DataHash = dataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
+	signedHeader.Header.ValidatorHash = valSet.Hash()
+	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + height*10
+
 	commit, err := GetCommit(signedHeader.Header, privKey)
 	if err != nil {
 		return nil, nil, err
@@ -221,6 +226,7 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 		ConsensusHash:   GetRandomBytes(32),
 		AppHash:         make([]byte, 32),
 		LastResultsHash: GetRandomBytes(32),
+		ValidatorHash:   valSet.Hash(),
 		ProposerAddress: valSet.Proposer.Address.Bytes(),
 	}
 	signedHeader := SignedHeader{
@@ -294,11 +300,8 @@ func GetRandomBytes(n int) []byte {
 
 // GetCommit returns a commit with a signature from the given private key over the given header
 func GetCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := privKey.Sign(headerBytes)
+	consensusVote := header.MakeCometBFTVote()
+	sign, err := privKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}

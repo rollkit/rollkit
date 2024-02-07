@@ -496,7 +496,15 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	if err != nil {
 		return nil, err
 	}
-	commit := com.ToABCICommit(heightValue, b.Hash())
+
+	// we should have a single validator
+	if len(b.SignedHeader.Validators.Validators) == 0 {
+		return nil, errors.New("empty validator set found in block")
+	}
+
+	val := b.SignedHeader.Validators.Validators[0].Address
+	commit := com.ToABCICommit(heightValue, b.Hash(), val, b.SignedHeader.Time())
+
 	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
 		return nil, err
@@ -761,7 +769,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
 			EarliestBlockHeight: int64(initial.Height()),
 			EarliestBlockTime:   initial.Time(),
-			CatchingUp:          true, // the client is always syncing in the background to the latest height
+			CatchingUp:          false, // hard-code this to "false" to pass Go IBC relayer's legacy encoding check
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
 			Address:     validator.Address,

@@ -169,7 +169,7 @@ func NewManager(
 		return nil, err
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics, valSet.Hash())
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -633,11 +633,10 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 }
 
 func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
-	headerBytes, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := m.proposerKey.Sign(headerBytes)
+	// note: for compatibility with tendermint light client
+	consensusVote := header.MakeCometBFTVote()
+
+	sign, err := m.proposerKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
@@ -708,6 +707,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
+		block.SignedHeader.Validators = m.validatorSet
+		block.SignedHeader.ValidatorHash = m.validatorSet.Hash()
+
 		/*
 		   here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
 		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
@@ -731,8 +733,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 	}
 
-	block.SignedHeader.Validators = m.validatorSet
-
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -755,7 +755,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// set the commit to current block's signed header
 	block.SignedHeader.Commit = *commit
-
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, block); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
@@ -778,10 +777,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.pendingBlocks.addPendingBlock(block)
 
 	// Commit the new state and block which writes to disk on the proxy app
-	_, _, err = m.executor.Commit(ctx, newState, block, responses)
+	appHash, _, err := m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
 		return err
 	}
+	// Update app hash in state
+	newState.AppHash = appHash
 
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(ctx, blockHeight, responses)

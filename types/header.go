@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"time"
 
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtypes "github.com/cometbft/cometbft/types"
+
 	"github.com/celestiaorg/go-header"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 )
 
 // Hash is a 32-byte array which is used to represent a hash result.
@@ -50,6 +54,9 @@ type Header struct {
 	// This is ABCI specific but smart-contract chains require some way of committing
 	// to transaction receipts/results.
 	LastResultsHash Hash
+
+	// compatibility with tendermint light client
+	ValidatorHash Hash
 
 	// Note that the address can be derived from the pubkey which can be derived
 	// from the signature when using secp256k.
@@ -114,6 +121,29 @@ func (h *Header) ValidateBasic() error {
 	}
 
 	return nil
+}
+
+// MakeCometBFTVote make a cometBFT consensus vote for the sequencer to commit
+// we have the sequencer signs cometBFT consensus vote for compatibility with cometBFT client
+func (h *Header) MakeCometBFTVote() []byte {
+	vote := cmtproto.Vote{
+		Type:   cmtproto.PrecommitType,
+		Height: int64(h.Height()),
+		Round:  0,
+		// Header hash = block hash in rollkit
+		BlockID: cmtproto.BlockID{
+			Hash:          cmbytes.HexBytes(h.Hash()),
+			PartSetHeader: cmtproto.PartSetHeader{},
+		},
+		Timestamp: h.Time(),
+		// proposerAddress = sequencer = validator
+		ValidatorAddress: h.ProposerAddress,
+		ValidatorIndex:   0,
+	}
+	chainID := h.ChainID()
+	consensusVoteBytes := cmtypes.VoteSignBytes(chainID, &vote)
+
+	return consensusVoteBytes
 }
 
 var _ header.Header[*Header] = &Header{}

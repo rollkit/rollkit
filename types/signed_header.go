@@ -155,11 +155,8 @@ func (sh *SignedHeader) ValidateBasic() error {
 
 	signature := sh.Commit.Signatures[0]
 
-	msg, err := sh.Header.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("signature verification failed, unable to marshal header: %v", err)
-	}
-	if !sh.Validators.Validators[0].PubKey.VerifySignature(msg, signature) {
+	vote := sh.Header.MakeCometBFTVote()
+	if !sh.Validators.Validators[0].PubKey.VerifySignature(vote, signature) {
 		return ErrSignatureVerificationFailed
 	}
 	return nil
