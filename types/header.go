@@ -55,7 +55,7 @@ type Header struct {
 	// to transaction receipts/results.
 	LastResultsHash Hash
 
-	// compablity with tendermint light client
+	// compatibility with tendermint light client
 	ValidatorHash Hash
 
 	// Note that the address can be derived from the pubkey which can be derived
