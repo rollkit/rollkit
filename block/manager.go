@@ -733,9 +733,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 	}
 
-	block.SignedHeader.Validators = m.validatorSet
-	block.SignedHeader.ValidatorHash = m.validatorSet.Hash()
-
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
 		if ctx.Err() != nil {
