@@ -177,7 +177,6 @@ func TestSubmitBlocks(t *testing.T) {
 		},
 	}
 
-	// Prepare blocks A, B, C to add to manager's pendingBlocks
 	for _, tc := range testCases {
 		m.pendingBlocks = NewPendingBlocks()
 		t.Run(tc.name, func(t *testing.T) {
