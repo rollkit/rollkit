@@ -33,7 +33,7 @@ require (
 )
 
 require (
-	github.com/celestiaorg/go-header v0.5.2
+	github.com/celestiaorg/go-header v0.5.3
 	github.com/ipfs/go-ds-badger4 v0.1.5
 )
 
