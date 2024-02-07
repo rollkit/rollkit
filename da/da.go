@@ -93,7 +93,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			},
 		}
 	}
-	var submitted uint64
+	var submitted = uint64(0)
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
 		if err != nil {

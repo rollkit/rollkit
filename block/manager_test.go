@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	goDATest "github.com/rollkit/go-da/test"
@@ -98,80 +99,94 @@ func TestIsDAIncluded(t *testing.T) {
 	require.True(m.IsDAIncluded(hash))
 }
 
-// Happy case, all blocks A, B, C are submitted on first round
-func TestSubmitBlocksToDAHappy(t *testing.T) {
+func TestSubmitBlocks(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
 
 	// Create a minimalistic block manager
 	m := &Manager{
-		dalc:          &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger},
-		blockCache:    NewBlockCache(),
-		pendingBlocks: NewPendingBlocks(),
-		logger:        logger,
+		dalc:       &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger},
+		blockCache: NewBlockCache(),
+		logger:     logger,
+	}
+
+	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
+	require.NoError(err)
+
+	testCases := []struct {
+		name                string
+		blocks              []*types.Block
+		isErrExpected       bool
+		expectedNumAttempts uint64
+	}{
+		{
+			name:                "happy path, all blocks A, B, C are submitted on first round",
+			blocks:              []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
+			isErrExpected:       false,
+			expectedNumAttempts: uint64(1),
+		},
+		{
+			name: "blocks A and B are submitted first round because including c triggers blob size limit. C is submitted on second round",
+			blocks: func() []*types.Block {
+				// Find three blocks where two of them are under blob size limit
+				// but adding the third one exceeds the blob size limit
+				var block1, block2, block3 *types.Block
+				for numTxs := 0; ; numTxs += 100 {
+					block1 = types.GetRandomBlock(1, numTxs)
+					blob1, err := block1.MarshalBinary()
+					require.NoError(err)
+
+					block2 = types.GetRandomBlock(2, numTxs)
+					blob2, err := block2.MarshalBinary()
+					require.NoError(err)
+
+					block3 = types.GetRandomBlock(3, numTxs)
+					blob3, err := block3.MarshalBinary()
+					require.NoError(err)
+
+					if uint64(len(blob1)+len(blob2)) < maxDABlobSizeLimit && uint64(len(blob1)+len(blob2)+len(blob3)) > maxDABlobSizeLimit {
+						return []*types.Block{block1, block2, block3}
+					}
+				}
+			}(),
+			isErrExpected:       false,
+			expectedNumAttempts: uint64(2),
+		},
+		{
+			name: "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				for i := 0; i < numBlocks-1; i++ {
+					blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
+				}
+				for numTxs := 0; ; numTxs += 100 {
+					block3 := types.GetRandomBlock(3, numTxs)
+					blob3, err := block3.MarshalBinary()
+					require.NoError(err)
+
+					if uint64(len(blob3)) > maxDABlobSizeLimit {
+						blocks[2] = block3
+						return blocks
+					}
+				}
+			}(),
+			isErrExpected:       true,
+			expectedNumAttempts: uint64(maxSubmitAttempts),
+		},
 	}
 
 	// Prepare blocks A, B, C to add to manager's pendingBlocks
-	numTxs, numBlocks := 5, 3
-	blocks := make([]*types.Block, numBlocks)
-	for i := 0; i < numBlocks; i++ {
-		blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
-		m.pendingBlocks.addPendingBlock(blocks[i])
+	for _, tc := range testCases {
+		m.pendingBlocks = NewPendingBlocks()
+		t.Run(tc.name, func(t *testing.T) {
+			for _, block := range tc.blocks {
+				m.pendingBlocks.addPendingBlock(block)
+			}
+			numAttempts, err := m.submitBlocksToDA(ctx)
+			assert.Equal(t, tc.isErrExpected, err != nil)
+			assert.Equal(t, tc.expectedNumAttempts, numAttempts)
+		})
 	}
-
-	numAttempts, err := m.submitBlocksToDA(ctx)
-	require.NoError(err)
-	require.Equal(numAttempts, uint64(1))
-
-	// Blocks A and B are submitted first round because including c triggers size limit. C is then submitted on second round.
-	limit, err := m.dalc.DA.MaxBlobSize(ctx)
-	require.NoError(err)
-
-	// Find three blocks where two of them are under blob size limit
-	// but adding the third one exceeds the blob size limit
-	var block1, block2, block3 *types.Block
-	for numTxs := 0; ; numTxs += 100 {
-		block1 = types.GetRandomBlock(1, numTxs)
-		blob1, err := block1.MarshalBinary()
-		require.NoError(err)
-
-		block2 = types.GetRandomBlock(2, numTxs)
-		blob2, err := block2.MarshalBinary()
-		require.NoError(err)
-
-		block3 = types.GetRandomBlock(3, numTxs)
-		blob3, err := block3.MarshalBinary()
-		require.NoError(err)
-
-		if uint64(len(blob1)+len(blob2)) < limit && uint64(len(blob1)+len(blob2)+len(blob3)) > limit {
-			m.pendingBlocks.addPendingBlock(block1)
-			m.pendingBlocks.addPendingBlock(block2)
-			m.pendingBlocks.addPendingBlock(block3)
-			break
-		}
-	}
-	numAttempts, err = m.submitBlocksToDA(ctx)
-	require.NoError(err)
-	require.Equal(numAttempts, uint64(2))
-
-	// A and B are submitted successful but C is too big on its own, so C never gets submitted
-	for i := 0; i < numBlocks-1; i++ {
-		blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
-		m.pendingBlocks.addPendingBlock(blocks[i])
-	}
-	for numTxs := 0; ; numTxs += 100 {
-		block3 = types.GetRandomBlock(3, numTxs)
-		blob3, err := block3.MarshalBinary()
-		require.NoError(err)
-
-		if uint64(len(blob3)) > limit {
-			m.pendingBlocks.addPendingBlock(block3)
-			break
-		}
-	}
-	numAttempts, err = m.submitBlocksToDA(ctx)
-	require.NotNil(err)
-	require.Equal(numAttempts, uint64(maxSubmitAttempts))
-
 }
