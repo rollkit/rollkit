@@ -25,6 +25,21 @@ func getManager(t *testing.T) *Manager {
 	}
 }
 
+// getBlockBiggerThan generates a block with the given height bigger than the specified limit.
+func getBlockBiggerThan(blockHeight, limit uint64) (*types.Block, error) {
+	for numTxs := 0; ; numTxs += 100 {
+		block := types.GetRandomBlock(blockHeight, numTxs)
+		blob, err := block.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+
+		if uint64(len(blob)) > limit {
+			return block, nil
+		}
+	}
+}
+
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey()
@@ -109,7 +124,7 @@ func TestIsDAIncluded(t *testing.T) {
 	require.True(m.IsDAIncluded(hash))
 }
 
-func TestSubmitBlocks(t *testing.T) {
+func TestSubmitBlocksToDA(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
@@ -135,24 +150,18 @@ func TestSubmitBlocks(t *testing.T) {
 			blocks: func() []*types.Block {
 				// Find three blocks where two of them are under blob size limit
 				// but adding the third one exceeds the blob size limit
-				var block1, block2, block3 *types.Block
-				for numTxs := 0; ; numTxs += 100 {
-					block1 = types.GetRandomBlock(1, numTxs)
-					blob1, err := block1.MarshalBinary()
-					require.NoError(err)
+				block1 := types.GetRandomBlock(1, 5)
+				blob1, err := block1.MarshalBinary()
+				require.NoError(err)
 
-					block2 = types.GetRandomBlock(2, numTxs)
-					blob2, err := block2.MarshalBinary()
-					require.NoError(err)
+				block2 := types.GetRandomBlock(2, 5)
+				blob2, err := block2.MarshalBinary()
+				require.NoError(err)
 
-					block3 = types.GetRandomBlock(3, numTxs)
-					blob3, err := block3.MarshalBinary()
-					require.NoError(err)
+				block3, err := getBlockBiggerThan(3, maxDABlobSizeLimit-uint64(len(blob1)+len(blob2)))
+				require.NoError(err)
 
-					if uint64(len(blob1)+len(blob2)) < maxDABlobSizeLimit && uint64(len(blob1)+len(blob2)+len(blob3)) > maxDABlobSizeLimit {
-						return []*types.Block{block1, block2, block3}
-					}
-				}
+				return []*types.Block{block1, block2, block3}
 			}(),
 			isErrExpected:               false,
 			expectedPendingBlocksLength: 0,
@@ -165,16 +174,9 @@ func TestSubmitBlocks(t *testing.T) {
 				for i := 0; i < numBlocks-1; i++ {
 					blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
 				}
-				for numTxs := 0; ; numTxs += 100 {
-					block3 := types.GetRandomBlock(3, numTxs)
-					blob3, err := block3.MarshalBinary()
-					require.NoError(err)
-
-					if uint64(len(blob3)) > maxDABlobSizeLimit {
-						blocks[2] = block3
-						return blocks
-					}
-				}
+				blocks[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
+				require.NoError(err)
+				return blocks
 			}(),
 			isErrExpected:               true,
 			expectedPendingBlocksLength: 1,
