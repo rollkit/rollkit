@@ -112,7 +112,7 @@ func TestSubmitBlocks(t *testing.T) {
 		expectedPendingBlocksLength int
 	}{
 		{
-			name:                        "happy path, all blocks A, B, C are submitted on first round",
+			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
 			blocks:                      []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
 			isErrExpected:               false,
 			expectedPendingBlocksLength: 0,
