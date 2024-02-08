@@ -827,35 +827,42 @@ func (m *Manager) recordMetrics(block *types.Block) {
 }
 
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
-	submitted := false
+	submittedAllBlocks := false
 	backoff := initialBackoff
-	blocks := m.pendingBlocks.getPendingBlocks()
-	for attempt := 1; ctx.Err() == nil && !submitted && attempt <= maxSubmitAttempts; attempt++ {
-		res := m.dalc.SubmitBlocks(ctx, blocks)
+	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
+	numTotalBlocks := len(blocksToSubmit)
+	numSubmittedBlocks := 0
+	attempt := 0
+	for ctx.Err() == nil && !submittedAllBlocks && attempt < maxSubmitAttempts {
+		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit)
 		switch res.Code {
 		case da.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit block to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
-			if int(res.SubmittedCount) == len(blocks) {
-				submitted = true
+			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
+			if res.SubmittedCount == uint64(len(blocksToSubmit)) {
+				submittedAllBlocks = true
 			}
-			submittedBlocks := blocks[:res.SubmittedCount]
+			submittedBlocks, notSubmittedBlocks := blocksToSubmit[:res.SubmittedCount], blocksToSubmit[res.SubmittedCount:]
+			numSubmittedBlocks += len(submittedBlocks)
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
 			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
-		case da.StatusError, da.StatusNotFound:
+			blocksToSubmit = notSubmittedBlocks
+		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
-		default:
-			m.logger.Error("DA layer unknown status", "error", res.Message, "attempt", attempt)
-			time.Sleep(backoff)
-			backoff = m.exponentialBackoff(backoff)
 		}
+		attempt += 1
 	}
 
-	if !submitted {
-		return fmt.Errorf("failed to submit block to DA layer after %d attempts", maxSubmitAttempts)
+	if !submittedAllBlocks {
+		return fmt.Errorf(
+			"failed to submit all blocks to DA layer, submitted %d of %d blocks after %d attempts",
+			numSubmittedBlocks,
+			numTotalBlocks,
+			maxSubmitAttempts,
+		)
 	}
 	return nil
 }
