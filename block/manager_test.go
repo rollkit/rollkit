@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	cmtypes "github.com/cometbft/cometbft/types"
-	goDATest "github.com/rollkit/go-da/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
