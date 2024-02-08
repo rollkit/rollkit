@@ -191,8 +191,8 @@ func (b *Block) ToProto() (*pb.Block, error) {
 // ToProto converts Data into protobuf representation and returns it.
 func (d *Data) ToProto() *pb.Data {
 	return &pb.Data{
-		Txs:                    txsToByteSlices(d.Txs),
-		IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
+		Txs: txsToByteSlices(d.Txs),
+		// IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
 		// Note: Temporarily remove Evidence #896
 		// Evidence:               evidenceToProto(d.Evidence),
 	}
@@ -215,7 +215,7 @@ func (b *Block) FromProto(other *pb.Block) error {
 // FromProto fills the Data with data from its protobuf representation
 func (d *Data) FromProto(other *pb.Data) error {
 	d.Txs = byteSlicesToTxs(other.Txs)
-	d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
+	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896
 	// d.Evidence = evidenceFromProto(other.Evidence)
 

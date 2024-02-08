@@ -124,8 +124,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			Commit: *lastCommit,
 		},
 		Data: types.Data{
-			Txs:                    toRollkitTxs(mempoolTxs),
-			IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
+			Txs: toRollkitTxs(mempoolTxs),
+			// IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
 			// Note: Temporarily remove Evidence #896
 			// Evidence:               types.EvidenceData{Evidence: nil},
 		},

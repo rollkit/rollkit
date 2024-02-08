@@ -314,21 +314,21 @@ func getBlockDataWith(nTxs int) *Block {
 	block := &Block{
 		Data: Data{
 			Txs: make(Txs, nTxs),
-			IntermediateStateRoots: IntermediateStateRoots{
-				RawRootsList: make([][]byte, nTxs),
-			},
+			// IntermediateStateRoots: IntermediateStateRoots{
+			// 	RawRootsList: make([][]byte, nTxs),
+			// },
 		},
 	}
 
 	for i := 0; i < nTxs; i++ {
 		block.Data.Txs[i] = GetRandomTx()
-		block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
+		// block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
 	}
 
 	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
 	if nTxs == 0 {
 		block.Data.Txs = nil
-		block.Data.IntermediateStateRoots.RawRootsList = nil
+		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 	return block
 }
