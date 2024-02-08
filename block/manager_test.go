@@ -1,26 +1,31 @@
 package block
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
 // Returns a minimalistic block manager
-func getManager(t *testing.T) *Manager {
-	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
+func getManager(t *testing.T, backend goDA.DA, logger log.Logger) *Manager {
 	return &Manager{
-		dalc:       &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger},
+		dalc:       &da.DAClient{DA: backend, GasPrice: -1, Logger: logger},
 		blockCache: NewBlockCache(),
 		logger:     logger,
 	}
@@ -125,11 +130,52 @@ func TestIsDAIncluded(t *testing.T) {
 	require.True(m.IsDAIncluded(hash))
 }
 
+func TestSubmitBlocksToMockDA(t *testing.T) {
+	ctx := context.Background()
+
+	mockDA := &mock.MockDA{}
+	logger := test.NewLogger(t)
+	m := getManager(t, mockDA, logger)
+	m.conf.DABlockTime = time.Millisecond
+
+	t.Run("handle_mempool_errors_gracefully", func(t *testing.T) {
+		var blobs [][]byte
+		block := types.GetRandomBlock(1, 5)
+		blob, err := block.MarshalBinary()
+
+		require.NoError(t, err)
+		blobs = append(blobs, blob)
+		// Set up the mock to throw timeout waiting for tx to be included once
+		// tx already in mempool 10 times
+		// then submit successfully
+		mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
+		mockDA.
+			On("Submit", blobs, float64(-1)).
+			Return([][]byte{}, [][]byte{}, errors.New("timed out waiting for tx to be included in a block")).Once()
+		mockDA.
+			On("Submit", blobs, float64(-1)).
+			Return([][]byte{}, [][]byte{}, errors.New("tx already in mempool")).Times(10)
+		mockDA.
+			On("Submit", blobs, float64(-1)).
+			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, [][]byte{[]byte("proof")}, nil)
+
+		m.pendingBlocks = NewPendingBlocks()
+		m.pendingBlocks.addPendingBlock(block)
+		// should have slept at least 10 * DABlockTime to avoid resubmitting too fast
+		before := time.Now().UnixMilli()
+		err = m.submitBlocksToDA(ctx)
+		after := time.Now().UnixMilli()
+		assert.LessOrEqual(t, int64(10), after-before)
+		require.NoError(t, err)
+	})
+}
+
 func TestSubmitBlocksToDA(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t)
+	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
+	m := getManager(t, goDATest.NewDummyDA(), logger)
 
 	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
 	require.NoError(err)

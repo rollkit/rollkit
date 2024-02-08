@@ -113,6 +113,16 @@ func NewLogger(t *testing.T) *Logger {
 	}
 }
 
+// With returns a new Logger with the given keyvals added.
+func (t *Logger) With(keyvals ...interface{}) log.Logger {
+	t.T.Helper()
+	t.mtx.Lock()
+	return &Logger{
+		T:   t.T,
+		mtx: new(sync.Mutex),
+	}
+}
+
 // Debug prints a debug message.
 func (t *Logger) Debug(msg string, keyvals ...interface{}) {
 	t.T.Helper()

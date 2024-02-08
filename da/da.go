@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -29,6 +30,12 @@ var (
 
 	// ErrBlobSizeOverLimit is used to indicate that the blob size is over limit
 	ErrBlobSizeOverLimit = errors.New("blob: over size limit")
+
+	// ErrTxTimedout is the error message returned by the DA when mempool is congested
+	ErrTxTimedout = "timed out waiting for tx to be included in a block"
+
+	// ErrTxAlreadyInMempool is  the error message returned by the DA when tx is already in mempool
+	ErrTxAlreadyInMempool = "tx already in mempool"
 )
 
 // StatusCode is a type for DA layer return status.
@@ -42,6 +49,8 @@ const (
 	StatusUnknown StatusCode = iota
 	StatusSuccess
 	StatusNotFound
+	StatusNotIncludedInBlock
+	StatusAlreadyInMempool
 	StatusError
 )
 
@@ -125,9 +134,16 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 	defer cancel()
 	ids, err := dac.DA.Submit(ctx, blobs, dac.GasPrice, dac.Namespace)
 	if err != nil {
+		status := StatusError
+		switch {
+		case strings.Contains(err.Error(), ErrTxTimedout):
+			status = StatusNotIncludedInBlock
+		case strings.Contains(err.Error(), ErrTxAlreadyInMempool):
+			status = StatusAlreadyInMempool
+		}
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
-				Code:    StatusError,
+				Code:    status,
 				Message: "failed to submit blocks: " + err.Error(),
 			},
 		}
