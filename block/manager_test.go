@@ -150,11 +150,11 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			blocks: func() []*types.Block {
 				// Find three blocks where two of them are under blob size limit
 				// but adding the third one exceeds the blob size limit
-				block1 := types.GetRandomBlock(1, 5)
+				block1 := types.GetRandomBlock(1, 100)
 				blob1, err := block1.MarshalBinary()
 				require.NoError(err)
 
-				block2 := types.GetRandomBlock(2, 5)
+				block2 := types.GetRandomBlock(2, 100)
 				blob2, err := block2.MarshalBinary()
 				require.NoError(err)
 
