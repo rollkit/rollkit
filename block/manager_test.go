@@ -106,14 +106,16 @@ func TestSubmitBlocks(t *testing.T) {
 	require.NoError(err)
 
 	testCases := []struct {
-		name          string
-		blocks        []*types.Block
-		isErrExpected bool
+		name                        string
+		blocks                      []*types.Block
+		isErrExpected               bool
+		expectedPendingBlocksLength int
 	}{
 		{
-			name:          "happy path, all blocks A, B, C are submitted on first round",
-			blocks:        []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
-			isErrExpected: false,
+			name:                        "happy path, all blocks A, B, C are submitted on first round",
+			blocks:                      []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
+			isErrExpected:               false,
+			expectedPendingBlocksLength: 0,
 		},
 		{
 			name: "blocks A and B are submitted first round because including c triggers blob size limit. C is submitted on second round",
@@ -139,7 +141,8 @@ func TestSubmitBlocks(t *testing.T) {
 					}
 				}
 			}(),
-			isErrExpected: false,
+			isErrExpected:               false,
+			expectedPendingBlocksLength: 0,
 		},
 		{
 			name: "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
@@ -160,7 +163,8 @@ func TestSubmitBlocks(t *testing.T) {
 					}
 				}
 			}(),
-			isErrExpected: true,
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 1,
 		},
 	}
 
@@ -172,6 +176,7 @@ func TestSubmitBlocks(t *testing.T) {
 			}
 			err := m.submitBlocksToDA(ctx)
 			assert.Equal(t, tc.isErrExpected, err != nil)
+			assert.Equal(t, tc.expectedPendingBlocksLength, len(m.pendingBlocks.getPendingBlocks()))
 		})
 	}
 }
