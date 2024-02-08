@@ -118,7 +118,7 @@ func TestSubmitBlocks(t *testing.T) {
 			expectedPendingBlocksLength: 0,
 		},
 		{
-			name: "blocks A and B are submitted first round because including c triggers blob size limit. C is submitted on second round",
+			name: "blocks A and B are submitted together without C because including C triggers blob size limit. C is submitted in a separate round",
 			blocks: func() []*types.Block {
 				// Find three blocks where two of them are under blob size limit
 				// but adding the third one exceeds the blob size limit
