@@ -848,13 +848,8 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			}
 			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
 			blocksToSubmit = notSubmittedBlocks
-
-		case da.StatusError, da.StatusNotFound:
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			time.Sleep(backoff)
-			backoff = m.exponentialBackoff(backoff)
 		default:
-			m.logger.Error("DA layer unknown status response", "error", res.Message, "attempt", attempt)
+			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		}
