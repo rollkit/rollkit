@@ -5,12 +5,25 @@ import (
 	"testing"
 
 	cmtypes "github.com/cometbft/cometbft/types"
+	goDATest "github.com/rollkit/go-da/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
+
+// Returns a minimalistic block manager
+func getManager(t *testing.T) *Manager {
+	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
+	return &Manager{
+		dalc:       &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger},
+		blockCache: NewBlockCache(),
+		logger:     logger,
+	}
+}
 
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
