@@ -831,7 +831,8 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) (uint64, error) {
 	backoff := initialBackoff
 	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
 	numTotalBlocks := len(blocksToSubmit)
-	numSubmittedBlocks, attempt := uint64(0), uint64(0)
+	attempt := uint64(0)
+	numSubmittedBlocks := uint64(0)
 	for ctx.Err() == nil && !submittedAll && attempt < maxSubmitAttempts {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit)
 		switch res.Code {
