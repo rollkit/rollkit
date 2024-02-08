@@ -330,7 +330,7 @@ func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 		if m.pendingBlocks.isEmpty() {
 			continue
 		}
-		_, err := m.submitBlocksToDA(ctx)
+		err := m.submitBlocksToDA(ctx)
 		if err != nil {
 			m.logger.Error("error while submitting block to DA", "error", err)
 		}
@@ -826,7 +826,7 @@ func (m *Manager) recordMetrics(block *types.Block) {
 	m.metrics.CommittedHeight.Set(float64(block.Height()))
 }
 
-func (m *Manager) submitBlocksToDA(ctx context.Context) (uint64, error) {
+func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAll := false
 	backoff := initialBackoff
 	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
@@ -862,14 +862,14 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) (uint64, error) {
 	}
 
 	if !submittedAll {
-		return attempt, fmt.Errorf(
+		return fmt.Errorf(
 			"failed to submit all blocks to DA layer, submitted %d of %d blocks after %d attempts",
 			numSubmittedBlocks,
 			numTotalBlocks,
 			maxSubmitAttempts,
 		)
 	}
-	return attempt, nil
+	return nil
 }
 
 func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {

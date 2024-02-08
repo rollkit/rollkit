@@ -8,10 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goDATest "github.com/rollkit/go-da/test"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -102,29 +99,21 @@ func TestIsDAIncluded(t *testing.T) {
 func TestSubmitBlocks(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
-	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
 
-	// Create a minimalistic block manager
-	m := &Manager{
-		dalc:       &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger},
-		blockCache: NewBlockCache(),
-		logger:     logger,
-	}
+	m := getManager(t)
 
 	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
 	require.NoError(err)
 
 	testCases := []struct {
-		name                string
-		blocks              []*types.Block
-		isErrExpected       bool
-		expectedNumAttempts uint64
+		name          string
+		blocks        []*types.Block
+		isErrExpected bool
 	}{
 		{
-			name:                "happy path, all blocks A, B, C are submitted on first round",
-			blocks:              []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
-			isErrExpected:       false,
-			expectedNumAttempts: uint64(1),
+			name:          "happy path, all blocks A, B, C are submitted on first round",
+			blocks:        []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
+			isErrExpected: false,
 		},
 		{
 			name: "blocks A and B are submitted first round because including c triggers blob size limit. C is submitted on second round",
@@ -150,8 +139,7 @@ func TestSubmitBlocks(t *testing.T) {
 					}
 				}
 			}(),
-			isErrExpected:       false,
-			expectedNumAttempts: uint64(2),
+			isErrExpected: false,
 		},
 		{
 			name: "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
@@ -172,8 +160,7 @@ func TestSubmitBlocks(t *testing.T) {
 					}
 				}
 			}(),
-			isErrExpected:       true,
-			expectedNumAttempts: uint64(maxSubmitAttempts),
+			isErrExpected: true,
 		},
 	}
 
@@ -183,9 +170,8 @@ func TestSubmitBlocks(t *testing.T) {
 			for _, block := range tc.blocks {
 				m.pendingBlocks.addPendingBlock(block)
 			}
-			numAttempts, err := m.submitBlocksToDA(ctx)
+			err := m.submitBlocksToDA(ctx)
 			assert.Equal(t, tc.isErrExpected, err != nil)
-			assert.Equal(t, tc.expectedNumAttempts, numAttempts)
 		})
 	}
 }
