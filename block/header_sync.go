@@ -98,6 +98,9 @@ func (hSyncService *HeaderSyncService) initHeaderStoreAndStartSyncer(ctx context
 // WriteToHeaderStoreAndBroadcast initializes header store if needed and broadcasts provided header.
 // Note: Only returns an error in case header store can't be initialized. Logs error if there's one while broadcasting.
 func (hSyncService *HeaderSyncService) WriteToHeaderStoreAndBroadcast(ctx context.Context, signedHeader *types.SignedHeader) error {
+	if hSyncService.genesis.InitialHeight < 0 || signedHeader.Height() < 0 {
+		return fmt.Errorf("invalid block height; cannot be negative")
+	}
 	isGenesis := signedHeader.Height() == uint64(hSyncService.genesis.InitialHeight)
 	// For genesis header initialize the store and start the syncer
 	if isGenesis {
