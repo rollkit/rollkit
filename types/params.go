@@ -8,13 +8,26 @@ import (
 )
 
 var (
-	ErrMaxBytesCannotBeZero               = errors.New("block.MaxBytes cannot be 0")
-	ErrMaxBytesInvalid                    = errors.New("block.MaxBytes must be -1 or greater than 0")
-	ErrMaxBytesTooBig                     = errors.New("block.MaxBytes is too big")
-	ErrMaxGasInvalid                      = errors.New("block.MaxGas must be greater or equal to -1")
+	// ErrMaxBytesCannotBeZero indicates that the block's MaxBytes cannot be 0.
+	ErrMaxBytesCannotBeZero = errors.New("block.MaxBytes cannot be 0")
+
+	// ErrMaxBytesInvalid indicates that the block's MaxBytes must be either -1 or greater than 0.
+	ErrMaxBytesInvalid = errors.New("block.MaxBytes must be -1 or greater than 0")
+
+	// ErrMaxBytesTooBig indicates that the block's MaxBytes exceeds the maximum allowed size.
+	ErrMaxBytesTooBig = errors.New("block.MaxBytes is too big")
+
+	// ErrMaxGasInvalid indicates that the block's MaxGas must be greater than or equal to -1.
+	ErrMaxGasInvalid = errors.New("block.MaxGas must be greater or equal to -1")
+
+	// ErrVoteExtensionsEnableHeightNegative indicates that the ABCI.VoteExtensionsEnableHeight cannot be negative.
 	ErrVoteExtensionsEnableHeightNegative = errors.New("ABCI.VoteExtensionsEnableHeight cannot be negative")
-	ErrPubKeyTypesEmpty                   = errors.New("len(Validator.PubKeyTypes) must be greater than 0")
-	ErrPubKeyTypeUnknown                  = errors.New("unknown pubkey type")
+
+	// ErrPubKeyTypesEmpty indicates that the Validator.PubKeyTypes length must be greater than 0.
+	ErrPubKeyTypesEmpty = errors.New("len(Validator.PubKeyTypes) must be greater than 0")
+
+	// ErrPubKeyTypeUnknown indicates an encounter with an unknown public key type.
+	ErrPubKeyTypeUnknown = errors.New("unknown pubkey type")
 )
 
 // ConsensusParamsValidateBasic validates the ConsensusParams to ensure all values are within their
