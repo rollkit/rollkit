@@ -15,7 +15,8 @@ var (
 	ErrMaxBytesInvalid = errors.New("block.MaxBytes must be -1 or greater than 0")
 
 	// ErrMaxBytesTooBig indicates that the block's MaxBytes exceeds the maximum allowed size.
-	ErrMaxBytesTooBig = errors.New("block.MaxBytes is too big")
+	// See https://github.com/cometbft/cometbft/blob/2cd0d1a33cdb6a2c76e6e162d892624492c26290/types/params.go#L16
+	ErrMaxBytesTooBig = errors.New("block.MaxBytes is bigger than the maximum permitted block size")
 
 	// ErrMaxGasInvalid indicates that the block's MaxGas must be greater than or equal to -1.
 	ErrMaxGasInvalid = errors.New("block.MaxGas must be greater or equal to -1")
