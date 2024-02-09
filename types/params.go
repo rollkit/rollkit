@@ -65,8 +65,7 @@ func ConsensusParamsValidateBasic(params cmtypes.ConsensusParams) error {
 	}
 
 	// Check if keyType is a known ABCIPubKeyType
-	for i := 0; i < len(params.Validator.PubKeyTypes); i++ {
-		keyType := params.Validator.PubKeyTypes[i]
+	for i, keyType := range params.Validator.PubKeyTypes {
 		if _, ok := cmtypes.ABCIPubKeyTypesToNames[keyType]; !ok {
 			return fmt.Errorf("%w: params.Validator.PubKeyTypes[%d], %s,",
 				ErrPubKeyTypeUnknown,
