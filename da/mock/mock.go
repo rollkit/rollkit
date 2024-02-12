@@ -3,8 +3,9 @@ package mock
 import (
 	"context"
 
-	"github.com/rollkit/go-da"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/rollkit/go-da"
 )
 
 // MockDA is a mock for the DA interface

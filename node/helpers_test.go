@@ -21,7 +21,7 @@ func getMockDA(t *testing.T) *da.DAClient {
 	namespace := make([]byte, len(MockNamespace)/2)
 	_, err := hex.Decode(namespace, []byte(MockNamespace))
 	require.NoError(t, err)
-	return &da.DAClient{DA: goDATest.NewDummyDA(), Namespace: namespace, GasPrice: -1, Logger: log.TestingLogger()}
+	return &da.DAClient{DA: goDATest.NewDummyDA(), Namespace: namespace, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}
 }
 
 func TestMockTester(t *testing.T) {

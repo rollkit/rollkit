@@ -35,6 +35,9 @@ const defaultDABlockTime = 15 * time.Second
 // defaultBlockTime is used only if BlockTime is not configured for manager
 const defaultBlockTime = 1 * time.Second
 
+// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
+const defaultMempoolTTL = 25
+
 // maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
@@ -162,6 +165,11 @@ func NewManager(
 	if conf.BlockTime == 0 {
 		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
 		conf.BlockTime = defaultBlockTime
+	}
+
+	if conf.DAMempoolTTL == 0 {
+		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
+		conf.DAMempoolTTL = defaultMempoolTTL
 	}
 
 	proposerAddress, err := getAddress(proposerKey)
@@ -835,8 +843,15 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
 	numSubmittedBlocks := 0
 	attempt := 0
+	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)
+	if err != nil {
+		return err
+	}
+	initialMaxBlobSize := maxBlobSize
+	initialGasPrice := m.dalc.GasPrice
+	gasPrice := m.dalc.GasPrice
 	for ctx.Err() == nil && !submittedAllBlocks && attempt < maxSubmitAttempts {
-		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit)
+		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
 			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
@@ -850,9 +865,23 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			}
 			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
 			blocksToSubmit = notSubmittedBlocks
+			// reset submission options when successful
+			backoff = initialBackoff
+			maxBlobSize = initialMaxBlobSize
+			gasPrice = initialGasPrice
+			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.conf.DABlockTime
+			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
+			if m.dalc.GasMultiplier != -1 && gasPrice != -1 {
+				gasPrice = gasPrice * m.dalc.GasMultiplier
+			}
+			m.logger.Info("retrying DA layer submission with", "backoff minutes: ", backoff.Minutes(), "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			time.Sleep(backoff)
+			backoff = m.exponentialBackoff(backoff)
+		case da.StatusTooBig:
+			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
+			maxBlobSize = maxBlobSize / 4
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		default:

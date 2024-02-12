@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 func TestMockDAErrors(t *testing.T) {
 	t.Run("submit_timeout", func(t *testing.T) {
 		mockDA := &mock.MockDA{}
-		dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
+		dalc := &DAClient{DA: mockDA, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}
 		blocks := []*types.Block{types.GetRandomBlock(1, 0)}
 		var blobs []da.Blob
 		for _, block := range blocks {
@@ -62,9 +62,9 @@ func TestMockDAErrors(t *testing.T) {
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
 		mockDA := &mock.MockDA{}
-		dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
+		dalc := &DAClient{DA: mockDA, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}
 		// Set up the mock to return an error for MaxBlobSize
-		mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("mock error"))
+		mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("unable to get DA max blob size"))
 		doTestMaxBlockSizeError(t, dalc)
 	})
 }
@@ -116,16 +116,19 @@ func startMockGRPCClient() (*DAClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DAClient{DA: client, GasPrice: -1, Logger: log.TestingLogger()}, nil
+	return &DAClient{DA: client, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}, nil
 }
 
 func doTestSubmitTimeout(t *testing.T, dalc *DAClient, blocks []*types.Block) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	require.NoError(t, err)
+
 	assert := assert.New(t)
 	submitTimeout = 50 * time.Millisecond
-	resp := dalc.SubmitBlocks(ctx, blocks)
+	resp := dalc.SubmitBlocks(ctx, blocks, maxBlobSize, -1)
 	assert.Contains(resp.Message, "context deadline exceeded", "should return context timeout error")
 }
 
@@ -134,8 +137,8 @@ func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
 	defer cancel()
 
 	assert := assert.New(t)
-	resp := dalc.SubmitBlocks(ctx, []*types.Block{})
-	assert.Contains(resp.Message, "unable to get DA max blob size", "should return max blob size error")
+	_, err := dalc.DA.MaxBlobSize(ctx)
+	assert.ErrorContains(err, "unable to get DA max blob size", "should return max blob size error")
 }
 
 func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
@@ -151,9 +154,12 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	blockToDAHeight := make(map[*types.Block]uint64)
 	countAtHeight := make(map[uint64]int)
 
+	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	require.NoError(err)
+
 	submitAndRecordBlocks := func(blocks []*types.Block) {
 		for len(blocks) > 0 {
-			resp := dalc.SubmitBlocks(ctx, blocks)
+			resp := dalc.SubmitBlocks(ctx, blocks, maxBlobSize, -1)
 			assert.Equal(StatusSuccess, resp.Code, resp.Message)
 
 			for _, block := range blocks[:resp.SubmittedCount] {
@@ -197,11 +203,14 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	require.NoError(t, err)
+
 	assert := assert.New(t)
 
 	block1 := types.GetRandomBlock(1, 0)
 	block2 := types.GetRandomBlock(1, 0)
-	resp := dalc.SubmitBlocks(ctx, []*types.Block{block1, block2})
+	resp := dalc.SubmitBlocks(ctx, []*types.Block{block1, block2}, maxBlobSize, -1)
 	assert.Equal(StatusSuccess, resp.Code, "empty blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "empty blocks should batch")
 }
@@ -216,7 +225,7 @@ func doTestSubmitOversizedBlock(t *testing.T, dalc *DAClient) {
 	limit, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(err)
 	oversizedBlock := types.GetRandomBlock(1, int(limit))
-	resp := dalc.SubmitBlocks(ctx, []*types.Block{oversizedBlock})
+	resp := dalc.SubmitBlocks(ctx, []*types.Block{oversizedBlock}, limit, -1)
 	assert.Equal(StatusError, resp.Code, "oversized block should throw error")
 	assert.Contains(resp.Message, "failed to submit blocks: oversized block: blob: over size limit")
 }
@@ -225,11 +234,14 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	require.NoError(t, err)
+
 	assert := assert.New(t)
 
 	block1 := types.GetRandomBlock(1, 1)
 	block2 := types.GetRandomBlock(1, 2)
-	resp := dalc.SubmitBlocks(ctx, []*types.Block{block1, block2})
+	resp := dalc.SubmitBlocks(ctx, []*types.Block{block1, block2}, maxBlobSize, -1)
 	assert.Equal(StatusSuccess, resp.Code, "small blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "small blocks should batch")
 }
@@ -261,12 +273,12 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 	}
 
 	// overflowing blocks submit partially
-	resp := dalc.SubmitBlocks(ctx, []*types.Block{block1, block2})
+	resp := dalc.SubmitBlocks(ctx, []*types.Block{block1, block2}, limit, -1)
 	assert.Equal(StatusSuccess, resp.Code, "overflowing blocks should submit partially")
 	assert.EqualValues(1, resp.SubmittedCount, "submitted count should be partial")
 
 	// retry remaining blocks
-	resp = dalc.SubmitBlocks(ctx, []*types.Block{block2})
+	resp = dalc.SubmitBlocks(ctx, []*types.Block{block2}, limit, -1)
 	assert.Equal(StatusSuccess, resp.Code, "remaining blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
 }

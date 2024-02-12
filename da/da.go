@@ -18,7 +18,7 @@ import (
 
 var (
 	// submitTimeout is the timeout for block submission
-	submitTimeout = 60 * time.Second
+	submitTimeout = 90 * time.Second
 
 	// retrieveTimeout is the timeout for block retrieval
 	retrieveTimeout = 60 * time.Second
@@ -36,6 +36,15 @@ var (
 
 	// ErrTxAlreadyInMempool is  the error message returned by the DA when tx is already in mempool
 	ErrTxAlreadyInMempool = "tx already in mempool"
+
+	// ErrTxIncorrectAccountSequence is the error message returned by the DA when tx has incorrect sequence
+	ErrTxIncorrectAccountSequence = "incorrect account sequence"
+
+	// ErrTxSizeTooBig is the error message returned by the DA when tx size is too big
+	ErrTxSizeTooBig = "tx size is too big"
+
+	// ErrContextDeadline is the error message returned by the DA when context deadline exceeds
+	ErrContextDeadline = "context deadline"
 )
 
 // StatusCode is a type for DA layer return status.
@@ -51,6 +60,8 @@ const (
 	StatusNotFound
 	StatusNotIncludedInBlock
 	StatusAlreadyInMempool
+	StatusTooBig
+	StatusContextDeadline
 	StatusError
 )
 
@@ -84,25 +95,17 @@ type ResultRetrieveBlocks struct {
 
 // DAClient is a new DA implementation.
 type DAClient struct {
-	DA        goDA.DA
+	DA            goDA.DA
+	GasPrice      float64
+	GasMultiplier float64
 	Namespace goDA.Namespace
-	GasPrice  float64
-	Logger    log.Logger
+	Logger        log.Logger
 }
 
 // SubmitBlocks submits blocks to DA.
-func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) ResultSubmitBlocks {
+func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, maxBlobSize uint64, gasPrice float64) ResultSubmitBlocks {
 	var blobs [][]byte
 	var blobSize uint64
-	maxBlobSize, err := dac.DA.MaxBlobSize(ctx)
-	if err != nil {
-		return ResultSubmitBlocks{
-			BaseResult: BaseResult{
-				Code:    StatusError,
-				Message: "unable to get DA max blob size",
-			},
-		}
-	}
 	var submitted uint64
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
@@ -140,6 +143,12 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 			status = StatusNotIncludedInBlock
 		case strings.Contains(err.Error(), ErrTxAlreadyInMempool):
 			status = StatusAlreadyInMempool
+		case strings.Contains(err.Error(), ErrTxIncorrectAccountSequence):
+			status = StatusAlreadyInMempool
+		case strings.Contains(err.Error(), ErrTxSizeTooBig):
+			status = StatusTooBig
+		case strings.Contains(err.Error(), ErrContextDeadline):
+			status = StatusContextDeadline
 		}
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{

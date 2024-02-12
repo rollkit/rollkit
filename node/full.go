@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/stats"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
@@ -222,6 +223,33 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }
 
+type overheadInterceptor struct {
+	logger log.Logger
+}
+
+func (oi *overheadInterceptor) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
+	return ctx
+}
+
+func (oi *overheadInterceptor) HandleRPC(ctx context.Context, rs stats.RPCStats) {
+	switch rs := rs.(type) {
+	case *stats.Begin:
+		// No-op.
+	case *stats.InPayload:
+		oi.logger.Info("overheadInterceptor.HandleRPC", "InPayload", rs.WireLength)
+	case *stats.OutPayload:
+		oi.logger.Info("overheadInterceptor.HandleRPC", "OutPayload", rs.WireLength)
+	case *stats.End:
+	}
+
+}
+
+func (oi *overheadInterceptor) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+	return ctx
+}
+
+func (oi *overheadInterceptor) HandleConn(ctx context.Context, stats stats.ConnStats) {
+}
 func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
 	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
@@ -229,11 +257,11 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 	daClient := goDAProxy.NewClient()
-	err = daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	err = daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithStatsHandler(&overheadInterceptor{logger: logger}))
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing GRPC connection to DA layer: %w", err)
 	}
-	return &da.DAClient{DA: daClient, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
+	return &da.DAClient{DA: daClient, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, GasMultiplier: nodeConfig.DAGasMultiplier, Logger: logger.With("module", "da_client")}, nil
 }
 
 func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {

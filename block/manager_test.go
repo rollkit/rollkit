@@ -25,7 +25,7 @@ import (
 // Returns a minimalistic block manager
 func getManager(t *testing.T, backend goDA.DA, logger log.Logger) *Manager {
 	return &Manager{
-		dalc:       &da.DAClient{DA: backend, GasPrice: -1, Logger: logger},
+		dalc:       &da.DAClient{DA: backend, GasPrice: -1, GasMultiplier: -1, Logger: logger},
 		blockCache: NewBlockCache(),
 		logger:     logger,
 	}

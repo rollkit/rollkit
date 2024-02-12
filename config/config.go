@@ -20,6 +20,8 @@ const (
 	FlagDABlockTime = "rollkit.da_block_time"
 	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
 	FlagDAGasPrice = "rollkit.da_gas_price"
+	// FlagDAGasMultiplier is a flag for specifying the data availability layer gas price retry multiplier
+	FlagDAGasMultiplier = "rollkit.da_gas_multiplier"
 	// FlagDAStartHeight is a flag for specifying the data availability layer start height
 	FlagDAStartHeight = "rollkit.da_start_height"
 	// FlagDANamespace is a flag for specifying the DA namespace ID
@@ -48,6 +50,7 @@ type NodeConfig struct {
 	LazyAggregator     bool                         `mapstructure:"lazy_aggregator"`
 	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
+	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
 
 	// CLI flags
 	DANamespace string `mapstructure:"da_namespace"`
@@ -66,6 +69,8 @@ type BlockManagerConfig struct {
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
 	DAStartHeight uint64 `mapstructure:"da_start_height"`
+	// DAMempoolTTL is the number of DA blocks until transaction is dropped from the mempool.
+	DAMempoolTTL uint64 `mapstructure:"da_mempool_ttl"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
@@ -102,6 +107,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(FlagAggregator)
 	nc.DAAddress = v.GetString(FlagDAAddress)
 	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
+	nc.DAGasMultiplier = v.GetFloat64(FlagDAGasMultiplier)
 	nc.DANamespace = v.GetString(FlagDANamespace)
 	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
@@ -124,6 +130,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(FlagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Float64(FlagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")
+	cmd.Flags().Float64(FlagDAGasMultiplier, def.DAGasMultiplier, "DA gas price multiplier for retrying blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")

@@ -135,9 +135,12 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 
 	startNodeWithCleanup(t, node)
 
+	maxBlobSize, err := fullNode.dalc.DA.MaxBlobSize(ctx)
+	require.NoError(t, err)
+
 	// Submit invalid blocks to the mock DA
 	// Invalid blocks should be ignored by the node
-	submitResp := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{&junkProposerBlock, &junkCommitBlock, b1})
+	submitResp := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{&junkProposerBlock, &junkCommitBlock, b1}, maxBlobSize, -1)
 	require.Equal(t, submitResp.Code, da.StatusSuccess)
 
 	// Only the valid block gets synced
