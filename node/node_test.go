@@ -47,7 +47,7 @@ func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) 
 }
 
 func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey, error) {
-	config := config.NodeConfig{DAAddress: MockServerAddr}
+	config := config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace}
 	switch nodeType {
 	case "light":
 		config.Light = true
