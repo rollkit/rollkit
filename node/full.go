@@ -3,11 +3,13 @@ package node
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
+	"github.com/celestiaorg/celestia-node/share"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -222,12 +224,21 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 }
 
 func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
+	nsBytes := make([]byte, len(nodeConfig.DANamespace)/2)
+	_, err := hex.Decode(nsBytes, []byte(nodeConfig.DANamespace))
+	if err != nil {
+		return nil, err
+	}
+	namespace, err := share.NewBlobNamespaceV0(nsBytes)
+	if err != nil {
+		return nil, err
+	}
 	daClient := goDAProxy.NewClient()
-	err := daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	err = daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing GRPC connection to DA layer: %w", err)
 	}
-	return &da.DAClient{DA: daClient, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
+	return &da.DAClient{DA: daClient, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
 }
 
 func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {

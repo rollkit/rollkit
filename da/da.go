@@ -75,9 +75,10 @@ type ResultRetrieveBlocks struct {
 
 // DAClient is a new DA implementation.
 type DAClient struct {
-	DA       goDA.DA
-	GasPrice float64
-	Logger   log.Logger
+	DA        goDA.DA
+	Namespace goDA.Namespace
+	GasPrice  float64
+	Logger    log.Logger
 }
 
 // SubmitBlocks submits blocks to DA.
@@ -122,7 +123,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 	}
 	ctx, cancel := context.WithTimeout(ctx, submitTimeout)
 	defer cancel()
-	ids, _, err := dac.DA.Submit(ctx, blobs, dac.GasPrice)
+	ids, err := dac.DA.Submit(ctx, blobs, dac.GasPrice, dac.Namespace)
 	if err != nil {
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
@@ -152,7 +153,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 
 // RetrieveBlocks retrieves blocks from DA.
 func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlocks {
-	ids, err := dac.DA.GetIDs(ctx, dataLayerHeight)
+	ids, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
 	if err != nil {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
@@ -174,7 +175,7 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 
 	ctx, cancel := context.WithTimeout(ctx, retrieveTimeout)
 	defer cancel()
-	blobs, err := dac.DA.Get(ctx, ids)
+	blobs, err := dac.DA.Get(ctx, ids, dac.Namespace)
 	if err != nil {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
