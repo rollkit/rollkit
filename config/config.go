@@ -14,6 +14,8 @@ const (
 	FlagAggregator = "rollkit.aggregator"
 	// FlagDAAddress is a flag for specifying the data availability layer address
 	FlagDAAddress = "rollkit.da_address"
+	// FlagDAAuthToken is a flag for specifying the data availability layer auth token
+	FlagDAAuthToken = "rollkit.da_auth_token"
 	// FlagBlockTime is a flag for specifying the block time
 	FlagBlockTime = "rollkit.block_time"
 	// FlagDABlockTime is a flag for specifying the data availability layer block time
@@ -45,6 +47,7 @@ type NodeConfig struct {
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
 	DAAddress          string `mapstructure:"da_address"`
+	DAAuthToken        string `mapstructure:"da_auth_token"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
 	LazyAggregator     bool                         `mapstructure:"lazy_aggregator"`
@@ -106,6 +109,7 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(FlagAggregator)
 	nc.DAAddress = v.GetString(FlagDAAddress)
+	nc.DAAuthToken = v.GetString(FlagDAAuthToken)
 	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
 	nc.DAGasMultiplier = v.GetFloat64(FlagDAGasMultiplier)
 	nc.DANamespace = v.GetString(FlagDANamespace)
@@ -127,6 +131,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagAggregator, def.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
 	cmd.Flags().String(FlagDAAddress, def.DAAddress, "DA address (host:port)")
+	cmd.Flags().String(FlagDAAuthToken, def.DAAuthToken, "DA auth token")
 	cmd.Flags().Duration(FlagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(FlagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Float64(FlagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")

@@ -14,8 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
@@ -26,7 +24,6 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	goDAProxy "github.com/rollkit/go-da/proxy"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -228,12 +225,11 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	if err != nil {
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
-	daClient := goDAProxy.NewClient()
-	err = daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	daClient, err := da.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
 	if err != nil {
-		return nil, fmt.Errorf("error while establishing GRPC connection to DA layer: %w", err)
+		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
-	return &da.DAClient{DA: daClient, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, GasMultiplier: nodeConfig.DAGasMultiplier, Logger: logger.With("module", "da_client")}, nil
+	return &da.DAClient{DA: &daClient.DA, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
 }
 
 func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
