@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/celestiaorg/celestia-node/share"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -224,12 +223,8 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 }
 
 func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
-	nsBytes := make([]byte, len(nodeConfig.DANamespace)/2)
-	_, err := hex.Decode(nsBytes, []byte(nodeConfig.DANamespace))
-	if err != nil {
-		return nil, err
-	}
-	namespace, err := share.NewBlobNamespaceV0(nsBytes)
+	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
+	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
 	if err != nil {
 		return nil, err
 	}
