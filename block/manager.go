@@ -321,6 +321,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 // BlockSubmissionLoop is responsible for submitting blocks to the DA layer.
 func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 	timer := time.NewTicker(m.conf.DABlockTime)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -343,7 +344,9 @@ func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 // block data is retrieved from DA layer.
 func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
+	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.conf.BlockTime)
+	defer blockTicker.Stop()
 	for {
 		select {
 		case <-daTicker.C:
