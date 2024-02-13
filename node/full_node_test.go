@@ -27,27 +27,26 @@ import (
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
 	ctx := context.Background()
-	node := initializeAndStartFullNode(ctx, t)
-	defer cleanUpNode(node, t)
+	fn := initAndStartNodeWithCleanup(ctx, t, FullNodeType).(*FullNode)
+	require.NotNil(t, fn)
 }
 
 func TestMempoolDirectly(t *testing.T) {
 	ctx := context.Background()
 
-	node := initializeAndStartFullNode(ctx, t)
-	defer cleanUpNode(node, t)
-	assert := assert.New(t)
+	node := initAndStartNodeWithCleanup(ctx, t, FullNodeType).(*FullNode)
+	require.NotNil(t, node)
 
-	peerID := getPeerID(assert)
-	verifyTransactions(node, peerID, assert)
-	verifyMempoolSize(node, assert)
+	peerID := getPeerID(t)
+	verifyTransactions(t, node, peerID)
+	verifyMempoolSize(t, node)
 }
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
 func TestTrySyncNextBlockMultiple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, "full")
+	node, signingKey := setupTestNode(ctx, t, FullNodeType)
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
@@ -72,10 +71,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 		DAHeight: state.DAHeight,
 	}
 
-	err = node.Start()
-	require.NoError(t, err)
-	defer cleanUpNode(node, t)
-
+	startNodeWithCleanup(t, node)
 	require.NoError(t, waitUntilBlockHashSeen(node, b2.Hash().String()))
 
 	newHeight := store.Height()
@@ -94,7 +90,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 func TestInvalidBlocksIgnored(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, "full")
+	node, signingKey := setupTestNode(ctx, t, FullNodeType)
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
@@ -135,9 +131,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	// Validate b1 to make sure it's still valid
 	require.NoError(t, b1.ValidateBasic())
 
-	err = node.Start()
-	require.NoError(t, err)
-	defer cleanUpNode(node, t)
+	startNodeWithCleanup(t, node)
 
 	// Submit invalid blocks to the mock DA
 	// Invalid blocks should be ignored by the node
@@ -163,33 +157,35 @@ func setupMockApplication() *mocks.Application {
 }
 
 // generateSingleKey generates a single private key
-func generateSingleKey() crypto.PrivKey {
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	return key
+func generateSingleKey() (crypto.PrivKey, error) {
+	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	return key, err
 }
 
 // getPeerID generates a peer ID
-func getPeerID(assert *assert.Assertions) peer.ID {
-	key := generateSingleKey()
+func getPeerID(t *testing.T) peer.ID {
+	key, err := generateSingleKey()
+	assert.NoError(t, err)
+
 	peerID, err := peer.IDFromPrivateKey(key)
-	assert.NoError(err)
+	assert.NoError(t, err)
 	return peerID
 }
 
 // verifyTransactions checks if transactions are valid
-func verifyTransactions(node *FullNode, peerID peer.ID, assert *assert.Assertions) {
+func verifyTransactions(t *testing.T, node *FullNode, peerID peer.ID) {
 	transactions := []string{"tx1", "tx2", "tx3", "tx4"}
 	for _, tx := range transactions {
 		err := node.Mempool.CheckTx([]byte(tx), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
 			SenderID: node.mempoolIDs.GetForPeer(peerID),
 		})
-		assert.NoError(err)
+		assert.NoError(t, err)
 	}
 }
 
 // verifyMempoolSize checks if the mempool size is as expected
-func verifyMempoolSize(node *FullNode, assert *assert.Assertions) {
-	assert.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+func verifyMempoolSize(t *testing.T, node *FullNode) {
+	assert.NoError(t, testutils.Retry(300, 100*time.Millisecond, func() error {
 		expectedSize := uint64(4 * len("tx*"))
 		actualSize := uint64(node.Mempool.SizeBytes())
 		if expectedSize == actualSize {

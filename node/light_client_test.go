@@ -16,8 +16,7 @@ import (
 func TestLightClient_Panics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ln := initializeAndStartLightNode(ctx, t)
-	defer cleanUpNode(ln, t)
+	ln := initAndStartNodeWithCleanup(ctx, t, LightNodeType).(*LightNode)
 
 	tests := []struct {
 		name string

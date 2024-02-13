@@ -20,32 +20,47 @@ var MockServerAddr = ":7980"
 
 var MockNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
 
+// startNode starts the full node and stops it when the test is done
+func startNodeWithCleanup(t *testing.T, node Node) {
+	require.False(t, node.IsRunning())
+	require.NoError(t, node.Start())
+	require.True(t, node.IsRunning())
+	t.Cleanup(func() {
+		cleanUpNode(node, t)
+	})
+}
+
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
 	assert.NoError(t, node.Stop())
 	assert.False(t, node.IsRunning())
 }
 
-func initializeAndStartFullNode(ctx context.Context, t *testing.T) *FullNode {
-	node := initializeAndStartNode(ctx, t, "full")
-	return node.(*FullNode)
-}
-
-func initializeAndStartLightNode(ctx context.Context, t *testing.T) *LightNode {
-	node := initializeAndStartNode(ctx, t, "light")
-	return node.(*LightNode)
-}
-
-// initializeAndStartNode initializes and starts a test node
-func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) Node {
+// initializeAndStartNode initializes and starts a node of the specified type.
+func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType string) Node {
 	node, _ := setupTestNode(ctx, t, nodeType)
+
 	require.False(t, node.IsRunning())
-	err := node.Start()
-	require.NoError(t, err)
+	require.NoError(t, node.Start())
 	require.True(t, node.IsRunning())
+
+	t.Cleanup(func() {
+		cleanUpNode(node, t)
+	})
+
 	return node
 }
 
+// setupTestNode sets up a test node based on the NodeType.
+func setupTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey) {
+	node, privKey, err := newTestNode(ctx, t, nodeType)
+	require.NoError(t, err)
+	require.NotNil(t, node)
+
+	return node, privKey
+}
+
+// newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey, error) {
 	config := config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace}
 	switch nodeType {
@@ -54,7 +69,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25
 	case "full":
 		config.Light = false
 	default:
-		panic(fmt.Sprint("invalid node type", nodeType))
+		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
 	app := setupMockApplication()
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
@@ -62,25 +77,22 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25
 	if err != nil {
 		return nil, nil, err
 	}
-	key := generateSingleKey()
+
+	key, err := generateSingleKey()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	logger := test.NewFileLogger(t)
 	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
 	return node, genesisValidatorKey, err
 }
 
-// setupTestNode sets up a test node
-func setupTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey) {
-	node, privKey, err := newTestNode(ctx, t, nodeType)
-	require.NoError(t, err)
-	require.NotNil(t, node)
-	return node, privKey
-}
-
 func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 
-	ln := initializeAndStartLightNode(ctx, t)
-	cleanUpNode(ln, t)
-	fn := initializeAndStartFullNode(ctx, t)
-	cleanUpNode(fn, t)
+	ln := initAndStartNodeWithCleanup(ctx, t, "light").(*LightNode)
+	require.NotNil(t, ln)
+	fn := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
+	require.NotNil(t, fn)
 }
