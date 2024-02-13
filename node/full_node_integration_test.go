@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/da"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -544,14 +545,8 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	}
 	dalc := getMockDA(t)
 	bmConfig := getBMConfig()
-	sequencer, _ := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
-	fullNode, _ := createNode(ctx, 1, false, false, keys, bmConfig, t)
-
-	sequencer.(*FullNode).dalc = dalc
-	sequencer.(*FullNode).blockManager.SetDALC(dalc)
-	fullNode.(*FullNode).dalc = dalc
-	fullNode.(*FullNode).blockManager.SetDALC(dalc)
-
+	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, keys, bmConfig, dalc, t)
+	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, keys, bmConfig, dalc, t)
 	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, t)
 
 	require.NoError(sequencer.Start())
@@ -721,6 +716,15 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
+
+	return node, app
+}
+
+func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
+	t.Helper()
+	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, t)
+	node.(*FullNode).dalc = dalc
+	node.(*FullNode).blockManager.SetDALC(dalc)
 
 	return node, app
 }
