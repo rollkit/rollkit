@@ -163,12 +163,14 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 			},
 		}
 	}
-	// ids can be nil if there are no blocks at the requested height.
-	if ids == nil {
+
+	// If no blocks are found, return a non-blocking error.
+	if len(ids) == 0 {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
-				Code:    StatusNotFound,
-				Message: ErrBlobNotFound.Error(),
+				Code:     StatusNotFound,
+				Message:  ErrBlobNotFound.Error(),
+				DAHeight: dataLayerHeight,
 			},
 		}
 	}

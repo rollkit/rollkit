@@ -141,6 +141,22 @@ func TestSubmitRetrieve(t *testing.T) {
 	}
 }
 
+func TestRetrieveNoBlocksFound(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	assert := assert.New(t)
+
+	mockDA := &MockDA{}
+	dalc := &DAClient{DA: mockDA}
+
+	// Set Mock DA to return empty IDs
+	mockDA.On("GetIDs", mock.Anything, mock.Anything).Return([]da.ID{}, nil)
+	result := dalc.RetrieveBlocks(ctx, 123)
+	assert.Equal(StatusNotFound, result.Code, "should return not found")
+	assert.Contains(result.Message, "blob: not found")
+}
+
 func startMockGRPCServ() *grpc.Server {
 	srv := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
 	lis, err := net.Listen("tcp", "127.0.0.1"+":"+strconv.Itoa(7980))
