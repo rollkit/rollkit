@@ -27,26 +27,27 @@ import (
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
 	ctx := context.Background()
-	fn := initAndStartNodeWithCleanup(ctx, t, FullNodeType).(*FullNode)
+	fn := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
 	require.NotNil(t, fn)
 }
 
 func TestMempoolDirectly(t *testing.T) {
 	ctx := context.Background()
 
-	node := initAndStartNodeWithCleanup(ctx, t, FullNodeType).(*FullNode)
+	node := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
 	require.NotNil(t, node)
 
-	peerID := getPeerID(t)
-	verifyTransactions(t, node, peerID)
-	verifyMempoolSize(t, node)
+	assert := assert.New(t)
+	peerID := getPeerID(assert)
+	verifyTransactions(node, peerID, assert)
+	verifyMempoolSize(node, assert)
 }
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
 func TestTrySyncNextBlockMultiple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, FullNodeType)
+	node, signingKey := setupTestNode(ctx, t, "full")
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
@@ -90,7 +91,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 func TestInvalidBlocksIgnored(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, FullNodeType)
+	node, signingKey := setupTestNode(ctx, t, "full")
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
@@ -163,29 +164,29 @@ func generateSingleKey() (crypto.PrivKey, error) {
 }
 
 // getPeerID generates a peer ID
-func getPeerID(t *testing.T) peer.ID {
+func getPeerID(assert *assert.Assertions) peer.ID {
 	key, err := generateSingleKey()
-	assert.NoError(t, err)
+	assert.NoError(err)
 
 	peerID, err := peer.IDFromPrivateKey(key)
-	assert.NoError(t, err)
+	assert.NoError(err)
 	return peerID
 }
 
 // verifyTransactions checks if transactions are valid
-func verifyTransactions(t *testing.T, node *FullNode, peerID peer.ID) {
+func verifyTransactions(node *FullNode, peerID peer.ID, assert *assert.Assertions) {
 	transactions := []string{"tx1", "tx2", "tx3", "tx4"}
 	for _, tx := range transactions {
 		err := node.Mempool.CheckTx([]byte(tx), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
 			SenderID: node.mempoolIDs.GetForPeer(peerID),
 		})
-		assert.NoError(t, err)
+		assert.NoError(err)
 	}
 }
 
 // verifyMempoolSize checks if the mempool size is as expected
-func verifyMempoolSize(t *testing.T, node *FullNode) {
-	assert.NoError(t, testutils.Retry(300, 100*time.Millisecond, func() error {
+func verifyMempoolSize(node *FullNode, assert *assert.Assertions) {
+	assert.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
 		expectedSize := uint64(4 * len("tx*"))
 		actualSize := uint64(node.Mempool.SizeBytes())
 		if expectedSize == actualSize {
