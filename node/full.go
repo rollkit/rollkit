@@ -226,7 +226,7 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 	daClient := goDAProxy.NewClient()
 	err = daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
