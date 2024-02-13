@@ -28,7 +28,7 @@ var DefaultNodeConfig = NodeConfig{
 	},
 	DAAddress:   ":26650",
 	DAGasPrice:  -1,
-	DANamespace: "00000000000000000000000000000000000000000000000000deadbeef",
+	DANamespace: "0000000000000000000000000000000000000000000000000000000000",
 	Light:       false,
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
