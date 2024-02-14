@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	ds "github.com/ipfs/go-datastore"
-	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
-	"go.uber.org/multierr"
 
 	"github.com/celestiaorg/go-header"
 
@@ -20,49 +17,50 @@ import (
 )
 
 var (
-	blockPrefix      = "b"
-	indexPrefix      = "i"
-	commitPrefix     = "c"
-	statePrefix      = "s"
-	responsesPrefix  = "r"
-	validatorsPrefix = "v"
+	blockPrefix     = "b"
+	indexPrefix     = "i"
+	commitPrefix    = "c"
+	statePrefix     = "s"
+	responsesPrefix = "r"
 )
 
 // DefaultStore is a default store implmementation.
 type DefaultStore struct {
-	db ds.TxnDatastore
-
-	height uint64
-	ctx    context.Context
+	db     ds.TxnDatastore
+	height atomic.Uint64
 }
 
 var _ Store = &DefaultStore{}
 
 // New returns new, default store.
-func New(ctx context.Context, ds ds.TxnDatastore) Store {
+func New(ds ds.TxnDatastore) Store {
 	return &DefaultStore{
-		db:  ds,
-		ctx: ctx,
+		db: ds,
 	}
 }
 
 // SetHeight sets the height saved in the Store if it is higher than the existing height
-func (s *DefaultStore) SetHeight(height uint64) {
-	storeHeight := atomic.LoadUint64(&s.height)
-	if height > storeHeight {
-		_ = atomic.CompareAndSwapUint64(&s.height, storeHeight, height)
+func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) {
+	for {
+		storeHeight := s.height.Load()
+		if height <= storeHeight {
+			break
+		}
+		if s.height.CompareAndSwap(storeHeight, height) {
+			break
+		}
 	}
 }
 
 // Height returns height of the highest block saved in the Store.
 func (s *DefaultStore) Height() uint64 {
-	return atomic.LoadUint64(&s.height)
+	return s.height.Load()
 }
 
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
-func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error {
-	hash := block.SignedHeader.Header.Hash()
+func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit *types.Commit) error {
+	hash := block.Hash()
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal Block to binary: %w", err)
@@ -73,42 +71,47 @@ func (s *DefaultStore) SaveBlock(block *types.Block, commit *types.Commit) error
 		return fmt.Errorf("failed to marshal Commit to binary: %w", err)
 	}
 
-	bb, err := s.db.NewTransaction(s.ctx, false)
+	bb, err := s.db.NewTransaction(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
+	defer bb.Discard(ctx)
 
-	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getBlockKey(hash)), blockBlob))
-	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getCommitKey(hash)), commitBlob))
-	err = multierr.Append(err, bb.Put(s.ctx, ds.NewKey(getIndexKey(uint64(block.SignedHeader.Header.Height()))), hash[:]))
-
+	err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
 	if err != nil {
-		bb.Discard(s.ctx)
-		return err
+		return fmt.Errorf("failed to create a new key for Block Blob: %w", err)
+	}
+	err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
+	if err != nil {
+		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
+	}
+	err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
+	if err != nil {
+		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
 	}
 
-	if err = bb.Commit(s.ctx); err != nil {
+	if err = bb.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
 }
 
-// LoadBlock returns block at given height, or error if it's not found in Store.
+// GetBlock returns block at given height, or error if it's not found in Store.
 // TODO(tzdybal): what is more common access pattern? by height or by hash?
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
-func (s *DefaultStore) LoadBlock(height uint64) (*types.Block, error) {
-	h, err := s.loadHashFromIndex(height)
+func (s *DefaultStore) GetBlock(ctx context.Context, height uint64) (*types.Block, error) {
+	h, err := s.loadHashFromIndex(ctx, height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
-	return s.LoadBlockByHash(h)
+	return s.GetBlockByHash(ctx, h)
 }
 
-// LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockByHash(hash types.Hash) (*types.Block, error) {
-	blockData, err := s.db.Get(s.ctx, ds.NewKey(getBlockKey(hash)))
+// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
+func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*types.Block, error) {
+	blockData, err := s.db.Get(ctx, ds.NewKey(getBlockKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load block data: %w", err)
 	}
@@ -122,21 +125,21 @@ func (s *DefaultStore) LoadBlockByHash(hash types.Hash) (*types.Block, error) {
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
-func (s *DefaultStore) SaveBlockResponses(height uint64, responses *tmstate.ABCIResponses) error {
+func (s *DefaultStore) SaveBlockResponses(ctx context.Context, height uint64, responses *abci.ResponseFinalizeBlock) error {
 	data, err := responses.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal response: %w", err)
 	}
-	return s.db.Put(s.ctx, ds.NewKey(getResponsesKey(height)), data)
+	return s.db.Put(ctx, ds.NewKey(getResponsesKey(height)), data)
 }
 
-// LoadBlockResponses returns block results at given height, or error if it's not found in Store.
-func (s *DefaultStore) LoadBlockResponses(height uint64) (*tmstate.ABCIResponses, error) {
-	data, err := s.db.Get(s.ctx, ds.NewKey(getResponsesKey(height)))
+// GetBlockResponses returns block results at given height, or error if it's not found in Store.
+func (s *DefaultStore) GetBlockResponses(ctx context.Context, height uint64) (*abci.ResponseFinalizeBlock, error) {
+	data, err := s.db.Get(ctx, ds.NewKey(getResponsesKey(height)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve block results from height %v: %w", height, err)
 	}
-	var responses tmstate.ABCIResponses
+	var responses abci.ResponseFinalizeBlock
 	err = responses.Unmarshal(data)
 	if err != nil {
 		return &responses, fmt.Errorf("failed to unmarshal data: %w", err)
@@ -144,18 +147,18 @@ func (s *DefaultStore) LoadBlockResponses(height uint64) (*tmstate.ABCIResponses
 	return &responses, nil
 }
 
-// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
-func (s *DefaultStore) LoadCommit(height uint64) (*types.Commit, error) {
-	hash, err := s.loadHashFromIndex(height)
+// GetCommit returns commit for a block at given height, or error if it's not found in Store.
+func (s *DefaultStore) GetCommit(ctx context.Context, height uint64) (*types.Commit, error) {
+	hash, err := s.loadHashFromIndex(ctx, height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
-	return s.LoadCommitByHash(hash)
+	return s.GetCommitByHash(ctx, hash)
 }
 
-// LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) LoadCommitByHash(hash types.Hash) (*types.Commit, error) {
-	commitData, err := s.db.Get(s.ctx, ds.NewKey(getCommitKey(hash)))
+// GetCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
+func (s *DefaultStore) GetCommitByHash(ctx context.Context, hash types.Hash) (*types.Commit, error) {
+	commitData, err := s.db.Get(ctx, ds.NewKey(getCommitKey(hash)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve commit from hash %v: %w", hash, err)
 	}
@@ -169,7 +172,7 @@ func (s *DefaultStore) LoadCommitByHash(hash types.Hash) (*types.Commit, error) 
 
 // UpdateState updates state saved in Store. Only one State is stored.
 // If there is no State in Store, state will be saved.
-func (s *DefaultStore) UpdateState(state types.State) error {
+func (s *DefaultStore) UpdateState(ctx context.Context, state types.State) error {
 	pbState, err := state.ToProto()
 	if err != nil {
 		return fmt.Errorf("failed to marshal state to JSON: %w", err)
@@ -178,12 +181,12 @@ func (s *DefaultStore) UpdateState(state types.State) error {
 	if err != nil {
 		return err
 	}
-	return s.db.Put(s.ctx, ds.NewKey(getStateKey()), data)
+	return s.db.Put(ctx, ds.NewKey(getStateKey()), data)
 }
 
-// LoadState returns last state saved with UpdateState.
-func (s *DefaultStore) LoadState() (types.State, error) {
-	blob, err := s.db.Get(s.ctx, ds.NewKey(getStateKey()))
+// GetState returns last state saved with UpdateState.
+func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
+	blob, err := s.db.Get(ctx, ds.NewKey(getStateKey()))
 	if err != nil {
 		return types.State{}, fmt.Errorf("failed to retrieve state: %w", err)
 	}
@@ -195,48 +198,13 @@ func (s *DefaultStore) LoadState() (types.State, error) {
 
 	var state types.State
 	err = state.FromProto(&pbState)
-	atomic.StoreUint64(&s.height, uint64(state.LastBlockHeight))
+	s.height.Store(state.LastBlockHeight)
 	return state, err
 }
 
-// SaveValidators stores validator set for given block height in store.
-func (s *DefaultStore) SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error {
-	pbValSet, err := validatorSet.ToProto()
-	if err != nil {
-		return fmt.Errorf("failed to marshal ValidatorSet to protobuf: %w", err)
-	}
-	blob, err := pbValSet.Marshal()
-	if err != nil {
-		return fmt.Errorf("failed to marshal ValidatorSet: %w", err)
-	}
-
-	return s.db.Put(s.ctx, ds.NewKey(getValidatorsKey(height)), blob)
-}
-
-// LoadValidators loads validator set at given block height from store.
-func (s *DefaultStore) LoadValidators(height uint64) (*tmtypes.ValidatorSet, error) {
-	blob, err := s.db.Get(s.ctx, ds.NewKey(getValidatorsKey(height)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load Validators for height %v: %w", height, err)
-	}
-	var pbValSet tmproto.ValidatorSet
-	err = pbValSet.Unmarshal(blob)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal to protobuf: %w", err)
-	}
-	if len(pbValSet.Validators) == 0 {
-		return &tmtypes.ValidatorSet{
-			Validators: make([]*tmtypes.Validator, 0),
-			Proposer:   nil,
-		}, nil
-	}
-
-	return tmtypes.ValidatorSetFromProto(&pbValSet)
-}
-
 // loadHashFromIndex returns the hash of a block given its height
-func (s *DefaultStore) loadHashFromIndex(height uint64) (header.Hash, error) {
-	blob, err := s.db.Get(s.ctx, ds.NewKey(getIndexKey(height)))
+func (s *DefaultStore) loadHashFromIndex(ctx context.Context, height uint64) (header.Hash, error) {
+	blob, err := s.db.Get(ctx, ds.NewKey(getIndexKey(height)))
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load block hash for height %v: %w", height, err)
@@ -265,8 +233,4 @@ func getStateKey() string {
 
 func getResponsesKey(height uint64) string {
 	return GenerateKey([]interface{}{responsesPrefix, height})
-}
-
-func getValidatorsKey(height uint64) string {
-	return GenerateKey([]interface{}{validatorsPrefix, height})
 }

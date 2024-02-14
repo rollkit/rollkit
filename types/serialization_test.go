@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -48,13 +48,12 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		AppHash:         h[4],
 		LastResultsHash: h[5],
 		ProposerAddress: []byte{4, 3, 2, 1},
-		AggregatorsHash: h[6],
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
 	pubKey2 := ed25519.GenPrivKey().PubKey()
-	validator1 := &tmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
-	validator2 := &tmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
+	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
+	validator2 := &cmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
 
 	cases := []struct {
 		name  string
@@ -67,8 +66,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				Commit: Commit{
 					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
 				},
-				Validators: &tmtypes.ValidatorSet{
-					Validators: []*tmtypes.Validator{
+				Validators: &cmtypes.ValidatorSet{
+					Validators: []*cmtypes.Validator{
 						validator1,
 						validator2,
 					},
@@ -76,8 +75,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 				},
 			},
 			Data: Data{
-				Txs:                    nil,
-				IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
+				Txs: nil,
+				//IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
 				// TODO(tzdybal): update when we have actual evidence types
 				// Note: Temporarily remove Evidence #896
 				// Evidence: EvidenceData{Evidence: nil},
@@ -104,8 +103,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	valSet := getRandomValidatorSet()
-
 	cases := []struct {
 		name  string
 		state State
@@ -113,14 +110,10 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			"with max bytes",
 			State{
-				LastValidators: valSet,
-				Validators:     valSet,
-				NextValidators: valSet,
-				ConsensusParams: tmproto.ConsensusParams{
-					Block: tmproto.BlockParams{
-						MaxBytes:   123,
-						MaxGas:     456,
-						TimeIotaMs: 789,
+				ConsensusParams: cmproto.ConsensusParams{
+					Block: &cmproto.BlockParams{
+						MaxBytes: 123,
+						MaxGas:   456,
 					},
 				},
 			},
@@ -128,8 +121,8 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			name: "with all fields set",
 			state: State{
-				Version: tmstate.Version{
-					Consensus: tmversion.Consensus{
+				Version: cmstate.Version{
+					Consensus: cmversion.Consensus{
 						Block: 123,
 						App:   456,
 					},
@@ -138,35 +131,30 @@ func TestStateRoundTrip(t *testing.T) {
 				ChainID:         "testchain",
 				InitialHeight:   987,
 				LastBlockHeight: 987654321,
-				LastBlockID: tmtypes.BlockID{
+				LastBlockID: cmtypes.BlockID{
 					Hash: nil,
-					PartSetHeader: tmtypes.PartSetHeader{
+					PartSetHeader: cmtypes.PartSetHeader{
 						Total: 0,
 						Hash:  nil,
 					},
 				},
-				LastBlockTime:               time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
-				DAHeight:                    3344,
-				NextValidators:              valSet,
-				Validators:                  valSet,
-				LastValidators:              valSet,
-				LastHeightValidatorsChanged: 8272,
-				ConsensusParams: tmproto.ConsensusParams{
-					Block: tmproto.BlockParams{
-						MaxBytes:   12345,
-						MaxGas:     6543234,
-						TimeIotaMs: 235,
+				LastBlockTime: time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
+				DAHeight:      3344,
+				ConsensusParams: cmproto.ConsensusParams{
+					Block: &cmproto.BlockParams{
+						MaxBytes: 12345,
+						MaxGas:   6543234,
 					},
-					Evidence: tmproto.EvidenceParams{
+					Evidence: &cmproto.EvidenceParams{
 						MaxAgeNumBlocks: 100,
 						MaxAgeDuration:  200,
 						MaxBytes:        300,
 					},
-					Validator: tmproto.ValidatorParams{
+					Validator: &cmproto.ValidatorParams{
 						PubKeyTypes: []string{"secure", "more secure"},
 					},
-					Version: tmproto.VersionParams{
-						AppVersion: 42,
+					Version: &cmproto.VersionParams{
+						App: 42,
 					},
 				},
 				LastHeightConsensusParamsChanged: 12345,
@@ -201,13 +189,75 @@ func TestStateRoundTrip(t *testing.T) {
 	}
 }
 
-// copied from store_test.go
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
+func TestTxsRoundtrip(t *testing.T) {
+	// Test the nil case
+	var txs Txs
+	byteSlices := txsToByteSlices(txs)
+	newTxs := byteSlicesToTxs(byteSlices)
+	assert.Nil(t, newTxs)
+
+	// Generate 100 random transactions and convert them to byte slices
+	txs = make(Txs, 100)
+	for i := range txs {
+		txs[i] = []byte{byte(i)}
+	}
+	byteSlices = txsToByteSlices(txs)
+
+	// Convert the byte slices back to transactions
+	newTxs = byteSlicesToTxs(byteSlices)
+
+	// Check that the new transactions match the original transactions
+	assert.Equal(t, len(txs), len(newTxs))
+	for i := range txs {
+		assert.Equal(t, txs[i], newTxs[i])
+	}
+}
+
+func TestSignaturesRoundtrip(t *testing.T) {
+	// Test the nil case
+	var sigs []Signature
+	bytes := signaturesToByteSlices(sigs)
+	newSigs := byteSlicesToSignatures(bytes)
+	assert.Nil(t, newSigs)
+
+	// Generate 100 random signatures and convert them to byte slices
+	sigs = make([]Signature, 100)
+	for i := range sigs {
+		sigs[i] = []byte{byte(i)}
+	}
+	bytes = signaturesToByteSlices(sigs)
+
+	// Convert the byte slices back to signatures
+	newSigs = byteSlicesToSignatures(bytes)
+
+	// Check that the new signatures match the original signatures
+	assert.Equal(t, len(sigs), len(newSigs))
+	for i := range sigs {
+		assert.Equal(t, newSigs[i], sigs[i])
+	}
+}
+
+func TestConsensusParamsFromProto(t *testing.T) {
+	// Prepare test case
+	pbParams := cmproto.ConsensusParams{
+		Block: &cmproto.BlockParams{
+			MaxBytes: 12345,
+			MaxGas:   67890,
+		},
+		Validator: &cmproto.ValidatorParams{
+			PubKeyTypes: []string{cmtypes.ABCIPubKeyTypeEd25519},
+		},
+		Version: &cmproto.VersionParams{
+			App: 42,
 		},
 	}
+
+	// Call the function to be tested
+	params := ConsensusParamsFromProto(pbParams)
+
+	// Check the results
+	assert.Equal(t, int64(12345), params.Block.MaxBytes)
+	assert.Equal(t, int64(67890), params.Block.MaxGas)
+	assert.Equal(t, uint64(42), params.Version.App)
+	assert.Equal(t, []string{cmtypes.ABCIPubKeyTypeEd25519}, params.Validator.PubKeyTypes)
 }

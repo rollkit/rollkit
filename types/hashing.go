@@ -1,36 +1,43 @@
 package types
 
 import (
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	cmtypes "github.com/cometbft/cometbft/types"
+)
+
+var (
+	// EmptyEvidenceHash is the hash of an empty EvidenceData
+	EmptyEvidenceHash = new(cmtypes.EvidenceData).Hash()
 )
 
 // Hash returns ABCI-compatible hash of a header.
 func (h *Header) Hash() Hash {
-	abciHeader := tmtypes.Header{
-		Version: tmversion.Consensus{
+	abciHeader := cmtypes.Header{
+		Version: cmversion.Consensus{
 			Block: h.Version.Block,
 			App:   h.Version.App,
 		},
 		Height: int64(h.Height()),
 		Time:   h.Time(),
-		LastBlockID: tmtypes.BlockID{
-			Hash: tmbytes.HexBytes(h.LastHeaderHash),
-			PartSetHeader: tmtypes.PartSetHeader{
+		LastBlockID: cmtypes.BlockID{
+			Hash: cmbytes.HexBytes(h.LastHeaderHash),
+			PartSetHeader: cmtypes.PartSetHeader{
 				Total: 0,
 				Hash:  nil,
 			},
 		},
-		LastCommitHash:     tmbytes.HexBytes(h.LastCommitHash),
-		DataHash:           tmbytes.HexBytes(h.DataHash),
-		ValidatorsHash:     tmbytes.HexBytes(h.AggregatorsHash),
-		NextValidatorsHash: nil,
-		ConsensusHash:      tmbytes.HexBytes(h.ConsensusHash),
-		AppHash:            tmbytes.HexBytes(h.AppHash),
-		LastResultsHash:    tmbytes.HexBytes(h.LastResultsHash),
-		EvidenceHash:       new(tmtypes.EvidenceData).Hash(),
-		ProposerAddress:    h.ProposerAddress,
+		LastCommitHash:  cmbytes.HexBytes(h.LastCommitHash),
+		DataHash:        cmbytes.HexBytes(h.DataHash),
+		ConsensusHash:   cmbytes.HexBytes(h.ConsensusHash),
+		AppHash:         cmbytes.HexBytes(h.AppHash),
+		LastResultsHash: cmbytes.HexBytes(h.LastResultsHash),
+		EvidenceHash:    EmptyEvidenceHash,
+		ProposerAddress: h.ProposerAddress,
+		// Backward compatibility
+		ValidatorsHash:     cmbytes.HexBytes(h.ValidatorHash),
+		NextValidatorsHash: cmbytes.HexBytes(h.ValidatorHash),
 		ChainID:            h.ChainID(),
 	}
 	return Hash(abciHeader.Hash())
@@ -38,5 +45,16 @@ func (h *Header) Hash() Hash {
 
 // Hash returns ABCI-compatible hash of a block.
 func (b *Block) Hash() Hash {
-	return b.SignedHeader.Header.Hash()
+	return b.SignedHeader.Hash()
+}
+
+// Hash returns hash of the Data
+func (d *Data) Hash() (Hash, error) {
+	dBytes, err := d.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return merkle.HashFromByteSlices([][]byte{
+		dBytes,
+	}), nil
 }

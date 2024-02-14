@@ -2,14 +2,13 @@ package p2p
 
 import (
 	"context"
-
-	"go.uber.org/multierr"
+	"errors"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 )
 
 // GossipMessage represents message gossiped via P2P network (e.g. transaction, Block etc).
@@ -77,7 +76,7 @@ func NewGossiper(host host.Host, ps *pubsub.PubSub, topicStr string, logger log.
 func (g *Gossiper) Close() error {
 	err := g.ps.UnregisterTopicValidator(g.topic.String())
 	g.sub.Cancel()
-	return multierr.Combine(
+	return errors.Join(
 		err,
 		g.topic.Close(),
 	)

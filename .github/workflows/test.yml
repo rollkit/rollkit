@@ -4,71 +4,49 @@ name: Tests / Code Coverage
 on:
   workflow_call:
     inputs:
-      GO_VERSION:
-        description: 'Go version to use'
+      go-version:
+        description: "Go version to use"
         type: string
         required: true
 
 jobs:
-  # go_mod_tidy_check:
-  #   name: Go Mod Tidy Check
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-go@v4
-  #       with:
-  #         go-version: ${{ inputs.GO_VERSION }}
-  #     - run: go mod tidy
-  #     - name: check for diff
-  #       run: git diff --exit-code
-
-  test_coverage:
-    name: Unit Tests Coverage
+  go_mod_tidy_check:
+    name: Go Mod Tidy Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: set up go
-        uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.GO_VERSION }}
-      - name: Test & Coverage
-        run: make cover
-      - uses: codecov/codecov-action@v3.1.4
-        with:
-          file: ./coverage.txt
+          go-version: ${{ inputs.go-version }}
+      - run: go mod tidy
+      - name: check for diff
+        run: git diff --exit-code
 
   unit_test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: set up go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.GO_VERSION }}
-      - name: execute test run
-        run: make test-unit
-
-  unit_race_test:
-    name: Run Unit Tests with Race Detector
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: set up go
-        uses: actions/setup-go@v4
+          go-version: ${{ inputs.go-version }}
+      - name: Run unit test
+        run: make test
+      - name: upload coverage report
+        uses: codecov/codecov-action@v4.0.1
         with:
-          go-version: ${{ inputs.GO_VERSION }}
-      - name: execute test run
-        run: make test-unit-race
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.txt
 
   integration_test:
     name: Run Integration Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: set up go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ inputs.GO_VERSION }}
+          go-version: ${{ inputs.go-version }}
       - name: Integration Tests
         run: echo "No integration tests yet"

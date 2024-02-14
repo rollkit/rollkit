@@ -3,54 +3,63 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	mrand "math/rand"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	cmconfig "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/proxy"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proxy"
-	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/rollkit/rollkit/config"
-	mockda "github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/mocks"
-	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
+
+	testutils "github.com/celestiaorg/utils/test"
 )
+
+func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	return &abci.ResponsePrepareProposal{
+		Txs: req.Txs,
+	}, nil
+}
 
 func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	anotherKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		BlockTime: 1 * time.Second,
 	}
-	node, err := newFullNode(context.Background(), config.NodeConfig{DALayer: "mock", Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -59,27 +68,22 @@ func TestAggregatorMode(t *testing.T) {
 	err = node.Start()
 	assert.NoError(err)
 	defer func() {
-		err := node.Stop()
-		assert.NoError(err)
+		assert.NoError(node.Stop())
 	}()
 	assert.True(node.IsRunning())
 
-	pid, err := peer.IDFromPrivateKey(anotherKey)
-	require.NoError(err)
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel = context.WithCancel(context.TODO())
+	defer cancel()
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				node.incomingTxCh <- &p2p.GossipMessage{Data: []byte(time.Now().String()), From: pid}
 				time.Sleep(time.Duration(mrand.Uint32()%20) * time.Millisecond) //nolint:gosec
 			}
 		}
 	}()
-	time.Sleep(3 * time.Second)
-	cancel()
 }
 
 // TestTxGossipingAndAggregation setups a network of nodes, with single aggregator and multiple producers.
@@ -89,42 +93,60 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	require := require.New(t)
 
 	clientNodes := 4
-	nodes, apps := createAndStartNodes(clientNodes, false, t)
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
+	startNodes(nodes, apps, t)
+
+	// wait for nodes to start up and sync up till numBlocksToWaitFor
+	numBlocksToWaitFor := 5
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(waitForAtLeastNBlocks(nodes[i], numBlocksToWaitFor, Store))
+	}
+
+	// Stop all the nodes before checking the calls to ABCI methods were done correctly
+	for _, node := range nodes {
+		assert.NoError(node.Stop())
+	}
+
+	// Now that the nodes have stopped, it should be safe to access the mock
+	// calls outside of the mutex controlled methods.
+	//
+	// The reason we do this is because in the beginning of the test, we
+	// check that we have produced at least N blocks, which means we could
+	// have over produced. So when checking the calls, we also want to check
+	// that we called FinalizeBlock at least N times.
 	aggApp := apps[0]
 	apps = apps[1:]
 
-	aggApp.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
+	checkCalls := func(app *mocks.Application, numBlocks int) error {
+		calls := app.Calls
+		numCalls := 0
+		for _, call := range calls {
+			if call.Method == "FinalizeBlock" {
+				numCalls++
+			}
+		}
+		if numBlocks > numCalls {
+			return fmt.Errorf("expected at least %d calls to FinalizeBlock, got %d calls", numBlocks, numCalls)
+		}
+		return nil
+	}
+
+	require.NoError(checkCalls(aggApp, numBlocksToWaitFor))
 	aggApp.AssertExpectations(t)
 
 	for i, app := range apps {
-		app.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
+		require.NoError(checkCalls(app, numBlocksToWaitFor))
 		app.AssertExpectations(t)
-
-		// assert that we have most of the blocks from aggregator
-		beginCnt := 0
-		endCnt := 0
-		commitCnt := 0
-		for _, call := range app.Calls {
-			switch call.Method {
-			case "BeginBlock":
-				beginCnt++
-			case "EndBlock":
-				endCnt++
-			case "Commit":
-				commitCnt++
-			}
-		}
-		aggregatorHeight := nodes[0].Store.Height()
-		adjustedHeight := int(aggregatorHeight - 3) // 3 is completely arbitrary
-		assert.GreaterOrEqual(beginCnt, adjustedHeight)
-		assert.GreaterOrEqual(endCnt, adjustedHeight)
-		assert.GreaterOrEqual(commitCnt, adjustedHeight)
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
-			aggBlock, err := nodes[0].Store.LoadBlock(h)
+			aggBlock, err := nodes[0].Store.GetBlock(ctx, h)
 			require.NoError(err)
-			nodeBlock, err := nodes[i].Store.LoadBlock(h)
+			nodeBlock, err := nodes[i].Store.GetBlock(ctx, h)
 			require.NoError(err)
 			assert.Equal(aggBlock, nodeBlock, fmt.Sprintf("height: %d", h))
 		}
@@ -136,436 +158,459 @@ func TestLazyAggregator(t *testing.T) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{})
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:   1 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
+		// After the genesis header is published, the syncer is started
+		// which takes little longer (due to initialization) and the syncer
+		// tries to retrieve the genesis header and check that is it recent
+		// (genesis header time is not older than current minus 1.5x blocktime)
+		// to allow sufficient time for syncer initialization, we cannot set
+		// the blocktime too short. in future, we can add a configuration
+		// in go-header syncer initialization to not rely on blocktime, but the
+		// config variable
+		BlockTime: 1 * time.Second,
 	}
-
-	node, err := NewNode(context.Background(), config.NodeConfig{
-		DALayer:            "mock",
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, err := NewNode(ctx, config.NodeConfig{
+		DAAddress:          MockServerAddr,
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
-	}, key, signingKey, proxy.NewLocalClientCreator(app), &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
+	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	assert.False(node.IsRunning())
 	assert.NoError(err)
-	err = node.Start()
-	assert.NoError(err)
+
+	assert.NoError(node.Start())
 	defer func() {
-		err := node.Stop()
-		assert.NoError(err)
+		assert.NoError(node.Stop())
 	}()
 	assert.True(node.IsRunning())
 
-	require.NoError(err)
-
-	// delay to ensure it waits for block 1 to be built
-	time.Sleep(1 * time.Second)
+	require.NoError(waitForFirstBlock(node.(*FullNode), Header))
 
 	client := node.GetClient()
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
-	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(2))
+	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
-	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(3))
+	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
 
 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
-	time.Sleep(2 * time.Second)
-	assert.Equal(node.(*FullNode).Store.Height(), uint64(4))
 
+	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
 }
 
-func TestHeaderExchange(t *testing.T) {
-	testSingleAggreatorSingleFullNode(t)
-	testSingleAggreatorTwoFullNode(t)
-	testSingleAggreatorSingleFullNodeTrustedHash(t)
-	testSingleAggreatorSingleFullNodeSingleLightNode(t)
-}
-
-func testSingleAggreatorSingleFullNode(t *testing.T) {
-	assert := assert.New(t)
+// TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
+func TestFastDASync(t *testing.T) {
+	// Test setup, create require and contexts for aggregator and client nodes
 	require := require.New(t)
-
-	var wg sync.WaitGroup
+	assert := assert.New(t)
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
-	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+	defer cancel()
+
+	// Set test params
+	clientNodes := 2
+	bmConfig := getBMConfig()
+	// Set the DABlockTime to a large value to avoid test failures due to
+	// slow CI machines
+	bmConfig.DABlockTime = 1 * time.Second
+	// Set BlockTime to 2x DABlockTime to ensure that the aggregator node is
+	// producing DA blocks faster than rollup blocks. This is to force the
+	// block syncing to align with DA inclusions.
+	bmConfig.BlockTime = 2 * bmConfig.DABlockTime
+	const numberOfBlocksToSyncTill = 5
+
+	// Create the 2 nodes
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
 
+	// Start node 1
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+	defer func() {
+		assert.NoError(node1.Stop())
+	}()
+
+	// Wait for node 1 to sync the first numberOfBlocksToSyncTill
+	require.NoError(waitForAtLeastNBlocks(node1, numberOfBlocksToSyncTill, Store))
+
+	// Now that node 1 has already synced, start the second node
 	require.NoError(node2.Start())
+	defer func() {
+		assert.NoError(node2.Stop())
+	}()
 
-	time.Sleep(3 * time.Second)
+	// Start and launch the timer in a go routine to ensure that the test
+	// fails if the nodes do not sync before the timer expires
+	ch := make(chan struct{})
+	defer safeClose(ch)
+	// After the first DA block time passes, the node should signal RetrieveLoop once, and it
+	// should catch up to the latest block height pretty soon after.
+	timer := time.NewTimer(1*bmConfig.DABlockTime + 250*time.Millisecond)
+	go func() {
+		select {
+		case <-ch:
+			// Channel closed before timer expired.
+			return
+		case <-timer.C:
+			// Timer expired before channel closed.
+			safeClose(ch)
+			require.FailNow("nodes did not sync before DA Block time")
+			return
+		}
+	}()
 
-	n1h := node1.hExService.headerStore.Height()
-	aggCancel()
-	require.NoError(node1.Stop())
+	// Check that the nodes are synced in a loop. We don't use the helper
+	// function here so that we can catch if the channel is closed to exit
+	// the test quickly.
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		select {
+		case <-ch:
+			require.FailNow("channel closed")
+		default:
+		}
+		nHeight, err := getNodeHeight(node2, Store)
+		if err != nil {
+			return err
+		}
+		if nHeight >= uint64(numberOfBlocksToSyncTill) {
+			return nil
+		}
+		return fmt.Errorf("expected height > %v, got %v", numberOfBlocksToSyncTill, nHeight)
+	}))
 
-	time.Sleep(3 * time.Second)
+	// Verify the nodes are synced
+	require.NoError(verifyNodesSynced(node1, node2, Store))
 
-	n2h := node2.hExService.headerStore.Height()
-	cancel()
-	require.NoError(node2.Stop())
-
-	assert.Equal(n1h, n2h, "heights must match")
+	// Verify that the block we synced to is DA included. This is to
+	// ensure that the test is passing due to the DA syncing, since the P2P
+	// block sync will sync quickly but the block won't be DA included.
+	block, err := node2.Store.GetBlock(ctx, numberOfBlocksToSyncTill)
+	require.NoError(err)
+	require.True(node2.blockManager.IsDAIncluded(block.Hash()))
 }
 
-func testSingleAggreatorTwoFullNode(t *testing.T) {
-	assert := assert.New(t)
+// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
+func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require := require.New(t)
-
-	var wg sync.WaitGroup
+	assert := assert.New(t)
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
-	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+	defer cancel()
+	clientNodes := 3
+	bmConfig := getBMConfig()
+	bmConfig.BlockTime = 1 * time.Second
+	bmConfig.DABlockTime = 10 * time.Second
+	const numberOfBlocksTSyncTill = 5
+
+	ch := make(chan struct{})
+	defer close(ch)
+	timer := time.NewTimer(numberOfBlocksTSyncTill * bmConfig.BlockTime)
+
+	go func() {
+		select {
+		case <-ch:
+			// Channel closed before timer expired.
+			return
+		case <-timer.C:
+			// Timer expired before channel closed.
+			t.Error("nodes did not sync before DA Block time")
+			return
+		}
+	}()
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
 	node3 := nodes[2]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
+	defer func() {
+		assert.NoError(node1.Stop())
+	}()
+	require.NoError(waitForFirstBlock(node1, Store))
 	require.NoError(node2.Start())
+	defer func() {
+		assert.NoError(node2.Stop())
+	}()
 	require.NoError(node3.Start())
+	defer func() {
+		assert.NoError(node3.Stop())
+	}()
 
-	time.Sleep(3 * time.Second)
+	require.NoError(waitForAtLeastNBlocks(node2, numberOfBlocksTSyncTill, Store))
+	require.NoError(waitForAtLeastNBlocks(node3, numberOfBlocksTSyncTill, Store))
 
-	n1h := node1.hExService.headerStore.Height()
-	aggCancel()
-	require.NoError(node1.Stop())
-
-	time.Sleep(3 * time.Second)
-
-	n2h := node2.hExService.headerStore.Height()
-	cancel()
-	require.NoError(node2.Stop())
-
-	n3h := node3.hExService.headerStore.Height()
-	require.NoError(node3.Stop())
-
-	assert.Equal(n1h, n2h, "heights must match")
-	assert.Equal(n1h, n3h, "heights must match")
+	require.NoError(verifyNodesSynced(node1, node2, Store))
+	require.NoError(verifyNodesSynced(node1, node3, Store))
 }
 
-func testSingleAggreatorSingleFullNodeTrustedHash(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
+func TestBlockExchange(t *testing.T) {
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNode(t, Block)
+	})
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorTwoFullNode(t, Block)
+	})
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNodeTrustedHash(t, Block)
+	})
+}
 
-	var wg sync.WaitGroup
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(context.Background())
+func TestHeaderExchange(t *testing.T) {
+	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+		testSingleAggregatorSingleFullNode(t, Header)
+	})
+	t.Run("SingleAggregatorTwoFullNode", func(t *testing.T) {
+		testSingleAggregatorTwoFullNode(t, Header)
+	})
+	t.Run("SingleAggregatorSingleFullNodeTrustedHash", func(t *testing.T) {
+		testSingleAggregatorSingleFullNodeTrustedHash(t, Header)
+	})
+	t.Run("SingleAggregatorSingleFullNodeSingleLightNode", testSingleAggregatorSingleFullNodeSingleLightNode)
+}
+
+func TestSubmitBlocksToDA(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
 	clientNodes := 1
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes+1, false, &wg, t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	nodes, _ := createNodes(
+		ctx,
+		context.Background(),
+		clientNodes,
+		config.BlockManagerConfig{
+			DABlockTime: 20 * time.Millisecond,
+			BlockTime:   10 * time.Millisecond,
+		},
+		t,
+	)
+	seq := nodes[0]
+	require.NoError(seq.Start())
+	defer func() {
+		assert.NoError(seq.Stop())
+	}()
+
+	numberOfBlocksToSyncTill := seq.Store.Height()
+
+	//Make sure all produced blocks made it to DA
+	for i := uint64(1); i <= numberOfBlocksToSyncTill; i++ {
+		require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+			block, err := seq.Store.GetBlock(ctx, i)
+			if err != nil {
+				return err
+			}
+			if !seq.blockManager.IsDAIncluded(block.Hash()) {
+				return fmt.Errorf("block %d not DA included", block.Height())
+			}
+			return nil
+		}))
+	}
+}
+
+func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
 
 	require.NoError(node1.Start())
-	time.Sleep(2 * time.Second) // wait for more than 1 blocktime for syncer to work
-	// Get the trusted hash from node1 and pass it to node2 config
-	trustedHash, err := node1.hExService.headerStore.GetByHeight(aggCtx, 1)
-	require.NoError(err)
-	node2.conf.TrustedHash = trustedHash.Hash().String()
+	defer func() {
+		assert.NoError(node1.Stop())
+	}()
+
+	require.NoError(waitForFirstBlock(node1, source))
 	require.NoError(node2.Start())
 
-	time.Sleep(3 * time.Second)
+	defer func() {
+		assert.NoError(node2.Stop())
+	}()
 
-	n1h := node1.hExService.headerStore.Height()
-	aggCancel()
-	require.NoError(node1.Stop())
-
-	time.Sleep(3 * time.Second)
-
-	n2h := node2.hExService.headerStore.Height()
-	cancel()
-	require.NoError(node2.Stop())
-
-	assert.Equal(n1h, n2h, "heights must match")
+	require.NoError(waitForAtLeastNBlocks(node2, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
 }
 
-func testSingleAggreatorSingleFullNodeSingleLightNode(t *testing.T) {
-	assert := assert.New(t)
+func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	require := require.New(t)
+	assert := assert.New(t)
 
-	var wg sync.WaitGroup
 	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clientNodes := 3
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
 
+	node1 := nodes[0]
+	node2 := nodes[1]
+	node3 := nodes[2]
+
+	require.NoError(node1.Start())
+	defer func() {
+		assert.NoError(node1.Stop())
+	}()
+	require.NoError(waitForFirstBlock(node1, source))
+	require.NoError(node2.Start())
+	defer func() {
+		assert.NoError(node2.Stop())
+	}()
+	require.NoError(node3.Start())
+	defer func() {
+		assert.NoError(node3.Stop())
+	}()
+
+	require.NoError(waitForAtLeastNBlocks(node2, 2, source))
+	require.NoError(waitForAtLeastNBlocks(node3, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
+	require.NoError(verifyNodesSynced(node1, node3, source))
+}
+
+func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clientNodes := 2
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
+
+	node1 := nodes[0]
+	node2 := nodes[1]
+
+	require.NoError(node1.Start())
+	defer func() {
+		assert.NoError(node1.Stop())
+	}()
+
+	require.NoError(waitForFirstBlock(node1, source))
+
+	// Get the trusted hash from node1 and pass it to node2 config
+	trustedHash, err := node1.hSyncService.HeaderStore().GetByHeight(aggCtx, 1)
+	require.NoError(err)
+	node2.nodeConfig.TrustedHash = trustedHash.Hash().String()
+	require.NoError(node2.Start())
+	defer func() {
+		assert.NoError(node2.Stop())
+	}()
+
+	require.NoError(waitForAtLeastNBlocks(node1, 2, source))
+	require.NoError(verifyNodesSynced(node1, node2, source))
+}
+
+func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	num := 3
 	keys := make([]crypto.PrivKey, num)
 	for i := 0; i < num; i++ {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
-	_ = dalc.Start()
-	sequencer, _ := createNode(aggCtx, 0, false, true, false, keys, &wg, t)
-	fullNode, _ := createNode(ctx, 1, false, false, false, keys, &wg, t)
+	dalc := getMockDA()
+	bmConfig := getBMConfig()
+	sequencer, _ := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
+	fullNode, _ := createNode(ctx, 1, false, false, keys, bmConfig, t)
 
 	sequencer.(*FullNode).dalc = dalc
 	sequencer.(*FullNode).blockManager.SetDALC(dalc)
 	fullNode.(*FullNode).dalc = dalc
 	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 
-	lightNode, _ := createNode(ctx, 2, false, false, true, keys, &wg, t)
+	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, t)
 
 	require.NoError(sequencer.Start())
+	defer func() {
+		assert.NoError(sequencer.Stop())
+	}()
 	require.NoError(fullNode.Start())
+	defer func() {
+		assert.NoError(fullNode.Stop())
+	}()
 	require.NoError(lightNode.Start())
+	defer func() {
+		assert.NoError(lightNode.Stop())
+	}()
 
-	time.Sleep(3 * time.Second)
-
-	n1h := sequencer.(*FullNode).hExService.headerStore.Height()
-	aggCancel()
-	require.NoError(sequencer.Stop())
-
-	time.Sleep(3 * time.Second)
-
-	n2h := fullNode.(*FullNode).hExService.headerStore.Height()
-	n3h := lightNode.(*LightNode).hExService.headerStore.Height()
-	cancel()
-	require.NoError(fullNode.Stop())
-	require.NoError(lightNode.Stop())
-
-	assert.Equal(n1h, n2h, "heights must match")
-	assert.Equal(n1h, n3h, "heights must match")
-}
-
-func testSingleAggreatorSingleFullNodeFraudProofGossip(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	var wg sync.WaitGroup
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(context.Background())
-	clientNodes := 1
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
-
-	for _, app := range apps {
-		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
-			wg.Done()
-		}).Once()
-	}
-
-	aggNode := nodes[0]
-	fullNode := nodes[1]
-
-	wg.Add(clientNodes + 1)
-	require.NoError(aggNode.Start())
-	time.Sleep(2 * time.Second)
-	require.NoError(fullNode.Start())
-
-	wg.Wait()
-	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
-	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-	// fullnode should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
-	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-
-	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
-	require.NoError(err)
-	aggCancel()
-	require.NoError(aggNode.Stop())
-
-	n2Frauds, err := fullNode.fraudService.Get(aggCtx, types.StateFraudProofType)
-	require.NoError(err)
-	cancel()
-	require.NoError(fullNode.Stop())
-
-	assert.Equal(len(n1Frauds), 1, "number of fraud proofs received via gossip should be 1")
-	assert.Equal(len(n2Frauds), 1, "number of fraud proofs received via gossip should be 1")
-	assert.Equal(n1Frauds, n2Frauds, "the received fraud proofs after gossip must match")
-}
-
-func testSingleAggreatorTwoFullNodeFraudProofSync(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
-	var wg sync.WaitGroup
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(context.Background())
-	clientNodes := 2
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, true, &wg, t)
-
-	for _, app := range apps {
-		app.On("VerifyFraudProof", mock.Anything).Return(abci.ResponseVerifyFraudProof{Success: true}).Run(func(args mock.Arguments) {
-			wg.Done()
-		}).Once()
-	}
-
-	aggNode := nodes[0]
-	fullNode1 := nodes[1]
-	fullNode2 := nodes[2]
-
-	wg.Add(clientNodes)
-	require.NoError(aggNode.Start())
-	time.Sleep(2 * time.Second)
-	require.NoError(fullNode1.Start())
-
-	wg.Wait()
-	// aggregator should have 0 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[0].AssertNumberOfCalls(t, "GenerateFraudProof", 0)
-	apps[0].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-	// fullnode1 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[1].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
-	apps[1].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-
-	n1Frauds, err := aggNode.fraudService.Get(aggCtx, types.StateFraudProofType)
-	require.NoError(err)
-
-	n2Frauds, err := fullNode1.fraudService.Get(aggCtx, types.StateFraudProofType)
-	require.NoError(err)
-	assert.Equal(n1Frauds, n2Frauds, "number of fraud proofs gossiped between nodes must match")
-
-	wg.Add(1)
-	// delay start node3 such that it can sync the fraud proof from peers, instead of listening to gossip
-	require.NoError(fullNode2.Start())
-
-	wg.Wait()
-	// fullnode2 should have 1 GenerateFraudProof calls and 1 VerifyFraudProof calls
-	apps[2].AssertNumberOfCalls(t, "GenerateFraudProof", 1)
-	apps[2].AssertNumberOfCalls(t, "VerifyFraudProof", 1)
-
-	n3Frauds, err := fullNode2.fraudService.Get(aggCtx, types.StateFraudProofType)
-	require.NoError(err)
-	assert.Equal(n1Frauds, n3Frauds, "number of fraud proofs gossiped between nodes must match")
-
-	aggCancel()
-	require.NoError(aggNode.Stop())
-	cancel()
-	require.NoError(fullNode1.Stop())
-	require.NoError(fullNode2.Stop())
-}
-
-func TestFraudProofService(t *testing.T) {
-	testSingleAggreatorSingleFullNodeFraudProofGossip(t)
-	testSingleAggreatorTwoFullNodeFraudProofSync(t)
-}
-
-// TODO: rewrite this integration test to accommodate gossip/halting mechanism of full nodes after fraud proof generation (#693)
-// TestFraudProofTrigger setups a network of nodes, with single malicious aggregator and multiple producers.
-// Aggregator node should produce malicious blocks, nodes should detect fraud, and generate fraud proofs
-/* func TestFraudProofTrigger(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-	clientNodes := 4
-	nodes, apps := createAndStartNodes(clientNodes, true, t)
-	aggApp := apps[0]
-	apps = apps[1:]
-
-	aggApp.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
-	aggApp.AssertExpectations(t)
-
-	for i, app := range apps {
-		//app.AssertNumberOfCalls(t, "DeliverTx", clientNodes)
-		app.AssertExpectations(t)
-
-		// assert that we have most of the blocks from aggregator
-		beginCnt := 0
-		endCnt := 0
-		commitCnt := 0
-		generateFraudProofCnt := 0
-		for _, call := range app.Calls {
-			switch call.Method {
-			case "BeginBlock":
-				beginCnt++
-			case "EndBlock":
-				endCnt++
-			case "Commit":
-				commitCnt++
-			case "GenerateFraudProof":
-				generateFraudProofCnt++
-			}
-		}
-		aggregatorHeight := nodes[0].Store.Height()
-		adjustedHeight := int(aggregatorHeight - 3) // 3 is completely arbitrary
-		assert.GreaterOrEqual(beginCnt, adjustedHeight)
-		assert.GreaterOrEqual(endCnt, adjustedHeight)
-		assert.GreaterOrEqual(commitCnt, adjustedHeight)
-
-		// GenerateFraudProof should have been called on each call to
-		// BeginBlock, DeliverTx, and EndBlock so the sum of their counts
-		// should be equal.
-		// Note: The value of clientNodes represents number of calls to DeliverTx
-		assert.Equal(beginCnt+clientNodes+endCnt, generateFraudProofCnt)
-
-		// assert that all blocks known to node are same as produced by aggregator
-		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
-			nodeBlock, err := nodes[i].Store.LoadBlock(h)
-			require.NoError(err)
-			aggBlock, err := nodes[0].Store.LoadBlock(h)
-			require.NoError(err)
-			assert.Equal(aggBlock, nodeBlock)
-		}
-	}
-} */
-
-// Creates a starts the given number of client nodes along with an aggregator node. Uses the given flag to decide whether to have the aggregator produce malicious blocks.
-func createAndStartNodes(clientNodes int, isMalicious bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
-	var wg sync.WaitGroup
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(context.Background())
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, isMalicious, &wg, t)
-	startNodes(nodes, &wg, t)
-	aggCancel()
-	time.Sleep(100 * time.Millisecond)
-	for _, n := range nodes {
-		require.NoError(t, n.Stop())
-	}
-	cancel()
-	time.Sleep(100 * time.Millisecond)
-	return nodes, apps
+	require.NoError(waitForAtLeastNBlocks(sequencer.(*FullNode), 2, Header))
+	require.NoError(verifyNodesSynced(sequencer, fullNode, Header))
+	require.NoError(verifyNodesSynced(fullNode, lightNode, Header))
 }
 
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
-func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
-	numNodes := len(nodes)
-	wg.Add((numNodes) * (numNodes - 1))
+func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 
 	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
 	require.NoError(t, nodes[0].Start())
-	time.Sleep(1 * time.Second)
+	require.NoError(t, waitForFirstBlock(nodes[0], Header))
 	for i := 1; i < len(nodes); i++ {
 		require.NoError(t, nodes[i].Start())
 	}
 
 	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
-	time.Sleep(1 * time.Second)
+	for i := 1; i < len(nodes); i++ {
+		require.NoError(t, waitForAtLeastNBlocks(nodes[i], 2, Header))
+	}
 
 	for i := 1; i < len(nodes); i++ {
 		data := strconv.Itoa(i) + time.Now().String()
-		require.NoError(t, nodes[i].P2P.GossipTx(context.TODO(), []byte(data)))
+		require.NoError(t, nodes[i].p2pClient.GossipTx(context.TODO(), []byte(data)))
 	}
 
 	timeout := time.NewTimer(time.Second * 30)
 	doneChan := make(chan struct{})
 	go func() {
 		defer close(doneChan)
-		wg.Wait()
+		// create a MockTester, to catch the Failed asserts from the Mock package
+		m := MockTester{t: t}
+		// We don't need to check any specific arguments to FinalizeBlock
+		// so just use a function that returns "true" for matching the args
+		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
+		err := testutils.Retry(300, 100*time.Millisecond, func() error {
+			for i := 0; i < len(apps); i++ {
+				if !apps[i].AssertCalled(m, "FinalizeBlock", matcher, matcher) {
+					return errors.New("FinalizeBlock hasn't been called yet")
+				}
+			}
+			return nil
+		})
+		assert := assert.New(t)
+		assert.NoError(err)
 	}()
 	select {
 	case <-doneChan:
@@ -575,7 +620,7 @@ func startNodes(nodes []*FullNode, wg *sync.WaitGroup, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *sync.WaitGroup, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -593,18 +638,15 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	ds, _ := store.NewDefaultInMemoryKVStore()
-	_ = dalc.Init([8]byte{}, nil, ds, log.TestingLogger())
-	_ = dalc.Start()
-	node, app := createNode(aggCtx, 0, isMalicious, true, false, keys, wg, t)
+	dalc := getMockDA()
+	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, isMalicious, false, false, keys, wg, t)
+		node, apps[i] = createNode(ctx, i, false, false, keys, bmConfig, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
@@ -613,7 +655,7 @@ func createNodes(aggCtx, ctx context.Context, num int, isMalicious bool, wg *syn
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, isLight bool, keys []crypto.PrivKey, wg *sync.WaitGroup, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -622,12 +664,6 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 	p2pConfig := config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
-	bmConfig := config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		NamespaceID: types.NamespaceID{8, 7, 6, 5, 4, 3, 2, 1},
-		FraudProofs: true,
-	}
 	for i := 0; i < len(keys); i++ {
 		if i == n {
 			continue
@@ -635,52 +671,52 @@ func createNode(ctx context.Context, n int, isMalicious bool, aggregator bool, i
 		r := i
 		id, err := peer.IDFromPrivateKey(keys[r])
 		require.NoError(err)
-		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+r) + "/p2p/" + id.Pretty() + ","
+		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+r) + "/p2p/" + id.Loggable()["peerID"].(string) + ","
 	}
 	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
 
 	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything).Return(abci.ResponseInitChain{})
-	app.On("CheckTx", mock.Anything).Return(abci.ResponseCheckTx{})
-	app.On("BeginBlock", mock.Anything).Return(abci.ResponseBeginBlock{})
-	app.On("EndBlock", mock.Anything).Return(abci.ResponseEndBlock{})
-	app.On("Commit", mock.Anything).Return(abci.ResponseCommit{})
-	maliciousAppHash := []byte{9, 8, 7, 6}
-	nonMaliciousAppHash := []byte{1, 2, 3, 4}
-	if isMalicious && aggregator {
-		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: maliciousAppHash})
-	} else {
-		app.On("GetAppHash", mock.Anything).Return(abci.ResponseGetAppHash{AppHash: nonMaliciousAppHash})
-	}
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 
-	if isMalicious && !aggregator {
-		app.On("GenerateFraudProof", mock.Anything).Return(abci.ResponseGenerateFraudProof{FraudProof: &abci.FraudProof{BlockHeight: 1, FraudulentBeginBlock: &abci.RequestBeginBlock{Hash: []byte("123")}, ExpectedValidAppHash: nonMaliciousAppHash}})
-	}
-	app.On("DeliverTx", mock.Anything).Return(abci.ResponseDeliverTx{}).Run(func(args mock.Arguments) {
-		wg.Done()
-	})
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	genesisValidators, signingKey := getGenesisValidatorSetWithSigner(1)
-	genesis := &tmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
+	pubkeyBytes, err := keys[0].GetPublic().Raw()
+	require.NoError(err)
+	var pubkey ed25519.PubKey = pubkeyBytes
+	genesisValidators := []cmtypes.GenesisValidator{
+		{
+			Address: pubkey.Address(),
+			PubKey:  pubkey,
+			Power:   int64(1),
+			Name:    "sequencer",
+		},
+	}
+
+	genesis := &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
 	// TODO: need to investigate why this needs to be done for light nodes
 	genesis.InitialHeight = 1
 	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
+			DAAddress:          MockServerAddr,
 			P2P:                p2pConfig,
-			DALayer:            "mock",
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
 			Light:              isLight,
 		},
 		keys[n],
-		signingKey,
+		keys[n],
 		proxy.NewLocalClientCreator(app),
 		genesis,
-		log.TestingLogger().With("node", n))
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
+		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
 

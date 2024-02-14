@@ -3,9 +3,8 @@ package txindex
 import (
 	"context"
 
-	"github.com/tendermint/tendermint/libs/service"
-	"github.com/tendermint/tendermint/types"
-
+	"github.com/cometbft/cometbft/libs/service"
+	"github.com/cometbft/cometbft/types"
 	"github.com/rollkit/rollkit/state/indexer"
 )
 
@@ -19,20 +18,24 @@ const (
 // order to index transactions and blocks coming from the event bus.
 type IndexerService struct {
 	service.BaseService
+	ctx context.Context
 
-	txIdxr    TxIndexer
-	blockIdxr indexer.BlockIndexer
-	eventBus  *types.EventBus
+	txIdxr           TxIndexer
+	blockIdxr        indexer.BlockIndexer
+	eventBus         *types.EventBus
+	terminateOnError bool
 }
 
 // NewIndexerService returns a new service instance.
 func NewIndexerService(
+	ctx context.Context,
 	txIdxr TxIndexer,
 	blockIdxr indexer.BlockIndexer,
 	eventBus *types.EventBus,
+	terminateOnError bool,
 ) *IndexerService {
 
-	is := &IndexerService{txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus}
+	is := &IndexerService{ctx: ctx, txIdxr: txIdxr, blockIdxr: blockIdxr, eventBus: eventBus, terminateOnError: terminateOnError}
 	is.BaseService = *service.NewBaseService(nil, "IndexerService", is)
 	return is
 }
@@ -41,52 +44,83 @@ func NewIndexerService(
 // and indexing them by events.
 func (is *IndexerService) OnStart() error {
 	// Use SubscribeUnbuffered here to ensure both subscriptions does not get
-	// cancelled due to not pulling messages fast enough. Cause this might
+	// canceled due to not pulling messages fast enough. Cause this might
 	// sometimes happen when there are no other subscribers.
-	blockHeadersSub, err := is.eventBus.Subscribe(
-		context.Background(),
+	blockSub, err := is.eventBus.SubscribeUnbuffered(
+		is.ctx,
 		subscriber,
-		types.EventQueryNewBlockHeader, 10)
+		types.EventQueryNewBlockEvents)
 	if err != nil {
 		return err
 	}
 
-	txsSub, err := is.eventBus.Subscribe(context.Background(), subscriber, types.EventQueryTx, 10000)
+	txsSub, err := is.eventBus.SubscribeUnbuffered(is.ctx, subscriber, types.EventQueryTx)
 	if err != nil {
 		return err
 	}
 
 	go func() {
 		for {
-			msg := <-blockHeadersSub.Out()
-			eventDataHeader := msg.Data().(types.EventDataNewBlockHeader)
-			height := eventDataHeader.Header.Height
-			batch := NewBatch(eventDataHeader.NumTxs)
+			select {
+			case <-is.ctx.Done():
+				return
+			case <-blockSub.Canceled():
+				return
+			case msg := <-blockSub.Out():
+				eventNewBlockEvents := msg.Data().(types.EventDataNewBlockEvents)
+				height := eventNewBlockEvents.Height
+				numTxs := eventNewBlockEvents.NumTxs
 
-			for i := int64(0); i < eventDataHeader.NumTxs; i++ {
-				msg2 := <-txsSub.Out()
-				txResult := msg2.Data().(types.EventDataTx).TxResult
+				batch := NewBatch(numTxs)
 
-				if err = batch.Add(&txResult); err != nil {
-					is.Logger.Error(
-						"failed to add tx to batch",
-						"height", height,
-						"index", txResult.Index,
-						"err", err,
-					)
+				for i := int64(0); i < numTxs; i++ {
+					select {
+					case <-is.ctx.Done():
+						return
+					case msg2 := <-txsSub.Out():
+						txResult := msg2.Data().(types.EventDataTx).TxResult
+
+						if err = batch.Add(&txResult); err != nil {
+							is.Logger.Error(
+								"failed to add tx to batch",
+								"height", height,
+								"index", txResult.Index,
+								"err", err,
+							)
+
+							if is.terminateOnError {
+								if err := is.Stop(); err != nil {
+									is.Logger.Error("failed to stop", "err", err)
+								}
+								return
+							}
+						}
+					}
 				}
-			}
 
-			if err := is.blockIdxr.Index(eventDataHeader); err != nil {
-				is.Logger.Error("failed to index block", "height", height, "err", err)
-			} else {
-				is.Logger.Info("indexed block", "height", height)
-			}
+				if err := is.blockIdxr.Index(eventNewBlockEvents); err != nil {
+					is.Logger.Error("failed to index block", "height", height, "err", err)
+					if is.terminateOnError {
+						if err := is.Stop(); err != nil {
+							is.Logger.Error("failed to stop", "err", err)
+						}
+						return
+					}
+				} else {
+					is.Logger.Info("indexed block events", "height", height)
+				}
 
-			if err = is.txIdxr.AddBatch(batch); err != nil {
-				is.Logger.Error("failed to index block txs", "height", height, "err", err)
-			} else {
-				is.Logger.Debug("indexed block txs", "height", height, "num_txs", eventDataHeader.NumTxs)
+				if err = is.txIdxr.AddBatch(batch); err != nil {
+					is.Logger.Error("failed to index block txs", "height", height, "err", err)
+					if is.terminateOnError {
+						if err := is.Stop(); err != nil {
+							is.Logger.Error("failed to stop", "err", err)
+						}
+						return
+					}
+				} else {
+					is.Logger.Debug("indexed transactions", "height", height, "num_txs", numTxs)
+				}
 			}
 		}
 	}()
@@ -96,6 +130,6 @@ func (is *IndexerService) OnStart() error {
 // OnStop implements service.Service by unsubscribing from all transactions.
 func (is *IndexerService) OnStop() {
 	if is.eventBus.IsRunning() {
-		_ = is.eventBus.UnsubscribeAll(context.Background(), subscriber)
+		_ = is.eventBus.UnsubscribeAll(is.ctx, subscriber)
 	}
 }

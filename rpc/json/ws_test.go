@@ -9,12 +9,15 @@ import (
 	"testing"
 	"time"
 
+	cmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/go-kit/kit/transport/http/jsonrpc"
+
+	"github.com/cometbft/cometbft/libs/log"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/log"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func TestWebSockets(t *testing.T) {
@@ -47,29 +50,31 @@ func TestWebSockets(t *testing.T) {
     }
 }
 `))
-	assert.NoError(err)
+	require.NoError(err)
 
 	err = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-	assert.NoError(err)
+	require.NoError(err)
 	typ, msg, err := conn.ReadMessage()
-	assert.NoError(err)
+	require.NoError(err)
 	assert.Equal(websocket.TextMessage, typ)
 	assert.NotEmpty(msg)
 
 	// wait for new block event
 	err = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-	assert.NoError(err)
+	require.NoError(err)
 	typ, msg, err = conn.ReadMessage()
-	assert.NoError(err)
+	require.NoError(err)
 	assert.Equal(websocket.TextMessage, typ)
 	assert.NotEmpty(msg)
-	var payload tmtypes.EventDataNewBlock
-	err = json.Unmarshal(msg, &payload)
-	assert.NoError(err)
-	assert.NotNil(payload.ResultBeginBlock)
+	var jsrpcResp jsonrpc.Response
+	err = json.Unmarshal(msg, &jsrpcResp)
+	require.NoError(err)
+	var payload cmtypes.EventDataNewBlock
+	err = cmjson.Unmarshal(jsrpcResp.Result, &payload)
+	require.NoError(err)
+	assert.NotNil(payload.ResultFinalizeBlock)
 	assert.NotNil(payload.Block)
 	assert.GreaterOrEqual(payload.Block.Height, int64(1))
-	assert.NotNil(payload.ResultEndBlock)
 
 	unsubscribeAllReq, err := json2.EncodeClientRequest("unsubscribe_all", &unsubscribeAllArgs{})
 	require.NoError(err)
@@ -80,6 +85,6 @@ func TestWebSockets(t *testing.T) {
 	handler.ServeHTTP(rsp, req)
 	assert.Equal(http.StatusOK, rsp.Code)
 	jsonResp := response{}
-	assert.NoError(json.Unmarshal(rsp.Body.Bytes(), &jsonResp))
+	require.NoError(json.Unmarshal(rsp.Body.Bytes(), &jsonResp))
 	assert.Nil(jsonResp.Error)
 }

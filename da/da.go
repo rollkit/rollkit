@@ -2,17 +2,34 @@ package da
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
+	"fmt"
+	"time"
 
-	ds "github.com/ipfs/go-datastore"
+	"github.com/gogo/protobuf/proto"
 
-	"github.com/rollkit/rollkit/log"
+	goDA "github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-// ErrNotFound is used to indicated that requested data could not be found.
-var ErrDataNotFound = errors.New("data not found")
-var ErrEDSNotFound = errors.New("eds not found")
+var (
+	// submitTimeout is the timeout for block submission
+	submitTimeout = 60 * time.Second
+
+	// retrieveTimeout is the timeout for block retrieval
+	retrieveTimeout = 60 * time.Second
+)
+
+var (
+	// ErrBlobNotFound is used to indicate that the blob was not found.
+	ErrBlobNotFound = errors.New("blob: not found")
+
+	// ErrBlobSizeOverLimit is used to indicate that the blob size is over limit
+	ErrBlobSizeOverLimit = errors.New("blob: over size limit")
+)
 
 // StatusCode is a type for DA layer return status.
 // TODO: define an enum of different non-happy-path cases
@@ -36,22 +53,16 @@ type BaseResult struct {
 	Message string
 	// DAHeight informs about a height on Data Availability Layer for given result.
 	DAHeight uint64
+	// SubmittedCount is the number of successfully submitted blocks.
+	SubmittedCount uint64
 }
 
-// ResultSubmitBlock contains information returned from DA layer after block submission.
-type ResultSubmitBlock struct {
+// ResultSubmitBlocks contains information returned from DA layer after blocks submission.
+type ResultSubmitBlocks struct {
 	BaseResult
 	// Not sure if this needs to be bubbled up to other
 	// parts of Rollkit.
 	// Hash hash.Hash
-}
-
-// ResultCheckBlock contains information about block availability, returned from DA layer client.
-type ResultCheckBlock struct {
-	BaseResult
-	// DataAvailable is the actual answer whether the block is available or not.
-	// It can be true if and only if Code is equal to StatusSuccess.
-	DataAvailable bool
 }
 
 // ResultRetrieveBlocks contains batch of blocks returned from DA layer client.
@@ -62,30 +73,143 @@ type ResultRetrieveBlocks struct {
 	Blocks []*types.Block
 }
 
-// DataAvailabilityLayerClient defines generic interface for DA layer block submission.
-// It also contains life-cycle methods.
-type DataAvailabilityLayerClient interface {
-	// Init is called once to allow DA client to read configuration and initialize resources.
-	Init(namespaceID types.NamespaceID, config []byte, kvStore ds.Datastore, logger log.Logger) error
-
-	// Start is called once, after Init. It's implementation should start operation of DataAvailabilityLayerClient.
-	Start() error
-
-	// Stop is called once, when DataAvailabilityLayerClient is no longer needed.
-	Stop() error
-
-	// SubmitBlock submits the passed in block to the DA layer.
-	// This should create a transaction which (potentially)
-	// triggers a state transition in the DA layer.
-	SubmitBlock(ctx context.Context, block *types.Block) ResultSubmitBlock
-
-	// CheckBlockAvailability queries DA layer to check data availability of block corresponding at given height.
-	CheckBlockAvailability(ctx context.Context, dataLayerHeight uint64) ResultCheckBlock
+// DAClient is a new DA implementation.
+type DAClient struct {
+	DA       goDA.DA
+	GasPrice float64
+	Logger   log.Logger
 }
 
-// BlockRetriever is additional interface that can be implemented by Data Availability Layer Client that is able to retrieve
-// block data from DA layer. This gives the ability to use it for block synchronization.
-type BlockRetriever interface {
-	// RetrieveBlocks returns blocks at given data layer height from data availability layer.
-	RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlocks
+// SubmitBlocks submits blocks to DA.
+func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) ResultSubmitBlocks {
+	var blobs [][]byte
+	var blobSize uint64
+	maxBlobSize, err := dac.DA.MaxBlobSize(ctx)
+	if err != nil {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "unable to get DA max blob size",
+			},
+		}
+	}
+	var submitted uint64
+	for i := range blocks {
+		blob, err := blocks[i].MarshalBinary()
+		if err != nil {
+			return ResultSubmitBlocks{
+				BaseResult: BaseResult{
+					Code:    StatusError,
+					Message: "failed to serialize block",
+				},
+			}
+		}
+		if blobSize+uint64(len(blob)) > maxBlobSize {
+			dac.Logger.Info("blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			break
+		}
+		blobSize += uint64(len(blob))
+		submitted += 1
+		blobs = append(blobs, blob)
+	}
+	if submitted == 0 {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "failed to submit blocks: oversized block: " + ErrBlobSizeOverLimit.Error(),
+			},
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, submitTimeout)
+	defer cancel()
+	ids, _, err := dac.DA.Submit(ctx, blobs, dac.GasPrice)
+	if err != nil {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "failed to submit blocks: " + err.Error(),
+			},
+		}
+	}
+
+	if len(ids) == 0 {
+		return ResultSubmitBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusError,
+				Message: "failed to submit blocks: unexpected len(ids): 0",
+			},
+		}
+	}
+
+	return ResultSubmitBlocks{
+		BaseResult: BaseResult{
+			Code:           StatusSuccess,
+			DAHeight:       binary.LittleEndian.Uint64(ids[0]),
+			SubmittedCount: submitted,
+		},
+	}
+}
+
+// RetrieveBlocks retrieves blocks from DA.
+func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlocks {
+	ids, err := dac.DA.GetIDs(ctx, dataLayerHeight)
+	if err != nil {
+		return ResultRetrieveBlocks{
+			BaseResult: BaseResult{
+				Code:     StatusError,
+				Message:  fmt.Sprintf("failed to get IDs: %s", err.Error()),
+				DAHeight: dataLayerHeight,
+			},
+		}
+	}
+	// ids can be nil if there are no blocks at the requested height.
+	if ids == nil {
+		return ResultRetrieveBlocks{
+			BaseResult: BaseResult{
+				Code:    StatusNotFound,
+				Message: ErrBlobNotFound.Error(),
+			},
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, retrieveTimeout)
+	defer cancel()
+	blobs, err := dac.DA.Get(ctx, ids)
+	if err != nil {
+		return ResultRetrieveBlocks{
+			BaseResult: BaseResult{
+				Code:     StatusError,
+				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
+				DAHeight: dataLayerHeight,
+			},
+		}
+	}
+
+	blocks := make([]*types.Block, len(blobs))
+	for i, blob := range blobs {
+		var block pb.Block
+		err = proto.Unmarshal(blob, &block)
+		if err != nil {
+			dac.Logger.Error("failed to unmarshal block", "daHeight", dataLayerHeight, "position", i, "error", err)
+			continue
+		}
+		blocks[i] = new(types.Block)
+		err := blocks[i].FromProto(&block)
+		if err != nil {
+			return ResultRetrieveBlocks{
+				BaseResult: BaseResult{
+					Code:    StatusError,
+					Message: err.Error(),
+				},
+			}
+		}
+	}
+
+	return ResultRetrieveBlocks{
+		BaseResult: BaseResult{
+			Code:     StatusSuccess,
+			DAHeight: dataLayerHeight,
+		},
+		Blocks: blocks,
+	}
 }

@@ -3,13 +3,15 @@ package config
 import (
 	"time"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/cometbft/cometbft/config"
 )
 
 const (
 	// DefaultListenAddress is a default listen address for P2P client.
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
-	Version              = "0.4.0"
+	// Version is the current rollkit version
+	// Please keep updated with each new release
+	Version = "0.38.5"
 )
 
 // DefaultNodeConfig keeps default values of NodeConfig
@@ -21,14 +23,14 @@ var DefaultNodeConfig = NodeConfig{
 	Aggregator:     false,
 	LazyAggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
-		BlockTime:   30 * time.Second,
-		NamespaceID: types.NamespaceID{},
-		FraudProofs: false,
+		BlockTime:   1 * time.Second,
+		DABlockTime: 15 * time.Second,
 	},
-	DALayer:  "mock",
-	DAConfig: "",
-	Light:    false,
+	DAAddress:  ":26650",
+	DAGasPrice: -1,
+	Light:      false,
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
+	Instrumentation: config.DefaultInstrumentationConfig(),
 }

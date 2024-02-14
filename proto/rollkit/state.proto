@@ -14,24 +14,19 @@ message State {
   tendermint.state.Version version = 1;
 
   string  chain_id = 2;
-  int64 initial_height = 3;
+  uint64 initial_height = 3;
 
-  int64 last_block_height = 4;
+  uint64 last_block_height = 4;
 
   tendermint.types.BlockID last_block_id = 5 [(gogoproto.nullable) = false, (gogoproto.customname) = "LastBlockID"];
   google.protobuf.Timestamp last_block_time = 6 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 
   uint64 da_height = 7 [(gogoproto.customname) = "DAHeight"];
 
-  tendermint.types.ValidatorSet next_validators = 8;
-  tendermint.types.ValidatorSet validators = 9;
-  tendermint.types.ValidatorSet last_validators = 10;
-  int64 last_height_validators_changed = 11;
+  tendermint.types.ConsensusParams consensus_params = 8 [(gogoproto.nullable) = false];
+  uint64 last_height_consensus_params_changed = 9;
 
-  tendermint.types.ConsensusParams consensus_params = 12 [(gogoproto.nullable) = false];
-  int64 last_height_consensus_params_changed = 13;
+  bytes last_results_hash = 10;
 
-  bytes last_results_hash = 14;
-
-  bytes app_hash = 15;
+  bytes app_hash = 11;
 }

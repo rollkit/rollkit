@@ -2,10 +2,13 @@ package p2p
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/cometbft/cometbft/p2p"
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -21,11 +24,11 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/tendermint/tendermint/p2p"
-	"go.uber.org/multierr"
+
+	tmcrypto "github.com/tendermint/tendermint/crypto"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 )
 
 // TODO(tzdybal): refactor to configuration parameters
@@ -38,9 +41,6 @@ const (
 
 	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
 	txTopicSuffix = "-tx"
-
-	// headerTopicSuffix is added after namespace to create pubsub topic for block header gossiping.
-	headerTopicSuffix = "-header"
 )
 
 // Client is a P2P client, implemented with libp2p.
@@ -62,21 +62,20 @@ type Client struct {
 	txGossiper  *Gossiper
 	txValidator GossipValidator
 
-	headerGossiper  *Gossiper
-	headerValidator GossipValidator
-
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
 	cancel context.CancelFunc
 
 	logger log.Logger
+
+	metrics *Metrics
 }
 
 // NewClient creates new Client object.
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger) (*Client, error) {
+func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
 	if privKey == nil {
 		return nil, errNoPrivKey
 	}
@@ -95,6 +94,7 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds
 		privKey: privKey,
 		chainID: chainID,
 		logger:  logger,
+		metrics: metrics,
 	}, nil
 }
 
@@ -154,9 +154,8 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 func (c *Client) Close() error {
 	c.cancel()
 
-	return multierr.Combine(
+	return errors.Join(
 		c.txGossiper.Close(),
-		c.headerGossiper.Close(),
 		c.dht.Close(),
 		c.host.Close(),
 	)
@@ -171,17 +170,6 @@ func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
 // SetTxValidator sets the callback function, that will be invoked during message gossiping.
 func (c *Client) SetTxValidator(val GossipValidator) {
 	c.txValidator = val
-}
-
-// GossipSignedHeader sends the block header to the P2P network.
-func (c *Client) GossipSignedHeader(ctx context.Context, headerBytes []byte) error {
-	c.logger.Debug("Gossiping block header", "len", len(headerBytes))
-	return c.headerGossiper.Publish(ctx, headerBytes)
-}
-
-// SetHeaderValidator sets the callback function, that will be invoked after block header is received from P2P network.
-func (c *Client) SetHeaderValidator(validator GossipValidator) {
-	c.headerValidator = validator
 }
 
 // Addrs returns listen addresses of Client.
@@ -199,13 +187,18 @@ func (c *Client) PubSub() *pubsub.PubSub {
 	return c.ps
 }
 
+// ConnectionGater returns the client's connection gater
 func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
 	return c.gater
 }
 
 // Info returns client ID, ListenAddr, and Network info
-func (c *Client) Info() (p2p.ID, string, string) {
-	return p2p.ID(c.host.ID().String()), c.conf.ListenAddress, c.chainID
+func (c *Client) Info() (p2p.ID, string, string, error) {
+	rawKey, err := c.privKey.GetPublic().Raw()
+	if err != nil {
+		return "", "", "", err
+	}
+	return p2p.ID(hex.EncodeToString(tmcrypto.AddressHash(rawKey))), c.conf.ListenAddress, c.chainID, nil
 }
 
 // PeerConnection describe basic information about P2P connection.
@@ -354,7 +347,7 @@ func (c *Client) findPeers(ctx context.Context) error {
 // tryConnect attempts to connect to a peer and logs error if necessary
 func (c *Client) tryConnect(ctx context.Context, peer peer.AddrInfo) {
 	err := c.host.Connect(ctx, peer)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		c.logger.Error("failed to connect to peer", "peer", peer, "error", err)
 	}
 }
@@ -371,12 +364,6 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 		return err
 	}
 	go c.txGossiper.ProcessMessages(ctx)
-
-	c.headerGossiper, err = NewGossiper(c.host, c.ps, c.getHeaderTopic(), c.logger, WithValidator(c.headerValidator))
-	if err != nil {
-		return err
-	}
-	go c.headerGossiper.ProcessMessages(ctx)
 
 	return nil
 }
@@ -414,8 +401,4 @@ func (c *Client) getNamespace() string {
 
 func (c *Client) getTxTopic() string {
 	return c.getNamespace() + txTopicSuffix
-}
-
-func (c *Client) getHeaderTopic() string {
-	return c.getNamespace() + headerTopicSuffix
 }

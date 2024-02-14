@@ -3,8 +3,8 @@ package indexer
 import (
 	"context"
 
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/types"
 )
 
 // BlockIndexer defines an interface contract for indexing block events.
@@ -14,7 +14,7 @@ type BlockIndexer interface {
 	Has(height int64) (bool, error)
 
 	// Index indexes BeginBlock and EndBlock events for a given block by its height.
-	Index(types.EventDataNewBlockHeader) error
+	Index(types.EventDataNewBlockEvents) error
 
 	// Search performs a query for block heights that match a given BeginBlock
 	// and Endblock event search criteria.

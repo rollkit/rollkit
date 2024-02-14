@@ -10,12 +10,12 @@ import (
 	"reflect"
 	"strconv"
 
-	tmjson "github.com/tendermint/tendermint/libs/json"
+	cmjson "github.com/cometbft/cometbft/libs/json"
 
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 )
 
 type handler struct {
@@ -57,6 +57,9 @@ func (h *handler) serveJSONRPC(w http.ResponseWriter, r *http.Request) {
 func (h *handler) serveJSONRPCforWS(w http.ResponseWriter, r *http.Request, wsConn *wsConn) {
 	// Create a new codec request.
 	codecReq := h.codec.NewRequest(r)
+	if wsConn != nil {
+		wsConn.codecReq = codecReq
+	}
 	// Get service method to be called.
 	method, err := codecReq.Method()
 	if err != nil {
@@ -105,7 +108,7 @@ func (h *handler) serveJSONRPCforWS(w http.ResponseWriter, r *http.Request, wsCo
 	// Encode the response.
 	if errResult == nil {
 		var raw json.RawMessage
-		raw, err = tmjson.Marshal(rets[0].Interface())
+		raw, err = cmjson.Marshal(rets[0].Interface())
 		if err != nil {
 			codecReq.WriteError(w, http.StatusInternalServerError, err)
 			return
@@ -189,9 +192,9 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	if errResult != nil {
 		resp.Error = &json2.Error{Code: json2.ErrorCode(statusCode), Data: errResult.Error()}
 	} else {
-		bytes, err := tmjson.Marshal(result)
+		bytes, err := cmjson.Marshal(result)
 		if err != nil {
-			resp.Error = &json2.Error{Code: json2.ErrorCode(json2.E_INTERNAL), Data: err.Error()}
+			resp.Error = &json2.Error{Code: json2.E_INTERNAL, Data: err.Error()}
 		} else {
 			resp.Result = bytes
 		}

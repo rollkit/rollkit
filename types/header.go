@@ -1,20 +1,35 @@
 package types
 
 import (
+	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"time"
 
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtypes "github.com/cometbft/cometbft/types"
+
 	"github.com/celestiaorg/go-header"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 )
 
+// Hash is a 32-byte array which is used to represent a hash result.
 type Hash = header.Hash
+
+var (
+	// ErrNoProposerAddress is returned when the proposer address is not set.
+	ErrNoProposerAddress = errors.New("no proposer address")
+
+	// ErrProposerVerificationFailed is returned when the proposer verification fails.
+	ErrProposerVerificationFailed = errors.New("proposer verification failed")
+)
 
 // BaseHeader contains the most basic data of a header
 type BaseHeader struct {
 	// Height represents the block height (aka block number) of a given header
 	Height uint64
-	// Time contains Unix time of a block
+	// Time contains Unix nanotime of a block
 	Time uint64
 	// The Chain ID
 	ChainID string
@@ -40,111 +55,97 @@ type Header struct {
 	// to transaction receipts/results.
 	LastResultsHash Hash
 
+	// compatibility with tendermint light client
+	ValidatorHash Hash
+
 	// Note that the address can be derived from the pubkey which can be derived
 	// from the signature when using secp256k.
 	// We keep this in case users choose another signature format where the
 	// pubkey can't be recovered by the signature (e.g. ed25519).
 	ProposerAddress []byte // original proposer of the block
-
-	// Hash of block aggregator set, at a time of block creation
-	AggregatorsHash Hash
 }
 
-func (h *Header) New() header.Header {
+// New creates a new Header.
+func (h *Header) New() *Header {
 	return new(Header)
 }
 
+// IsZero returns true if the header is nil.
 func (h *Header) IsZero() bool {
 	return h == nil
 }
 
+// ChainID returns chain ID of the header.
 func (h *Header) ChainID() string {
 	return h.BaseHeader.ChainID
 }
 
-func (h *Header) Height() int64 {
-	return int64(h.BaseHeader.Height)
+// Height returns height of the header.
+func (h *Header) Height() uint64 {
+	return h.BaseHeader.Height
 }
 
+// LastHeader returns last header hash of the header.
 func (h *Header) LastHeader() Hash {
 	return h.LastHeaderHash[:]
 }
 
+// Time returns timestamp as unix time with nanosecond precision
 func (h *Header) Time() time.Time {
-	return time.Unix(int64(h.BaseHeader.Time), 0)
+	return time.Unix(0, int64(h.BaseHeader.Time))
 }
 
-func (h *Header) Verify(untrst header.Header) error {
-	untrstH, ok := untrst.(*Header)
-	if !ok {
-		// if the header type is wrong, something very bad is going on
-		// and is a programmer bug
-		panic(fmt.Errorf("%T is not of type %T", untrst, h))
+// Verify verifies the header.
+func (h *Header) Verify(untrstH *Header) error {
+	if !bytes.Equal(untrstH.ProposerAddress, h.ProposerAddress) {
+		return &header.VerifyError{
+			Reason: fmt.Errorf("%w: expected proposer (%X) got (%X)",
+				ErrProposerVerificationFailed,
+				h.ProposerAddress,
+				untrstH.ProposerAddress,
+			),
+		}
 	}
-	// sanity check fields
-	if err := verifyNewHeaderAndVals(h, untrstH); err != nil {
-		return &header.VerifyError{Reason: err}
-	}
-
-	// Check the validator hashes are the same in the case headers are adjacent
-	// TODO: next validator set is not available, disable this check until NextValidatorHash is enabled
-	// if untrstH.Height() == h.Height()+1 {
-	// if !bytes.Equal(untrstH.AggregatorsHash[:], h.AggregatorsHash[:]) {
-	// 	return &header.VerifyError{
-	// 		Reason: fmt.Errorf("expected old header next validators (%X) to match those from new header (%X)",
-	// 			h.AggregatorsHash,
-	// 			untrstH.AggregatorsHash,
-	// 		),
-	// 	}
-	// }
-	// }
-
-	// TODO: There must be a way to verify non-adjacent headers
-	// Ensure that untrusted commit has enough of trusted commit's power.
-	// err := h.ValidatorSet.VerifyCommitLightTrusting(eh.ChainID, untrst.Commit, light.DefaultTrustLevel)
-	// if err != nil {
-	// 	return &VerifyError{err}
-	// }
-
 	return nil
 }
 
+// Validate performs basic validation of a header.
 func (h *Header) Validate() error {
 	return h.ValidateBasic()
 }
 
-// clockDrift defines how much new header's time can drift into
-// the future relative to the now time during verification.
-var maxClockDrift = 10 * time.Second
-
-// verifyNewHeaderAndVals performs basic verification of untrusted header.
-func verifyNewHeaderAndVals(trusted, untrusted *Header) error {
-	if err := untrusted.ValidateBasic(); err != nil {
-		return fmt.Errorf("untrusted.ValidateBasic failed: %w", err)
-	}
-
-	if untrusted.Height() <= trusted.Height() {
-		return fmt.Errorf("expected new header height %d to be greater than one of old header %d",
-			untrusted.Height(),
-			trusted.Height())
-	}
-
-	if !untrusted.Time().After(trusted.Time()) {
-		return fmt.Errorf("expected new header time %v to be after old header time %v",
-			untrusted.Time(),
-			trusted.Time())
-	}
-
-	if !untrusted.Time().Before(time.Now().Add(maxClockDrift)) {
-		return fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
-			untrusted.Time(),
-			time.Now(),
-			maxClockDrift)
+// ValidateBasic performs basic validation of a header.
+func (h *Header) ValidateBasic() error {
+	if len(h.ProposerAddress) == 0 {
+		return ErrNoProposerAddress
 	}
 
 	return nil
 }
 
-var _ header.Header = &Header{}
+// MakeCometBFTVote make a cometBFT consensus vote for the sequencer to commit
+// we have the sequencer signs cometBFT consensus vote for compatibility with cometBFT client
+func (h *Header) MakeCometBFTVote() []byte {
+	vote := cmtproto.Vote{
+		Type:   cmtproto.PrecommitType,
+		Height: int64(h.Height()),
+		Round:  0,
+		// Header hash = block hash in rollkit
+		BlockID: cmtproto.BlockID{
+			Hash:          cmbytes.HexBytes(h.Hash()),
+			PartSetHeader: cmtproto.PartSetHeader{},
+		},
+		Timestamp: h.Time(),
+		// proposerAddress = sequencer = validator
+		ValidatorAddress: h.ProposerAddress,
+		ValidatorIndex:   0,
+	}
+	chainID := h.ChainID()
+	consensusVoteBytes := cmtypes.VoteSignBytes(chainID, &vote)
+
+	return consensusVoteBytes
+}
+
+var _ header.Header[*Header] = &Header{}
 var _ encoding.BinaryMarshaler = &Header{}
 var _ encoding.BinaryUnmarshaler = &Header{}

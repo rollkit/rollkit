@@ -1,0 +1,9 @@
+pull_request_rules:
+  - name: backport patches to v0.10.x branch
+    conditions:
+      - base=main
+      - label=backport:v0.10.x
+    actions:
+      backport:
+        branches:
+          - v0.10.x

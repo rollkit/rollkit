@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -15,17 +16,16 @@ import (
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/multierr"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/log"
+	"github.com/rollkit/rollkit/third_party/log"
 )
 
 type testNet []*Client
 
 func (tn testNet) Close() (err error) {
 	for i := range tn {
-		err = multierr.Append(err, tn[i].Close())
+		err = errors.Join(err, tn[i].Close())
 	}
 	return
 }
@@ -96,7 +96,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 		require.Less(src, n)
 		for _, dst := range descr.conns {
 			require.Less(dst, n)
-			seeds[src] += mnet.Hosts()[dst].Addrs()[0].String() + "/p2p/" + mnet.Peers()[dst].Pretty() + ","
+			seeds[src] += mnet.Hosts()[dst].Addrs()[0].String() + "/p2p/" + mnet.Peers()[dst].Loggable()["peerID"].(string) + ","
 		}
 		seeds[src] = strings.TrimSuffix(seeds[src], ",")
 	}
@@ -105,7 +105,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 	for i := 0; i < n; i++ {
 		client, err := NewClient(config.P2PConfig{Seeds: seeds[i]},
 			mnet.Hosts()[i].Peerstore().PrivKey(mnet.Hosts()[i].ID()),
-			conf[i].chainID, sync.MutexWrap(datastore.NewMapDatastore()), logger)
+			conf[i].chainID, sync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics())
 		require.NoError(err)
 		require.NotNil(client)
 

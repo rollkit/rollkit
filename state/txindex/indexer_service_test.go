@@ -5,17 +5,16 @@ import (
 	"testing"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/types"
-
 	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {
@@ -36,7 +35,9 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	prefixStore := (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey("block_events")}).Children()[0]).(ds.TxnDatastore)
 	blockIndexer := blockidxkv.New(context.Background(), prefixStore)
 
-	service := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	service := txindex.NewIndexerService(ctx, txIndexer, blockIndexer, eventBus, false)
 	service.SetLogger(log.TestingLogger())
 	err = service.Start()
 	require.NoError(t, err)
@@ -47,8 +48,8 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	})
 
 	// publish block with txs
-	err = eventBus.PublishEventNewBlockHeader(types.EventDataNewBlockHeader{
-		Header: types.Header{Height: 1},
+	err = eventBus.PublishEventNewBlockEvents(types.EventDataNewBlockEvents{
+		Height: 1,
 		NumTxs: int64(2),
 	})
 	require.NoError(t, err)
@@ -56,7 +57,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 		Height: 1,
 		Index:  uint32(0),
 		Tx:     types.Tx("foo"),
-		Result: abci.ResponseDeliverTx{Code: 0},
+		Result: abci.ExecTxResult{Code: 0},
 	}
 	err = eventBus.PublishEventTx(types.EventDataTx{TxResult: *txResult1})
 	require.NoError(t, err)
@@ -64,7 +65,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 		Height: 1,
 		Index:  uint32(1),
 		Tx:     types.Tx("bar"),
-		Result: abci.ResponseDeliverTx{Code: 0},
+		Result: abci.ExecTxResult{Code: 0},
 	}
 	err = eventBus.PublishEventTx(types.EventDataTx{TxResult: *txResult2})
 	require.NoError(t, err)

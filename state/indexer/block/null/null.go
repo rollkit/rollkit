@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/tendermint/tendermint/libs/pubsub/query"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/libs/pubsub/query"
+	"github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/state/indexer"
 )
@@ -19,7 +19,7 @@ func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 	return false, errors.New(`indexing is disabled (set 'tx_index = "kv"' in config)`)
 }
 
-func (idx *BlockerIndexer) Index(types.EventDataNewBlockHeader) error {
+func (idx *BlockerIndexer) Index(types.EventDataNewBlockEvents) error {
 	return nil
 }
 

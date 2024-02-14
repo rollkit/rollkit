@@ -1,7 +1,8 @@
 package types
 
 import (
-	"github.com/tendermint/tendermint/types"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -47,6 +48,17 @@ func (d *Data) MarshalBinary() ([]byte, error) {
 	return d.ToProto().Marshal()
 }
 
+// UnmarshalBinary decodes binary form of Data into object.
+func (d *Data) UnmarshalBinary(data []byte) error {
+	var pData pb.Data
+	err := pData.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	err = d.FromProto(&pData)
+	return err
+}
+
 // MarshalBinary encodes Commit into binary form and returns it.
 func (c *Commit) MarshalBinary() ([]byte, error) {
 	return c.ToProto().Marshal()
@@ -64,25 +76,25 @@ func (c *Commit) UnmarshalBinary(data []byte) error {
 }
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
-func (h *SignedHeader) ToProto() (*pb.SignedHeader, error) {
-	vSet, err := h.Validators.ToProto()
+func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
+	vSet, err := sh.Validators.ToProto()
 	if err != nil {
 		return nil, err
 	}
 	return &pb.SignedHeader{
-		Header:     h.Header.ToProto(),
-		Commit:     h.Commit.ToProto(),
+		Header:     sh.Header.ToProto(),
+		Commit:     sh.Commit.ToProto(),
 		Validators: vSet,
 	}, nil
 }
 
 // FromProto fills SignedHeader with data from protobuf representation.
-func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
-	err := h.Header.FromProto(other.Header)
+func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
+	err := sh.Header.FromProto(other.Header)
 	if err != nil {
 		return err
 	}
-	err = h.Commit.FromProto(other.Commit)
+	err = sh.Commit.FromProto(other.Commit)
 	if err != nil {
 		return err
 	}
@@ -93,14 +105,14 @@ func (h *SignedHeader) FromProto(other *pb.SignedHeader) error {
 			return err
 		}
 
-		h.Validators = validators
+		sh.Validators = validators
 	}
 	return nil
 }
 
 // MarshalBinary encodes SignedHeader into binary form and returns it.
-func (h *SignedHeader) MarshalBinary() ([]byte, error) {
-	hp, err := h.ToProto()
+func (sh *SignedHeader) MarshalBinary() ([]byte, error) {
+	hp, err := sh.ToProto()
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +120,13 @@ func (h *SignedHeader) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes binary form of SignedHeader into object.
-func (h *SignedHeader) UnmarshalBinary(data []byte) error {
+func (sh *SignedHeader) UnmarshalBinary(data []byte) error {
 	var pHeader pb.SignedHeader
 	err := pHeader.Unmarshal(data)
 	if err != nil {
 		return err
 	}
-	err = h.FromProto(&pHeader)
+	err = sh.FromProto(&pHeader)
 	if err != nil {
 		return err
 	}
@@ -137,8 +149,8 @@ func (h *Header) ToProto() *pb.Header {
 		AppHash:         h.AppHash[:],
 		LastResultsHash: h.LastResultsHash[:],
 		ProposerAddress: h.ProposerAddress[:],
-		AggregatorsHash: h.AggregatorsHash[:],
 		ChainId:         h.BaseHeader.ChainID,
+		ValidatorHash:   h.ValidatorHash,
 	}
 }
 
@@ -155,7 +167,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 	h.ConsensusHash = other.ConsensusHash
 	h.AppHash = other.AppHash
 	h.LastResultsHash = other.LastResultsHash
-	h.AggregatorsHash = other.AggregatorsHash
+	h.ValidatorHash = other.ValidatorHash
 	if len(other.ProposerAddress) > 0 {
 		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
 		copy(h.ProposerAddress, other.ProposerAddress)
@@ -179,8 +191,8 @@ func (b *Block) ToProto() (*pb.Block, error) {
 // ToProto converts Data into protobuf representation and returns it.
 func (d *Data) ToProto() *pb.Data {
 	return &pb.Data{
-		Txs:                    txsToByteSlices(d.Txs),
-		IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
+		Txs: txsToByteSlices(d.Txs),
+		// IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
 		// Note: Temporarily remove Evidence #896
 		// Evidence:               evidenceToProto(d.Evidence),
 	}
@@ -192,10 +204,20 @@ func (b *Block) FromProto(other *pb.Block) error {
 	if err != nil {
 		return err
 	}
-	b.Data.Txs = byteSlicesToTxs(other.Data.Txs)
-	b.Data.IntermediateStateRoots.RawRootsList = other.Data.IntermediateStateRoots
+	err = b.Data.FromProto(other.Data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// FromProto fills the Data with data from its protobuf representation
+func (d *Data) FromProto(other *pb.Data) error {
+	d.Txs = byteSlicesToTxs(other.Txs)
+	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896
-	// b.Data.Evidence = evidenceFromProto(other.Data.Evidence)
+	// d.Evidence = evidenceFromProto(other.Evidence)
 
 	return nil
 }
@@ -216,18 +238,6 @@ func (c *Commit) FromProto(other *pb.Commit) error {
 
 // ToProto converts State into protobuf representation and returns it.
 func (s *State) ToProto() (*pb.State, error) {
-	nextValidators, err := s.NextValidators.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	validators, err := s.Validators.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	lastValidators, err := s.LastValidators.ToProto()
-	if err != nil {
-		return nil, err
-	}
 
 	return &pb.State{
 		Version:                          &s.Version,
@@ -237,10 +247,6 @@ func (s *State) ToProto() (*pb.State, error) {
 		LastBlockID:                      s.LastBlockID.ToProto(),
 		LastBlockTime:                    s.LastBlockTime,
 		DAHeight:                         s.DAHeight,
-		NextValidators:                   nextValidators,
-		Validators:                       validators,
-		LastValidators:                   lastValidators,
-		LastHeightValidatorsChanged:      s.LastHeightValidatorsChanged,
 		ConsensusParams:                  s.ConsensusParams,
 		LastHeightConsensusParamsChanged: s.LastHeightConsensusParamsChanged,
 		LastResultsHash:                  s.LastResultsHash[:],
@@ -262,19 +268,6 @@ func (s *State) FromProto(other *pb.State) error {
 	s.LastBlockID = *lastBlockID
 	s.LastBlockTime = other.LastBlockTime
 	s.DAHeight = other.DAHeight
-	s.NextValidators, err = types.ValidatorSetFromProto(other.NextValidators)
-	if err != nil {
-		return err
-	}
-	s.Validators, err = types.ValidatorSetFromProto(other.Validators)
-	if err != nil {
-		return err
-	}
-	s.LastValidators, err = types.ValidatorSetFromProto(other.LastValidators)
-	if err != nil {
-		return err
-	}
-	s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
 	s.ConsensusParams = other.ConsensusParams
 	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
 	s.LastResultsHash = other.LastResultsHash
@@ -284,6 +277,9 @@ func (s *State) FromProto(other *pb.State) error {
 }
 
 func txsToByteSlices(txs Txs) [][]byte {
+	if txs == nil {
+		return nil
+	}
 	bytes := make([][]byte, len(txs))
 	for i := range txs {
 		bytes[i] = txs[i]
@@ -341,4 +337,24 @@ func byteSlicesToSignatures(bytes [][]byte) []Signature {
 		sigs[i] = bytes[i]
 	}
 	return sigs
+}
+
+// ConsensusParamsFromProto converts protobuf consensus parameters to consensus parameters
+func ConsensusParamsFromProto(pbParams cmproto.ConsensusParams) types.ConsensusParams {
+	c := types.ConsensusParams{
+		Block: types.BlockParams{
+			MaxBytes: pbParams.Block.MaxBytes,
+			MaxGas:   pbParams.Block.MaxGas,
+		},
+		Validator: types.ValidatorParams{
+			PubKeyTypes: pbParams.Validator.PubKeyTypes,
+		},
+		Version: types.VersionParams{
+			App: pbParams.Version.App,
+		},
+	}
+	if pbParams.Abci != nil {
+		c.ABCI.VoteExtensionsEnableHeight = pbParams.Abci.GetVoteExtensionsEnableHeight()
+	}
+	return c
 }

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/libs/service"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/rs/cors"
-	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/libs/service"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	"golang.org/x/net/netutil"
 
 	"github.com/rollkit/rollkit/node"

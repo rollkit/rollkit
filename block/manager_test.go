@@ -2,109 +2,197 @@ package block
 
 import (
 	"context"
-	"crypto/rand"
 	"testing"
-	"time"
 
-	"github.com/libp2p/go-libp2p/core/crypto"
+	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/tendermint/tendermint/libs/log"
-	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/rollkit/rollkit/config"
+	goDATest "github.com/rollkit/go-da/test"
+
 	"github.com/rollkit/rollkit/da"
-	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
-func TestInitialState(t *testing.T) {
-	genesis := &tmtypes.GenesisDoc{
-		ChainID:       "genesis id",
-		InitialHeight: 100,
+// Returns a minimalistic block manager
+func getManager(t *testing.T) *Manager {
+	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
+	return &Manager{
+		dalc:       &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: logger},
+		blockCache: NewBlockCache(),
+		logger:     logger,
+	}
+}
+
+// getBlockBiggerThan generates a block with the given height bigger than the specified limit.
+func getBlockBiggerThan(blockHeight, limit uint64) (*types.Block, error) {
+	for numTxs := 0; ; numTxs += 100 {
+		block := types.GetRandomBlock(blockHeight, numTxs)
+		blob, err := block.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+
+		if uint64(len(blob)) > limit {
+			return block, nil
+		}
+	}
+}
+
+func TestInitialStateClean(t *testing.T) {
+	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "myChain",
+		InitialHeight: 1,
+		Validators:    genesisDoc.Validators,
+		AppHash:       []byte("app hash"),
+	}
+	es, _ := store.NewDefaultInMemoryKVStore()
+	emptyStore := store.New(es)
+	s, err := getInitialState(emptyStore, genesis)
+	require.Equal(s.LastBlockHeight, uint64(genesis.InitialHeight-1))
+	require.NoError(err)
+	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
+}
+
+func TestInitialStateStored(t *testing.T) {
+	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "myChain",
+		InitialHeight: 1,
+		Validators:    genesisDoc.Validators,
+		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
-		ChainID:         "state id",
-		InitialHeight:   123,
-		LastBlockHeight: 128,
-		LastValidators:  getRandomValidatorSet(),
-		Validators:      getRandomValidatorSet(),
-		NextValidators:  getRandomValidatorSet(),
+		ChainID:         "myChain",
+		InitialHeight:   1,
+		LastBlockHeight: 100,
 	}
-
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
-	emptyStore := store.New(ctx, es)
+	store := store.New(es)
+	err := store.UpdateState(ctx, sampleState)
+	require.NoError(err)
+	s, err := getInitialState(store, genesis)
+	require.Equal(s.LastBlockHeight, uint64(100))
+	require.NoError(err)
+	require.Equal(s.InitialHeight, uint64(1))
+}
 
-	es2, _ := store.NewDefaultInMemoryKVStore()
-	fullStore := store.New(ctx, es2)
-	err := fullStore.UpdateState(sampleState)
-	require.NoError(t, err)
+func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
+	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesis := &cmtypes.GenesisDoc{
+		ChainID:       "myChain",
+		InitialHeight: 2,
+		Validators:    genesisDoc.Validators,
+		AppHash:       []byte("app hash"),
+	}
+	sampleState := types.State{
+		ChainID:         "myChain",
+		InitialHeight:   1,
+		LastBlockHeight: 0,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	es, _ := store.NewDefaultInMemoryKVStore()
+	store := store.New(es)
+	err := store.UpdateState(ctx, sampleState)
+	require.NoError(err)
+	_, err = getInitialState(store, genesis)
+	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
+}
 
-	cases := []struct {
-		name                    string
-		store                   store.Store
-		genesis                 *tmtypes.GenesisDoc
-		expectedInitialHeight   int64
-		expectedLastBlockHeight int64
-		expectedChainID         string
+func TestIsDAIncluded(t *testing.T) {
+	require := require.New(t)
+
+	// Create a minimalistic block manager
+	m := &Manager{
+		blockCache: NewBlockCache(),
+	}
+	hash := types.Hash([]byte("hash"))
+
+	// IsDAIncluded should return false for unseen hash
+	require.False(m.IsDAIncluded(hash))
+
+	// Set the hash as DAIncluded and verify IsDAIncluded returns true
+	m.blockCache.setDAIncluded(hash.String())
+	require.True(m.IsDAIncluded(hash))
+}
+
+func TestSubmitBlocksToDA(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	m := getManager(t)
+
+	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
+	require.NoError(err)
+
+	testCases := []struct {
+		name                        string
+		blocks                      []*types.Block
+		isErrExpected               bool
+		expectedPendingBlocksLength int
 	}{
 		{
-			name:                    "empty store",
-			store:                   emptyStore,
-			genesis:                 genesis,
-			expectedInitialHeight:   genesis.InitialHeight,
-			expectedLastBlockHeight: 0,
-			expectedChainID:         genesis.ChainID,
+			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
+			blocks:                      []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
+			isErrExpected:               false,
+			expectedPendingBlocksLength: 0,
 		},
 		{
-			name:                    "state in store",
-			store:                   fullStore,
-			genesis:                 genesis,
-			expectedInitialHeight:   sampleState.InitialHeight,
-			expectedLastBlockHeight: sampleState.LastBlockHeight,
-			expectedChainID:         sampleState.ChainID,
+			name: "blocks A and B are submitted together without C because including C triggers blob size limit. C is submitted in a separate round",
+			blocks: func() []*types.Block {
+				// Find three blocks where two of them are under blob size limit
+				// but adding the third one exceeds the blob size limit
+				block1 := types.GetRandomBlock(1, 100)
+				blob1, err := block1.MarshalBinary()
+				require.NoError(err)
+
+				block2 := types.GetRandomBlock(2, 100)
+				blob2, err := block2.MarshalBinary()
+				require.NoError(err)
+
+				block3, err := getBlockBiggerThan(3, maxDABlobSizeLimit-uint64(len(blob1)+len(blob2)))
+				require.NoError(err)
+
+				return []*types.Block{block1, block2, block3}
+			}(),
+			isErrExpected:               false,
+			expectedPendingBlocksLength: 0,
+		},
+		{
+			name: "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				for i := 0; i < numBlocks-1; i++ {
+					blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
+				}
+				blocks[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
+				require.NoError(err)
+				return blocks
+			}(),
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 1,
 		},
 	}
 
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	conf := config.BlockManagerConfig{
-		BlockTime:   10 * time.Second,
-		NamespaceID: types.NamespaceID{1, 2, 3, 4, 5, 6, 7, 8},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assert := assert.New(t)
-			logger := log.TestingLogger()
-			dalc := getMockDALC(logger)
-			dumbChan := make(chan struct{})
-			agg, err := NewManager(key, conf, c.genesis, c.store, nil, nil, dalc, nil, logger, dumbChan)
-			assert.NoError(err)
-			assert.NotNil(agg)
-			assert.Equal(c.expectedChainID, agg.lastState.ChainID)
-			assert.Equal(c.expectedInitialHeight, agg.lastState.InitialHeight)
-			assert.Equal(c.expectedLastBlockHeight, agg.lastState.LastBlockHeight)
+	for _, tc := range testCases {
+		m.pendingBlocks = NewPendingBlocks()
+		t.Run(tc.name, func(t *testing.T) {
+			for _, block := range tc.blocks {
+				m.pendingBlocks.addPendingBlock(block)
+			}
+			err := m.submitBlocksToDA(ctx)
+			assert.Equal(t, tc.isErrExpected, err != nil)
+			assert.Equal(t, tc.expectedPendingBlocksLength, len(m.pendingBlocks.getPendingBlocks()))
 		})
-	}
-}
-
-func getMockDALC(logger log.Logger) da.DataAvailabilityLayerClient {
-	dalc := &mockda.DataAvailabilityLayerClient{}
-	_ = dalc.Init([8]byte{}, nil, nil, logger)
-	_ = dalc.Start()
-	return dalc
-}
-
-// copied from store_test.go
-func getRandomValidatorSet() *tmtypes.ValidatorSet {
-	pubKey := ed25519.GenPrivKey().PubKey()
-	return &tmtypes.ValidatorSet{
-		Proposer: &tmtypes.Validator{PubKey: pubKey, Address: pubKey.Address()},
-		Validators: []*tmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address()},
-		},
 	}
 }

@@ -1,8 +1,9 @@
 package store
 
 import (
-	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"context"
+
+	abci "github.com/cometbft/cometbft/abci/types"
 
 	"github.com/rollkit/rollkit/types"
 )
@@ -13,34 +14,30 @@ type Store interface {
 	Height() uint64
 
 	// SetHeight sets the height saved in the Store if it is higher than the existing height.
-	SetHeight(height uint64)
+	SetHeight(ctx context.Context, height uint64)
 
 	// SaveBlock saves block along with its seen commit (which will be included in the next block).
-	SaveBlock(block *types.Block, commit *types.Commit) error
+	SaveBlock(ctx context.Context, block *types.Block, commit *types.Commit) error
 
-	// LoadBlock returns block at given height, or error if it's not found in Store.
-	LoadBlock(height uint64) (*types.Block, error)
-	// LoadBlockByHash returns block with given block header hash, or error if it's not found in Store.
-	LoadBlockByHash(hash types.Hash) (*types.Block, error)
+	// GetBlock returns block at given height, or error if it's not found in Store.
+	GetBlock(ctx context.Context, height uint64) (*types.Block, error)
+	// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
+	GetBlockByHash(ctx context.Context, hash types.Hash) (*types.Block, error)
 
 	// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
-	SaveBlockResponses(height uint64, responses *tmstate.ABCIResponses) error
+	SaveBlockResponses(ctx context.Context, height uint64, responses *abci.ResponseFinalizeBlock) error
 
-	// LoadBlockResponses returns block results at given height, or error if it's not found in Store.
-	LoadBlockResponses(height uint64) (*tmstate.ABCIResponses, error)
+	// GetBlockResponses returns block results at given height, or error if it's not found in Store.
+	GetBlockResponses(ctx context.Context, height uint64) (*abci.ResponseFinalizeBlock, error)
 
-	// LoadCommit returns commit for a block at given height, or error if it's not found in Store.
-	LoadCommit(height uint64) (*types.Commit, error)
-	// LoadCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-	LoadCommitByHash(hash types.Hash) (*types.Commit, error)
+	// GetCommit returns commit for a block at given height, or error if it's not found in Store.
+	GetCommit(ctx context.Context, height uint64) (*types.Commit, error)
+	// GetCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
+	GetCommitByHash(ctx context.Context, hash types.Hash) (*types.Commit, error)
 
 	// UpdateState updates state saved in Store. Only one State is stored.
 	// If there is no State in Store, state will be saved.
-	UpdateState(state types.State) error
-	// LoadState returns last state saved with UpdateState.
-	LoadState() (types.State, error)
-
-	SaveValidators(height uint64, validatorSet *tmtypes.ValidatorSet) error
-
-	LoadValidators(height uint64) (*tmtypes.ValidatorSet, error)
+	UpdateState(ctx context.Context, state types.State) error
+	// GetState returns last state saved with UpdateState.
+	GetState(ctx context.Context) (types.State, error)
 }
