@@ -164,7 +164,7 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 		}
 	}
 
-	// If no blocks are found, return a non-blocking error.
+	// If no blobs are found, return a non-blocking error.
 	if len(ids) == 0 {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{

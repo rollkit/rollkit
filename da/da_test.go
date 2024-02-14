@@ -112,13 +112,6 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("mock error"))
 		doTestMaxBlockSizeError(t, dalc)
 	})
-	t.Run("retrieve_no_blocks_found", func(t *testing.T) {
-		mockDA := &MockDA{}
-		dalc := &DAClient{DA: mockDA, GasPrice: -1, Logger: log.TestingLogger()}
-		// Set Mock DA to return empty IDs
-		mockDA.On("GetIDs", mock.Anything, mock.Anything).Return([]da.ID{}, nil)
-		doTestRetrieveNoBlocksFound(t, dalc)
-	})
 }
 
 func TestSubmitRetrieve(t *testing.T) {
@@ -138,6 +131,7 @@ func TestSubmitRetrieve(t *testing.T) {
 		{"submit_over_sized_block", doTestSubmitOversizedBlock},
 		{"submit_small_blocks_batch", doTestSubmitSmallBlocksBatch},
 		{"submit_large_blocks_overflow", doTestSubmitLargeBlocksOverflow},
+		{"retrieve_no_blobs_found", doTestRetrieveNoBlobsFound},
 	}
 	for name, dalc := range clients {
 		for _, tc := range tests {
@@ -187,16 +181,6 @@ func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
 	assert := assert.New(t)
 	resp := dalc.SubmitBlocks(ctx, []*types.Block{})
 	assert.Contains(resp.Message, "unable to get DA max blob size", "should return max blob size error")
-}
-
-func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	assert := assert.New(t)
-	result := dalc.RetrieveBlocks(ctx, 123)
-	assert.Equal(StatusNotFound, result.Code, "should return not found")
-	assert.Contains(result.Message, "blob: not found")
 }
 
 func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
@@ -330,4 +314,14 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 	resp = dalc.SubmitBlocks(ctx, []*types.Block{block2})
 	assert.Equal(StatusSuccess, resp.Code, "remaining blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
+}
+
+func doTestRetrieveNoBlobsFound(t *testing.T, dalc *DAClient) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	assert := assert.New(t)
+	result := dalc.RetrieveBlocks(ctx, 123)
+	assert.Equal(StatusNotFound, result.Code, "should return not found")
+	assert.Contains(result.Message, "blob: not found")
 }
