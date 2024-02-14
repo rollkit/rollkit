@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	tmCfg "github.com/cometbft/cometbft/config"
+	cmCfg "github.com/cometbft/cometbft/config"
 	tmflags "github.com/cometbft/cometbft/libs/cli/flags"
 	log "github.com/cometbft/cometbft/libs/log"
 	tmos "github.com/cometbft/cometbft/libs/os"
@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/node"
 	rollnode "github.com/rollkit/rollkit/node"
 	rollrpc "github.com/rollkit/rollkit/rpc"
 	rolltypes "github.com/rollkit/rollkit/types"
@@ -118,7 +119,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// create logger
 			logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-			logger, err = tmflags.ParseLogLevel(tendermintConfig.LogLevel, logger, tmCfg.DefaultLogLevel)
+			logger, err = tmflags.ParseLogLevel(tendermintConfig.LogLevel, logger, cmCfg.DefaultLogLevel)
 			if err != nil {
 				return fmt.Errorf("failed to parse log level: %w", err)
 			}
@@ -151,11 +152,12 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 			copy(rollkitConfig.NamespaceID[:], bytes)
 
-			rolltypes.GetNodeConfig(&rollkitConfig, tendermintConfig)
-			if err := rolltypes.TranslateAddresses(&rollkitConfig); err != nil {
+			rollconf.GetNodeConfig(&rollkitConfig, tendermintConfig)
+			if err := rollconf.TranslateAddresses(&rollkitConfig); err != nil {
 				return err
 			}
 
+			metrics := node.DefaultMetricsProvider(cmCfg.DefaultInstrumentationConfig())
 			rollnode, err := rollnode.NewNode(
 				context.Background(),
 				rollkitConfig,
@@ -163,6 +165,7 @@ func NewRunNodeCmd() *cobra.Command {
 				signingKey,
 				proxy.DefaultClientCreator(tendermintConfig.ProxyApp, tendermintConfig.ABCI, rollkitConfig.DBPath),
 				genDoc,
+				metrics,
 				logger,
 			)
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"time"
 
 	cmcfg "github.com/cometbft/cometbft/config"
@@ -41,6 +42,12 @@ type NodeConfig struct {
 	LazyAggregator     bool                         `mapstructure:"lazy_aggregator"`
 	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
+
+	// CLI flags
+	DALayer     string  `mapstructure:"da_layer"`
+	DAConfig    string  `mapstructure:"da_config"`
+	FraudProofs bool    `mapstructure:"fraud_proofs"`
+	NamespaceID [8]byte `mapstructure:"namespace_id"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -56,6 +63,8 @@ type BlockManagerConfig struct {
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
 	DAStartHeight uint64 `mapstructure:"da_start_height"`
+	// FraudProofs enables fraud proofs
+	FraudProofs bool `mapstructure:"fraud_proofs"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
