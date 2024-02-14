@@ -7,20 +7,20 @@ import (
 	"os"
 	"time"
 
+	tmCfg "github.com/cometbft/cometbft/config"
+	tmflags "github.com/cometbft/cometbft/libs/cli/flags"
+	log "github.com/cometbft/cometbft/libs/log"
+	tmos "github.com/cometbft/cometbft/libs/os"
+	tmnode "github.com/cometbft/cometbft/node"
+	tmp2p "github.com/cometbft/cometbft/p2p"
+	privval "github.com/cometbft/cometbft/privval"
+	"github.com/cometbft/cometbft/proxy"
 	"github.com/spf13/cobra"
-	tmCfg "github.com/tendermint/tendermint/config"
-	tmflags "github.com/tendermint/tendermint/libs/cli/flags"
-	log "github.com/tendermint/tendermint/libs/log"
-	tmos "github.com/tendermint/tendermint/libs/os"
-	tmnode "github.com/tendermint/tendermint/node"
-	tmp2p "github.com/tendermint/tendermint/p2p"
-	privval "github.com/tendermint/tendermint/privval"
-	"github.com/tendermint/tendermint/proxy"
 
 	rollconf "github.com/rollkit/rollkit/config"
-	rollconv "github.com/rollkit/rollkit/conv"
 	rollnode "github.com/rollkit/rollkit/node"
 	rollrpc "github.com/rollkit/rollkit/rpc"
+	rolltypes "github.com/rollkit/rollkit/types"
 )
 
 var (
@@ -107,11 +107,11 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 			pval := privval.LoadOrGenFilePV(tendermintConfig.PrivValidatorKeyFile(), tendermintConfig.PrivValidatorStateFile())
-			p2pKey, err := rollconv.GetNodeKey(nodeKey)
+			p2pKey, err := rolltypes.GetNodeKey(nodeKey)
 			if err != nil {
 				return err
 			}
-			signingKey, err := rollconv.GetNodeKey(&tmp2p.NodeKey{PrivKey: pval.Key.PrivKey})
+			signingKey, err := rolltypes.GetNodeKey(&tmp2p.NodeKey{PrivKey: pval.Key.PrivKey})
 			if err != nil {
 				return err
 			}
@@ -151,8 +151,8 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 			copy(rollkitConfig.NamespaceID[:], bytes)
 
-			rollconv.GetNodeConfig(&rollkitConfig, tendermintConfig)
-			if err := rollconv.TranslateAddresses(&rollkitConfig); err != nil {
+			rolltypes.GetNodeConfig(&rollkitConfig, tendermintConfig)
+			if err := rolltypes.TranslateAddresses(&rollkitConfig); err != nil {
 				return err
 			}
 
