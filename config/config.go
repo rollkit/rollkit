@@ -11,18 +11,31 @@ import (
 )
 
 const (
-	FlagAggregator     = "rollkit.aggregator"
-	FlagDAAddress      = "rollkit.da_address"
-	FlagDALayer        = "rollkit.da_layer"
-	FlagDAConfig       = "rollkit.da_config"
-	FlagBlockTime      = "rollkit.block_time"
-	FlagDABlockTime    = "rollkit.da_block_time"
-	FlagDAGasPrice     = "rollkit.da_gas_price"
-	FlagDAStartHeight  = "rollkit.da_start_height"
-	FlagNamespaceID    = "rollkit.namespace_id"
-	FlagFraudProofs    = "rollkit.experimental_insecure_fraud_proofs"
-	FlagLight          = "rollkit.light"
-	FlagTrustedHash    = "rollkit.trusted_hash"
+	// FlagAggregator is a flag for running node in aggregator mode
+	FlagAggregator = "rollkit.aggregator"
+	// FlagDAAddress is a flag for specifying the data availability layer address
+	FlagDAAddress = "rollkit.da_address"
+	// FlagDALayer is a flag for specifying the data availability layer
+	FlagDALayer = "rollkit.da_layer"
+	// FlagDAConfig is a flag for specifying the data availability layer configuration
+	FlagDAConfig = "rollkit.da_config"
+	// FlagBlockTime is a flag for specifying the block time
+	FlagBlockTime = "rollkit.block_time"
+	// FlagDABlockTime is a flag for specifying the data availability layer block time
+	FlagDABlockTime = "rollkit.da_block_time"
+	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
+	FlagDAGasPrice = "rollkit.da_gas_price"
+	// FlagDAStartHeight is a flag for specifying the data availability layer start height
+	FlagDAStartHeight = "rollkit.da_start_height"
+	// FlagNamespaceID is a flag for specifying the namespace ID
+	FlagNamespaceID = "rollkit.namespace_id"
+	// FlagFraudProofs is a flag for enabling experimental insecure fraud proofs
+	FlagFraudProofs = "rollkit.experimental_insecure_fraud_proofs"
+	// FlagLight is a flag for running the node in light mode
+	FlagLight = "rollkit.light"
+	// FlagTrustedHash is a flag for specifying the trusted hash
+	FlagTrustedHash = "rollkit.trusted_hash"
+	// FlagLazyAggregator is a flag for enabling lazy aggregation
 	FlagLazyAggregator = "rollkit.lazy_aggregator"
 )
 

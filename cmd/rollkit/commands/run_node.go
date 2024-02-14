@@ -18,7 +18,6 @@ import (
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/node"
 	rollnode "github.com/rollkit/rollkit/node"
 	rollrpc "github.com/rollkit/rollkit/rpc"
 	rolltypes "github.com/rollkit/rollkit/types"
@@ -157,7 +156,7 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			metrics := node.DefaultMetricsProvider(cmCfg.DefaultInstrumentationConfig())
+			metrics := rollnode.DefaultMetricsProvider(cmCfg.DefaultInstrumentationConfig())
 			rollnode, err := rollnode.NewNode(
 				context.Background(),
 				rollkitConfig,
