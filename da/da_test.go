@@ -131,7 +131,7 @@ func TestSubmitRetrieve(t *testing.T) {
 		{"submit_over_sized_block", doTestSubmitOversizedBlock},
 		{"submit_small_blocks_batch", doTestSubmitSmallBlocksBatch},
 		{"submit_large_blocks_overflow", doTestSubmitLargeBlocksOverflow},
-		{"retrieve_no_blobs_found", doTestRetrieveNoBlobsFound},
+		{"retrieve_no_blocks_found", doTestRetrieveNoBlocksFound},
 	}
 	for name, dalc := range clients {
 		for _, tc := range tests {
@@ -316,7 +316,7 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
 }
 
-func doTestRetrieveNoBlobsFound(t *testing.T, dalc *DAClient) {
+func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
