@@ -18,11 +18,8 @@ import (
 
 var MockServerAddr = ":7980"
 
-<<<<<<< HEAD
 var MockNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
 
-=======
->>>>>>> 7afaaec (revert changes not relevant to the core PR)
 // startNode starts the full node and stops it when the test is done
 func startNodeWithCleanup(t *testing.T, node Node) {
 	require.False(t, node.IsRunning())

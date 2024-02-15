@@ -11,24 +11,30 @@ type DA interface {
 	//
 	// Error should be returned if ID is not formatted properly, there is no Blob for given ID or any other client-level
 	// error occurred (dropped connection, timeout, etc).
-	Get(ctx context.Context, ids []ID) ([]Blob, error)
+	Get(ctx context.Context, ids []ID, namespace Namespace) ([]Blob, error)
 
 	// GetIDs returns IDs of all Blobs located in DA at given height.
-	GetIDs(ctx context.Context, height uint64) ([]ID, error)
+	GetIDs(ctx context.Context, height uint64, namespace Namespace) ([]ID, error)
+
+	// GetProofs returns inclusion Proofs for all Blobs located in DA at given height.
+	GetProofs(ctx context.Context, ids []ID, namespace Namespace) ([]Proof, error)
 
 	// Commit creates a Commitment for each given Blob.
-	Commit(ctx context.Context, blobs []Blob) ([]Commitment, error)
+	Commit(ctx context.Context, blobs []Blob, namespace Namespace) ([]Commitment, error)
 
 	// Submit submits the Blobs to Data Availability layer.
 	//
-	// This method is synchronous. Upon successful submission to Data Availability layer, it returns ID identifying blob
-	// in DA and Proof of inclusion.
-	// If options is nil, default options are used.
-	Submit(ctx context.Context, blobs []Blob, gasPrice float64) ([]ID, []Proof, error)
+	// This method is synchronous. Upon successful submission to Data Availability layer, it returns the IDs identifying blobs
+	// in DA.
+	Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace Namespace) ([]ID, error)
 
 	// Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the Blobs.
-	Validate(ctx context.Context, ids []ID, proofs []Proof) ([]bool, error)
+	Validate(ctx context.Context, ids []ID, proofs []Proof, namespace Namespace) ([]bool, error)
 }
+
+// Namespace is an optional parameter used to set the location a blob should be
+// posted to, for DA layers supporting the functionality.
+type Namespace = []byte
 
 // Blob is the data submitted/received from DA interface.
 type Blob = []byte
