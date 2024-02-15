@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -20,10 +21,10 @@ var VersionCmd = &cobra.Command{
 	Short: "Show version info",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if GitSHA == "" {
-			return fmt.Errorf("version not set")
+			return errors.New("version not set")
 		}
 		if Version == "" {
-			return fmt.Errorf("version not set")
+			return errors.New("version not set")
 		}
 		w := tabwriter.NewWriter(os.Stdout, 2, 0, 2, ' ', 0)
 		fmt.Fprintf(w, "\nrollkit version:\t%v\n", Version)
