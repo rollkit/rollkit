@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/hex"
 	"time"
 
 	cmcfg "github.com/cometbft/cometbft/config"
@@ -116,7 +115,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DALayer = v.GetString(FlagDALayer)
 	nc.DAConfig = v.GetString(FlagDAConfig)
 	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
-	nc.DANamespace := v.GetString(FlagDANamespace)
+	nc.DANamespace = v.GetString(FlagDANamespace)
 	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
 	nc.BlockTime = v.GetDuration(FlagBlockTime)
@@ -124,11 +123,6 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.FraudProofs = v.GetBool(FlagFraudProofs)
 	nc.Light = v.GetBool(FlagLight)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
-	bytes, err := hex.DecodeString(nsID)
-	if err != nil {
-		return err
-	}
-	copy(nc.NamespaceID[:], bytes)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	return nil
 }

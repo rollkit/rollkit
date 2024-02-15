@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -32,7 +31,7 @@ var (
 	blockTime      time.Duration = (30 * time.Second)
 	daBlockTime    time.Duration = (15 * time.Second)
 	daStartHeight  uint64        = 1
-	namespaceID    string        = "0000000000000000"
+	daNamespace    string        = "0000000000000000"
 	fraudProofs    bool          = false
 	light          bool          = false
 	trustedHash    string        = ""
@@ -83,7 +82,7 @@ func AddNodeFlags(cmd *cobra.Command) {
 	cmd.Flags().DurationVar(&blockTime, rollconf.FlagBlockTime, blockTime, "block time (for aggregator mode)")
 	cmd.Flags().DurationVar(&daBlockTime, rollconf.FlagDABlockTime, daBlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64Var(&daStartHeight, rollconf.FlagDAStartHeight, daStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().StringVar(&namespaceID, rollconf.FlagNamespaceID, namespaceID, "namespace identifies (8 bytes in hex)")
+	cmd.Flags().StringVar(&daNamespace, rollconf.FlagDANamespace, daNamespace, "namespace identifies (8 bytes in hex)")
 	cmd.Flags().BoolVar(&fraudProofs, rollconf.FlagFraudProofs, fraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().BoolVar(&light, rollconf.FlagLight, light, "run light client")
 	cmd.Flags().StringVar(&trustedHash, rollconf.FlagTrustedHash, trustedHash, "initial trusted hash to start the header exchange service")
@@ -128,11 +127,6 @@ func NewRunNodeCmd() *cobra.Command {
 				tendermintConfig.ABCI = "socket"
 			}
 
-			bytes, err := hex.DecodeString(namespaceID)
-			if err != nil {
-				return err
-			}
-
 			rollkitConfig := rollconf.NodeConfig{
 				Aggregator: aggregator,
 				BlockManagerConfig: rollconf.BlockManagerConfig{
@@ -141,15 +135,15 @@ func NewRunNodeCmd() *cobra.Command {
 					DAStartHeight: daStartHeight,
 					DABlockTime:   daBlockTime,
 				},
-				DALayer:  daLayer,
-				DAConfig: daConfig,
-				Light:    light,
+				DALayer:     daLayer,
+				DAConfig:    daConfig,
+				DANamespace: daNamespace,
+				Light:       light,
 				HeaderConfig: rollconf.HeaderConfig{
 					TrustedHash: trustedHash,
 				},
 				LazyAggregator: lazyAggregator,
 			}
-			copy(rollkitConfig.NamespaceID[:], bytes)
 
 			rollconf.GetNodeConfig(&rollkitConfig, tendermintConfig)
 			if err := rollconf.TranslateAddresses(&rollkitConfig); err != nil {

@@ -34,6 +34,8 @@ func TestGetNodeConfig(t *testing.T) {
 		})
 	}
 }
+
+// TODO need to update this test to account for all fields
 func TestViperAndCobra(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -49,7 +51,7 @@ func TestViperAndCobra(t *testing.T) {
 	assert.NoError(cmd.Flags().Set(FlagDAConfig, `{"json":true}`))
 	assert.NoError(cmd.Flags().Set(FlagDAAddress, `{"json":true}`))
 	assert.NoError(cmd.Flags().Set(FlagBlockTime, "1234s"))
-	assert.NoError(cmd.Flags().Set(FlagNamespaceID, "0102030405060708"))
+	assert.NoError(cmd.Flags().Set(FlagDANamespace, "0102030405060708"))
 	assert.NoError(cmd.Flags().Set(FlagFraudProofs, "false"))
 
 	nc := DefaultNodeConfig
