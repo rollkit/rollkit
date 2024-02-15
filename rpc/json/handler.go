@@ -146,11 +146,14 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 			case reflect.Slice:
 				// []byte is a reflect.Slice of reflect.Uint8's
 				if field.Type.Elem().Kind() == reflect.Uint8 {
-					if field.Name == "Hash" {
-						err = setByteSliceParam(rawVal, &args, i)
-					} else {
-						args.Elem().Field(i).SetBytes([]byte(rawVal))
-					}
+					err = setByteSliceParam(rawVal, &args, i)
+					// This was a change from the original CLI PR. Saving for reference but reverting to fix test.
+					//
+					// if field.Name == "Hash" {
+					// 	err = setByteSliceParam(rawVal, &args, i)
+					// } else {
+					// 	args.Elem().Field(i).SetBytes([]byte(rawVal))
+					// }
 				}
 			default:
 				err = errors.New("unknown type")
