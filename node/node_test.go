@@ -18,6 +18,8 @@ import (
 
 var MockServerAddr = ":7980"
 
+var MockNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
+
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
 	assert.NoError(t, node.Stop())
@@ -45,7 +47,7 @@ func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) 
 }
 
 func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey, error) {
-	config := config.NodeConfig{DAAddress: MockServerAddr}
+	config := config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace}
 	switch nodeType {
 	case "light":
 		config.Light = true

@@ -59,7 +59,7 @@ func TestAggregatorMode(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -184,6 +184,7 @@ func TestLazyAggregator(t *testing.T) {
 	defer cancel()
 	node, err := NewNode(ctx, config.NodeConfig{
 		DAAddress:          MockServerAddr,
+		DANamespace:        MockNamespace,
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
@@ -541,7 +542,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	for i := 0; i < num; i++ {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
-	dalc := getMockDA()
+	dalc := getMockDA(t)
 	bmConfig := getBMConfig()
 	sequencer, _ := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	fullNode, _ := createNode(ctx, 1, false, false, keys, bmConfig, t)
@@ -638,7 +639,7 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
-	dalc := getMockDA()
+	dalc := getMockDA(t)
 	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
@@ -706,6 +707,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		ctx,
 		config.NodeConfig{
 			DAAddress:          MockServerAddr,
+			DANamespace:        MockNamespace,
 			P2P:                p2pConfig,
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
