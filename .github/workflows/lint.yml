@@ -75,4 +75,9 @@ jobs:
       - name: Generate Docs
         run: rollkit docs-gen
       - name: Verify no diff
-        run: git diff --quiet || exit 1
+        run: |
+          DIFF=$(git diff)
+          if [[ -n "$DIFF" ]]; then
+            echo "$DIFF"
+            exit 1
+          fi
