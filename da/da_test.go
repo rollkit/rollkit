@@ -322,6 +322,6 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
 
 	assert := assert.New(t)
 	result := dalc.RetrieveBlocks(ctx, 123)
-	assert.Equal(StatusNotFound, result.Code, "should return not found")
-	assert.Contains(result.Message, "blob: not found")
+	assert.Equal(StatusNotFound, result.Code, "should return not found error")
+	assert.Contains(result.Message, ErrBlobNotFound.Error())
 }
