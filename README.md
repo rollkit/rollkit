@@ -10,16 +10,17 @@ A modular framework for rollups, with an ABCI-compatible client interface. For m
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
 <!-- markdownlint-enable MD013 -->
 
-
 ## Rollkit CLI
 
 Requires Go version >= 1.21.
 
-A cli tool that allows you to run different kinds of nodes for a rollkit network while also helping you generate the required configuration files
+A cli tool that allows you to run different kinds of nodes for a rollkit network
+while also helping you generate the required configuration files
 
 ### Install
 
-To install `rollkit`, simply run the following command at the root of the rollkit repo
+To install `rollkit`, simply run the following command at the root of the
+rollkit repo
 
 ```bash
 make install
