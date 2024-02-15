@@ -91,3 +91,11 @@ proto-lint:
 	@echo "--> Linting Protobuf files"
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
+
+install:
+	@echo "--> Installing Rollkit CLI"
+	@go install ./cmd/rollkit
+	@echo "--> Rollkit CLI Installed!"
+	@echo "    Check the version with: rollkit version"
+	@echo "    Check the binary with: which rollkit"
+.PHONY: install
