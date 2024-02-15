@@ -23,7 +23,7 @@ var VersionCmd = &cobra.Command{
 	Short: "Show version info",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if GitSHA == "" {
-			return errors.New("version not set")
+			return errors.New("git SHA not set")
 		}
 		if Version == "" {
 			return errors.New("version not set")
