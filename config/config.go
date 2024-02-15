@@ -28,7 +28,7 @@ const (
 	// FlagDAStartHeight is a flag for specifying the data availability layer start height
 	FlagDAStartHeight = "rollkit.da_start_height"
 	// FlagNamespaceID is a flag for specifying the namespace ID
-	FlagNamespaceID = "rollkit.namespace_id"
+	FlagDANamespace = "rollkit.da_namespace"
 	// FlagFraudProofs is a flag for enabling experimental insecure fraud proofs
 	FlagFraudProofs = "rollkit.experimental_insecure_fraud_proofs"
 	// FlagLight is a flag for running the node in light mode
@@ -57,10 +57,10 @@ type NodeConfig struct {
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
 
 	// CLI flags
-	DALayer     string  `mapstructure:"da_layer"`
-	DAConfig    string  `mapstructure:"da_config"`
-	FraudProofs bool    `mapstructure:"fraud_proofs"`
-	NamespaceID [8]byte `mapstructure:"namespace_id"`
+	DALayer     string `mapstructure:"da_layer"`
+	DAConfig    string `mapstructure:"da_config"`
+	FraudProofs bool   `mapstructure:"fraud_proofs"`
+	DANamespace string `mapstructure:"da_namespace"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -116,11 +116,11 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DALayer = v.GetString(FlagDALayer)
 	nc.DAConfig = v.GetString(FlagDAConfig)
 	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
+	nc.DANamespace := v.GetString(FlagDANamespace)
 	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
 	nc.BlockTime = v.GetDuration(FlagBlockTime)
 	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
-	nsID := v.GetString(FlagNamespaceID)
 	nc.FraudProofs = v.GetBool(FlagFraudProofs)
 	nc.Light = v.GetBool(FlagLight)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
@@ -147,7 +147,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Float64(FlagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().BytesHex(FlagNamespaceID, def.NamespaceID[:], "namespace identifies (8 bytes in hex)")
+	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
 	cmd.Flags().Bool(FlagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")

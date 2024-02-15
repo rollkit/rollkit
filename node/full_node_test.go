@@ -111,7 +111,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	manager.SetLastState(state)
 
 	// Set up mock DA
-	dalc := getMockDA()
+	dalc := getMockDA(t)
 	fullNode.dalc = dalc
 	manager.SetDALC(dalc)
 

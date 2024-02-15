@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"testing"
 	"time"
@@ -17,8 +18,11 @@ import (
 	"github.com/rollkit/rollkit/da"
 )
 
-func getMockDA() *da.DAClient {
-	return &da.DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: log.TestingLogger()}
+func getMockDA(t *testing.T) *da.DAClient {
+	namespace := make([]byte, len(MockNamespace)/2)
+	_, err := hex.Decode(namespace, []byte(MockNamespace))
+	require.NoError(t, err)
+	return &da.DAClient{DA: goDATest.NewDummyDA(), Namespace: namespace, GasPrice: -1, Logger: log.TestingLogger()}
 }
 
 func TestMockTester(t *testing.T) {
@@ -34,7 +38,7 @@ func TestGetNodeHeight(t *testing.T) {
 	assert := assert.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dalc := getMockDA()
+	dalc := getMockDA(t)
 	num := 2
 	keys := make([]crypto.PrivKey, num)
 	for i := 0; i < num; i++ {

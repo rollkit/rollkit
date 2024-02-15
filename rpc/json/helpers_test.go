@@ -32,6 +32,8 @@ func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal
 
 var MockServerAddr = ":7980"
 
+var MockNamespace = "deadbeef"
+
 // copied from rpc
 func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	t.Helper()
@@ -77,7 +79,7 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	genesisValidators := []cmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
-	n, err := node.NewNode(context.Background(), config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, node.DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	n, err := node.NewNode(context.Background(), config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace, Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, node.DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 
