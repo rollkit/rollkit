@@ -23,9 +23,11 @@ var InitFilesCmd = &cobra.Command{
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
 // note that such a change would also require changing the cosmos-sdk
 func initFiles(cmd *cobra.Command, args []string) error {
+	config := defaultConfig
+	logger := defaultLogger
 	// private validator
-	privValKeyFile := tendermintConfig.PrivValidatorKeyFile()
-	privValStateFile := tendermintConfig.PrivValidatorStateFile()
+	privValKeyFile := config.PrivValidatorKeyFile()
+	privValStateFile := config.PrivValidatorStateFile()
 	var pv *privval.FilePV
 	if tmos.FileExists(privValKeyFile) {
 		pv = privval.LoadFilePV(privValKeyFile, privValStateFile)
@@ -38,7 +40,7 @@ func initFiles(cmd *cobra.Command, args []string) error {
 			"stateFile", privValStateFile)
 	}
 
-	nodeKeyFile := tendermintConfig.NodeKeyFile()
+	nodeKeyFile := config.NodeKeyFile()
 	if tmos.FileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
@@ -49,7 +51,7 @@ func initFiles(cmd *cobra.Command, args []string) error {
 	}
 
 	// genesis file
-	genFile := tendermintConfig.GenesisFile()
+	genFile := config.GenesisFile()
 	if tmos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {

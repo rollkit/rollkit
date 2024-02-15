@@ -37,9 +37,10 @@ var (
 	trustedHash    string        = ""
 )
 
-// AddNodeFlags exposes some common configuration options on the command-line
+// addNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a rollkit node
-func AddNodeFlags(cmd *cobra.Command) {
+func addNodeFlags(cmd *cobra.Command) {
+	config := defaultConfig
 	// node flags
 	cmd.Flags().BytesHexVar(
 		&genesisHash,
@@ -49,18 +50,18 @@ func AddNodeFlags(cmd *cobra.Command) {
 	// abci flags
 	cmd.Flags().String(
 		"proxy_app",
-		tendermintConfig.ProxyApp,
+		config.ProxyApp,
 		"proxy app address, or one of: 'kvstore',"+
 			" 'persistent_kvstore', 'counter', 'e2e' or 'noop' for local testing.")
-	cmd.Flags().String("transport", tendermintConfig.ABCI, "specify abci transport (socket | grpc)")
+	cmd.Flags().String("transport", config.ABCI, "specify abci transport (socket | grpc)")
 
 	// rpc flags
-	cmd.Flags().String("rpc.laddr", tendermintConfig.RPC.ListenAddress, "RPC listen address. Port required")
+	cmd.Flags().String("rpc.laddr", config.RPC.ListenAddress, "RPC listen address. Port required")
 
 	// p2p flags
 	cmd.Flags().String(
 		"p2p.laddr",
-		tendermintConfig.P2P.ListenAddress,
+		config.P2P.ListenAddress,
 		"node listen address.")
 
 	// db flags
@@ -71,7 +72,7 @@ func AddNodeFlags(cmd *cobra.Command) {
 	// 	"database backend: goleveldb | cleveldb | boltdb | rocksdb | badgerdb")
 	cmd.Flags().String(
 		"db_dir",
-		tendermintConfig.DBPath,
+		config.DBPath,
 		"database directory")
 
 	// Rollkit commands
@@ -95,17 +96,17 @@ func NewRunNodeCmd() *cobra.Command {
 		Aliases: []string{"node", "run"},
 		Short:   "Run the rollkit node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			genDocProvider := tmnode.DefaultGenesisDocProviderFunc(tendermintConfig)
+			defaultCometConfig := cmCfg.DefaultConfig()
+			genDocProvider := tmnode.DefaultGenesisDocProviderFunc(defaultCometConfig)
 			genDoc, err := genDocProvider()
 			if err != nil {
 				return err
 			}
-			nodeKey, err := tmp2p.LoadOrGenNodeKey(tendermintConfig.NodeKeyFile())
+			nodeKey, err := tmp2p.LoadOrGenNodeKey(defaultCometConfig.NodeKeyFile())
 			if err != nil {
 				return err
 			}
-			pval := privval.LoadOrGenFilePV(tendermintConfig.PrivValidatorKeyFile(), tendermintConfig.PrivValidatorStateFile())
+			pval := privval.LoadOrGenFilePV(defaultCometConfig.PrivValidatorKeyFile(), defaultCometConfig.PrivValidatorStateFile())
 			p2pKey, err := rolltypes.GetNodeKey(nodeKey)
 			if err != nil {
 				return err
@@ -117,14 +118,14 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// create logger
 			logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-			logger, err = tmflags.ParseLogLevel(tendermintConfig.LogLevel, logger, cmCfg.DefaultLogLevel)
+			logger, err = tmflags.ParseLogLevel(defaultCometConfig.LogLevel, logger, cmCfg.DefaultLogLevel)
 			if err != nil {
 				return fmt.Errorf("failed to parse log level: %w", err)
 			}
 
 			// default to socket connections for remote clients
-			if len(tendermintConfig.ABCI) == 0 {
-				tendermintConfig.ABCI = "socket"
+			if len(defaultCometConfig.ABCI) == 0 {
+				defaultCometConfig.ABCI = "socket"
 			}
 
 			rollkitConfig := rollconf.NodeConfig{
@@ -145,7 +146,7 @@ func NewRunNodeCmd() *cobra.Command {
 				LazyAggregator: lazyAggregator,
 			}
 
-			rollconf.GetNodeConfig(&rollkitConfig, tendermintConfig)
+			rollconf.GetNodeConfig(&rollkitConfig, defaultCometConfig)
 			if err := rollconf.TranslateAddresses(&rollkitConfig); err != nil {
 				return err
 			}
@@ -156,7 +157,7 @@ func NewRunNodeCmd() *cobra.Command {
 				rollkitConfig,
 				p2pKey,
 				signingKey,
-				proxy.DefaultClientCreator(tendermintConfig.ProxyApp, tendermintConfig.ABCI, rollkitConfig.DBPath),
+				proxy.DefaultClientCreator(defaultCometConfig.ProxyApp, defaultCometConfig.ABCI, rollkitConfig.DBPath),
 				genDoc,
 				metrics,
 				logger,
@@ -166,7 +167,7 @@ func NewRunNodeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
 			}
 
-			server := rollrpc.NewServer(rollnode, tendermintConfig.RPC, logger)
+			server := rollrpc.NewServer(rollnode, defaultCometConfig.RPC, logger)
 			err = server.Start()
 			if err != nil {
 				return err
@@ -192,6 +193,6 @@ func NewRunNodeCmd() *cobra.Command {
 		},
 	}
 
-	AddNodeFlags(cmd)
+	addNodeFlags(cmd)
 	return cmd
 }

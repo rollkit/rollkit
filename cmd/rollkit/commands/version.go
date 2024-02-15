@@ -9,12 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// GitSHA is set at build time
-var GitSHA string
-
-// Version is set at build time
-var Version string
-
 // VersionCmd ...
 var VersionCmd = &cobra.Command{
 	Use:   "version",

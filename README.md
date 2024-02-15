@@ -47,6 +47,8 @@ The latest Rollkit is now installed. You can verify the installation by running:
 rollkit version
 ```
 
+Explore the CLI documentation [here](./cmd/rollkit/rollkit.md)
+
 ### Building on Celestia
 
 There are currently 2 ways to build on Celestia:
