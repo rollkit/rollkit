@@ -988,7 +988,7 @@ func TestStatus(t *testing.T) {
 
 		assert.Equal(hex.EncodeToString(earliestBlock.SignedHeader.DataHash), hex.EncodeToString(resp.SyncInfo.EarliestBlockHash))
 		assert.Equal(hex.EncodeToString(latestBlock.SignedHeader.DataHash), hex.EncodeToString(resp.SyncInfo.LatestBlockHash))
-		assert.Equal(true, resp.SyncInfo.CatchingUp)
+		assert.Equal(false, resp.SyncInfo.CatchingUp)
 	})
 	t.Run("ValidatorInfo", func(t *testing.T) {
 		assert.Equal(genesisDoc.Validators[0].Address, resp.ValidatorInfo.Address)
