@@ -1,0 +1,27 @@
+version: v1beta1
+
+build:
+  roots:
+    - proto
+    - third_party/proto
+lint:
+  use:
+    - DEFAULT
+    - COMMENTS
+    - FILE_LOWER_SNAKE_CASE
+  except:
+    - COMMENT_ENUM
+    - COMMENT_ENUM_VALUE
+    - COMMENT_MESSAGE
+    - COMMENT_RPC
+    - COMMENT_SERVICE
+    - COMMENT_FIELD
+    - PACKAGE_VERSION_SUFFIX
+    - RPC_REQUEST_STANDARD_NAME
+    - SERVICE_SUFFIX
+    - UNARY_RPC
+  ignore:
+    - tendermint
+breaking:
+  use:
+    - FILE

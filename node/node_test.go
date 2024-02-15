@@ -42,14 +42,7 @@ func cleanUpNode(node Node, t *testing.T) {
 // initializeAndStartNode initializes and starts a node of the specified type.
 func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType string) Node {
 	node, _ := setupTestNode(ctx, t, nodeType)
-
-	require.False(t, node.IsRunning())
-	require.NoError(t, node.Start())
-	require.True(t, node.IsRunning())
-
-	t.Cleanup(func() {
-		cleanUpNode(node, t)
-	})
+	startNodeWithCleanup(t, node)
 
 	return node
 }
@@ -81,10 +74,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25
 		return nil, nil, err
 	}
 
-	key, err := generateSingleKey()
-	if err != nil {
-		return nil, nil, err
-	}
+	key := generateSingleKey()
 
 	logger := test.NewFileLogger(t)
 	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
@@ -94,8 +84,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25
 func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 
-	ln := initAndStartNodeWithCleanup(ctx, t, "light").(*LightNode)
-	require.NotNil(t, ln)
-	fn := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
-	require.NotNil(t, fn)
+	_ = initAndStartNodeWithCleanup(ctx, t, "light").(*LightNode)
+	_ = initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
 }

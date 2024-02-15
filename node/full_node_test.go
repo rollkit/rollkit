@@ -27,15 +27,13 @@ import (
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
 	ctx := context.Background()
-	fn := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
-	require.NotNil(t, fn)
+	_ = initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
 }
 
 func TestMempoolDirectly(t *testing.T) {
 	ctx := context.Background()
 
 	node := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
-	require.NotNil(t, node)
 
 	assert := assert.New(t)
 	peerID := getPeerID(assert)
@@ -158,15 +156,17 @@ func setupMockApplication() *mocks.Application {
 }
 
 // generateSingleKey generates a single private key
-func generateSingleKey() (crypto.PrivKey, error) {
+func generateSingleKey() crypto.PrivKey {
 	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	return key, err
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
 // getPeerID generates a peer ID
 func getPeerID(assert *assert.Assertions) peer.ID {
-	key, err := generateSingleKey()
-	assert.NoError(err)
+	key := generateSingleKey()
 
 	peerID, err := peer.IDFromPrivateKey(key)
 	assert.NoError(err)
