@@ -47,8 +47,6 @@ func TestViperAndCobra(t *testing.T) {
 	assert.NoError(v.BindPFlags(cmd.Flags()))
 
 	assert.NoError(cmd.Flags().Set(FlagAggregator, "true"))
-	assert.NoError(cmd.Flags().Set(FlagDALayer, "foobar"))
-	assert.NoError(cmd.Flags().Set(FlagDAConfig, `{"json":true}`))
 	assert.NoError(cmd.Flags().Set(FlagDAAddress, `{"json":true}`))
 	assert.NoError(cmd.Flags().Set(FlagBlockTime, "1234s"))
 	assert.NoError(cmd.Flags().Set(FlagDANamespace, "0102030405060708"))

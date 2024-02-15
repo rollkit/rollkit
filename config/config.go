@@ -14,10 +14,6 @@ const (
 	FlagAggregator = "rollkit.aggregator"
 	// FlagDAAddress is a flag for specifying the data availability layer address
 	FlagDAAddress = "rollkit.da_address"
-	// FlagDALayer is a flag for specifying the data availability layer
-	FlagDALayer = "rollkit.da_layer"
-	// FlagDAConfig is a flag for specifying the data availability layer configuration
-	FlagDAConfig = "rollkit.da_config"
 	// FlagBlockTime is a flag for specifying the block time
 	FlagBlockTime = "rollkit.block_time"
 	// FlagDABlockTime is a flag for specifying the data availability layer block time
@@ -56,8 +52,6 @@ type NodeConfig struct {
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
 
 	// CLI flags
-	DALayer     string `mapstructure:"da_layer"`
-	DAConfig    string `mapstructure:"da_config"`
 	FraudProofs bool   `mapstructure:"fraud_proofs"`
 	DANamespace string `mapstructure:"da_namespace"`
 }
@@ -112,8 +106,6 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Aggregator = v.GetBool(FlagAggregator)
 	nc.DAAddress = v.GetString(FlagDAAddress)
-	nc.DALayer = v.GetString(FlagDALayer)
-	nc.DAConfig = v.GetString(FlagDAConfig)
 	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
 	nc.DANamespace = v.GetString(FlagDANamespace)
 	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
@@ -135,8 +127,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagAggregator, def.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
 	cmd.Flags().String(FlagDAAddress, def.DAAddress, "DA address (host:port)")
-	cmd.Flags().String(FlagDALayer, def.DALayer, "Data Availability Layer Client name (mock or grpc")
-	cmd.Flags().String(FlagDAConfig, def.DAConfig, "Data Availability Layer Client config")
 	cmd.Flags().Duration(FlagBlockTime, def.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(FlagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Float64(FlagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")

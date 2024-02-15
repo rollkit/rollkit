@@ -39,8 +39,6 @@ var (
 	genesisHash    []byte
 	aggregator     bool          = false
 	lazyAggregator bool          = false
-	daLayer        string        = "mock"
-	daConfig       string        = ""
 	blockTime      time.Duration = (30 * time.Second)
 	daBlockTime    time.Duration = (15 * time.Second)
 	daStartHeight  uint64        = 1
@@ -119,8 +117,6 @@ func NewRunNodeCmd() *cobra.Command {
 					DAStartHeight: daStartHeight,
 					DABlockTime:   daBlockTime,
 				},
-				DALayer:     daLayer,
-				DAConfig:    daConfig,
 				DANamespace: daNamespace,
 				Light:       light,
 				HeaderConfig: rollconf.HeaderConfig{
@@ -226,8 +222,6 @@ func addNodeFlags(cmd *cobra.Command) {
 	// Rollkit commands
 	cmd.Flags().BoolVar(&aggregator, rollconf.FlagAggregator, aggregator, "run node in aggregator mode")
 	cmd.Flags().BoolVar(&lazyAggregator, rollconf.FlagLazyAggregator, lazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().StringVar(&daLayer, rollconf.FlagDALayer, daLayer, "Data Availability Layer Client name (mock or grpc")
-	cmd.Flags().StringVar(&daConfig, rollconf.FlagDAConfig, daConfig, "Data Availability Layer Client config")
 	cmd.Flags().DurationVar(&blockTime, rollconf.FlagBlockTime, blockTime, "block time (for aggregator mode)")
 	cmd.Flags().DurationVar(&daBlockTime, rollconf.FlagDABlockTime, daBlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64Var(&daStartHeight, rollconf.FlagDAStartHeight, daStartHeight, "starting DA block height (for syncing)")
