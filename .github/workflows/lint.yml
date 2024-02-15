@@ -73,6 +73,6 @@ jobs:
       - name: install rollkit cli
         run: make install
       - name: Generate Docs
-        run: make docs-gen
+        run: rollkit docs-gen
       - name: Verify no diff
         run: git diff --quiet || exit 1
