@@ -17,8 +17,6 @@ rollkit start [flags]
       --rollkit.aggregator                           run node in aggregator mode
       --rollkit.block_time duration                  block time (for aggregator mode) (default 30s)
       --rollkit.da_block_time duration               DA chain block time (for syncing) (default 15s)
-      --rollkit.da_config string                     Data Availability Layer Client config
-      --rollkit.da_layer string                      Data Availability Layer Client name (mock or grpc (default "mock")
       --rollkit.da_namespace string                  namespace identifies (8 bytes in hex) (default "0000000000000000")
       --rollkit.da_start_height uint                 starting DA block height (for syncing) (default 1)
       --rollkit.experimental_insecure_fraud_proofs   enable fraud proofs (experimental & insecure)
