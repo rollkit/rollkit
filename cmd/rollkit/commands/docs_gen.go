@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra/doc"
 )
 
-// DocsGenCmd ...
+// DocsGenCmd is the command to generate documentation for rollkit CLI
 var DocsGenCmd = &cobra.Command{
 	Use:   "docs-gen",
 	Short: "Generate documentation for rollkit CLI",

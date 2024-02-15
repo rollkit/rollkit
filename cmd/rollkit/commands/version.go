@@ -9,7 +9,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// VersionCmd ...
+var (
+	// GitSHA is set at build time
+	GitSHA string
+
+	// Version is set at build time
+	Version string
+)
+
+// VersionCmd is the command to show version info for rollkit CLI
 var VersionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version info",
