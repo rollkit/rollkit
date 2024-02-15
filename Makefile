@@ -92,9 +92,16 @@ proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
 
+# Extract the latest Git tag as the version number
+VERSION := $(shell git describe --tags --abbrev=0)
+GITSHA := $(shell git rev-parse --short HEAD)
+LDFLAGS := \
+	-X github.com/rollkit/rollkit/cmd/rollkit/commands.Version=$(VERSION) \
+	-X github.com/rollkit/rollkit/cmd/rollkit/commands.GitSHA=$(GITSHA)
+## install: Install rollkit CLI
 install:
 	@echo "--> Installing Rollkit CLI"
-	@go install ./cmd/rollkit
+	@go install -ldflags "$(LDFLAGS)" ./cmd/rollkit
 	@echo "--> Rollkit CLI Installed!"
 	@echo "    Check the version with: rollkit version"
 	@echo "    Check the binary with: which rollkit"

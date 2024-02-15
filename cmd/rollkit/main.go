@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -10,16 +11,21 @@ import (
 )
 
 func main() {
+	// Initiate the root command
 	rootCmd := cmd.RootCmd
+
+	// Add subcommands to the root command
 	rootCmd.AddCommand(
 		cmd.InitFilesCmd,
+		cmd.NewRunNodeCmd(),
 		cmd.VersionCmd,
 	)
 
-	rootCmd.AddCommand(cmd.NewRunNodeCmd())
-
-	cmd := cli.PrepareBaseCmd(rootCmd, "RK", os.ExpandEnv(filepath.Join("$HOME", ".rollkit")))
-	if err := cmd.Execute(); err != nil {
-		panic(err)
+	// Prepare the base command and execute
+	executor := cli.PrepareBaseCmd(rootCmd, "RK", os.ExpandEnv(filepath.Join("$HOME", ".rollkit")))
+	if err := executor.Execute(); err != nil {
+		// Print to stderr and exit with error
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
