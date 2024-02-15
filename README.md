@@ -10,26 +10,10 @@ A modular framework for rollups, with an ABCI-compatible client interface. For m
 [![GoDoc](https://godoc.org/github.com/rollkit/rollkit?status.svg)](https://godoc.org/github.com/rollkit/rollkit)
 <!-- markdownlint-enable MD013 -->
 
-## Building from source
-
-Requires Go version >= 1.21.
-
-To build:
-
-```sh
-git clone https://github.com/rollkit/rollkit.git
-cd rollkit
-go build -v ./...
-```
-
-## Building with Rollkit
-
-While Rollkit is a modular framework that aims to be compatible with a wide
-range of data availability layers, settlement layers, and execution
-environments, the most supported development environment is building on Celestia
-as a data availability layer.
 
 ## Rollkit CLI
+
+Requires Go version >= 1.21.
 
 A cli tool that allows you to run different kinds of nodes for a rollkit network while also helping you generate the required configuration files
 
@@ -48,6 +32,13 @@ rollkit version
 ```
 
 Explore the CLI documentation [here](./cmd/rollkit/docs/rollkit.md)
+
+## Building with Rollkit
+
+While Rollkit is a modular framework that aims to be compatible with a wide
+range of data availability layers, settlement layers, and execution
+environments, the most supported development environment is building on Celestia
+as a data availability layer.
 
 ### Building on Celestia
 
