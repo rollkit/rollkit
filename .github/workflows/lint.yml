@@ -60,3 +60,19 @@ jobs:
       - uses: actions/checkout@v4
       - run: make proto-gen
       - run: make proto-lint
+
+  cli-docs-lint:
+    name: Lint CLI Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: install rollkit cli
+        run: make install
+      - name: Generate Docs
+        run: make docs-gen
+      - name: Verify no diff
+        run: git diff --quiet || exit 1

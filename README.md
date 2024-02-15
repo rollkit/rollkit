@@ -29,6 +29,24 @@ range of data availability layers, settlement layers, and execution
 environments, the most supported development environment is building on Celestia
 as a data availability layer.
 
+## Rollkit CLI
+
+A cli tool that allows you to run different kinds of nodes for a rollkit network while also helping you generate the required configuration files
+
+### Install
+
+To install `rollkit`, simply run the following command at the root of the rollkit repo
+
+```bash
+make install
+```
+
+The latest Rollkit is now installed. You can verify the installation by running:
+
+```bash
+rollkit version
+```
+
 ### Building on Celestia
 
 There are currently 2 ways to build on Celestia:
