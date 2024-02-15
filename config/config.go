@@ -26,7 +26,7 @@ const (
 	FlagDAGasPrice = "rollkit.da_gas_price"
 	// FlagDAStartHeight is a flag for specifying the data availability layer start height
 	FlagDAStartHeight = "rollkit.da_start_height"
-	// FlagNamespaceID is a flag for specifying the namespace ID
+	// FlagDANamespace is a flag for specifying the DA namespace ID
 	FlagDANamespace = "rollkit.da_namespace"
 	// FlagFraudProofs is a flag for enabling experimental insecure fraud proofs
 	FlagFraudProofs = "rollkit.experimental_insecure_fraud_proofs"
