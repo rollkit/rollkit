@@ -47,7 +47,7 @@ The latest Rollkit is now installed. You can verify the installation by running:
 rollkit version
 ```
 
-Explore the CLI documentation [here](./cmd/rollkit/rollkit.md)
+Explore the CLI documentation [here](./cmd/rollkit/docs/rollkit.md)
 
 ### Building on Celestia
 

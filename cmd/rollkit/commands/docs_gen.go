@@ -18,6 +18,6 @@ var DocsGenCmd = &cobra.Command{
 		if Version == "" {
 			return errors.New("version not set")
 		}
-		return doc.GenMarkdownTree(RootCmd, "./cmd/rollkit")
+		return doc.GenMarkdownTree(RootCmd, "./cmd/rollkit/docs")
 	},
 }
