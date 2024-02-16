@@ -39,11 +39,10 @@ var (
 	genesisHash    []byte
 	aggregator     bool          = false
 	lazyAggregator bool          = false
-	blockTime      time.Duration = (30 * time.Second)
+	blockTime      time.Duration = (1 * time.Second)
 	daBlockTime    time.Duration = (15 * time.Second)
 	daStartHeight  uint64        = 1
 	daNamespace    string        = "0000000000000000"
-	fraudProofs    bool          = false
 	light          bool          = false
 	trustedHash    string        = ""
 )
@@ -113,7 +112,6 @@ func NewRunNodeCmd() *cobra.Command {
 				Aggregator: aggregator,
 				BlockManagerConfig: rollconf.BlockManagerConfig{
 					BlockTime:     blockTime,
-					FraudProofs:   fraudProofs,
 					DAStartHeight: daStartHeight,
 					DABlockTime:   daBlockTime,
 				},
@@ -226,7 +224,6 @@ func addNodeFlags(cmd *cobra.Command) {
 	cmd.Flags().DurationVar(&daBlockTime, rollconf.FlagDABlockTime, daBlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Uint64Var(&daStartHeight, rollconf.FlagDAStartHeight, daStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().StringVar(&daNamespace, rollconf.FlagDANamespace, daNamespace, "namespace identifies (8 bytes in hex)")
-	cmd.Flags().BoolVar(&fraudProofs, rollconf.FlagFraudProofs, fraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().BoolVar(&light, rollconf.FlagLight, light, "run light client")
 	cmd.Flags().StringVar(&trustedHash, rollconf.FlagTrustedHash, trustedHash, "initial trusted hash to start the header exchange service")
 }

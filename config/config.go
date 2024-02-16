@@ -24,8 +24,6 @@ const (
 	FlagDAStartHeight = "rollkit.da_start_height"
 	// FlagDANamespace is a flag for specifying the DA namespace ID
 	FlagDANamespace = "rollkit.da_namespace"
-	// FlagFraudProofs is a flag for enabling experimental insecure fraud proofs
-	FlagFraudProofs = "rollkit.experimental_insecure_fraud_proofs"
 	// FlagLight is a flag for running the node in light mode
 	FlagLight = "rollkit.light"
 	// FlagTrustedHash is a flag for specifying the trusted hash
@@ -52,7 +50,6 @@ type NodeConfig struct {
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
 
 	// CLI flags
-	FraudProofs bool   `mapstructure:"fraud_proofs"`
 	DANamespace string `mapstructure:"da_namespace"`
 }
 
@@ -69,8 +66,6 @@ type BlockManagerConfig struct {
 	DABlockTime time.Duration `mapstructure:"da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
 	DAStartHeight uint64 `mapstructure:"da_start_height"`
-	// FraudProofs enables fraud proofs
-	FraudProofs bool `mapstructure:"fraud_proofs"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
@@ -112,7 +107,6 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
 	nc.BlockTime = v.GetDuration(FlagBlockTime)
 	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
-	nc.FraudProofs = v.GetBool(FlagFraudProofs)
 	nc.Light = v.GetBool(FlagLight)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
@@ -132,7 +126,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Float64(FlagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
-	cmd.Flags().Bool(FlagFraudProofs, def.FraudProofs, "enable fraud proofs (experimental & insecure)")
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 }

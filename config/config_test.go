@@ -50,7 +50,6 @@ func TestViperAndCobra(t *testing.T) {
 	assert.NoError(cmd.Flags().Set(FlagDAAddress, `{"json":true}`))
 	assert.NoError(cmd.Flags().Set(FlagBlockTime, "1234s"))
 	assert.NoError(cmd.Flags().Set(FlagDANamespace, "0102030405060708"))
-	assert.NoError(cmd.Flags().Set(FlagFraudProofs, "false"))
 
 	nc := DefaultNodeConfig
 	assert.NoError(nc.GetViperConfig(v))
