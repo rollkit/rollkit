@@ -36,7 +36,6 @@ var (
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
 
 	// initialize command flags with defaults
-	genesisHash    []byte
 	aggregator     bool          = false
 	lazyAggregator bool          = false
 	blockTime      time.Duration = (1 * time.Second)
@@ -183,12 +182,6 @@ func NewRunNodeCmd() *cobra.Command {
 // addNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a rollkit node
 func addNodeFlags(cmd *cobra.Command) {
-	// node flags
-	cmd.Flags().BytesHexVar(
-		&genesisHash,
-		"genesis_hash",
-		[]byte{},
-		"optional SHA-256 hash of the genesis file")
 	// abci flags
 	cmd.Flags().String(
 		"proxy_app",
