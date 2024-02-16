@@ -45,10 +45,8 @@ func TestGetNodeHeight(t *testing.T) {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
 	bmConfig := getBMConfig()
-	fullNode, _ := createNode(ctx, 0, true, false, keys, bmConfig, t)
+	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, keys, bmConfig, dalc, t)
 	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, t)
-	fullNode.(*FullNode).dalc = dalc
-	fullNode.(*FullNode).blockManager.SetDALC(dalc)
 	require.NoError(fullNode.Start())
 	defer func() {
 		assert.NoError(fullNode.Stop())
@@ -59,44 +57,29 @@ func TestGetNodeHeight(t *testing.T) {
 		assert.NoError(lightNode.Stop())
 	}()
 
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(fullNode, Header)
-		if err != nil {
-			return err
-		}
-		if num > 0 {
-			return nil
-		}
-		return errors.New("expected height > 0")
-	}))
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(fullNode, Block)
-		if err != nil {
-			return err
-		}
-		if num > 0 {
-			return nil
-		}
-		return errors.New("expected height > 0")
-	}))
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(fullNode, Store)
-		if err != nil {
-			return err
-		}
-		if num > 0 {
-			return nil
-		}
-		return errors.New("expected height > 0")
-	}))
-	require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-		num, err := getNodeHeight(lightNode, Header)
-		if err != nil {
-			return err
-		}
-		if num > 0 {
-			return nil
-		}
-		return errors.New("expected height > 0")
-	}))
+	cases := []struct {
+		desc   string
+		node   Node
+		source Source
+	}{
+		{"fullNode height from Header", fullNode, Header},
+		{"fullNode height from Block", fullNode, Block},
+		{"fullNode height from Store", fullNode, Store},
+		{"lightNode height from Header", lightNode, Header},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+				num, err := getNodeHeight(tc.node, tc.source)
+				if err != nil {
+					return err
+				}
+				if num > 0 {
+					return nil
+				}
+				return errors.New("expected height > 0")
+			}))
+		})
+	}
 }

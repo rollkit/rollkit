@@ -131,6 +131,7 @@ func TestSubmitRetrieve(t *testing.T) {
 		{"submit_over_sized_block", doTestSubmitOversizedBlock},
 		{"submit_small_blocks_batch", doTestSubmitSmallBlocksBatch},
 		{"submit_large_blocks_overflow", doTestSubmitLargeBlocksOverflow},
+		{"retrieve_no_blocks_found", doTestRetrieveNoBlocksFound},
 	}
 	for name, dalc := range clients {
 		for _, tc := range tests {
@@ -313,4 +314,14 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 	resp = dalc.SubmitBlocks(ctx, []*types.Block{block2})
 	assert.Equal(StatusSuccess, resp.Code, "remaining blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
+}
+
+func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	assert := assert.New(t)
+	result := dalc.RetrieveBlocks(ctx, 123)
+	assert.Equal(StatusNotFound, result.Code)
+	assert.Contains(result.Message, ErrBlobNotFound.Error())
 }
