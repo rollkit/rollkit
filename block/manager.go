@@ -866,9 +866,13 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
 			blocksToSubmit = notSubmittedBlocks
 			// reset submission options when successful
+			// scale back gasPrice gradually
 			backoff = initialBackoff
 			maxBlobSize = initialMaxBlobSize
-			gasPrice = initialGasPrice
+			gasPrice = gasPrice / m.dalc.GasMultiplier
+			if gasPrice < initialGasPrice {
+				gasPrice = initialGasPrice
+			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
