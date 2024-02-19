@@ -55,9 +55,9 @@ func TestMockDAErrors(t *testing.T) {
 		// Set up the mock to throw context deadline exceeded
 		mockDA.On("MaxBlobSize").Return(uint64(1234), nil)
 		mockDA.
-			On("Submit", blobs, float64(-1)).
+			On("Submit", blobs, float64(-1), []byte(nil)).
 			After(100*time.Millisecond).
-			Return([]da.ID{bytes.Repeat([]byte{0x00}, 8)}, []da.Proof{[]byte("proof")}, nil)
+			Return([]da.ID{bytes.Repeat([]byte{0x00}, 8)}, nil)
 		doTestSubmitTimeout(t, dalc, blocks)
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {

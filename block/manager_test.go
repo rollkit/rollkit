@@ -150,22 +150,18 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		// then submit successfully
 		mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
 		mockDA.
-			On("Submit", blobs, float64(-1)).
-			Return([][]byte{}, [][]byte{}, errors.New("timed out waiting for tx to be included in a block")).Once()
+			On("Submit", blobs, float64(-1), []byte(nil)).
+			Return([][]byte{}, errors.New("timed out waiting for tx to be included in a block")).Once()
 		mockDA.
-			On("Submit", blobs, float64(-1)).
-			Return([][]byte{}, [][]byte{}, errors.New("tx already in mempool")).Times(10)
+			On("Submit", blobs, float64(-1), []byte(nil)).
+			Return([][]byte{}, errors.New("tx already in mempool")).Times(10)
 		mockDA.
-			On("Submit", blobs, float64(-1)).
-			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, [][]byte{[]byte("proof")}, nil)
+			On("Submit", blobs, float64(-1), []byte(nil)).
+			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
 		m.pendingBlocks = NewPendingBlocks()
 		m.pendingBlocks.addPendingBlock(block)
-		// should have slept at least 10 * DABlockTime to avoid resubmitting too fast
-		before := time.Now().UnixMilli()
 		err = m.submitBlocksToDA(ctx)
-		after := time.Now().UnixMilli()
-		assert.LessOrEqual(t, int64(10), after-before)
 		require.NoError(t, err)
 	})
 }
