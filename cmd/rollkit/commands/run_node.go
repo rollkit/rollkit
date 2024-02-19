@@ -36,7 +36,7 @@ var (
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
 
 	// initialize command flags with defaults
-	aggregator     bool          = false
+	aggregator     bool          = true
 	lazyAggregator bool          = false
 	blockTime      time.Duration = (1 * time.Second)
 	daBlockTime    time.Duration = (15 * time.Second)
@@ -44,6 +44,9 @@ var (
 	daNamespace    string        = "0000000000000000"
 	light          bool          = false
 	trustedHash    string        = ""
+	daAddress      string        = ":26650"
+	daGasPrice     float64       = -1
+	proxyApp       string        = "noop"
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -115,6 +118,8 @@ func NewRunNodeCmd() *cobra.Command {
 					DABlockTime:   daBlockTime,
 				},
 				DANamespace: daNamespace,
+				DAAddress:   daAddress,
+				DAGasPrice:  daGasPrice,
 				Light:       light,
 				HeaderConfig: rollconf.HeaderConfig{
 					TrustedHash: trustedHash,
@@ -183,9 +188,10 @@ func NewRunNodeCmd() *cobra.Command {
 // These are exposed for convenience of commands embedding a rollkit node
 func addNodeFlags(cmd *cobra.Command) {
 	// abci flags
-	cmd.Flags().String(
+	cmd.Flags().StringVar(
+		&config.ProxyApp,
 		"proxy_app",
-		config.ProxyApp,
+		proxyApp,
 		"proxy app address, or one of: 'kvstore',"+
 			" 'persistent_kvstore', 'counter', 'e2e' or 'noop' for local testing.")
 	cmd.Flags().String("transport", config.ABCI, "specify abci transport (socket | grpc)")
@@ -213,8 +219,10 @@ func addNodeFlags(cmd *cobra.Command) {
 	// Rollkit commands
 	cmd.Flags().BoolVar(&aggregator, rollconf.FlagAggregator, aggregator, "run node in aggregator mode")
 	cmd.Flags().BoolVar(&lazyAggregator, rollconf.FlagLazyAggregator, lazyAggregator, "wait for transactions, don't build empty blocks")
+	cmd.Flags().StringVar(&daAddress, rollconf.FlagDAAddress, daAddress, "DA address (host:port)")
 	cmd.Flags().DurationVar(&blockTime, rollconf.FlagBlockTime, blockTime, "block time (for aggregator mode)")
 	cmd.Flags().DurationVar(&daBlockTime, rollconf.FlagDABlockTime, daBlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Float64Var(&daGasPrice, rollconf.FlagDAGasPrice, daGasPrice, "DA gas price for blob transactions")
 	cmd.Flags().Uint64Var(&daStartHeight, rollconf.FlagDAStartHeight, daStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().StringVar(&daNamespace, rollconf.FlagDANamespace, daNamespace, "namespace identifies (8 bytes in hex)")
 	cmd.Flags().BoolVar(&light, rollconf.FlagLight, light, "run light client")
@@ -267,7 +275,8 @@ func initFiles() error {
 		genDoc.Validators = []comettypes.GenesisValidator{{
 			Address: pubKey.Address(),
 			PubKey:  pubKey,
-			Power:   10,
+			Power:   1000,
+			Name:    "Rollkit Sequencer",
 		}}
 
 		if err := genDoc.SaveAs(genFile); err != nil {
