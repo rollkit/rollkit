@@ -98,7 +98,7 @@ type DAClient struct {
 	DA            goDA.DA
 	GasPrice      float64
 	GasMultiplier float64
-	Namespace goDA.Namespace
+	Namespace     goDA.Namespace
 	Logger        log.Logger
 }
 
