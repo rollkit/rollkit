@@ -22,7 +22,7 @@ func main() {
 	)
 
 	// Prepare the base command and execute
-	executor := cli.PrepareBaseCmd(rootCmd, "RK", filepath.Join("$HOME", ".rollkit"))
+	executor := cli.PrepareBaseCmd(rootCmd, "RK", os.ExpandEnv(filepath.Join("$HOME", ".rollkit")))
 	if err := executor.Execute(); err != nil {
 		// Print to stderr and exit with error
 		fmt.Fprintln(os.Stderr, err)
