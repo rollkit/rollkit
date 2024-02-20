@@ -60,7 +60,7 @@ func docCleanUp() error {
 	}
 
 	// Traverse directory
-	return filepath.Walk(docsDirectory, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(docsDirectory, func(path string, info os.FileInfo, err error) (returnErr error) {
 		if err != nil {
 			return err
 		}
@@ -69,11 +69,13 @@ func docCleanUp() error {
 		}
 
 		// Read file
-		file, err := os.Open(path)
+		file, err := os.Open(path) //nolint:gosec
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func() {
+			returnErr = file.Close()
+		}()
 
 		scanner := bufio.NewScanner(file)
 		var lines []string
@@ -89,7 +91,7 @@ func docCleanUp() error {
 		}
 
 		// Write modified content back to file
-		err = os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+		err = os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
 		if err != nil {
 			return err
 		}
