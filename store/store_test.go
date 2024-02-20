@@ -129,19 +129,38 @@ func TestRestart(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
+	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	kv, _ := NewDefaultInMemoryKVStore()
+
+	tmpDir, err := os.MkdirTemp("", t.Name())
+	require.NoError(err)
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
+
+	kv, err := NewDefaultKVStore(tmpDir, "test", "test")
+	require.NoError(err)
+
 	s1 := New(kv)
 	expectedHeight := uint64(10)
-	err := s1.UpdateState(ctx, types.State{
+	err = s1.UpdateState(ctx, types.State{
 		LastBlockHeight: expectedHeight,
 	})
 	assert.NoError(err)
 
+	err = s1.Close()
+	assert.NoError(err)
+
+	kv, err = NewDefaultKVStore(tmpDir, "test", "test")
+	require.NoError(err)
+
 	s2 := New(kv)
 	_, err = s2.GetState(ctx)
+	assert.NoError(err)
+
+	err = s2.Close()
 	assert.NoError(err)
 
 	assert.Equal(expectedHeight, s2.Height())

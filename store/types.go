@@ -40,4 +40,7 @@ type Store interface {
 	UpdateState(ctx context.Context, state types.State) error
 	// GetState returns last state saved with UpdateState.
 	GetState(ctx context.Context) (types.State, error)
+
+	// Close safely closes underlying data storage, to ensure that data is actually saved.
+	Close() error
 }
