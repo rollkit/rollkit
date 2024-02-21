@@ -221,12 +221,11 @@ func (bSyncService *BlockSyncService) Start() error {
 
 // Stop is a part of Service interface.
 func (bSyncService *BlockSyncService) Stop() error {
-	err := bSyncService.blockStore.Stop(bSyncService.ctx)
-	err = errors.Join(
-		err,
+	err := errors.Join(
 		bSyncService.p2pServer.Stop(bSyncService.ctx),
 		bSyncService.ex.Stop(bSyncService.ctx),
 		bSyncService.sub.Stop(bSyncService.ctx),
+		bSyncService.blockStore.Stop(bSyncService.ctx),
 	)
 	if bSyncService.syncerStatus.isStarted() {
 		err = errors.Join(err, bSyncService.syncer.Stop(bSyncService.ctx))

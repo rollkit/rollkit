@@ -218,12 +218,11 @@ func (hSyncService *HeaderSyncService) Start() error {
 
 // Stop is a part of Service interface.
 func (hSyncService *HeaderSyncService) Stop() error {
-	err := hSyncService.headerStore.Stop(hSyncService.ctx)
-	err = errors.Join(
-		err,
+	err := errors.Join(
 		hSyncService.p2pServer.Stop(hSyncService.ctx),
 		hSyncService.ex.Stop(hSyncService.ctx),
 		hSyncService.sub.Stop(hSyncService.ctx),
+		hSyncService.headerStore.Stop(hSyncService.ctx),
 	)
 	if hSyncService.syncerStatus.isStarted() {
 		err = errors.Join(err, hSyncService.syncer.Stop(hSyncService.ctx))

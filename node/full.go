@@ -413,12 +413,12 @@ func (n *FullNode) OnStop() {
 	n.cancel()
 	n.threadManager.Wait()
 	n.Logger.Info("shutting down full node sub services...")
-	err := n.p2pClient.Close()
-	err = errors.Join(
-		err,
+	err := errors.Join(
+		n.p2pClient.Close(),
 		n.hSyncService.Stop(),
 		n.bSyncService.Stop(),
 		n.IndexerService.Stop(),
+		n.Store.Close(),
 	)
 	if n.prometheusSrv != nil {
 		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
