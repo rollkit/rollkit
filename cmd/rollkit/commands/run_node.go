@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"time"
 
+	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometflags "github.com/cometbft/cometbft/libs/cli/flags"
@@ -32,21 +32,11 @@ var (
 	// initialize the config with the cometBFT defaults
 	config = cometconf.DefaultConfig()
 
+	// initialize the rollkit configuration
+	rollkitConfig = rollconf.DefaultNodeConfig
+
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
-
-	// initialize command flags with defaults
-	aggregator     bool          = true
-	lazyAggregator bool          = false
-	blockTime      time.Duration = (1 * time.Second)
-	daBlockTime    time.Duration = (15 * time.Second)
-	daStartHeight  uint64        = 1
-	daNamespace    string        = "0000000000000000"
-	light          bool          = false
-	trustedHash    string        = ""
-	daAddress      string        = ":26650"
-	daGasPrice     float64       = -1
-	proxyApp       string        = "noop"
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -109,24 +99,6 @@ func NewRunNodeCmd() *cobra.Command {
 				config.ABCI = "socket"
 			}
 
-			// initialize the rollkit configuration
-			rollkitConfig := rollconf.NodeConfig{
-				Aggregator: aggregator,
-				BlockManagerConfig: rollconf.BlockManagerConfig{
-					BlockTime:     blockTime,
-					DAStartHeight: daStartHeight,
-					DABlockTime:   daBlockTime,
-				},
-				DANamespace: daNamespace,
-				DAAddress:   daAddress,
-				DAGasPrice:  daGasPrice,
-				Light:       light,
-				HeaderConfig: rollconf.HeaderConfig{
-					TrustedHash: trustedHash,
-				},
-				LazyAggregator: lazyAggregator,
-			}
-
 			// get the node configuration
 			rollconf.GetNodeConfig(&rollkitConfig, config)
 			if err := rollconf.TranslateAddresses(&rollkitConfig); err != nil {
@@ -181,52 +153,29 @@ func NewRunNodeCmd() *cobra.Command {
 	}
 
 	addNodeFlags(cmd)
+
+	// use noop proxy app by default
+	if !cmd.Flags().Lookup("proxy_app").Changed {
+		config.ProxyApp = "noop"
+	}
+
+	// use aggregator by default
+	if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
+		rollkitConfig.Aggregator = true
+	}
 	return cmd
 }
 
 // addNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a rollkit node
 func addNodeFlags(cmd *cobra.Command) {
-	// abci flags
-	cmd.Flags().StringVar(
-		&config.ProxyApp,
-		"proxy_app",
-		proxyApp,
-		"proxy app address, or one of: 'kvstore',"+
-			" 'persistent_kvstore', 'counter', 'e2e' or 'noop' for local testing.")
+	// Add cometBFT flags
+	cmtcmd.AddNodeFlags(cmd)
+
 	cmd.Flags().String("transport", config.ABCI, "specify abci transport (socket | grpc)")
 
-	// rpc flags
-	cmd.Flags().String("rpc.laddr", config.RPC.ListenAddress, "RPC listen address. Port required")
-
-	// p2p flags
-	cmd.Flags().String(
-		"p2p.laddr",
-		config.P2P.ListenAddress,
-		"node listen address.")
-
-	// db flags
-	// Would be cool if rollkit supported different DB backends
-	// cmd.Flags().String(
-	// 	"db_backend",
-	// 	config.DBBackend,
-	// 	"database backend: goleveldb | cleveldb | boltdb | rocksdb | badgerdb")
-	cmd.Flags().String(
-		"db_dir",
-		config.DBPath,
-		"database directory")
-
-	// Rollkit commands
-	cmd.Flags().BoolVar(&aggregator, rollconf.FlagAggregator, aggregator, "run node in aggregator mode")
-	cmd.Flags().BoolVar(&lazyAggregator, rollconf.FlagLazyAggregator, lazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().StringVar(&daAddress, rollconf.FlagDAAddress, daAddress, "DA address (host:port)")
-	cmd.Flags().DurationVar(&blockTime, rollconf.FlagBlockTime, blockTime, "block time (for aggregator mode)")
-	cmd.Flags().DurationVar(&daBlockTime, rollconf.FlagDABlockTime, daBlockTime, "DA chain block time (for syncing)")
-	cmd.Flags().Float64Var(&daGasPrice, rollconf.FlagDAGasPrice, daGasPrice, "DA gas price for blob transactions")
-	cmd.Flags().Uint64Var(&daStartHeight, rollconf.FlagDAStartHeight, daStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().StringVar(&daNamespace, rollconf.FlagDANamespace, daNamespace, "namespace identifies (8 bytes in hex)")
-	cmd.Flags().BoolVar(&light, rollconf.FlagLight, light, "run light client")
-	cmd.Flags().StringVar(&trustedHash, rollconf.FlagTrustedHash, trustedHash, "initial trusted hash to start the header exchange service")
+	// Add Rollkit flags
+	rollconf.AddFlags(cmd)
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
