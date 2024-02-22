@@ -972,6 +972,7 @@ func TestStatus(t *testing.T) {
 	defer func() {
 		assert.NoError(node.Stop())
 	}()
+	node.Cancel()
 
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)
