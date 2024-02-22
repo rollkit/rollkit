@@ -20,10 +20,11 @@ import (
 	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"github.com/rollkit/go-da/proxy"
-	goDATest "github.com/rollkit/go-da/test"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/rollkit/go-da/proxy"
+	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
