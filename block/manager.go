@@ -103,6 +103,9 @@ type Manager struct {
 
 	// for reporting metrics
 	metrics *Metrics
+
+	// true if the manager is a proposer
+	isProposer bool
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -177,6 +180,8 @@ func NewManager(
 		return nil, err
 	}
 
+	isProposer := bytes.Equal(cmcrypto.AddressHash(genesis.Validators[0].PubKey.Bytes()), proposerAddress)
+
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics, valSet.Hash())
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
@@ -226,6 +231,7 @@ func NewManager(
 		buildingBlock: false,
 		pendingBlocks: pendingBlocks,
 		metrics:       seqMetrics,
+		isProposer:    isProposer,
 	}
 	return agg, nil
 }
@@ -661,16 +667,6 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	}, nil
 }
 
-// IsProposer returns whether or not the manager is a proposer
-func (m *Manager) IsProposer() (bool, error) {
-	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
-	if err != nil {
-		return false, err
-	}
-
-	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
-}
-
 func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -678,16 +674,16 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	default:
 	}
 
-	isProposer, err := m.IsProposer()
-	if err != nil {
-		return fmt.Errorf("error while checking for proposer: %w", err)
-	}
-	if !isProposer {
+	if !m.isProposer {
+		m.logger.Debug("not a proposer, skipping block proposal")
 		return nil
 	}
 
-	var lastCommit *types.Commit
-	var lastHeaderHash types.Hash
+	var (
+		lastCommit     *types.Commit
+		lastHeaderHash types.Hash
+		err            error
+	)
 	height := m.store.Height()
 	newHeight := height + 1
 
