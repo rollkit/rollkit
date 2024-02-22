@@ -410,19 +410,19 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 // OnStop is a part of Service interface.
 func (n *FullNode) OnStop() {
 	n.Logger.Info("halting full node...")
-	n.cancel()
-	n.threadManager.Wait()
 	n.Logger.Info("shutting down full node sub services...")
 	err := errors.Join(
 		n.p2pClient.Close(),
 		n.hSyncService.Stop(),
 		n.bSyncService.Stop(),
 		n.IndexerService.Stop(),
-		n.Store.Close(),
 	)
 	if n.prometheusSrv != nil {
 		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
 	}
+	n.cancel()
+	n.threadManager.Wait()
+	err = errors.Join(err, n.Store.Close())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
