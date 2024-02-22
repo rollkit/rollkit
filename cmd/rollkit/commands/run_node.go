@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
+	"strconv"
 
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
@@ -18,6 +20,10 @@ import (
 	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
+	"github.com/rollkit/go-da/proxy"
+	goDATest "github.com/rollkit/go-da/test"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -123,6 +129,9 @@ func NewRunNodeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
 			}
 
+			// start mock da server
+			startMockGRPCServ()
+
 			// Launch the RPC server
 			server := rollrpc.NewServer(rollnode, config.RPC, logger)
 			err = server.Start()
@@ -163,6 +172,11 @@ func NewRunNodeCmd() *cobra.Command {
 	if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
 		rollkitConfig.Aggregator = true
 	}
+
+	// use mock da server by default
+	if !cmd.Flags().Lookup("rollkit.da_address").Changed {
+		rollkitConfig.DAAddress = ":7980"
+	}
 	return cmd
 }
 
@@ -176,6 +190,20 @@ func addNodeFlags(cmd *cobra.Command) {
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
+}
+
+// startMockGRPCServ starts a mock gRPC server for the dummy DA
+func startMockGRPCServ() *grpc.Server {
+	srv := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
+	lis, err := net.Listen("tcp", "127.0.0.1"+":"+strconv.Itoa(7980))
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	go func() {
+		_ = srv.Serve(lis)
+	}()
+	return srv
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
