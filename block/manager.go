@@ -833,7 +833,6 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAllBlocks := false
 	backoff := initialBackoff
 	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
-	numTotalBlocks := len(blocksToSubmit)
 	numSubmittedBlocks := 0
 	attempt := 0
 	for ctx.Err() == nil && !submittedAllBlocks && attempt < maxSubmitAttempts {
@@ -861,9 +860,9 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 
 	if !submittedAllBlocks {
 		return fmt.Errorf(
-			"failed to submit all blocks to DA layer, submitted %d of %d blocks after %d attempts",
+			"failed to submit all blocks to DA layer, submitted %d blocks (%d left) after %d attempts",
 			numSubmittedBlocks,
-			numTotalBlocks,
+			len(blocksToSubmit),
 			maxSubmitAttempts,
 		)
 	}
