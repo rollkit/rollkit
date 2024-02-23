@@ -834,6 +834,7 @@ func TestMempool2Nodes(t *testing.T) {
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("CheckTx", mock.Anything, &abci.RequestCheckTx{Tx: []byte("bad")}).Return(&abci.ResponseCheckTx{Code: 1}, nil)
 	app.On("CheckTx", mock.Anything, &abci.RequestCheckTx{Tx: []byte("good")}).Return(&abci.ResponseCheckTx{Code: 0}, nil)
+	app.On("CheckTx", mock.Anything, &abci.RequestCheckTx{Tx: []byte("good"), Type: abci.CheckTxType_Recheck}).Return(&abci.ResponseCheckTx{Code: 0}, nil).Maybe()
 	key1, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	key2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	signingKey2, _, _ := crypto.GenerateEd25519Key(crand.Reader)
