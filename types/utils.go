@@ -1,6 +1,7 @@
 package types
 
 import (
+	cryptoRand "crypto/rand"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -21,58 +22,85 @@ var (
 	errUnsupportedKeyType = errors.New("unsupported key type")
 )
 
-// GetRandomValidatorSet returns a validator set with a single validator
-func GetRandomValidatorSet() *cmtypes.ValidatorSet {
-	valSet, _ := GetRandomValidatorSetWithPrivKey()
-	return valSet
+type ValidatorConfig struct {
+	PrivKey     ed25519.PrivKey
+	VotingPower int64
 }
 
-// GetRandomValidatorSetWithPrivKey returns a validator set with a single
-// validator
-func GetRandomValidatorSetWithPrivKey() (*cmtypes.ValidatorSet, ed25519.PrivKey) {
-	privKey := ed25519.GenPrivKey()
-	pubKey := privKey.PubKey()
-	valset := cmtypes.NewValidatorSet(
-		[]*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 1},
-		},
-	)
-	return valset, privKey
+// GetValidatorSet creates a validatorConfig with a randomly generated privateKey and votingPower set to 1,
+// then calls GetValidatorSetCustom to return a new validator set along with the validatorConfig.
+func GetValidatorSet() (*cmtypes.ValidatorSet, ValidatorConfig) {
+	config := ValidatorConfig{
+		PrivKey:     ed25519.GenPrivKey(),
+		VotingPower: 1,
+	}
+	valset := GetValidatorSetCustom(config)
+	return valset, config
 }
 
-// GetValidatorSet returns a validator set with a single validator
-// with the given key
-func GetValidatorSet(privKey ed25519.PrivKey) *cmtypes.ValidatorSet {
-	pubKey := privKey.PubKey()
+// GetValidatorSetCustom returns a validator set based on the provided validatorConfig.
+func GetValidatorSetCustom(config ValidatorConfig) *cmtypes.ValidatorSet {
+	if config.PrivKey == nil {
+		panic(errors.New("private key is nil"))
+	}
+	pubKey := config.PrivKey.PubKey()
 	valset := cmtypes.NewValidatorSet(
 		[]*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: 1},
+			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: config.VotingPower},
 		},
 	)
 	return valset
 }
 
-// GetRandomBlock returns a block with random data
-func GetRandomBlock(height uint64, nTxs int) *Block {
-	block, _ := GetRandomBlockWithKey(height, nTxs, nil)
-	return block
+// BlockContext carries all necessary state for block generation, including configurations and outputs.
+type BlockConfig struct {
+	Height       uint64
+	NTxs         int
+	PrivKey      ed25519.PrivKey // Input and Output option
+	ProposerAddr []byte          // Input option
+	Block        *Block          // Output: the generated block.
+	// Add other fields as necessary for inputs and outputs.
 }
 
-// GetRandomBlockWithKey returns a block with random data and a signing key
-func GetRandomBlockWithKey(height uint64, nTxs int, privKey ed25519.PrivKey) (*Block, ed25519.PrivKey) {
-	block := getBlockDataWith(nTxs)
+// GetRandomBlock creates a block with a given height and number of transactions, intended for testing.
+// It's tailored for simplicity, primarily used in test setups where additional outputs are not needed.
+func GetRandomBlock(height uint64, nTxs int) *Block {
+	config := BlockConfig{
+		Height:       height,
+		NTxs:         nTxs,
+		PrivKey:      nil,
+		ProposerAddr: nil,
+	}
+	// Assuming GenerateBlock modifies the context directly with the generated block and other needed data.
+	GenerateRandomBlockCustom(&config) // Simplified: Error handling is skipped for brevity.
+
+	return config.Block
+}
+
+// GetRandomBlockCustom returns a block with random data and the given height, transactions, privateKey or proposer address.
+func GenerateRandomBlockCustom(ctx *BlockConfig) {
+	// Block generation logic with error handling.
+	block := getBlockDataWith(ctx.NTxs)
 	dataHash, err := block.Data.Hash()
 	if err != nil {
 		panic(err)
 	}
 
-	signedHeader, privKey, err := GetRandomSignedHeaderWith(height, dataHash, privKey)
+	if ctx.PrivKey == nil {
+		ctx.PrivKey = ed25519.GenPrivKey()
+	}
+	config := HeaderConfig{
+		Height:   ctx.Height,
+		DataHash: dataHash,
+		PrivKey:  ctx.PrivKey,
+	}
+
+	signedHeader, err := GetRandomSignedHeaderCustom(&config)
 	if err != nil {
 		panic(err)
 	}
 	block.SignedHeader = *signedHeader
-
-	return block, privKey
+	ctx.Block = block
 }
 
 // GetRandomNextBlock returns a block with random data and height of +1 from the provided block
@@ -103,6 +131,13 @@ func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Ha
 	newSignedHeader.Commit = *commit
 	nextBlock.SignedHeader = *newSignedHeader
 	return nextBlock
+}
+
+type HeaderConfig struct {
+	Height      uint64
+	DataHash    header.Hash
+	PrivKey     ed25519.PrivKey
+	VotingPower int64
 }
 
 // GetRandomHeader returns a header with random fields and current time
@@ -140,36 +175,45 @@ func GetRandomNextHeader(header Header) Header {
 	return nextHeader
 }
 
-// GetRandomSignedHeader returns a signed header with random data
+// GetRandomSignedHeader generates a signed header with random data and returns it.
 func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
-	height := uint64(rand.Int63()) //nolint:gosec
-	return GetRandomSignedHeaderWith(height, GetRandomBytes(32), nil)
+	config := HeaderConfig{
+		Height:      uint64(rand.Int63()), //nolint:gosec
+		DataHash:    GetRandomBytes(32),
+		PrivKey:     ed25519.GenPrivKey(),
+		VotingPower: 1,
+	}
+
+	signedHeader, err := GetRandomSignedHeaderCustom(&config)
+	if err != nil {
+		return nil, ed25519.PrivKey{}, err
+	}
+	return signedHeader, config.PrivKey, nil
 }
 
-// GetRandomSignedHeaderWith returns a signed header with specified height and data hash, and random data for other fields
-func GetRandomSignedHeaderWith(height uint64, dataHash header.Hash, privKey ed25519.PrivKey) (*SignedHeader, ed25519.PrivKey, error) {
-	valSet := &cmtypes.ValidatorSet{}
-	if privKey != nil {
-		valSet = GetValidatorSet(privKey)
-	} else {
-		valSet, privKey = GetRandomValidatorSetWithPrivKey()
+// GetRandomSignedHeaderCustom creates a signed header based on the provided HeaderConfig.
+func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
+	valsetConfig := ValidatorConfig{
+		PrivKey:     config.PrivKey,
+		VotingPower: 1,
 	}
+	valSet := GetValidatorSetCustom(valsetConfig)
 	signedHeader := &SignedHeader{
 		Header:     GetRandomHeader(),
 		Validators: valSet,
 	}
-	signedHeader.Header.BaseHeader.Height = height
-	signedHeader.Header.DataHash = dataHash
+	signedHeader.Header.BaseHeader.Height = config.Height
+	signedHeader.Header.DataHash = config.DataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	signedHeader.Header.ValidatorHash = valSet.Hash()
-	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + height*10
+	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
 
-	commit, err := GetCommit(signedHeader.Header, privKey)
+	commit, err := GetCommit(signedHeader.Header, config.PrivKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	signedHeader.Commit = *commit
-	return signedHeader, privKey, nil
+	return signedHeader, nil
 }
 
 // GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
@@ -288,13 +332,16 @@ func PrivKeyToSigningKey(privKey ed25519.PrivKey) (crypto.PrivKey, error) {
 // GetRandomTx returns a tx with random data
 func GetRandomTx() Tx {
 	size := rand.Int()%100 + 100 //nolint:gosec
-	return Tx(GetRandomBytes(size))
+	return Tx(GetRandomBytes(uint(size)))
 }
 
 // GetRandomBytes returns a byte slice of random bytes of length n.
-func GetRandomBytes(n int) []byte {
+// It uses crypto/rand for cryptographically secure random number generation.
+func GetRandomBytes(n uint) []byte {
 	data := make([]byte, n)
-	_, _ = rand.Read(data) //nolint:gosec,staticcheck
+	if _, err := cryptoRand.Read(data); err != nil {
+		panic(err)
+	}
 	return data
 }
 

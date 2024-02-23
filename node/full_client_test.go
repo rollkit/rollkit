@@ -373,7 +373,13 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	// creat 3 consecutive signed blocks
-	block1, privKey := types.GetRandomBlockWithKey(1, 1, nil)
+	config := types.BlockConfig{
+		Height: 1,
+		NTxs:   1,
+	}
+	// block1, privKey := types.GetRandomBlockWithKey(1, 1, nil)
+	types.GenerateRandomBlockCustom(&config)
+	block1, privKey := config.Block, config.PrivKey
 
 	block2 := types.GetRandomNextBlock(block1, privKey, []byte{}, 2)
 

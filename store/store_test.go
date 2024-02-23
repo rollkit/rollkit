@@ -104,7 +104,7 @@ func TestStoreLoad(t *testing.T) {
 				for _, block := range c.blocks {
 					commit := &types.Commit{}
 					block.SignedHeader.Commit = *lastCommit
-					block.SignedHeader.Validators = types.GetRandomValidatorSet()
+					block.SignedHeader.Validators, _ = types.GetValidatorSet()
 					err := bstore.SaveBlock(ctx, block, commit)
 					require.NoError(err)
 					lastCommit = commit

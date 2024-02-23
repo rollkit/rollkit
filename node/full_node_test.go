@@ -52,8 +52,16 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
+
 	height := store.Height()
-	b1, _ := types.GetRandomBlockWithKey(height+1, 0, signingKey)
+	config := types.BlockConfig{
+		Height:       height + 1,
+		NTxs:         0,
+		PrivKey:      signingKey,
+		ProposerAddr: nil,
+	}
+	types.GenerateRandomBlockCustom(&config)
+	b1 := config.Block
 	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
 	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
 
@@ -99,7 +107,16 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 
 	manager := fullNode.blockManager
 	height := store.Height()
-	b1, _ := types.GetRandomBlockWithKey(height+1, 0, signingKey)
+
+	config := types.BlockConfig{
+		Height:       height + 1,
+		NTxs:         0,
+		PrivKey:      signingKey,
+		ProposerAddr: nil,
+	}
+
+	types.GenerateRandomBlockCustom(&config)
+	b1 := config.Block
 
 	// Update state with hashes generated from block
 	state, err := store.GetState(ctx)
