@@ -408,6 +408,10 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 }
 
 // OnStop is a part of Service interface.
+//
+// p2pClient and sync services stop first, ceasing network activities. Then rest of services are halted.
+// Context is cancelled to signal goroutines managed by thread manager to stop.
+// Store is closed last because it's used by other services/goroutines.
 func (n *FullNode) OnStop() {
 	n.Logger.Info("halting full node...")
 	n.Logger.Info("shutting down full node sub services...")
