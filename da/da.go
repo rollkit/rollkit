@@ -32,19 +32,19 @@ var (
 	ErrBlobSizeOverLimit = errors.New("blob: over size limit")
 
 	// ErrTxTimedout is the error message returned by the DA when mempool is congested
-	ErrTxTimedout = "timed out waiting for tx to be included in a block"
+	ErrTxTimedout = errors.New("timed out waiting for tx to be included in a block")
 
 	// ErrTxAlreadyInMempool is  the error message returned by the DA when tx is already in mempool
-	ErrTxAlreadyInMempool = "tx already in mempool"
+	ErrTxAlreadyInMempool = errors.New("tx already in mempool")
 
 	// ErrTxIncorrectAccountSequence is the error message returned by the DA when tx has incorrect sequence
-	ErrTxIncorrectAccountSequence = "incorrect account sequence"
+	ErrTxIncorrectAccountSequence = errors.New("incorrect account sequence")
 
 	// ErrTxSizeTooBig is the error message returned by the DA when tx size is too big
-	ErrTxSizeTooBig = "tx size is too big"
+	ErrTxSizeTooBig = errors.New("tx size is too big")
 
 	// ErrContextDeadline is the error message returned by the DA when context deadline exceeds
-	ErrContextDeadline = "context deadline"
+	ErrContextDeadline = errors.New("context deadline")
 )
 
 // StatusCode is a type for DA layer return status.
@@ -139,15 +139,15 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 	if err != nil {
 		status := StatusError
 		switch {
-		case strings.Contains(err.Error(), ErrTxTimedout):
+		case strings.Contains(err.Error(), ErrTxTimedout.Error()):
 			status = StatusNotIncludedInBlock
-		case strings.Contains(err.Error(), ErrTxAlreadyInMempool):
+		case strings.Contains(err.Error(), ErrTxAlreadyInMempool.Error()):
 			status = StatusAlreadyInMempool
-		case strings.Contains(err.Error(), ErrTxIncorrectAccountSequence):
+		case strings.Contains(err.Error(), ErrTxIncorrectAccountSequence.Error()):
 			status = StatusAlreadyInMempool
-		case strings.Contains(err.Error(), ErrTxSizeTooBig):
+		case strings.Contains(err.Error(), ErrTxSizeTooBig.Error()):
 			status = StatusTooBig
-		case strings.Contains(err.Error(), ErrContextDeadline):
+		case strings.Contains(err.Error(), ErrContextDeadline.Error()):
 			status = StatusContextDeadline
 		}
 		return ResultSubmitBlocks{

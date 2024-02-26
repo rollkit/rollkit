@@ -3,7 +3,6 @@ package block
 import (
 	"bytes"
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -151,10 +150,10 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
 		mockDA.
 			On("Submit", blobs, float64(-1), []byte(nil)).
-			Return([][]byte{}, errors.New("timed out waiting for tx to be included in a block")).Once()
+			Return([][]byte{}, da.ErrTxTimedout).Once()
 		mockDA.
 			On("Submit", blobs, float64(-1), []byte(nil)).
-			Return([][]byte{}, errors.New("tx already in mempool")).Times(10)
+			Return([][]byte{}, da.ErrTxAlreadyInMempool).Times(10)
 		mockDA.
 			On("Submit", blobs, float64(-1), []byte(nil)).
 			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
