@@ -17,7 +17,7 @@ rollkit start [flags]
       --db_dir string                                   database directory (default "data")
       --genesis_hash bytesHex                           optional SHA-256 hash of the genesis file
   -h, --help                                            help for start
-      --moniker string                                  node name (default "Ganeshas-MacBook-Pro-2.local")
+      --moniker string                                  node name (default "Your Computer Username")
       --p2p.external-address string                     ip:port address to advertise to peers for them to dial
       --p2p.laddr string                                node listen address. (0.0.0.0:0 means any interface, any port) (default "tcp://0.0.0.0:26656")
       --p2p.persistent_peers string                     comma-delimited ID@host:port persistent peers
