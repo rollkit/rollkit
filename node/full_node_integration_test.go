@@ -116,8 +116,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		node.Cancel()
 	}
 
-	// Now that the nodes have stopped, it should be safe to access the mock
-	// calls outside of the mutex controlled methods.
+	// Now that the nodes are cancelled, it should be safe to access the mock
+	// calls outside the mutex controlled methods.
 	//
 	// The reason we do this is because in the beginning of the test, we
 	// check that we have produced at least N blocks, which means we could

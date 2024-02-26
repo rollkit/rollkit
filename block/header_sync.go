@@ -218,7 +218,7 @@ func (hSyncService *HeaderSyncService) Start() error {
 
 // Stop is a part of Service interface.
 //
-// `blockStore` is closed last because it's used by other services.
+// `headerStore` is closed last because it's used by other services.
 func (hSyncService *HeaderSyncService) Stop() error {
 	err := errors.Join(
 		hSyncService.p2pServer.Stop(hSyncService.ctx),

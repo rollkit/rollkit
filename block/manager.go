@@ -863,7 +863,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			"failed to submit all blocks to DA layer, submitted %d blocks (%d left) after %d attempts",
 			numSubmittedBlocks,
 			len(blocksToSubmit),
-			maxSubmitAttempts,
+			attempt,
 		)
 	}
 	return nil
