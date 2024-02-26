@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +21,8 @@ import (
 )
 
 // Returns a minimalistic block manager
-func getManager(t *testing.T, backend goDA.DA, logger log.Logger) *Manager {
+func getManager(t *testing.T, backend goDA.DA) *Manager {
+	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
 	return &Manager{
 		dalc:       &da.DAClient{DA: backend, GasPrice: -1, GasMultiplier: -1, Logger: logger},
 		blockCache: NewBlockCache(),
@@ -133,8 +133,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 	ctx := context.Background()
 
 	mockDA := &mock.MockDA{}
-	logger := test.NewLogger(t)
-	m := getManager(t, mockDA, logger)
+	m := getManager(t, mockDA)
 	m.conf.DABlockTime = time.Millisecond
 
 	t.Run("handle_mempool_errors_gracefully", func(t *testing.T) {
@@ -169,8 +168,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
-	m := getManager(t, goDATest.NewDummyDA(), logger)
+	m := getManager(t, goDATest.NewDummyDA())
 
 	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
 	require.NoError(err)
