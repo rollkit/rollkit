@@ -44,7 +44,7 @@ func docCleanUp() error {
 		search  string
 		replace string
 	}{
-		{`"\/Users\/\w+\/\.rollkit"`, `"HOME/.rollkit"`},
+		{`(\"\/(?:Users\/\w+|home\/\w+|[^\/]+)\/\.rollkit\")`, `"HOME/.rollkit"`},
 		{`(--moniker string\s+node name \(default ")[^"]+(")`, `${1}Your Computer Username${2}`},
 	}
 
