@@ -34,6 +34,8 @@ func TestGetNodeConfig(t *testing.T) {
 		})
 	}
 }
+
+// TODO need to update this test to account for all fields
 func TestViperAndCobra(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -44,9 +46,10 @@ func TestViperAndCobra(t *testing.T) {
 	v := viper.GetViper()
 	assert.NoError(v.BindPFlags(cmd.Flags()))
 
-	assert.NoError(cmd.Flags().Set(flagAggregator, "true"))
-	assert.NoError(cmd.Flags().Set(flagDAAddress, `{"json":true}`))
-	assert.NoError(cmd.Flags().Set(flagBlockTime, "1234s"))
+	assert.NoError(cmd.Flags().Set(FlagAggregator, "true"))
+	assert.NoError(cmd.Flags().Set(FlagDAAddress, `{"json":true}`))
+	assert.NoError(cmd.Flags().Set(FlagBlockTime, "1234s"))
+	assert.NoError(cmd.Flags().Set(FlagDANamespace, "0102030405060708"))
 
 	nc := DefaultNodeConfig
 	assert.NoError(nc.GetViperConfig(v))

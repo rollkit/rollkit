@@ -10,16 +10,26 @@ import (
 )
 
 const (
-	flagAggregator     = "rollkit.aggregator"
-	flagDAAddress      = "rollkit.da_address"
-	flagBlockTime      = "rollkit.block_time"
-	flagDABlockTime    = "rollkit.da_block_time"
-	flagDAStartHeight  = "rollkit.da_start_height"
-	flagLight          = "rollkit.light"
-	flagTrustedHash    = "rollkit.trusted_hash"
-	flagLazyAggregator = "rollkit.lazy_aggregator"
-	flagDAGasPrice     = "rollkit.da_gas_price"
-	flagDANamespace    = "rollkit.da_namespace"
+	// FlagAggregator is a flag for running node in aggregator mode
+	FlagAggregator = "rollkit.aggregator"
+	// FlagDAAddress is a flag for specifying the data availability layer address
+	FlagDAAddress = "rollkit.da_address"
+	// FlagBlockTime is a flag for specifying the block time
+	FlagBlockTime = "rollkit.block_time"
+	// FlagDABlockTime is a flag for specifying the data availability layer block time
+	FlagDABlockTime = "rollkit.da_block_time"
+	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
+	FlagDAGasPrice = "rollkit.da_gas_price"
+	// FlagDAStartHeight is a flag for specifying the data availability layer start height
+	FlagDAStartHeight = "rollkit.da_start_height"
+	// FlagDANamespace is a flag for specifying the DA namespace ID
+	FlagDANamespace = "rollkit.da_namespace"
+	// FlagLight is a flag for running the node in light mode
+	FlagLight = "rollkit.light"
+	// FlagTrustedHash is a flag for specifying the trusted hash
+	FlagTrustedHash = "rollkit.trusted_hash"
+	// FlagLazyAggregator is a flag for enabling lazy aggregation
+	FlagLazyAggregator = "rollkit.lazy_aggregator"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -38,7 +48,9 @@ type NodeConfig struct {
 	LazyAggregator     bool                         `mapstructure:"lazy_aggregator"`
 	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
-	DANamespace        string                       `mapstructure:"da_namespace"`
+
+	// CLI flags
+	DANamespace string `mapstructure:"da_namespace"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -87,16 +99,17 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 //
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
-	nc.Aggregator = v.GetBool(flagAggregator)
-	nc.DAAddress = v.GetString(flagDAAddress)
-	nc.DAStartHeight = v.GetUint64(flagDAStartHeight)
-	nc.DABlockTime = v.GetDuration(flagDABlockTime)
-	nc.BlockTime = v.GetDuration(flagBlockTime)
-	nc.LazyAggregator = v.GetBool(flagLazyAggregator)
-	nc.Light = v.GetBool(flagLight)
-	nc.TrustedHash = v.GetString(flagTrustedHash)
-	nc.DAGasPrice = v.GetFloat64(flagDAGasPrice)
-	nc.DANamespace = v.GetString(flagDANamespace)
+	nc.Aggregator = v.GetBool(FlagAggregator)
+	nc.DAAddress = v.GetString(FlagDAAddress)
+	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
+	nc.DANamespace = v.GetString(FlagDANamespace)
+	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
+	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
+	nc.BlockTime = v.GetDuration(FlagBlockTime)
+	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
+	nc.Light = v.GetBool(FlagLight)
+	nc.TrustedHash = v.GetString(FlagTrustedHash)
+	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	return nil
 }
 
@@ -105,14 +118,14 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 // This function is called in cosmos-sdk.
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
-	cmd.Flags().Bool(flagAggregator, def.Aggregator, "run node in aggregator mode")
-	cmd.Flags().Bool(flagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().String(flagDAAddress, def.DAAddress, "DA address (host:port)")
-	cmd.Flags().Duration(flagBlockTime, def.BlockTime, "block time (for aggregator mode)")
-	cmd.Flags().Duration(flagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
-	cmd.Flags().Float64(flagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")
-	cmd.Flags().String(flagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
-	cmd.Flags().Uint64(flagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().Bool(flagLight, def.Light, "run light client")
-	cmd.Flags().String(flagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
+	cmd.Flags().Bool(FlagAggregator, def.Aggregator, "run node in aggregator mode")
+	cmd.Flags().Bool(FlagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
+	cmd.Flags().String(FlagDAAddress, def.DAAddress, "DA address (host:port)")
+	cmd.Flags().Duration(FlagBlockTime, def.BlockTime, "block time (for aggregator mode)")
+	cmd.Flags().Duration(FlagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Float64(FlagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")
+	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
+	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
+	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
+	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 }
