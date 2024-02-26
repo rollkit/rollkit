@@ -928,6 +928,7 @@ func TestStatus(t *testing.T) {
 	require.NoError(err)
 	pubKey := genesisDoc.Validators[0].PubKey
 
+	// note that node is never started - we only need to ensure that node is properly initialized (newFullNode)
 	node, err := newFullNode(
 		context.Background(),
 		config.NodeConfig{
@@ -967,13 +968,6 @@ func TestStatus(t *testing.T) {
 	err = rpc.node.Store.SaveBlock(ctx, latestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(ctx, latestBlock.Height())
 	require.NoError(err)
-
-	err = node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(node.Stop())
-	}()
-	node.Cancel()
 
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)

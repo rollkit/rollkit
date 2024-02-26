@@ -47,7 +47,7 @@ The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `cha
 - `Commit`: This method commits the block and updates the mempool. Given the updated state, the block, and the ABCI `ResponseFinalizeBlock` as parameters, it:
   - Invokes app commit, basically finalizing the last execution, by  calling ABCI `Commit`.
   - Updates the mempool to inform that the transactions included in the block can be safely discarded.
-  - Publishes the events produced during the block exection for indexing.
+  - Publishes the events produced during the block execution for indexing.
 
 - `updateState`: This method updates the state. Given the current state, the block, the ABCI `ResponseFinalizeBlock` and the validator updates, it validates the updated validator set, updates the state by applying the block and returns the updated state and errors, if any. The state consists of:
   - Version
@@ -99,7 +99,7 @@ The `BlockExecutor` assumes that there is consensus connection available to the 
   - pre-condition:
     - block has been applied
   - post-condition:
-    - block is commited
+    - block is committed
     - mempool is cleared of block transactions
     - block events are published
     - state App Hash is updated with the result from `ResponseCommit`
