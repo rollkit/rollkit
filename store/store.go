@@ -39,6 +39,11 @@ func New(ds ds.TxnDatastore) Store {
 	}
 }
 
+// Close safely closes underlying data storage, to ensure that data is actually saved.
+func (s *DefaultStore) Close() error {
+	return s.db.Close()
+}
+
 // SetHeight sets the height saved in the Store if it is higher than the existing height
 func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) {
 	for {

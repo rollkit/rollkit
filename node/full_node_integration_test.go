@@ -94,12 +94,15 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	require := require.New(t)
 
 	clientNodes := 4
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	defer aggCancel()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	aggCtx := context.Background()
+	ctx := context.Background()
 	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
 	startNodes(nodes, apps, t)
+	defer func() {
+		for _, n := range nodes {
+			assert.NoError(n.Stop())
+		}
+	}()
 
 	// wait for nodes to start up and sync up till numBlocksToWaitFor
 	numBlocksToWaitFor := 5
@@ -107,13 +110,14 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 		require.NoError(waitForAtLeastNBlocks(nodes[i], numBlocksToWaitFor, Store))
 	}
 
-	// Stop all the nodes before checking the calls to ABCI methods were done correctly
+	// Cancel all the nodes before checking the calls to ABCI methods were done correctly
+	// Can't stop here, because we need access to Store to test the state.
 	for _, node := range nodes {
-		assert.NoError(node.Stop())
+		node.Cancel()
 	}
 
-	// Now that the nodes have stopped, it should be safe to access the mock
-	// calls outside of the mutex controlled methods.
+	// Now that the nodes are cancelled, it should be safe to access the mock
+	// calls outside the mutex controlled methods.
 	//
 	// The reason we do this is because in the beginning of the test, we
 	// check that we have produced at least N blocks, which means we could
