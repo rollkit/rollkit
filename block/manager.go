@@ -675,8 +675,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	if !m.isProposer {
-		m.logger.Debug("not a proposer, skipping block proposal")
-		return nil
+		return errors.New("publishBlock: not a proposer")
 	}
 
 	var (
