@@ -27,17 +27,15 @@ import (
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
 	ctx := context.Background()
-	node := initializeAndStartFullNode(ctx, t)
-	defer cleanUpNode(node, t)
+	_ = initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
 }
 
 func TestMempoolDirectly(t *testing.T) {
 	ctx := context.Background()
 
-	node := initializeAndStartFullNode(ctx, t)
-	defer cleanUpNode(node, t)
-	assert := assert.New(t)
+	node := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
 
+	assert := assert.New(t)
 	peerID := getPeerID(assert)
 	verifyTransactions(node, peerID, assert)
 	verifyMempoolSize(node, assert)
@@ -72,10 +70,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 		DAHeight: state.DAHeight,
 	}
 
-	err = node.Start()
-	require.NoError(t, err)
-	defer cleanUpNode(node, t)
-
+	startNodeWithCleanup(t, node)
 	require.NoError(t, waitUntilBlockHashSeen(node, b2.Hash().String()))
 
 	newHeight := store.Height()
@@ -135,9 +130,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	// Validate b1 to make sure it's still valid
 	require.NoError(t, b1.ValidateBasic())
 
-	err = node.Start()
-	require.NoError(t, err)
-	defer cleanUpNode(node, t)
+	startNodeWithCleanup(t, node)
 
 	// Submit invalid blocks to the mock DA
 	// Invalid blocks should be ignored by the node
@@ -164,13 +157,17 @@ func setupMockApplication() *mocks.Application {
 
 // generateSingleKey generates a single private key
 func generateSingleKey() crypto.PrivKey {
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
 	return key
 }
 
 // getPeerID generates a peer ID
 func getPeerID(assert *assert.Assertions) peer.ID {
 	key := generateSingleKey()
+
 	peerID, err := peer.IDFromPrivateKey(key)
 	assert.NoError(err)
 	return peerID

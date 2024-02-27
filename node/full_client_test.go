@@ -187,11 +187,7 @@ func TestGenesisChunked(t *testing.T) {
 	assert.Error(err)
 	assert.Nil(gc)
 
-	err = rpc.node.Start()
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	expectedID = 0
 	gc2, err := rpc.GenesisChunked(context.Background(), expectedID)
 	gotID := gc2.ChunkNumber
@@ -212,11 +208,7 @@ func TestBroadcastTxAsync(t *testing.T) {
 	mockApp, rpc := getRPC(t)
 	mockApp.On("CheckTx", mock.Anything, &abci.RequestCheckTx{Tx: expectedTx}).Return(&abci.ResponseCheckTx{}, nil)
 
-	err := rpc.node.Start()
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	res, err := rpc.BroadcastTxAsync(context.Background(), expectedTx)
 	assert.NoError(err)
 	assert.NotNil(res)
@@ -245,11 +237,7 @@ func TestBroadcastTxSync(t *testing.T) {
 
 	mockApp, rpc := getRPC(t)
 
-	err := rpc.node.Start()
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	mockApp.On("CheckTx", mock.Anything, &abci.RequestCheckTx{Tx: expectedTx}).Return(&expectedResponse, nil)
 
 	res, err := rpc.BroadcastTxSync(context.Background(), expectedTx)
@@ -329,14 +317,10 @@ func TestGetBlock(t *testing.T) {
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
-	err := rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 	block := types.GetRandomBlock(1, 10)
-	err = rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
+	err := rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
 	rpc.node.Store.SetHeight(ctx, block.Height())
 	require.NoError(err)
 
@@ -356,14 +340,10 @@ func TestGetCommit(t *testing.T) {
 
 	blocks := []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 6), types.GetRandomBlock(3, 8), types.GetRandomBlock(4, 10)}
 
-	err := rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 	for _, b := range blocks {
-		err = rpc.node.Store.SaveBlock(ctx, b, &types.Commit{})
+		err := rpc.node.Store.SaveBlock(ctx, b, &types.Commit{})
 		rpc.node.Store.SetHeight(ctx, b.Height())
 		require.NoError(err)
 	}
@@ -401,17 +381,12 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 
 	blocks := []*types.Block{block1, block2, block3}
 
-	// start the node for testing
-	err := rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 
 	// save the 3 blocks
 	for _, b := range blocks {
-		err = rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
+		err := rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
 		rpc.node.Store.SetHeight(ctx, b.Height())
 		require.NoError(err)
 	}
@@ -522,14 +497,10 @@ func TestGetBlockByHash(t *testing.T) {
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
-	err := rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 	block := types.GetRandomBlock(1, 10)
-	err = rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
+	err := rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
 	require.NoError(err)
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	require.NoError(err)
@@ -596,11 +567,7 @@ func TestTx(t *testing.T) {
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 
-	err = rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 	tx1 := cmtypes.Tx("tx1")
 	res, err := rpc.BroadcastTxSync(ctx, tx1)
 	assert.NoError(err)
@@ -641,17 +608,12 @@ func TestUnconfirmedTxs(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			require := require.New(t)
 
 			mockApp, rpc := getRPC(t)
 			mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 			mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 
-			err := rpc.node.Start()
-			require.NoError(err)
-			defer func() {
-				assert.NoError(rpc.node.Stop())
-			}()
+			startNodeWithCleanup(t, rpc.node)
 
 			for _, tx := range c.txs {
 				res, err := rpc.BroadcastTxAsync(context.Background(), tx)
@@ -680,17 +642,12 @@ func TestUnconfirmedTxs(t *testing.T) {
 
 func TestUnconfirmedTxsLimit(t *testing.T) {
 	assert := assert.New(t)
-	require := require.New(t)
 
 	mockApp, rpc := getRPC(t)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 
-	err := rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 
 	tx1 := cmtypes.Tx("tx1")
 	tx2 := cmtypes.Tx("another tx")
@@ -872,19 +829,12 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node2)
 
-	err = node1.Start()
-	require.NoError(err)
+	startNodeWithCleanup(t, node1)
 	require.NoError(waitForFirstBlock(node1, Store))
 
-	defer func() {
-		assert.NoError(node1.Stop())
-	}()
-	err = node2.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(node2.Stop())
-	}()
+	startNodeWithCleanup(t, node2)
 	require.NoError(waitForAtLeastNBlocks(node2, 1, Store))
+
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer timeoutCancel()
 
@@ -968,6 +918,8 @@ func TestStatus(t *testing.T) {
 	err = rpc.node.Store.SaveBlock(ctx, latestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(ctx, latestBlock.Height())
 	require.NoError(err)
+
+	startNodeWithCleanup(t, rpc.node)
 
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)
@@ -1077,12 +1029,7 @@ func TestFutureGenesisTime(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(node)
 
-	err = node.Start()
-	require.NoError(err)
-
-	defer func() {
-		assert.NoError(node.Stop())
-	}()
+	startNodeWithCleanup(t, node)
 	wg.Wait()
 
 	assert.True(beginBlockTime.After(genesisTime))
@@ -1090,18 +1037,13 @@ func TestFutureGenesisTime(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	assert := assert.New(t)
-	require := require.New(t)
 
 	mockApp, rpc := getRPC(t)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(abci.ResponseCheckTx{}, nil)
 	mockApp.On("Commit", mock.Anything).Return(abci.ResponseCommit{}, nil)
 
-	err := rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 
 	resultHealth, err := rpc.Health(context.Background())
 	assert.Nil(err)
@@ -1117,11 +1059,7 @@ func TestNetInfo(t *testing.T) {
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
-	err := rpc.node.Start()
-	require.NoError(err)
-	defer func() {
-		assert.NoError(rpc.node.Stop())
-	}()
+	startNodeWithCleanup(t, rpc.node)
 
 	netInfo, err := rpc.NetInfo(context.Background())
 	require.NoError(err)
