@@ -880,7 +880,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			if m.dalc.GasMultiplier != -1 && gasPrice != -1 {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
-			m.logger.Info("retrying DA layer submission with", "backoff seconds", backoff.Seconds(), "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		case da.StatusTooBig:
