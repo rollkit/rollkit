@@ -1,6 +1,7 @@
 package block
 
 import (
+	"context"
 	"sort"
 	"testing"
 
@@ -36,9 +37,13 @@ func TestRemoveSubmittedBlocks(t *testing.T) {
 
 func TestRemoveSubsetOfBlocks(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 	pb := newPendingBlocks(t)
-	for i := uint64(0); i < 5; i++ {
-		pb.addPendingBlock(types.GetRandomBlock(i, 0))
+	for i := uint64(1); i <= 5; i++ {
+		block := types.GetRandomBlock(i, 0)
+		pb.addPendingBlock(block)
+		require.NoError(pb.store.SaveBlock(ctx, block, &types.Commit{}))
+		pb.store.SetHeight(ctx, i)
 	}
 	// Remove blocks with height 1 and 2
 	pb.removeSubmittedBlocks([]*types.Block{
@@ -49,7 +54,7 @@ func TestRemoveSubsetOfBlocks(t *testing.T) {
 	require.NoError(err)
 	require.Len(remainingBlocks, 3, "There should be 3 blocks remaining")
 	for _, block := range remainingBlocks {
-		require.Contains([]uint64{0, 3, 4}, block.Height(), "Only blocks with height 0, 3, and 4 should remain")
+		require.Contains([]uint64{3, 4, 5}, block.Height(), "Only blocks with height 3, 4 and 5 should remain")
 	}
 }
 

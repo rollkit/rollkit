@@ -3,8 +3,11 @@ package block
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 	"time"
+
+	ds "github.com/ipfs/go-datastore"
 
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
@@ -138,13 +141,20 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 	m.conf.DAMempoolTTL = 1
 	m.dalc.GasPrice = 1.0
 	m.dalc.GasMultiplier = 1.2
+	kvStore, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(t, err)
+	m.store = store.New(kvStore)
 
 	t.Run("handle_tx_already_in_mempool", func(t *testing.T) {
 		var blobs [][]byte
 		block := types.GetRandomBlock(1, 5)
 		blob, err := block.MarshalBinary()
-
 		require.NoError(t, err)
+
+		err = m.store.SaveBlock(ctx, block, &types.Commit{})
+		require.NoError(t, err)
+		m.store.SetHeight(ctx, 1)
+
 		blobs = append(blobs, blob)
 		// Set up the mock to
 		// * throw timeout waiting for tx to be included exactly once
@@ -231,18 +241,34 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		kvStore, err := store.NewDefaultInMemoryKVStore()
-		require.NoError(err)
-		m.pendingBlocks = NewPendingBlocks(store.New(kvStore))
+		// there is a limitation of value size for underlying in-memory KV store, so (temporary) on-disk store is needed
+		kvStore := getTempKVStore(t)
+		m.store = store.New(kvStore)
+		m.pendingBlocks = NewPendingBlocks(m.store)
 		t.Run(tc.name, func(t *testing.T) {
+			// PendingBlocks depend on store, so blocks needs to be saved and height updated
 			for _, block := range tc.blocks {
+				require.NoError(m.store.SaveBlock(ctx, block, &types.Commit{}))
 				m.pendingBlocks.addPendingBlock(block)
 			}
+			m.store.SetHeight(ctx, uint64(len(tc.blocks)))
+
 			err := m.submitBlocksToDA(ctx)
-			assert.Equal(t, tc.isErrExpected, err != nil)
+			assert.Equal(tc.isErrExpected, err != nil)
 			blocks, err := m.pendingBlocks.getPendingBlocks()
 			assert.NoError(err)
 			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
 		})
 	}
+}
+
+func getTempKVStore(t *testing.T) ds.TxnDatastore {
+	dbPath, err := os.MkdirTemp("", t.Name())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = os.RemoveAll(dbPath)
+	})
+	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
+	require.NoError(t, err)
+	return kvStore
 }

@@ -2,12 +2,20 @@ package block
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strconv"
 	"sync/atomic"
+
+	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/store"
 
 	"github.com/rollkit/rollkit/types"
 )
+
+// lshKey is the key used for persisting the last submitted height in store.
+const lshKey = "last submitted"
 
 // PendingBlocks maintains blocks that need to be published to DA layer
 //
@@ -32,19 +40,29 @@ type PendingBlocks struct {
 func NewPendingBlocks(store store.Store) *PendingBlocks {
 	return &PendingBlocks{
 		store: store,
-		// TODO(tzdybal): lastSubmittedHeight from store
 	}
 }
 
 // getPendingBlocks returns a sorted slice of pending blocks
 // that need to be published to DA layer in order of block height
 func (pb *PendingBlocks) getPendingBlocks() ([]*types.Block, error) {
-	height := pb.store.Height()
 	lastSubmitted := pb.lastSubmittedHeight.Load()
+	if lastSubmitted == 0 {
+		// TODO(tzdybal): think about passing context here
+		err := pb.loadFromStore(context.TODO())
+		if err != nil {
+			return nil, err
+		}
+		lastSubmitted = pb.lastSubmittedHeight.Load()
+	}
+	height := pb.store.Height()
 
-	// TODO(tzdybal) - lastSubmitted should never be > than height in final implementation
-	if lastSubmitted >= height {
+	if lastSubmitted == height {
 		return nil, nil
+	}
+	if lastSubmitted > height {
+		panic(fmt.Sprintf("height of last block submitted to DA (%d) is greater than height of last block (%d)",
+			lastSubmitted, height))
 	}
 
 	blocks := make([]*types.Block, 0, height-lastSubmitted)
@@ -78,4 +96,22 @@ func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 	if height > lastSubmitted {
 		pb.lastSubmittedHeight.CompareAndSwap(lastSubmitted, height)
 	}
+}
+
+func (pb *PendingBlocks) loadFromStore(ctx context.Context) error {
+	raw, err := pb.store.GetMetadata(context.TODO(), lshKey)
+	if errors.Is(err, ds.ErrNotFound) {
+		// lshKey was never used, it's special case not actual error
+		// we don't need to modify lastSubmittedHeight
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	lsh, err := strconv.ParseUint(string(raw), 10, 64)
+	if err != nil {
+		return err
+	}
+	pb.lastSubmittedHeight.CompareAndSwap(0, lsh)
+	return nil
 }
