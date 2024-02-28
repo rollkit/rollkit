@@ -3,7 +3,6 @@ package block
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -156,49 +155,20 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		// * successfully submit
 		mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
 		mockDA.
-			On("Submit", blobs, m.dalc.GasPrice, []byte(nil)).
+			On("Submit", blobs, 1.0, []byte(nil)).
 			Return([][]byte{}, da.ErrTxTimedout).Once()
 		mockDA.
-			On("Submit", blobs, m.dalc.GasPrice, []byte(nil)).
+			On("Submit", blobs, 1.0*1.2, []byte(nil)).
 			Return([][]byte{}, da.ErrTxAlreadyInMempool).Times(int(m.conf.DAMempoolTTL))
 		mockDA.
-			On("Submit", blobs, m.dalc.GasPrice, []byte(nil)).
+			On("Submit", blobs, 1.0*1.2*1.2, []byte(nil)).
 			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
 		m.pendingBlocks = NewPendingBlocks()
 		m.pendingBlocks.addPendingBlock(block)
 		err = m.submitBlocksToDA(ctx)
-
-		if testing.Verbose() {
-			fmt.Println("mock logs (maybe out of order)")
-			for _, line := range logger.InfoLines {
-				fmt.Println("info: ", line)
-			}
-			for _, line := range logger.DebugLines {
-				fmt.Println("debug: ", line)
-			}
-			for _, line := range logger.ErrLines {
-				fmt.Println("err: ", line)
-			}
-		}
-
-		assert.GreaterOrEqual(t, len(logger.InfoLines), 3)
-		assert.GreaterOrEqual(t, len(logger.ErrLines), 2)
-
-		// test retry with gas price multiplier
-		assert.Contains(t, logger.InfoLines[0], "gasPrice 1.2")
-		assert.Contains(t, logger.InfoLines[1], "gasPrice 1.44")
-
-		// test gradual scale back gas price
-		assert.Contains(t, logger.DebugLines[0], "gasPrice 1.2")
-
-		// test tx timed out followed by already in mempool
-		assert.Contains(t, logger.ErrLines[0], da.ErrTxTimedout.Error())
-		assert.Contains(t, logger.ErrLines[1], da.ErrTxAlreadyInMempool.Error())
-
-		// test successful submit
-		assert.Contains(t, logger.InfoLines[2], "successfully submitted")
 		require.NoError(t, err)
+		mockDA.AssertExpectations(t)
 	})
 }
 

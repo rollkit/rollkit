@@ -135,7 +135,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 	}
 	ctx, cancel := context.WithTimeout(ctx, submitTimeout)
 	defer cancel()
-	ids, err := dac.DA.Submit(ctx, blobs, dac.GasPrice, dac.Namespace)
+	ids, err := dac.DA.Submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
 		status := StatusError
 		switch {
