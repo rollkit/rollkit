@@ -46,9 +46,6 @@ func TestGetNodeHeight(t *testing.T) {
 	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, keys, bmConfig, dalc, t)
 	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, t)
 
-	fullNode.(*FullNode).dalc = dalc
-	fullNode.(*FullNode).blockManager.SetDALC(dalc)
-
 	startNodeWithCleanup(t, fullNode)
 	startNodeWithCleanup(t, lightNode)
 
