@@ -136,6 +136,8 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 	m := getManager(t, mockDA)
 	m.conf.DABlockTime = time.Millisecond
 	m.conf.DAMempoolTTL = 1
+	m.dalc.GasPrice = 1.0
+	m.dalc.GasMultiplier = 1.2
 
 	t.Run("handle_tx_already_in_mempool", func(t *testing.T) {
 		var blobs [][]byte
@@ -149,13 +151,13 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		// then submit successfully
 		mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
 		mockDA.
-			On("Submit", blobs, float64(-1), []byte(nil)).
+			On("Submit", blobs, float64(m.dalc.GasPrice), []byte(nil)).
 			Return([][]byte{}, da.ErrTxTimedout).Once()
 		mockDA.
-			On("Submit", blobs, float64(-1), []byte(nil)).
+			On("Submit", blobs, float64(m.dalc.GasPrice), []byte(nil)).
 			Return([][]byte{}, da.ErrTxAlreadyInMempool).Times(int(m.conf.DAMempoolTTL))
 		mockDA.
-			On("Submit", blobs, float64(-1), []byte(nil)).
+			On("Submit", blobs, float64(m.dalc.GasPrice), []byte(nil)).
 			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
 		m.pendingBlocks = NewPendingBlocks()
