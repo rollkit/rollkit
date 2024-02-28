@@ -96,6 +96,8 @@ type Manager struct {
 	buildingBlock bool
 	txsAvailable  <-chan struct{}
 
+	doneBuildingBlock chan struct{}
+
 	pendingBlocks *PendingBlocks
 
 	// for reporting metrics
@@ -199,20 +201,21 @@ func NewManager(
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:      make(chan *types.SignedHeader, channelLength),
-		BlockCh:       make(chan *types.Block, channelLength),
-		blockInCh:     make(chan NewBlockEvent, blockInChLength),
-		blockStoreCh:  make(chan struct{}, 1),
-		blockStore:    blockStore,
-		lastStateMtx:  new(sync.RWMutex),
-		blockCache:    NewBlockCache(),
-		retrieveCh:    make(chan struct{}, 1),
-		logger:        logger,
-		validatorSet:  &valSet,
-		txsAvailable:  txsAvailableCh,
-		buildingBlock: false,
-		pendingBlocks: NewPendingBlocks(),
-		metrics:       seqMetrics,
+		HeaderCh:          make(chan *types.SignedHeader, channelLength),
+		BlockCh:           make(chan *types.Block, channelLength),
+		blockInCh:         make(chan NewBlockEvent, blockInChLength),
+		blockStoreCh:      make(chan struct{}, 1),
+		blockStore:        blockStore,
+		lastStateMtx:      new(sync.RWMutex),
+		blockCache:        NewBlockCache(),
+		retrieveCh:        make(chan struct{}, 1),
+		logger:            logger,
+		validatorSet:      &valSet,
+		txsAvailable:      txsAvailableCh,
+		doneBuildingBlock: make(chan struct{}),
+		buildingBlock:     false,
+		pendingBlocks:     NewPendingBlocks(),
+		metrics:           seqMetrics,
 	}
 	return agg, nil
 }
@@ -312,6 +315,11 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				if err != nil && ctx.Err() == nil {
 					m.logger.Error("error while publishing block", "error", err)
 				}
+
+				// this can be used to notify multiple subscribers when a block has been built
+				// intended to help improve the UX of lightclient frontends and wallets.
+				close(m.doneBuildingBlock)
+				m.doneBuildingBlock = make(chan struct{})
 				m.buildingBlock = false
 			}
 		}
