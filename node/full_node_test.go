@@ -27,13 +27,15 @@ import (
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
 	ctx := context.Background()
-	_ = initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
+	node := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
+	require.IsType(t, new(FullNode), node)
 }
 
 func TestMempoolDirectly(t *testing.T) {
 	ctx := context.Background()
 
 	node := initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
+	require.IsType(t, new(FullNode), node)
 
 	assert := assert.New(t)
 	peerID := getPeerID(assert)

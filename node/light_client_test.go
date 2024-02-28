@@ -6,6 +6,7 @@ import (
 
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestLightClient_Panics tests that all methods of LightClient and ensures that
@@ -17,6 +18,7 @@ func TestLightClient_Panics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ln := initAndStartNodeWithCleanup(ctx, t, "light").(*LightNode)
+	require.IsType(t, new(LightNode), ln)
 
 	tests := []struct {
 		name string
