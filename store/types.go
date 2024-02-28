@@ -41,6 +41,14 @@ type Store interface {
 	// GetState returns last state saved with UpdateState.
 	GetState(ctx context.Context) (types.State, error)
 
+	// SetMetadata saves arbitrary value in the store.
+	//
+	// This method enables rollkit to safely persist any information.
+	SetMetadata(ctx context.Context, key string, value []byte) error
+
+	// GetMetadata returns values stored for given key with SetMetadata.
+	GetMetadata(ctx context.Context, key string) ([]byte, error)
+
 	// Close safely closes underlying data storage, to ensure that data is actually saved.
 	Close() error
 }

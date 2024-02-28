@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -205,4 +206,39 @@ func TestBlockResponses(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(resp)
 	assert.Equal(expected, resp)
+}
+
+func TestMetadata(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	require := require.New(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	kv, err := NewDefaultInMemoryKVStore()
+	require.NoError(err)
+	s := New(kv)
+
+	getKey := func(i int) string {
+		return fmt.Sprintf("key %d", i)
+	}
+	getValue := func(i int) []byte {
+		return []byte(fmt.Sprintf("value %d", i))
+	}
+
+	const n = 5
+	for i := 0; i < n; i++ {
+		assert.NoError(s.SetMetadata(ctx, getKey(i), getValue(i)))
+	}
+
+	for i := 0; i < n; i++ {
+		value, err := s.GetMetadata(ctx, getKey(i))
+		assert.NoError(err)
+		assert.Equal(getValue(i), value)
+	}
+
+	v, err := s.GetMetadata(ctx, "unused key")
+	assert.Error(err)
+	assert.Nil(v)
 }

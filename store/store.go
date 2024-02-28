@@ -22,6 +22,7 @@ var (
 	commitPrefix    = "c"
 	statePrefix     = "s"
 	responsesPrefix = "r"
+	metaPrefix      = "m"
 )
 
 // DefaultStore is a default store implmementation.
@@ -207,6 +208,18 @@ func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
 	return state, err
 }
 
+// SetMetadata saves arbitrary value in the store.
+//
+// Metadata is separated from other data by using prefix in KV.
+func (s *DefaultStore) SetMetadata(ctx context.Context, key string, value []byte) error {
+	return s.db.Put(ctx, ds.NewKey(getMetaKey(key)), value)
+}
+
+// GetMetadata returns values stored for given key with SetMetadata.
+func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, error) {
+	return s.db.Get(ctx, ds.NewKey(getMetaKey(key)))
+}
+
 // loadHashFromIndex returns the hash of a block given its height
 func (s *DefaultStore) loadHashFromIndex(ctx context.Context, height uint64) (header.Hash, error) {
 	blob, err := s.db.Get(ctx, ds.NewKey(getIndexKey(height)))
@@ -238,4 +251,8 @@ func getStateKey() string {
 
 func getResponsesKey(height uint64) string {
 	return GenerateKey([]interface{}{responsesPrefix, height})
+}
+
+func getMetaKey(key string) string {
+	return GenerateKey([]interface{}{metaPrefix, key})
 }
