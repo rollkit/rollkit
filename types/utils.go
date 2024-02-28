@@ -98,7 +98,11 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*Block, ed25519.PrivKey) {
 	if err != nil {
 		panic(err)
 	}
+
 	block.SignedHeader = *signedHeader
+	if config.ProposerAddr != nil {
+		block.SignedHeader.ProposerAddress = config.ProposerAddr
+	}
 
 	return block, config.PrivKey
 }

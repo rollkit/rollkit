@@ -51,9 +51,10 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	node, signingKey := setupTestNode(ctx, t, "full")
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
-	store := fullNode.Store
 
+	store := fullNode.Store
 	height := store.Height()
+
 	config := types.BlockConfig{
 		Height:       height + 1,
 		NTxs:         0,
