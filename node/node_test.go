@@ -81,6 +81,8 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25
 func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 
-	_ = initAndStartNodeWithCleanup(ctx, t, "light").(*LightNode)
-	_ = initAndStartNodeWithCleanup(ctx, t, "full").(*FullNode)
+	ln := initAndStartNodeWithCleanup(ctx, t, "light")
+	require.IsType(t, new(LightNode), ln)
+	fn := initAndStartNodeWithCleanup(ctx, t, "full")
+	require.IsType(t, new(FullNode), fn)
 }
