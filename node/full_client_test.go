@@ -386,7 +386,7 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 
 	// save the 3 blocks
 	for _, b := range blocks {
-		err := rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
+		err := rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Commit) // #nosec G601
 		rpc.node.Store.SetHeight(ctx, b.Height())
 		require.NoError(err)
 	}
