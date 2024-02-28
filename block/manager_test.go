@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -134,6 +135,8 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	mockDA := &mock.MockDA{}
 	m := getManager(t, mockDA)
+	logger := &test.MockLogger{}
+	m.logger = logger
 	m.conf.DABlockTime = time.Millisecond
 	m.conf.DAMempoolTTL = 1
 	m.dalc.GasPrice = 1.0
@@ -146,9 +149,11 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
-		// Set up the mock to throw timeout waiting for tx to be included once
-		// tx already in mempool exactly once
-		// then submit successfully
+		// Set up the mock to
+		// * throw timeout waiting for tx to be included exactly once
+		// * wait for tx to drop from mempool exactly DABlockTime * DAMempoolTTL seconds
+		// * retry with a higher gas price
+		// * successfully submit
 		mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
 		mockDA.
 			On("Submit", blobs, float64(m.dalc.GasPrice), []byte(nil)).
@@ -163,6 +168,36 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		m.pendingBlocks = NewPendingBlocks()
 		m.pendingBlocks.addPendingBlock(block)
 		err = m.submitBlocksToDA(ctx)
+
+		if testing.Verbose() {
+			fmt.Println("mock logs (maybe out of order)")
+			for _, line := range logger.InfoLines {
+				fmt.Println("info: ", line)
+			}
+			for _, line := range logger.DebugLines {
+				fmt.Println("debug: ", line)
+			}
+			for _, line := range logger.ErrLines {
+				fmt.Println("err: ", line)
+			}
+		}
+
+		assert.GreaterOrEqual(t, len(logger.InfoLines), 3)
+		assert.GreaterOrEqual(t, len(logger.ErrLines), 2)
+
+		// test retry with gas price multiplier
+		assert.Contains(t, logger.InfoLines[0], "gasPrice 1.2")
+		assert.Contains(t, logger.InfoLines[1], "gasPrice 1.44")
+
+		// test gradual scale back gas price
+		assert.Contains(t, logger.DebugLines[0], "gasPrice 1.2")
+
+		// test tx timed out followed by already in mempool
+		assert.Contains(t, logger.ErrLines[0], da.ErrTxTimedout.Error())
+		assert.Contains(t, logger.ErrLines[1], da.ErrTxAlreadyInMempool.Error())
+
+		// test successful submit
+		assert.Contains(t, logger.InfoLines[2], "successfully submitted")
 		require.NoError(t, err)
 	})
 }
