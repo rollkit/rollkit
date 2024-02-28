@@ -56,10 +56,9 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	height := store.Height()
 
 	config := types.BlockConfig{
-		Height:       height + 1,
-		NTxs:         0,
-		PrivKey:      signingKey,
-		ProposerAddr: nil,
+		Height:  height + 1,
+		NTxs:    0,
+		PrivKey: signingKey,
 	}
 	b1, _ := types.GenerateRandomBlockCustom(&config)
 	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)

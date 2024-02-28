@@ -915,7 +915,11 @@ func TestStatus(t *testing.T) {
 	rpc.node.Store.SetHeight(ctx, earliestBlock.Height())
 	require.NoError(err)
 
-	config.Height = 2
+	config = types.BlockConfig{
+		Height:       2,
+		NTxs:         1,
+		ProposerAddr: pubKey.Bytes(),
+	}
 	latestBlock, _ := types.GenerateRandomBlockCustom(&config)
 	err = rpc.node.Store.SaveBlock(ctx, latestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(ctx, latestBlock.Height())

@@ -28,9 +28,9 @@ type ValidatorConfig struct {
 	VotingPower int64
 }
 
-// GetValidatorSet creates a validatorConfig with a randomly generated privateKey and votingPower set to 1,
+// GetRandomValidatorSet creates a validatorConfig with a randomly generated privateKey and votingPower set to 1,
 // then calls GetValidatorSetCustom to return a new validator set along with the validatorConfig.
-func GetValidatorSet() *cmtypes.ValidatorSet {
+func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 	config := ValidatorConfig{
 		PrivKey:     ed25519.GenPrivKey(),
 		VotingPower: 1,
@@ -65,18 +65,16 @@ type BlockConfig struct {
 // It's tailored for simplicity, primarily used in test setups where additional outputs are not needed.
 func GetRandomBlock(height uint64, nTxs int) *Block {
 	config := BlockConfig{
-		Height:       height,
-		NTxs:         nTxs,
-		PrivKey:      nil,
-		ProposerAddr: nil,
+		Height: height,
+		NTxs:   nTxs,
 	}
 	// Assuming GenerateBlock modifies the context directly with the generated block and other needed data.
-	block, _ := GenerateRandomBlockCustom(&config) // Simplified: Error handling is skipped for brevity.
+	block, _ := GenerateRandomBlockCustom(&config)
 
 	return block
 }
 
-// GetRandomBlockCustom returns a block with random data and the given height, transactions, privateKey or proposer address.
+// GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
 func GenerateRandomBlockCustom(config *BlockConfig) (*Block, ed25519.PrivKey) {
 	block := getBlockDataWith(config.NTxs)
 	dataHash, err := block.Data.Hash()
@@ -137,6 +135,7 @@ func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Ha
 	return nextBlock
 }
 
+// HeaderConfig carries all necessary state for header generation
 type HeaderConfig struct {
 	Height      uint64
 	DataHash    header.Hash
