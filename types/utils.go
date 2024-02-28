@@ -22,6 +22,7 @@ var (
 	errUnsupportedKeyType = errors.New("unsupported key type")
 )
 
+// ValidatorConfig carries all necessary state for generating a Validator
 type ValidatorConfig struct {
 	PrivKey     ed25519.PrivKey
 	VotingPower int64
@@ -29,13 +30,13 @@ type ValidatorConfig struct {
 
 // GetValidatorSet creates a validatorConfig with a randomly generated privateKey and votingPower set to 1,
 // then calls GetValidatorSetCustom to return a new validator set along with the validatorConfig.
-func GetValidatorSet() (*cmtypes.ValidatorSet, ValidatorConfig) {
+func GetValidatorSet() *cmtypes.ValidatorSet {
 	config := ValidatorConfig{
 		PrivKey:     ed25519.GenPrivKey(),
 		VotingPower: 1,
 	}
 	valset := GetValidatorSetCustom(config)
-	return valset, config
+	return valset
 }
 
 // GetValidatorSetCustom returns a validator set based on the provided validatorConfig.
@@ -52,14 +53,12 @@ func GetValidatorSetCustom(config ValidatorConfig) *cmtypes.ValidatorSet {
 	return valset
 }
 
-// BlockContext carries all necessary state for block generation, including configurations and outputs.
+// BlockConfig carries all necessary state for block generation
 type BlockConfig struct {
 	Height       uint64
 	NTxs         int
 	PrivKey      ed25519.PrivKey // Input and Output option
 	ProposerAddr []byte          // Input option
-	Block        *Block          // Output: the generated block.
-	// Add other fields as necessary for inputs and outputs.
 }
 
 // GetRandomBlock creates a block with a given height and number of transactions, intended for testing.
@@ -72,35 +71,36 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 		ProposerAddr: nil,
 	}
 	// Assuming GenerateBlock modifies the context directly with the generated block and other needed data.
-	GenerateRandomBlockCustom(&config) // Simplified: Error handling is skipped for brevity.
+	block, _ := GenerateRandomBlockCustom(&config) // Simplified: Error handling is skipped for brevity.
 
-	return config.Block
+	return block
 }
 
 // GetRandomBlockCustom returns a block with random data and the given height, transactions, privateKey or proposer address.
-func GenerateRandomBlockCustom(ctx *BlockConfig) {
-	// Block generation logic with error handling.
-	block := getBlockDataWith(ctx.NTxs)
+func GenerateRandomBlockCustom(config *BlockConfig) (*Block, ed25519.PrivKey) {
+	block := getBlockDataWith(config.NTxs)
 	dataHash, err := block.Data.Hash()
 	if err != nil {
 		panic(err)
 	}
 
-	if ctx.PrivKey == nil {
-		ctx.PrivKey = ed25519.GenPrivKey()
-	}
-	config := HeaderConfig{
-		Height:   ctx.Height,
-		DataHash: dataHash,
-		PrivKey:  ctx.PrivKey,
+	if config.PrivKey == nil {
+		config.PrivKey = ed25519.GenPrivKey()
 	}
 
-	signedHeader, err := GetRandomSignedHeaderCustom(&config)
+	headerConfig := HeaderConfig{
+		Height:   config.Height,
+		DataHash: dataHash,
+		PrivKey:  config.PrivKey,
+	}
+
+	signedHeader, err := GetRandomSignedHeaderCustom(&headerConfig)
 	if err != nil {
 		panic(err)
 	}
 	block.SignedHeader = *signedHeader
-	ctx.Block = block
+
+	return block, config.PrivKey
 }
 
 // GetRandomNextBlock returns a block with random data and height of +1 from the provided block

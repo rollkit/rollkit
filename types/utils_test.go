@@ -41,7 +41,7 @@ func TestGetRandomValidatorSet(t *testing.T) {
 	// Generate 100 random validator sets and check that they are all unique
 	valSetSet := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		valSet, _ := GetValidatorSet()
+		valSet := GetValidatorSet()
 		valSetHash := string(valSet.Hash())
 		if _, ok := valSetSet[valSetHash]; ok {
 			t.Errorf("Duplicate validator set generated: %v", valSet)
