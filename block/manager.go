@@ -219,7 +219,7 @@ func NewManager(
 		validatorSet:  &valSet,
 		txsAvailable:  txsAvailableCh,
 		buildingBlock: false,
-		pendingBlocks: NewPendingBlocks(),
+		pendingBlocks: NewPendingBlocks(store),
 		metrics:       seqMetrics,
 	}
 	return agg, nil
@@ -840,7 +840,13 @@ func (m *Manager) recordMetrics(block *types.Block) {
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAllBlocks := false
 	backoff := initialBackoff
-	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
+	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks()
+	if len(blocksToSubmit) == 0 {
+		return err
+	}
+	if err != nil {
+		m.logger.Error("error while fetching blocks pending DA", "err", err)
+	}
 	numSubmittedBlocks := 0
 	attempt := 0
 	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)

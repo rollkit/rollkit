@@ -162,7 +162,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			On("Submit", blobs, 1.0*1.2*1.2, []byte(nil)).
 			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
-		m.pendingBlocks = NewPendingBlocks()
+		m.pendingBlocks = NewPendingBlocks(m.store)
 		m.pendingBlocks.addPendingBlock(block)
 		err = m.submitBlocksToDA(ctx)
 		require.NoError(t, err)
@@ -171,6 +171,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 }
 
 func TestSubmitBlocksToDA(t *testing.T) {
+	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
 
@@ -230,14 +231,18 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		m.pendingBlocks = NewPendingBlocks()
+		kvStore, err := store.NewDefaultInMemoryKVStore()
+		require.NoError(err)
+		m.pendingBlocks = NewPendingBlocks(store.New(kvStore))
 		t.Run(tc.name, func(t *testing.T) {
 			for _, block := range tc.blocks {
 				m.pendingBlocks.addPendingBlock(block)
 			}
 			err := m.submitBlocksToDA(ctx)
 			assert.Equal(t, tc.isErrExpected, err != nil)
-			assert.Equal(t, tc.expectedPendingBlocksLength, len(m.pendingBlocks.getPendingBlocks()))
+			blocks, err := m.pendingBlocks.getPendingBlocks()
+			assert.NoError(err)
+			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
 		})
 	}
 }

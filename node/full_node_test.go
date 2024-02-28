@@ -12,6 +12,7 @@ import (
 
 	cmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/proxy"
+
 	goDA "github.com/rollkit/go-da"
 	"github.com/rollkit/rollkit/config"
 	test "github.com/rollkit/rollkit/test/log"
