@@ -135,8 +135,9 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 	mockDA := &mock.MockDA{}
 	m := getManager(t, mockDA)
 	m.conf.DABlockTime = time.Millisecond
+	m.conf.DAMempoolTTL = 1
 
-	t.Run("handle_mempool_errors_gracefully", func(t *testing.T) {
+	t.Run("handle_tx_already_in_mempool", func(t *testing.T) {
 		var blobs [][]byte
 		block := types.GetRandomBlock(1, 5)
 		blob, err := block.MarshalBinary()
@@ -144,7 +145,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		require.NoError(t, err)
 		blobs = append(blobs, blob)
 		// Set up the mock to throw timeout waiting for tx to be included once
-		// tx already in mempool 10 times
+		// tx already in mempool exactly once
 		// then submit successfully
 		mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
 		mockDA.
@@ -152,7 +153,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			Return([][]byte{}, da.ErrTxTimedout).Once()
 		mockDA.
 			On("Submit", blobs, float64(-1), []byte(nil)).
-			Return([][]byte{}, da.ErrTxAlreadyInMempool).Times(10)
+			Return([][]byte{}, da.ErrTxAlreadyInMempool).Times(int(m.conf.DAMempoolTTL))
 		mockDA.
 			On("Submit", blobs, float64(-1), []byte(nil)).
 			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
