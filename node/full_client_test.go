@@ -919,8 +919,6 @@ func TestStatus(t *testing.T) {
 	rpc.node.Store.SetHeight(ctx, latestBlock.Height())
 	require.NoError(err)
 
-	startNodeWithCleanup(t, rpc.node)
-
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)
 
