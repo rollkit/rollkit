@@ -7,12 +7,10 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/rollkit/rollkit/third_party/log"
-
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/store"
-
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -30,7 +28,7 @@ const LastSubmittedHeightKey = "last submitted"
 // Worst case scenario is when blocks was successfully submitted to DA, but confirmation was not received (e.g. node was
 // restarted, networking issue occurred). In this case blocks are re-submitted to DA (it's extra cost).
 // rollkit is able to skip duplicate blocks so this shouldn't affect full nodes.
-// TODO(tzdybal): batch size
+// TODO(tzdybal): we shouldn't try to push all pending blocks at once; this should depend on max blob size
 type PendingBlocks struct {
 	store  store.Store
 	logger log.Logger
@@ -84,7 +82,6 @@ func (pb *PendingBlocks) isEmpty() bool {
 	return pb.store.Height() == pb.lastSubmittedHeight.Load()
 }
 
-// TODO(tzdybal): change signature (accept height, maybe context?)
 func (pb *PendingBlocks) setLastSubmittedHeight(newLastSubmittedHeight uint64) {
 	lsh := pb.lastSubmittedHeight.Load()
 
