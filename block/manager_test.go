@@ -353,3 +353,11 @@ func Test_isProposer(t *testing.T) {
 		})
 	}
 }
+
+func Test_publishBlock_ManagerNotProposer(t *testing.T) {
+	require := require.New(t)
+	m := getManager(t)
+	m.isProposer = false
+	err := m.publishBlock(context.Background())
+	require.ErrorContains(err, "not a proposer")
+}
