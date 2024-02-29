@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -256,6 +257,13 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			blocks, err := m.pendingBlocks.getPendingBlocks()
 			assert.NoError(err)
 			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
+
+			// ensure that metadata is updated in KV store
+			raw, err := m.store.GetMetadata(ctx, lshKey)
+			require.NoError(err)
+			lshInKV, err := strconv.ParseUint(string(raw), 10, 64)
+			require.NoError(err)
+			assert.Equal(m.store.Height(), lshInKV+uint64(tc.expectedPendingBlocksLength))
 		})
 	}
 }

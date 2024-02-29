@@ -86,11 +86,13 @@ func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 	if len(blocks) == 0 {
 		return
 	}
-	height := blocks[len(blocks)-1].Height()
-	lastSubmitted := pb.lastSubmittedHeight.Load()
+	latestBlockHeight := blocks[len(blocks)-1].Height()
+	lsh := pb.lastSubmittedHeight.Load()
 
-	if height > lastSubmitted {
-		pb.lastSubmittedHeight.CompareAndSwap(lastSubmitted, height)
+	if latestBlockHeight > lsh {
+		if pb.lastSubmittedHeight.CompareAndSwap(lsh, latestBlockHeight) {
+			pb.store.SetMetadata(context.TODO(), lshKey, []byte(strconv.FormatUint(latestBlockHeight, 10)))
+		}
 	}
 }
 
