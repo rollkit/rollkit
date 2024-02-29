@@ -161,6 +161,16 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 }
 
 // TestPendingBlocks is a test for bug described in https://github.com/rollkit/rollkit/issues/1548
+//
+// Test scenario:
+// - mock DA to refuse all submissions (returning error)
+// - run aggregator to produce some blocks
+// - stop aggregator node
+// - all blocks should be considered as pending DA submission (because of mock DA behaviour)
+// - change mock to accept all submissions
+// - start aggregator node again (using the same store, to simulate restart)
+// - verify that blocks from first run was submitted to DA
+// - additionally - ensure that information was persisted in store (TODO: this should be tested separately)
 func TestPendingBlocks(t *testing.T) {
 	ctx := context.Background()
 
@@ -183,7 +193,10 @@ func TestPendingBlocks(t *testing.T) {
 	err = node.Start()
 	assert.NoError(t, err)
 
-	const firstRunBlocks = 10
+	const (
+		firstRunBlocks  = 10
+		secondRunBlocks = 5
+	)
 
 	err = waitForAtLeastNBlocks(node, firstRunBlocks, Store)
 	assert.NoError(t, err)
@@ -197,19 +210,18 @@ func TestPendingBlocks(t *testing.T) {
 	// reset DA mock to ensure that Submit was called
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Unset()
 
-	// mock submit function to just return some hash and count the number of submitted blobs
+	// mock submit function to just return some hash and collect all blobs in order
 	// node will be stopped after producing at least firstRunBlocks blocks
-	// restarted node should get blocks from first and second run (more than firstRunBlocks
-	// TODO(tzdybal): this seems fragile and probably should be improved (to deserialize blocks and check heights)
-	uniqueBlobs := make(map[string]uint64)
+	// restarted node should submit to DA blocks from first and second run (more than firstRunBlocks)
+	allBlobs := make([][]byte, 0, firstRunBlocks+secondRunBlocks)
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
 		func(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte) ([][]byte, error) {
 			hashes := make([][]byte, len(blobs))
 			for i, blob := range blobs {
 				sha := sha256.Sum256(blob)
 				hashes[i] = sha[:]
-				uniqueBlobs[string(sha[:])]++
 			}
+			allBlobs = append(allBlobs, blobs...)
 			return hashes, nil
 		})
 
@@ -217,7 +229,7 @@ func TestPendingBlocks(t *testing.T) {
 	assert.NoError(t, err)
 
 	// let node produce few more blocks
-	err = waitForAtLeastNBlocks(node, firstRunBlocks+5, Store)
+	err = waitForAtLeastNBlocks(node, firstRunBlocks+secondRunBlocks, Store)
 	assert.NoError(t, err)
 
 	// assert that LastSubmittedHeight was updated in store
@@ -229,9 +241,16 @@ func TestPendingBlocks(t *testing.T) {
 
 	err = node.Stop()
 	assert.NoError(t, err)
-
-	assert.Greater(t, len(uniqueBlobs), firstRunBlocks)
 	mock.AssertExpectationsForObjects(t, mockDA)
+
+	// ensure that all blocks were submitted in order
+	for i := 0; i < len(allBlobs); i++ {
+		b := &types.Block{}
+		err := b.UnmarshalBinary(allBlobs[i])
+		require.NoError(t, err)
+		require.Equal(t, uint64(i+1), b.Height()) // '+1' because blocks start at genesis with height 1
+	}
+
 }
 
 func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
