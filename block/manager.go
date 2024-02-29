@@ -784,9 +784,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// Submit block to be published to the DA layer
-	m.pendingBlocks.addPendingBlock(block)
-
 	// Commit the new state and block which writes to disk on the proxy app
 	appHash, _, err := m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {

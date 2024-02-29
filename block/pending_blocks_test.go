@@ -14,9 +14,11 @@ import (
 
 func TestGetPendingBlocks(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 	pb := newPendingBlocks(t)
 	for i := uint64(0); i < 5; i++ {
-		pb.addPendingBlock(types.GetRandomBlock(i, 0))
+		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
+		pb.store.SetHeight(ctx, i)
 	}
 	blocks, _ := pb.getPendingBlocks()
 	require.True(sort.SliceIsSorted(blocks, func(i, j int) bool {
@@ -26,11 +28,14 @@ func TestGetPendingBlocks(t *testing.T) {
 
 func TestRemoveSubmittedBlocks(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 	pb := newPendingBlocks(t)
 	for i := uint64(0); i < 5; i++ {
-		pb.addPendingBlock(types.GetRandomBlock(i, 0))
+		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
+		pb.store.SetHeight(ctx, i)
 	}
-	blocks, _ := pb.getPendingBlocks()
+	blocks, err := pb.getPendingBlocks()
+	require.NoError(err)
 	pb.removeSubmittedBlocks(blocks)
 	require.True(pb.isEmpty())
 }
@@ -40,9 +45,7 @@ func TestRemoveSubsetOfBlocks(t *testing.T) {
 	ctx := context.Background()
 	pb := newPendingBlocks(t)
 	for i := uint64(1); i <= 5; i++ {
-		block := types.GetRandomBlock(i, 0)
-		pb.addPendingBlock(block)
-		require.NoError(pb.store.SaveBlock(ctx, block, &types.Commit{}))
+		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
 		pb.store.SetHeight(ctx, i)
 	}
 	// Remove blocks with height 1 and 2
@@ -60,9 +63,11 @@ func TestRemoveSubsetOfBlocks(t *testing.T) {
 
 func TestRemoveAllBlocksAndVerifyEmpty(t *testing.T) {
 	require := require.New(t)
+	ctx := context.Background()
 	pb := newPendingBlocks(t)
 	for i := uint64(0); i < 5; i++ {
-		pb.addPendingBlock(types.GetRandomBlock(i, 0))
+		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
+		pb.store.SetHeight(ctx, i)
 	}
 	// Remove all blocks
 	blocks, err := pb.getPendingBlocks()

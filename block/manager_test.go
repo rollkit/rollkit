@@ -172,8 +172,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			On("Submit", blobs, 1.0*1.2*1.2, []byte(nil)).
 			Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
-		m.pendingBlocks = NewPendingBlocks(m.store)
-		m.pendingBlocks.addPendingBlock(block)
+		m.pendingBlocks = NewPendingBlocks(m.store, m.logger)
 		err = m.submitBlocksToDA(ctx)
 		require.NoError(t, err)
 		mockDA.AssertExpectations(t)
@@ -249,7 +248,6 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			// PendingBlocks depend on store, so blocks needs to be saved and height updated
 			for _, block := range tc.blocks {
 				require.NoError(m.store.SaveBlock(ctx, block, &types.Commit{}))
-				m.pendingBlocks.addPendingBlock(block)
 			}
 			m.store.SetHeight(ctx, uint64(len(tc.blocks)))
 

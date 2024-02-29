@@ -81,10 +81,6 @@ func (pb *PendingBlocks) isEmpty() bool {
 	return pb.store.Height() == pb.lastSubmittedHeight.Load()
 }
 
-func (pb *PendingBlocks) addPendingBlock(_ *types.Block) {
-	// TODO(tzdybal): remove this method
-}
-
 // TODO(tzdybal): change signature (accept height)
 func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 	if len(blocks) == 0 {
