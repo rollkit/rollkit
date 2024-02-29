@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -29,6 +30,21 @@ var (
 
 	// ErrBlobSizeOverLimit is used to indicate that the blob size is over limit
 	ErrBlobSizeOverLimit = errors.New("blob: over size limit")
+
+	// ErrTxTimedout is the error message returned by the DA when mempool is congested
+	ErrTxTimedout = errors.New("timed out waiting for tx to be included in a block")
+
+	// ErrTxAlreadyInMempool is  the error message returned by the DA when tx is already in mempool
+	ErrTxAlreadyInMempool = errors.New("tx already in mempool")
+
+	// ErrTxIncorrectAccountSequence is the error message returned by the DA when tx has incorrect sequence
+	ErrTxIncorrectAccountSequence = errors.New("incorrect account sequence")
+
+	// ErrTxSizeTooBig is the error message returned by the DA when tx size is too big
+	ErrTxSizeTooBig = errors.New("tx size is too big")
+
+	// ErrContextDeadline is the error message returned by the DA when context deadline exceeds
+	ErrContextDeadline = errors.New("context deadline")
 )
 
 // StatusCode is a type for DA layer return status.
@@ -42,6 +58,10 @@ const (
 	StatusUnknown StatusCode = iota
 	StatusSuccess
 	StatusNotFound
+	StatusNotIncludedInBlock
+	StatusAlreadyInMempool
+	StatusTooBig
+	StatusContextDeadline
 	StatusError
 )
 
@@ -75,25 +95,17 @@ type ResultRetrieveBlocks struct {
 
 // DAClient is a new DA implementation.
 type DAClient struct {
-	DA        goDA.DA
-	Namespace goDA.Namespace
-	GasPrice  float64
-	Logger    log.Logger
+	DA            goDA.DA
+	GasPrice      float64
+	GasMultiplier float64
+	Namespace     goDA.Namespace
+	Logger        log.Logger
 }
 
 // SubmitBlocks submits blocks to DA.
-func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) ResultSubmitBlocks {
+func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, maxBlobSize uint64, gasPrice float64) ResultSubmitBlocks {
 	var blobs [][]byte
 	var blobSize uint64
-	maxBlobSize, err := dac.DA.MaxBlobSize(ctx)
-	if err != nil {
-		return ResultSubmitBlocks{
-			BaseResult: BaseResult{
-				Code:    StatusError,
-				Message: "unable to get DA max blob size",
-			},
-		}
-	}
 	var submitted uint64
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
@@ -123,11 +135,24 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block) Re
 	}
 	ctx, cancel := context.WithTimeout(ctx, submitTimeout)
 	defer cancel()
-	ids, err := dac.DA.Submit(ctx, blobs, dac.GasPrice, dac.Namespace)
+	ids, err := dac.DA.Submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
+		status := StatusError
+		switch {
+		case strings.Contains(err.Error(), ErrTxTimedout.Error()):
+			status = StatusNotIncludedInBlock
+		case strings.Contains(err.Error(), ErrTxAlreadyInMempool.Error()):
+			status = StatusAlreadyInMempool
+		case strings.Contains(err.Error(), ErrTxIncorrectAccountSequence.Error()):
+			status = StatusAlreadyInMempool
+		case strings.Contains(err.Error(), ErrTxSizeTooBig.Error()):
+			status = StatusTooBig
+		case strings.Contains(err.Error(), ErrContextDeadline.Error()):
+			status = StatusContextDeadline
+		}
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
-				Code:    StatusError,
+				Code:    status,
 				Message: "failed to submit blocks: " + err.Error(),
 			},
 		}
