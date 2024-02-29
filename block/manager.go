@@ -837,7 +837,7 @@ func (m *Manager) recordMetrics(block *types.Block) {
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAllBlocks := false
 	backoff := initialBackoff
-	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks()
+	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks(ctx)
 	if len(blocksToSubmit) == 0 {
 		return err
 	}

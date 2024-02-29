@@ -45,11 +45,10 @@ func NewPendingBlocks(store store.Store) *PendingBlocks {
 
 // getPendingBlocks returns a sorted slice of pending blocks
 // that need to be published to DA layer in order of block height
-func (pb *PendingBlocks) getPendingBlocks() ([]*types.Block, error) {
+func (pb *PendingBlocks) getPendingBlocks(ctx context.Context) ([]*types.Block, error) {
 	lastSubmitted := pb.lastSubmittedHeight.Load()
 	if lastSubmitted == 0 {
-		// TODO(tzdybal): think about passing context here
-		err := pb.loadFromStore(context.TODO())
+		err := pb.loadFromStore(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +66,7 @@ func (pb *PendingBlocks) getPendingBlocks() ([]*types.Block, error) {
 
 	blocks := make([]*types.Block, 0, height-lastSubmitted)
 	for i := lastSubmitted + 1; i <= height; i++ {
-		block, err := pb.store.GetBlock(context.TODO(), i)
+		block, err := pb.store.GetBlock(ctx, i)
 		if err != nil {
 			// return as much as possible + error information
 			return blocks, err
@@ -91,6 +90,7 @@ func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 
 	if latestBlockHeight > lsh {
 		if pb.lastSubmittedHeight.CompareAndSwap(lsh, latestBlockHeight) {
+			// TODO(tzdybal): handle error vs just ignore it - even if there is an issue, there is not much we can do about it
 			pb.store.SetMetadata(context.TODO(), LastSubmittedHeightKey, []byte(strconv.FormatUint(latestBlockHeight, 10)))
 		}
 	}

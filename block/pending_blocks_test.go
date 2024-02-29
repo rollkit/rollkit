@@ -20,7 +20,7 @@ func TestGetPendingBlocks(t *testing.T) {
 		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
 		pb.store.SetHeight(ctx, i)
 	}
-	blocks, _ := pb.getPendingBlocks()
+	blocks, _ := pb.getPendingBlocks(ctx)
 	require.True(sort.SliceIsSorted(blocks, func(i, j int) bool {
 		return blocks[i].Height() < blocks[j].Height()
 	}))
@@ -34,7 +34,7 @@ func TestRemoveSubmittedBlocks(t *testing.T) {
 		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
 		pb.store.SetHeight(ctx, i)
 	}
-	blocks, err := pb.getPendingBlocks()
+	blocks, err := pb.getPendingBlocks(ctx)
 	require.NoError(err)
 	pb.removeSubmittedBlocks(blocks)
 	require.True(pb.isEmpty())
@@ -53,7 +53,7 @@ func TestRemoveSubsetOfBlocks(t *testing.T) {
 		types.GetRandomBlock(1, 0),
 		types.GetRandomBlock(2, 0),
 	})
-	remainingBlocks, err := pb.getPendingBlocks()
+	remainingBlocks, err := pb.getPendingBlocks(ctx)
 	require.NoError(err)
 	require.Len(remainingBlocks, 3, "There should be 3 blocks remaining")
 	for _, block := range remainingBlocks {
@@ -70,7 +70,7 @@ func TestRemoveAllBlocksAndVerifyEmpty(t *testing.T) {
 		pb.store.SetHeight(ctx, i)
 	}
 	// Remove all blocks
-	blocks, err := pb.getPendingBlocks()
+	blocks, err := pb.getPendingBlocks(ctx)
 	require.NoError(err)
 	pb.removeSubmittedBlocks(blocks)
 	require.True(pb.isEmpty(), "PendingBlocks should be empty after removing all blocks")

@@ -254,7 +254,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 
 			err := m.submitBlocksToDA(ctx)
 			assert.Equal(tc.isErrExpected, err != nil)
-			blocks, err := m.pendingBlocks.getPendingBlocks()
+			blocks, err := m.pendingBlocks.getPendingBlocks(ctx)
 			assert.NoError(err)
 			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
 
