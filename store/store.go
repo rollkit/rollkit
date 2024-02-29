@@ -212,12 +212,20 @@ func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
 //
 // Metadata is separated from other data by using prefix in KV.
 func (s *DefaultStore) SetMetadata(ctx context.Context, key string, value []byte) error {
-	return s.db.Put(ctx, ds.NewKey(getMetaKey(key)), value)
+	err := s.db.Put(ctx, ds.NewKey(getMetaKey(key)), value)
+	if err != nil {
+		return fmt.Errorf("failed to set metadata for key '%s': %w", key, err)
+	}
+	return nil
 }
 
 // GetMetadata returns values stored for given key with SetMetadata.
 func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, error) {
-	return s.db.Get(ctx, ds.NewKey(getMetaKey(key)))
+	data, err := s.db.Get(ctx, ds.NewKey(getMetaKey(key)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metadata for key '%s': %w", key, err)
+	}
+	return data, nil
 }
 
 // loadHashFromIndex returns the hash of a block given its height
