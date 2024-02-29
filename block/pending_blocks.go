@@ -14,8 +14,8 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// lshKey is the key used for persisting the last submitted height in store.
-const lshKey = "last submitted"
+// LastSubmittedHeightKey is the key used for persisting the last submitted height in store.
+const LastSubmittedHeightKey = "last submitted"
 
 // PendingBlocks maintains blocks that need to be published to DA layer
 //
@@ -81,7 +81,7 @@ func (pb *PendingBlocks) isEmpty() bool {
 	return pb.store.Height() == pb.lastSubmittedHeight.Load()
 }
 
-// TODO(tzdybal): change signature (accept height)
+// TODO(tzdybal): change signature (accept height, maybe context?)
 func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 	if len(blocks) == 0 {
 		return
@@ -91,15 +91,15 @@ func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 
 	if latestBlockHeight > lsh {
 		if pb.lastSubmittedHeight.CompareAndSwap(lsh, latestBlockHeight) {
-			pb.store.SetMetadata(context.TODO(), lshKey, []byte(strconv.FormatUint(latestBlockHeight, 10)))
+			pb.store.SetMetadata(context.TODO(), LastSubmittedHeightKey, []byte(strconv.FormatUint(latestBlockHeight, 10)))
 		}
 	}
 }
 
 func (pb *PendingBlocks) loadFromStore(ctx context.Context) error {
-	raw, err := pb.store.GetMetadata(context.TODO(), lshKey)
+	raw, err := pb.store.GetMetadata(ctx, LastSubmittedHeightKey)
 	if errors.Is(err, ds.ErrNotFound) {
-		// lshKey was never used, it's special case not actual error
+		// LastSubmittedHeightKey was never used, it's special case not actual error
 		// we don't need to modify lastSubmittedHeight
 		return nil
 	}

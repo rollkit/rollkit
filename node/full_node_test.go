@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -218,6 +219,13 @@ func TestPendingBlocks(t *testing.T) {
 	// let node produce few more blocks
 	err = waitForAtLeastNBlocks(node, firstRunBlocks+5, Store)
 	assert.NoError(t, err)
+
+	// assert that LastSubmittedHeight was updated in store
+	raw, err := node.(*FullNode).Store.GetMetadata(context.Background(), block.LastSubmittedHeightKey)
+	require.NoError(t, err)
+	lsh, err := strconv.ParseUint(string(raw), 10, 64)
+	require.NoError(t, err)
+	assert.Greater(t, lsh, uint64(firstRunBlocks))
 
 	err = node.Stop()
 	assert.NoError(t, err)

@@ -259,7 +259,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
 
 			// ensure that metadata is updated in KV store
-			raw, err := m.store.GetMetadata(ctx, lshKey)
+			raw, err := m.store.GetMetadata(ctx, LastSubmittedHeightKey)
 			require.NoError(err)
 			lshInKV, err := strconv.ParseUint(string(raw), 10, 64)
 			require.NoError(err)
