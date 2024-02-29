@@ -180,7 +180,10 @@ func NewManager(
 		return nil, err
 	}
 
-	isProposer := bytes.Equal(cmcrypto.AddressHash(genesis.Validators[0].PubKey.Bytes()), proposerAddress)
+	isProposer, err := isProposer(genesis, proposerKey)
+	if err != nil {
+		return nil, err
+	}
 
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics, valSet.Hash())
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
@@ -247,6 +250,18 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
 func (m *Manager) SetDALC(dalc *da.DAClient) {
 	m.dalc = dalc
+}
+
+// isProposer returns whether or not the manager is a proposer
+func isProposer(genesis *cmtypes.GenesisDoc, signerPrivKey crypto.PrivKey) (bool, error) {
+	if len(genesis.Validators) == 0 {
+		return false, errors.New("no validators found in genesis")
+	}
+	signerPubBytes, err := signerPrivKey.GetPublic().Raw()
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 // SetLastState is used to set lastState used by Manager.

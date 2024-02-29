@@ -9,7 +9,7 @@ import (
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
-
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +17,7 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
@@ -279,4 +280,76 @@ func getTempKVStore(t *testing.T) ds.TxnDatastore {
 	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
 	require.NoError(t, err)
 	return kvStore
+}
+
+func Test_isProposer(t *testing.T) {
+	require := require.New(t)
+
+	type args struct {
+		genesis       *cmtypes.GenesisDoc
+		signerPrivKey crypto.PrivKey
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "Signing key matches genesis proposer public key",
+			args: func() args {
+				genesisData, privKey := types.GetGenesisWithPrivkey()
+				signingKey, err := types.PrivKeyToSigningKey(privKey)
+				require.NoError(err)
+				return args{
+					genesisData,
+					signingKey,
+				}
+			}(),
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "Signing key does not match genesis proposer public key",
+			args: func() args {
+				genesisData, _ := types.GetGenesisWithPrivkey()
+				randomPrivKey := ed25519.GenPrivKey()
+				signingKey, err := types.PrivKeyToSigningKey(randomPrivKey)
+				require.NoError(err)
+				return args{
+					genesisData,
+					signingKey,
+				}
+			}(),
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "No validators found in genesis",
+			args: func() args {
+				genesisData, privKey := types.GetGenesisWithPrivkey()
+				genesisData.Validators = nil
+				signingKey, err := types.PrivKeyToSigningKey(privKey)
+				require.NoError(err)
+				return args{
+					genesisData,
+					signingKey,
+				}
+			}(),
+			want:    false,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := isProposer(tt.args.genesis, tt.args.signerPrivKey)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("isProposer() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("isProposer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
