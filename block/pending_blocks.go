@@ -93,8 +93,8 @@ func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
 
 	if latestBlockHeight > lsh {
 		if pb.lastSubmittedHeight.CompareAndSwap(lsh, latestBlockHeight) {
-			// TODO(tzdybal): handle error vs just ignore it - even if there is an issue, there is not much we can do about it
-			pb.store.SetMetadata(context.TODO(), LastSubmittedHeightKey, []byte(strconv.FormatUint(latestBlockHeight, 10)))
+			err := pb.store.SetMetadata(context.TODO(), LastSubmittedHeightKey, []byte(strconv.FormatUint(latestBlockHeight, 10)))
+			pb.logger.Error("failed to store height of latest block submitted to DA", "err", err)
 		}
 	}
 }
