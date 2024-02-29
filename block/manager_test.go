@@ -134,8 +134,6 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	mockDA := &mock.MockDA{}
 	m := getManager(t, mockDA)
-	logger := &test.MockLogger{}
-	m.logger = logger
 	m.conf.DABlockTime = time.Millisecond
 	m.conf.DAMempoolTTL = 1
 	m.dalc.GasPrice = 1.0

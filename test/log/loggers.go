@@ -113,17 +113,6 @@ func NewLogger(t *testing.T) *Logger {
 	}
 }
 
-// With returns a new Logger with the given keyvals added.
-func (t *Logger) With(keyvals ...interface{}) log.Logger {
-	t.T.Helper()
-	t.mtx.Lock()
-	defer t.mtx.Unlock()
-	return &Logger{
-		T:   t.T,
-		mtx: new(sync.Mutex),
-	}
-}
-
 // Debug prints a debug message.
 func (t *Logger) Debug(msg string, keyvals ...interface{}) {
 	t.T.Helper()
@@ -157,20 +146,15 @@ type MockLogger struct {
 
 // Debug saves a debug message.
 func (t *MockLogger) Debug(msg string, keyvals ...interface{}) {
-	t.DebugLines = append(t.DebugLines, fmt.Sprint(msg, keyvals))
+	t.DebugLines = append(t.DebugLines, fmt.Sprint(append([]interface{}{msg}, keyvals...)...))
 }
 
 // Info saves an info message.
 func (t *MockLogger) Info(msg string, keyvals ...interface{}) {
-	t.InfoLines = append(t.InfoLines, fmt.Sprint(msg, keyvals))
+	t.InfoLines = append(t.InfoLines, fmt.Sprint(append([]interface{}{msg}, keyvals...)...))
 }
 
 // Error saves an error message.
 func (t *MockLogger) Error(msg string, keyvals ...interface{}) {
-	t.ErrLines = append(t.ErrLines, fmt.Sprint(msg, keyvals))
-}
-
-// With returns a new Logger with the given keyvals added.
-func (t *MockLogger) With(keyvals ...interface{}) log.Logger {
-	return &MockLogger{}
+	t.ErrLines = append(t.ErrLines, fmt.Sprint(append([]interface{}{msg}, keyvals...)...))
 }
