@@ -219,7 +219,7 @@ func NewManager(
 		validatorSet:  &valSet,
 		txsAvailable:  txsAvailableCh,
 		buildingBlock: false,
-		pendingBlocks: NewPendingBlocks(store),
+		pendingBlocks: NewPendingBlocks(store, logger),
 		metrics:       seqMetrics,
 	}
 	return agg, nil

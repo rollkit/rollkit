@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	test "github.com/rollkit/rollkit/test/log"
 	"sort"
 	"testing"
 
@@ -91,5 +92,5 @@ func TestRemoveBlocksFromEmptyPendingBlocks(t *testing.T) {
 func newPendingBlocks(t *testing.T) *PendingBlocks {
 	kv, err := store.NewDefaultInMemoryKVStore()
 	require.NoError(t, err)
-	return NewPendingBlocks(store.New(kv))
+	return NewPendingBlocks(store.New(kv), test.NewLogger(t))
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rollkit/rollkit/third_party/log"
 	"strconv"
 	"sync/atomic"
 
@@ -30,16 +31,18 @@ const LastSubmittedHeightKey = "last submitted"
 // rollkit is able to skip duplicate blocks so this shouldn't affect full nodes.
 // TODO(tzdybal): batch size
 type PendingBlocks struct {
-	store store.Store
+	store  store.Store
+	logger log.Logger
 
 	// lastSubmittedHeight holds information about last block successfully submitted to DA
 	lastSubmittedHeight atomic.Uint64
 }
 
 // NewPendingBlocks returns a new PendingBlocks struct
-func NewPendingBlocks(store store.Store) *PendingBlocks {
+func NewPendingBlocks(store store.Store, logger log.Logger) *PendingBlocks {
 	return &PendingBlocks{
-		store: store,
+		store:  store,
+		logger: logger,
 	}
 }
 
