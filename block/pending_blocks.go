@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/rollkit/rollkit/third_party/log"
 	"strconv"
 	"sync/atomic"
+
+	"github.com/rollkit/rollkit/third_party/log"
 
 	ds "github.com/ipfs/go-datastore"
 
@@ -84,16 +85,12 @@ func (pb *PendingBlocks) isEmpty() bool {
 }
 
 // TODO(tzdybal): change signature (accept height, maybe context?)
-func (pb *PendingBlocks) removeSubmittedBlocks(blocks []*types.Block) {
-	if len(blocks) == 0 {
-		return
-	}
-	latestBlockHeight := blocks[len(blocks)-1].Height()
+func (pb *PendingBlocks) setLastSubmittedHeight(newLastSubmittedHeight uint64) {
 	lsh := pb.lastSubmittedHeight.Load()
 
-	if latestBlockHeight > lsh {
-		if pb.lastSubmittedHeight.CompareAndSwap(lsh, latestBlockHeight) {
-			err := pb.store.SetMetadata(context.TODO(), LastSubmittedHeightKey, []byte(strconv.FormatUint(latestBlockHeight, 10)))
+	if newLastSubmittedHeight > lsh && pb.lastSubmittedHeight.CompareAndSwap(lsh, newLastSubmittedHeight) {
+		err := pb.store.SetMetadata(context.TODO(), LastSubmittedHeightKey, []byte(strconv.FormatUint(newLastSubmittedHeight, 10)))
+		if err != nil {
 			pb.logger.Error("failed to store height of latest block submitted to DA", "err", err)
 		}
 	}

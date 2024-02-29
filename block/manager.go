@@ -866,7 +866,11 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
-			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
+			lsh := uint64(0)
+			if l := len(submittedBlocks); l > 0 {
+				lsh = submittedBlocks[l-1].Height()
+			}
+			m.pendingBlocks.setLastSubmittedHeight(lsh)
 			blocksToSubmit = notSubmittedBlocks
 			// reset submission options when successful
 			// scale back gasPrice gradually
