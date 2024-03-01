@@ -839,9 +839,16 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	backoff := initialBackoff
 	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks(ctx)
 	if len(blocksToSubmit) == 0 {
+		// There are no pending blocks; return because there's nothing to do, but:
+		// - it might be caused by error, then err != nil
+		// - all pending blocks are processed, then err == nil
+		// whatever the reason, error information is propagated correctly to the caller
 		return err
 	}
 	if err != nil {
+		// There are some pending blocks but also an error. It's very unlikely case - probably some error while reading
+		// blocks from the store.
+		// The error is logged and normal processing of pending blocks continues.
 		m.logger.Error("error while fetching blocks pending DA", "err", err)
 	}
 	numSubmittedBlocks := 0
@@ -866,11 +873,11 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
-			lsh := uint64(0)
+			lastSubmittedHeight := uint64(0)
 			if l := len(submittedBlocks); l > 0 {
-				lsh = submittedBlocks[l-1].Height()
+				lastSubmittedHeight = submittedBlocks[l-1].Height()
 			}
-			m.pendingBlocks.setLastSubmittedHeight(lsh)
+			m.pendingBlocks.setLastSubmittedHeight(lastSubmittedHeight)
 			blocksToSubmit = notSubmittedBlocks
 			// reset submission options when successful
 			// scale back gasPrice gradually
