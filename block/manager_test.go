@@ -240,6 +240,48 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			isErrExpected:               true,
 			expectedPendingBlocksLength: 1,
 		},
+		{
+			name: "A and B are fair blocks, but C has a marshalling error. So C never gets submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
+				blocks[1] = types.GetRandomBlock(uint64(2), numTxs)
+				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
+				invalidateBlockHeader(blocks[2])
+				return blocks
+			}(),
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 1,
+		},
+		{
+			name: "A is too big on its own. So A, B and C never get submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				blocks[0], err = getBlockBiggerThan(1, maxDABlobSizeLimit)
+				require.NoError(err)
+				blocks[1] = types.GetRandomBlock(uint64(2), numTxs)
+				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
+				return blocks
+			}(),
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 3,
+		},
+		{
+			name: "A itself has a marshalling error. So A, B and C never get submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
+				invalidateBlockHeader(blocks[0])
+				blocks[1] = types.GetRandomBlock(uint64(2), numTxs)
+				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
+				return blocks
+			}(),
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 3,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -280,6 +322,18 @@ func getTempKVStore(t *testing.T) ds.TxnDatastore {
 	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
 	require.NoError(t, err)
 	return kvStore
+}
+
+// invalidateBlockHeader results in a block header that produces a marshalling error
+func invalidateBlockHeader(block *types.Block) {
+	for i := range block.SignedHeader.Validators.Validators {
+		block.SignedHeader.Validators.Validators[i] = &cmtypes.Validator{
+			Address:          []byte(""),
+			PubKey:           nil,
+			VotingPower:      -1,
+			ProposerPriority: 0,
+		}
+	}
 }
 
 func Test_isProposer(t *testing.T) {
