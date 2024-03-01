@@ -99,8 +99,8 @@ func (bSyncService *BlockSyncService) initBlockStoreAndStartSyncer(ctx context.C
 // Note: Only returns an error in case block store can't be initialized. Logs
 // error if there's one while broadcasting.
 func (bSyncService *BlockSyncService) WriteToBlockStoreAndBroadcast(ctx context.Context, block *types.Block) error {
-	if bSyncService.genesis.InitialHeight < 0 || block.Height() < 0 {
-		return fmt.Errorf("invalid block height; cannot be negative")
+	if bSyncService.genesis.InitialHeight < 0 {
+		return fmt.Errorf("invalid initial height; cannot be negative")
 	}
 	isGenesis := block.Height() == uint64(bSyncService.genesis.InitialHeight)
 	// For genesis block initialize the store and start the syncer
