@@ -72,7 +72,7 @@ gantt
 
  ```
 
-### Grammer and spelling check
+### Grammar and spelling check
 
 The recommendation is to use your favorite spellchecker extension in your IDE like [grammarly], to make sure that the document is free of spelling and grammar errors.
 
