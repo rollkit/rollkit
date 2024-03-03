@@ -44,11 +44,11 @@ func int64ToBytes(i int64) []byte {
 }
 
 func heightKey(height int64) string {
-	return store.GenerateKey([]interface{}{types.BlockHeightKey, height})
+	return store.GenerateKey([]string{types.BlockHeightKey, strconv.FormatInt(height, 10)})
 }
 
 func eventKey(compositeKey, typ, eventValue string, height int64) string {
-	return store.GenerateKey([]interface{}{compositeKey, eventValue, height, typ})
+	return store.GenerateKey([]string{compositeKey, eventValue, strconv.FormatInt(height, 10), typ})
 }
 
 func parseValueFromPrimaryKey(key string) string {

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync/atomic"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -242,15 +243,15 @@ func (s *DefaultStore) loadHashFromIndex(ctx context.Context, height uint64) (he
 }
 
 func getBlockKey(hash types.Hash) string {
-	return GenerateKey([]interface{}{blockPrefix, hex.EncodeToString(hash[:])})
+	return GenerateKey([]string{blockPrefix, hex.EncodeToString(hash[:])})
 }
 
 func getCommitKey(hash types.Hash) string {
-	return GenerateKey([]interface{}{commitPrefix, hex.EncodeToString(hash[:])})
+	return GenerateKey([]string{commitPrefix, hex.EncodeToString(hash[:])})
 }
 
 func getIndexKey(height uint64) string {
-	return GenerateKey([]interface{}{indexPrefix, height})
+	return GenerateKey([]string{indexPrefix, strconv.FormatUint(height, 10)})
 }
 
 func getStateKey() string {
@@ -258,7 +259,7 @@ func getStateKey() string {
 }
 
 func getResponsesKey(height uint64) string {
-	return GenerateKey([]interface{}{responsesPrefix, height})
+	return GenerateKey([]string{responsesPrefix, strconv.FormatUint(height, 10)})
 }
 
 func getMetaKey(key string) string {
