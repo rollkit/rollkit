@@ -9,7 +9,7 @@ Issue labels have been used to help designate the priority, status and beginner-
 - **Issues available for community contribution:**
   - `good first issue`: Open to participation from the community and friendly towards new contributors
 
-No explicit permission is needed to work on these issues but it would be good idea to tag the user who opened the issue and ask that the issue is assinged to yourself.
+No explicit permission is needed to work on these issues but it would be a good idea to tag the user who opened the issue and request that the issue be assigned to yourself.
 
 All issue labels can be [found here](https://github.com/rollkit/rollkit/labels) for you to explore and see what peaks your interest.
 
@@ -27,7 +27,7 @@ Once you've found an issue you'd like to work on, please follow these steps to m
 
 If you want to work on something that there is no GitHub issue for, follow these steps:
 
-1. Create a a new GitHub issue and propose your change there. Be sure to include implementation details and the rationale for the proposed change.
+1. Create a new GitHub issue and propose your change there. Be sure to include implementation details and the rationale for the proposed change.
    - We are very reluctant to accept random pull requests without a related issue created first.
 2. Wait for a project maintainer to evaluate your issue and decide whether it's something that we will accept a pull request for.
 3. Once the project maintainer has approved the issue, you may start work on code as described in the "Contribution process" section above.
