@@ -144,7 +144,7 @@
 <p>The <code>BlockExecutor</code> is initialized with a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code>. It uses these to manage the creation and application of blocks. It also validates blocks and commits them, updating the state as necessary.</p>
 <ul>
 <li>
-<p><code>NewBlockExecutor</code>: This method creates a new instance of <code>BlockExecutor</code>. It takes a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code> as parameters. See <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md">block manager</a> for details.</p>
+<p><code>NewBlockExecutor</code>: This method creates a new instance of <code>BlockExecutor</code>. It takes a proposer address, <code>namespace ID</code>, <code>chain ID</code>, <code>mempool</code>, <code>proxyApp</code>, <code>eventBus</code>, and <code>logger</code> as parameters. See <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">block manager</a> for details.</p>
 </li>
 <li>
 <p><code>InitChain</code>: This method initializes the chain by calling ABCI <code>InitChainSync</code> using the consensus connection to the app. It takes a <code>GenesisDoc</code> as a parameter. It sends a ABCI <code>RequestInitChain</code> message with the genesis parameters including:</p>
@@ -195,7 +195,7 @@
 </ul>
 </li>
 <li>
-<p><code>Validate</code>: This method validates the block. It takes the state and the block as parameters. In addition to the basic <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md">block validation</a> rules, it applies the following validations:</p>
+<p><code>Validate</code>: This method validates the block. It takes the state and the block as parameters. In addition to the basic <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">block validation</a> rules, it applies the following validations:</p>
 <ul>
 <li>New block version must match block version of the state.</li>
 <li>If state is at genesis, new block height must match initial height of the state.</li>
@@ -210,7 +210,7 @@
 <ul>
 <li>Invokes app commit, basically finalizing the last execution, by  calling ABCI <code>Commit</code>.</li>
 <li>Updates the mempool to inform that the transactions included in the block can be safely discarded.</li>
-<li>Publishes the events produced during the block exection for indexing.</li>
+<li>Publishes the events produced during the block execution for indexing.</li>
 </ul>
 </li>
 <li>
@@ -282,7 +282,7 @@
 <ul>
 <li>pre-condition:
 <ul>
-<li>block is valid, using basic <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md">block validation</a> rules as well as validations performed in <code>Validate</code>, as described above.</li>
+<li>block is valid, using basic <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">block validation</a> rules as well as validations performed in <code>Validate</code>, as described above.</li>
 </ul>
 </li>
 <li>post-condition:
@@ -302,7 +302,7 @@
 </li>
 <li>post-condition:
 <ul>
-<li>block is commited</li>
+<li>block is committed</li>
 <li>mempool is cleared of block transactions</li>
 <li>block events are published</li>
 <li>state App Hash is updated with the result from <code>ResponseCommit</code></li>
@@ -312,11 +312,11 @@
 </li>
 </ul>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go">block executor</a></p>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go">block executor</a></p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/state/executor.go">Block Executor</a></p>
-<p>[2] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/block/block-manager.md">Block Manager</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/v0.11.x/types/block_spec.md">Block Validation</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go">Block Executor</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/block-manager.md">Block Manager</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/types/block_spec.md">Block Validation</a></p>
 <p>[4] <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI documentation</a></p>
 
                     </main>
