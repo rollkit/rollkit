@@ -189,3 +189,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
+
+replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.4.1-0.20240305232117-d39d77c7a6c3
