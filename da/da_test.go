@@ -6,18 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"net"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/rollkit/go-da"
 	"github.com/rollkit/go-da/proxy"
@@ -36,7 +31,7 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 
 	// teardown servers
-	srv.GracefulStop()
+	srv.Stop(context.TODO())
 
 	os.Exit(exitCode)
 }
@@ -97,26 +92,22 @@ func TestSubmitRetrieve(t *testing.T) {
 	}
 }
 
-func startMockGRPCServ() *grpc.Server {
-	srv := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	lis, err := net.Listen("tcp", "127.0.0.1"+":"+strconv.Itoa(7980))
+func startMockGRPCServ() *proxy.Server {
+	srv := proxy.NewServer("localhost", "7980", goDATest.NewDummyDA())
+	err := srv.Start(context.TODO())
 	if err != nil {
 		fmt.Println(err)
 		return nil
 	}
-	go func() {
-		_ = srv.Serve(lis)
-	}()
 	return srv
 }
 
 func startMockGRPCClient() (*DAClient, error) {
-	client := proxy.NewClient()
-	err := client.Start("127.0.0.1:7980", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	client, err := proxy.NewClient(context.TODO(), "http://localhost:7980", "")
 	if err != nil {
 		return nil, err
 	}
-	return &DAClient{DA: client, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}, nil
+	return &DAClient{DA: &client.DA, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}, nil
 }
 
 func doTestSubmitTimeout(t *testing.T, dalc *DAClient, blocks []*types.Block) {

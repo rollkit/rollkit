@@ -30,7 +30,7 @@ func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal
 	}, nil
 }
 
-var MockServerAddr = ":7980"
+var MockServerAddr = "http://localhost:7980"
 
 var MockNamespace = "deadbeef"
 

@@ -16,7 +16,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-var MockServerAddr = ":7980"
+var MockServerAddr = "http://localhost:7980"
 
 var MockNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
 
