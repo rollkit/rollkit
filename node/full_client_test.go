@@ -43,12 +43,6 @@ var expectedInfo = &abci.ResponseInfo{
 	LastBlockHeight: 0,
 }
 
-func getRandomBlockWithProposer(height uint64, nTxs int, proposerAddr []byte) *types.Block {
-	block := types.GetRandomBlock(height, nTxs)
-	block.SignedHeader.ProposerAddress = proposerAddr
-	return block
-}
-
 func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
 	b, err := rpc.node.Store.GetBlock(context.Background(), uint64(n))
 	if err != nil {
@@ -373,10 +367,12 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	// creat 3 consecutive signed blocks
-	block1, privKey := types.GetRandomBlockWithKey(1, 1, nil)
-
+	config := types.BlockConfig{
+		Height: 1,
+		NTxs:   1,
+	}
+	block1, privKey := types.GenerateRandomBlockCustom(&config)
 	block2 := types.GetRandomNextBlock(block1, privKey, []byte{}, 2)
-
 	block3 := types.GetRandomNextBlock(block2, privKey, []byte{}, 3)
 
 	blocks := []*types.Block{block1, block2, block3}
@@ -909,12 +905,22 @@ func TestStatus(t *testing.T) {
 	rpc := NewFullClient(node)
 	assert.NotNil(rpc)
 
-	earliestBlock := getRandomBlockWithProposer(1, 1, pubKey.Bytes())
+	config := types.BlockConfig{
+		Height:       1,
+		NTxs:         1,
+		ProposerAddr: pubKey.Bytes(),
+	}
+	earliestBlock, _ := types.GenerateRandomBlockCustom(&config)
 	err = rpc.node.Store.SaveBlock(ctx, earliestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(ctx, earliestBlock.Height())
 	require.NoError(err)
 
-	latestBlock := getRandomBlockWithProposer(2, 1, pubKey.Bytes())
+	config = types.BlockConfig{
+		Height:       2,
+		NTxs:         1,
+		ProposerAddr: pubKey.Bytes(),
+	}
+	latestBlock, _ := types.GenerateRandomBlockCustom(&config)
 	err = rpc.node.Store.SaveBlock(ctx, latestBlock, &types.Commit{})
 	rpc.node.Store.SetHeight(ctx, latestBlock.Height())
 	require.NoError(err)
