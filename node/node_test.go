@@ -20,6 +20,13 @@ var MockServerAddr = ":7980"
 
 var MockNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
 
+type NodeType int
+
+const (
+	Full NodeType = iota
+	Light
+)
+
 // startNode starts the full node and stops it when the test is done
 func startNodeWithCleanup(t *testing.T, node Node) {
 	require.False(t, node.IsRunning())
@@ -37,7 +44,7 @@ func cleanUpNode(node Node, t *testing.T) {
 }
 
 // initializeAndStartNode initializes and starts a node of the specified type.
-func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType string) Node {
+func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType NodeType) Node {
 	node, _ := setupTestNode(ctx, t, nodeType)
 	startNodeWithCleanup(t, node)
 
@@ -45,7 +52,7 @@ func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType str
 }
 
 // setupTestNode sets up a test node based on the NodeType.
-func setupTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey) {
+func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, ed25519.PrivKey) {
 	node, privKey, err := newTestNode(ctx, t, nodeType)
 	require.NoError(t, err)
 	require.NotNil(t, node)
@@ -54,12 +61,12 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed
 }
 
 // newTestNode creates a new test node based on the NodeType.
-func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25519.PrivKey, error) {
+func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, ed25519.PrivKey, error) {
 	config := config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace}
 	switch nodeType {
-	case "light":
+	case Light:
 		config.Light = true
-	case "full":
+	case Full:
 		config.Light = false
 	default:
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
@@ -81,8 +88,8 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, ed25
 func TestNewNode(t *testing.T) {
 	ctx := context.Background()
 
-	ln := initAndStartNodeWithCleanup(ctx, t, "light")
+	ln := initAndStartNodeWithCleanup(ctx, t, Light)
 	require.IsType(t, new(LightNode), ln)
-	fn := initAndStartNodeWithCleanup(ctx, t, "full")
+	fn := initAndStartNodeWithCleanup(ctx, t, Full)
 	require.IsType(t, new(FullNode), fn)
 }
