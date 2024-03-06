@@ -15,7 +15,7 @@ const (
 	// FlagDAAddress is a flag for specifying the data availability layer address
 	FlagDAAddress = "rollkit.da_address"
 	// FlagDAAuthToken is a flag for specifying the data availability layer auth token
-	FlagDAAuthToken = "rollkit.da_auth_token" // nosec: G101
+	FlagDAAuthToken = "rollkit.da_auth_token" // #nosec G101
 	// FlagBlockTime is a flag for specifying the block time
 	FlagBlockTime = "rollkit.block_time"
 	// FlagDABlockTime is a flag for specifying the data availability layer block time
