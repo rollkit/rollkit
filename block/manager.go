@@ -882,7 +882,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			if l := len(submittedBlocks); l > 0 {
 				lastSubmittedHeight = submittedBlocks[l-1].Height()
 			}
-			m.pendingBlocks.setLastSubmittedHeight(lastSubmittedHeight)
+			m.pendingBlocks.setLastSubmittedHeight(ctx, lastSubmittedHeight)
 			blocksToSubmit = notSubmittedBlocks
 			// reset submission options when successful
 			// scale back gasPrice gradually

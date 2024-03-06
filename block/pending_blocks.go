@@ -79,12 +79,15 @@ func (pb *PendingBlocks) isEmpty() bool {
 	return pb.store.Height() == pb.lastSubmittedHeight.Load()
 }
 
-func (pb *PendingBlocks) setLastSubmittedHeight(newLastSubmittedHeight uint64) {
+func (pb *PendingBlocks) setLastSubmittedHeight(ctx context.Context, newLastSubmittedHeight uint64) {
 	lsh := pb.lastSubmittedHeight.Load()
 
 	if newLastSubmittedHeight > lsh && pb.lastSubmittedHeight.CompareAndSwap(lsh, newLastSubmittedHeight) {
-		err := pb.store.SetMetadata(context.TODO(), LastSubmittedHeightKey, []byte(strconv.FormatUint(newLastSubmittedHeight, 10)))
+		err := pb.store.SetMetadata(ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(newLastSubmittedHeight, 10)))
 		if err != nil {
+			// This indicates IO error in KV store. We can't do much about this.
+			// After next successful DA submission, update will be re-attempted (with new value).
+			// If store is not updated, after node restart some blocks will be re-submitted to DA.
 			pb.logger.Error("failed to store height of latest block submitted to DA", "err", err)
 		}
 	}
