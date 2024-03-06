@@ -24,7 +24,7 @@ import (
 const mockDaBlockTime = 100 * time.Millisecond
 
 func TestMain(m *testing.M) {
-	srv := startMockGRPCServ()
+	srv := startMockDAServ()
 	if srv == nil {
 		os.Exit(1)
 	}
@@ -69,11 +69,11 @@ func TestMockDAErrors(t *testing.T) {
 
 func TestSubmitRetrieve(t *testing.T) {
 	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: log.TestingLogger()}
-	grpcClient, err := startMockGRPCClient()
+	rpcClient, err := startMockDAClient()
 	require.NoError(t, err)
 	clients := map[string]*DAClient{
 		"dummy": dummyClient,
-		"grpc":  grpcClient,
+		"rpc":   rpcClient,
 	}
 	tests := []struct {
 		name string
@@ -95,7 +95,7 @@ func TestSubmitRetrieve(t *testing.T) {
 	}
 }
 
-func startMockGRPCServ() *proxy.Server {
+func startMockDAServ() *proxy.Server {
 	srv := proxy.NewServer("localhost", "7980", goDATest.NewDummyDA())
 	err := srv.Start(context.TODO())
 	if err != nil {
@@ -105,7 +105,7 @@ func startMockGRPCServ() *proxy.Server {
 	return srv
 }
 
-func startMockGRPCClient() (*DAClient, error) {
+func startMockDAClient() (*DAClient, error) {
 	client, err := proxy.NewClient(context.TODO(), "http://localhost:7980", "")
 	if err != nil {
 		return nil, err
