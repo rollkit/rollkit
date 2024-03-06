@@ -27,14 +27,14 @@ import (
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
 	ctx := context.Background()
-	node := initAndStartNodeWithCleanup(ctx, t, "full")
+	node := initAndStartNodeWithCleanup(ctx, t, Full)
 	require.IsType(t, new(FullNode), node)
 }
 
 func TestMempoolDirectly(t *testing.T) {
 	ctx := context.Background()
 
-	fn := initAndStartNodeWithCleanup(ctx, t, "full")
+	fn := initAndStartNodeWithCleanup(ctx, t, Full)
 	require.IsType(t, new(FullNode), fn)
 
 	node := fn.(*FullNode)
@@ -48,7 +48,7 @@ func TestMempoolDirectly(t *testing.T) {
 func TestTrySyncNextBlockMultiple(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, "full")
+	node, signingKey := setupTestNode(ctx, t, Full)
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
@@ -92,7 +92,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 func TestInvalidBlocksIgnored(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, "full")
+	node, signingKey := setupTestNode(ctx, t, Full)
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
