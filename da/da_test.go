@@ -31,7 +31,10 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 
 	// teardown servers
-	srv.Stop(context.TODO())
+	err := srv.Stop(context.TODO())
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	os.Exit(exitCode)
 }
