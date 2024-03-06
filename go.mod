@@ -4,6 +4,8 @@ go 1.21.1
 
 toolchain go1.21.4
 
+retract v0.12.0 // Published by accident
+
 require (
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.5
