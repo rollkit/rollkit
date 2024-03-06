@@ -3,9 +3,20 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"testing"
 	"time"
+
+	cmconfig "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/proxy"
+
+	goDA "github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/config"
+	test "github.com/rollkit/rollkit/test/log"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -161,6 +172,139 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	require.NoError(t, waitUntilBlockHashSeen(node, b1.Hash().String()))
 	require.True(t, b1.Hash().String() == junkCommitBlock.Hash().String())
 	require.False(t, manager.IsBlockHashSeen(junkProposerBlock.Hash().String()))
+}
+
+// TestPendingBlocks is a test for bug described in https://github.com/rollkit/rollkit/issues/1548
+//
+// Test scenario:
+// - mock DA to refuse all submissions (returning error)
+// - run aggregator to produce some blocks
+// - stop aggregator node
+// - all blocks should be considered as pending DA submission (because of mock DA behaviour)
+// - change mock to accept all submissions
+// - start aggregator node again (using the same store, to simulate restart)
+// - verify that blocks from first run was submitted to DA
+// - additionally - ensure that information was persisted in store (TODO: this should be tested separately)
+func TestPendingBlocks(t *testing.T) {
+	ctx := context.Background()
+
+	mockDA := new(mocks.DA)
+	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(10240), nil)
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
+
+	dac := &da.DAClient{
+		DA:        mockDA,
+		Namespace: goDA.Namespace(MockNamespace),
+		GasPrice:  1234,
+	}
+	dbPath, err := os.MkdirTemp("", "testdb")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dbPath)
+	}()
+
+	node, _ := createAggregatorWithPersistence(ctx, dbPath, dac, t)
+	err = node.Start()
+	assert.NoError(t, err)
+
+	const (
+		firstRunBlocks  = 10
+		secondRunBlocks = 5
+	)
+
+	err = waitForAtLeastNBlocks(node, firstRunBlocks, Store)
+	assert.NoError(t, err)
+
+	err = node.Stop()
+	assert.NoError(t, err)
+
+	// create & start new node
+	node, _ = createAggregatorWithPersistence(ctx, dbPath, dac, t)
+
+	// reset DA mock to ensure that Submit was called
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Unset()
+
+	// mock submit function to just return some hash and collect all blobs in order
+	// node will be stopped after producing at least firstRunBlocks blocks
+	// restarted node should submit to DA blocks from first and second run (more than firstRunBlocks)
+	allBlobs := make([][]byte, 0, firstRunBlocks+secondRunBlocks)
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte) ([][]byte, error) {
+			hashes := make([][]byte, len(blobs))
+			for i, blob := range blobs {
+				sha := sha256.Sum256(blob)
+				hashes[i] = sha[:]
+			}
+			allBlobs = append(allBlobs, blobs...)
+			return hashes, nil
+		})
+
+	err = node.Start()
+	assert.NoError(t, err)
+
+	// let node produce few more blocks
+	err = waitForAtLeastNBlocks(node, firstRunBlocks+secondRunBlocks, Store)
+	assert.NoError(t, err)
+
+	// assert that LastSubmittedHeight was updated in store
+	raw, err := node.(*FullNode).Store.GetMetadata(context.Background(), block.LastSubmittedHeightKey)
+	require.NoError(t, err)
+	lsh, err := strconv.ParseUint(string(raw), 10, 64)
+	require.NoError(t, err)
+	assert.Greater(t, lsh, uint64(firstRunBlocks))
+
+	err = node.Stop()
+	assert.NoError(t, err)
+	mock.AssertExpectationsForObjects(t, mockDA)
+
+	// ensure that all blocks were submitted in order
+	for i := 0; i < len(allBlobs); i++ {
+		b := &types.Block{}
+		err := b.UnmarshalBinary(allBlobs[i])
+		require.NoError(t, err)
+		require.Equal(t, uint64(i+1), b.Height()) // '+1' because blocks start at genesis with height 1
+	}
+
+}
+
+func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
+	t.Helper()
+
+	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(t, err)
+
+	app := getMockApplication()
+
+	node, err := NewNode(
+		ctx,
+		config.NodeConfig{
+			DBPath:      dbPath,
+			DAAddress:   MockServerAddr,
+			DANamespace: MockNamespace,
+			Aggregator:  true,
+			BlockManagerConfig: config.BlockManagerConfig{
+				BlockTime:   100 * time.Millisecond,
+				DABlockTime: 300 * time.Millisecond,
+			},
+			Light: false,
+		},
+		key,
+		signingKey,
+		proxy.NewLocalClientCreator(app),
+		genesis,
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
+		test.NewFileLoggerCustom(t, test.TempLogFileName(t, "")),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, node)
+
+	fullNode := node.(*FullNode)
+	fullNode.dalc = dalc
+	fullNode.blockManager.SetDALC(dalc)
+
+	return fullNode, app
 }
 
 // setupMockApplication initializes a mock application

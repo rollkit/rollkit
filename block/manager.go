@@ -197,6 +197,11 @@ func NewManager(
 		txsAvailableCh = nil
 	}
 
+	pendingBlocks, err := NewPendingBlocks(store, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -219,7 +224,7 @@ func NewManager(
 		validatorSet:  &valSet,
 		txsAvailable:  txsAvailableCh,
 		buildingBlock: false,
-		pendingBlocks: NewPendingBlocks(),
+		pendingBlocks: pendingBlocks,
 		metrics:       seqMetrics,
 	}
 	return agg, nil
@@ -784,9 +789,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// Submit block to be published to the DA layer
-	m.pendingBlocks.addPendingBlock(block)
-
 	// Commit the new state and block which writes to disk on the proxy app
 	appHash, _, err := m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
@@ -840,7 +842,20 @@ func (m *Manager) recordMetrics(block *types.Block) {
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAllBlocks := false
 	backoff := initialBackoff
-	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
+	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks(ctx)
+	if len(blocksToSubmit) == 0 {
+		// There are no pending blocks; return because there's nothing to do, but:
+		// - it might be caused by error, then err != nil
+		// - all pending blocks are processed, then err == nil
+		// whatever the reason, error information is propagated correctly to the caller
+		return err
+	}
+	if err != nil {
+		// There are some pending blocks but also an error. It's very unlikely case - probably some error while reading
+		// blocks from the store.
+		// The error is logged and normal processing of pending blocks continues.
+		m.logger.Error("error while fetching blocks pending DA", "err", err)
+	}
 	numSubmittedBlocks := 0
 	attempt := 0
 	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)
@@ -863,7 +878,11 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
-			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
+			lastSubmittedHeight := uint64(0)
+			if l := len(submittedBlocks); l > 0 {
+				lastSubmittedHeight = submittedBlocks[l-1].Height()
+			}
+			m.pendingBlocks.setLastSubmittedHeight(ctx, lastSubmittedHeight)
 			blocksToSubmit = notSubmittedBlocks
 			// reset submission options when successful
 			// scale back gasPrice gradually

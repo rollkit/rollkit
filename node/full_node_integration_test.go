@@ -509,6 +509,17 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require.NoError(verifyNodesSynced(fullNode, lightNode, Header))
 }
 
+func getMockApplication() *mocks.Application {
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	return app
+}
+
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
 func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
@@ -613,13 +624,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	}
 	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
 
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	app := getMockApplication()
 
 	if ctx == nil {
 		ctx = context.Background()
