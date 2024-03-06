@@ -210,7 +210,6 @@ func TestBlockResponses(t *testing.T) {
 
 func TestMetadata(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
 	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -229,16 +228,16 @@ func TestMetadata(t *testing.T) {
 
 	const n = 5
 	for i := 0; i < n; i++ {
-		assert.NoError(s.SetMetadata(ctx, getKey(i), getValue(i)))
+		require.NoError(s.SetMetadata(ctx, getKey(i), getValue(i)))
 	}
 
 	for i := 0; i < n; i++ {
 		value, err := s.GetMetadata(ctx, getKey(i))
-		assert.NoError(err)
-		assert.Equal(getValue(i), value)
+		require.NoError(err)
+		require.Equal(getValue(i), value)
 	}
 
 	v, err := s.GetMetadata(ctx, "unused key")
-	assert.Error(err)
-	assert.Nil(v)
+	require.Error(err)
+	require.Nil(v)
 }
