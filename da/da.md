@@ -4,11 +4,11 @@ Rollkit provides a wrapper for [go-da][go-da], a generic data availability inter
 
 ## Details
 
-`DAClient` under the hood uses a GRPC implementation of the [go-da][go-da] DA interface. Using the `DAAddress` specified in the node's config, node creates a GRPC connection to it using go-da's gprc implementation [grpc-proxy][grpc-proxy] which is then used under the hood of `DAClient` to communicated with the underlying DA.
+`DAClient` under the hood uses a GRPC implementation of the [go-da][go-da] DA interface. Using the `DAAddress` specified in the node's config, node creates a GRPC connection to it using go-da's gprc implementation [grpc-proxy][grpc-proxy] which is then used under the hood of `DAClient` to communicate with the underlying DA.
 
 Given a set of blocks to be submitted to DA by the block manager, the `SubmitBlocks` first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the `Submit` method on the underlying DA implementation. On successful submission (`StatusSuccess`), the DA block height which included in the rollup blocks is returned.
 
-To make sure that the serialised blocks don't exceed the underlying DA's blob limits, it fetches the the blob size limit by calling `Config` which returns the limit as `uint64` bytes, then includes serialised blocks until the limit is reached. If the limit is reached, it submits the partial set and returns the count of successfully submitted blocks as `SubmittedCount`. The caller should retry with the remaining blocks until all the blocks are submitted. If the first block itself is over the limit, it throws an error.
+To make sure that the serialised blocks don't exceed the underlying DA's blob limits, it fetches the blob size limit by calling `Config` which returns the limit as `uint64` bytes, then includes serialised blocks until the limit is reached. If the limit is reached, it submits the partial set and returns the count of successfully submitted blocks as `SubmittedCount`. The caller should retry with the remaining blocks until all the blocks are submitted. If the first block itself is over the limit, it throws an error.
 
 The `Submit` call may result in an error (`StatusError`) based on the underlying DA implementations on following scenarios:
 
