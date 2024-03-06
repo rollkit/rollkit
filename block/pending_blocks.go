@@ -38,24 +38,21 @@ type PendingBlocks struct {
 }
 
 // NewPendingBlocks returns a new PendingBlocks struct
-func NewPendingBlocks(store store.Store, logger log.Logger) *PendingBlocks {
-	return &PendingBlocks{
+func NewPendingBlocks(store store.Store, logger log.Logger) (*PendingBlocks, error) {
+	pb := &PendingBlocks{
 		store:  store,
 		logger: logger,
 	}
+	if err := pb.init(); err != nil {
+		return nil, err
+	}
+	return pb, nil
 }
 
 // getPendingBlocks returns a sorted slice of pending blocks
 // that need to be published to DA layer in order of block height
 func (pb *PendingBlocks) getPendingBlocks(ctx context.Context) ([]*types.Block, error) {
 	lastSubmitted := pb.lastSubmittedHeight.Load()
-	if lastSubmitted == 0 {
-		err := pb.loadFromStore(ctx)
-		if err != nil {
-			return nil, err
-		}
-		lastSubmitted = pb.lastSubmittedHeight.Load()
-	}
 	height := pb.store.Height()
 
 	if lastSubmitted == height {
@@ -93,8 +90,8 @@ func (pb *PendingBlocks) setLastSubmittedHeight(newLastSubmittedHeight uint64) {
 	}
 }
 
-func (pb *PendingBlocks) loadFromStore(ctx context.Context) error {
-	raw, err := pb.store.GetMetadata(ctx, LastSubmittedHeightKey)
+func (pb *PendingBlocks) init() error {
+	raw, err := pb.store.GetMetadata(context.Background(), LastSubmittedHeightKey)
 	if errors.Is(err, ds.ErrNotFound) {
 		// LastSubmittedHeightKey was never used, it's special case not actual error
 		// we don't need to modify lastSubmittedHeight

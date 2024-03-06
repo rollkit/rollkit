@@ -86,5 +86,7 @@ func TestRemoveBlocksFromEmptyPendingBlocks(t *testing.T) {
 func newPendingBlocks(t *testing.T) *PendingBlocks {
 	kv, err := store.NewDefaultInMemoryKVStore()
 	require.NoError(t, err)
-	return NewPendingBlocks(store.New(kv), test.NewLogger(t))
+	pendingBlocks, err := NewPendingBlocks(store.New(kv), test.NewLogger(t))
+	require.NoError(t, err)
+	return pendingBlocks
 }

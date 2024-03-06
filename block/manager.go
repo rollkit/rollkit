@@ -197,6 +197,11 @@ func NewManager(
 		txsAvailableCh = nil
 	}
 
+	pendingBlocks, err := NewPendingBlocks(store, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -219,7 +224,7 @@ func NewManager(
 		validatorSet:  &valSet,
 		txsAvailable:  txsAvailableCh,
 		buildingBlock: false,
-		pendingBlocks: NewPendingBlocks(store, logger),
+		pendingBlocks: pendingBlocks,
 		metrics:       seqMetrics,
 	}
 	return agg, nil
