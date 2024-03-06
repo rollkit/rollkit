@@ -24,6 +24,8 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
+	goDA "github.com/rollkit/go-da/proxy"
+
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -225,7 +227,7 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	if err != nil {
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
-	daClient, err := da.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
+	daClient, err := goDA.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
