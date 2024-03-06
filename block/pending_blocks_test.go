@@ -22,7 +22,8 @@ func TestGetPendingBlocks(t *testing.T) {
 		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
 		pb.store.SetHeight(ctx, i)
 	}
-	blocks, _ := pb.getPendingBlocks(ctx)
+	blocks, err := pb.getPendingBlocks(ctx)
+	require.NoError(err)
 	require.True(sort.SliceIsSorted(blocks, func(i, j int) bool {
 		return blocks[i].Height() < blocks[j].Height()
 	}))
