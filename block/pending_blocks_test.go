@@ -4,84 +4,77 @@ import (
 	"context"
 	"sort"
 	"testing"
-
-	test "github.com/rollkit/rollkit/test/log"
-
-	"github.com/rollkit/rollkit/store"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/rollkit/rollkit/store"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
-func TestGetPendingBlocks(t *testing.T) {
-	require := require.New(t)
-	ctx := context.Background()
-	pb := newPendingBlocks(t)
-	for i := uint64(0); i < 5; i++ {
-		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
-		pb.store.SetHeight(ctx, i)
-	}
-	blocks, err := pb.getPendingBlocks(ctx)
-	require.NoError(err)
-	require.True(sort.SliceIsSorted(blocks, func(i, j int) bool {
-		return blocks[i].Height() < blocks[j].Height()
-	}))
-}
+const (
+	numBlocks  = 5
+	testHeight = 3
+)
 
-func TestRemoveSubmittedBlocks(t *testing.T) {
-	require := require.New(t)
-	ctx := context.Background()
-	pb := newPendingBlocks(t)
-	const nBlocks = 5
-	for i := uint64(1); i <= nBlocks; i++ {
-		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
-		pb.store.SetHeight(ctx, i)
+func TestPendingBlocks(t *testing.T) {
+	cases := []struct {
+		name                    string
+		init                    func(context.Context, *testing.T, *PendingBlocks)
+		exec                    func(context.Context, *testing.T, *PendingBlocks)
+		expectedBlocksAfterInit int
+		expectedBlocksAfterExec int
+	}{
+		{name: "empty store",
+			init:                    func(context.Context, *testing.T, *PendingBlocks) {},
+			exec:                    func(context.Context, *testing.T, *PendingBlocks) {},
+			expectedBlocksAfterInit: 0,
+			expectedBlocksAfterExec: 0,
+		},
+		{
+			name: "mock successful DA submission of some blocks by manually setting last submitted height",
+			init: fillWithBlocks,
+			exec: func(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+				pb.lastSubmittedHeight.Store(testHeight)
+			},
+			expectedBlocksAfterInit: numBlocks,
+			expectedBlocksAfterExec: numBlocks - testHeight,
+		},
+		{
+			name: "mock successful DA submission of all blocks by manually setting last submitted height",
+			init: fillWithBlocks,
+			exec: func(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+				pb.lastSubmittedHeight.Store(numBlocks)
+			},
+			expectedBlocksAfterInit: numBlocks,
+			expectedBlocksAfterExec: 0,
+		},
+		{
+			name: "mock successful DA submission of all blocks by setting last submitted height using store",
+			init: fillWithBlocks,
+			exec: func(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+				pb.lastSubmittedHeight.Store(pb.store.Height())
+			},
+			expectedBlocksAfterInit: numBlocks,
+			expectedBlocksAfterExec: 0,
+		},
 	}
-	pb.setLastSubmittedHeight(nBlocks)
-	require.True(pb.isEmpty())
-}
 
-func TestRemoveSubsetOfBlocks(t *testing.T) {
-	require := require.New(t)
-	ctx := context.Background()
-	pb := newPendingBlocks(t)
-	for i := uint64(1); i <= 5; i++ {
-		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
-		pb.store.SetHeight(ctx, i)
-	}
-	// Remove blocks with height 1 and 2
-	pb.setLastSubmittedHeight(2)
-	remainingBlocks, err := pb.getPendingBlocks(ctx)
-	require.NoError(err)
-	require.Len(remainingBlocks, 3, "There should be 3 blocks remaining")
-	for _, block := range remainingBlocks {
-		require.Contains([]uint64{3, 4, 5}, block.Height(), "Only blocks with height 3, 4 and 5 should remain")
-	}
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// use timeout to ensure tests will end
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			defer cancel()
+			pb := newPendingBlocks(t)
 
-func TestRemoveAllBlocksAndVerifyEmpty(t *testing.T) {
-	require := require.New(t)
-	ctx := context.Background()
-	pb := newPendingBlocks(t)
-	for i := uint64(0); i < 5; i++ {
-		require.NoError(pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
-		pb.store.SetHeight(ctx, i)
-	}
-	// Remove all blocks
-	blocks, err := pb.getPendingBlocks(ctx)
-	require.NoError(err)
-	pb.setLastSubmittedHeight(blocks[len(blocks)-1].Height())
-	require.True(pb.isEmpty(), "PendingBlocks should be empty after removing all blocks")
-}
+			tc.init(ctx, t, pb)
+			checkRequirements(ctx, t, pb, tc.expectedBlocksAfterInit)
 
-func TestRemoveBlocksFromEmptyPendingBlocks(t *testing.T) {
-	require := require.New(t)
-	pb := newPendingBlocks(t)
-	// Attempt to remove blocks from an empty PendingBlocks
-	require.NotPanics(func() {
-		pb.setLastSubmittedHeight(2)
-	}, "Removing blocks from an empty PendingBlocks should not cause a panic")
+			tc.exec(ctx, t, pb)
+			checkRequirements(ctx, t, pb, tc.expectedBlocksAfterExec)
+		})
+	}
 }
 
 func newPendingBlocks(t *testing.T) *PendingBlocks {
@@ -90,4 +83,21 @@ func newPendingBlocks(t *testing.T) *PendingBlocks {
 	pendingBlocks, err := NewPendingBlocks(store.New(kv), test.NewLogger(t))
 	require.NoError(t, err)
 	return pendingBlocks
+}
+
+func fillWithBlocks(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+	for i := uint64(1); i <= numBlocks; i++ {
+		require.NoError(t, pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
+		pb.store.SetHeight(ctx, i)
+	}
+}
+
+func checkRequirements(ctx context.Context, t *testing.T, pb *PendingBlocks, nBlocks int) {
+	require.Equal(t, pb.isEmpty(), nBlocks == 0)
+	blocks, err := pb.getPendingBlocks(ctx)
+	require.NoError(t, err)
+	require.Len(t, blocks, nBlocks)
+	require.True(t, sort.SliceIsSorted(blocks, func(i, j int) bool {
+		return blocks[i].Height() < blocks[j].Height()
+	}))
 }
