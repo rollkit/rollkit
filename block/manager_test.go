@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	ds "github.com/ipfs/go-datastore"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
