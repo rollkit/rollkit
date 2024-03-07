@@ -184,6 +184,9 @@ func NewManager(
 	if genesis.ConsensusParams.Block.MaxBytes >= int64(maxBlobSize) {
 		genesis.ConsensusParams.Block.MaxBytes = int64(maxBlobSize) - blockProtocolOverhead
 	}
+	if err := genesis.ConsensusParams.ValidateBasic(); err != nil {
+		return nil, err
+	}
 
 	proposerAddress, err := getAddress(proposerKey)
 	if err != nil {
