@@ -263,5 +263,5 @@ func getResponsesKey(height uint64) string {
 }
 
 func getMetaKey(key string) string {
-	return GenerateKey([]interface{}{metaPrefix, key})
+	return GenerateKey([]string{metaPrefix, key})
 }
