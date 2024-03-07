@@ -51,6 +51,14 @@ const blockInChLength = 10000
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
 
+var (
+	// ErrNoValidatorsInGenesis is used when no validators/proposers are found in genesis state
+	ErrNoValidatorsInGenesis = errors.New("no validators found in genesis")
+
+	// ErrNotProposer is used when the manager is not a proposer
+	ErrNotProposer = errors.New("not a proposer")
+)
+
 // NewBlockEvent is used to pass block and DA height to blockInCh
 type NewBlockEvent struct {
 	Block    *types.Block
@@ -255,7 +263,7 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 // isProposer returns whether or not the manager is a proposer
 func isProposer(genesis *cmtypes.GenesisDoc, signerPrivKey crypto.PrivKey) (bool, error) {
 	if len(genesis.Validators) == 0 {
-		return false, errors.New("no validators found in genesis")
+		return false, ErrNoValidatorsInGenesis
 	}
 	signerPubBytes, err := signerPrivKey.GetPublic().Raw()
 	if err != nil {
@@ -690,7 +698,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	if !m.isProposer {
-		return errors.New("publishBlock: not a proposer")
+		return ErrNotProposer
 	}
 
 	var (

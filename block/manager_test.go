@@ -11,13 +11,13 @@ import (
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
@@ -290,10 +290,10 @@ func Test_isProposer(t *testing.T) {
 		signerPrivKey crypto.PrivKey
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    bool
-		wantErr bool
+		name       string
+		args       args
+		isProposer bool
+		err        error
 	}{
 		{
 			name: "Signing key matches genesis proposer public key",
@@ -306,8 +306,8 @@ func Test_isProposer(t *testing.T) {
 					signingKey,
 				}
 			}(),
-			want:    true,
-			wantErr: false,
+			isProposer: true,
+			err:        nil,
 		},
 		{
 			name: "Signing key does not match genesis proposer public key",
@@ -321,8 +321,8 @@ func Test_isProposer(t *testing.T) {
 					signingKey,
 				}
 			}(),
-			want:    false,
-			wantErr: false,
+			isProposer: false,
+			err:        nil,
 		},
 		{
 			name: "No validators found in genesis",
@@ -336,19 +336,19 @@ func Test_isProposer(t *testing.T) {
 					signingKey,
 				}
 			}(),
-			want:    false,
-			wantErr: true,
+			isProposer: false,
+			err:        ErrNoValidatorsInGenesis,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := isProposer(tt.args.genesis, tt.args.signerPrivKey)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("isProposer() error = %v, wantErr %v", err, tt.wantErr)
+			isProposer, err := isProposer(tt.args.genesis, tt.args.signerPrivKey)
+			if err != tt.err {
+				t.Errorf("isProposer() error = %v, expected err %v", err, tt.err)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("isProposer() = %v, want %v", got, tt.want)
+			if isProposer != tt.isProposer {
+				t.Errorf("isProposer() = %v, expected %v", isProposer, tt.isProposer)
 			}
 		})
 	}
@@ -359,5 +359,5 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	m := getManager(t, &mock.MockDA{})
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
-	require.ErrorContains(err, "not a proposer")
+	require.ErrorIs(err, ErrNotProposer)
 }
