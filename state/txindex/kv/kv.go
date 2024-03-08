@@ -255,9 +255,6 @@ func (txi *TxIndex) Search(ctx context.Context, q *query.Query) ([]*abci.TxResul
 		}
 	}
 
-	// if there is a height condition ("tx.height=3"), extract it
-	// height := lookForHeight(conditions)
-
 	// for all other conditions
 	for i, c := range conditions {
 		if intInSlice(i, skipIndexes) {
@@ -311,21 +308,6 @@ func lookForHash(conditions []syntax.Condition) (hash []byte, ok bool, err error
 		}
 	}
 	return
-}
-
-// lookForHeight returns a height if there is an "height=X" condition.
-func lookForHeight(conditions []syntax.Condition) (height int64) {
-	for _, c := range conditions {
-		if c.Tag == types.TxHeightKey && c.Op == syntax.TEq {
-			hFloat := c.Arg.Number()
-			if hFloat == nil {
-				return 0
-			}
-			h, _ := hFloat.Int64()
-			return h
-		}
-	}
-	return 0
 }
 
 // match returns all matching txs by hash that meet a given condition and start
@@ -634,11 +616,11 @@ func keyForHeight(result *abci.TxResult) string {
 
 func startKeyForCondition(c syntax.Condition, height int64) string {
 	if height > 0 {
-		return startKey(c.Tag, c.Arg.Value(), height)
+		return startKey(c.Tag, c.Arg.Value(), strconv.FormatInt(height, 10))
 	}
 	return startKey(c.Tag, c.Arg.Value())
 }
 
-func startKey(fields ...interface{}) string {
+func startKey(fields ...string) string {
 	return store.GenerateKey(fields)
 }

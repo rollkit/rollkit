@@ -1,11 +1,10 @@
 package store
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
@@ -40,14 +39,10 @@ func PrefixEntries(ctx context.Context, store ds.Datastore, prefix string) (dsq.
 	return results, nil
 }
 
-// GenerateKey ...
-func GenerateKey(fields []interface{}) string {
-	var b bytes.Buffer
-	b.WriteString("/")
-	for _, f := range fields {
-		b.Write([]byte(fmt.Sprintf("%v", f) + "/"))
-	}
-	return path.Clean(b.String())
+// GenerateKey creates a key from a slice of string fields, joining them with slashes.
+func GenerateKey(fields []string) string {
+	key := "/" + strings.Join(fields, "/")
+	return path.Clean(key)
 }
 
 // rootify works just like in cosmos-sdk
