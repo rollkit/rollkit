@@ -51,6 +51,14 @@ const blockInChLength = 10000
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
 
+var (
+	// ErrNoValidatorsInGenesis is used when no validators/proposers are found in genesis state
+	ErrNoValidatorsInGenesis = errors.New("no validators found in genesis")
+
+	// ErrNotProposer is used when the manager is not a proposer
+	ErrNotProposer = errors.New("not a proposer")
+)
+
 // NewBlockEvent is used to pass block and DA height to blockInCh
 type NewBlockEvent struct {
 	Block    *types.Block
@@ -103,6 +111,9 @@ type Manager struct {
 
 	// for reporting metrics
 	metrics *Metrics
+
+	// true if the manager is a proposer
+	isProposer bool
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -177,6 +188,11 @@ func NewManager(
 		return nil, err
 	}
 
+	isProposer, err := isProposer(genesis, proposerKey)
+	if err != nil {
+		return nil, err
+	}
+
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics, valSet.Hash())
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
@@ -226,6 +242,7 @@ func NewManager(
 		buildingBlock: false,
 		pendingBlocks: pendingBlocks,
 		metrics:       seqMetrics,
+		isProposer:    isProposer,
 	}
 	return agg, nil
 }
@@ -241,6 +258,18 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
 func (m *Manager) SetDALC(dalc *da.DAClient) {
 	m.dalc = dalc
+}
+
+// isProposer returns whether or not the manager is a proposer
+func isProposer(genesis *cmtypes.GenesisDoc, signerPrivKey crypto.PrivKey) (bool, error) {
+	if len(genesis.Validators) == 0 {
+		return false, ErrNoValidatorsInGenesis
+	}
+	signerPubBytes, err := signerPrivKey.GetPublic().Raw()
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 // SetLastState is used to set lastState used by Manager.
@@ -661,16 +690,6 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	}, nil
 }
 
-// IsProposer returns whether or not the manager is a proposer
-func (m *Manager) IsProposer() (bool, error) {
-	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
-	if err != nil {
-		return false, err
-	}
-
-	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
-}
-
 func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -678,16 +697,15 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	default:
 	}
 
-	isProposer, err := m.IsProposer()
-	if err != nil {
-		return fmt.Errorf("error while checking for proposer: %w", err)
-	}
-	if !isProposer {
-		return nil
+	if !m.isProposer {
+		return ErrNotProposer
 	}
 
-	var lastCommit *types.Commit
-	var lastHeaderHash types.Hash
+	var (
+		lastCommit     *types.Commit
+		lastHeaderHash types.Hash
+		err            error
+	)
 	height := m.store.Height()
 	newHeight := height + 1
 
