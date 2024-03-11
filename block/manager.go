@@ -120,7 +120,6 @@ type Manager struct {
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(context.Background())
-	store.SetHeight(context.Background(), s.LastBlockHeight)
 
 	if errors.Is(err, ds.ErrNotFound) {
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
@@ -128,7 +127,6 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 		if err != nil {
 			return types.State{}, err
 		}
-		store.SetHeight(context.Background(), s.LastBlockHeight)
 	} else if err != nil {
 		return types.State{}, err
 	} else {
@@ -159,6 +157,9 @@ func NewManager(
 	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
+	//set block height in store
+	store.SetHeight(context.Background(), s.LastBlockHeight)
+
 	if err != nil {
 		return nil, err
 	}
