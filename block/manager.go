@@ -120,6 +120,8 @@ type Manager struct {
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(context.Background())
+	store.SetHeight(context.Background(), s.LastBlockHeight)
+
 	if errors.Is(err, ds.ErrNotFound) {
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		s, err = types.NewFromGenesisDoc(genesis)

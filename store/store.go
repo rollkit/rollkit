@@ -205,7 +205,6 @@ func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
 
 	var state types.State
 	err = state.FromProto(&pbState)
-	s.height.Store(state.LastBlockHeight)
 	return state, err
 }
 
