@@ -158,13 +158,15 @@ func TestRestart(t *testing.T) {
 	require.NoError(err)
 
 	s2 := New(kv)
-	_, err = s2.GetState(ctx)
+	assert.NoError(err)
+
+	state2, err := s2.GetState(ctx)
 	assert.NoError(err)
 
 	err = s2.Close()
 	assert.NoError(err)
 
-	assert.Equal(expectedHeight, s2.Height())
+	assert.Equal(expectedHeight, state2.LastBlockHeight)
 }
 
 func TestBlockResponses(t *testing.T) {
