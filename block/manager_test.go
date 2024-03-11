@@ -252,7 +252,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 				return blocks
 			}(),
 			isErrExpected:               true,
-			expectedPendingBlocksLength: 3,
+			expectedPendingBlocksLength: 2,
 		},
 	}
 
