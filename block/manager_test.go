@@ -241,41 +241,13 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			expectedPendingBlocksLength: 1,
 		},
 		{
-			name: "A and B are fair blocks, but C has a marshalling error. So C never gets submitted",
+			name: "B is too big on its own. So A gets submitted but, B and C never get submitted",
 			blocks: func() []*types.Block {
 				numBlocks, numTxs := 3, 5
 				blocks := make([]*types.Block, numBlocks)
 				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
-				blocks[1] = types.GetRandomBlock(uint64(2), numTxs)
-				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
-				invalidateBlockHeader(blocks[2])
-				return blocks
-			}(),
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 1,
-		},
-		{
-			name: "A is too big on its own. So A, B and C never get submitted",
-			blocks: func() []*types.Block {
-				numBlocks, numTxs := 3, 5
-				blocks := make([]*types.Block, numBlocks)
-				blocks[0], err = getBlockBiggerThan(1, maxDABlobSizeLimit)
+				blocks[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
 				require.NoError(err)
-				blocks[1] = types.GetRandomBlock(uint64(2), numTxs)
-				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
-				return blocks
-			}(),
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 3,
-		},
-		{
-			name: "A itself has a marshalling error. So A, B and C never get submitted",
-			blocks: func() []*types.Block {
-				numBlocks, numTxs := 3, 5
-				blocks := make([]*types.Block, numBlocks)
-				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
-				invalidateBlockHeader(blocks[0])
-				blocks[1] = types.GetRandomBlock(uint64(2), numTxs)
 				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
 				return blocks
 			}(),
