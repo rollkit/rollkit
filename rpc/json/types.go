@@ -47,6 +47,12 @@ type blockResultsArgs struct {
 type commitArgs struct {
 	Height StrInt64 `json:"height"`
 }
+type headerArgs struct {
+	Height StrInt64 `json:"height"`
+}
+type headerByHashArgs struct {
+	Hash []byte `json:"hash"`
+}
 type checkTxArgs struct {
 	Tx types.Tx `json:"tx"`
 }
