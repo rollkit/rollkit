@@ -19,7 +19,7 @@ import (
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
 
-	"github.com/rollkit/go-da/proxy"
+	"github.com/rollkit/go-da/proxy-jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/spf13/cobra"

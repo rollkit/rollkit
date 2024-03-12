@@ -190,4 +190,4 @@ require (
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
 
-replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.4.1-0.20240305232117-d39d77c7a6c3
+replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.4.1-0.20240312205952-6da19b040bd8

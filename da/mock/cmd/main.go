@@ -6,7 +6,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/rollkit/go-da/proxy"
+	"github.com/rollkit/go-da/proxy-jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 )
 

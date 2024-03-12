@@ -24,7 +24,7 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	goDA "github.com/rollkit/go-da/proxy"
+	goDA "github.com/rollkit/go-da/proxy-jsonrpc"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"

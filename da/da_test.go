@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/go-da"
-	"github.com/rollkit/go-da/proxy"
+	"github.com/rollkit/go-da/proxy-jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/types"
