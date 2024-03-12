@@ -268,12 +268,12 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
 
 	// overflowing blocks submit partially
 	resp := dalc.SubmitBlocks(ctx, []*types.Block{block1, block2}, limit, -1)
-	assert.Equal(StatusSuccess, resp.Code, "overflowing blocks should submit partially")
+	assert.Equal(resp.Message, "", "overflowing blocks should submit partially")
 	assert.EqualValues(1, resp.SubmittedCount, "submitted count should be partial")
 
 	// retry remaining blocks
 	resp = dalc.SubmitBlocks(ctx, []*types.Block{block2}, limit, -1)
-	assert.Equal(StatusSuccess, resp.Code, "remaining blocks should submit")
+	assert.Equal(resp.Message, "", "remaining blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
 }
 
