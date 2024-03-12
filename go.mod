@@ -36,7 +36,6 @@ require (
 
 require (
 	github.com/celestiaorg/go-header v0.5.4
-	github.com/filecoin-project/go-jsonrpc v0.3.1
 	github.com/ipfs/go-ds-badger4 v0.1.5
 )
 
