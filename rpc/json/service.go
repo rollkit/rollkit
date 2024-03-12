@@ -67,6 +67,8 @@ func newService(c rpcclient.Client, l log.Logger) *service {
 		"block_by_hash":        newMethod(s.BlockByHash),
 		"block_results":        newMethod(s.BlockResults),
 		"commit":               newMethod(s.Commit),
+		"header":               newMethod(s.Header),
+		"header_by_hash":       newMethod(s.HeaderByHash),
 		"check_tx":             newMethod(s.CheckTx),
 		"tx":                   newMethod(s.Tx),
 		"tx_search":            newMethod(s.TxSearch),
@@ -190,6 +192,14 @@ func (s *service) BlockResults(req *http.Request, args *blockResultsArgs) (*ctyp
 
 func (s *service) Commit(req *http.Request, args *commitArgs) (*ctypes.ResultCommit, error) {
 	return s.client.Commit(req.Context(), (*int64)(&args.Height))
+}
+
+func (s *service) Header(req *http.Request, args *headerArgs) (*ctypes.ResultHeader, error) {
+	return s.client.Header(req.Context(), (*int64)(&args.Height))
+}
+
+func (s *service) HeaderByHash(req *http.Request, args *headerByHashArgs) (*ctypes.ResultHeader, error) {
+	return s.client.HeaderByHash(req.Context(), args.Hash)
 }
 
 func (s *service) CheckTx(req *http.Request, args *checkTxArgs) (*ctypes.ResultCheckTx, error) {
