@@ -192,11 +192,7 @@ func TestPendingBlocks(t *testing.T) {
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(10240), nil)
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
 
-	dac := &da.DAClient{
-		DA:        mockDA,
-		Namespace: goDA.Namespace(MockDANamespace),
-		GasPrice:  1234,
-	}
+	dac := da.NewDAClient(mockDA, 1234, -1, goDA.Namespace(MockDANamespace), nil)
 	dbPath, err := os.MkdirTemp("", "testdb")
 	require.NoError(t, err)
 	defer func() {

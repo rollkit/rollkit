@@ -256,7 +256,8 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 		return nil, fmt.Errorf("error while establishing connection to DA layer: unknown url scheme '%s'", u.Scheme)
 	}
 
-	return &da.DAClient{DA: daImpl, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
+	return da.NewDAClient(daImpl, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
+		namespace, logger.With("module", "da_client")), nil
 }
 
 func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {

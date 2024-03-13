@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 func TestMockDAErrors(t *testing.T) {
 	t.Run("submit_timeout", func(t *testing.T) {
 		mockDA := &mock.MockDA{}
-		dalc := &DAClient{DA: mockDA, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}
+		dalc := NewDAClient(mockDA, -1, -1, nil, log.TestingLogger())
 		blocks := []*types.Block{types.GetRandomBlock(1, 0)}
 		var blobs []da.Blob
 		for _, block := range blocks {
@@ -73,7 +73,7 @@ func TestMockDAErrors(t *testing.T) {
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
 		mockDA := &mock.MockDA{}
-		dalc := &DAClient{DA: mockDA, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}
+		dalc := NewDAClient(mockDA, -1, -1, nil, log.TestingLogger())
 		// Set up the mock to return an error for MaxBlobSize
 		mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("unable to get DA max blob size"))
 		doTestMaxBlockSizeError(t, dalc)
@@ -81,7 +81,7 @@ func TestMockDAErrors(t *testing.T) {
 }
 
 func TestSubmitRetrieve(t *testing.T) {
-	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: log.TestingLogger()}
+	dummyClient := NewDAClient(goDATest.NewDummyDA(), -1, -1, nil, log.TestingLogger())
 	jsonrpcClient, err := startMockDAClientJSONRPC()
 	require.NoError(t, err)
 	grpcClient := startMockDAClientGRPC()
@@ -130,7 +130,7 @@ func startMockDAClientGRPC() *DAClient {
 	if err := client.Start(addr.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 		panic(err)
 	}
-	return &DAClient{DA: client, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}
+	return NewDAClient(client, -1, -1, nil, log.TestingLogger())
 }
 
 func startMockDAServJSONRPC() *proxyjsonrpc.Server {
@@ -148,7 +148,7 @@ func startMockDAClientJSONRPC() (*DAClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DAClient{DA: &client.DA, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}, nil
+	return NewDAClient(&client.DA, -1, -1, nil, log.TestingLogger()), nil
 }
 
 func doTestSubmitTimeout(t *testing.T, dalc *DAClient, blocks []*types.Block) {
@@ -159,9 +159,7 @@ func doTestSubmitTimeout(t *testing.T, dalc *DAClient, blocks []*types.Block) {
 	require.NoError(t, err)
 
 	assert := assert.New(t)
-	defaultSubmitTimeout := submitTimeout
-	submitTimeout = 50 * time.Millisecond
-	defer func() { submitTimeout = defaultSubmitTimeout }()
+	dalc.SubmitTimeout = 50 * time.Millisecond
 	resp := dalc.SubmitBlocks(ctx, blocks, maxBlobSize, -1)
 	assert.Contains(resp.Message, "context deadline exceeded", "should return context timeout error")
 }
