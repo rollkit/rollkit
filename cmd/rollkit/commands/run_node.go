@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
+	"net/url"
 	"os"
 
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
@@ -18,8 +20,10 @@ import (
 	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/rollkit/go-da/proxy-jsonrpc"
+	"github.com/rollkit/go-da/proxy-grpc"
 	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/spf13/cobra"
@@ -29,6 +33,11 @@ import (
 	rollnode "github.com/rollkit/rollkit/node"
 	rollrpc "github.com/rollkit/rollkit/rpc"
 	rolltypes "github.com/rollkit/rollkit/types"
+)
+
+const (
+	// MockDAAddress is the mock address for the gRPC server
+	MockDAAddress = "grpc://localhost:7980"
 )
 
 var (
@@ -172,7 +181,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 	// use mock da server by default
 	if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-		rollkitConfig.DAAddress = "http://localhost:7980"
+		rollkitConfig.DAAddress = MockDAAddress
 	}
 	return cmd
 }
@@ -190,14 +199,17 @@ func addNodeFlags(cmd *cobra.Command) {
 }
 
 // startMockGRPCServ starts a mock gRPC server for the dummy DA
-func startMockGRPCServ() *proxy.Server {
-	srv := proxy.NewServer("localhost", "7980", goDATest.NewDummyDA())
-	err := srv.Start(context.Background())
+func startMockGRPCServ() *grpc.Server {
+	server := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
+	addr, _ := url.Parse(MockDAAddress)
+	lis, err := net.Listen("tcp", addr.Host)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		panic(err)
 	}
-	return srv
+	go func() {
+		_ = server.Serve(lis)
+	}()
+	return nil
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default

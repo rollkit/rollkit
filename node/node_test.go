@@ -103,7 +103,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, 
 
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, ed25519.PrivKey, error) {
-	config := config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace}
+	config := config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}
 	switch nodeType {
 	case Light:
 		config.Light = true

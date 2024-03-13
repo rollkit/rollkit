@@ -4,23 +4,29 @@ import (
 	"context"
 	"flag"
 	"log"
-	"strconv"
+	"net/url"
 
 	"github.com/rollkit/go-da/proxy-jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 )
 
+const (
+	// MockDAAddress is the mock address for the gRPC server
+	MockDAAddress = "grpc://localhost:7980"
+)
+
 func main() {
 	var (
 		host string
-		port int
+		port string
 	)
-	flag.IntVar(&port, "port", 7980, "listening port")
-	flag.StringVar(&host, "host", "0.0.0.0", "listening address")
+	addr, _ := url.Parse(MockDAAddress)
+	flag.StringVar(&port, "port", addr.Port(), "listening port")
+	flag.StringVar(&host, "host", addr.Hostname(), "listening address")
 	flag.Parse()
 
-	srv := proxy.NewServer(host, strconv.Itoa(port), goDATest.NewDummyDA())
-	log.Printf("Listening on: %s:%d", host, port)
+	srv := proxy.NewServer(host, port, goDATest.NewDummyDA())
+	log.Printf("Listening on: %s:%s", host, port)
 	if err := srv.Start(context.Background()); err != nil {
 		log.Fatal("error while serving:", err)
 	}

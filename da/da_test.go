@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"net"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -12,26 +14,40 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/rollkit/go-da"
-	"github.com/rollkit/go-da/proxy-jsonrpc"
+	proxygrpc "github.com/rollkit/go-da/proxy-grpc"
+	proxyjsonrpc "github.com/rollkit/go-da/proxy-jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/types"
 )
 
-const mockDaBlockTime = 100 * time.Millisecond
+const (
+	// MockDAAddress is the mock address for the gRPC server
+	MockDAAddress = "grpc://localhost:7980"
+	// MockDAAddressHTTP is mock address for the JSONRPC server
+	MockDAAddressHTTP = "http://localhost:7988"
+	// MockDANamespace is the mock namespace
+	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
+	// MockDABlockTime is the mock da block time
+	MockDABlockTime = 100 * time.Millisecond
+)
 
 func TestMain(m *testing.M) {
-	srv := startMockDAServ()
-	if srv == nil {
+	jsonrpcSrv := startMockDAServJSONRPC()
+	if jsonrpcSrv == nil {
 		os.Exit(1)
 	}
+	grpcSrv := startMockDAServGRPC()
 	exitCode := m.Run()
 
 	// teardown servers
 	// nolint:errcheck,gosec
-	srv.Stop(context.TODO())
+	jsonrpcSrv.Stop(context.TODO())
+	grpcSrv.Stop()
 
 	os.Exit(exitCode)
 }
@@ -66,11 +82,14 @@ func TestMockDAErrors(t *testing.T) {
 
 func TestSubmitRetrieve(t *testing.T) {
 	dummyClient := &DAClient{DA: goDATest.NewDummyDA(), GasPrice: -1, Logger: log.TestingLogger()}
-	rpcClient, err := startMockDAClient()
+	jsonrpcClient, err := startMockDAClientJSONRPC()
+	require.NoError(t, err)
+	grpcClient := startMockDAClientGRPC()
 	require.NoError(t, err)
 	clients := map[string]*DAClient{
-		"dummy": dummyClient,
-		"rpc":   rpcClient,
+		"dummy":   dummyClient,
+		"jsonrpc": jsonrpcClient,
+		"grpc":    grpcClient,
 	}
 	tests := []struct {
 		name string
@@ -92,8 +111,31 @@ func TestSubmitRetrieve(t *testing.T) {
 	}
 }
 
-func startMockDAServ() *proxy.Server {
-	srv := proxy.NewServer("localhost", "7980", goDATest.NewDummyDA())
+func startMockDAServGRPC() *grpc.Server {
+	server := proxygrpc.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
+	addr, _ := url.Parse(MockDAAddress)
+	lis, err := net.Listen("tcp", addr.Host)
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		_ = server.Serve(lis)
+	}()
+	return server
+}
+
+func startMockDAClientGRPC() *DAClient {
+	client := proxygrpc.NewClient()
+	addr, _ := url.Parse(MockDAAddress)
+	if err := client.Start(addr.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
+		panic(err)
+	}
+	return &DAClient{DA: client, GasPrice: -1, GasMultiplier: -1, Logger: log.TestingLogger()}
+}
+
+func startMockDAServJSONRPC() *proxyjsonrpc.Server {
+	addr, _ := url.Parse(MockDAAddressHTTP)
+	srv := proxyjsonrpc.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	err := srv.Start(context.TODO())
 	if err != nil {
 		panic(err)
@@ -101,8 +143,8 @@ func startMockDAServ() *proxy.Server {
 	return srv
 }
 
-func startMockDAClient() (*DAClient, error) {
-	client, err := proxy.NewClient(context.TODO(), "http://localhost:7980", "")
+func startMockDAClientJSONRPC() (*DAClient, error) {
+	client, err := proxyjsonrpc.NewClient(context.TODO(), MockDAAddressHTTP, "")
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +210,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 			blocks[i] = types.GetRandomBlock(batch*numBatches+uint64(i), rand.Int()%20) //nolint:gosec
 		}
 		submitAndRecordBlocks(blocks)
-		time.Sleep(time.Duration(rand.Int63() % mockDaBlockTime.Milliseconds())) //nolint:gosec
+		time.Sleep(time.Duration(rand.Int63() % MockDABlockTime.Milliseconds())) //nolint:gosec
 	}
 
 	validateBlockRetrieval := func(height uint64, expectedCount int) {

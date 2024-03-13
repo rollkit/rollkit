@@ -28,8 +28,8 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	goDA "github.com/rollkit/go-da"
-	grpcDA "github.com/rollkit/go-da/proxy-grpc"
-	jsonrpcDA "github.com/rollkit/go-da/proxy-jsonrpc"
+	proxygrpc "github.com/rollkit/go-da/proxy-grpc"
+	proxyjsonrpc "github.com/rollkit/go-da/proxy-jsonrpc"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -241,13 +241,13 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	var daImpl goDA.DA
 	switch u.Scheme {
 	case "grpc":
-		daClient := grpcDA.NewClient()
+		daClient := proxygrpc.NewClient()
 		if err := daClient.Start(u.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 		}
 		daImpl = daClient
 	case "http", "https":
-		daClient, err := jsonrpcDA.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
+		daClient, err := proxyjsonrpc.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
 		if err != nil {
 			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 		}

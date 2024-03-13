@@ -194,7 +194,7 @@ func TestPendingBlocks(t *testing.T) {
 
 	dac := &da.DAClient{
 		DA:        mockDA,
-		Namespace: goDA.Namespace(MockNamespace),
+		Namespace: goDA.Namespace(MockDANamespace),
 		GasPrice:  1234,
 	}
 	dbPath, err := os.MkdirTemp("", "testdb")
@@ -281,8 +281,8 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 		ctx,
 		config.NodeConfig{
 			DBPath:      dbPath,
-			DAAddress:   MockServerAddr,
-			DANamespace: MockNamespace,
+			DAAddress:   MockDAAddress,
+			DANamespace: MockDANamespace,
 			Aggregator:  true,
 			BlockManagerConfig: config.BlockManagerConfig{
 				BlockTime:   100 * time.Millisecond,
