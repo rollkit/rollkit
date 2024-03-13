@@ -1364,8 +1364,8 @@ github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTE
 github.com/rogpeppe/go-internal v1.8.1/go.mod h1:JeRgkft04UBgHMgCIwADu4Pn6Mtm5d4nPKWu0nJ5d+o=
 github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDNXVBh4M=
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
-github.com/rollkit/go-da v0.4.1-0.20240312205952-6da19b040bd8 h1:tRGsBTeKmopi5/0q/Dv/ieT6OlyYTL7OUA5JIcXKZs0=
-github.com/rollkit/go-da v0.4.1-0.20240312205952-6da19b040bd8/go.mod h1:IxCIwpvedJwwrs900fygBsRoYCBiizBOZtwbgfs4tdU=
+github.com/rollkit/go-da v0.4.1-0.20240313122451-9f38d3f26cb5 h1:wtvMngwt2BSgFNgi6iz6RrcpIhFHbvlM+29kaGZaGWI=
+github.com/rollkit/go-da v0.4.1-0.20240313122451-9f38d3f26cb5/go.mod h1:VsUeAoPvKl4Y8wWguu/VibscYiFFePkkrvZWyTjZHww=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/rs/cors v1.8.2/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/rs/cors v1.10.1 h1:L0uuZVXIKlI1SShY2nhFfo44TYvDPQ1w4oFkUJNfhyo=
