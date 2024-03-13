@@ -242,7 +242,7 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	switch u.Scheme {
 	case "grpc":
 		daClient := grpcDA.NewClient()
-		if err := daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
+		if err := daClient.Start(u.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 		}
 		daImpl = daClient
