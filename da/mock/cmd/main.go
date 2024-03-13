@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/rollkit/go-da/proxy-jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
@@ -30,4 +34,10 @@ func main() {
 	if err := srv.Start(context.Background()); err != nil {
 		log.Fatal("error while serving:", err)
 	}
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+	<-interrupt
+	fmt.Println("\nCtrl+C pressed. Exiting...")
+	os.Exit(0)
 }
