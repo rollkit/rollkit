@@ -84,6 +84,7 @@ mock-gen:
 	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/rpc/client --name Client
 	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/abci/types --name Application
 	mockery --output test/mocks --srcpkg github.com/rollkit/go-da --name DA
+	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/store --name Store
 .PHONY: mock-gen
 
 
