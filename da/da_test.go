@@ -38,11 +38,13 @@ const (
 
 // TestMain starts the mock gRPC and JSONRPC DA services
 // gRPC service listens on MockDAAddress
-// JSONRPC service listen on MockDAAddressHTTP
+// JSONRPC service listens on MockDAAddressHTTP
 // Ports were chosen to be sufficiently different from defaults (26650, 26658)
 // Static ports are used to keep client configuration simple
 func TestMain(m *testing.M) {
-	jsonrpcSrv := startMockDAServJSONRPC()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	jsonrpcSrv := startMockDAServJSONRPC(ctx)
 	if jsonrpcSrv == nil {
 		os.Exit(1)
 	}
@@ -51,7 +53,7 @@ func TestMain(m *testing.M) {
 
 	// teardown servers
 	// nolint:errcheck,gosec
-	jsonrpcSrv.Stop(context.TODO())
+	jsonrpcSrv.Stop(context.Background())
 	grpcSrv.Stop()
 
 	os.Exit(exitCode)
@@ -86,8 +88,10 @@ func TestMockDAErrors(t *testing.T) {
 }
 
 func TestSubmitRetrieve(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	dummyClient := NewDAClient(goDATest.NewDummyDA(), -1, -1, nil, log.TestingLogger())
-	jsonrpcClient, err := startMockDAClientJSONRPC()
+	jsonrpcClient, err := startMockDAClientJSONRPC(ctx)
 	require.NoError(t, err)
 	grpcClient := startMockDAClientGRPC()
 	require.NoError(t, err)
@@ -138,18 +142,18 @@ func startMockDAClientGRPC() *DAClient {
 	return NewDAClient(client, -1, -1, nil, log.TestingLogger())
 }
 
-func startMockDAServJSONRPC() *proxyjsonrpc.Server {
+func startMockDAServJSONRPC(ctx context.Context) *proxyjsonrpc.Server {
 	addr, _ := url.Parse(MockDAAddressHTTP)
 	srv := proxyjsonrpc.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	err := srv.Start(context.TODO())
+	err := srv.Start(ctx)
 	if err != nil {
 		panic(err)
 	}
 	return srv
 }
 
-func startMockDAClientJSONRPC() (*DAClient, error) {
-	client, err := proxyjsonrpc.NewClient(context.TODO(), MockDAAddressHTTP, "")
+func startMockDAClientJSONRPC(ctx context.Context) (*DAClient, error) {
+	client, err := proxyjsonrpc.NewClient(ctx, MockDAAddressHTTP, "")
 	if err != nil {
 		return nil, err
 	}
