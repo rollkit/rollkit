@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
@@ -24,7 +25,9 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	goDA "github.com/rollkit/go-da/proxy-jsonrpc"
+	goDA "github.com/rollkit/go-da"
+	grpcDA "github.com/rollkit/go-da/proxy-grpc"
+	jsonrpcDA "github.com/rollkit/go-da/proxy-jsonrpc"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -227,11 +230,31 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	if err != nil {
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
-	daClient, err := goDA.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
+
+	u, err := url.Parse(nodeConfig.DAAddress)
 	if err != nil {
-		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
+		return nil, fmt.Errorf("error parsing DA address url: %w", err)
 	}
-	return &da.DAClient{DA: &daClient.DA, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
+
+	var daImpl goDA.DA
+	switch u.Scheme {
+	case "grpc":
+		daClient := grpcDA.NewClient()
+		if err := daClient.Start(nodeConfig.DAAddress); err != nil {
+			return nil, fmt.Errorf("error starting grpc connection: %w", err)
+		}
+		daImpl = daClient
+	case "http", "https":
+		daClient, err := jsonrpcDA.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
+		if err != nil {
+			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
+		}
+		daImpl = &daClient.DA
+	default:
+		return nil, fmt.Errorf("unknown url scheme '%s'", u.Scheme)
+	}
+
+	return &da.DAClient{DA: daImpl, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
 }
 
 func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
