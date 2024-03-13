@@ -36,6 +36,11 @@ const (
 	MockDABlockTime = 100 * time.Millisecond
 )
 
+// TestMain starts the mock gRPC and JSONRPC DA services
+// gRPC service listens on MockDAAddress
+// JSONRPC service listen on MockDAAddressHTTP
+// Ports were chosen to be sufficiently different from defaults (26650, 26658)
+// Static ports are used to keep client configuration simple
 func TestMain(m *testing.M) {
 	jsonrpcSrv := startMockDAServJSONRPC()
 	if jsonrpcSrv == nil {
