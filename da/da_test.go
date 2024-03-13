@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"os"
 	"testing"
@@ -31,10 +30,8 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 
 	// teardown servers
-	err := srv.Stop(context.TODO())
-	if err != nil {
-		fmt.Println(err)
-	}
+	// nolint:errcheck,gosec
+	srv.Stop(context.TODO())
 
 	os.Exit(exitCode)
 }
@@ -99,8 +96,7 @@ func startMockDAServ() *proxy.Server {
 	srv := proxy.NewServer("localhost", "7980", goDATest.NewDummyDA())
 	err := srv.Start(context.TODO())
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		panic(err)
 	}
 	return srv
 }

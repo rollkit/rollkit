@@ -241,7 +241,7 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	case "grpc":
 		daClient := grpcDA.NewClient()
 		if err := daClient.Start(nodeConfig.DAAddress); err != nil {
-			return nil, fmt.Errorf("error starting grpc connection: %w", err)
+			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 		}
 		daImpl = daClient
 	case "http", "https":
@@ -251,7 +251,7 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 		}
 		daImpl = &daClient.DA
 	default:
-		return nil, fmt.Errorf("unknown url scheme '%s'", u.Scheme)
+		return nil, fmt.Errorf("error while establishing connection to DA layer: unknown url scheme '%s'", u.Scheme)
 	}
 
 	return &da.DAClient{DA: daImpl, Namespace: namespace, GasPrice: nodeConfig.DAGasPrice, Logger: logger.With("module", "da_client")}, nil
