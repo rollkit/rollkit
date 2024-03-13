@@ -15,6 +15,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
@@ -240,7 +242,7 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 	switch u.Scheme {
 	case "grpc":
 		daClient := grpcDA.NewClient()
-		if err := daClient.Start(nodeConfig.DAAddress); err != nil {
+		if err := daClient.Start(nodeConfig.DAAddress, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 		}
 		daImpl = daClient
