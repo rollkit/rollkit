@@ -121,7 +121,9 @@ func doTestSubmitTimeout(t *testing.T, dalc *DAClient, blocks []*types.Block) {
 	require.NoError(t, err)
 
 	assert := assert.New(t)
+	defaultSubmitTimeout := submitTimeout
 	submitTimeout = 50 * time.Millisecond
+	defer func() { submitTimeout = defaultSubmitTimeout }()
 	resp := dalc.SubmitBlocks(ctx, blocks, maxBlobSize, -1)
 	assert.Contains(resp.Message, "context deadline exceeded", "should return context timeout error")
 }
