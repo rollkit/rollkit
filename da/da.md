@@ -4,7 +4,7 @@ Rollkit provides a wrapper for [go-da][go-da], a generic data availability inter
 
 ## Details
 
-`DAClient` can connect via either gRPC or json-rpc transports using the [go-da][go-da] [proxy-grpc][proxy-grpc] or [proxy-jsonrpc][proxy-jsonrpc] implementations. The connection can be configured using the following cli flags:
+`DAClient` can connect via either gRPC or JSON-RPC transports using the [go-da][go-da] [proxy-grpc][proxy-grpc] or [proxy-jsonrpc][proxy-jsonrpc] implementations. The connection can be configured using the following cli flags:
 
 * `--rollkit.da_address`: url address of the DA service (default: "grpc://localhost:26650")
 * `--rollkit.da_auth_token`: authentication token of the DA service
@@ -40,5 +40,5 @@ See [da implementation]
 [da implementation]: https://github.com/rollkit/rollkit/blob/main/da/da.go
 [go-da]: https://github.com/rollkit/go-da
 [celestia-da]: https://github.com/rollkit/celestia-da
-[proxy-grpc]: https://github.com/rollkit/go-da/tree/main/proxy-grpc
-[proxy-jsonrpc]: https://github.com/rollkit/go-da/tree/main/proxy-jsonrpc
+[proxy-grpc]: https://github.com/rollkit/go-da/tree/tux/jsonrpc/proxy-grpc
+[proxy-jsonrpc]: https://github.com/rollkit/go-da/tree/tux/jsonrpc/proxy-jsonrpc
