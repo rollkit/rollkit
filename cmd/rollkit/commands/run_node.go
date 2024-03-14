@@ -32,12 +32,8 @@ import (
 	rollconf "github.com/rollkit/rollkit/config"
 	rollnode "github.com/rollkit/rollkit/node"
 	rollrpc "github.com/rollkit/rollkit/rpc"
+	"github.com/rollkit/rollkit/test/mocks"
 	rolltypes "github.com/rollkit/rollkit/types"
-)
-
-const (
-	// MockDAAddress is the mock address for the gRPC server
-	MockDAAddress = "grpc://localhost:7980"
 )
 
 var (
@@ -181,7 +177,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 	// use mock da server by default
 	if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-		rollkitConfig.DAAddress = MockDAAddress
+		rollkitConfig.DAAddress = mocks.MockDAAddress
 	}
 	return cmd
 }
@@ -201,7 +197,7 @@ func addNodeFlags(cmd *cobra.Command) {
 // startMockGRPCServ starts a mock gRPC server for the dummy DA
 func startMockGRPCServ() *grpc.Server {
 	server := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	addr, _ := url.Parse(MockDAAddress)
+	addr, _ := url.Parse(mocks.MockDAAddress)
 	lis, err := net.Listen("tcp", addr.Host)
 	if err != nil {
 		panic(err)

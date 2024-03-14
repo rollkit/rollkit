@@ -69,8 +69,8 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
-			DAAddress:   MockDAAddress,
-			DANamespace: MockDANamespace,
+			DAAddress:   mocks.MockDAAddress,
+			DANamespace: mocks.MockDANamespace,
 		},
 		key,
 		signingKey,
@@ -172,7 +172,7 @@ func TestGenesisChunked(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
+	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: mocks.MockDAAddress, DANamespace: mocks.MockDANamespace}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -544,8 +544,8 @@ func TestTx(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:   MockDAAddress,
-		DANamespace: MockDANamespace,
+		DAAddress:   mocks.MockDAAddress,
+		DANamespace: mocks.MockDANamespace,
 		Aggregator:  true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
@@ -802,8 +802,8 @@ func TestMempool2Nodes(t *testing.T) {
 	defer cancel()
 	// make node1 an aggregator, so that node2 can start gracefully
 	node1, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:   MockDAAddress,
-		DANamespace: MockDANamespace,
+		DAAddress:   mocks.MockDAAddress,
+		DANamespace: mocks.MockDANamespace,
 		Aggregator:  true,
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
@@ -814,8 +814,8 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NotNil(node1)
 
 	node2, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:   MockDAAddress,
-		DANamespace: MockDANamespace,
+		DAAddress:   mocks.MockDAAddress,
+		DANamespace: mocks.MockDANamespace,
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Loggable()["peerID"].(string),
@@ -877,8 +877,8 @@ func TestStatus(t *testing.T) {
 	node, err := newFullNode(
 		context.Background(),
 		config.NodeConfig{
-			DAAddress:   MockDAAddress,
-			DANamespace: MockDANamespace,
+			DAAddress:   mocks.MockDAAddress,
+			DANamespace: mocks.MockDANamespace,
 			P2P: config.P2PConfig{
 				ListenAddress: "/ip4/0.0.0.0/tcp/26656",
 			},
@@ -1013,8 +1013,8 @@ func TestFutureGenesisTime(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:   MockDAAddress,
-		DANamespace: MockDANamespace,
+		DAAddress:   mocks.MockDAAddress,
+		DANamespace: mocks.MockDANamespace,
 		Aggregator:  true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,

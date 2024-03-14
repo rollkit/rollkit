@@ -24,14 +24,6 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-const (
-	// MockDAAddress is the mock address for the gRPC server
-	MockDAAddress = "grpc://localhost:7980"
-
-	// MockDANamespace is the mock namespace
-	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
-)
-
 func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	return &abci.ResponsePrepareProposal{
 		Txs: req.Txs,
@@ -83,7 +75,7 @@ func getRPC(t *testing.T) (*mocks.Application, rpcclient.Client) {
 	genesisValidators := []cmtypes.GenesisValidator{
 		{Address: pubKey.Address(), PubKey: pubKey, Power: int64(100), Name: "gen #1"},
 	}
-	n, err := node.NewNode(context.Background(), config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace, Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, node.DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	n, err := node.NewNode(context.Background(), config.NodeConfig{DAAddress: mocks.MockDAAddress, DANamespace: mocks.MockDANamespace, Aggregator: true, BlockManagerConfig: config.BlockManagerConfig{BlockTime: 1 * time.Second}, Light: false}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, node.DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(n)
 

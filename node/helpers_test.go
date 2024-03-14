@@ -15,11 +15,12 @@ import (
 
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/test/mocks"
 )
 
 func getMockDA(t *testing.T) *da.DAClient {
-	namespace := make([]byte, len(MockDANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(MockDANamespace))
+	namespace := make([]byte, len(mocks.MockDANamespace)/2)
+	_, err := hex.Decode(namespace, []byte(mocks.MockDANamespace))
 	require.NoError(t, err)
 	return da.NewDAClient(goDATest.NewDummyDA(), -1, -1, namespace, log.TestingLogger())
 }

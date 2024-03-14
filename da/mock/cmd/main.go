@@ -12,11 +12,7 @@ import (
 
 	"github.com/rollkit/go-da/proxy-jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
-)
-
-const (
-	// MockDAAddress is the mock address for the gRPC server
-	MockDAAddress = "grpc://localhost:7980"
+	"github.com/rollkit/rollkit/test/mocks"
 )
 
 func main() {
@@ -24,7 +20,7 @@ func main() {
 		host string
 		port string
 	)
-	addr, _ := url.Parse(MockDAAddress)
+	addr, _ := url.Parse(mocks.MockDAAddress)
 	flag.StringVar(&port, "port", addr.Port(), "listening port")
 	flag.StringVar(&host, "host", addr.Hostname(), "listening address")
 	flag.Parse()
