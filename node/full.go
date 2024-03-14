@@ -8,15 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
@@ -27,9 +24,7 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	goDA "github.com/rollkit/go-da"
-	proxygrpc "github.com/rollkit/go-da/proxy-grpc"
-	proxyjsonrpc "github.com/rollkit/go-da/proxy-jsonrpc"
+	proxyda "github.com/rollkit/go-da/proxy"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -233,30 +228,12 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 
-	u, err := url.Parse(nodeConfig.DAAddress)
+	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing DA address url: %w", err)
+		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
 
-	var daImpl goDA.DA
-	switch u.Scheme {
-	case "grpc":
-		daClient := proxygrpc.NewClient()
-		if err := daClient.Start(u.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
-			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
-		}
-		daImpl = daClient
-	case "http", "https":
-		daClient, err := proxyjsonrpc.NewClient(context.Background(), nodeConfig.DAAddress, nodeConfig.DAAuthToken)
-		if err != nil {
-			return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
-		}
-		daImpl = &daClient.DA
-	default:
-		return nil, fmt.Errorf("error while establishing connection to DA layer: unknown url scheme '%s'", u.Scheme)
-	}
-
-	return da.NewDAClient(daImpl, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
+	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
 		namespace, logger.With("module", "da_client")), nil
 }
 
