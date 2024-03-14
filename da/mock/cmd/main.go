@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/rollkit/go-da/proxy-jsonrpc"
+	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/test/mocks"
 )

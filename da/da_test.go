@@ -18,8 +18,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/rollkit/go-da"
-	proxygrpc "github.com/rollkit/go-da/proxy-grpc"
-	proxyjsonrpc "github.com/rollkit/go-da/proxy-jsonrpc"
+	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
+	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/test/mocks"

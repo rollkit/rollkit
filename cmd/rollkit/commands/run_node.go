@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/rollkit/go-da/proxy-grpc"
+	proxy "github.com/rollkit/go-da/proxy/grpc"
 	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/spf13/cobra"
