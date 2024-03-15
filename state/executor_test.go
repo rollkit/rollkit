@@ -84,6 +84,16 @@ func doTestCreateBlock(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Len(block.Data.Txs, 2)
+
+	// limit max bytes
+	mpool.Flush()
+	executor.maxBytes = 10
+	err = mpool.CheckTx(make([]byte, 10), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
+	require.NoError(err)
+	block, err = executor.CreateBlock(4, &types.Commit{}, []byte{}, state)
+	require.NoError(err)
+	require.NotNil(block)
+	assert.Empty(block.Data.Txs)
 }
 
 func TestCreateBlockWithFraudProofsDisabled(t *testing.T) {
