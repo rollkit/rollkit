@@ -22,13 +22,21 @@ import (
 	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
 const (
 	// MockDABlockTime is the mock da block time
 	MockDABlockTime = 100 * time.Millisecond
+
+	// MockDAAddress is the mock address for the gRPC server
+	MockDAAddress = "grpc://localhost:7980"
+
+	// MockDAAddressHTTP is mock address for the JSONRPC server
+	MockDAAddressHTTP = "http://localhost:7988"
+
+	// MockDANamespace is the mock namespace
+	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
 )
 
 // TestMain starts the mock gRPC and JSONRPC DA services
@@ -36,6 +44,9 @@ const (
 // JSONRPC service listens on MockDAAddressHTTP
 // Ports were chosen to be sufficiently different from defaults (26650, 26658)
 // Static ports are used to keep client configuration simple
+// NOTE: this should be unique per test package to avoid
+// "bind: listen address already in use" because multiple packages
+// are tested in parallel
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -117,7 +128,7 @@ func TestSubmitRetrieve(t *testing.T) {
 
 func startMockDAServGRPC() *grpc.Server {
 	server := proxygrpc.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	addr, _ := url.Parse(mocks.MockDAAddress)
+	addr, _ := url.Parse(MockDAAddress)
 	lis, err := net.Listen("tcp", addr.Host)
 	if err != nil {
 		panic(err)
@@ -130,7 +141,7 @@ func startMockDAServGRPC() *grpc.Server {
 
 func startMockDAClientGRPC() *DAClient {
 	client := proxygrpc.NewClient()
-	addr, _ := url.Parse(mocks.MockDAAddress)
+	addr, _ := url.Parse(MockDAAddress)
 	if err := client.Start(addr.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 		panic(err)
 	}
@@ -138,7 +149,7 @@ func startMockDAClientGRPC() *DAClient {
 }
 
 func startMockDAServJSONRPC(ctx context.Context) *proxyjsonrpc.Server {
-	addr, _ := url.Parse(mocks.MockDAAddressHTTP)
+	addr, _ := url.Parse(MockDAAddressHTTP)
 	srv := proxyjsonrpc.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	err := srv.Start(ctx)
 	if err != nil {
@@ -148,7 +159,7 @@ func startMockDAServJSONRPC(ctx context.Context) *proxyjsonrpc.Server {
 }
 
 func startMockDAClientJSONRPC(ctx context.Context) (*DAClient, error) {
-	client, err := proxyjsonrpc.NewClient(ctx, mocks.MockDAAddressHTTP, "")
+	client, err := proxyjsonrpc.NewClient(ctx, MockDAAddressHTTP, "")
 	if err != nil {
 		return nil, err
 	}
