@@ -33,6 +33,7 @@ func getManager(t *testing.T, backend goDA.DA) *Manager {
 		dalc:       da.NewDAClient(backend, -1, -1, nil, logger),
 		blockCache: NewBlockCache(),
 		logger:     logger,
+		alerter:    types.NewAlerter("block_manager"),
 	}
 }
 
@@ -488,11 +489,10 @@ func TestSubmitBlocksToDAAlerts(t *testing.T) {
 	// * then be successful
 	mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
 	mockDA.
-		On("Submit", blobs, 1.0, []byte(nil)).
-		// Return([][]byte{}, da.ErrBlobNotFound).Times(maxSubmitAttempts + 1)
-		Return([][]byte{}, da.ErrBlobNotFound).Once()
+		On("Submit", blobs, -1.0, []byte(nil)).
+		Return([][]byte{}, da.ErrBlobNotFound).Times(maxSubmitAttempts + 1)
 	mockDA.
-		On("Submit", blobs, 1.0, []byte(nil)).
+		On("Submit", blobs, -1.0, []byte(nil)).
 		Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
 	// First attempt should fail and register the alert
@@ -512,7 +512,7 @@ func TestSubmitBlocksToDAAlerts(t *testing.T) {
 	require.Len(errs, 1)
 	require.Len(warn, 0)
 	require.Len(info, 0)
-	require.True(warn[0].Equals(expected))
+	require.True(errs[0].Equals(expected))
 
 	// Second attempt should succeed
 	require.NoError(m.submitBlocksToDA(ctx))

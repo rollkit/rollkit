@@ -524,3 +524,10 @@ func createAndStartIndexerService(
 
 	return indexerService, txIndexer, blockIndexer, nil
 }
+
+// Alerts returns the alerts registered for the full node.
+func (fn *FullNode) Alerts() (crit, err, warn, info []types.Alert) {
+	// Currently the blockmanager is the only module that can register
+	// alerts so we just return its alerts
+	return fn.blockManager.Alerts()
+}

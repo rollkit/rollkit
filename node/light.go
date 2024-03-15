@@ -17,6 +17,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 var _ Node = &LightNode{}
@@ -141,4 +142,9 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 	return func(*p2p.GossipMessage) bool {
 		return false
 	}
+}
+
+// Alerts for the LightNode is currently a no-op as it does not have an alerter
+func (ln *LightNode) Alerts() (crit, err, warn, info []types.Alert) {
+	return
 }
