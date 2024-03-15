@@ -51,6 +51,14 @@ const blockInChLength = 10000
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
 
+var (
+	// ErrNoValidatorsInGenesis is used when no validators/proposers are found in genesis state
+	ErrNoValidatorsInGenesis = errors.New("no validators found in genesis")
+
+	// ErrNotProposer is used when the manager is not a proposer
+	ErrNotProposer = errors.New("not a proposer")
+)
+
 // NewBlockEvent is used to pass block and DA height to blockInCh
 type NewBlockEvent struct {
 	Block    *types.Block
@@ -103,19 +111,22 @@ type Manager struct {
 
 	// for reporting metrics
 	metrics *Metrics
+
+	// true if the manager is a proposer
+	isProposer bool
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(context.Background())
+
 	if errors.Is(err, ds.ErrNotFound) {
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		s, err = types.NewFromGenesisDoc(genesis)
 		if err != nil {
 			return types.State{}, err
 		}
-		store.SetHeight(context.Background(), s.LastBlockHeight)
 	} else if err != nil {
 		return types.State{}, err
 	} else {
@@ -146,6 +157,9 @@ func NewManager(
 	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
+	//set block height in store
+	store.SetHeight(context.Background(), s.LastBlockHeight)
+
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +191,11 @@ func NewManager(
 		return nil, err
 	}
 
+	isProposer, err := isProposer(genesis, proposerKey)
+	if err != nil {
+		return nil, err
+	}
+
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics, valSet.Hash())
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
@@ -195,6 +214,11 @@ func NewManager(
 		txsAvailableCh = mempool.TxsAvailable()
 	} else {
 		txsAvailableCh = nil
+	}
+
+	pendingBlocks, err := NewPendingBlocks(store, logger)
+	if err != nil {
+		return nil, err
 	}
 
 	agg := &Manager{
@@ -219,8 +243,9 @@ func NewManager(
 		validatorSet:  &valSet,
 		txsAvailable:  txsAvailableCh,
 		buildingBlock: false,
-		pendingBlocks: NewPendingBlocks(),
+		pendingBlocks: pendingBlocks,
 		metrics:       seqMetrics,
+		isProposer:    isProposer,
 	}
 	return agg, nil
 }
@@ -236,6 +261,18 @@ func getAddress(key crypto.PrivKey) ([]byte, error) {
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
 func (m *Manager) SetDALC(dalc *da.DAClient) {
 	m.dalc = dalc
+}
+
+// isProposer returns whether or not the manager is a proposer
+func isProposer(genesis *cmtypes.GenesisDoc, signerPrivKey crypto.PrivKey) (bool, error) {
+	if len(genesis.Validators) == 0 {
+		return false, ErrNoValidatorsInGenesis
+	}
+	signerPubBytes, err := signerPrivKey.GetPublic().Raw()
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 // SetLastState is used to set lastState used by Manager.
@@ -656,16 +693,6 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	}, nil
 }
 
-// IsProposer returns whether or not the manager is a proposer
-func (m *Manager) IsProposer() (bool, error) {
-	signerPubBytes, err := m.proposerKey.GetPublic().Raw()
-	if err != nil {
-		return false, err
-	}
-
-	return bytes.Equal(m.genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
-}
-
 func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -673,16 +700,15 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	default:
 	}
 
-	isProposer, err := m.IsProposer()
-	if err != nil {
-		return fmt.Errorf("error while checking for proposer: %w", err)
-	}
-	if !isProposer {
-		return nil
+	if !m.isProposer {
+		return ErrNotProposer
 	}
 
-	var lastCommit *types.Commit
-	var lastHeaderHash types.Hash
+	var (
+		lastCommit     *types.Commit
+		lastHeaderHash types.Hash
+		err            error
+	)
 	height := m.store.Height()
 	newHeight := height + 1
 
@@ -784,9 +810,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// Submit block to be published to the DA layer
-	m.pendingBlocks.addPendingBlock(block)
-
 	// Commit the new state and block which writes to disk on the proxy app
 	appHash, _, err := m.executor.Commit(ctx, newState, block, responses)
 	if err != nil {
@@ -840,7 +863,20 @@ func (m *Manager) recordMetrics(block *types.Block) {
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAllBlocks := false
 	backoff := initialBackoff
-	blocksToSubmit := m.pendingBlocks.getPendingBlocks()
+	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks(ctx)
+	if len(blocksToSubmit) == 0 {
+		// There are no pending blocks; return because there's nothing to do, but:
+		// - it might be caused by error, then err != nil
+		// - all pending blocks are processed, then err == nil
+		// whatever the reason, error information is propagated correctly to the caller
+		return err
+	}
+	if err != nil {
+		// There are some pending blocks but also an error. It's very unlikely case - probably some error while reading
+		// blocks from the store.
+		// The error is logged and normal processing of pending blocks continues.
+		m.logger.Error("error while fetching blocks pending DA", "err", err)
+	}
 	numSubmittedBlocks := 0
 	attempt := 0
 	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)
@@ -863,7 +899,11 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
 			}
-			m.pendingBlocks.removeSubmittedBlocks(submittedBlocks)
+			lastSubmittedHeight := uint64(0)
+			if l := len(submittedBlocks); l > 0 {
+				lastSubmittedHeight = submittedBlocks[l-1].Height()
+			}
+			m.pendingBlocks.setLastSubmittedHeight(ctx, lastSubmittedHeight)
 			blocksToSubmit = notSubmittedBlocks
 			// reset submission options when successful
 			// scale back gasPrice gradually

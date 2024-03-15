@@ -4,6 +4,8 @@ go 1.21.1
 
 toolchain go1.21.4
 
+retract v0.12.0 // Published by accident
+
 require (
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.5
@@ -28,12 +30,12 @@ require (
 	github.com/tendermint/tendermint v0.35.9
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.22.0
-	google.golang.org/grpc v1.62.0
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/grpc v1.62.1
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
-	github.com/celestiaorg/go-header v0.5.3
+	github.com/celestiaorg/go-header v0.5.4
 	github.com/ipfs/go-ds-badger4 v0.1.5
 )
 

@@ -184,7 +184,7 @@ func (idx *BlockerIndexer) Search(ctx context.Context, q *query.Query) ([]int64,
 			continue
 		}
 
-		startKey := store.GenerateKey([]interface{}{c.Tag, c.Arg.Value()})
+		startKey := store.GenerateKey([]string{c.Tag, c.Arg.Value()})
 
 		if !heightsInitialized {
 			filteredHeights, err = idx.match(ctx, c, ds.NewKey(startKey).String(), filteredHeights, true)

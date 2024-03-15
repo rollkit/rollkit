@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync/atomic"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -22,6 +23,7 @@ var (
 	commitPrefix    = "c"
 	statePrefix     = "s"
 	responsesPrefix = "r"
+	metaPrefix      = "m"
 )
 
 // DefaultStore is a default store implmementation.
@@ -203,8 +205,27 @@ func (s *DefaultStore) GetState(ctx context.Context) (types.State, error) {
 
 	var state types.State
 	err = state.FromProto(&pbState)
-	s.height.Store(state.LastBlockHeight)
 	return state, err
+}
+
+// SetMetadata saves arbitrary value in the store.
+//
+// Metadata is separated from other data by using prefix in KV.
+func (s *DefaultStore) SetMetadata(ctx context.Context, key string, value []byte) error {
+	err := s.db.Put(ctx, ds.NewKey(getMetaKey(key)), value)
+	if err != nil {
+		return fmt.Errorf("failed to set metadata for key '%s': %w", key, err)
+	}
+	return nil
+}
+
+// GetMetadata returns values stored for given key with SetMetadata.
+func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, error) {
+	data, err := s.db.Get(ctx, ds.NewKey(getMetaKey(key)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metadata for key '%s': %w", key, err)
+	}
+	return data, nil
 }
 
 // loadHashFromIndex returns the hash of a block given its height
@@ -221,15 +242,15 @@ func (s *DefaultStore) loadHashFromIndex(ctx context.Context, height uint64) (he
 }
 
 func getBlockKey(hash types.Hash) string {
-	return GenerateKey([]interface{}{blockPrefix, hex.EncodeToString(hash[:])})
+	return GenerateKey([]string{blockPrefix, hex.EncodeToString(hash[:])})
 }
 
 func getCommitKey(hash types.Hash) string {
-	return GenerateKey([]interface{}{commitPrefix, hex.EncodeToString(hash[:])})
+	return GenerateKey([]string{commitPrefix, hex.EncodeToString(hash[:])})
 }
 
 func getIndexKey(height uint64) string {
-	return GenerateKey([]interface{}{indexPrefix, height})
+	return GenerateKey([]string{indexPrefix, strconv.FormatUint(height, 10)})
 }
 
 func getStateKey() string {
@@ -237,5 +258,9 @@ func getStateKey() string {
 }
 
 func getResponsesKey(height uint64) string {
-	return GenerateKey([]interface{}{responsesPrefix, height})
+	return GenerateKey([]string{responsesPrefix, strconv.FormatUint(height, 10)})
+}
+
+func getMetaKey(key string) string {
+	return GenerateKey([]string{metaPrefix, key})
 }
