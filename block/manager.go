@@ -38,6 +38,10 @@ const defaultBlockTime = 1 * time.Second
 // defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 const defaultMempoolTTL = 25
 
+// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
+// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
+const blockProtocolOverhead = 1 << 16
+
 // maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
 // This is temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
@@ -196,7 +200,14 @@ func NewManager(
 		return nil, err
 	}
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, logger, execMetrics, valSet.Hash())
+	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	// allow buffer for the block header and protocol encoding
+	maxBlobSize -= blockProtocolOverhead
+
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, maxBlobSize, logger, execMetrics, valSet.Hash())
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
