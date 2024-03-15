@@ -27,7 +27,7 @@ import (
 
 // MockServerAddr is the address used by the mock gRPC service
 // NOTE: this should be unique per test package to avoid
-// "bind: listen address alreaady in use" because multiple packages
+// "bind: listen address already in use" because multiple packages
 // are tested in parallel
 var MockServerAddr = "127.0.0.1:7990"
 
