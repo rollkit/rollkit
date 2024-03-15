@@ -585,6 +585,7 @@ func TestTx(t *testing.T) {
 	resTx, errTx = rpc.Tx(ctx, tx2.Hash(), true)
 	assert.Nil(resTx)
 	assert.Error(errTx)
+	assert.Equal(fmt.Errorf("tx (%X) not found", tx2.Hash()), errTx)
 }
 
 func TestUnconfirmedTxs(t *testing.T) {

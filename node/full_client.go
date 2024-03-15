@@ -7,8 +7,6 @@ import (
 	"sort"
 	"time"
 
-	ds "github.com/ipfs/go-datastore"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
@@ -544,19 +542,8 @@ func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, 
 }
 
 // Tx returns detailed information about transaction identified by its hash.
-func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (txRes *ctypes.ResultTx, err error) {
-	defer func() {
-		if recoveryError := recover(); recoveryError != nil {
-			if recoveryError == ds.ErrNotFound {
-				err = fmt.Errorf("tx (%X) not found", hash)
-			} else {
-				panic(recoveryError)
-			}
-		}
-	}()
-
+func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
 	res, err := c.node.TxIndexer.Get(hash)
-
 	if err != nil {
 		return nil, err
 	}
