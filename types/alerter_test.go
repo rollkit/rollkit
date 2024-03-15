@@ -61,11 +61,11 @@ func TestMarshalUnmarshalAlertSeverity(t *testing.T) {
 	}
 }
 
-// TestAlertsManager tests the following:
+// TestAlerter tests the following:
 //   - alerts can be registered
 //   - the return values contain the right alerts
 //   - alerts can be unregisterd
-func TestAlertsManager(t *testing.T) {
+func TestAlerter(t *testing.T) {
 	alerter := NewAlerter(t.Name())
 
 	// Create 20 alert IDs
