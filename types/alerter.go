@@ -38,9 +38,9 @@ const (
 	//lint:ignore U1000 keeping for safety
 	alertIDUnknown = "unknown"
 
-	// AlertBlockMasharlError is the id of the alert that is registered if
-	// there is an error while marshaling a block.
-	AlertBlockMasharlError = "block-marshal-error"
+	// AlertIDBlockNotSubmitted is the id of the alert that is registered if
+	// there is an error while submitting a block.
+	AlertIDBlockNotSubmitted = "block-not-submitted"
 )
 
 type (
