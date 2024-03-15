@@ -52,6 +52,9 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 
 	rawBytes, err := txi.store.Get(txi.ctx, ds.NewKey(hex.EncodeToString(hash)))
 	if err != nil {
+		if err == ds.ErrNotFound {
+			return nil, nil
+		}
 		panic(err)
 	}
 	if rawBytes == nil {
