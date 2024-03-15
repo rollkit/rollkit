@@ -26,7 +26,7 @@ var DefaultNodeConfig = NodeConfig{
 		BlockTime:   1 * time.Second,
 		DABlockTime: 15 * time.Second,
 	},
-	DAAddress:       "grpc://localhost:26650",
+	DAAddress:       "http://localhost:26658",
 	DAGasPrice:      -1,
 	DAGasMultiplier: -1,
 	Light:           false,
