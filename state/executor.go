@@ -32,6 +32,7 @@ type BlockExecutor struct {
 	chainID         string
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
+	maxBytes        uint64
 
 	eventBus *cmtypes.EventBus
 
@@ -41,7 +42,7 @@ type BlockExecutor struct {
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
-func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, logger log.Logger, metrics *Metrics, valsetHash []byte) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, maxBytes uint64, logger log.Logger, metrics *Metrics, valsetHash []byte) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		valsetHash:      valsetHash,
@@ -49,6 +50,7 @@ func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Me
 		proxyApp:        proxyApp,
 		mempool:         mempool,
 		eventBus:        eventBus,
+		maxBytes:        maxBytes,
 		logger:          logger,
 		metrics:         metrics,
 	}
@@ -95,6 +97,10 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	emptyMaxBytes := maxBytes == -1
 	if emptyMaxBytes {
 		maxBytes = int64(cmtypes.MaxBlockSizeBytes)
+	}
+	if maxBytes > int64(e.maxBytes) {
+		e.logger.Debug("limiting maxBytes to", "e.maxBytes=%d", e.maxBytes)
+		maxBytes = int64(e.maxBytes)
 	}
 
 	maxGas := state.ConsensusParams.Block.MaxGas

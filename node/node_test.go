@@ -3,6 +3,8 @@ package node
 import (
 	"context"
 	"fmt"
+	"net"
+	"os"
 	"testing"
 
 	cmconfig "github.com/cometbft/cometbft/config"
@@ -14,11 +16,50 @@ import (
 	"github.com/rollkit/rollkit/config"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
+
+	"google.golang.org/grpc"
+
+	"google.golang.org/grpc/credentials/insecure"
+
+	goDAproxy "github.com/rollkit/go-da/proxy"
+	goDATest "github.com/rollkit/go-da/test"
 )
 
-var MockServerAddr = ":7980"
+// MockServerAddr is the address used by the mock gRPC service
+// NOTE: this should be unique per test package to avoid
+// "bind: listen address alreaady in use" because multiple packages
+// are tested in parallel
+var MockServerAddr = "127.0.0.1:7990"
 
+// MockNamespace is a sample namespace used by the mock DA client
 var MockNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
+
+// TestMain does setup and teardown on the test package
+// to make the mock gRPC service available to the nodes
+func TestMain(m *testing.M) {
+	srv := startMockGRPCServ()
+	if srv == nil {
+		os.Exit(1)
+	}
+	exitCode := m.Run()
+
+	// teardown servers
+	srv.GracefulStop()
+
+	os.Exit(exitCode)
+}
+
+func startMockGRPCServ() *grpc.Server {
+	srv := goDAproxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
+	lis, err := net.Listen("tcp", MockServerAddr)
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		_ = srv.Serve(lis)
+	}()
+	return srv
+}
 
 type NodeType int
 
