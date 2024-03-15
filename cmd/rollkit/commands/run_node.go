@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net"
 	"net/url"
 	"os"
 
@@ -20,10 +19,8 @@ import (
 	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	proxy "github.com/rollkit/go-da/proxy/grpc"
+	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/spf13/cobra"
@@ -115,6 +112,11 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
+			// use mock jsonrpc da server by default
+			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
+				startMockDAServJSONRPC(context.Background())
+			}
+
 			// create the rollkit node
 			rollnode, err := rollnode.NewNode(
 				context.Background(),
@@ -128,11 +130,6 @@ func NewRunNodeCmd() *cobra.Command {
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
-			}
-
-			// start mock da server if we are using the default da address
-			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				startMockGRPCServ()
 			}
 
 			// Launch the RPC server
@@ -190,18 +187,15 @@ func addNodeFlags(cmd *cobra.Command) {
 	rollconf.AddFlags(cmd)
 }
 
-// startMockGRPCServ starts a mock gRPC server for the dummy DA
-func startMockGRPCServ() *grpc.Server {
-	server := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
+// startMockDAServJSONRPC starts a mock JSONRPC server
+func startMockDAServJSONRPC(ctx context.Context) *proxy.Server {
 	addr, _ := url.Parse(rollkitConfig.DAAddress)
-	lis, err := net.Listen("tcp", addr.Host)
+	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
+	err := srv.Start(ctx)
 	if err != nil {
 		panic(err)
 	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	return nil
+	return srv
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
