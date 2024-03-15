@@ -61,6 +61,9 @@ var (
 
 	// ErrNotProposer is used when the manager is not a proposer
 	ErrNotProposer = errors.New("not a proposer")
+
+	// daSubmissionFailureLog is used to log when DA layer submission fails
+	daSubmissionFailureLog = "DA layer submission failed"
 )
 
 // NewBlockEvent is used to pass block and DA height to blockInCh
@@ -118,6 +121,9 @@ type Manager struct {
 
 	// true if the manager is a proposer
 	isProposer bool
+
+	// alerter is used to report alerts
+	alerter *types.GenericAlerter
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -257,6 +263,7 @@ func NewManager(
 		pendingBlocks: pendingBlocks,
 		metrics:       seqMetrics,
 		isProposer:    isProposer,
+		alerter:       types.NewAlerter("block_manager"),
 	}
 	return agg, nil
 }
@@ -901,6 +908,9 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
+			// Unregister any alerts upon successful submission
+			m.alerter.UnregisterAlert(types.AlertIDBlockNotSubmitted)
+
 			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(blocksToSubmit)) {
 				submittedAllBlocks = true
@@ -926,7 +936,6 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
 			if m.dalc.GasMultiplier != -1 && gasPrice != -1 {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
@@ -935,14 +944,17 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		case da.StatusTooBig:
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			maxBlobSize = maxBlobSize / 4
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		default:
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
+		}
+		// Common handling for all non-success cases
+		if res.Code != da.StatusSuccess {
+			m.alerter.RegisterAlert(types.AlertIDBlockNotSubmitted, daSubmissionFailureLog, res.Message, types.SeverityError)
+			m.logger.Error(fmt.Sprintf("%v; attempt: %v; error: %v", daSubmissionFailureLog, attempt, res.Message))
 		}
 		attempt += 1
 	}

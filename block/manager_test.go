@@ -454,3 +454,73 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
 }
+
+// TestSubmitBlocksToDAAlerts tests that the expect alerts are properly
+// registered and unregistered for block submission
+func TestSubmitBlocksToDAAlerts(t *testing.T) {
+	// Test initializations
+	require := require.New(t)
+	ctx := context.Background()
+
+	// Initialize the block manager with mock DA
+	mockDA := &mock.MockDA{}
+	m := getManager(t, mockDA)
+	kvStore, err := store.NewDefaultInMemoryKVStore()
+	require.NoError(err)
+	m.store = store.New(kvStore)
+	m.pendingBlocks, err = NewPendingBlocks(m.store, m.logger)
+	require.NoError(err)
+
+	// Create a block and save it to the store
+	block := types.GetRandomBlock(1, 5)
+	err = m.store.SaveBlock(ctx, block, &types.Commit{})
+	require.NoError(err)
+	m.store.SetHeight(ctx, 1)
+
+	// Marshal the block for use in the mock
+	var blobs [][]byte
+	blob, err := block.MarshalBinary()
+	require.NoError(err)
+	blobs = append(blobs, blob)
+
+	// Set up the mock to
+	// * fail max attempts to verify the alert is registered. The error thrown doesn't matter
+	// * then be successful
+	mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
+	mockDA.
+		On("Submit", blobs, 1.0, []byte(nil)).
+		// Return([][]byte{}, da.ErrBlobNotFound).Times(maxSubmitAttempts + 1)
+		Return([][]byte{}, da.ErrBlobNotFound).Once()
+	mockDA.
+		On("Submit", blobs, 1.0, []byte(nil)).
+		Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
+
+	// First attempt should fail and register the alert
+	require.Error(m.submitBlocksToDA(ctx))
+
+	// Expected Alert
+	expected := types.Alert{
+		Severity: types.SeverityError,
+		Module:   "block_manager",
+		Cause:    "failed to submit blocks: " + da.ErrBlobNotFound.Error(),
+		Msg:      daSubmissionFailureLog,
+	}
+
+	// Verify alert
+	crit, errs, warn, info := m.Alerts()
+	require.Len(crit, 0)
+	require.Len(errs, 1)
+	require.Len(warn, 0)
+	require.Len(info, 0)
+	require.True(warn[0].Equals(expected))
+
+	// Second attempt should succeed
+	require.NoError(m.submitBlocksToDA(ctx))
+
+	// Verify no alert
+	crit, errs, warn, info = m.Alerts()
+	require.Len(crit, 0)
+	require.Len(errs, 0)
+	require.Len(warn, 0)
+	require.Len(info, 0)
+}
