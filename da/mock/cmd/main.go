@@ -36,7 +36,7 @@ func main() {
 	}
 
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT)
 	<-interrupt
 	fmt.Println("\nCtrl+C pressed. Exiting...")
 	os.Exit(0)

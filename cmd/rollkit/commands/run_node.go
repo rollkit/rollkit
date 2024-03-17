@@ -114,7 +114,11 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				startMockDAServJSONRPC(context.Background())
+				srv, err := startMockDAServJSONRPC(context.Background())
+				if err != nil {
+					return err
+				}
+				defer srv.Stop(context.Background())
 			}
 
 			// create the rollkit node
@@ -188,14 +192,14 @@ func addNodeFlags(cmd *cobra.Command) {
 }
 
 // startMockDAServJSONRPC starts a mock JSONRPC server
-func startMockDAServJSONRPC(ctx context.Context) *proxy.Server {
+func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
 	addr, _ := url.Parse(rollkitConfig.DAAddress)
 	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	err := srv.Start(ctx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return srv
+	return srv, nil
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
