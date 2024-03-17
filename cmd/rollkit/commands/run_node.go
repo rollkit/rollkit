@@ -116,7 +116,7 @@ func NewRunNodeCmd() *cobra.Command {
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
 				srv, err := startMockDAServJSONRPC(context.Background())
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
 				// nolint:errcheck,gosec
 				defer func() { srv.Stop(context.Background()) }()
