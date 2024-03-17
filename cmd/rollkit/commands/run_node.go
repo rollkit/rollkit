@@ -118,7 +118,8 @@ func NewRunNodeCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				defer srv.Stop(context.Background())
+				// nolint:errcheck,gosec
+				defer func() { srv.Stop(context.Background()) }()
 			}
 
 			// create the rollkit node
