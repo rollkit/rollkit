@@ -4,7 +4,11 @@ Rollkit provides a wrapper for [go-da][go-da], a generic data availability inter
 
 ## Details
 
-`DAClient` under the hood uses a GRPC implementation of the [go-da][go-da] DA interface. Using the `DAAddress` specified in the node's config, node creates a GRPC connection to it using go-da's gprc implementation [grpc-proxy][grpc-proxy] which is then used under the hood of `DAClient` to communicate with the underlying DA.
+`DAClient` can connect via either gRPC or JSON-RPC transports using the [go-da][go-da] [proxy/grpc][proxy/grpc] or [proxy/jsonrpc][proxy/jsonrpc] implementations. The connection can be configured using the following cli flags:
+
+* `--rollkit.da_address`: url address of the DA service (default: "grpc://localhost:26650")
+* `--rollkit.da_auth_token`: authentication token of the DA service
+* `--rollkit.da_namespace`: namespace to use when submitting blobs to the DA service
 
 Given a set of blocks to be submitted to DA by the block manager, the `SubmitBlocks` first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the `Submit` method on the underlying DA implementation. On successful submission (`StatusSuccess`), the DA block height which included in the rollup blocks is returned.
 
@@ -29,9 +33,12 @@ See [da implementation]
 
 [2] [celestia-da][celestia-da]
 
-[3] [grpc-proxy][grpc-proxy]
+[3] [proxy/grpc][proxy/grpc]
+
+[4] [proxy/jsonrpc][proxy/jsonrpc]
 
 [da implementation]: https://github.com/rollkit/rollkit/blob/main/da/da.go
 [go-da]: https://github.com/rollkit/go-da
 [celestia-da]: https://github.com/rollkit/celestia-da
-[grpc-proxy]: https://github.com/rollkit/go-da/tree/main/proxy
+[proxy/grpc]: https://github.com/rollkit/go-da/tree/main/proxy/grpc
+[proxy/jsonrpc]: https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc

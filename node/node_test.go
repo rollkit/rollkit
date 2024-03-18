@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"testing"
 
@@ -21,18 +22,20 @@ import (
 
 	"google.golang.org/grpc/credentials/insecure"
 
-	goDAproxy "github.com/rollkit/go-da/proxy"
+	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
 	goDATest "github.com/rollkit/go-da/test"
 )
 
-// MockServerAddr is the address used by the mock gRPC service
-// NOTE: this should be unique per test package to avoid
-// "bind: listen address already in use" because multiple packages
-// are tested in parallel
-var MockServerAddr = "127.0.0.1:7990"
+const (
+	// MockDAAddress is the address used by the mock gRPC service
+	// NOTE: this should be unique per test package to avoid
+	// "bind: listen address already in use" because multiple packages
+	// are tested in parallel
+	MockDAAddress = "grpc://localhost:7990"
 
-// MockNamespace is a sample namespace used by the mock DA client
-var MockNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
+	// MockDANamespace is a sample namespace used by the mock DA client
+	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
+)
 
 // TestMain does setup and teardown on the test package
 // to make the mock gRPC service available to the nodes
@@ -51,7 +54,8 @@ func TestMain(m *testing.M) {
 
 func startMockGRPCServ() *grpc.Server {
 	srv := goDAproxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	lis, err := net.Listen("tcp", MockServerAddr)
+	addr, _ := url.Parse(MockDAAddress)
+	lis, err := net.Listen("tcp", addr.Host)
 	if err != nil {
 		panic(err)
 	}
@@ -103,7 +107,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, 
 
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, ed25519.PrivKey, error) {
-	config := config.NodeConfig{DAAddress: MockServerAddr, DANamespace: MockNamespace}
+	config := config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}
 	switch nodeType {
 	case Light:
 		config.Light = true

@@ -1,34 +1,43 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"log"
-	"net"
-	"strconv"
+	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/rollkit/go-da/proxy"
+	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
+)
+
+const (
+	// MockDAAddress is the mock address for the gRPC server
+	MockDAAddress = "grpc://localhost:7980"
 )
 
 func main() {
 	var (
 		host string
-		port int
+		port string
 	)
-	flag.IntVar(&port, "port", 7980, "listening port")
-	flag.StringVar(&host, "host", "0.0.0.0", "listening address")
+	addr, _ := url.Parse(MockDAAddress)
+	flag.StringVar(&port, "port", addr.Port(), "listening port")
+	flag.StringVar(&host, "host", addr.Hostname(), "listening address")
 	flag.Parse()
 
-	lis, err := net.Listen("tcp", host+":"+strconv.Itoa(port))
-	if err != nil {
-		log.Panic(err)
-	}
-	log.Println("Listening on:", lis.Addr())
-	srv := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	if err := srv.Serve(lis); err != nil {
+	srv := proxy.NewServer(host, port, goDATest.NewDummyDA())
+	log.Printf("Listening on: %s:%s", host, port)
+	if err := srv.Start(context.Background()); err != nil {
 		log.Fatal("error while serving:", err)
 	}
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT)
+	<-interrupt
+	fmt.Println("\nCtrl+C pressed. Exiting...")
+	os.Exit(0)
 }

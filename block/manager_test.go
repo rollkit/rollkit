@@ -30,7 +30,7 @@ import (
 func getManager(t *testing.T, backend goDA.DA) *Manager {
 	logger := test.NewFileLoggerCustom(t, test.TempLogFileName(t, t.Name()))
 	return &Manager{
-		dalc:       &da.DAClient{DA: backend, GasPrice: -1, GasMultiplier: -1, Logger: logger},
+		dalc:       da.NewDAClient(backend, -1, -1, nil, logger),
 		blockCache: NewBlockCache(),
 		logger:     logger,
 	}

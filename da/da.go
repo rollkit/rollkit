@@ -16,12 +16,12 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-var (
-	// submitTimeout is the timeout for block submission
-	submitTimeout = 60 * time.Second
+const (
+	// defaultSubmitTimeout is the timeout for block submission
+	defaultSubmitTimeout = 60 * time.Second
 
-	// retrieveTimeout is the timeout for block retrieval
-	retrieveTimeout = 60 * time.Second
+	// defaultRetrieveTimeout is the timeout for block retrieval
+	defaultRetrieveTimeout = 60 * time.Second
 )
 
 var (
@@ -95,11 +95,26 @@ type ResultRetrieveBlocks struct {
 
 // DAClient is a new DA implementation.
 type DAClient struct {
-	DA            goDA.DA
-	GasPrice      float64
-	GasMultiplier float64
-	Namespace     goDA.Namespace
-	Logger        log.Logger
+	DA              goDA.DA
+	GasPrice        float64
+	GasMultiplier   float64
+	Namespace       goDA.Namespace
+	SubmitTimeout   time.Duration
+	RetrieveTimeout time.Duration
+	Logger          log.Logger
+}
+
+// NewDAClient returns a new DA client.
+func NewDAClient(da goDA.DA, gasPrice, gasMultiplier float64, ns goDA.Namespace, logger log.Logger) *DAClient {
+	return &DAClient{
+		DA:              da,
+		GasPrice:        gasPrice,
+		GasMultiplier:   gasMultiplier,
+		Namespace:       ns,
+		SubmitTimeout:   defaultSubmitTimeout,
+		RetrieveTimeout: defaultRetrieveTimeout,
+		Logger:          logger,
+	}
 }
 
 // SubmitBlocks submits blocks to DA.
@@ -133,7 +148,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 			},
 		}
 	}
-	ctx, cancel := context.WithTimeout(ctx, submitTimeout)
+	ctx, cancel := context.WithTimeout(ctx, dac.SubmitTimeout)
 	defer cancel()
 	ids, err := dac.DA.Submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
@@ -200,7 +215,7 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, retrieveTimeout)
+	ctx, cancel := context.WithTimeout(ctx, dac.RetrieveTimeout)
 	defer cancel()
 	blobs, err := dac.DA.Get(ctx, ids, dac.Namespace)
 	if err != nil {

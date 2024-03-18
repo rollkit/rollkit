@@ -192,11 +192,7 @@ func TestPendingBlocks(t *testing.T) {
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(10240), nil)
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
 
-	dac := &da.DAClient{
-		DA:        mockDA,
-		Namespace: goDA.Namespace(MockNamespace),
-		GasPrice:  1234,
-	}
+	dac := da.NewDAClient(mockDA, 1234, -1, goDA.Namespace(MockDANamespace), nil)
 	dbPath, err := os.MkdirTemp("", "testdb")
 	require.NoError(t, err)
 	defer func() {
@@ -281,8 +277,8 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 		ctx,
 		config.NodeConfig{
 			DBPath:      dbPath,
-			DAAddress:   MockServerAddr,
-			DANamespace: MockNamespace,
+			DAAddress:   MockDAAddress,
+			DANamespace: MockDANamespace,
 			Aggregator:  true,
 			BlockManagerConfig: config.BlockManagerConfig{
 				BlockTime:   100 * time.Millisecond,

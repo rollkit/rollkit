@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net"
+	"net/url"
 	"os"
-	"strconv"
 
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
@@ -20,10 +19,8 @@ import (
 	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/rollkit/go-da/proxy"
+	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/spf13/cobra"
@@ -115,6 +112,16 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
+			// use mock jsonrpc da server by default
+			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
+				srv, err := startMockDAServJSONRPC(cmd.Context())
+				if err != nil {
+					return fmt.Errorf("failed to launch mock da server: %w", err)
+				}
+				// nolint:errcheck,gosec
+				defer func() { srv.Stop(cmd.Context()) }()
+			}
+
 			// create the rollkit node
 			rollnode, err := rollnode.NewNode(
 				context.Background(),
@@ -129,9 +136,6 @@ func NewRunNodeCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
 			}
-
-			// start mock da server
-			startMockGRPCServ()
 
 			// Launch the RPC server
 			server := rollrpc.NewServer(rollnode, config.RPC, logger)
@@ -173,11 +177,6 @@ func NewRunNodeCmd() *cobra.Command {
 	if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
 		rollkitConfig.Aggregator = true
 	}
-
-	// use mock da server by default
-	if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-		rollkitConfig.DAAddress = ":7980"
-	}
 	return cmd
 }
 
@@ -193,18 +192,15 @@ func addNodeFlags(cmd *cobra.Command) {
 	rollconf.AddFlags(cmd)
 }
 
-// startMockGRPCServ starts a mock gRPC server for the dummy DA
-func startMockGRPCServ() *grpc.Server {
-	srv := proxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	lis, err := net.Listen("tcp", "127.0.0.1"+":"+strconv.Itoa(7980))
+// startMockDAServJSONRPC starts a mock JSONRPC server
+func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
+	addr, _ := url.Parse(rollkitConfig.DAAddress)
+	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
+	err := srv.Start(ctx)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		return nil, err
 	}
-	go func() {
-		_ = srv.Serve(lis)
-	}()
-	return srv
+	return srv, nil
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
