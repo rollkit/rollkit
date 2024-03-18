@@ -22,6 +22,7 @@ import (
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -240,6 +241,20 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			isErrExpected:               true,
 			expectedPendingBlocksLength: 1,
 		},
+		{
+			name: "B is too big on its own. So A gets submitted but, B and C never get submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
+				blocks[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
+				require.NoError(err)
+				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
+				return blocks
+			}(),
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 2,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -280,6 +295,84 @@ func getTempKVStore(t *testing.T) ds.TxnDatastore {
 	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
 	require.NoError(t, err)
 	return kvStore
+}
+
+// Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
+func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+	ctx := context.Background()
+
+	m := getManager(t, goDATest.NewDummyDA())
+
+	block1 := types.GetRandomBlock(uint64(0), 5)
+	block2 := types.GetRandomBlock(uint64(1), 5)
+	block3 := types.GetRandomBlock(uint64(2), 5)
+
+	store := mocks.NewStore(t)
+	invalidateBlockHeader(block1)
+	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
+	store.On("GetBlock", ctx, uint64(1)).Return(block1, nil)
+	store.On("GetBlock", ctx, uint64(2)).Return(block2, nil)
+	store.On("GetBlock", ctx, uint64(3)).Return(block3, nil)
+	store.On("Height").Return(uint64(3))
+
+	m.store = store
+
+	var err error
+	m.pendingBlocks, err = NewPendingBlocks(store, m.logger)
+	require.NoError(err)
+
+	err = m.submitBlocksToDA(ctx)
+	assert.ErrorContains(err, "failed to submit all blocks to DA layer")
+	blocks, err := m.pendingBlocks.getPendingBlocks(ctx)
+	assert.NoError(err)
+	assert.Equal(3, len(blocks))
+}
+
+// Test_submitBlocksToDA_BlockMarshalErrorCase2: A and B are fair blocks, but C has a marshalling error. None of the blocks get submitted to DA layer.
+func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+	ctx := context.Background()
+
+	m := getManager(t, goDATest.NewDummyDA())
+
+	block1 := types.GetRandomBlock(uint64(0), 5)
+	block2 := types.GetRandomBlock(uint64(1), 5)
+	block3 := types.GetRandomBlock(uint64(2), 5)
+
+	store := mocks.NewStore(t)
+	invalidateBlockHeader(block3)
+	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
+	store.On("GetBlock", ctx, uint64(1)).Return(block1, nil)
+	store.On("GetBlock", ctx, uint64(2)).Return(block2, nil)
+	store.On("GetBlock", ctx, uint64(3)).Return(block3, nil)
+	store.On("Height").Return(uint64(3))
+
+	m.store = store
+
+	var err error
+	m.pendingBlocks, err = NewPendingBlocks(store, m.logger)
+	require.NoError(err)
+
+	err = m.submitBlocksToDA(ctx)
+	assert.ErrorContains(err, "failed to submit all blocks to DA layer")
+	blocks, err := m.pendingBlocks.getPendingBlocks(ctx)
+	assert.NoError(err)
+	assert.Equal(3, len(blocks))
+}
+
+// invalidateBlockHeader results in a block header that produces a marshalling error
+func invalidateBlockHeader(block *types.Block) {
+	for i := range block.SignedHeader.Validators.Validators {
+		block.SignedHeader.Validators.Validators[i] = &cmtypes.Validator{
+			Address:          []byte(""),
+			PubKey:           nil,
+			VotingPower:      -1,
+			ProposerPriority: 0,
+		}
+	}
 }
 
 func Test_isProposer(t *testing.T) {
