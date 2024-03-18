@@ -10,6 +10,7 @@ rollkit start [flags]
 
 ```
       --abci string                                     specify abci transport (socket | grpc) (default "socket")
+      --ci                                              run node for ci testing
       --consensus.create_empty_blocks                   set this to false to only produce blocks when there are txs or when the AppHash changes (default true)
       --consensus.create_empty_blocks_interval string   the possible interval between empty blocks (default "0s")
       --consensus.double_sign_check_height int          how many blocks to look back to check existence of the node's consensus votes before joining consensus
