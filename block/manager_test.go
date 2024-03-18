@@ -163,7 +163,6 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := &mock.MockDA{}
 			m := getManager(t, mockDA)
-			m.logger = test.NewLogger(t)
 			m.conf.DABlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
 			kvStore, err := store.NewDefaultInMemoryKVStore()
