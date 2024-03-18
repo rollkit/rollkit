@@ -901,7 +901,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "daHeight", res.DAHeight, "count", res.SubmittedCount)
+			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "count", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(blocksToSubmit)) {
 				submittedAllBlocks = true
 			}
@@ -920,7 +920,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			// scale back gasPrice gradually
 			backoff = initialBackoff
 			maxBlobSize = initialMaxBlobSize
-			if gasPrice != -1 {
+			if m.dalc.GasMultiplier != -1 && gasPrice != -1 {
 				gasPrice = gasPrice / m.dalc.GasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
