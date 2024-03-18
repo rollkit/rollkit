@@ -920,7 +920,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			// scale back gasPrice gradually
 			backoff = initialBackoff
 			maxBlobSize = initialMaxBlobSize
-			if m.dalc.GasMultiplier != -1 && gasPrice != -1 {
+			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.dalc.GasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
@@ -930,7 +930,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
-			if m.dalc.GasMultiplier != -1 && gasPrice != -1 {
+			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
