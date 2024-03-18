@@ -40,5 +40,5 @@ See [da implementation]
 [da implementation]: https://github.com/rollkit/rollkit/blob/main/da/da.go
 [go-da]: https://github.com/rollkit/go-da
 [celestia-da]: https://github.com/rollkit/celestia-da
-[proxy/grpc]: https://github.com/rollkit/go-da/tree/tux/jsonrpc/proxy/grpc
-[proxy/jsonrpc]: https://github.com/rollkit/go-da/tree/tux/jsonrpc/proxy/jsonrpc
+[proxy/grpc]: https://github.com/rollkit/go-da/tree/main/proxy/grpc
+[proxy/jsonrpc]: https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc
