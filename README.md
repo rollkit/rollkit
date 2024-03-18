@@ -52,39 +52,47 @@ There are currently 2 ways to build on Celestia:
 
 | network               | rollkit | celestia-node | celestia-app |
 | --------------------- | ------- | ------------- | ------------ |
-| local-celestia-devnet | v0.11.9 | v0.12.2-rc1   | v1.4.0       |
-| arabica               | v0.11.9 | v0.12.1       | v1.6.0       |
+| local-celestia-devnet | v0.13.0 | v0.13.1       | v1.7.0       |
+| arabica               | v0.13.0 | v0.13.1       | v1.7.0       |
+| mocha                 | v0.13.0 | v0.13.1       | v1.7.0       |
+| mainnet               | v0.13.0 | v0.13.1       | v1.7.0       |
 
 <!-- markdownlint-disable MD013 -->
 | rollkit/cosmos-sdk | rollkit/cometbft | rollkit |
 |-|-|-|
-| [v0.50.1-rollkit-v0.11.9-no-fraud-proofs](https://github.com/rollkit/cosmos-sdk/releases/tag/v0.50.1-rollkit-v0.11.9-no-fraud-proofs) | v0.38.0-rc3| [v0.11.9](https://github.com/rollkit/rollkit/releases/tag/v0.11.9) |
+| [v0.50.5-rollkit-v0.13.0-no-fraud-proofs](https://github.com/rollkit/cosmos-sdk/releases/tag/v0.50.5-rollkit-v0.13.0-no-fraud-proofs) | v0.38.5| [v0.13.0](https://github.com/rollkit/rollkit/releases/tag/v0.13.0) |
 <!-- markdownlint-enable MD013 -->
 
 #### Local development environment
 
-The Rollkit v0.11.9 release is compatible with the
-[local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet) [v0.12.5](https://github.com/rollkit/local-celestia-devnet/releases/tag/v0.12.5)
+The Rollkit v0.13.0 release is compatible with the
+[local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet) [v0.13.1](https://github.com/rollkit/local-celestia-devnet/releases/tag/v0.13.1)
 release. This version combination is compatible with celestia-app
-[v1.4.0](https://github.com/celestiaorg/celestia-app/releases/tag/v1.4.0)
+[v1.7.0](https://github.com/celestiaorg/celestia-app/releases/tag/v1.7.0)
 and celestia-node
-[v0.12.2-rc1](https://github.com/celestiaorg/celestia-node/releases/tag/v0.12.2-rc1).
+[v0.13.1](https://github.com/celestiaorg/celestia-node/releases/tag/v0.13.1).
 
 #### Arabica devnet and Mocha testnet
 
-The Rollkit v0.11.9 release is compatible with
+The Rollkit v0.13.0 release is compatible with
 [arabica-10](https://docs.celestia.org/nodes/arabica-devnet/) devnet
 [mocha-4](https://docs.celestia.org/nodes/mocha-testnet/) testnet which are running
 celestia-app
-[v1.6.0](https://github.com/celestiaorg/celestia-app/releases/tag/v1.6.0)
+[v1.7.0](https://github.com/celestiaorg/celestia-app/releases/tag/v1.7.0)
 and celestia-node
-[v0.12.1](https://github.com/celestiaorg/celestia-node/releases/tag/v0.12.1).
+[v0.13.1](https://github.com/celestiaorg/celestia-node/releases/tag/v0.13.1).
+
+#### Celestia mainnet
+The Rollkit v0.13.0 release is compatible with [mainnet-beta](https://docs.celestia.org/nodes/mainnet/) which is running celestia-app
+[v1.7.0](https://github.com/celestiaorg/celestia-app/releases/tag/v1.7.0)
+and celestia-node
+[v0.13.1](https://github.com/celestiaorg/celestia-node/releases/tag/v0.13.1).
 
 #### Cometbft v0.37.x and Cosmos-SDK v0.47.x
 
 The Rollkit v0.10.7 release is compatible with Cometbft v0.37.2 and Cosmos-SDK
 v0.47.6. However, this version is no longer supported for future developements and
-it is recommended to Rollkit v0.11.x.
+it is recommended to Rollkit v0.13.x.
 
 ### Tools
 
