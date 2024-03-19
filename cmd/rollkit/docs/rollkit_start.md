@@ -10,6 +10,7 @@ rollkit start [flags]
 
 ```
       --abci string                                     specify abci transport (socket | grpc) (default "socket")
+      --ci                                              run node for ci testing
       --consensus.create_empty_blocks                   set this to false to only produce blocks when there are txs or when the AppHash changes (default true)
       --consensus.create_empty_blocks_interval string   the possible interval between empty blocks (default "0s")
       --consensus.double_sign_check_height int          how many blocks to look back to check existence of the node's consensus votes before joining consensus
@@ -33,7 +34,7 @@ rollkit start [flags]
       --rollkit.da_address string                       DA address (host:port) (default "http://localhost:26658")
       --rollkit.da_auth_token string                    DA auth token
       --rollkit.da_block_time duration                  DA chain block time (for syncing) (default 15s)
-      --rollkit.da_gas_multiplier float                 DA gas price multiplier for retrying blob transactions (default -1)
+      --rollkit.da_gas_multiplier float                 DA gas price multiplier for retrying blob transactions
       --rollkit.da_gas_price float                      DA gas price for blob transactions (default -1)
       --rollkit.da_namespace string                     DA namespace to submit blob transactions
       --rollkit.da_start_height uint                    starting DA block height (for syncing)

@@ -50,6 +50,21 @@ jobs:
   proto:
     uses: ./.github/workflows/proto.yml
 
+  cli:
+    name: Test CLI
+    needs: [setup]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ needs.setup.outputs.go-version }}
+      - name: Build cli
+        run: make install
+      - name: Run cli
+        run: rollkit start --ci
+
   # get_merged_pr_labels uses the listPullRequestsAssociatedWithCommit API
   # endpoint to get the PR information for the commit during a push event. Once
   # the PR information is received, we check to see if the create-release label

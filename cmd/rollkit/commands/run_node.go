@@ -161,8 +161,17 @@ func NewRunNodeCmd() *cobra.Command {
 				}
 			})
 
-			// Run forever.
-			select {}
+			// Check if we are running in CI mode
+			inCI, err := cmd.Flags().GetBool("ci")
+			if err != nil {
+				return err
+			}
+			if !inCI {
+				// Block forever
+				select {}
+			}
+
+			return nil
 		},
 	}
 
@@ -187,6 +196,7 @@ func addNodeFlags(cmd *cobra.Command) {
 	cmtcmd.AddNodeFlags(cmd)
 
 	cmd.Flags().String("transport", config.ABCI, "specify abci transport (socket | grpc)")
+	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
