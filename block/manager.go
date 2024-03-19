@@ -899,7 +899,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	gasPrice := m.dalc.GasPrice
 
 daSubmitRetryLoop:
-	for ctx.Err() == nil && !submittedAllBlocks && attempt < maxSubmitAttempts {
+	for !submittedAllBlocks && attempt < maxSubmitAttempts {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
