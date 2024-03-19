@@ -228,6 +228,10 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 
+	if nodeConfig.DAGasMultiplier < 0 {
+		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
+	}
+
 	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
