@@ -897,6 +897,8 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	initialMaxBlobSize := maxBlobSize
 	initialGasPrice := m.dalc.GasPrice
 	gasPrice := m.dalc.GasPrice
+
+daSubmitRetryLoop:
 	for ctx.Err() == nil && !submittedAllBlocks && attempt < maxSubmitAttempts {
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
@@ -927,6 +929,9 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 				}
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			if submittedAllBlocks {
+				break daSubmitRetryLoop
+			}
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
@@ -934,19 +939,23 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
-			time.Sleep(backoff)
-			backoff = m.exponentialBackoff(backoff)
+
 		case da.StatusTooBig:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			maxBlobSize = maxBlobSize / 4
-			time.Sleep(backoff)
-			backoff = m.exponentialBackoff(backoff)
+
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			time.Sleep(backoff)
-			backoff = m.exponentialBackoff(backoff)
+
 		}
 		attempt += 1
+
+		select {
+		case <-ctx.Done():
+			break daSubmitRetryLoop
+		case <-time.After(backoff):
+			backoff = m.exponentialBackoff(backoff)
+		}
 	}
 
 	if !submittedAllBlocks {
