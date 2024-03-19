@@ -1007,6 +1007,7 @@ func filterMinMax(base, height, mini, maxi, limit int64) (int64, int64, error) {
 	return mini, maxi, nil
 }
 
+// Alerts returns the current alerts from the node.
 func (c *FullClient) Alerts() (crit, err, warn, info []types.Alert) {
 	return c.node.Alerts()
 }

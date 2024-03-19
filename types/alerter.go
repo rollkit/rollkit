@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"text/tabwriter"
 )
@@ -74,14 +73,6 @@ type (
 // Equals returns true if x and y are identical alerts
 func (x Alert) Equals(y Alert) bool {
 	return x.Module == y.Module && x.Cause == y.Cause && x.Msg == y.Msg && x.Severity == y.Severity
-}
-
-// EqualsWithErrorCause returns true if x and y have the same module, message,
-// and severity and if the provided error is in both of the alert's causes
-func (x Alert) EqualsWithErrorCause(y Alert, causeErr string) bool {
-	firstCheck := x.Module == y.Module && x.Msg == y.Msg && x.Severity == y.Severity
-	causeCheck := strings.Contains(x.Cause, causeErr) && strings.Contains(y.Cause, causeErr)
-	return firstCheck && causeCheck
 }
 
 // MarshalJSON defines a JSON encoding for the AlertSeverity.

@@ -274,6 +274,8 @@ func (s *service) BroadcastEvidence(req *http.Request, args *broadcastEvidenceAr
 	return s.client.BroadcastEvidence(req.Context(), args.Evidence)
 }
 
+// Alerts returns the alerts for the node. Currently this only supports
+// FullNodes/FullClients.
 func (s *service) Alerts(req *http.Request, args *alertsArgs) (*AlertsResponse, error) {
 	crit, err, warn, info := s.client.(*node.FullClient).Alerts()
 	return &AlertsResponse{crit, err, warn, info}, nil
