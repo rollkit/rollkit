@@ -21,6 +21,7 @@ If a path is not specified for RKHOME, the rollkit command will create a folder 
 
 ### SEE ALSO
 
+* [rollkit alerts](rollkit_alerts.md)	 - Show the alerts for the node
 * [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell
 * [rollkit docs-gen](rollkit_docs-gen.md)	 - Generate documentation for rollkit CLI
 * [rollkit start](rollkit_start.md)	 - Run the rollkit node
