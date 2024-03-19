@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/rpc/v2"
 	"github.com/gorilla/rpc/v2/json2"
 
+	"github.com/rollkit/rollkit/node"
 	"github.com/rollkit/rollkit/third_party/log"
 )
 
@@ -85,6 +86,7 @@ func newService(c rpcclient.Client, l log.Logger) *service {
 		"abci_query":           newMethod(s.ABCIQuery),
 		"abci_info":            newMethod(s.ABCIInfo),
 		"broadcast_evidence":   newMethod(s.BroadcastEvidence),
+		"alerts":               newMethod(s.Alerts),
 	}
 	return &s
 }
@@ -270,4 +272,9 @@ func (s *service) ABCIInfo(req *http.Request, args *ABCIInfoArgs) (*ctypes.Resul
 // evidence API
 func (s *service) BroadcastEvidence(req *http.Request, args *broadcastEvidenceArgs) (*ctypes.ResultBroadcastEvidence, error) {
 	return s.client.BroadcastEvidence(req.Context(), args.Evidence)
+}
+
+func (s *service) Alerts(req *http.Request, args *alertsArgs) (*AlertsResponse, error) {
+	crit, err, warn, info := s.client.(*node.FullClient).Alerts()
+	return &AlertsResponse{crit, err, warn, info}, nil
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
+
+	rtypes "github.com/rollkit/rollkit/types"
 )
 
 type subscribeArgs struct {
@@ -20,6 +22,14 @@ type unsubscribeAllArgs struct {
 }
 
 // info API
+type AlertsResponse struct {
+	CriticalAlerts []rtypes.Alert `json:"criticalalerts"`
+	ErrorAlerts    []rtypes.Alert `json:"erroralerts"`
+	WarningAlerts  []rtypes.Alert `json:"warningalerts"`
+	InfoAlerts     []rtypes.Alert `json:"infoalerts"`
+}
+type alertsArgs struct {
+}
 type healthArgs struct {
 }
 type statusArgs struct {
