@@ -21,7 +21,7 @@ type unsubscribeArgs struct {
 type unsubscribeAllArgs struct {
 }
 
-// info API
+// AlertsResponse is the response type for the alerts API.
 type AlertsResponse struct {
 	CriticalAlerts []rtypes.Alert `json:"criticalalerts"`
 	ErrorAlerts    []rtypes.Alert `json:"erroralerts"`
@@ -30,6 +30,8 @@ type AlertsResponse struct {
 }
 type alertsArgs struct {
 }
+
+// info API
 type healthArgs struct {
 }
 type statusArgs struct {

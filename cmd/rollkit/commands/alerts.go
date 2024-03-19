@@ -2,12 +2,14 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
+	"github.com/spf13/cobra"
+
 	rpcjson "github.com/rollkit/rollkit/rpc/json"
 	"github.com/rollkit/rollkit/types"
-	"github.com/spf13/cobra"
 )
 
 // AlertsCmd is the command to show the alerts for the node
@@ -24,7 +26,11 @@ var AlertsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		defer func() {
+			// Ignoring error as there isn't anything to do with it
+			// as the program exits
+			_ = resp.Body.Close()
+		}()
 
 		// Read the response body
 		body, err := io.ReadAll(resp.Body)
@@ -34,13 +40,16 @@ var AlertsCmd = &cobra.Command{
 
 		// Unmarshal the alerts
 		var alerts rpcjson.AlertsResponse
-		json.Unmarshal(body, &alerts)
+		err = json.Unmarshal(body, &alerts)
+		if err != nil {
+			return err
+		}
 
 		// Use the helper functin to print the alerts
-		types.PrintAlerts(alerts.CriticalAlerts, types.SeverityCritical)
-		types.PrintAlerts(alerts.ErrorAlerts, types.SeverityError)
-		types.PrintAlerts(alerts.WarningAlerts, types.SeverityWarning)
-		types.PrintAlerts(alerts.InfoAlerts, types.SeverityInfo)
-		return nil
+		err = types.PrintAlerts(alerts.CriticalAlerts, types.SeverityCritical)
+		err = errors.Join(err, types.PrintAlerts(alerts.ErrorAlerts, types.SeverityError))
+		err = errors.Join(err, types.PrintAlerts(alerts.WarningAlerts, types.SeverityWarning))
+		err = errors.Join(err, types.PrintAlerts(alerts.InfoAlerts, types.SeverityInfo))
+		return err
 	},
 }
