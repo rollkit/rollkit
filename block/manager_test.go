@@ -369,7 +369,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(block3)
-	store.On("SetMetadata", ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(2, 10)) ).Return(nil)
+	store.On("SetMetadata", ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(2, 10))).Return(nil)
 	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlock", ctx, uint64(1)).Return(block1, nil)
 	store.On("GetBlock", ctx, uint64(2)).Return(block2, nil)

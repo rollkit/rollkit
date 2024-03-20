@@ -120,9 +120,9 @@ func NewDAClient(da goDA.DA, gasPrice, gasMultiplier float64, ns goDA.Namespace,
 // SubmitBlocks submits blocks to DA.
 func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, maxBlobSize uint64, gasPrice float64) ResultSubmitBlocks {
 	var (
-		blobs [][]byte
+		blobs    [][]byte
 		blobSize uint64
-		message string
+		message  string
 	)
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
