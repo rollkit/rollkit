@@ -329,9 +329,9 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	block1 := types.GetRandomBlock(uint64(0), 5)
-	block2 := types.GetRandomBlock(uint64(1), 5)
-	block3 := types.GetRandomBlock(uint64(2), 5)
+	block1 := types.GetRandomBlock(uint64(1), 5)
+	block2 := types.GetRandomBlock(uint64(2), 5)
+	block3 := types.GetRandomBlock(uint64(3), 5)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(block1)
@@ -354,7 +354,8 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	assert.Equal(3, len(blocks))
 }
 
-// Test_submitBlocksToDA_BlockMarshalErrorCase2: A and B are fair blocks, but C has a marshalling error. None of the blocks get submitted to DA layer.
+// Test_submitBlocksToDA_BlockMarshalErrorCase2: A and B are fair blocks, but C has a marshalling error
+// - Block A and B get submitted to DA layer not block C
 func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -362,12 +363,13 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	block1 := types.GetRandomBlock(uint64(0), 5)
-	block2 := types.GetRandomBlock(uint64(1), 5)
-	block3 := types.GetRandomBlock(uint64(2), 5)
+	block1 := types.GetRandomBlock(uint64(1), 5)
+	block2 := types.GetRandomBlock(uint64(2), 5)
+	block3 := types.GetRandomBlock(uint64(3), 5)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(block3)
+	store.On("SetMetadata", ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(2, 10)) ).Return(nil)
 	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlock", ctx, uint64(1)).Return(block1, nil)
 	store.On("GetBlock", ctx, uint64(2)).Return(block2, nil)
@@ -379,12 +381,11 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	var err error
 	m.pendingBlocks, err = NewPendingBlocks(store, m.logger)
 	require.NoError(err)
-
 	err = m.submitBlocksToDA(ctx)
 	assert.ErrorContains(err, "failed to submit all blocks to DA layer")
 	blocks, err := m.pendingBlocks.getPendingBlocks(ctx)
 	assert.NoError(err)
-	assert.Equal(3, len(blocks))
+	assert.Equal(1, len(blocks))
 }
 
 // invalidateBlockHeader results in a block header that produces a marshalling error

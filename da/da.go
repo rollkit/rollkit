@@ -119,32 +119,31 @@ func NewDAClient(da goDA.DA, gasPrice, gasMultiplier float64, ns goDA.Namespace,
 
 // SubmitBlocks submits blocks to DA.
 func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, maxBlobSize uint64, gasPrice float64) ResultSubmitBlocks {
-	var blobs [][]byte
-	var blobSize uint64
-	var submitted uint64
+	var (
+		blobs [][]byte
+		blobSize uint64
+		message string
+	)
 	for i := range blocks {
 		blob, err := blocks[i].MarshalBinary()
 		if err != nil {
-			return ResultSubmitBlocks{
-				BaseResult: BaseResult{
-					Code:    StatusError,
-					Message: "failed to serialize block",
-				},
-			}
+			message = fmt.Sprint("failed to serialize block", err)
+			dac.Logger.Info(message)
+			break
 		}
 		if blobSize+uint64(len(blob)) > maxBlobSize {
-			dac.Logger.Info("blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			message = fmt.Sprint(ErrBlobSizeOverLimit.Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			dac.Logger.Info(message)
 			break
 		}
 		blobSize += uint64(len(blob))
-		submitted += 1
 		blobs = append(blobs, blob)
 	}
-	if submitted == 0 {
+	if len(blobs) == 0 {
 		return ResultSubmitBlocks{
 			BaseResult: BaseResult{
 				Code:    StatusError,
-				Message: "failed to submit blocks: oversized block: " + ErrBlobSizeOverLimit.Error(),
+				Message: "failed to submit blocks: no blobs generated " + message,
 			},
 		}
 	}
@@ -186,7 +185,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 		BaseResult: BaseResult{
 			Code:           StatusSuccess,
 			DAHeight:       binary.LittleEndian.Uint64(ids[0]),
-			SubmittedCount: submitted,
+			SubmittedCount: uint64(len(blobs)),
 		},
 	}
 }
