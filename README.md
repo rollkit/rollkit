@@ -44,8 +44,8 @@ as a data availability layer.
 ### Building on Celestia
 
 You can build Rollkit rollups with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet),
-[arabica](https://docs.celestia.org/nodes/arabica-devnet) and
-[mocha](https://docs.celestia.org/nodes/mocha-testnet) testnets and
+[arabica devnet](https://docs.celestia.org/nodes/arabica-devnet) and
+[mocha testnet](https://docs.celestia.org/nodes/mocha-testnet) and
 [mainnet beta](https://docs.celestia.org/nodes/mainnet).
 
 #### Compatibility
