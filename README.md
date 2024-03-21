@@ -43,10 +43,7 @@ as a data availability layer.
 
 ### Building on Celestia
 
-There are currently 2 ways to build on Celestia:
-
-1. Using a local development environment with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet)
-1. Using the Arabica or Mocha Celestia testnet
+You can build Rollkit rollups with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet), [arabica](https://docs.celestia.org/nodes/arabica-devnet) and [mocha](https://docs.celestia.org/nodes/mocha-testnet) testnets and [mainnet beta](https://docs.celestia.org/nodes/mainnet).
 
 #### Compatibility
 
@@ -75,7 +72,7 @@ and celestia-node
 #### Arabica devnet and Mocha testnet
 
 The Rollkit v0.13.0 release is compatible with
-[arabica-10](https://docs.celestia.org/nodes/arabica-devnet/) devnet
+[arabica-11](https://docs.celestia.org/nodes/arabica-devnet/) devnet
 [mocha-4](https://docs.celestia.org/nodes/mocha-testnet/) testnet which are running
 celestia-app
 [v1.7.0](https://github.com/celestiaorg/celestia-app/releases/tag/v1.7.0)
