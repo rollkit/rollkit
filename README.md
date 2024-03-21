@@ -43,7 +43,10 @@ as a data availability layer.
 
 ### Building on Celestia
 
-You can build Rollkit rollups with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet), [arabica](https://docs.celestia.org/nodes/arabica-devnet) and [mocha](https://docs.celestia.org/nodes/mocha-testnet) testnets and [mainnet beta](https://docs.celestia.org/nodes/mainnet).
+You can build Rollkit rollups with [local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet),
+[arabica](https://docs.celestia.org/nodes/arabica-devnet) and
+[mocha](https://docs.celestia.org/nodes/mocha-testnet) testnets and
+[mainnet beta](https://docs.celestia.org/nodes/mainnet).
 
 #### Compatibility
 
@@ -80,7 +83,9 @@ and celestia-node
 [v0.13.1](https://github.com/celestiaorg/celestia-node/releases/tag/v0.13.1).
 
 #### Celestia mainnet
-The Rollkit v0.13.0 release is compatible with [mainnet-beta](https://docs.celestia.org/nodes/mainnet/) which is running celestia-app
+
+The Rollkit v0.13.0 release is compatible with [mainnet-beta](https://docs.celestia.org/nodes/mainnet/)
+which is running celestia-app
 [v1.7.0](https://github.com/celestiaorg/celestia-app/releases/tag/v1.7.0)
 and celestia-node
 [v0.13.1](https://github.com/celestiaorg/celestia-node/releases/tag/v0.13.1).
@@ -88,8 +93,8 @@ and celestia-node
 #### Cometbft v0.37.x and Cosmos-SDK v0.47.x
 
 The Rollkit v0.10.7 release is compatible with Cometbft v0.37.2 and Cosmos-SDK
-v0.47.6. However, this version is no longer supported for future developements and
-it is recommended to Rollkit v0.13.x.
+v0.47.6. However, this version is no longer supported for future developments and
+it is recommended to use Rollkit v0.13.x.
 
 ### Tools
 
