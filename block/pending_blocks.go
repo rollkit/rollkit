@@ -79,6 +79,10 @@ func (pb *PendingBlocks) isEmpty() bool {
 	return pb.store.Height() == pb.lastSubmittedHeight.Load()
 }
 
+func (pb *PendingBlocks) numPendingBlocks() uint64 {
+	return pb.store.Height() - pb.lastSubmittedHeight.Load()
+}
+
 func (pb *PendingBlocks) setLastSubmittedHeight(ctx context.Context, newLastSubmittedHeight uint64) {
 	lsh := pb.lastSubmittedHeight.Load()
 
