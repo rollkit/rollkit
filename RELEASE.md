@@ -1,6 +1,6 @@
 # Release
 
-## Steps
+## Release Steps
 
 * Update config version in [config/defaults.go](https://github.com/rollkit/rollkit/blob/main/config/defaults.go)
 * Release new Rollkit version
@@ -26,7 +26,7 @@
 
 ## Update Rollkit/Cosmos-SDK
 
-### Steps
+### Update Steps
 
 * Navigate to the branch that you want to update. e.g., [release/v0.47.x](https://github.com/rollkit/cosmos-sdk/tree/release/v0.47.x) or [release/v0.47.x](https://github.com/rollkit/cosmos-sdk/tree/release/v0.50.x)
 * Modify go.mod with the newly released rollkit version. e.g., `github.com/rollkit/rollkit v0.10.4`
@@ -35,6 +35,4 @@
 
 ## Release new Rollkit/Cosmos-SDK version
 
-### Steps
-
-* Make a new release of the Rollkit/Cosmos-SDK by [drafting new release](https://github.com/rollkit/cosmos-sdk/releases)
+Make a new release of the Rollkit/Cosmos-SDK by [drafting new release](https://github.com/rollkit/cosmos-sdk/releases)
