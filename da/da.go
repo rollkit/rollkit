@@ -147,6 +147,8 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 			},
 		}
 	}
+	dac.Logger.Info("Starting to submit blocks with %v blobs generated", len(blobs))
+
 	ctx, cancel := context.WithTimeout(ctx, dac.SubmitTimeout)
 	defer cancel()
 	ids, err := dac.DA.Submit(ctx, blobs, gasPrice, dac.Namespace)
@@ -185,7 +187,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 		BaseResult: BaseResult{
 			Code:           StatusSuccess,
 			DAHeight:       binary.LittleEndian.Uint64(ids[0]),
-			SubmittedCount: uint64(len(blobs)),
+			SubmittedCount: uint64(len(ids)),
 		},
 	}
 }
