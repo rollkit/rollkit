@@ -942,12 +942,9 @@ daSubmitRetryLoop:
 			fallthrough
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-
-		}
-
-		if res.Code != da.StatusSuccess {
 			backoff = m.exponentialBackoff(backoff)
 		}
+
 		attempt += 1
 
 		select {
