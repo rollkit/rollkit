@@ -900,6 +900,12 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 
 daSubmitRetryLoop:
 	for !submittedAllBlocks && attempt < maxSubmitAttempts {
+		select {
+		case <-ctx.Done():
+			break daSubmitRetryLoop
+		case <-time.After(backoff):
+		}
+
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
@@ -946,12 +952,6 @@ daSubmitRetryLoop:
 		}
 
 		attempt += 1
-
-		select {
-		case <-ctx.Done():
-			break daSubmitRetryLoop
-		case <-time.After(backoff):
-		}
 	}
 
 	if !submittedAllBlocks {
