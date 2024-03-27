@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"github.com/rollkit/rollkit/types"
 	"testing"
 	"time"
 
@@ -44,7 +45,7 @@ func TestGetNodeHeight(t *testing.T) {
 	}
 	bmConfig := getBMConfig()
 	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, t)
+	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, types.TestChainID, t)
 
 	startNodeWithCleanup(t, fullNode)
 	startNodeWithCleanup(t, lightNode)
