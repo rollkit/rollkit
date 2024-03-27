@@ -408,6 +408,71 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	}
 }
 
+func TestTwoRollupsInOneNamespace(t *testing.T) {
+	require := require.New(t)
+
+	const n = 2
+
+	mainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	agg1Ctx := context.WithoutCancel(mainCtx)
+	nodes1Ctx := context.WithoutCancel(mainCtx)
+
+	rollupNetwork1, apps1 := createNodes(agg1Ctx, nodes1Ctx, n, config.BlockManagerConfig{
+		BlockTime:     100 * time.Millisecond,
+		DABlockTime:   100 * time.Millisecond,
+		DAStartHeight: 1,
+		DAMempoolTTL:  5,
+	}, t)
+
+	require.Len(rollupNetwork1, n)
+	require.Len(apps1, n)
+
+	agg2Ctx := context.WithoutCancel(mainCtx)
+	nodes2Ctx := context.WithoutCancel(mainCtx)
+
+	rollupNetwork2, apps2 := createNodes(agg2Ctx, nodes2Ctx, n, config.BlockManagerConfig{
+		BlockTime:     50 * time.Millisecond,
+		DABlockTime:   50 * time.Millisecond,
+		DAStartHeight: 1,
+		DAMempoolTTL:  5,
+	}, t)
+
+	require.Len(rollupNetwork2, n)
+	require.Len(apps2, n)
+
+	dalc := getMockDA(t)
+	for _, node := range append(rollupNetwork1, rollupNetwork2...) {
+		node.dalc = dalc
+		node.blockManager.SetDALC(dalc)
+	}
+
+	agg1 := rollupNetwork1[0]
+	agg2 := rollupNetwork2[0]
+
+	node1 := rollupNetwork1[1]
+	node2 := rollupNetwork2[1]
+
+	// start both aggregators and wait for 10 blocks
+	require.NoError(agg1.Start())
+	require.NoError(agg2.Start())
+
+	require.NoError(waitForAtLeastNBlocks(agg1, 10, Store))
+	require.NoError(waitForAtLeastNBlocks(agg2, 10, Store))
+
+	// now stop the aggregators and run the full nodes to ensure sync from D
+	require.NoError(agg1.Stop())
+	require.NoError(agg2.Stop())
+
+	startNodeWithCleanup(t, node1)
+	startNodeWithCleanup(t, node2)
+
+	// check only a few blocks, because we can't be sure all were successfully submitted to DA
+	require.NoError(waitForAtLeastNBlocks(node1, 5, Store))
+	require.NoError(waitForAtLeastNBlocks(node2, 5, Store))
+}
+
 func TestMaxPending(t *testing.T) {
 	cases := []struct {
 		name       string
