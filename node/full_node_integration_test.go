@@ -93,7 +93,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	clientNodes := 4
 	aggCtx := context.Background()
 	ctx := context.Background()
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), types.TestChainID, t)
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
@@ -235,7 +235,7 @@ func TestFastDASync(t *testing.T) {
 	const numberOfBlocksToSyncTill = 5
 
 	// Create the 2 nodes
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -328,7 +328,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 			return
 		}
 	}()
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -386,6 +386,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			DABlockTime: 20 * time.Millisecond,
 			BlockTime:   10 * time.Millisecond,
 		},
+		types.TestChainID,
 		t,
 	)
 	seq := nodes[0]
@@ -409,6 +410,31 @@ func TestSubmitBlocksToDA(t *testing.T) {
 }
 
 func TestTwoRollupsInOneNamespace(t *testing.T) {
+	cases := []struct {
+		name     string
+		chainID1 string
+		chainID2 string
+	}{
+		{
+			name:     "same chain ID",
+			chainID1: "test-1",
+			chainID2: "test-1",
+		},
+		{
+			name:     "different chain IDs",
+			chainID1: "foo-1",
+			chainID2: "bar-2",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doTestTwoRollupsInOneNamespace(t, tc.chainID1, tc.chainID1)
+		})
+	}
+}
+
+func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	require := require.New(t)
 
 	const n = 2
@@ -424,7 +450,7 @@ func TestTwoRollupsInOneNamespace(t *testing.T) {
 		DABlockTime:   100 * time.Millisecond,
 		DAStartHeight: 1,
 		DAMempoolTTL:  5,
-	}, t)
+	}, chainID1, t)
 
 	require.Len(rollupNetwork1, n)
 	require.Len(apps1, n)
@@ -437,7 +463,7 @@ func TestTwoRollupsInOneNamespace(t *testing.T) {
 		DABlockTime:   50 * time.Millisecond,
 		DAStartHeight: 1,
 		DAMempoolTTL:  5,
-	}, t)
+	}, chainID2, t)
 
 	require.Len(rollupNetwork2, n)
 	require.Len(apps2, n)
@@ -564,7 +590,7 @@ func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -586,7 +612,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 3
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -613,7 +639,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -648,7 +674,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	bmConfig := getBMConfig()
 	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, keys, bmConfig, dalc, t)
 	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, t)
+	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, types.TestChainID, t)
 
 	startNodeWithCleanup(t, sequencer)
 	startNodeWithCleanup(t, fullNode)
@@ -719,7 +745,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, chainID string, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -738,14 +764,14 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
 	dalc := getMockDA(t)
-	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, t)
+	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, chainID, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, false, false, keys, bmConfig, t)
+		node, apps[i] = createNode(ctx, i, false, false, keys, bmConfig, chainID, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
@@ -754,7 +780,7 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, chainID string, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -792,7 +818,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		},
 	}
 
-	genesis := &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}
+	genesis := &cmtypes.GenesisDoc{ChainID: chainID, Validators: genesisValidators}
 	// TODO: need to investigate why this needs to be done for light nodes
 	genesis.InitialHeight = 1
 	node, err := NewNode(
@@ -819,7 +845,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 
 func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
-	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, t)
+	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, types.TestChainID, t)
 	node.(*FullNode).dalc = dalc
 	node.(*FullNode).blockManager.SetDALC(dalc)
 
