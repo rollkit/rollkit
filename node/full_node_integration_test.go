@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/rollkit/rollkit/block"
 	mrand "math/rand"
 	"strconv"
 	"strings"
@@ -27,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	goDA "github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	test "github.com/rollkit/rollkit/test/log"
@@ -438,7 +438,13 @@ func TestTwoRollupsInOneNamespace(t *testing.T) {
 func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	require := require.New(t)
 
-	const n = 2
+	const (
+		n             = 2
+		daStartHeight = 1
+		daMempoolTTL  = 5
+		blockTime1    = 100 * time.Millisecond
+		blockTime2    = 50 * time.Millisecond
+	)
 
 	mainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -447,10 +453,10 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	nodes1Ctx := context.WithoutCancel(mainCtx)
 
 	rollupNetwork1, apps1 := createNodes(agg1Ctx, nodes1Ctx, n, config.BlockManagerConfig{
-		BlockTime:     100 * time.Millisecond,
-		DABlockTime:   100 * time.Millisecond,
-		DAStartHeight: 1,
-		DAMempoolTTL:  5,
+		BlockTime:     blockTime1,
+		DABlockTime:   blockTime1,
+		DAStartHeight: daStartHeight,
+		DAMempoolTTL:  daMempoolTTL,
 	}, chainID1, t)
 
 	require.Len(rollupNetwork1, n)
@@ -460,15 +466,16 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	nodes2Ctx := context.WithoutCancel(mainCtx)
 
 	rollupNetwork2, apps2 := createNodes(agg2Ctx, nodes2Ctx, n, config.BlockManagerConfig{
-		BlockTime:     50 * time.Millisecond,
-		DABlockTime:   50 * time.Millisecond,
-		DAStartHeight: 1,
-		DAMempoolTTL:  5,
+		BlockTime:     blockTime2,
+		DABlockTime:   blockTime2,
+		DAStartHeight: daStartHeight,
+		DAMempoolTTL:  daMempoolTTL,
 	}, chainID2, t)
 
 	require.Len(rollupNetwork2, n)
 	require.Len(apps2, n)
 
+	// same mock DA has to be used by all nodes to simulate posting to/retrieving from same namespace
 	dalc := getMockDA(t)
 	for _, node := range append(rollupNetwork1, rollupNetwork2...) {
 		node.dalc = dalc
@@ -559,6 +566,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 			BlockTime:        10 * time.Millisecond,
 			MaxPendingBlocks: maxPending,
 		},
+		types.TestChainID,
 		t,
 	)
 	seq := nodes[0]
