@@ -8,6 +8,8 @@ import (
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/types"
 	"github.com/gorilla/rpc/v2/json2"
+
+	rtypes "github.com/rollkit/rollkit/types"
 )
 
 type subscribeArgs struct {
@@ -17,6 +19,16 @@ type unsubscribeArgs struct {
 	Query string `json:"query"`
 }
 type unsubscribeAllArgs struct {
+}
+
+// AlertsResponse is the response type for the alerts API.
+type AlertsResponse struct {
+	CriticalAlerts []rtypes.Alert `json:"criticalalerts"`
+	ErrorAlerts    []rtypes.Alert `json:"erroralerts"`
+	WarningAlerts  []rtypes.Alert `json:"warningalerts"`
+	InfoAlerts     []rtypes.Alert `json:"infoalerts"`
+}
+type alertsArgs struct {
 }
 
 // info API

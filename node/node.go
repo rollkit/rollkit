@@ -11,6 +11,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/types"
 )
 
 // Node is the interface for a rollup node
@@ -20,6 +21,7 @@ type Node interface {
 	Stop() error
 	IsRunning() bool
 	Cancel()
+	Alerts() (crit, err, warn, info []types.Alert)
 }
 
 // NewNode returns a new Full or Light Node based on the config
