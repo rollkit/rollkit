@@ -9,7 +9,7 @@ retract v0.12.0 // Published by accident
 require (
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.5
-	github.com/cosmos/gogoproto v1.4.11
+	github.com/cosmos/gogoproto v1.4.12
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/rpc v1.2.1
@@ -35,7 +35,7 @@ require (
 )
 
 require (
-	github.com/celestiaorg/go-header v0.5.4
+	github.com/celestiaorg/go-header v0.5.5
 	github.com/ipfs/go-ds-badger4 v0.1.5
 )
 
