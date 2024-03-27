@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"github.com/rollkit/rollkit/types"
 	"testing"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/types"
 )
 
 func getMockDA(t *testing.T) *da.DAClient {
