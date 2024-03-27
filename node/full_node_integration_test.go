@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/rollkit/rollkit/block"
 	mrand "math/rand"
 	"strconv"
 	"strings"
@@ -487,6 +488,14 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	require.NoError(waitForAtLeastNBlocks(agg1, 10, Store))
 	require.NoError(waitForAtLeastNBlocks(agg2, 10, Store))
 
+	// get the number of submitted blocks from aggregators before stopping (as it closes the store)
+	lastSubmittedHeight1 := getLastSubmittedHeight(agg1Ctx, agg1, t)
+	lastSubmittedHeight2 := getLastSubmittedHeight(agg2Ctx, agg2, t)
+
+	// make sure that there are any blocks for syncing
+	require.Greater(lastSubmittedHeight1, 1)
+	require.Greater(lastSubmittedHeight2, 1)
+
 	// now stop the aggregators and run the full nodes to ensure sync from D
 	require.NoError(agg1.Stop())
 	require.NoError(agg2.Stop())
@@ -494,9 +503,19 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	startNodeWithCleanup(t, node1)
 	startNodeWithCleanup(t, node2)
 
-	// check only a few blocks, because we can't be sure all were successfully submitted to DA
-	require.NoError(waitForAtLeastNBlocks(node1, 5, Store))
-	require.NoError(waitForAtLeastNBlocks(node2, 5, Store))
+	// check that full nodes are able to sync blocks from DA
+	require.NoError(waitForAtLeastNBlocks(node1, lastSubmittedHeight1, Store))
+	require.NoError(waitForAtLeastNBlocks(node2, lastSubmittedHeight2, Store))
+}
+
+func getLastSubmittedHeight(ctx context.Context, node *FullNode, t *testing.T) int {
+	raw, err := node.Store.GetMetadata(ctx, block.LastSubmittedHeightKey)
+	require.NoError(t, err)
+	require.NotEmpty(t, raw)
+
+	val, err := strconv.ParseUint(string(raw), 10, 64)
+	require.NoError(t, err)
+	return int(val)
 }
 
 func TestMaxPending(t *testing.T) {
