@@ -634,6 +634,9 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			for _, block := range blockResp.Blocks {
 				// early validation to reject junk blocks
 				if !m.isUsingExpectedCentralizedSequencer(block) {
+					m.logger.Debug("skipping block from unexpected sequencer",
+						"blockHeight", block.Height(),
+						"blockHash", block.Hash().String())
 					continue
 				}
 				blockHash := block.Hash().String()
