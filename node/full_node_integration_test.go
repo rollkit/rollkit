@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	mrand "math/rand"
@@ -24,6 +25,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	goDA "github.com/rollkit/go-da"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	test "github.com/rollkit/rollkit/test/log"
@@ -404,6 +406,89 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			return nil
 		}))
 	}
+}
+
+func TestMaxPending(t *testing.T) {
+	cases := []struct {
+		name       string
+		maxPending uint64
+	}{
+		{
+			name:       "no limit",
+			maxPending: 0,
+		},
+		{
+			name:       "10 pending blocks limit",
+			maxPending: 10,
+		},
+		{
+			name:       "50 pending blocks limit",
+			maxPending: 50,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doTestMaxPending(tc.maxPending, t)
+		})
+	}
+}
+
+func doTestMaxPending(maxPending uint64, t *testing.T) {
+	require := require.New(t)
+
+	clientNodes := 1
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	nodes, _ := createNodes(
+		ctx,
+		context.Background(),
+		clientNodes,
+		config.BlockManagerConfig{
+			DABlockTime:      20 * time.Millisecond,
+			BlockTime:        10 * time.Millisecond,
+			MaxPendingBlocks: maxPending,
+		},
+		t,
+	)
+	seq := nodes[0]
+	mockDA := &mocks.DA{}
+
+	// make sure mock DA is not accepting any submissions
+	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(123456789), nil)
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
+
+	dalc := da.NewDAClient(mockDA, 1234, 5678, goDA.Namespace(MockDANamespace), log.NewNopLogger())
+	require.NotNil(dalc)
+	seq.dalc = dalc
+	seq.blockManager.SetDALC(dalc)
+
+	startNodeWithCleanup(t, seq)
+
+	if maxPending == 0 { // if there is no limit, sequencer should produce blocks even DA is unavailable
+		require.NoError(waitForAtLeastNBlocks(seq, 3, Store))
+		return
+	} else { // if there is a limit, sequencer should produce exactly maxPending blocks and pause
+		require.NoError(waitForAtLeastNBlocks(seq, int(maxPending), Store))
+		// wait few block times and ensure that new blocks are not produced
+		time.Sleep(3 * seq.nodeConfig.BlockTime)
+		require.EqualValues(maxPending, seq.Store.Height())
+	}
+
+	// change mock function to start "accepting" blobs
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Unset()
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte) ([][]byte, error) {
+			hashes := make([][]byte, len(blobs))
+			for i, blob := range blobs {
+				sha := sha256.Sum256(blob)
+				hashes[i] = sha[:]
+			}
+			return hashes, nil
+		})
+
+	// wait for next block to ensure that sequencer is producing blocks again
+	require.NoError(waitForAtLeastNBlocks(seq, int(maxPending+1), Store))
 }
 
 func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {

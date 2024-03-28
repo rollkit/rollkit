@@ -97,6 +97,7 @@ func checkRequirements(ctx context.Context, t *testing.T, pb *PendingBlocks, nBl
 	blocks, err := pb.getPendingBlocks(ctx)
 	require.NoError(t, err)
 	require.Len(t, blocks, nBlocks)
+	require.Equal(t, uint64(len(blocks)), pb.numPendingBlocks())
 	require.True(t, sort.SliceIsSorted(blocks, func(i, j int) bool {
 		return blocks[i].Height() < blocks[j].Height()
 	}))

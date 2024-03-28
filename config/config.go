@@ -34,6 +34,8 @@ const (
 	FlagTrustedHash = "rollkit.trusted_hash"
 	// FlagLazyAggregator is a flag for enabling lazy aggregation
 	FlagLazyAggregator = "rollkit.lazy_aggregator"
+	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
+	FlagMaxPendingBlocks = "rollkit.max_pending_blocks"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -74,6 +76,9 @@ type BlockManagerConfig struct {
 	DAStartHeight uint64 `mapstructure:"da_start_height"`
 	// DAMempoolTTL is the number of DA blocks until transaction is dropped from the mempool.
 	DAMempoolTTL uint64 `mapstructure:"da_mempool_ttl"`
+	// MaxPendingBlocks defines limit of blocks pending DA submission. 0 means no limit.
+	// When limit is reached, aggregator pauses block production.
+	MaxPendingBlocks uint64 `mapstructure:"max_pending_blocks"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
@@ -120,6 +125,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.Light = v.GetBool(FlagLight)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
+	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
 	return nil
 }
 
@@ -140,4 +146,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
+	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
 }
