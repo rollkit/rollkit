@@ -873,7 +873,7 @@ func (m *Manager) recordMetrics(block *types.Block) {
 
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAllBlocks := false
-	backoff := initialBackoff
+	var backoff time.Duration
 	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks(ctx)
 	if len(blocksToSubmit) == 0 {
 		// There are no pending blocks; return because there's nothing to do, but:
@@ -897,7 +897,15 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	initialMaxBlobSize := maxBlobSize
 	initialGasPrice := m.dalc.GasPrice
 	gasPrice := m.dalc.GasPrice
-	for ctx.Err() == nil && !submittedAllBlocks && attempt < maxSubmitAttempts {
+
+daSubmitRetryLoop:
+	for !submittedAllBlocks && attempt < maxSubmitAttempts {
+		select {
+		case <-ctx.Done():
+			break daSubmitRetryLoop
+		case <-time.After(backoff):
+		}
+
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
@@ -918,7 +926,7 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 			blocksToSubmit = notSubmittedBlocks
 			// reset submission options when successful
 			// scale back gasPrice gradually
-			backoff = initialBackoff
+			backoff = 0
 			maxBlobSize = initialMaxBlobSize
 			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.dalc.GasMultiplier
@@ -934,18 +942,15 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
-			time.Sleep(backoff)
-			backoff = m.exponentialBackoff(backoff)
+
 		case da.StatusTooBig:
-			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			maxBlobSize = maxBlobSize / 4
-			time.Sleep(backoff)
-			backoff = m.exponentialBackoff(backoff)
+			fallthrough
 		default:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			time.Sleep(backoff)
 			backoff = m.exponentialBackoff(backoff)
 		}
+
 		attempt += 1
 	}
 
@@ -962,6 +967,9 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 
 func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	backoff *= 2
+	if backoff == 0 {
+		backoff = initialBackoff
+	}
 	if backoff > m.conf.DABlockTime {
 		backoff = m.conf.DABlockTime
 	}
