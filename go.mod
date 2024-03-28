@@ -8,6 +8,7 @@ retract v0.12.0 // Published by accident
 
 require (
 	github.com/celestiaorg/utils v0.1.0
+	github.com/cometbft/cometbft v0.38.6
 	github.com/cometbft/cometbft v0.38.5
 	github.com/cosmos/gogoproto v1.4.12
 	github.com/go-kit/kit v0.13.0
