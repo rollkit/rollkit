@@ -15,6 +15,7 @@ import (
 
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/types"
 )
 
 func getMockDA(t *testing.T) *da.DAClient {
@@ -44,7 +45,7 @@ func TestGetNodeHeight(t *testing.T) {
 	}
 	bmConfig := getBMConfig()
 	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, t)
+	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, types.TestChainID, t)
 
 	startNodeWithCleanup(t, fullNode)
 	startNodeWithCleanup(t, lightNode)
