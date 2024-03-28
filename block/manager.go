@@ -715,6 +715,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return ErrNotProposer
 	}
 
+	if m.conf.MaxPendingBlocks != 0 && m.pendingBlocks.numPendingBlocks() >= m.conf.MaxPendingBlocks {
+		return fmt.Errorf("number of blocks pending DA submission (%d) reached configured limit (%d)", m.pendingBlocks.numPendingBlocks(), m.conf.MaxPendingBlocks)
+	}
+
 	var (
 		lastCommit     *types.Commit
 		lastHeaderHash types.Hash
