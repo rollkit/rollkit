@@ -705,6 +705,101 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 	require.NoError(waitForAtLeastNBlocks(seq, int(maxPending+1), Store))
 }
 
+func TestCatchUp(t *testing.T) {
+	cases := []struct {
+		name string
+		n    int
+	}{
+		//{
+		//	name: "small catch-up",
+		//	n:    10,
+		//},
+		//{
+		//	name: "medium catch-up",
+		//	n:    100,
+		//},
+		{
+			name: "large catch-up",
+			n:    1000,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doTestCatchup(t, tc.n)
+		})
+	}
+}
+
+func doTestCatchup(t *testing.T, n int) {
+	t.Parallel()
+	require := require.New(t)
+
+	const (
+		timeout     = 300 * time.Second
+		clientNodes = 2
+		blockTime   = 10 * time.Millisecond
+		daBlockTime = 20 * time.Millisecond
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	nodes, _ := createNodes(
+		ctx,
+		context.Background(),
+		clientNodes,
+		config.BlockManagerConfig{
+			DABlockTime: daBlockTime,
+			BlockTime:   blockTime,
+		},
+		t,
+	)
+	seq := nodes[0]
+	full := nodes[1]
+	mockDA := &mocks.DA{}
+
+	// make sure mock DA is not accepting any submissions to force P2P only sync
+	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(123456789), nil)
+	daError := errors.New("DA not available")
+	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, daError)
+	mockDA.On("GetIDs", mock.Anything, mock.Anything, mock.Anything).Return(nil, daError)
+
+	dalc := da.NewDAClient(mockDA, 1234, 5678, goDA.Namespace(MockDANamespace), log.NewNopLogger())
+	require.NotNil(dalc)
+
+	for _, node := range nodes {
+		node.dalc = dalc
+		node.blockManager.SetDALC(dalc)
+	}
+
+	// start sequencer
+	startNodeWithCleanup(t, seq)
+
+	// submit random transactions
+	ch := make(chan *struct{})
+
+	// spam transactions until n blocks are produced
+	txCtx := context.WithoutCancel(ctx)
+	go func() {
+		for {
+			select {
+			case <-ch:
+				return
+			default:
+				for i := uint(1); i < 10; i++ {
+					_, _ = seq.client.BroadcastTxAsync(txCtx, types.GetRandomBytes(10*i))
+				}
+				_, _ = seq.client.BroadcastTxCommit(txCtx, types.GetRandomBytes(1000))
+			}
+		}
+	}()
+
+	require.NoError(waitForAtLeastNBlocks(seq, n, Store))
+	ch <- nil
+
+	startNodeWithCleanup(t, full)
+	require.NoError(waitForAtLeastNBlocks(full, n, Store))
+}
+
 func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	require := require.New(t)
 
