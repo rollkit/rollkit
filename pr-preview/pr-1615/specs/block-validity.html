@@ -1,0 +1,290 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Block Validity - Rollkit Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html" class="active"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalency</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Rollkit Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/rollkit/rollkit" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="block-and-header-validity"><a class="header" href="#block-and-header-validity">Block and Header Validity</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>Like all blockchains, rollups are defined as the chain of <strong>valid</strong> blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.</p>
+<p>Verifying a block / header is done in 3 parts:</p>
+<ol>
+<li>
+<p>Verify correct serialization according to the protobuf spec</p>
+</li>
+<li>
+<p>Perform basic validation of the types</p>
+</li>
+<li>
+<p>Perform verification of the new block against the previous accepted block</p>
+</li>
+</ol>
+<h2 id="basic-validation"><a class="header" href="#basic-validation">Basic Validation</a></h2>
+<p>Each type contains a <code>.ValidateBasic()</code> method, which verifies that certain basic invariants hold. The <code>ValidateBasic()</code> calls are nested, starting from the <code>Block</code> struct, all the way down to each subfield.</p>
+<p>The nested basic validation, and validation checks, are called as follows:</p>
+<pre><code class="language-go">Block.ValidateBasic()
+  // Make sure the block's SignedHeader passes basic validation
+  SignedHeader.ValidateBasic()
+    // Make sure the SignedHeader's Header passes basic validation
+    Header.ValidateBasic()
+	  verify ProposerAddress not nil
+	// Make sure the SignedHeader's Commit passes basic validation
+	Commit.ValidateBasic()
+	  // Ensure that someone signed the block
+	  verify len(c.Signatures) not 0
+	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
+	Validators.ValidateBasic()
+	  // github.com/rollkit/cometbft/blob/main/types/validator.go#L37
+	  verify sh.Validators is not nil, and len(sh.Validators.Validators) != 0
+	  // apply basic validation to all Validators
+	  for each validator:
+	    validator.ValidateBasic()
+		  validate not nil
+		  validator.PubKey not nil
+		  validator.VotingPower &gt;= 0
+		  validator.Address == correct size
+	  // apply ValidateBasic to the proposer field:
+	  sh.Validators.Proposer.ValidateBasic()
+		validate not nil
+		validator.PubKey not nil
+		validator.VotingPower &gt;= 0
+		validator.Address == correct size
+    Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
+    Assert that len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
+	Verify the 1 signature
+  Data.ValidateBasic() // always passes
+  // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
+  Data.Hash() == SignedHeader.DataHash
+</code></pre>
+<h2 id="verification-against-previous-block"><a class="header" href="#verification-against-previous-block">Verification Against Previous Block</a></h2>
+<pre><code class="language-go">// code does not match spec: see https://github.com/rollkit/rollkit/issues/1277
+Block.Verify()
+  SignedHeader.Verify(untrustH *SignedHeader)
+    // basic validation removed in #1231, because go-header already validates it
+    //untrustH.ValidateBasic()
+	Header.Verify(untrustH *SignedHeader)
+	  if untrustH.Height == h.Height + 1, then apply the following check:
+	    untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]
+	if untrustH.Height &gt; h.Height + 1:
+	  soft verification failure	
+	// We should know they're adjacent now,
+	// verify the link to previous.
+	untrustH.LastHeaderHash == h.Header.Hash()
+	// Verify LastCommit hash
+	untrustH.LastCommitHash == sh.Commit.GetCommitHash(...)
+	
+</code></pre>
+<h2 id="block"><a class="header" href="#block"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L26">Block</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>SignedHeader</td><td>Header of the block, signed by proposer</td><td>(See SignedHeader)</td></tr>
+<tr><td>Data</td><td>Transaction data of the block</td><td>Data.Hash == SignedHeader.DataHash</td></tr>
+</tbody></table>
+</div>
+<h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16">SignedHeader</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>Header</td><td>Valid header for the block</td><td><code>Header</code> passes <code>ValidateBasic()</code> and <code>Verify()</code></td></tr>
+<tr><td>Commit</td><td>1 valid signature from the centralized sequencer</td><td><code>Commit</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
+<tr><td>Validators</td><td>Array of Aggregators, must have length exactly 1.</td><td><code>Validators</code> passes <code>ValidateBasic()</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go#L25">Header</a></a></h2>
+<p><em><strong>Note</strong></em>: The <code>AggregatorsHash</code> and <code>NextAggregatorsHash</code> fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the centralized sequencer set as the 1 validator in the genesis block.</p>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td><strong>BaseHeader</strong> .</td><td></td><td></td></tr>
+<tr><td>Height</td><td>Height of the previous accepted header, plus 1.</td><td>checked in the `Verify()`` step</td></tr>
+<tr><td>Time</td><td>Timestamp of the block</td><td>Not validated in Rollkit</td></tr>
+<tr><td>ChainID</td><td>The hard-coded ChainID of the chain</td><td>Should be checked as soon as the header is received</td></tr>
+<tr><td><strong>Header</strong> .</td><td></td><td></td></tr>
+<tr><td>Version</td><td>unused</td><td></td></tr>
+<tr><td>LastHeaderHash</td><td>The hash of the previous accepted block</td><td>checked in the `Verify()`` step</td></tr>
+<tr><td>LastCommitHash</td><td>The hash of the previous accepted block's commit</td><td>checked in the `Verify()`` step</td></tr>
+<tr><td>DataHash</td><td>Correct hash of the block's Data field</td><td>checked in the `ValidateBasic()`` step</td></tr>
+<tr><td>ConsensusHash</td><td>unused</td><td></td></tr>
+<tr><td>AppHash</td><td>The correct state root after executing the block's transactions against the accepted state</td><td>checked during block execution</td></tr>
+<tr><td>LastResultsHash</td><td>Correct results from executing transactions</td><td>checked during block execution</td></tr>
+<tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>checked in the <code>Verify()</code> step</td></tr>
+</tbody></table>
+</div>
+<h2 id="commit"><a class="header" href="#commit"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L48">Commit</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>Signatures</td><td>Array containing a signature from the expected proposer</td><td>checked in <code>ValidateBasic()</code>,  signature verification occurs in <code>SignedHeader.ValidateBasic()</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="validatorset"><a class="header" href="#validatorset"><a href="https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51">ValidatorSet</a></a></h2>
+<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
+<tr><td>Validators</td><td>Array of validators, each must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
+<tr><td>Proposer</td><td>Must pass <code>Validator.ValidateBasic()</code></td><td><code>Validator.ValidateBasic()</code></td></tr>
+</tbody></table>
+</div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../specs/block-executor.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../specs/da.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../specs/block-executor.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../specs/da.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
