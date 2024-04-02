@@ -651,7 +651,12 @@ Block.Verify()
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="da"><a class="header" href="#da">DA</a></h1>
 <p>Rollkit provides a wrapper for <a href="https://github.com/rollkit/go-da">go-da</a>, a generic data availability interface for modular blockchains, called <code>DAClient</code> with wrapper functionalities like <code>SubmitBlocks</code> and <code>RetrieveBlocks</code> to help block manager interact with DA more easily.</p>
 <h2 id="details"><a class="header" href="#details">Details</a></h2>
-<p><code>DAClient</code> under the hood uses a GRPC implementation of the <a href="https://github.com/rollkit/go-da">go-da</a> DA interface. Using the <code>DAAddress</code> specified in the node's config, node creates a GRPC connection to it using go-da's gprc implementation <a href="https://github.com/rollkit/go-da/tree/main/proxy">grpc-proxy</a> which is then used under the hood of <code>DAClient</code> to communicate with the underlying DA.</p>
+<p><code>DAClient</code> can connect via either gRPC or JSON-RPC transports using the <a href="https://github.com/rollkit/go-da">go-da</a> <a href="https://github.com/rollkit/go-da/tree/main/proxy/grpc">proxy/grpc</a> or <a href="https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc">proxy/jsonrpc</a> implementations. The connection can be configured using the following cli flags:</p>
+<ul>
+<li><code>--rollkit.da_address</code>: url address of the DA service (default: &quot;grpc://localhost:26650&quot;)</li>
+<li><code>--rollkit.da_auth_token</code>: authentication token of the DA service</li>
+<li><code>--rollkit.da_namespace</code>: namespace to use when submitting blobs to the DA service</li>
+</ul>
 <p>Given a set of blocks to be submitted to DA by the block manager, the <code>SubmitBlocks</code> first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the <code>Submit</code> method on the underlying DA implementation. On successful submission (<code>StatusSuccess</code>), the DA block height which included in the rollup blocks is returned.</p>
 <p>To make sure that the serialised blocks don't exceed the underlying DA's blob limits, it fetches the blob size limit by calling <code>Config</code> which returns the limit as <code>uint64</code> bytes, then includes serialised blocks until the limit is reached. If the limit is reached, it submits the partial set and returns the count of successfully submitted blocks as <code>SubmittedCount</code>. The caller should retry with the remaining blocks until all the blocks are submitted. If the first block itself is over the limit, it throws an error.</p>
 <p>The <code>Submit</code> call may result in an error (<code>StatusError</code>) based on the underlying DA implementations on following scenarios:</p>
@@ -666,12 +671,13 @@ Block.Verify()
 <h2 id="references-3"><a class="header" href="#references-3">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/go-da">go-da</a></p>
 <p>[2] <a href="https://github.com/rollkit/celestia-da">celestia-da</a></p>
-<p>[3] <a href="https://github.com/rollkit/go-da/tree/main/proxy">grpc-proxy</a></p>
+<p>[3] <a href="https://github.com/rollkit/go-da/tree/main/proxy/grpc">proxy/grpc</a></p>
+<p>[4] <a href="https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc">proxy/jsonrpc</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="full-node"><a class="header" href="#full-node">Full Node</a></h1>
 <h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>A Full Node is a top-level service that encapsulates different components of Rollkit and initializes/manages them.</p>
 <h2 id="details-1"><a class="header" href="#details-1">Details</a></h2>
-<h3 id="full-node-1"><a class="header" href="#full-node-1">Full Node</a></h3>
+<h3 id="full-node-details"><a class="header" href="#full-node-details">Full Node Details</a></h3>
 <p>A Full Node is initialized inside the Cosmos SDK start script along with the node configuration, a private key to use in the P2P client, a private key for signing blocks as a block proposer, a client creator, a genesis document, and a logger. It uses them to initialize the components described above. The components TxIndexer, BlockIndexer, and IndexerService exist to ensure cometBFT compatibility since they are needed for most of the RPC calls from the <code>SignClient</code> interface from cometBFT.</p>
 <p>Note that unlike a light node which only syncs and stores block headers seen on the P2P layer, the full node also syncs and stores full blocks seen on both the P2P network and the DA layer. Full blocks contain all the transactions published as part of the block.</p>
 <p>The Full Node mainly encapsulates and initializes/manages the following components:</p>
