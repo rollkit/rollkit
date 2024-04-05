@@ -43,6 +43,9 @@ var (
 	// ErrTxSizeTooBig is the error message returned by the DA when tx size is too big
 	ErrTxSizeTooBig = errors.New("tx size is too big")
 
+	//ErrTxTooLarge is the err message returned by the DA when tx size is too large
+	ErrTxTooLarge = errors.New("tx too large")
+
 	// ErrContextDeadline is the error message returned by the DA when context deadline exceeds
 	ErrContextDeadline = errors.New("context deadline")
 )
@@ -160,7 +163,8 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 			status = StatusAlreadyInMempool
 		case strings.Contains(err.Error(), ErrTxIncorrectAccountSequence.Error()):
 			status = StatusAlreadyInMempool
-		case strings.Contains(err.Error(), ErrTxSizeTooBig.Error()):
+		case strings.Contains(err.Error(), ErrTxSizeTooBig.Error()),
+			strings.Contains(err.Error(), ErrTxTooLarge.Error()):
 			status = StatusTooBig
 		case strings.Contains(err.Error(), ErrContextDeadline.Error()):
 			status = StatusContextDeadline

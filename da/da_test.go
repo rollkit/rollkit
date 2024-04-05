@@ -91,6 +91,23 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("unable to get DA max blob size"))
 		doTestMaxBlockSizeError(t, dalc)
 	})
+	t.Run("tx_too_large", func(t *testing.T) {
+		mockDA := &mock.MockDA{}
+		dalc := NewDAClient(mockDA, -1, -1, nil, log.TestingLogger())
+		blocks := []*types.Block{types.GetRandomBlock(1, 0)}
+		var blobs []da.Blob
+		for _, block := range blocks {
+			blockBytes, err := block.MarshalBinary()
+			require.NoError(t, err)
+			blobs = append(blobs, blockBytes)
+		}
+		// Set up the mock to throw tx too large
+		mockDA.On("MaxBlobSize").Return(uint64(1234), nil)
+		mockDA.
+			On("Submit", blobs, float64(-1), []byte(nil)).
+			Return([]da.ID{}, errors.New("tx too large"))
+		doTestTxTooLargeError(t, dalc, blocks)
+	})
 }
 
 func TestSubmitRetrieve(t *testing.T) {
@@ -244,6 +261,19 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 		require.NotEmpty(ret.Blocks, height)
 		assert.Contains(ret.Blocks, block, height)
 	}
+}
+
+func doTestTxTooLargeError(t *testing.T, dalc *DAClient, blocks []*types.Block) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	require.NoError(t, err)
+
+	assert := assert.New(t)
+	resp := dalc.SubmitBlocks(ctx, blocks, maxBlobSize, -1)
+	assert.Contains(resp.Message, "tx too large", "should return tx too large error")
+	assert.Equal(resp.Code, StatusTooBig)
 }
 
 func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
