@@ -98,7 +98,7 @@ message ResponseGetAppHash {
 
 This `GetAppHash` ABCI method returns an equivalent of `CommitID` hash in the ABCI method `Commit` and thus provides a way to extract ISRs from an app without doing any disk write operations.
 
-Full nodes use these ISRs to detect fraudulent state transitions. A full node must also execute all state transitions (`BeginBlock`, `DeliverTx`, and `EndBlock` calls) and compute its own Intermediate State Roots (ISRs). After each state transition, a full node compares the corresponding ISR with the ISR given by the Sequencer. If it finds a mismatch between its own computed ISR and and one given by the Sequencer, a fraudulent transition is detected and it moves on to generate a State Fraud Proof.
+Full nodes use these ISRs to detect fraudulent state transitions. A full node must also execute all state transitions (`BeginBlock`, `DeliverTx`, and `EndBlock` calls) and compute its own Intermediate State Roots (ISRs). After each state transition, a full node compares the corresponding ISR with the ISR given by the Sequencer. If it finds a mismatch between its own computed ISR and one given by the Sequencer, a fraudulent transition is detected and it moves on to generate a State Fraud Proof.
 
 ### Generating State Fraud Proofs
 
