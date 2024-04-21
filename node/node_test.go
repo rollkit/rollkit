@@ -12,10 +12,9 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	test "github.com/rollkit/rollkit/test/log"
+	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
-
-var MockServerAddr = ":7980"
 
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
@@ -44,7 +43,7 @@ func initializeAndStartNode(ctx context.Context, t *testing.T, nodeType string) 
 }
 
 func newTestNode(ctx context.Context, t *testing.T, nodeType string) (Node, error) {
-	config := config.NodeConfig{DAAddress: MockServerAddr}
+	config := config.NodeConfig{DAAddress: mocks.MockServerAddr}
 	switch nodeType {
 	case "light":
 		config.Light = true

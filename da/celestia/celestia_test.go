@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/suite"
+
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da/celestia"
-	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {

@@ -8,18 +8,12 @@ import (
 	"time"
 
 	testutils "github.com/celestiaorg/utils/test"
-	"github.com/cometbft/cometbft/libs/log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	goDATest "github.com/rollkit/go-da/test"
-	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/test/mocks"
 )
-
-func getMockDA() *da.DAClient {
-	return &da.DAClient{DA: goDATest.NewDummyDA(), Logger: log.TestingLogger()}
-}
 
 func TestMockTester(t *testing.T) {
 	m := MockTester{t}
@@ -34,7 +28,7 @@ func TestGetNodeHeight(t *testing.T) {
 	assert := assert.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	dalc := getMockDA()
+	dalc := mocks.GetMockDA()
 	num := 2
 	keys := make([]crypto.PrivKey, num)
 	for i := 0; i < num; i++ {

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/celestiaorg/nmt"
+
 	openrpc "github.com/rollkit/celestia-openrpc"
 	"github.com/rollkit/celestia-openrpc/types/appconsts"
 	"github.com/rollkit/celestia-openrpc/types/blob"
@@ -15,6 +16,7 @@ import (
 	"github.com/rollkit/go-da"
 )
 
+// RandomNamespace generates a random namespace.
 func RandomNamespace() share.Namespace {
 	bytes := make([]byte, 4) // 4 bytes to produce 8 hex characters
 	_, err := rand.Read(bytes)
@@ -28,6 +30,7 @@ func RandomNamespace() share.Namespace {
 	return ns
 }
 
+// CelestiaDA is a DA implementation that uses the Celestia network for data availability.
 type CelestiaDA struct {
 	logger    *slog.Logger
 	context   context.Context
@@ -35,6 +38,7 @@ type CelestiaDA struct {
 	namespace share.Namespace
 }
 
+// NewCelestiaDA creates a new CelestiaDA.
 func NewCelestiaDA(ctx context.Context, client *openrpc.Client) *CelestiaDA {
 	return &CelestiaDA{
 		context:   ctx,
