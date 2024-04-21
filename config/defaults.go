@@ -21,7 +21,7 @@ var DefaultNodeConfig = NodeConfig{
 	Aggregator:     false,
 	LazyAggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
-		BlockTime:   1 * time.Second,
+		BlockTime:   1 * time.Second, // Blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		DABlockTime: 15 * time.Second,
 	},
 	DAAddress: ":26650",

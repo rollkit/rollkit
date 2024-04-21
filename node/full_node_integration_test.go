@@ -64,7 +64,7 @@ func TestCentralizedSequencer(t *testing.T) {
 	dalc := getMockDA()
 
 	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime:     1 * time.Second,
+		BlockTime:     config.DefaultNodeConfig.BlockTime,
 		DAStartHeight: 1,
 		DABlockTime:   1 * time.Second,
 	}
@@ -126,9 +126,7 @@ func TestAggregatorMode(t *testing.T) {
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
-	blockManagerConfig := config.BlockManagerConfig{
-		BlockTime: 1 * time.Second,
-	}
+	blockManagerConfig := getBMConfig()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockServerAddr, Aggregator: true, BlockManagerConfig: blockManagerConfig}, key, signingKey, proxy.NewLocalClientCreator(app), &cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators}, log.TestingLogger())
@@ -238,17 +236,15 @@ func TestLazyAggregator(t *testing.T) {
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisValidators, signingKey := types.GetGenesisValidatorSetWithSigner()
-	blockManagerConfig := config.BlockManagerConfig{
-		// After the genesis header is published, the syncer is started
-		// which takes little longer (due to initialization) and the syncer
-		// tries to retrieve the genesis header and check that is it recent
-		// (genesis header time is not older than current minus 1.5x blocktime)
-		// to allow sufficient time for syncer initialization, we cannot set
-		// the blocktime too short. in future, we can add a configuration
-		// in go-header syncer initialization to not rely on blocktime, but the
-		// config variable
-		BlockTime: 1 * time.Second,
-	}
+	// After the genesis header is published, the syncer is started
+	// which takes little longer (due to initialization) and the syncer
+	// tries to retrieve the genesis header and check that is it recent
+	// (genesis header time is not older than current minus 1.5x blocktime)
+	// to allow sufficient time for syncer initialization, we cannot set
+	// the blocktime too short. in future, we can add a configuration
+	// in go-header syncer initialization to not rely on blocktime, but the
+	// config variable
+	blockManagerConfig := getBMConfig()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := NewNode(ctx, config.NodeConfig{
@@ -387,7 +383,6 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	defer cancel()
 	clientNodes := 3
 	bmConfig := getBMConfig()
-	bmConfig.BlockTime = 1 * time.Second
 	bmConfig.DABlockTime = 10 * time.Second
 	const numberOfBlocksTSyncTill = 5
 

@@ -44,10 +44,18 @@ func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
 }
 
+// After the genesis header is published, the syncer is started
+// which takes little longer (due to initialization) and the syncer
+// tries to retrieve the genesis header and check that is it recent
+// (genesis header time is not older than current minus 1.5x blocktime)
+// to allow sufficient time for syncer initialization, we cannot set
+// the blocktime too short. in future, we can add a configuration
+// in go-header syncer initialization to not rely on blocktime, but the
+// config variable
 func getBMConfig() config.BlockManagerConfig {
 	return config.BlockManagerConfig{
 		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+		BlockTime:   config.DefaultNodeConfig.BlockTime,
 	}
 }
 

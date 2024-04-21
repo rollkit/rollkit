@@ -496,11 +496,9 @@ func TestTx(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:  MockServerAddr,
-		Aggregator: true,
-		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		}},
+		DAAddress:          MockServerAddr,
+		Aggregator:         true,
+		BlockManagerConfig: getBMConfig()},
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		&cmtypes.GenesisDoc{ChainID: "test", Validators: genesisValidators},
 		test.NewFileLogger(t))
