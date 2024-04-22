@@ -1,0 +1,318 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Block Manager - Rollkit Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html" class="active"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalency</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Rollkit Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/rollkit/rollkit" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="block-manager"><a class="header" href="#block-manager">Block Manager</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The block manager is a key component of full nodes and is responsible for block production or block syncing depending on the node type: sequencer or non-sequencer. Block syncing in this context includes retrieving the published blocks from the network (P2P network or DA network), validating them to raise fraud proofs upon validation failure, updating the state, and storing the validated blocks. A full node invokes multiple block manager functionalities in parallel, such as:</p>
+<ul>
+<li>Block Production (only for sequencer full nodes)</li>
+<li>Block Publication to DA network</li>
+<li>Block Retrieval from DA network</li>
+<li>Block Sync Service</li>
+<li>Block Publication to P2P network</li>
+<li>Block Retrieval from P2P network</li>
+<li>State Update after Block Retrieval</li>
+</ul>
+<pre><code class="language-mermaid">sequenceDiagram
+    title Overview of Block Manager
+
+    participant User
+    participant Sequencer
+    participant Full Node 1
+    participant Full Node 2
+    participant DA Layer
+
+    User-&gt;&gt;Sequencer: Send Tx
+    Sequencer-&gt;&gt;Sequencer: Generate Block
+    Sequencer-&gt;&gt;DA Layer: Publish Block
+
+    Sequencer-&gt;&gt;Full Node 1: Gossip Block
+    Sequencer-&gt;&gt;Full Node 2: Gossip Block
+    Full Node 1-&gt;&gt;Full Node 1: Verify Block
+    Full Node 1-&gt;&gt;Full Node 2: Gossip Block
+    Full Node 1-&gt;&gt;Full Node 1: Mark Block Soft Confirmed
+
+    Full Node 2-&gt;&gt;Full Node 2: Verify Block
+    Full Node 2-&gt;&gt;Full Node 2: Mark Block Soft Confirmed
+
+    DA Layer-&gt;&gt;Full Node 1: Retrieve Block
+    Full Node 1-&gt;&gt;Full Node 1: Mark Block DA Included
+
+    DA Layer-&gt;&gt;Full Node 2: Retrieve Block
+    Full Node 2-&gt;&gt;Full Node 2: Mark Block DA Included
+</code></pre>
+<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
+<p>The block manager is initialized using several parameters as defined below:</p>
+<div class="table-wrapper"><table><thead><tr><th><strong>Name</strong></th><th><strong>Type</strong></th><th><strong>Description</strong></th></tr></thead><tbody>
+<tr><td>signing key</td><td>crypto.PrivKey</td><td>used for signing a block after it is created</td></tr>
+<tr><td>config</td><td>config.BlockManagerConfig</td><td>block manager configurations (see config options below)</td></tr>
+<tr><td>genesis</td><td>*cmtypes.GenesisDoc</td><td>initialize the block manager with genesis state (genesis configuration defined in <code>config/genesis.json</code> file under the app directory)</td></tr>
+<tr><td>store</td><td>store.Store</td><td>local datastore for storing rollup blocks and states (default local store path is <code>$db_dir/rollkit</code> and <code>db_dir</code> specified in the <code>config.toml</code> file under the app directory)</td></tr>
+<tr><td>mempool, proxyapp, eventbus</td><td>mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus</td><td>for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production</td></tr>
+<tr><td>dalc</td><td>da.DAClient</td><td>the data availability light client used to submit and retrieve blocks to DA network</td></tr>
+<tr><td>blockstore</td><td>*goheaderstore.Store[*types.Block]</td><td>to retrieve blocks gossiped over the P2P network</td></tr>
+</tbody></table>
+</div>
+<p>Block manager configuration options:</p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td>BlockTime</td><td>time.Duration</td><td>time interval used for block production and block retrieval from block store (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L35"><code>defaultBlockTime</code></a>)</td></tr>
+<tr><td>DABlockTime</td><td>time.Duration</td><td>time interval used for both block publication to DA network and block retrieval from DA network (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L32"><code>defaultDABlockTime</code></a>)</td></tr>
+<tr><td>DAStartHeight</td><td>uint64</td><td>block retrieval from DA network starts from this height</td></tr>
+</tbody></table>
+</div>
+<h3 id="block-production"><a class="header" href="#block-production">Block Production</a></h3>
+<p>When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: <code>normal</code> and <code>lazy</code>.</p>
+<p>In <code>normal</code> mode, the block manager runs a timer, which is set to the <code>BlockTime</code> configuration parameter, and continuously produces blocks at <code>BlockTime</code> intervals.</p>
+<p>In <code>lazy</code> mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish, in order to collect as many transactions from the mempool as possible. The 1 second delay is chosen in accordance with the default block time of 1s. The block manager also notifies the full node after every lazy block building.</p>
+<h4 id="building-the-block"><a class="header" href="#building-the-block">Building the Block</a></h4>
+<p>The block manager of the sequencer nodes performs the following steps to produce a block:</p>
+<ul>
+<li>Call <code>CreateBlock</code> using executor</li>
+<li>Sign the block using <code>signing key</code> to generate commitment</li>
+<li>Call <code>ApplyBlock</code> using executor to generate an updated state</li>
+<li>Save the block, validators, and updated state to local store</li>
+<li>Add the newly generated block to <code>pendingBlocks</code> queue</li>
+<li>Publish the newly generated block to channels to notify other components of the sequencer node (such as block and header gossip)</li>
+</ul>
+<h3 id="block-publication-to-da-network"><a class="header" href="#block-publication-to-da-network">Block Publication to DA Network</a></h3>
+<p>The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the <code>pendingBlocks</code> queue) to the DA network using the <code>DABlockTime</code> configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39"><code>maxSubmitAttempts</code></a> attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L48"><code>initialBackoff</code></a> and it doubles in the next attempt and capped at <code>DABlockTime</code>. A successful publish event leads to the emptying of <code>pendingBlocks</code> queue and a failure event leads to proper error reporting without emptying of <code>pendingBlocks</code> queue.</p>
+<h3 id="block-retrieval-from-da-network"><a class="header" href="#block-retrieval-from-da-network">Block Retrieval from DA Network</a></h3>
+<p>The block manager of the full nodes regularly pulls blocks from the DA network at <code>DABlockTime</code> intervals and starts off with a DA height read from the last state stored in the local store or <code>DAStartHeight</code> configuration parameter, whichever is the latest. The block manager also actively maintains and increments the <code>daHeight</code> counter after every DA pull. The pull happens by making the <code>RetrieveBlocks(daHeight)</code> request using the Data Availability Light Client (DALC) retriever, which can return either <code>Success</code>, <code>NotFound</code>, or <code>Error</code>. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the <code>daHeight</code> counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block <code>NotFound</code> scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the <code>daHeight</code> counter in this case. Finally, for the <code>Success</code> scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the <code>DABlockTime</code> and <code>BlockTime</code> intervals.</p>
+<h4 id="out-of-order-rollup-blocks-on-da"><a class="header" href="#out-of-order-rollup-blocks-on-da">Out-of-Order Rollup Blocks on DA</a></h4>
+<p>Rollkit should support blocks arriving out-of-order on DA, like so:
+<img src="https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/out-of-order-blocks.png?raw=true" alt="out-of-order blocks" /></p>
+<h4 id="termination-condition"><a class="header" href="#termination-condition">Termination Condition</a></h4>
+<p>If the sequencer double-signs two blocks at the same height, evidence of the fault should be posted to DA. Rollkit full nodes should process the longest valid chain up to the height of the fault evidence, and terminate. See diagram:
+<img src="https://github.com/rollkit/rollkit/blob/32839c86634a64aa5646bfd1e88bf37b86b81fec/block/termination.png?raw=true" alt="termination conidition" /></p>
+<h3 id="block-sync-service"><a class="header" href="#block-sync-service">Block Sync Service</a></h3>
+<p>The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the <code>BlockCh</code> channel and then sent to the <a href="https://github.com/celestiaorg/go-header">go-header</a> service to be gossiped blocks over the P2P network.</p>
+<h3 id="block-publication-to-p2p-network"><a class="header" href="#block-publication-to-p2p-network">Block Publication to P2P network</a></h3>
+<p>Blocks created by the sequencer that are ready to be published to the P2P network are sent to the <code>BlockCh</code> channel in Block Manager inside <code>publishLoop</code>.
+The <code>blockPublishLoop</code> in the full node continuously listens for new blocks from the <code>BlockCh</code> channel and when a new block is received, it is written to the block store and broadcasted to the network using the block sync service.</p>
+<p>Among non-sequencer full nodes, all the block gossiping is handled by the block sync service, and they do not need to publish blocks to the P2P network using any of the block manager components.</p>
+<h3 id="block-retrieval-from-p2p-network"><a class="header" href="#block-retrieval-from-p2p-network">Block Retrieval from P2P network</a></h3>
+<p>For non-sequencer full nodes, Blocks gossiped through the P2P network are retrieved from the <code>Block Store</code> in <code>BlockStoreRetrieveLoop</code> in Block Manager.
+Starting off with a block store height of zero, for every <code>blockTime</code> unit of time, a signal is sent to the <code>blockStoreCh</code> channel in the block manager and when this signal is received, the <code>BlockStoreRetrieveLoop</code> retrieves blocks from the block store.
+It keeps track of the last retrieved block's height and every time the current block store's height is greater than the last retrieved block's height, it retrieves all blocks from the block store that are between these two heights.
+For each retrieved block, it sends a new block event to the <code>blockInCh</code> channel which is the same channel in which blocks retrieved from the DA layer are sent.
+This block is marked as soft confirmed by the validating full node until the same block is seen on the DA layer and then marked DA-included.</p>
+<p>Although a sequencer does not need to retrieve blocks from the P2P network, it still runs the <code>BlockStoreRetrieveLoop</code>.</p>
+<h4 id="about-soft-confirmations-and-da-inclusions"><a class="header" href="#about-soft-confirmations-and-da-inclusions">About Soft Confirmations and DA Inclusions</a></h4>
+<p>The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA included. DA included blocks can be considered to have a higher level of finality.</p>
+<h3 id="state-update-after-block-retrieval"><a class="header" href="#state-update-after-block-retrieval">State Update after Block Retrieval</a></h3>
+<p>The block manager stores and applies the block to update its state every time a new block is retrieved either via the P2P or DA network. State update involves:</p>
+<ul>
+<li><code>ApplyBlock</code> using executor: validates the block, executes the block (applies the transactions), captures the validator updates, and creates an updated state.</li>
+<li><code>Commit</code> using executor: commit the execution and changes, update mempool, and publish events</li>
+<li>Store the block, the validators, and the updated state.</li>
+</ul>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
+<p>The communication between the block manager and executor:</p>
+<ul>
+<li><code>InitChain</code>: using the genesis, a set of parameters, and validator set to invoke <code>InitChainSync</code> on the proxyApp to obtain initial <code>appHash</code> and initialize the state.</li>
+<li><code>Commit</code>: commit the execution and changes, update mempool, and publish events.</li>
+<li><code>CreateBlock</code>: prepare a block by polling transactions from mempool.</li>
+<li><code>ApplyBlock</code>: validate the block, execute the block (apply transactions), validator updates, create and return updated state</li>
+</ul>
+<p>The communication between the full node and block manager:</p>
+<ul>
+<li>Notify when the block is published</li>
+<li>Notify when the block is done lazy building</li>
+</ul>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<ul>
+<li>The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.</li>
+<li>The default mode for sequencer nodes is normal (not lazy).</li>
+<li>The sequencer can produce empty blocks.</li>
+<li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.toml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
+<li>The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.</li>
+<li>The block sync store is created by prefixing <code>blockSync</code> on the main data store.</li>
+<li>The genesis <code>ChainID</code> is used to create the <code>PubSubTopID</code> in go-header with the string <code>-block</code> appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.</li>
+<li>Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via <code>P2PConfig.Seeds</code> configuration parameter when starting the full node.</li>
+<li>Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
+</ul>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block-manager</a></p>
+<p>See <a href="https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/celestiaorg/go-header">Go Header</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/block_sync.go">Block Sync</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
+<p>[5] <a href="https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started">Tutorial</a></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../specs/block-executor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../specs/rollkit-dependency-graph.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../specs/block-executor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Store - Rollkit Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Introduction</a></li><li class="chapter-item expanded "><a href="../specs/template.html"><strong aria-hidden="true">1.</strong> Template</a></li><li class="chapter-item expanded "><a href="../specs/rollkit-dependency-graph.html"><strong aria-hidden="true">2.</strong> Dependency Graph</a></li><li class="chapter-item expanded "><a href="../specs/block-manager.html"><strong aria-hidden="true">3.</strong> Block Manager</a></li><li class="chapter-item expanded "><a href="../specs/block-executor.html"><strong aria-hidden="true">4.</strong> Block Executor</a></li><li class="chapter-item expanded "><a href="../specs/block-validity.html"><strong aria-hidden="true">5.</strong> Block Validity</a></li><li class="chapter-item expanded "><a href="../specs/da.html"><strong aria-hidden="true">6.</strong> DA</a></li><li class="chapter-item expanded "><a href="../specs/full_node.html"><strong aria-hidden="true">7.</strong> Full Node</a></li><li class="chapter-item expanded "><a href="../specs/header-sync.html"><strong aria-hidden="true">8.</strong> Header Sync</a></li><li class="chapter-item expanded "><a href="../specs/indexer-service.html"><strong aria-hidden="true">9.</strong> Indexer Service</a></li><li class="chapter-item expanded "><a href="../specs/mempool.html"><strong aria-hidden="true">10.</strong> Mempool</a></li><li class="chapter-item expanded "><a href="../specs/p2p.html"><strong aria-hidden="true">11.</strong> P2P</a></li><li class="chapter-item expanded "><a href="../specs/rpc-equivalency-coverage.html"><strong aria-hidden="true">12.</strong> RPC Equivalency</a></li><li class="chapter-item expanded "><a href="../specs/state.html"><strong aria-hidden="true">13.</strong> State</a></li><li class="chapter-item expanded "><a href="../specs/store.html" class="active"><strong aria-hidden="true">14.</strong> Store</a></li><li class="chapter-item expanded "><a href="../specs/validators.html"><strong aria-hidden="true">15.</strong> Validators</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Rollkit Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/rollkit/rollkit" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="store"><a class="header" href="#store">Store</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The Store interface defines methods for storing and retrieving blocks, commits, and the state of the blockchain.</p>
+<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
+<p>The Store interface defines the following methods:</p>
+<ul>
+<li><code>Height</code>: Returns the height of the highest block in the store.</li>
+<li><code>SetHeight</code>: Sets given height in the store if it's higher than the existing height in the store.</li>
+<li><code>SaveBlock</code>: Saves a block along with its seen commit.</li>
+<li><code>GetBlock</code>: Returns a block at a given height.</li>
+<li><code>GetBlockByHash</code>: Returns a block with a given block header hash.</li>
+<li><code>SaveBlockResponses</code>: Saves block responses in the Store.</li>
+<li><code>GetBlockResponses</code>: Returns block results at a given height.</li>
+<li><code>GetCommit</code>: Returns a commit for a block at a given height.</li>
+<li><code>GetCommitByHash</code>: Returns a commit for a block with a given block header hash.</li>
+<li><code>UpdateState</code>: Updates the state saved in the Store. Only one State is stored.</li>
+<li><code>GetState</code>: Returns the last state saved with UpdateState.</li>
+<li><code>SaveValidators</code>: Saves the validator set at a given height.</li>
+<li><code>GetValidators</code>: Returns the validator set at a given height.</li>
+</ul>
+<p>The <code>TxnDatastore</code> interface inside <a href="https://github.com/ipfs/go-datastore">go-datastore</a> is used for constructing different key-value stores for the underlying storage of a full node. The are two different implementations of <code>TxnDatastore</code> in <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">kv.go</a>:</p>
+<ul>
+<li>
+<p><code>NewDefaultInMemoryKVStore</code>: Builds a key-value store that uses the <a href="https://github.com/dgraph-io/badger">BadgerDB</a> library and operates in-memory, without accessing the disk. Used only across unit tests and integration tests.</p>
+</li>
+<li>
+<p><code>NewDefaultKVStore</code>: Builds a key-value store that uses the <a href="https://github.com/dgraph-io/badger">BadgerDB</a> library and stores the data on disk at the specified path.</p>
+</li>
+</ul>
+<p>A Rollkit full node is <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L106">initialized</a> using <code>NewDefaultKVStore</code> as the base key-value store for underlying storage. To store various types of data in this base key-value store, different prefixes are used: <code>mainPrefix</code>, <code>dalcPrefix</code>, and <code>indexerPrefix</code>. The <code>mainPrefix</code> equal to <code>0</code> is used for the main node data, <code>dalcPrefix</code> equal to <code>1</code> is used for Data Availability Layer Client (DALC) data, and <code>indexerPrefix</code> equal to <code>2</code> is used for indexing related data.</p>
+<p>For the main node data, <code>DefaultStore</code> struct, an implementation of the Store interface, is used with the following prefixes for various types of data within it:</p>
+<ul>
+<li><code>blockPrefix</code> with value &quot;b&quot;: Used to store blocks in the key-value store.</li>
+<li><code>indexPrefix</code> with value &quot;i&quot;: Used to index the blocks stored in the key-value store.</li>
+<li><code>commitPrefix</code> with value &quot;c&quot;: Used to store commits related to the blocks.</li>
+<li><code>statePrefix</code> with value &quot;s&quot;: Used to store the state of the blockchain.</li>
+<li><code>responsesPrefix</code> with value &quot;r&quot;: Used to store responses related to the blocks.</li>
+<li><code>validatorsPrefix</code> with value &quot;v&quot;: Used to store validator sets at a given height.</li>
+</ul>
+<p>For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</p>
+<p>Inside the key-value store, the value of these various types of data like <code>Block</code>, <code>Commit</code>, etc is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
+<p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">full client</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
+<p>The Store does not communicate over the network, so there is no message structure or communication format.</p>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<p>The Store assumes that the underlying datastore is reliable and provides atomicity for transactions. It also assumes that the data passed to it for storage is valid and correctly formatted.</p>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a> and <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a> for its implementation.</p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L106">Full Node Store Initialization</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
+<p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">Full Client</a></p>
+<p>[6] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
+<p>[7] <a href="https://github.com/ipfs/go-datastore">Go Datastore</a></p>
+<p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/kv.go">Key Value Store</a></p>
+<p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">Serialization</a></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../specs/state.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../specs/validators.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../specs/state.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../specs/validators.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
