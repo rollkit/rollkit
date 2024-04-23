@@ -758,7 +758,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 		block, err = m.createBlock(newHeight, lastCommit, lastHeaderHash)
 		if err != nil {
-			return nil
+			return err
 		}
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
@@ -772,7 +772,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		*/
 		block.SignedHeader.DataHash, err = block.Data.Hash()
 		if err != nil {
-			return nil
+			return err
 		}
 
 		commit, err = m.getCommit(block.SignedHeader.Header)
