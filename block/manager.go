@@ -335,21 +335,8 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 
-	if !lazy {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-timer.C:
-			}
-			start := time.Now()
-			err := m.publishBlock(ctx)
-			if err != nil && ctx.Err() == nil {
-				m.logger.Error("error while publishing block", "error", err)
-			}
-			timer.Reset(m.getRemainingSleep(start))
-		}
-	} else {
+	// Lazy Aggregator mode
+	if lazy {
 		for {
 			select {
 			case <-ctx.Done():
@@ -371,6 +358,21 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 				m.buildingBlock = false
 			}
 		}
+	}
+
+	// Normal Aggregator mode
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+		start := time.Now()
+		err := m.publishBlock(ctx)
+		if err != nil && ctx.Err() == nil {
+			m.logger.Error("error while publishing block", "error", err)
+		}
+		timer.Reset(m.getRemainingSleep(start))
 	}
 }
 
