@@ -64,14 +64,3 @@ jobs:
         run: gh pr edit ${{ env.PR }} --add-assignee ${{ env.CREATOR }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  required-labels:
-    # ignore dependabot PRs
-    if: ${{ github.actor != 'dependabot[bot]' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: mheap/github-action-required-labels@v5
-        with:
-          mode: minimum
-          count: 1
-          labels: "T:enhancement, T:documentation, T:code-hygiene, T:bug, T:adr, T:sdk, T:testing, T:question, T:dependencies, T:spec-and-docs, T:da-integration, T:dev-usability-and-ux" # yamllint disable-line rule:line-length
