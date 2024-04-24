@@ -953,7 +953,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
-	return m.lastState.ConsensusParams.Abci != nil && uint64(m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight) <= newHeight
+	enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
+	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight
 }
 
 func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
