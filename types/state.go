@@ -91,6 +91,9 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 			Version: &cmproto.VersionParams{
 				App: genDoc.ConsensusParams.Version.App,
 			},
+			Abci: &cmproto.ABCIParams{
+				VoteExtensionsEnableHeight: genDoc.ConsensusParams.ABCI.VoteExtensionsEnableHeight,
+			},
 		},
 		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight),
 	}

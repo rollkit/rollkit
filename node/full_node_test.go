@@ -262,6 +262,37 @@ func TestPendingBlocks(t *testing.T) {
 
 }
 
+func TestVoteExtension(t *testing.T) {
+	require := require.New(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	//app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	app.On("ExtendVote", mock.Anything, mock.Anything).Return(&abci.ResponseExtendVote{
+		VoteExtension: []byte("extended :D"),
+	}, nil)
+	//app.On("VerifyVoteExtension", mock.Anything, mock.Anything).Panic("unexpected call")
+	require.NotNil(app)
+
+	defer app.AssertExpectations(t)
+
+	node := createAggregatorWithApp(ctx, app, t)
+	require.NotNil(node)
+	fullNode := node.(*FullNode)
+	fullNode.genesis.ConsensusParams.ABCI.VoteExtensionsEnableHeight = 1
+
+	require.NoError(node.Start())
+	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
+	require.NoError(node.Stop())
+}
+
 func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 
@@ -300,6 +331,39 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	fullNode.blockManager.SetDALC(dalc)
 
 	return fullNode, app
+}
+
+func createAggregatorWithApp(ctx context.Context, app abci.Application, t *testing.T) Node {
+	t.Helper()
+
+	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(t, err)
+
+	node, err := NewNode(
+		ctx,
+		config.NodeConfig{
+			DAAddress:   MockDAAddress,
+			DANamespace: MockDANamespace,
+			Aggregator:  true,
+			BlockManagerConfig: config.BlockManagerConfig{
+				BlockTime:   100 * time.Millisecond,
+				DABlockTime: 300 * time.Millisecond,
+			},
+			Light: false,
+		},
+		key,
+		signingKey,
+		proxy.NewLocalClientCreator(app),
+		genesis,
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
+		test.NewFileLoggerCustom(t, test.TempLogFileName(t, "")),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, node)
+
+	return node
 }
 
 // setupMockApplication initializes a mock application

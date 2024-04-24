@@ -811,7 +811,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block, err = m.createBlock(newHeight, lastCommit, lastHeaderHash)
+		extendedCommit, err := m.getExtendedCommit(ctx, height)
+		if err != nil {
+			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
+		}
+		block, err = m.createBlock(newHeight, lastCommit, lastHeaderHash, extendedCommit)
 		if err != nil {
 			return err
 		}
@@ -861,6 +865,28 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
 		return err
+	}
+	if m.voteExtensionEnabled(newHeight) {
+		extension, err := m.extendVote(ctx, block)
+		if err != nil {
+			return fmt.Errorf("error returned by ExtendVote: %w", err)
+		}
+		extendedCommit := &abci.ExtendedCommitInfo{
+			Round: 0,
+			Votes: []abci.ExtendedVoteInfo{{
+				Validator: abci.Validator{
+					Address: block.SignedHeader.Validators.GetProposer().Address,
+					Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+				},
+				VoteExtension:      extension,
+				ExtensionSignature: nil,
+				BlockIdFlag:        0,
+			}},
+		}
+		err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
+		if err != nil {
+			return fmt.Errorf("failed to save extended commit: %w", err)
+		}
 	}
 
 	// set the commit to current block's signed header
@@ -924,6 +950,22 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
 	return nil
+}
+
+func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
+	return m.lastState.ConsensusParams.Abci != nil && uint64(m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight) <= newHeight
+}
+
+func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
+	emptyExtendedCommit := abci.ExtendedCommitInfo{}
+	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) {
+		return emptyExtendedCommit, nil
+	}
+	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
+	if err != nil {
+		return emptyExtendedCommit, err
+	}
+	return *extendedCommit, nil
 }
 
 func (m *Manager) recordMetrics(block *types.Block) {
@@ -1057,16 +1099,20 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) (*types.Block, error) {
+func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo) (*types.Block, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastCommit, lastHeaderHash, m.lastState)
+	return m.executor.CreateBlock(height, lastCommit, extendedCommit, lastHeaderHash, m.lastState)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.executor.ApplyBlock(ctx, m.lastState, block)
+}
+
+func (m *Manager) extendVote(ctx context.Context, block *types.Block) ([]byte, error) {
+	return m.executor.ExtendVote(ctx, block)
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {
