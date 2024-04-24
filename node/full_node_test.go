@@ -11,26 +11,26 @@ import (
 	"testing"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/proxy"
-
-	goDA "github.com/rollkit/go-da"
-	"github.com/rollkit/rollkit/config"
-	test "github.com/rollkit/rollkit/test/log"
+	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	testutils "github.com/celestiaorg/utils/test"
 
+	goDA "github.com/rollkit/go-da"
 	"github.com/rollkit/rollkit/block"
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
+	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -285,8 +285,6 @@ func TestVoteExtension(t *testing.T) {
 
 	node := createAggregatorWithApp(ctx, app, t)
 	require.NotNil(node)
-	fullNode := node.(*FullNode)
-	fullNode.genesis.ConsensusParams.ABCI.VoteExtensionsEnableHeight = 1
 
 	require.NoError(node.Start())
 	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
@@ -338,6 +336,13 @@ func createAggregatorWithApp(ctx context.Context, app abci.Application, t *testi
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesis.ConsensusParams = &cmtypes.ConsensusParams{
+		Block:     cmtypes.DefaultBlockParams(),
+		Evidence:  cmtypes.DefaultEvidenceParams(),
+		Validator: cmtypes.DefaultValidatorParams(),
+		Version:   cmtypes.DefaultVersionParams(),
+		ABCI:      cmtypes.ABCIParams{VoteExtensionsEnableHeight: 1},
+	}
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(t, err)
 
