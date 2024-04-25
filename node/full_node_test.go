@@ -269,7 +269,7 @@ func TestVoteExtension(t *testing.T) {
 	defer cancel()
 
 	const voteExtensionEnableHeight = 5
-	const expectedExtension = "extended :D"
+	const expectedExtension = "vote extension from height %d"
 
 	prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 		if req.Height <= voteExtensionEnableHeight {
@@ -278,7 +278,8 @@ func TestVoteExtension(t *testing.T) {
 			require.Len(req.LocalLastCommit.Votes, 1)
 			extendedCommit := req.LocalLastCommit.Votes[0]
 			require.NotNil(extendedCommit)
-			require.Equal([]byte(expectedExtension), extendedCommit.VoteExtension)
+			// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
+			require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
 			require.NotNil(extendedCommit.Validator)
 			require.NotNil(extendedCommit.Validator.Address)
 			//TODO(tzdybal): verify signature
@@ -289,6 +290,12 @@ func TestVoteExtension(t *testing.T) {
 		}, nil
 	}
 
+	voteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+		return &abci.ResponseExtendVote{
+			VoteExtension: []byte(fmt.Sprintf(expectedExtension, req.Height)),
+		}, nil
+	}
+
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	//app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
@@ -296,9 +303,7 @@ func TestVoteExtension(t *testing.T) {
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-	app.On("ExtendVote", mock.Anything, mock.Anything).Return(&abci.ResponseExtendVote{
-		VoteExtension: []byte(expectedExtension),
-	}, nil)
+	app.On("ExtendVote", mock.Anything, mock.Anything).Return(voteExtension)
 	//app.On("VerifyVoteExtension", mock.Anything, mock.Anything).Panic("unexpected call")
 	require.NotNil(app)
 
