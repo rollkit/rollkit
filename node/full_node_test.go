@@ -13,6 +13,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmconfig "github.com/cometbft/cometbft/config"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
@@ -285,6 +286,7 @@ func TestVoteExtension(t *testing.T) {
 			require.Len(req.LocalLastCommit.Votes, 1)
 			extendedCommit := req.LocalLastCommit.Votes[0]
 			require.NotNil(extendedCommit)
+			require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
 			// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
 			require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
 			require.NotNil(extendedCommit.Validator)

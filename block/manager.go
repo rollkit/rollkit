@@ -10,15 +10,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	pkgErrors "github.com/pkg/errors"
+
+	goheaderstore "github.com/celestiaorg/go-header/store"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -884,7 +886,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 				},
 				VoteExtension:      extension,
 				ExtensionSignature: sign,
-				BlockIdFlag:        0,
+				BlockIdFlag:        cmproto.BlockIDFlagCommit,
 			}},
 		}
 		err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
