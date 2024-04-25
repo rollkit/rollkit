@@ -307,13 +307,11 @@ func TestVoteExtension(t *testing.T) {
 		}, nil
 	}
 
-	//app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	app.On("ExtendVote", mock.Anything, mock.Anything).Return(voteExtension)
-	//app.On("VerifyVoteExtension", mock.Anything, mock.Anything).Panic("unexpected call")
 	require.NotNil(app)
 
 	require.NoError(node.Start())
