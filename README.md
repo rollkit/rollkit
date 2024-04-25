@@ -15,7 +15,7 @@ A modular framework for rollups, with an ABCI-compatible client interface. For m
 
 The easiest way to use rollkit is via the rollkit CLI.
 
-Requires Go version >= 1.21.
+Requires Go version >= 1.22.
 
 A cli tool that allows you to run different kinds of nodes for a rollkit network
 while also helping you generate the required configuration files
