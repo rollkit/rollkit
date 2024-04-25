@@ -35,6 +35,9 @@ const defaultDABlockTime = 15 * time.Second
 // defaultBlockTime is used only if BlockTime is not configured for manager
 const defaultBlockTime = 1 * time.Second
 
+// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
+const defaultLazyBlockTime = 60 * time.Second
+
 // defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 const defaultMempoolTTL = 25
 
@@ -185,6 +188,11 @@ func NewManager(
 		conf.BlockTime = defaultBlockTime
 	}
 
+	if conf.LazyBlockTime == 0 {
+		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
+		conf.LazyBlockTime = defaultLazyBlockTime
+	}
+
 	if conf.DAMempoolTTL == 0 {
 		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
 		conf.DAMempoolTTL = defaultMempoolTTL
@@ -332,31 +340,65 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 		time.Sleep(delay)
 	}
 
-	timer := time.NewTimer(0)
-	defer timer.Stop()
+	// blockTimer is used to signal when to build a block based on the
+	// rollup block time. A timer is used so that the time to build a block
+	// can be taken into account.
+	blockTimer := time.NewTimer(0)
+	defer blockTimer.Stop()
 
-	// Lazy Aggregator mode
+	// Lazy Aggregator mode.
+	// In Lazy Aggregator mode, blocks are built only when there are
+	// transactions or every LazyBlockTime.
 	if lazy {
+		// start is used to track the start time of the block production period
+		var start time.Time
+
+		// defaultSleep is used when coming out of a period of inactivity,
+		// to try and pull in more transactions in the first block
+		defaultSleep := time.Second
+
+		// lazyTimer is used to signal when a block should be built in
+		// lazy mode to signal that the chain is still live during long
+		// periods of inactivity.
+		lazyTimer := time.NewTimer(0)
+		defer lazyTimer.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			// the buildBlock channel is signalled when Txns become available
+			// the txsAvailable channel is signalled when Txns become available
 			// in the mempool, or after transactions remain in the mempool after
 			// building a block.
 			case _, ok := <-m.txsAvailable:
 				if ok && !m.buildingBlock {
+					// set the buildingBlock flag to prevent multiple calls to reset the timer
 					m.buildingBlock = true
-					timer.Reset(1 * time.Second)
+					// Reset the block timer based on the block time and the default sleep.
+					// The default sleep is used to give time for transactions to accumulate
+					// if we are coming out of a period of inactivity.  If we had recently
+					// produced a block (i.e. within the block time) then we will sleep for
+					// the remaining time within the block time interval.
+					blockTimer.Reset(getRemainingSleep(start, m.conf.BlockTime, defaultSleep))
+
 				}
-			case <-timer.C:
-				// build a block with all the transactions received in the last 1 second
-				err := m.publishBlock(ctx)
-				if err != nil && ctx.Err() == nil {
-					m.logger.Error("error while publishing block", "error", err)
-				}
-				m.buildingBlock = false
+				continue
+			case <-lazyTimer.C:
+			case <-blockTimer.C:
 			}
+			// Define the start time for the block production period
+			start = time.Now()
+			err := m.publishBlock(ctx)
+			if err != nil && ctx.Err() == nil {
+				m.logger.Error("error while publishing block", "error", err)
+			}
+			// unset the buildingBlocks flag
+			m.buildingBlock = false
+			// Reset the lazyTimer to produce a block even if there
+			// are no transactions as a way to signal that the chain
+			// is still live. Default sleep is set to 0 because care
+			// about producing blocks on time vs giving time for
+			// transactions to accumulate.
+			lazyTimer.Reset(getRemainingSleep(start, m.conf.LazyBlockTime, 0))
 		}
 	}
 
@@ -365,14 +407,18 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-timer.C:
+		case <-blockTimer.C:
 		}
 		start := time.Now()
 		err := m.publishBlock(ctx)
 		if err != nil && ctx.Err() == nil {
 			m.logger.Error("error while publishing block", "error", err)
 		}
-		timer.Reset(m.getRemainingSleep(start))
+		// Reset the blockTimer to signal the next block production
+		// period based on the block time. Default sleep is set to 0
+		// because care about producing blocks on time vs giving time
+		// for transactions to accumulate.
+		blockTimer.Reset(getRemainingSleep(start, m.conf.BlockTime, 0))
 	}
 }
 
@@ -687,11 +733,18 @@ func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRet
 	return blockRes, err
 }
 
-func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
-	publishingDuration := time.Since(start)
-	sleepDuration := m.conf.BlockTime - publishingDuration
-	if sleepDuration < 0 {
-		sleepDuration = 0
+// getRemainingSleep calculates the remaining sleep time based on an interval
+// and a start time.
+func getRemainingSleep(start time.Time, interval, defaultSleep time.Duration) time.Duration {
+	// Initialize the sleep duration to the default sleep duration to cover
+	// the case where more time has past than the interval duration.
+	sleepDuration := defaultSleep
+	// Calculate the time elapsed since the start time.
+	elapse := time.Since(start)
+	// If less time has elapsed than the interval duration, calculate the
+	// remaining time to sleep.
+	if elapse < interval {
+		sleepDuration = interval - elapse
 	}
 	return sleepDuration
 }
