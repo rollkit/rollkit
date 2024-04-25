@@ -725,10 +725,16 @@ func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRet
 	return blockRes, err
 }
 
-// getRemainingSleep calculates the remaining sleep time for the block production period.
+// getRemainingSleep calculates the remaining sleep time based on an interval
+// and a start time.
 func getRemainingSleep(start time.Time, interval, defaultSleep time.Duration) time.Duration {
+	// Initialize the sleep duration to the default sleep duration to cover
+	// the case where more time has past than the interval duration.
 	sleepDuration := defaultSleep
+	// Calculate the time elapsed since the start time.
 	elapse := time.Since(start)
+	// If less time has elapsed than the interval duration, calculate the
+	// remaining time to sleep.
 	if elapse < interval {
 		sleepDuration = interval - elapse
 	}
