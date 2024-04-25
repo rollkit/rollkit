@@ -869,10 +869,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	if m.voteExtensionEnabled(newHeight) {
-		if err := m.processVoteExtension(ctx, block, newHeight); err != nil {
-			return nil
-		}
+	if err := m.processVoteExtension(ctx, block, newHeight); err != nil {
+		return nil
 	}
 
 	// set the commit to current block's signed header
@@ -939,6 +937,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, newHeight uint64) error {
+	if !m.voteExtensionEnabled(newHeight) {
+		return nil
+	}
+
 	extension, err := m.executor.ExtendVote(ctx, block)
 	if err != nil {
 		return fmt.Errorf("error returned by ExtendVote: %w", err)
