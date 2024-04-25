@@ -871,6 +871,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error returned by ExtendVote: %w", err)
 		}
+		sign, err := m.proposerKey.Sign(extension)
+		if err != nil {
+			return fmt.Errorf("error signing vote extension: %w", err)
+		}
 		extendedCommit := &abci.ExtendedCommitInfo{
 			Round: 0,
 			Votes: []abci.ExtendedVoteInfo{{
@@ -879,7 +883,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 					Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
 				},
 				VoteExtension:      extension,
-				ExtensionSignature: nil,
+				ExtensionSignature: sign,
 				BlockIdFlag:        0,
 			}},
 		}

@@ -271,6 +271,13 @@ func TestVoteExtension(t *testing.T) {
 	const voteExtensionEnableHeight = 5
 	const expectedExtension = "vote extension from height %d"
 
+	// Create & configure node with app. Get signing key for mock functions.
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	node, signingKey := createAggregatorWithApp(ctx, app, voteExtensionEnableHeight, t)
+	require.NotNil(node)
+	require.NotNil(signingKey)
+
 	prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 		if req.Height <= voteExtensionEnableHeight {
 			require.Empty(req.LocalLastCommit.Votes)
@@ -282,8 +289,10 @@ func TestVoteExtension(t *testing.T) {
 			require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
 			require.NotNil(extendedCommit.Validator)
 			require.NotNil(extendedCommit.Validator.Address)
-			//TODO(tzdybal): verify signature
-			//require.NotEmpty(extendedCommit.ExtensionSignature)
+			require.NotEmpty(extendedCommit.ExtensionSignature)
+			ok, err := signingKey.GetPublic().Verify(extendedCommit.VoteExtension, extendedCommit.ExtensionSignature)
+			require.NoError(err)
+			require.True(ok)
 		}
 		return &abci.ResponsePrepareProposal{
 			Txs: req.Txs,
@@ -296,8 +305,6 @@ func TestVoteExtension(t *testing.T) {
 		}, nil
 	}
 
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	//app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
@@ -307,14 +314,10 @@ func TestVoteExtension(t *testing.T) {
 	//app.On("VerifyVoteExtension", mock.Anything, mock.Anything).Panic("unexpected call")
 	require.NotNil(app)
 
-	defer app.AssertExpectations(t)
-
-	node := createAggregatorWithApp(ctx, app, voteExtensionEnableHeight, t)
-	require.NotNil(node)
-
 	require.NoError(node.Start())
 	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
 	require.NoError(node.Stop())
+	app.AssertExpectations(t)
 }
 
 func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
@@ -357,7 +360,7 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	return fullNode, app
 }
 
-func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExtensionEnableHeight int64, t *testing.T) Node {
+func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExtensionEnableHeight int64, t *testing.T) (Node, crypto.PrivKey) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -394,7 +397,7 @@ func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExte
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
-	return node
+	return node, signingKey
 }
 
 // setupMockApplication initializes a mock application
