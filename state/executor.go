@@ -186,7 +186,15 @@ func (e *BlockExecutor) ProcessProposal(
 		Txs:    block.Data.Txs.ToSliceOfBytes(),
 		ProposedLastCommit: abci.CommitInfo{
 			Round: 0,
-			Votes: []abci.VoteInfo{},
+			Votes: []abci.VoteInfo{
+				{
+					Validator: abci.Validator{
+						Address: nil,
+						Power:   0,
+					},
+					BlockIdFlag: 0,
+				},
+			},
 		},
 		Misbehavior:        []abci.Misbehavior{},
 		ProposerAddress:    e.proposerAddress,
@@ -246,8 +254,13 @@ func (e *BlockExecutor) ExtendVote(ctx context.Context, block *types.Block) ([]b
 		Time:   block.Time(),
 		Txs:    block.Data.Txs.ToSliceOfBytes(),
 		ProposedLastCommit: abci.CommitInfo{
-			Round: 0,
-			Votes: nil,
+			Votes: []abci.VoteInfo{{
+				Validator: abci.Validator{
+					Address: block.SignedHeader.Validators.GetProposer().Address,
+					Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+				},
+				BlockIdFlag: cmproto.BlockIDFlagCommit,
+			}},
 		},
 		Misbehavior:        nil,
 		NextValidatorsHash: block.SignedHeader.ValidatorHash,
