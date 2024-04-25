@@ -181,7 +181,8 @@ func TestLazyAggregator(t *testing.T) {
 		// the blocktime too short. in future, we can add a configuration
 		// in go-header syncer initialization to not rely on blocktime, but the
 		// config variable
-		BlockTime: 1 * time.Second,
+		BlockTime:     1 * time.Second,
+		LazyBlockTime: 5 * time.Second,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -212,6 +213,9 @@ func TestLazyAggregator(t *testing.T) {
 	assert.NoError(err)
 
 	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
+
+	// LazyBlockTime should trigger another block even without transactions
+	require.NoError(waitForAtLeastNBlocks(node, 5, Header))
 }
 
 // TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
