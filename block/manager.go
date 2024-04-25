@@ -868,30 +868,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	if m.voteExtensionEnabled(newHeight) {
-		extension, err := m.extendVote(ctx, block)
-		if err != nil {
-			return fmt.Errorf("error returned by ExtendVote: %w", err)
-		}
-		sign, err := m.proposerKey.Sign(extension)
-		if err != nil {
-			return fmt.Errorf("error signing vote extension: %w", err)
-		}
-		extendedCommit := &abci.ExtendedCommitInfo{
-			Round: 0,
-			Votes: []abci.ExtendedVoteInfo{{
-				Validator: abci.Validator{
-					Address: block.SignedHeader.Validators.GetProposer().Address,
-					Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
-				},
-				VoteExtension:      extension,
-				ExtensionSignature: sign,
-				BlockIdFlag:        cmproto.BlockIDFlagCommit,
-			}},
-		}
-		err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
-		if err != nil {
-			return fmt.Errorf("failed to save extended commit: %w", err)
+		if err := m.processVoteExtension(ctx, block, newHeight); err != nil {
+			return nil
 		}
 	}
 
@@ -955,6 +935,34 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
+	return nil
+}
+
+func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, newHeight uint64) error {
+	extension, err := m.executor.ExtendVote(ctx, block)
+	if err != nil {
+		return fmt.Errorf("error returned by ExtendVote: %w", err)
+	}
+	sign, err := m.proposerKey.Sign(extension)
+	if err != nil {
+		return fmt.Errorf("error signing vote extension: %w", err)
+	}
+	extendedCommit := &abci.ExtendedCommitInfo{
+		Round: 0,
+		Votes: []abci.ExtendedVoteInfo{{
+			Validator: abci.Validator{
+				Address: block.SignedHeader.Validators.GetProposer().Address,
+				Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+			},
+			VoteExtension:      extension,
+			ExtensionSignature: sign,
+			BlockIdFlag:        cmproto.BlockIDFlagCommit,
+		}},
+	}
+	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
+	if err != nil {
+		return fmt.Errorf("failed to save extended commit: %w", err)
+	}
 	return nil
 }
 
@@ -1116,10 +1124,6 @@ func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.Sta
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.executor.ApplyBlock(ctx, m.lastState, block)
-}
-
-func (m *Manager) extendVote(ctx context.Context, block *types.Block) ([]byte, error) {
-	return m.executor.ExtendVote(ctx, block)
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) {
