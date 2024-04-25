@@ -366,7 +366,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			select {
 			case <-ctx.Done():
 				return
-			// the buildBlock channel is signalled when Txns become available
+			// the txsAvailable channel is signalled when Txns become available
 			// in the mempool, or after transactions remain in the mempool after
 			// building a block.
 			case _, ok := <-m.txsAvailable:
@@ -374,6 +374,10 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 					// set the buildingBlock flag to prevent multiple calls to reset the timer
 					m.buildingBlock = true
 					// Reset the block timer based on the block time and the default sleep.
+					// The default sleep is used to give time for transactions to accumulate
+					// if we are coming out of a period of inactivity.  If we had recently
+					// produced a block (i.e. within the block time) then we will sleep for
+					// the remaining time within the block time interval.
 					blockTimer.Reset(getRemainingSleep(start, m.conf.BlockTime, defaultSleep))
 
 				}
@@ -389,9 +393,11 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			}
 			// unset the buildingBlocks flag
 			m.buildingBlock = false
-			// Reset the lazyTimer to signal that the chain is still
-			// live based on the LazyBlockTime and a default sleep
-			// of 0
+			// Reset the lazyTimer to produce a block even if there
+			// are no transactions as a way to signal that the chain
+			// is still live. Default sleep is set to 0 because care
+			// about producing blocks on time vs giving time for
+			// transactions to accumulate.
 			lazyTimer.Reset(getRemainingSleep(start, m.conf.LazyBlockTime, 0))
 		}
 	}
@@ -409,7 +415,9 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			m.logger.Error("error while publishing block", "error", err)
 		}
 		// Reset the blockTimer to signal the next block production
-		// period based on the block time and a default sleep of 0
+		// period based on the block time. Default sleep is set to 0
+		// because care about producing blocks on time vs giving time
+		// for transactions to accumulate.
 		blockTimer.Reset(getRemainingSleep(start, m.conf.BlockTime, 0))
 	}
 }
