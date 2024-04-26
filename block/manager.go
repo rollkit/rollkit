@@ -949,18 +949,7 @@ func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, 
 	if err != nil {
 		return fmt.Errorf("error signing vote extension: %w", err)
 	}
-	extendedCommit := &abci.ExtendedCommitInfo{
-		Round: 0,
-		Votes: []abci.ExtendedVoteInfo{{
-			Validator: abci.Validator{
-				Address: block.SignedHeader.Validators.GetProposer().Address,
-				Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
-			},
-			VoteExtension:      extension,
-			ExtensionSignature: sign,
-			BlockIdFlag:        cmproto.BlockIDFlagCommit,
-		}},
-	}
+	extendedCommit := buildExtendedCommit(block, extension, sign)
 	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
 	if err != nil {
 		return fmt.Errorf("failed to save extended commit: %w", err)
@@ -983,6 +972,22 @@ func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.Ex
 		return emptyExtendedCommit, err
 	}
 	return *extendedCommit, nil
+}
+
+func buildExtendedCommit(block *types.Block, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
+	extendedCommit := &abci.ExtendedCommitInfo{
+		Round: 0,
+		Votes: []abci.ExtendedVoteInfo{{
+			Validator: abci.Validator{
+				Address: block.SignedHeader.Validators.GetProposer().Address,
+				Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+			},
+			VoteExtension:      extension,
+			ExtensionSignature: sign,
+			BlockIdFlag:        cmproto.BlockIDFlagCommit,
+		}},
+	}
+	return extendedCommit
 }
 
 func (m *Manager) recordMetrics(block *types.Block) {
