@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # use consistent go version throughout pipeline here
-      GO_VERSION: "1.21"
+      GO_VERSION: "1.22"
     outputs:
       go-version: ${{ steps.set-vars.outputs.go-version }}
     steps:
