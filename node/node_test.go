@@ -88,7 +88,7 @@ func cleanUpNode(node Node, t *testing.T) {
 	assert.False(t, node.IsRunning())
 }
 
-// initializeAndStartNode initializes and starts a node of the specified type.
+// initAndStartNodeWithCleanup initializes and starts a node of the specified type.
 func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType NodeType) Node {
 	node, _ := setupTestNode(ctx, t, nodeType)
 	startNodeWithCleanup(t, node)
