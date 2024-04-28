@@ -75,14 +75,14 @@ Block.Verify()
 	
 ```
 
-## [Block](https://github.com/rollkit/rollkit/blob/main/types/block.go#L26)
+## [Block](https://github.com/rollkit/rollkit/blob/main/types/block.go#L24)
 
 | **Field Name** | **Valid State**                         | **Validation**                     |
 |----------------|-----------------------------------------|------------------------------------|
 | SignedHeader   | Header of the block, signed by proposer | (See SignedHeader)                 |
 | Data           | Transaction data of the block           | Data.Hash == SignedHeader.DataHash |
 
-## [SignedHeader](https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16)
+## [SignedHeader](https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L15)
 
 | **Field Name** | **Valid State**                                                          | **Validation**                                                                              |
 |----------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
@@ -90,7 +90,7 @@ Block.Verify()
 | Commit         | 1 valid signature from the centralized sequencer                             | `Commit` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
 | Validators     | Array of Aggregators, must have length exactly 1. | `Validators` passes `ValidateBasic()`                                                       |
 
-## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L25)
+## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L29)
 
 ***Note***: The `AggregatorsHash` and `NextAggregatorsHash` fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the centralized sequencer set as the 1 validator in the genesis block.
 
@@ -110,7 +110,7 @@ Block.Verify()
 | LastResultsHash     | Correct results from executing transactions                                                | checked during block execution        |
 | ProposerAddress     | Address of the expected proposer                                                           | checked in the `Verify()` step          |
 
-## [Commit](https://github.com/rollkit/rollkit/blob/main/types/block.go#L48)
+## [Commit](https://github.com/rollkit/rollkit/blob/main/types/block.go#L46)
 
 | **Field Name** | **Valid State**                                         | **Validation**             |
 |----------------|---------------------------------------------------------|----------------------------|
