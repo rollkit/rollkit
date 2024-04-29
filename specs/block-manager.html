@@ -194,6 +194,7 @@
 <tr><td>BlockTime</td><td>time.Duration</td><td>time interval used for block production and block retrieval from block store (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L35"><code>defaultBlockTime</code></a>)</td></tr>
 <tr><td>DABlockTime</td><td>time.Duration</td><td>time interval used for both block publication to DA network and block retrieval from DA network (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L32"><code>defaultDABlockTime</code></a>)</td></tr>
 <tr><td>DAStartHeight</td><td>uint64</td><td>block retrieval from DA network starts from this height</td></tr>
+<tr><td>LazyBlockTime</td><td>time.Duration</td><td>time interval used for block production in lazy aggregator mode even when there are no transactions (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L38"><code>defaultLazyBlockTime</code></a>)</td></tr>
 </tbody></table>
 </div>
 <h3 id="block-production"><a class="header" href="#block-production">Block Production</a></h3>
