@@ -8,7 +8,7 @@ retract v0.12.0 // Published by accident
 
 require (
 	github.com/celestiaorg/utils v0.1.0
-	github.com/cometbft/cometbft v0.38.5
+	github.com/cometbft/cometbft v0.38.7
 	github.com/cosmos/gogoproto v1.4.12
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
@@ -23,7 +23,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.0
 	github.com/rollkit/go-da v0.5.0
-	github.com/rs/cors v1.10.1
+	github.com/rs/cors v1.11.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.9.0
