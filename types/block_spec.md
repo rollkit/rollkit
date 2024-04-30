@@ -90,7 +90,7 @@ Block.Verify()
 | Commit         | 1 valid signature from the centralized sequencer                             | `Commit` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
 | Validators     | Array of Aggregators, must have length exactly 1. | `Validators` passes `ValidateBasic()`                                                       |
 
-## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L25)
+## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L39)
 
 ***Note***: The `AggregatorsHash` and `NextAggregatorsHash` fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the centralized sequencer set as the 1 validator in the genesis block.
 

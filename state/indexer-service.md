@@ -56,5 +56,5 @@ See [indexer service]
 
 [block_indexer]: https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11
 [tx_indexer]: https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14
-[publish_events_method]: https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352
-[indexer service]: https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20
+[publish_events_method]: https://github.com/rollkit/rollkit/blob/main/state/executor.go#L409
+[indexer service]: https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go

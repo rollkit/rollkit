@@ -179,11 +179,11 @@ See [tutorial] for running a multi-node network with both sequencer and non-sequ
 
 [5] [Tutorial][tutorial]
 
-[maxSubmitAttempts]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39
-[defaultBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L35
-[defaultDABlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L32
-[defaultLazyBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L38
-[initialBackoff]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L48
+[maxSubmitAttempts]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50
+[defaultBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L36
+[defaultDABlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L33
+[defaultLazyBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39
+[initialBackoff]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L59
 [go-header]: https://github.com/celestiaorg/go-header
 [block-sync]: https://github.com/rollkit/rollkit/blob/main/block/block_sync.go
 [full-node]: https://github.com/rollkit/rollkit/blob/main/node/full.go
