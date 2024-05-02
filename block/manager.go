@@ -106,10 +106,6 @@ type Manager struct {
 
 	logger log.Logger
 
-	// Rollkit doesn't have "validators", but
-	// we store the sequencer in this struct for compatibility.
-	validatorSet *cmtypes.ValidatorSet
-
 	// For usage by Lazy Aggregator mode
 	buildingBlock bool
 	txsAvailable  <-chan struct{}
@@ -170,9 +166,6 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
-	// genesis should have exactly one "validator", the centralized sequencer.
-	// this should have been validated in the above call to getInitialState.
-	valSet := types.GetValidatorSetFromGenesis(genesis)
 
 	if s.DAHeight < conf.DAStartHeight {
 		s.DAHeight = conf.DAStartHeight
@@ -205,9 +198,12 @@ func NewManager(
 
 	isProposer, err := isProposer(genesis, proposerKey)
 	if err != nil {
-		return nil, err
+		if s.LastBlockHeight == 0 {
+			isProposer = true
+		} else {
+			return nil, err
+		}
 	}
-
 	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
 	if err != nil {
 		return nil, err
@@ -215,7 +211,7 @@ func NewManager(
 	// allow buffer for the block header and protocol encoding
 	maxBlobSize -= blockProtocolOverhead
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, maxBlobSize, logger, execMetrics, valSet.Hash())
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -259,7 +255,6 @@ func NewManager(
 		blockCache:    NewBlockCache(),
 		retrieveCh:    make(chan struct{}, 1),
 		logger:        logger,
-		validatorSet:  &valSet,
 		txsAvailable:  txsAvailableCh,
 		buildingBlock: false,
 		pendingBlocks: pendingBlocks,
@@ -784,7 +779,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	)
 	height := m.store.Height()
 	newHeight := height + 1
-
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
 		lastCommit = &types.Commit{}
@@ -817,9 +811,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
-		block.SignedHeader.Validators = m.validatorSet
-		block.SignedHeader.ValidatorHash = m.validatorSet.Hash()
-
 		/*
 		   here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
 		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
@@ -829,6 +820,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
+		block.SignedHeader.Validators = m.getLastStateValidators()
+		block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
 
 		commit, err = m.getCommit(block.SignedHeader.Header)
 		if err != nil {
@@ -932,7 +926,6 @@ func (m *Manager) recordMetrics(block *types.Block) {
 	m.metrics.BlockSizeBytes.Set(float64(block.Size()))
 	m.metrics.CommittedHeight.Set(float64(block.Height()))
 }
-
 func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	submittedAllBlocks := false
 	var backoff time.Duration
@@ -1038,6 +1031,12 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
+func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState.Validators
+}
+
 // Updates the state stored in manager's store along the manager's lastState
 func (m *Manager) updateState(ctx context.Context, s types.State) error {
 	m.lastStateMtx.Lock()
@@ -1101,4 +1100,11 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
 	s.LastResultsHash = merkle.HashFromByteSlices(nil)
 
+	if len(res.Validators) > 0 {
+		vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
+		if err != nil {
+			panic(err)
+		}
+		s.Validators = cmtypes.NewValidatorSet(vals)
+	}
 }

@@ -28,7 +28,6 @@ var ErrAddingValidatorToBased = errors.New("cannot add validators to empty valid
 // BlockExecutor creates and applies blocks and maintains state.
 type BlockExecutor struct {
 	proposerAddress []byte
-	valsetHash      []byte
 	chainID         string
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
@@ -42,10 +41,9 @@ type BlockExecutor struct {
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
-func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, maxBytes uint64, logger log.Logger, metrics *Metrics, valsetHash []byte) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, maxBytes uint64, logger log.Logger, metrics *Metrics) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
-		valsetHash:      valsetHash,
 		chainID:         chainID,
 		proxyApp:        proxyApp,
 		mempool:         mempool,
@@ -149,7 +147,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 			Misbehavior:        []abci.Misbehavior{},
 			Height:             int64(block.Height()),
 			Time:               block.Time(),
-			NextValidatorsHash: e.valsetHash,
+			NextValidatorsHash: state.Validators.Hash(),
 			ProposerAddress:    e.proposerAddress,
 		},
 	)
@@ -193,7 +191,7 @@ func (e *BlockExecutor) ProcessProposal(
 		},
 		Misbehavior:        []abci.Misbehavior{},
 		ProposerAddress:    e.proposerAddress,
-		NextValidatorsHash: e.valsetHash,
+		NextValidatorsHash: state.Validators.Hash(),
 	})
 	if err != nil {
 		return false, err
@@ -293,6 +291,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 		ConsensusParams:                  state.ConsensusParams,
 		LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
 		AppHash:                          finalizeBlockResponse.AppHash,
+		Validators:                       state.Validators,
 	}
 	copy(s.LastResultsHash[:], cmtypes.NewResults(finalizeBlockResponse.TxResults).Hash())
 
@@ -370,7 +369,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, block *t
 	startTime := time.Now().UnixNano()
 	finalizeBlockResponse, err := e.proxyApp.FinalizeBlock(ctx, &abci.RequestFinalizeBlock{
 		Hash:               block.Hash(),
-		NextValidatorsHash: e.valsetHash,
+		NextValidatorsHash: state.Validators.Hash(),
 		ProposerAddress:    abciHeader.ProposerAddress,
 		Height:             abciHeader.Height,
 		Time:               abciHeader.Time,
