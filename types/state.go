@@ -53,7 +53,10 @@ type State struct {
 	AppHash Hash
 
 	// In the MVP implementation, there will be only one Validator
-	Validators *types.ValidatorSet
+	Validators                  *types.ValidatorSet
+	NextValidators              *types.ValidatorSet
+	LastValidators              *types.ValidatorSet
+	LastHeightValidatorsChanged int64
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
@@ -62,10 +65,6 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 	if err != nil {
 		return State{}, fmt.Errorf("error in genesis doc: %w", err)
 	}
-
-	// if len(genDoc.Validators) != 1 {
-	// 	return State{}, fmt.Errorf("must have exactly 1 validator (the centralized sequencer)")
-	// }
 
 	s := State{
 		Version:       InitStateVersion,

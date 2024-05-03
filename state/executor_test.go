@@ -286,6 +286,8 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 			},
 			Abci: &cmproto.ABCIParams{},
 		},
+		Validators:     cmtypes.NewValidatorSet([]*cmtypes.Validator{{Address: []byte("test"), PubKey: nil, VotingPower: 100, ProposerPriority: 1}}),
+		NextValidators: cmtypes.NewValidatorSet([]*cmtypes.Validator{{Address: []byte("test"), PubKey: nil, VotingPower: 100, ProposerPriority: 1}}),
 	}
 
 	block := types.GetRandomBlock(1234, 2)
@@ -310,10 +312,13 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 				App: 2,
 			},
 		},
+
 		TxResults: txResults,
 	}
+	validatorUpdates, err := cmtypes.PB2TM.ValidatorUpdates(resp.ValidatorUpdates)
+	assert.NoError(t, err)
 
-	updatedState, err := executor.updateState(state, block, resp)
+	updatedState, err := executor.updateState(state, block, resp, validatorUpdates)
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(1235), updatedState.LastHeightConsensusParamsChanged)
