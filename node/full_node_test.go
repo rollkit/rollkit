@@ -49,8 +49,7 @@ func TestMempoolDirectly(t *testing.T) {
 	require.IsType(t, new(FullNode), fn)
 
 	node := fn.(*FullNode)
-	assert := assert.New(t)
-	peerID := getPeerID(assert)
+	peerID := getPeerID(t)
 	verifyTransactions(node, peerID, t)
 	verifyMempoolSize(node, t)
 }
@@ -325,11 +324,11 @@ func generateSingleKey() crypto.PrivKey {
 }
 
 // getPeerID generates a peer ID
-func getPeerID(assert *assert.Assertions) peer.ID {
+func getPeerID(t *testing.T) peer.ID {
 	key := generateSingleKey()
 
 	peerID, err := peer.IDFromPrivateKey(key)
-	assert.NoError(err)
+	assert.NoError(t, err)
 	return peerID
 }
 
