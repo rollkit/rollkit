@@ -1106,5 +1106,6 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 			panic(err)
 		}
 		s.Validators = cmtypes.NewValidatorSet(vals)
+		s.NextValidators = cmtypes.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
 	}
 }
