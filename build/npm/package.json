@@ -1,0 +1,24 @@
+{
+  "name": "@rollkit/rollkit",
+  "version": "0.13.4",
+  "description": "CLI tool for rollkit",
+  "scripts": {
+    "postinstall": "node ./scripts/postinstall.js"
+  },
+  "bin": {
+    "rollkit": "rollkit"
+  },
+  "publishConfig": {
+    "scope": "@rollkit/rollkit"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "author": "Rollkit Devs",
+  "license": "Apache 2.0"
+}

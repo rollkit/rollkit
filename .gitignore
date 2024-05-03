@@ -5,3 +5,8 @@ types/pb/tendermint
 .vscode/launch.json
 */**.html
 *.idea
+
+# Ignore generate npm files from publishing
+*node_modules
+build/npm/package-lock.json
+build/npm/dist/

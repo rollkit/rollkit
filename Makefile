@@ -109,3 +109,26 @@ install:
 	@echo "    Check the version with: rollkit version"
 	@echo "    Check the binary with: which rollkit"
 .PHONY: install
+
+# Define the platforms to build for
+PLATFORMS := windows/amd64 darwin/amd64 linux/amd64
+
+## npm-build: Build the rollkit CLI for npm publishing
+npm-build: npm-clean $(PLATFORMS)
+.PHONY: npm-build
+
+$(PLATFORMS):
+	@echo "--> Building $(word 1,$(subst /, ,$@))/$(word 2,$(subst /, ,$@)) Rollkit CLI for NPM"
+	@GOOS=$(word 1,$(subst /, ,$@)) GOARCH=$(word 2,$(subst /, ,$@)) go build -o ./build/npm/dist/rollkit-$(word 1,$(subst /, ,$@))-$(word 2,$(subst /, ,$@)) -ldflags "$(LDFLAGS)" ./cmd/rollkit
+
+## npm-clean: Clean the npm build directory
+npm-clean:
+	@echo "--> Cleaning npm build directory"
+	@rm -rf ./build/npm/dist
+.PHONY: npm-clean
+
+## npm-publish: Build the rollkit CLI for npm publishing
+npm-publish:
+	@echo "--> Publishing Rollkit CLI to NPM"
+	@cd ./build/npm && npm publish --access public
+.PHONY: npm-publish
