@@ -71,6 +71,7 @@ func TestInitialStateClean(t *testing.T) {
 func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	valset := types.GetRandomValidatorSet()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "myChain",
 		InitialHeight: 1,
@@ -81,7 +82,11 @@ func TestInitialStateStored(t *testing.T) {
 		ChainID:         "myChain",
 		InitialHeight:   1,
 		LastBlockHeight: 100,
+		Validators:      valset,
+		NextValidators:  valset,
+		LastValidators:  valset,
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	es, _ := store.NewDefaultInMemoryKVStore()
@@ -96,6 +101,7 @@ func TestInitialStateStored(t *testing.T) {
 
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
+	valset := types.GetRandomValidatorSet()
 	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "myChain",
@@ -107,6 +113,9 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		ChainID:         "myChain",
 		InitialHeight:   1,
 		LastBlockHeight: 0,
+		Validators:      valset,
+		NextValidators:  valset,
+		LastValidators:  valset,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
