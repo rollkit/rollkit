@@ -870,7 +870,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	if err := m.processVoteExtension(ctx, block, newHeight); err != nil {
-		return nil
+		return err
 	}
 
 	// set the commit to current block's signed header
