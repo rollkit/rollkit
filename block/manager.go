@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -218,17 +217,12 @@ func NewManager(
 		if err != nil {
 			return nil, err
 		}
-		data, _ := json.Marshal(res)
-		fmt.Println("res", string(data))
-		fmt.Println(res)
 		updateState(&s, res)
 		if err := store.UpdateState(context.Background(), s); err != nil {
 			return nil, err
 		}
 	}
 
-	data, _ := json.Marshal(s)
-	fmt.Println("state", string(data))
 	var txsAvailableCh <-chan struct{}
 	if mempool != nil {
 		txsAvailableCh = mempool.TxsAvailable()
