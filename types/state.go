@@ -66,6 +66,19 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		return State{}, fmt.Errorf("error in genesis doc: %w", err)
 	}
 
+	var validatorSet, nextValidatorSet *types.ValidatorSet
+	if genDoc.Validators == nil {
+		validatorSet = types.NewValidatorSet(nil)
+		nextValidatorSet = types.NewValidatorSet(nil)
+	} else {
+		validators := make([]*types.Validator, len(genDoc.Validators))
+		for i, val := range genDoc.Validators {
+			validators[i] = types.NewValidator(val.PubKey, val.Power)
+		}
+		validatorSet = types.NewValidatorSet(validators)
+		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
+	}
+
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
@@ -76,6 +89,11 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
+
+		NextValidators:              nextValidatorSet,
+		Validators:                  validatorSet,
+		LastValidators:              types.NewValidatorSet(nil),
+		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
 		ConsensusParams: cmproto.ConsensusParams{
 			Block: &cmproto.BlockParams{
