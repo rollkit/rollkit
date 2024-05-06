@@ -49,10 +49,9 @@ func TestMempoolDirectly(t *testing.T) {
 	require.IsType(t, new(FullNode), fn)
 
 	node := fn.(*FullNode)
-	assert := assert.New(t)
-	peerID := getPeerID(assert)
-	verifyTransactions(node, peerID, assert)
-	verifyMempoolSize(node, assert)
+	peerID := getPeerID(t)
+	verifyTransactions(node, peerID, t)
+	verifyMempoolSize(node, t)
 }
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
@@ -325,28 +324,29 @@ func generateSingleKey() crypto.PrivKey {
 }
 
 // getPeerID generates a peer ID
-func getPeerID(assert *assert.Assertions) peer.ID {
+func getPeerID(t *testing.T) peer.ID {
 	key := generateSingleKey()
 
 	peerID, err := peer.IDFromPrivateKey(key)
-	assert.NoError(err)
+	assert.NoError(t, err)
 	return peerID
 }
 
 // verifyTransactions checks if transactions are valid
-func verifyTransactions(node *FullNode, peerID peer.ID, assert *assert.Assertions) {
+func verifyTransactions(node *FullNode, peerID peer.ID, t *testing.T) {
 	transactions := []string{"tx1", "tx2", "tx3", "tx4"}
 	for _, tx := range transactions {
 		err := node.Mempool.CheckTx([]byte(tx), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
 			SenderID: node.mempoolIDs.GetForPeer(peerID),
 		})
-		assert.NoError(err)
+		assert.NoError(t, err)
 	}
+
 }
 
 // verifyMempoolSize checks if the mempool size is as expected
-func verifyMempoolSize(node *FullNode, assert *assert.Assertions) {
-	assert.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+func verifyMempoolSize(node *FullNode, t *testing.T) {
+	assert.NoError(t, testutils.Retry(300, 100*time.Millisecond, func() error {
 		expectedSize := uint64(4 * len("tx*"))
 		actualSize := uint64(node.Mempool.SizeBytes())
 		if expectedSize == actualSize {
