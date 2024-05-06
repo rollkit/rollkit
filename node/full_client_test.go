@@ -898,7 +898,13 @@ func TestStatus(t *testing.T) {
 	require.NotNil(node)
 	ctx := context.Background()
 
-	err = node.Store.UpdateState(ctx, types.State{})
+	validators := make([]*cmtypes.Validator, len(genesisDoc.Validators))
+	for i, val := range genesisDoc.Validators {
+		validators[i] = cmtypes.NewValidator(val.PubKey, val.Power)
+	}
+	validatorSet := cmtypes.NewValidatorSet(validators)
+
+	err = node.Store.UpdateState(ctx, types.State{LastValidators: validatorSet, NextValidators: validatorSet, Validators: validatorSet})
 	assert.NoError(err)
 
 	rpc := NewFullClient(node)
