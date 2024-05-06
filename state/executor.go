@@ -186,15 +186,7 @@ func (e *BlockExecutor) ProcessProposal(
 		Txs:    block.Data.Txs.ToSliceOfBytes(),
 		ProposedLastCommit: abci.CommitInfo{
 			Round: 0,
-			Votes: []abci.VoteInfo{
-				{
-					Validator: abci.Validator{
-						Address: nil,
-						Power:   0,
-					},
-					BlockIdFlag: 0,
-				},
-			},
+			Votes: []abci.VoteInfo{},
 		},
 		Misbehavior:        []abci.Misbehavior{},
 		ProposerAddress:    e.proposerAddress,
