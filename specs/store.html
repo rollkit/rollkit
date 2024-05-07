@@ -166,7 +166,7 @@
 <p><code>NewDefaultKVStore</code>: Builds a key-value store that uses the <a href="https://github.com/dgraph-io/badger">BadgerDB</a> library and stores the data on disk at the specified path.</p>
 </li>
 </ul>
-<p>A Rollkit full node is <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L106">initialized</a> using <code>NewDefaultKVStore</code> as the base key-value store for underlying storage. To store various types of data in this base key-value store, different prefixes are used: <code>mainPrefix</code>, <code>dalcPrefix</code>, and <code>indexerPrefix</code>. The <code>mainPrefix</code> equal to <code>0</code> is used for the main node data, <code>dalcPrefix</code> equal to <code>1</code> is used for Data Availability Layer Client (DALC) data, and <code>indexerPrefix</code> equal to <code>2</code> is used for indexing related data.</p>
+<p>A Rollkit full node is <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">initialized</a> using <code>NewDefaultKVStore</code> as the base key-value store for underlying storage. To store various types of data in this base key-value store, different prefixes are used: <code>mainPrefix</code>, <code>dalcPrefix</code>, and <code>indexerPrefix</code>. The <code>mainPrefix</code> equal to <code>0</code> is used for the main node data, <code>dalcPrefix</code> equal to <code>1</code> is used for Data Availability Layer Client (DALC) data, and <code>indexerPrefix</code> equal to <code>2</code> is used for indexing related data.</p>
 <p>For the main node data, <code>DefaultStore</code> struct, an implementation of the Store interface, is used with the following prefixes for various types of data within it:</p>
 <ul>
 <li><code>blockPrefix</code> with value &quot;b&quot;: Used to store blocks in the key-value store.</li>
@@ -188,7 +188,7 @@
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L106">Full Node Store Initialization</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">Full Node Store Initialization</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">Full Client</a></p>
 <p>[6] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
