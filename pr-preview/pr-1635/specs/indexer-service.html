@@ -149,7 +149,7 @@
 <h3 id="transaction-indexer"><a class="header" href="#transaction-indexer">Transaction Indexer</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a> is a key-value store-backed indexer that provides functionalities for indexing and searching transactions. It allows for the addition of a batch of transactions, indexing and storing a single transaction, retrieving a transaction specified by hash, and querying for transactions based on specific conditions. The indexer also supports range queries and can return results based on the intersection of multiple conditions.</p>
 <h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352"><code>publishEvents</code> method</a> in the block executor is responsible for broadcasting several types of events through the event bus. These events include <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, <code>EventNewBlockEvents</code>, <code>EventNewEvidence</code>, and <code>EventTx</code>. Each of these events carries specific data related to the block or transaction they represent.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L409"><code>publishEvents</code> method</a> in the block executor is responsible for broadcasting several types of events through the event bus. These events include <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, <code>EventNewBlockEvents</code>, <code>EventNewEvidence</code>, and <code>EventTx</code>. Each of these events carries specific data related to the block or transaction they represent.</p>
 <ol>
 <li>
 <p><code>EventNewBlock</code>: Triggered when a new block is finalized. It carries the block data along with the results of the <code>FinalizeBlock</code> ABCI method.</p>
@@ -171,12 +171,12 @@
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
 <p>The indexer service assumes that the messages passed by the block executor are valid block headers and valid transactions with the required fields such that they can be indexed by the respective block indexer and transaction indexer.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20">indexer service</a></p>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go">indexer service</a></p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11">Block Indexer</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352">Publish Events</a></p>
-<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20">Indexer Service</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L409">Publish Events</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go">Indexer Service</a></p>
 
                     </main>
 

@@ -156,7 +156,7 @@ type P2PConfig struct {
 }
 </code></pre>
 <p>A P2P client also instantiates a <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">connection gator</a> to block and allow peers specified in the <code>P2PConfig</code>.</p>
-<p>It also sets up a gossiper using the gossip topic <code>&lt;chainID&gt;+&lt;txTopicSuffix&gt;</code> (<code>txTopicSuffix</code> is defined in <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43">p2p/client.go</a>), a Distributed Hash Table (DHT) using the <code>Seeds</code> defined in the <code>P2PConfig</code> and peer discovery using go-libp2p's <code>discovery.RoutingDiscovery</code>.</p>
+<p>It also sets up a gossiper using the gossip topic <code>&lt;chainID&gt;+&lt;txTopicSuffix&gt;</code> (<code>txTopicSuffix</code> is defined in <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">p2p/client.go</a>), a Distributed Hash Table (DHT) using the <code>Seeds</code> defined in the <code>P2PConfig</code> and peer discovery using go-libp2p's <code>discovery.RoutingDiscovery</code>.</p>
 <p>A P2P client provides an interface <code>SetTxValidator(p2p.GossipValidator)</code> for specifying a gossip validator which can define how to handle the incoming <code>GossipMessage</code> in the P2P network. The <code>GossipMessage</code> represents message gossiped via P2P network (e.g. transaction, Block etc).</p>
 <pre><code class="language-go">// GossipValidator is a callback function type.
 type GossipValidator func(*GossipMessage) bool
@@ -170,7 +170,7 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 func (ln *LightNode) falseValidator() p2p.GossipValidator {
 </code></pre>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43">client.go</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">client.go</a></p>
 <p>[2] <a href="https://github.com/ipfs/go-datastore">go-datastore</a></p>
 <p>[3] <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a></p>
 <p>[4] <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">conngater</a></p>

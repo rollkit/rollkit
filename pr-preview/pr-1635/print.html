@@ -271,9 +271,10 @@ gantt
 </div>
 <p>Block manager configuration options:</p>
 <div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td>BlockTime</td><td>time.Duration</td><td>time interval used for block production and block retrieval from block store (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L35"><code>defaultBlockTime</code></a>)</td></tr>
-<tr><td>DABlockTime</td><td>time.Duration</td><td>time interval used for both block publication to DA network and block retrieval from DA network (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L32"><code>defaultDABlockTime</code></a>)</td></tr>
+<tr><td>BlockTime</td><td>time.Duration</td><td>time interval used for block production and block retrieval from block store (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L36"><code>defaultBlockTime</code></a>)</td></tr>
+<tr><td>DABlockTime</td><td>time.Duration</td><td>time interval used for both block publication to DA network and block retrieval from DA network (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L33"><code>defaultDABlockTime</code></a>)</td></tr>
 <tr><td>DAStartHeight</td><td>uint64</td><td>block retrieval from DA network starts from this height</td></tr>
+<tr><td>LazyBlockTime</td><td>time.Duration</td><td>time interval used for block production in lazy aggregator mode even when there are no transactions (<a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39"><code>defaultLazyBlockTime</code></a>)</td></tr>
 </tbody></table>
 </div>
 <h3 id="block-production"><a class="header" href="#block-production">Block Production</a></h3>
@@ -291,7 +292,7 @@ gantt
 <li>Publish the newly generated block to channels to notify other components of the sequencer node (such as block and header gossip)</li>
 </ul>
 <h3 id="block-publication-to-da-network"><a class="header" href="#block-publication-to-da-network">Block Publication to DA Network</a></h3>
-<p>The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the <code>pendingBlocks</code> queue) to the DA network using the <code>DABlockTime</code> configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L39"><code>maxSubmitAttempts</code></a> attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L48"><code>initialBackoff</code></a> and it doubles in the next attempt and capped at <code>DABlockTime</code>. A successful publish event leads to the emptying of <code>pendingBlocks</code> queue and a failure event leads to proper error reporting without emptying of <code>pendingBlocks</code> queue.</p>
+<p>The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the <code>pendingBlocks</code> queue) to the DA network using the <code>DABlockTime</code> configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50"><code>maxSubmitAttempts</code></a> attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L59"><code>initialBackoff</code></a> and it doubles in the next attempt and capped at <code>DABlockTime</code>. A successful publish event leads to the emptying of <code>pendingBlocks</code> queue and a failure event leads to proper error reporting without emptying of <code>pendingBlocks</code> queue.</p>
 <h3 id="block-retrieval-from-da-network"><a class="header" href="#block-retrieval-from-da-network">Block Retrieval from DA Network</a></h3>
 <p>The block manager of the full nodes regularly pulls blocks from the DA network at <code>DABlockTime</code> intervals and starts off with a DA height read from the last state stored in the local store or <code>DAStartHeight</code> configuration parameter, whichever is the latest. The block manager also actively maintains and increments the <code>daHeight</code> counter after every DA pull. The pull happens by making the <code>RetrieveBlocks(daHeight)</code> request using the Data Availability Light Client (DALC) retriever, which can return either <code>Success</code>, <code>NotFound</code>, or <code>Error</code>. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the <code>daHeight</code> counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block <code>NotFound</code> scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the <code>daHeight</code> counter in this case. Finally, for the <code>Success</code> scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the <code>DABlockTime</code> and <code>BlockTime</code> intervals.</p>
 <h4 id="out-of-order-rollup-blocks-on-da"><a class="header" href="#out-of-order-rollup-blocks-on-da">Out-of-Order Rollup Blocks on DA</a></h4>
@@ -620,7 +621,7 @@ Block.Verify()
 <tr><td>Validators</td><td>Array of Aggregators, must have length exactly 1.</td><td><code>Validators</code> passes <code>ValidateBasic()</code></td></tr>
 </tbody></table>
 </div>
-<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go#L25">Header</a></a></h2>
+<h2 id="header"><a class="header" href="#header"><a href="https://github.com/rollkit/rollkit/blob/main/types/header.go#L39">Header</a></a></h2>
 <p><em><strong>Note</strong></em>: The <code>AggregatorsHash</code> and <code>NextAggregatorsHash</code> fields have been removed. Rollkit vA should ignore all Valset updates from the ABCI app, and always enforce that the proposer is the centralized sequencer set as the 1 validator in the genesis block.</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
 <tr><td><strong>BaseHeader</strong> .</td><td></td><td></td></tr>
@@ -765,7 +766,7 @@ Block.Verify()
 <h3 id="transaction-indexer"><a class="header" href="#transaction-indexer">Transaction Indexer</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a> is a key-value store-backed indexer that provides functionalities for indexing and searching transactions. It allows for the addition of a batch of transactions, indexing and storing a single transaction, retrieving a transaction specified by hash, and querying for transactions based on specific conditions. The indexer also supports range queries and can return results based on the intersection of multiple conditions.</p>
 <h2 id="message-structurecommunication-format-4"><a class="header" href="#message-structurecommunication-format-4">Message Structure/Communication Format</a></h2>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352"><code>publishEvents</code> method</a> in the block executor is responsible for broadcasting several types of events through the event bus. These events include <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, <code>EventNewBlockEvents</code>, <code>EventNewEvidence</code>, and <code>EventTx</code>. Each of these events carries specific data related to the block or transaction they represent.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L409"><code>publishEvents</code> method</a> in the block executor is responsible for broadcasting several types of events through the event bus. These events include <code>EventNewBlock</code>, <code>EventNewBlockHeader</code>, <code>EventNewBlockEvents</code>, <code>EventNewEvidence</code>, and <code>EventTx</code>. Each of these events carries specific data related to the block or transaction they represent.</p>
 <ol>
 <li>
 <p><code>EventNewBlock</code>: Triggered when a new block is finalized. It carries the block data along with the results of the <code>FinalizeBlock</code> ABCI method.</p>
@@ -787,20 +788,20 @@ Block.Verify()
 <h2 id="assumptions-and-considerations-4"><a class="header" href="#assumptions-and-considerations-4">Assumptions and Considerations</a></h2>
 <p>The indexer service assumes that the messages passed by the block executor are valid block headers and valid transactions with the required fields such that they can be indexed by the respective block indexer and transaction indexer.</p>
 <h2 id="implementation-6"><a class="header" href="#implementation-6">Implementation</a></h2>
-<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20">indexer service</a></p>
+<p>See <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go">indexer service</a></p>
 <h2 id="references-6"><a class="header" href="#references-6">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/state/indexer/block.go#L11">Block Indexer</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer.go#L14">Transaction Indexer</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L352">Publish Events</a></p>
-<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go#L20">Indexer Service</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L409">Publish Events</a></p>
+<p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/state/txindex/indexer_service.go">Indexer Service</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="mempool-1"><a class="header" href="#mempool-1">Mempool</a></h1>
 <h2 id="abstract-7"><a class="header" href="#abstract-7">Abstract</a></h2>
-<p>The mempool module stores transactions which have not yet been included in a block, and provides an interface to check the validity of incoming transactions. It's defined by an interface <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go#L16">here</a>, with an implementation <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">here</a>.</p>
+<p>The mempool module stores transactions which have not yet been included in a block, and provides an interface to check the validity of incoming transactions. It's defined by an interface <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go#L32">here</a>, with an implementation <a href="https://github.com/rollkit/rollkit/blob/main/mempool/mempool.go">here</a>.</p>
 <h2 id="component-description"><a class="header" href="#component-description">Component Description</a></h2>
-<p>Full nodes instantiate a mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L133">here</a>. A <code>p2p.GossipValidator</code> is constructed from the node's mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L391">here</a>, which is used by Rollkit's P2P code to deal with peers who gossip invalid transactions. The mempool is also passed into the <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L136">block manager constructor</a>, which creates a <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L143"><code>BlockExecutor</code></a> from the mempool.</p>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/block-executor.md"><code>BlockExecutor</code></a> calls <code>ReapMaxBytesMaxGas</code> in <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L91"><code>CreateBlock</code></a> to get transactions from the pool for the new block. When <code>commit</code> is called, the <code>BlockExecutor</code> calls <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L255"><code>Update(...)</code></a> on the mempool, removing the old transactions from the pool.</p>
+<p>Full nodes instantiate a mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">here</a>. A <code>p2p.GossipValidator</code> is constructed from the node's mempool <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L465">here</a>, which is used by Rollkit's P2P code to deal with peers who gossip invalid transactions. The mempool is also passed into the <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L158">block manager constructor</a>, which creates a <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go#L218"><code>BlockExecutor</code></a> from the mempool.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/state/block-executor.md"><code>BlockExecutor</code></a> calls <code>ReapMaxBytesMaxGas</code> in <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L95"><code>CreateBlock</code></a> to get transactions from the pool for the new block. When <code>commit</code> is called, the <code>BlockExecutor</code> calls <a href="https://github.com/rollkit/rollkit/blob/main/state/executor.go#L318"><code>Update(...)</code></a> on the mempool, removing the old transactions from the pool.</p>
 <h2 id="communication"><a class="header" href="#communication">Communication</a></h2>
-<p>Several RPC methods query the mempool module: <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L128"><code>BroadcastTxCommit</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L190"><code>BroadcastTxAsync</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L207"><code>BroadcastTxSync</code></a> call the mempool's <code>CheckTx(...)</code> method.</p>
+<p>Several RPC methods query the mempool module: <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L92"><code>BroadcastTxCommit</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L186"><code>BroadcastTxAsync</code></a>, <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go#L202"><code>BroadcastTxSync</code></a> call the mempool's <code>CheckTx(...)</code> method.</p>
 <h2 id="interface"><a class="header" href="#interface">Interface</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function Name</th><th>Input Arguments</th><th>Output Type</th><th>Intended Behavior</th></tr></thead><tbody>
 <tr><td>CheckTx</td><td>tx types.Tx, callback func(*abci.Response), txInfo TxInfo</td><td>error</td><td>Executes a new transaction against the application to determine its validity and whether it should be added to the mempool.</td></tr>
@@ -836,7 +837,7 @@ type P2PConfig struct {
 }
 </code></pre>
 <p>A P2P client also instantiates a <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">connection gator</a> to block and allow peers specified in the <code>P2PConfig</code>.</p>
-<p>It also sets up a gossiper using the gossip topic <code>&lt;chainID&gt;+&lt;txTopicSuffix&gt;</code> (<code>txTopicSuffix</code> is defined in <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43">p2p/client.go</a>), a Distributed Hash Table (DHT) using the <code>Seeds</code> defined in the <code>P2PConfig</code> and peer discovery using go-libp2p's <code>discovery.RoutingDiscovery</code>.</p>
+<p>It also sets up a gossiper using the gossip topic <code>&lt;chainID&gt;+&lt;txTopicSuffix&gt;</code> (<code>txTopicSuffix</code> is defined in <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">p2p/client.go</a>), a Distributed Hash Table (DHT) using the <code>Seeds</code> defined in the <code>P2PConfig</code> and peer discovery using go-libp2p's <code>discovery.RoutingDiscovery</code>.</p>
 <p>A P2P client provides an interface <code>SetTxValidator(p2p.GossipValidator)</code> for specifying a gossip validator which can define how to handle the incoming <code>GossipMessage</code> in the P2P network. The <code>GossipMessage</code> represents message gossiped via P2P network (e.g. transaction, Block etc).</p>
 <pre><code class="language-go">// GossipValidator is a callback function type.
 type GossipValidator func(*GossipMessage) bool
@@ -850,7 +851,7 @@ func (n *FullNode) newTxValidator() p2p.GossipValidator {
 func (ln *LightNode) falseValidator() p2p.GossipValidator {
 </code></pre>
 <h2 id="references-7"><a class="header" href="#references-7">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go#L43">client.go</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/p2p/client.go">client.go</a></p>
 <p>[2] <a href="https://github.com/ipfs/go-datastore">go-datastore</a></p>
 <p>[3] <a href="https://github.com/libp2p/go-libp2p">go-libp2p</a></p>
 <p>[4] <a href="https://github.com/libp2p/go-libp2p/tree/master/p2p/net/conngater">conngater</a></p>
@@ -1099,7 +1100,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <p><code>NewDefaultKVStore</code>: Builds a key-value store that uses the <a href="https://github.com/dgraph-io/badger">BadgerDB</a> library and stores the data on disk at the specified path.</p>
 </li>
 </ul>
-<p>A Rollkit full node is <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L106">initialized</a> using <code>NewDefaultKVStore</code> as the base key-value store for underlying storage. To store various types of data in this base key-value store, different prefixes are used: <code>mainPrefix</code>, <code>dalcPrefix</code>, and <code>indexerPrefix</code>. The <code>mainPrefix</code> equal to <code>0</code> is used for the main node data, <code>dalcPrefix</code> equal to <code>1</code> is used for Data Availability Layer Client (DALC) data, and <code>indexerPrefix</code> equal to <code>2</code> is used for indexing related data.</p>
+<p>A Rollkit full node is <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">initialized</a> using <code>NewDefaultKVStore</code> as the base key-value store for underlying storage. To store various types of data in this base key-value store, different prefixes are used: <code>mainPrefix</code>, <code>dalcPrefix</code>, and <code>indexerPrefix</code>. The <code>mainPrefix</code> equal to <code>0</code> is used for the main node data, <code>dalcPrefix</code> equal to <code>1</code> is used for Data Availability Layer Client (DALC) data, and <code>indexerPrefix</code> equal to <code>2</code> is used for indexing related data.</p>
 <p>For the main node data, <code>DefaultStore</code> struct, an implementation of the Store interface, is used with the following prefixes for various types of data within it:</p>
 <ul>
 <li><code>blockPrefix</code> with value &quot;b&quot;: Used to store blocks in the key-value store.</li>
@@ -1121,7 +1122,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <h2 id="references-10"><a class="header" href="#references-10">References</a></h2>
 <p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go#L11">Store Interface</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/store/store.go">Default Store</a></p>
-<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L106">Full Node Store Initialization</a></p>
+<p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go#L96">Full Node Store Initialization</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[5] <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">Full Client</a></p>
 <p>[6] <a href="https://github.com/dgraph-io/badger">Badger DB</a></p>
