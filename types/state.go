@@ -92,7 +92,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
-		LastValidators:              types.NewValidatorSet(nil),
+		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
 		ConsensusParams: cmproto.ConsensusParams{
