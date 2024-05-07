@@ -1,8 +1,8 @@
 module github.com/rollkit/rollkit
 
-go 1.21.1
+go 1.22
 
-toolchain go1.21.4
+toolchain go1.22.2
 
 retract v0.12.0 // Published by accident
 
@@ -35,7 +35,7 @@ require (
 )
 
 require (
-	github.com/celestiaorg/go-header v0.5.5
+	github.com/celestiaorg/go-header v0.6.1
 	github.com/ipfs/go-ds-badger4 v0.1.5
 )
 
