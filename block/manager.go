@@ -198,9 +198,8 @@ func NewManager(
 
 	isProposer, err := isProposer(genesis, proposerKey)
 	if err != nil {
-		if s.LastBlockHeight == 0 {
-			isProposer = true
-		} else {
+		isProposer = s.LastBlockHeight == 0
+		if !isProposer {
 			return nil, err
 		}
 	}
