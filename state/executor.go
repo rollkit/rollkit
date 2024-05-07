@@ -92,7 +92,7 @@ func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, state types.State) (*types.Block, error) {
+func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastExtendedCommit abci.ExtendedCommitInfo, lastHeaderHash types.Hash, state types.State) (*types.Block, error) {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	emptyMaxBytes := maxBytes == -1
 	if emptyMaxBytes {
@@ -140,12 +140,9 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	rpp, err := e.proxyApp.PrepareProposal(
 		context.TODO(),
 		&abci.RequestPrepareProposal{
-			MaxTxBytes: maxBytes,
-			Txs:        mempoolTxs.ToSliceOfBytes(),
-			LocalLastCommit: abci.ExtendedCommitInfo{
-				Round: 0,
-				Votes: []abci.ExtendedVoteInfo{},
-			},
+			MaxTxBytes:         maxBytes,
+			Txs:                mempoolTxs.ToSliceOfBytes(),
+			LocalLastCommit:    lastExtendedCommit,
 			Misbehavior:        []abci.Misbehavior{},
 			Height:             int64(block.Height()),
 			Time:               block.Time(),
@@ -239,6 +236,32 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 	}
 
 	return state, resp, nil
+}
+
+// ExtendVote calls the ExtendVote ABCI method on the proxy app.
+func (e *BlockExecutor) ExtendVote(ctx context.Context, block *types.Block) ([]byte, error) {
+	resp, err := e.proxyApp.ExtendVote(ctx, &abci.RequestExtendVote{
+		Hash:   block.Hash(),
+		Height: int64(block.Height()),
+		Time:   block.Time(),
+		Txs:    block.Data.Txs.ToSliceOfBytes(),
+		ProposedLastCommit: abci.CommitInfo{
+			Votes: []abci.VoteInfo{{
+				Validator: abci.Validator{
+					Address: block.SignedHeader.Validators.GetProposer().Address,
+					Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+				},
+				BlockIdFlag: cmproto.BlockIDFlagCommit,
+			}},
+		},
+		Misbehavior:        nil,
+		NextValidatorsHash: block.SignedHeader.ValidatorHash,
+		ProposerAddress:    block.SignedHeader.ProposerAddress,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.VoteExtension, nil
 }
 
 // Commit commits the block
