@@ -10,15 +10,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	pkgErrors "github.com/pkg/errors"
+
+	goheaderstore "github.com/celestiaorg/go-header/store"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -803,7 +805,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block = pendingBlock
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		block, err = m.createBlock(newHeight, lastCommit, lastHeaderHash)
+		extendedCommit, err := m.getExtendedCommit(ctx, height)
+		if err != nil {
+			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
+		}
+		block, err = m.createBlock(newHeight, lastCommit, lastHeaderHash, extendedCommit)
 		if err != nil {
 			return err
 		}
@@ -852,6 +858,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	commit, err = m.getCommit(block.SignedHeader.Header)
 	if err != nil {
+		return err
+	}
+
+	if err := m.processVoteExtension(ctx, block, newHeight); err != nil {
 		return err
 	}
 
@@ -916,6 +926,60 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
 
 	return nil
+}
+
+func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, newHeight uint64) error {
+	if !m.voteExtensionEnabled(newHeight) {
+		return nil
+	}
+
+	extension, err := m.executor.ExtendVote(ctx, block)
+	if err != nil {
+		return fmt.Errorf("error returned by ExtendVote: %w", err)
+	}
+	sign, err := m.proposerKey.Sign(extension)
+	if err != nil {
+		return fmt.Errorf("error signing vote extension: %w", err)
+	}
+	extendedCommit := buildExtendedCommit(block, extension, sign)
+	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
+	if err != nil {
+		return fmt.Errorf("failed to save extended commit: %w", err)
+	}
+	return nil
+}
+
+func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
+	enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
+	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight
+}
+
+func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
+	emptyExtendedCommit := abci.ExtendedCommitInfo{}
+	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) {
+		return emptyExtendedCommit, nil
+	}
+	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
+	if err != nil {
+		return emptyExtendedCommit, err
+	}
+	return *extendedCommit, nil
+}
+
+func buildExtendedCommit(block *types.Block, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
+	extendedCommit := &abci.ExtendedCommitInfo{
+		Round: 0,
+		Votes: []abci.ExtendedVoteInfo{{
+			Validator: abci.Validator{
+				Address: block.SignedHeader.Validators.GetProposer().Address,
+				Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+			},
+			VoteExtension:      extension,
+			ExtensionSignature: sign,
+			BlockIdFlag:        cmproto.BlockIDFlagCommit,
+		}},
+	}
+	return extendedCommit
 }
 
 func (m *Manager) recordMetrics(block *types.Block) {
@@ -1054,10 +1118,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash) (*types.Block, error) {
+func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo) (*types.Block, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastCommit, lastHeaderHash, m.lastState)
+	return m.executor.CreateBlock(height, lastCommit, extendedCommit, lastHeaderHash, m.lastState)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {
