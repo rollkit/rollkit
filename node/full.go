@@ -198,7 +198,7 @@ func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger, metrics 
 	proxyApp := proxy.NewAppConns(clientCreator, metrics)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error while starting proxy app connections: %v", err)
+		return nil, fmt.Errorf("error while starting proxy app connections: %w", err)
 	}
 	return proxyApp, nil
 }

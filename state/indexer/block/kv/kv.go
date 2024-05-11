@@ -42,7 +42,7 @@ func New(ctx context.Context, store ds.TxnDatastore) *BlockerIndexer {
 // upon database query failure.
 func (idx *BlockerIndexer) Has(height int64) (bool, error) {
 	_, err := idx.store.Get(idx.ctx, ds.NewKey(heightKey(height)))
-	if err == ds.ErrNotFound {
+	if errors.Is(err, ds.ErrNotFound) {
 		return false, nil
 	}
 	return err == nil, err

@@ -59,7 +59,7 @@ func getAddr(sk crypto.PrivKey) (multiaddr.Multiaddr, error) {
 	copy(ip[net.IPv6len-len(suffix):], suffix)
 	a, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/4242", ip))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create test multiaddr: %s", err)
+		return nil, fmt.Errorf("failed to create test multiaddr: %w", err)
 	}
 	return a, nil
 }
