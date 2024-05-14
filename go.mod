@@ -21,7 +21,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.10.1
 	github.com/multiformats/go-multiaddr v0.12.3
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/rollkit/go-da v0.5.0
 	github.com/rs/cors v1.11.0
 	github.com/spf13/cobra v1.8.0
