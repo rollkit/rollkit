@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -115,8 +116,11 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				return
 			}
 
-			reason := err.(*header.VerifyError).Reason
-			expectedReason := test.err.(*header.VerifyError).Reason
+			var verifyError *header.VerifyError
+			assert.True(t, errors.As(err, &verifyError))
+			reason := verifyError.Reason
+			assert.True(t, errors.As(test.err, &verifyError))
+			expectedReason := verifyError.Reason
 			assert.ErrorIs(t, reason, expectedReason)
 		})
 	}

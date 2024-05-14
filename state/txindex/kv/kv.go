@@ -3,6 +3,7 @@ package kv
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -52,7 +53,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 
 	rawBytes, err := txi.store.Get(txi.ctx, ds.NewKey(hex.EncodeToString(hash)))
 	if err != nil {
-		if err == ds.ErrNotFound {
+		if errors.Is(err, ds.ErrNotFound) {
 			return nil, nil
 		}
 		panic(err)
@@ -64,7 +65,7 @@ func (txi *TxIndex) Get(hash []byte) (*abci.TxResult, error) {
 	txResult := new(abci.TxResult)
 	err = proto.Unmarshal(rawBytes, txResult)
 	if err != nil {
-		return nil, fmt.Errorf("error reading TxResult: %v", err)
+		return nil, fmt.Errorf("error reading TxResult: %w", err)
 	}
 
 	return txResult, nil

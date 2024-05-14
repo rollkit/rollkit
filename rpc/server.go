@@ -103,7 +103,7 @@ func (s *Server) startRPC() error {
 
 	go func() {
 		err := s.serve(listener, handler)
-		if err != http.ErrServerClosed {
+		if !errors.Is(err, http.ErrServerClosed) {
 			s.Logger.Error("error while serving HTTP", "error", err)
 		}
 	}()

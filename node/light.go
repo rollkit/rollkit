@@ -67,7 +67,7 @@ func newLightNode(
 	proxyApp := proxy.NewAppConns(clientCreator, abciMetrics)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error while starting proxy app connections: %v", err)
+		return nil, fmt.Errorf("error while starting proxy app connections: %w", err)
 	}
 
 	datastore, err := openDatastore(conf, logger)
