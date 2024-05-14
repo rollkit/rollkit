@@ -117,9 +117,9 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 			}
 
 			var verifyError *header.VerifyError
-			errors.As(err, &verifyError)
+			assert.True(t, errors.As(err, &verifyError))
 			reason := verifyError.Reason
-			errors.As(test.err, &verifyError)
+			assert.True(t, errors.As(test.err, &verifyError))
 			expectedReason := verifyError.Reason
 			assert.ErrorIs(t, reason, expectedReason)
 		})
