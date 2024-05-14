@@ -871,7 +871,7 @@ func (c *FullClient) eventsRoutine(sub cmtypes.Subscription, subscriber string, 
 				c.Logger.Error("wanted to publish ResultEvent, but out channel is full:", full, "result:", result, "query:", result.Query)
 			}
 		case <-sub.Canceled():
-			if errors.Is(sub.Err(), cmpubsub.ErrUnsubscribed) {
+			if sub != nil && errors.Is(sub.Err(), cmpubsub.ErrUnsubscribed) {
 				return
 			}
 
