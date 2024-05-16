@@ -413,7 +413,7 @@ func Test_isProposer(t *testing.T) {
 	require := require.New(t)
 
 	type args struct {
-		genesis       *cmtypes.GenesisDoc
+		state         types.State
 		signerPrivKey crypto.PrivKey
 	}
 	tests := []struct {
@@ -426,10 +426,12 @@ func Test_isProposer(t *testing.T) {
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
 				genesisData, privKey := types.GetGenesisWithPrivkey()
+				s, err := types.NewFromGenesisDoc(genesisData)
+				require.NoError(err)
 				signingKey, err := types.PrivKeyToSigningKey(privKey)
 				require.NoError(err)
 				return args{
-					genesisData,
+					s,
 					signingKey,
 				}
 			}(),
@@ -440,11 +442,14 @@ func Test_isProposer(t *testing.T) {
 			name: "Signing key does not match genesis proposer public key",
 			args: func() args {
 				genesisData, _ := types.GetGenesisWithPrivkey()
+				s, err := types.NewFromGenesisDoc(genesisData)
+				require.NoError(err)
+
 				randomPrivKey := ed25519.GenPrivKey()
 				signingKey, err := types.PrivKeyToSigningKey(randomPrivKey)
 				require.NoError(err)
 				return args{
-					genesisData,
+					s,
 					signingKey,
 				}
 			}(),
@@ -456,20 +461,23 @@ func Test_isProposer(t *testing.T) {
 			args: func() args {
 				genesisData, privKey := types.GetGenesisWithPrivkey()
 				genesisData.Validators = nil
+				s, err := types.NewFromGenesisDoc(genesisData)
+				require.NoError(err)
+
 				signingKey, err := types.PrivKeyToSigningKey(privKey)
 				require.NoError(err)
 				return args{
-					genesisData,
+					s,
 					signingKey,
 				}
 			}(),
 			isProposer: false,
-			err:        ErrNoValidatorsInGenesis,
+			err:        ErrNoValidatorsInState,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isProposer, err := isProposer(tt.args.genesis, tt.args.signerPrivKey)
+			isProposer, err := isProposer(tt.args.signerPrivKey, tt.args.state)
 			if err != tt.err {
 				t.Errorf("isProposer() error = %v, expected err %v", err, tt.err)
 				return

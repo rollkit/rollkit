@@ -61,8 +61,8 @@ const blockInChLength = 10000
 var initialBackoff = 100 * time.Millisecond
 
 var (
-	// ErrNoValidatorsInGenesis is used when no validators/proposers are found in genesis state
-	ErrNoValidatorsInGenesis = errors.New("no validators found in genesis")
+	// ErrNoValidatorsInGenesis is used when no validators/proposers are found in state
+	ErrNoValidatorsInState = errors.New("no validators found in state")
 
 	// ErrNotProposer is used when the manager is not a proposer
 	ErrNotProposer = errors.New("not a proposer")
@@ -198,13 +198,6 @@ func NewManager(
 		return nil, err
 	}
 
-	isProposer, err := isProposer(genesis, proposerKey)
-	if err != nil {
-		isProposer = s.LastBlockHeight == 0
-		if !isProposer {
-			return nil, err
-		}
-	}
 	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
 	if err != nil {
 		return nil, err
@@ -222,6 +215,11 @@ func NewManager(
 		if err := store.UpdateState(context.Background(), s); err != nil {
 			return nil, err
 		}
+	}
+
+	isProposer, err := isProposer(proposerKey, s)
+	if err != nil {
+		return nil, err
 	}
 
 	var txsAvailableCh <-chan struct{}
@@ -278,15 +276,17 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(genesis *cmtypes.GenesisDoc, signerPrivKey crypto.PrivKey) (bool, error) {
-	if len(genesis.Validators) == 0 {
-		return false, ErrNoValidatorsInGenesis
+func isProposer(signerPrivKey crypto.PrivKey, s types.State) (bool, error) {
+	if len(s.Validators.Validators) == 0 {
+		return false, ErrNoValidatorsInState
 	}
+
 	signerPubBytes, err := signerPrivKey.GetPublic().Raw()
 	if err != nil {
 		return false, err
 	}
-	return bytes.Equal(genesis.Validators[0].PubKey.Bytes(), signerPubBytes), nil
+
+	return bytes.Equal(s.Validators.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 // SetLastState is used to set lastState used by Manager.
