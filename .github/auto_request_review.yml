@@ -3,14 +3,8 @@ reviewers:
     - rollkit
   groups:
     rollkit:
-      - Manav-Aggarwal
-      - tzdybal
-      - gupadhyaya
-      - tuxcanfly
-      - MSevey
+      - team:core
 files:
-  "**":
-    - rollkit
   ".github/**":
     - MSevey
     - rollkit
