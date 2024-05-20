@@ -207,7 +207,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return types.State{}, nil, err
 	}
 	if !isAppValid {
-		return types.State{}, nil, fmt.Errorf("error while processing the proposal: %v", err)
+		return types.State{}, nil, fmt.Errorf("error while processing the proposal: %w", err)
 	}
 
 	err = e.Validate(state, block)

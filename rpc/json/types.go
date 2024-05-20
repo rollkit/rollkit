@@ -132,12 +132,12 @@ type StrInt int
 // StrInt64 is an proper int64 or quoted "int64"
 type StrInt64 int64
 
-// UnmarshalJSON parses JSON (int or int qouted as string) into StrInt64
+// UnmarshalJSON parses JSON (int or int quoted as string) into StrInt64
 func (s *StrInt64) UnmarshalJSON(b []byte) error {
 	return unmarshalStrInt64(b, s)
 }
 
-// UnmarshalJSON parses JSON (int or int qouted as string) into StrInt
+// UnmarshalJSON parses JSON (int or int quoted as string) into StrInt
 func (s *StrInt) UnmarshalJSON(b []byte) error {
 	var val StrInt64
 	err := unmarshalStrInt64(b, &val)

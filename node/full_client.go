@@ -128,7 +128,7 @@ func (c *FullClient) BroadcastTxCommit(ctx context.Context, tx cmtypes.Tx) (*cty
 	}, mempool.TxInfo{})
 	if err != nil {
 		c.Logger.Error("Error on broadcastTxCommit", "err", err)
-		return nil, fmt.Errorf("error on broadcastTxCommit: %v", err)
+		return nil, fmt.Errorf("error on broadcastTxCommit: %w", err)
 	}
 	checkTxRes := <-checkTxResCh
 	if checkTxRes.Code != abci.CodeTypeOK {
@@ -871,7 +871,7 @@ func (c *FullClient) eventsRoutine(sub cmtypes.Subscription, subscriber string, 
 				c.Logger.Error("wanted to publish ResultEvent, but out channel is full:", full, "result:", result, "query:", result.Query)
 			}
 		case <-sub.Canceled():
-			if sub.Err() == cmpubsub.ErrUnsubscribed {
+			if sub != nil && errors.Is(sub.Err(), cmpubsub.ErrUnsubscribed) {
 				return
 			}
 
