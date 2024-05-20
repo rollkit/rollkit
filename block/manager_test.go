@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"testing"
@@ -478,7 +479,7 @@ func Test_isProposer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			isProposer, err := isProposer(tt.args.signerPrivKey, tt.args.state)
-			if err != tt.err {
+			if !errors.Is(err, tt.err) {
 				t.Errorf("isProposer() error = %v, expected err %v", err, tt.err)
 				return
 			}

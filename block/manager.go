@@ -61,7 +61,7 @@ const blockInChLength = 10000
 var initialBackoff = 100 * time.Millisecond
 
 var (
-	// ErrNoValidatorsInGenesis is used when no validators/proposers are found in state
+	// ErrNoValidatorsInState is used when no validators/proposers are found in state
 	ErrNoValidatorsInState = errors.New("no validators found in state")
 
 	// ErrNotProposer is used when the manager is not a proposer
