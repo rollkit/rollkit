@@ -7,10 +7,15 @@ import (
 
 	"github.com/cometbft/cometbft/libs/cli"
 
+	"github.com/rollkit/rollkit/cmd/rollkit/commands"
 	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
 )
 
 func main() {
+	if err := commands.InterceptCommand(); err == nil {
+		return
+	}
+
 	// Initiate the root command
 	rootCmd := cmd.RootCmd
 
