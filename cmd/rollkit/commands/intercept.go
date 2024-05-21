@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	rollconf "github.com/rollkit/rollkit/config"
 )
@@ -16,13 +15,14 @@ const (
 )
 
 var (
-	// rollkit.toml file configuration
 	rollkitConfig rollconf.TomlConfig
 )
 
+// InterceptCommand intercepts the command and runs it against the `entrypoint`
+// specified in the rollkit.toml configuration file.
 func InterceptCommand() error {
 	var err error
-	rollkitConfig, err = readTomlConfig()
+	rollkitConfig, err = rollconf.ReadToml()
 	if err != nil {
 		return err
 	}
@@ -36,44 +36,6 @@ func InterceptCommand() error {
 	}
 
 	return nil
-}
-
-func readTomlConfig() (rollconf.TomlConfig, error) {
-	var config rollconf.TomlConfig
-	startDir, err := os.Getwd()
-	if err != nil {
-		return config, fmt.Errorf("error getting current directory: %v", err)
-	}
-
-	configPath, err := findConfigFile(startDir)
-	if err != nil {
-		return config, err
-	}
-
-	if _, err := toml.DecodeFile(configPath, &config); err != nil {
-		return config, fmt.Errorf("error reading rollkit.toml: %v", err)
-	}
-
-	config.RootDir = filepath.Dir(configPath)
-
-	return config, nil
-}
-
-func findConfigFile(startDir string) (string, error) {
-	dir := startDir
-	for {
-		configPath := filepath.Join(dir, "rollkit.toml")
-		if _, err := os.Stat(configPath); err == nil {
-			return configPath, nil
-		}
-
-		parentDir := filepath.Dir(dir)
-		if parentDir == dir {
-			break
-		}
-		dir = parentDir
-	}
-	return "", fmt.Errorf("no rollkit.toml found")
 }
 
 func runEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
