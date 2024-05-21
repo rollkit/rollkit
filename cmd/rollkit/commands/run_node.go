@@ -6,8 +6,11 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
@@ -33,15 +36,22 @@ import (
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
+const (
+	rollupBinEntrypoint = "entrypoint"
+)
+
 var (
 	// initialize the config with the cometBFT defaults
 	config = cometconf.DefaultConfig()
 
 	// initialize the rollkit configuration
-	rollkitConfig = rollconf.DefaultNodeConfig
+	nodeConfig = rollconf.DefaultNodeConfig
 
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
+
+	// rollkit.toml file configuration
+	rollkitConfig rollconf.TomlConfig
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -52,8 +62,13 @@ func NewRunNodeCmd() *cobra.Command {
 		Short:   "Run the rollkit node",
 		// PersistentPreRunE is used to parse the config and initial the config files
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// Parse the config
-			err := parseConfig(cmd)
+			var err error
+			rollkitConfig, err = readTomlConfig()
+			if err != nil {
+				return err
+			}
+
+			err = parseConfig(rollkitConfig.Chain.ConfigDir, cmd)
 			if err != nil {
 				return err
 			}
@@ -80,6 +95,16 @@ func NewRunNodeCmd() *cobra.Command {
 			return initFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if rollkitConfig.Entrypoint != "" {
+				// we need to add all user passed flags to the entrypoint command
+				// there is no better way to do this than read os.Args
+				flags := []string{}
+				if len(os.Args) >= 3 {
+					flags = os.Args[2:]
+				}
+				return runEntrypoint(rollkitConfig, "start", flags)
+			}
+
 			genDocProvider := cometnode.DefaultGenesisDocProviderFunc(config)
 			genDoc, err := genDocProvider()
 			if err != nil {
@@ -105,8 +130,8 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// get the node configuration
-			rollconf.GetNodeConfig(&rollkitConfig, config)
-			if err := rollconf.TranslateAddresses(&rollkitConfig); err != nil {
+			rollconf.GetNodeConfig(&nodeConfig, config)
+			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
 				return err
 			}
 
@@ -126,10 +151,10 @@ func NewRunNodeCmd() *cobra.Command {
 			// create the rollkit node
 			rollnode, err := rollnode.NewNode(
 				context.Background(),
-				rollkitConfig,
+				nodeConfig,
 				p2pKey,
 				signingKey,
-				cometproxy.DefaultClientCreator(config.ProxyApp, config.ABCI, rollkitConfig.DBPath),
+				cometproxy.DefaultClientCreator(config.ProxyApp, config.ABCI, nodeConfig.DBPath),
 				genDoc,
 				metrics,
 				logger,
@@ -192,7 +217,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 	// use aggregator by default
 	if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-		rollkitConfig.Aggregator = true
+		nodeConfig.Aggregator = true
 	}
 	return cmd
 }
@@ -212,7 +237,7 @@ func addNodeFlags(cmd *cobra.Command) {
 
 // startMockDAServJSONRPC starts a mock JSONRPC server
 func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
-	addr, _ := url.Parse(rollkitConfig.DAAddress)
+	addr, _ := url.Parse(nodeConfig.DAAddress)
 	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	err := srv.Start(ctx)
 	if err != nil {
@@ -282,17 +307,19 @@ func initFiles() error {
 
 // parseConfig retrieves the default environment configuration, sets up the
 // Rollkit root and ensures that the root exists
-func parseConfig(cmd *cobra.Command) error {
+func parseConfig(configDir string, cmd *cobra.Command) error {
 	// Set the root directory for the config to the home directory
-	home := os.Getenv("RKHOME")
-	if home == "" {
-		var err error
-		home, err = cmd.Flags().GetString(cometcli.HomeFlag)
-		if err != nil {
-			return err
+	if configDir == "" {
+		configDir := os.Getenv("RKHOME")
+		if configDir == "" {
+			var err error
+			configDir, err = cmd.Flags().GetString(cometcli.HomeFlag)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	config.RootDir = home
+	config.RootDir = configDir
 
 	// Validate the root directory
 	cometconf.EnsureRoot(config.RootDir)
@@ -301,5 +328,85 @@ func parseConfig(cmd *cobra.Command) error {
 	if err := config.ValidateBasic(); err != nil {
 		return fmt.Errorf("error in config file: %w", err)
 	}
+	return nil
+}
+
+var ErrNoRollkitConfig = fmt.Errorf("no rollkit.toml found")
+
+func findConfigFile(startDir string) (string, error) {
+	dir := startDir
+	for {
+		configPath := filepath.Join(dir, "rollkit.toml")
+		if _, err := os.Stat(configPath); err == nil {
+			return configPath, nil
+		}
+
+		parentDir := filepath.Dir(dir)
+		if parentDir == dir {
+			break
+		}
+		dir = parentDir
+	}
+	return "", ErrNoRollkitConfig
+}
+
+func readTomlConfig() (rollconf.TomlConfig, error) {
+	var config rollconf.TomlConfig
+	startDir, err := os.Getwd()
+	if err != nil {
+		return config, fmt.Errorf("error getting current directory: %v", err)
+	}
+
+	configPath, err := findConfigFile(startDir)
+	if err != nil {
+		return config, err
+	}
+
+	if _, err := toml.DecodeFile(configPath, &config); err != nil {
+		return config, fmt.Errorf("error reading rollkit.toml: %v", err)
+	}
+
+	config.RootDir = filepath.Dir(configPath)
+
+	return config, nil
+}
+
+func runEntrypoint(rollkitConfig rollconf.TomlConfig, command string, args []string) error {
+	entrypointSourceFile := filepath.Join(rollkitConfig.RootDir, rollkitConfig.Entrypoint)
+	entrypointBinaryFile := filepath.Join(rollkitConfig.RootDir, rollupBinEntrypoint)
+
+	if !cometos.FileExists(entrypointBinaryFile) {
+		if !cometos.FileExists(entrypointSourceFile) {
+			return fmt.Errorf("rollkit: no such entrypoint file: %s", entrypointSourceFile)
+		}
+
+		// try to build the entrypoint
+		var buildArgs []string
+		buildArgs = append(buildArgs, "build")
+		buildArgs = append(buildArgs, "-o", entrypointBinaryFile)
+		buildArgs = append(buildArgs, entrypointSourceFile)
+		buildCmd := exec.Command("go", buildArgs...)
+		buildCmd.Stdout = os.Stdout
+		buildCmd.Stderr = os.Stderr
+		if err := buildCmd.Run(); err != nil {
+			return fmt.Errorf("rollkit: failed to build entrypoint: %w", err)
+		}
+	}
+
+	// run the entrypoint
+	var runArgs []string
+	runArgs = append(runArgs, command)
+	runArgs = append(runArgs, args...)
+	// we have to pass --home flag to the entrypoint, so it reads the correct config root directory
+	runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
+	fmt.Printf("Running entrypoint: %s %v\n", entrypointBinaryFile, runArgs)
+	entrypointCmd := exec.Command(entrypointBinaryFile, runArgs...)
+	entrypointCmd.Stdout = os.Stdout
+	entrypointCmd.Stderr = os.Stderr
+
+	if err := entrypointCmd.Run(); err != nil {
+		return fmt.Errorf("rollkit: failed to run entrypoint: %w", err)
+	}
+
 	return nil
 }
