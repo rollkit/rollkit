@@ -11,6 +11,15 @@ import (
 	rollconf "github.com/rollkit/rollkit/config"
 )
 
+const (
+	rollupBinEntrypoint = "entrypoint"
+)
+
+var (
+	// rollkit.toml file configuration
+	rollkitConfig rollconf.TomlConfig
+)
+
 func InterceptCommand() error {
 	var err error
 	rollkitConfig, err = readTomlConfig()

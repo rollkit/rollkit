@@ -33,10 +33,6 @@ import (
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
-const (
-	rollupBinEntrypoint = "entrypoint"
-)
-
 var (
 	// initialize the config with the cometBFT defaults
 	config = cometconf.DefaultConfig()
@@ -46,9 +42,6 @@ var (
 
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
-
-	// rollkit.toml file configuration
-	rollkitConfig rollconf.TomlConfig
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
