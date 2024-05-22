@@ -24,7 +24,7 @@ var DocsGenCmd = &cobra.Command{
 			return err
 		}
 		// Initiate the docs directory
-		err = os.MkdirAll(docsDirectory, os.ModePerm)
+		err = os.MkdirAll(docsDirectory, 0750)
 		if err != nil {
 			return err
 		}
