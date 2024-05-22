@@ -27,15 +27,14 @@ func InterceptCommand() error {
 		return err
 	}
 
-	if rollkitConfig.Entrypoint != "" {
-		flags := []string{}
-		if len(os.Args) >= 2 {
-			flags = os.Args[1:]
-		}
-		return runEntrypoint(rollkitConfig, flags)
+	if rollkitConfig.Entrypoint == "" {
+                 return nil
 	}
-
-	return nil
+	flags := []string{}
+	if len(os.Args) >= 2 {
+		flags = os.Args[1:]
+	}
+	return runEntrypoint(rollkitConfig, flags)
 }
 
 func runEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
