@@ -54,7 +54,7 @@ func RunRollupEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error
 			return fmt.Errorf("no such entrypoint file: %s", entrypointSourceFile)
 		}
 
-		// try to build the entrypoint
+		// try to build the entrypoint as a go binary
 		var buildArgs []string
 		buildArgs = append(buildArgs, "build")
 		buildArgs = append(buildArgs, "-o", entrypointBinaryFile)
@@ -67,10 +67,10 @@ func RunRollupEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error
 		}
 	}
 
-	// run the entrypoint
 	var runArgs []string
 	runArgs = append(runArgs, args...)
-	// we have to pass --home flag to the entrypoint, so it reads the correct config root directory
+	// The entrypoint is a separate binary based on https://github.com/rollkit/cosmos-sdk, so
+	// we have to pass --home flag to the entrypoint to read the correct chain configuration files.
 	runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
 	entrypointCmd := exec.Command(entrypointBinaryFile, runArgs...) //nolint:gosec
 	entrypointCmd.Stdout = os.Stdout
