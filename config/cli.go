@@ -40,7 +40,7 @@ func ReadToml() (TomlConfig, error) {
 	}
 
 	if _, err := toml.DecodeFile(configPath, &config); err != nil {
-		return config, fmt.Errorf("error reading %s: %v", configPath, err)
+		return config, fmt.Errorf("error reading %s: %w", configPath, err)
 	}
 
 	config.RootDir = filepath.Dir(configPath)
