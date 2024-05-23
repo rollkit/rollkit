@@ -22,7 +22,7 @@ func main() {
 	); err == nil {
 		return
 	} else if err != nil {
-		fmt.Fprintf(os.Stderr, "rollkit: %w\n", err)
+		fmt.Fprintf(os.Stderr, "rollkit: %v\n", err)
 	}
 
 	// Initiate the root command
