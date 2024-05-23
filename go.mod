@@ -35,12 +35,12 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.3.2
 	github.com/celestiaorg/go-header v0.6.1
 	github.com/ipfs/go-ds-badger4 v0.1.5
 )
 
 require (
-	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
