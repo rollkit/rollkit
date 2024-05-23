@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	RollkitToml = "rollkit.toml"
+  // RollkitToml is the filename for the rollkit configuration file.
+  const RollkitToml = "rollkit.toml"
 )
 
 // TomlConfig is the configuration read from rollkit.toml
