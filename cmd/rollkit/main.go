@@ -11,6 +11,10 @@ import (
 )
 
 func main() {
+	// In case there is a rollkit.toml file in the current or somewhere up the directory tree
+	// we want to intercept the command and execute it against an entrypoint
+	// specified in the toml file. In case of missing toml file or missing entrypoint -
+	// the normal rootCmd command execution will be done.
 	if err := cmd.InterceptCommand(); err == nil {
 		return
 	}
