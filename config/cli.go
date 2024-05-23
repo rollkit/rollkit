@@ -8,6 +8,11 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+const (
+	RollkitToml = "rollkit.toml"
+)
+
+// TomlConfig is the configuration read from rollkit.toml
 func ReadToml() (TomlConfig, error) {
 	var config TomlConfig
 	startDir, err := os.Getwd()
@@ -21,7 +26,7 @@ func ReadToml() (TomlConfig, error) {
 	}
 
 	if _, err := toml.DecodeFile(configPath, &config); err != nil {
-		return config, fmt.Errorf("error reading rollkit.toml: %v", err)
+		return config, fmt.Errorf("error reading %s: %v", configPath, err)
 	}
 
 	config.RootDir = filepath.Dir(configPath)
@@ -32,7 +37,7 @@ func ReadToml() (TomlConfig, error) {
 func findConfigFile(startDir string) (string, error) {
 	dir := startDir
 	for {
-		configPath := filepath.Join(dir, "rollkit.toml")
+		configPath := filepath.Join(dir, RollkitToml)
 		if _, err := os.Stat(configPath); err == nil {
 			return configPath, nil
 		}
@@ -43,5 +48,5 @@ func findConfigFile(startDir string) (string, error) {
 		}
 		dir = parentDir
 	}
-	return "", fmt.Errorf("no rollkit.toml found")
+	return "", fmt.Errorf("no %s found", RollkitToml)
 }
