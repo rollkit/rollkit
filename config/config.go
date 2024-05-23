@@ -151,14 +151,3 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
 }
-
-type TomlConfig struct {
-	Entrypoint string          `toml:"entrypoint"`
-	Chain      ChainTomlConfig `toml:"chain"`
-
-	RootDir string
-}
-
-type ChainTomlConfig struct {
-	ConfigDir string `toml:"config_dir"`
-}

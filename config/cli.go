@@ -13,6 +13,19 @@ const (
 )
 
 // TomlConfig is the configuration read from rollkit.toml
+type TomlConfig struct {
+	Entrypoint string          `toml:"entrypoint"`
+	Chain      ChainTomlConfig `toml:"chain"`
+
+	RootDir string
+}
+
+// ChainTomlConfig is the configuration for the chain section of rollkit.toml
+type ChainTomlConfig struct {
+	ConfigDir string `toml:"config_dir"`
+}
+
+// TomlConfig is the configuration read from rollkit.toml
 func ReadToml() (TomlConfig, error) {
 	var config TomlConfig
 	startDir, err := os.Getwd()
