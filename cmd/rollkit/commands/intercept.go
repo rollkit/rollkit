@@ -10,13 +10,9 @@ import (
 	rollconf "github.com/rollkit/rollkit/config"
 )
 
-const (
-	rollupBinEntrypoint = "entrypoint"
-)
+const rollupBinEntrypoint = "entrypoint"
 
-var (
-	rollkitConfig rollconf.TomlConfig
-)
+var rollkitConfig rollconf.TomlConfig
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
 // specified in the rollkit.toml configuration file.
@@ -28,7 +24,7 @@ func InterceptCommand() error {
 	}
 
 	if rollkitConfig.Entrypoint == "" {
-                 return nil
+		return nil
 	}
 	flags := []string{}
 	if len(os.Args) >= 2 {
