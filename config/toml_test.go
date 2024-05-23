@@ -90,7 +90,7 @@ config_dir = "config"
 	t.Run("returns error if config file cannot be decoded", func(t *testing.T) {
 		dir := t.TempDir()
 		configPath := filepath.Join(dir, RollkitToml)
-		err := os.WriteFile(configPath, []byte(`
+		_ = os.WriteFile(configPath, []byte(`
 blablabla
 `), 0600)
 
