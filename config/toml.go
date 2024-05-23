@@ -41,6 +41,11 @@ func ReadToml() (TomlConfig, error) {
 		return config, fmt.Errorf("error reading %s: %w", configPath, err)
 	}
 
+	// Add configPath to chain.ConfigDir if it is a relative path
+	if !filepath.IsAbs(config.Chain.ConfigDir) {
+		config.Chain.ConfigDir = filepath.Join(filepath.Dir(configPath), config.Chain.ConfigDir)
+	}
+
 	config.RootDir = filepath.Dir(configPath)
 
 	return config, nil
