@@ -12,7 +12,7 @@ func TestFindConfigFile(t *testing.T) {
 	t.Run("finds config file in current directory", func(t *testing.T) {
 		dir := t.TempDir()
 		configPath := filepath.Join(dir, RollkitToml)
-		err := os.WriteFile(configPath, []byte{}, 0644)
+		err := os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
 
 		foundPath, err := findConfigFile(dir)
@@ -23,11 +23,11 @@ func TestFindConfigFile(t *testing.T) {
 	t.Run("finds config file in parent directory", func(t *testing.T) {
 		parentDir := t.TempDir()
 		dir := filepath.Join(parentDir, "child")
-		err := os.Mkdir(dir, 0755)
+		err := os.Mkdir(dir, 0750)
 		require.NoError(t, err)
 
 		configPath := filepath.Join(parentDir, RollkitToml)
-		err = os.WriteFile(configPath, []byte{}, 0644)
+		err = os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
 
 		foundPath, err := findConfigFile(dir)
@@ -50,10 +50,10 @@ entrypoint = "./cmd/gm/main.go"
 
 [chain]
 config_dir = "config"
-`), 0644)
+`), 0600)
 		require.NoError(t, err)
 
-		err = os.Chdir(dir)
+		_ = os.Chdir(dir)
 		config, err := ReadToml()
 		require.NoError(t, err)
 		require.Equal(t, TomlConfig{
@@ -63,34 +63,28 @@ config_dir = "config"
 			},
 			RootDir: dir,
 		}, config)
-
-		// cleanup
-		err = os.Remove(configPath)
 	})
 
 	t.Run("returns error if config file not found", func(t *testing.T) {
 		dir := t.TempDir()
-		err := os.Chdir(dir)
+		_ = os.Chdir(dir)
 
-		_, err = ReadToml()
+		_, err := ReadToml()
 		require.Error(t, err)
 	})
 
 	t.Run("sets RootDir even if empty toml", func(t *testing.T) {
 		dir := t.TempDir()
 		configPath := filepath.Join(dir, RollkitToml)
-		err := os.WriteFile(configPath, []byte{}, 0644)
+		err := os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
 
-		err = os.Chdir(dir)
+		_ = os.Chdir(dir)
 		config, err := ReadToml()
 		require.NoError(t, err)
 
 		// check that config is empty
 		require.Equal(t, TomlConfig{RootDir: dir}, config)
-
-		// cleanup
-		err = os.Remove(configPath)
 	})
 
 	t.Run("returns error if config file cannot be decoded", func(t *testing.T) {
@@ -98,13 +92,10 @@ config_dir = "config"
 		configPath := filepath.Join(dir, RollkitToml)
 		err := os.WriteFile(configPath, []byte(`
 blablabla
-`), 0644)
+`), 0600)
 
-		err = os.Chdir(dir)
+		_ = os.Chdir(dir)
 		_, err = ReadToml()
 		require.Error(t, err)
-
-		// cleanup
-		err = os.Remove(configPath)
 	})
 }
