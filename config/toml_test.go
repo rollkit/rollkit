@@ -95,7 +95,7 @@ blablabla
 `), 0600)
 
 		_ = os.Chdir(dir)
-		_, err = ReadToml()
+		_, err := ReadToml()
 		require.Error(t, err)
 	})
 }
