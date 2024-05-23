@@ -69,9 +69,11 @@ func RunRollupEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error
 
 	var runArgs []string
 	runArgs = append(runArgs, args...)
-	// The entrypoint is a separate binary based on https://github.com/rollkit/cosmos-sdk, so
-	// we have to pass --home flag to the entrypoint to read the correct chain configuration files.
-	runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
+	if rollkitConfig.Chain.ConfigDir != "" {
+		// The entrypoint is a separate binary based on https://github.com/rollkit/cosmos-sdk, so
+		// we have to pass --home flag to the entrypoint to read the correct chain configuration files if specified.
+		runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
+	}
 	entrypointCmd := exec.Command(entrypointBinaryFile, runArgs...) //nolint:gosec
 	entrypointCmd.Stdout = os.Stdout
 	entrypointCmd.Stderr = os.Stderr

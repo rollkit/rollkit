@@ -59,7 +59,7 @@ config_dir = "config"
 		require.Equal(t, TomlConfig{
 			Entrypoint: "./cmd/gm/main.go",
 			Chain: ChainTomlConfig{
-				ConfigDir: "config",
+				ConfigDir: filepath.Join(dir, "config"),
 			},
 			RootDir: dir,
 		}, config)
