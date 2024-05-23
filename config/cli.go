@@ -31,7 +31,7 @@ func ReadToml() (TomlConfig, error) {
 	var config TomlConfig
 	startDir, err := os.Getwd()
 	if err != nil {
-		return config, fmt.Errorf("error getting current directory: %v", err)
+		return config, fmt.Errorf("error getting current directory: %w", err)
 	}
 
 	configPath, err := findConfigFile(startDir)
