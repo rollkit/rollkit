@@ -47,7 +47,7 @@ func runEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
 		buildArgs = append(buildArgs, "build")
 		buildArgs = append(buildArgs, "-o", entrypointBinaryFile)
 		buildArgs = append(buildArgs, entrypointSourceFile)
-		buildCmd := exec.Command("go", buildArgs...)
+		buildCmd := exec.Command("go", buildArgs...) //nolint:gosec
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr
 		if err := buildCmd.Run(); err != nil {
@@ -60,7 +60,7 @@ func runEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
 	runArgs = append(runArgs, args...)
 	// we have to pass --home flag to the entrypoint, so it reads the correct config root directory
 	runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
-	entrypointCmd := exec.Command(entrypointBinaryFile, runArgs...)
+	entrypointCmd := exec.Command(entrypointBinaryFile, runArgs...) //nolint:gosec
 	entrypointCmd.Stdout = os.Stdout
 	entrypointCmd.Stderr = os.Stderr
 
