@@ -314,19 +314,20 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 	if len(validatorUpdates) > 0 {
 		return state, ErrAddingValidatorToBased
 	}
+
 	if len(nValSet.Validators) > 0 {
-			err := nValSet.UpdateWithChangeSet(validatorUpdates)
-			if err != nil {
-				if err.Error() != ErrEmptyValSetGenerated.Error() {
-					return state, err
-				}
-				nValSet = &cmtypes.ValidatorSet{
-					Validators: make([]*cmtypes.Validator, 0),
-					Proposer:   nil,
-				}
+		err := nValSet.UpdateWithChangeSet(validatorUpdates)
+		if err != nil {
+			if err.Error() != ErrEmptyValSetGenerated.Error() {
+				return state, err
 			}
-			// Change results from this height but only applies to the next next height.
-			lastHeightValSetChanged = int64(block.SignedHeader.Header.Height() + 1 + 1)
+			nValSet = &cmtypes.ValidatorSet{
+				Validators: make([]*cmtypes.Validator, 0),
+				Proposer:   nil,
+			}
+		}
+		// Change results from this height but only applies to the next next height.
+		lastHeightValSetChanged = int64(block.SignedHeader.Header.Height() + 1 + 1)
 
 		if len(nValSet.Validators) > 0 {
 			nValSet.IncrementProposerPriority(1)

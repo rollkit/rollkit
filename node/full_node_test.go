@@ -327,7 +327,6 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	// genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(t, err)
 

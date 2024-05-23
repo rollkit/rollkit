@@ -296,7 +296,7 @@ func (s *State) FromProto(other *pb.State) error {
 	if err != nil {
 		return err
 	}
-	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
+	s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
 
 	s.ConsensusParams = other.ConsensusParams
 	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
