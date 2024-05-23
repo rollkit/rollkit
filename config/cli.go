@@ -26,7 +26,7 @@ type ChainTomlConfig struct {
 	ConfigDir string `toml:"config_dir"`
 }
 
-// TomlConfig is the configuration read from rollkit.toml
+// ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed TomlConfig.
 func ReadToml() (TomlConfig, error) {
 	var config TomlConfig
 	startDir, err := os.Getwd()
