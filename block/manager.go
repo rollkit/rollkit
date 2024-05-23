@@ -1162,16 +1162,23 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
 	s.LastResultsHash = merkle.HashFromByteSlices(nil)
 
-	if len(res.Validators) != 1 {
-		panic("expected exactly one validator")
-	}
-
 	vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
 	if err != nil {
 		panic(err)
 	}
-	s.Validators = cmtypes.NewValidatorSet(vals)
-	s.NextValidators = cmtypes.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
-	s.LastValidators = cmtypes.NewValidatorSet(vals)
+
+	// apply initchain valset change
+	nValSet := s.Validators.Copy()
+	err = nValSet.UpdateWithChangeSet(vals)
+	if err != nil {
+		panic(err)
+	}
+	if len(nValSet.Validators) != 1 {
+		panic("expected exactly one validator")
+	}
+
+	s.Validators = cmtypes.NewValidatorSet(nValSet.Validators)
+	s.NextValidators = cmtypes.NewValidatorSet(nValSet.Validators).CopyIncrementProposerPriority(1)
+	s.LastValidators = cmtypes.NewValidatorSet(nValSet.Validators)
 
 }
