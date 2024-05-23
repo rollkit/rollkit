@@ -310,8 +310,11 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
 
+	// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
+	if len(validatorUpdates) > 0 {
+		return state, ErrAddingValidatorToBased
+	}
 	if len(nValSet.Validators) > 0 {
-		if len(validatorUpdates) > 0 {
 			err := nValSet.UpdateWithChangeSet(validatorUpdates)
 			if err != nil {
 				if err.Error() != ErrEmptyValSetGenerated.Error() {
@@ -324,14 +327,10 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 			}
 			// Change results from this height but only applies to the next next height.
 			lastHeightValSetChanged = int64(block.SignedHeader.Header.Height() + 1 + 1)
-		}
 
 		if len(nValSet.Validators) > 0 {
 			nValSet.IncrementProposerPriority(1)
 		}
-		// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
-	} else if len(validatorUpdates) > 0 {
-		return state, ErrAddingValidatorToBased
 	}
 
 	s := types.State{
