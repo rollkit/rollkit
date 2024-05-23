@@ -8,15 +8,21 @@ import (
 	"github.com/cometbft/cometbft/libs/cli"
 
 	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
+	rollconf "github.com/rollkit/rollkit/config"
 )
 
 func main() {
-	// In case there is a rollkit.toml file in the current or somewhere up the directory tree
-	// we want to intercept the command and execute it against an entrypoint
-	// specified in the toml file. In case of missing toml file or missing entrypoint -
-	// the normal rootCmd command execution will be done.
-	if err := cmd.InterceptCommand(); err == nil {
+	// In case there is a rollkit.toml file in the current dir or somewhere up the
+	// directory tree - we want to intercept the command and execute it against an entrypoint
+	// specified in the rollkit.toml file. In case of missing toml file or missing entrypoint key
+	// or missing actual entrypoint file - the normal rootCmd command is executed.
+	if err := cmd.InterceptCommand(
+		rollconf.ReadToml,
+		cmd.RunRollupEntrypoint,
+	); err == nil {
 		return
+	} else if err != nil {
+		fmt.Fprintf(os.Stderr, "rollkit: %w\n", err)
 	}
 
 	// Initiate the root command

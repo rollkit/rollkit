@@ -17,30 +17,41 @@ var rollkitConfig rollconf.TomlConfig
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
 // specified in the rollkit.toml configuration file.
-func InterceptCommand() error {
+func InterceptCommand(
+	readToml func() (rollconf.TomlConfig, error),
+	runEntrypoint func(rollconf.TomlConfig, []string) error,
+) error {
 	var err error
-	rollkitConfig, err = rollconf.ReadToml()
+	rollkitConfig, err = readToml()
 	if err != nil {
 		return err
 	}
 
 	if rollkitConfig.Entrypoint == "" {
-		return nil
+		return fmt.Errorf("no entrypoint specified in rollkit.toml")
 	}
+
 	flags := []string{}
 	if len(os.Args) >= 2 {
 		flags = os.Args[1:]
 	}
+
 	return runEntrypoint(rollkitConfig, flags)
 }
 
-func runEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
+// RunRollupEntrypoint runs the entrypoint specified in the rollkit.toml configuration file.
+// If the entrypoint is not built, it will build it first. The entrypoint is built
+// in the same directory as the rollkit.toml file. The entrypoint is run with the
+// same flags as the original command, but with the `--home` flag set to the config
+// directory of the chain specified in the rollkit.toml file. This is so the entrypoint,
+// which is a separate binary of the rollup, can read the correct chain configuration files.
+func RunRollupEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
 	entrypointSourceFile := filepath.Join(rollkitConfig.RootDir, rollkitConfig.Entrypoint)
 	entrypointBinaryFile := filepath.Join(rollkitConfig.RootDir, rollupBinEntrypoint)
 
 	if !cometos.FileExists(entrypointBinaryFile) {
 		if !cometos.FileExists(entrypointSourceFile) {
-			return fmt.Errorf("rollkit: no such entrypoint file: %s", entrypointSourceFile)
+			return fmt.Errorf("no such entrypoint file: %s", entrypointSourceFile)
 		}
 
 		// try to build the entrypoint
@@ -52,7 +63,7 @@ func runEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr
 		if err := buildCmd.Run(); err != nil {
-			return fmt.Errorf("rollkit: failed to build entrypoint: %w", err)
+			return fmt.Errorf("failed to build entrypoint: %w", err)
 		}
 	}
 
@@ -66,7 +77,7 @@ func runEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
 	entrypointCmd.Stderr = os.Stderr
 
 	if err := entrypointCmd.Run(); err != nil {
-		return fmt.Errorf("rollkit: failed to run entrypoint: %w", err)
+		return fmt.Errorf("failed to run entrypoint: %w", err)
 	}
 
 	return nil

@@ -46,6 +46,9 @@ func ReadToml() (TomlConfig, error) {
 	return config, nil
 }
 
+// findConfigFile searches for the rollkit.toml file starting from the given
+// directory and moving up the directory tree. It returns the full path to
+// the rollkit.toml file or an error if it was not found.
 func findConfigFile(startDir string) (string, error) {
 	dir := startDir
 	for {
