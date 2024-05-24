@@ -21,9 +21,9 @@ func main() {
 		cmd.RunRollupEntrypoint,
 	); err == nil {
 		return
-	} else if err != nil {
-		fmt.Fprintf(os.Stderr, "rollkit: %v\n", err)
 	}
+	
+	fmt.Fprintf(os.Stdout, "No rollkit.toml file found: %v\nStarting fresh rollup in .rollkit directory\n", err)
 
 	// Initiate the root command
 	rootCmd := cmd.RootCmd
