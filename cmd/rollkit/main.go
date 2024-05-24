@@ -16,14 +16,15 @@ func main() {
 	// directory tree - we want to intercept the command and execute it against an entrypoint
 	// specified in the rollkit.toml file. In case of missing toml file or missing entrypoint key
 	// or missing actual entrypoint file - the normal rootCmd command is executed.
-	if err := cmd.InterceptCommand(
+	err := cmd.InterceptCommand(
 		rollconf.ReadToml,
 		cmd.RunRollupEntrypoint,
-	); err == nil {
+	)
+	if err == nil {
 		return
 	}
-	
-	fmt.Fprintf(os.Stdout, "No rollkit.toml file found: %v\nStarting fresh rollup in .rollkit directory\n", err)
+
+	fmt.Fprintf(os.Stdout, "No rollkit.toml file found: %v\nStarting fresh rollup in ~/.rollkit directory\n", err)
 
 	// Initiate the root command
 	rootCmd := cmd.RootCmd
