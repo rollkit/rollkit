@@ -1,12 +1,6 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
-  # mempool and indexer code is borrowed from Tendermint
-  skip-dirs:
-    - mempool
-    - state/indexer
-    - state/txindex
-    - third_party
 
 linters:
   enable:
@@ -27,6 +21,12 @@ linters:
 
 issues:
   exclude-use-default: false
+  # mempool and indexer code is borrowed from Tendermint
+  exclude-dirs:
+    - mempool
+    - state/indexer
+    - state/txindex
+    - third_party
   include:
     - EXC0012 # EXC0012 revive: Annoying issue about not having a comment. The rare codebase has such comments
     - EXC0014 # EXC0014 revive: Annoying issue about not having a comment. The rare codebase has such comments
