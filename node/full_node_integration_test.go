@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	mrand "math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,17 +15,16 @@ import (
 
 	cmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/stretchr/testify/assert"
 
+	testutils "github.com/celestiaorg/utils/test"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-
 	goDA "github.com/rollkit/go-da"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -32,8 +32,8 @@ import (
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
-
-	testutils "github.com/celestiaorg/utils/test"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
@@ -304,7 +304,106 @@ func TestFastDASync(t *testing.T) {
 	require.True(node2.blockManager.IsDAIncluded(block.Hash()))
 }
 
-// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
+func TestChangeValSet(t *testing.T) {
+	// clean up node data
+	defer os.RemoveAll("valset_change")
+
+	assert := assert.New(t)
+	require := require.New(t)
+
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(func() (*abci.ResponseCheckTx, error) {
+		return &abci.ResponseCheckTx{}, nil
+	})
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+
+	// tmpubKey1
+	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	tmPubKey1, _ := cryptoenc.PubKeyToProto(genesisDoc.Validators[0].PubKey)
+
+	// tmpubKey2
+	key2 := ed25519.GenPrivKey()
+	tmPubKey2, _ := cryptoenc.PubKeyToProto(key2.PubKey())
+
+	// update valset in height 10
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(func(ctx context.Context, req *abci.RequestFinalizeBlock) (resp *abci.ResponseFinalizeBlock, err error) {
+		if req.Height == 10 {
+			return &abci.ResponseFinalizeBlock{
+				ValidatorUpdates: []abci.ValidatorUpdate{
+					{
+						PubKey: tmPubKey1,
+						Power:  0,
+					},
+					{
+						PubKey: tmPubKey2,
+						Power:  1,
+					},
+				},
+			}, nil
+		}
+		return finalizeBlockResponse(ctx, req)
+
+	})
+	require.NoError(err)
+	blockManagerConfig := config.BlockManagerConfig{
+		// After the genesis header is published, the syncer is started
+		// which takes little longer (due to initialization) and the syncer
+		// tries to retrieve the genesis header and check that is it recent
+		// (genesis header time is not older than current minus 1.5x blocktime)
+		// to allow sufficient time for syncer initialization, we cannot set
+		// the blocktime too short. in future, we can add a configuration
+		// in go-header syncer initialization to not rely on blocktime, but the
+		// config variable
+		BlockTime:     1 * time.Second,
+		LazyBlockTime: 5 * time.Second,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	node, err := NewNode(ctx, config.NodeConfig{
+		DAAddress:          MockDAAddress,
+		DANamespace:        MockDANamespace,
+		Aggregator:         true,
+		BlockManagerConfig: blockManagerConfig,
+		RootDir:            "valset_change",
+	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	assert.False(node.IsRunning())
+	assert.NoError(err)
+
+	// start node 1
+	node.Start()
+	// node will be stopped at block 10 because of the change in valset
+	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
+
+	//stop node
+	node.Stop()
+
+	signingKey2, err := types.PrivKeyToSigningKey(key2)
+	assert.NoError(err)
+	node2, err := NewNode(ctx, config.NodeConfig{
+		DAAddress:          MockDAAddress,
+		DANamespace:        MockDANamespace,
+		Aggregator:         true,
+		BlockManagerConfig: blockManagerConfig,
+		RootDir:            "valset_change",
+	}, key, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+
+	assert.False(node.IsRunning())
+	assert.NoError(err)
+	// start node normally
+	node2.Start()
+
+	// run 10 block with the new sequencer
+	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
+
+}
+
+// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block 		time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
 func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require := require.New(t)
 
