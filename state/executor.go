@@ -310,11 +310,6 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 	nValSet := state.NextValidators.Copy()
 	lastHeightValSetChanged := state.LastHeightValidatorsChanged
 
-	// TODO(tzdybal):  right now, it's for backward compatibility, may need to change this
-	if len(validatorUpdates) > 0 {
-		return state, ErrAddingValidatorToBased
-	}
-
 	if len(nValSet.Validators) > 0 {
 		err := nValSet.UpdateWithChangeSet(validatorUpdates)
 		if err != nil {
