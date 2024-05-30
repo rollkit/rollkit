@@ -401,6 +401,9 @@ func TestChangeValSet(t *testing.T) {
 	assert.NoError(err)
 	// start node normally
 	node2.Start()
+	if err := node2.Start(); err != nil {
+	    t.Errorf("Failed to start node2: %v", err)
+	}
 
 	// run 10 block with the new sequencer
 	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
