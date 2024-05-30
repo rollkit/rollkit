@@ -306,7 +306,11 @@ func TestFastDASync(t *testing.T) {
 
 func TestChangeValSet(t *testing.T) {
 	// clean up node data
-	defer os.RemoveAll("valset_change")
+	defer func() {
+	    if err := os.RemoveAll("valset_change"); err != nil {
+	        t.Logf("Failed to remove directory: %v", err)
+	    }
+	}()
 
 	assert := assert.New(t)
 	require := require.New(t)
