@@ -381,6 +381,9 @@ func TestChangeValSet(t *testing.T) {
 
 	// start node 1
 	node.Start()
+	if err := node.Start(); err != nil {
+	    t.Errorf("Failed to start node: %v", err)
+	}
 	// node will be stopped at block 10 because of the change in valset
 	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
 
