@@ -68,40 +68,6 @@ jobs:
       - name: Run cli
         run: rollkit start --ci
 
-  # get_merged_pr_labels uses the listPullRequestsAssociatedWithCommit API
-  # endpoint to get the PR information for the commit during a push event. Once
-  # the PR information is received, we check to see if the create-release label
-  # was added to the pr.
-  get_merged_pr_labels:
-    runs-on: ubuntu-latest
-    outputs:
-      has_release_label: ${{ steps.set-outputs.outputs.has_release_label }}
-    steps:
-      # We only want to run this step on a push event, otherwise this will error
-      # out as the result is null. We have the if condition here as to not block
-      # steps that rely on this step and others if this step is skipped.
-      - name: Query listPullRequestsAssociatedWithCommit for the PR information
-        if: ${{ github.event_name == 'push' }}
-        uses: actions/github-script@v7
-        id: get_pr_data
-        with:
-          script: |
-            const prData = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              commit_sha: context.sha,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-            const pr = prData.data[0];
-            const prLabels = pr ? pr.labels.map(label => label.name) : [];
-            const hasReleaseLabel = prLabels.includes('create-release');
-            return { hasReleaseLabel };
-      # Only run if the result is not null. We add this check so that the CI
-      # does not show a failure when the previous step is skipped.
-      - name: Set the outputs
-        if: steps.get_pr_data.outputs.result != null
-        id: set-outputs
-        run: echo "has_release_label=${{ fromJSON(steps.get_pr_data.outputs.result).hasReleaseLabel }}" >> "$GITHUB_OUTPUT"
-
   # branch_name trims ref/heads/ from github.ref to access a clean branch name
   branch_name:
     runs-on: ubuntu-latest
@@ -114,7 +80,7 @@ jobs:
           echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
 
   # Make a release if this is a manually trigger job, i.e. workflow_dispatch
-  release-dispatch:
+  release:
     needs: [lint, test, proto, branch_name]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -126,22 +92,4 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           version-bump: ${{inputs.version}}
-          release-branch: ${{needs.branch_name.outputs.branch}}
-
-  # Make a release if there was a merged pr with the create-release label
-  release-merge:
-    needs: [lint, test, proto, get_merged_pr_labels, branch_name]
-    runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'push' &&
-      contains(github.ref, 'refs/heads/main') &&
-      needs.get_merged_pr_labels.outputs.has_release_label == 'true')
-    permissions: "write-all"
-    steps:
-      - uses: actions/checkout@v4
-      - name: Version Release
-        uses: rollkit/.github/.github/actions/version-release@v0.3.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          version-bump: "patch"
           release-branch: ${{needs.branch_name.outputs.branch}}

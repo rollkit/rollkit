@@ -1,0 +1,35 @@
+name: goreleaser
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  # Checks that the .goreleaser.yaml file is valid
+  goreleaser-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: check
+
+  goreleaser:
+    needs: goreleaser-check
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - name: Create .release-env file
+        run: |-
+          echo 'GITHUB_TOKEN=${{secrets.GORELEASER_TOKEN}}' >> .release-env
+      - name: Create prebuilt binaries and attach them to the GitHub release
+        run: make prebuilt-binary
