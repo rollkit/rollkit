@@ -304,12 +304,13 @@ func TestFastDASync(t *testing.T) {
 	require.True(node2.blockManager.IsDAIncluded(block.Hash()))
 }
 
+// TestChangeValSet tests the scenario where the sequencer changes and the chain is able to provide blocks by new sequencer
 func TestChangeValSet(t *testing.T) {
 	// clean up node data
 	defer func() {
-	    if err := os.RemoveAll("valset_change"); err != nil {
-	        t.Logf("Failed to remove directory: %v", err)
-	    }
+		if err := os.RemoveAll("valset_change"); err != nil {
+			t.Logf("Failed to remove directory: %v", err)
+		}
 	}()
 
 	assert := assert.New(t)
@@ -328,14 +329,9 @@ func TestChangeValSet(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
 	tmPubKey1, err := cryptoenc.PubKeyToProto(genesisDoc.Validators[0].PubKey)
-	if err != nil {
-	    t.Fatalf("Failed to convert public key to proto: %v", err)
-	}
-	tmPubKey2, err := cryptoenc.PubKeyToProto(key2.PubKey())
-	if err != nil {
-	    t.Fatalf("Failed to convert public key to proto: %v", err)
-	}
+	require.NoError(err)
 
 	// tmpubKey2
 	key2 := ed25519.GenPrivKey()
@@ -376,26 +372,23 @@ func TestChangeValSet(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node, err := NewNode(ctx, config.NodeConfig{
+	node1, err := NewNode(ctx, config.NodeConfig{
 		DAAddress:          MockDAAddress,
 		DANamespace:        MockDANamespace,
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		RootDir:            "valset_change",
 	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
-	assert.False(node.IsRunning())
+	assert.False(node1.IsRunning())
 	assert.NoError(err)
 
 	// start node 1
-	node.Start()
-	if err := node.Start(); err != nil {
-	    t.Errorf("Failed to start node: %v", err)
-	}
+	require.NoError(node1.Start())
 	// node will be stopped at block 10 because of the change in valset
-	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
+	require.NoError(waitForAtLeastNBlocks(node1, 10, Store))
 
-	//stop node
-	node.Stop()
+	// stop node 1
+	require.NoError(node1.Stop())
 
 	signingKey2, err := types.PrivKeyToSigningKey(key2)
 	assert.NoError(err)
@@ -407,17 +400,13 @@ func TestChangeValSet(t *testing.T) {
 		RootDir:            "valset_change",
 	}, key, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 
-	assert.False(node.IsRunning())
+	assert.False(node2.IsRunning())
 	assert.NoError(err)
 	// start node normally
-	node2.Start()
-	if err := node2.Start(); err != nil {
-	    t.Errorf("Failed to start node2: %v", err)
-	}
+	require.NoError(node2.Start())
 
 	// run 10 block with the new sequencer
-	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
-
+	require.NoError(waitForAtLeastNBlocks(node2, 10, Store))
 }
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block 		time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
