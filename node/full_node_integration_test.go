@@ -328,7 +328,14 @@ func TestChangeValSet(t *testing.T) {
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	tmPubKey1, _ := cryptoenc.PubKeyToProto(genesisDoc.Validators[0].PubKey)
+	tmPubKey1, err := cryptoenc.PubKeyToProto(genesisDoc.Validators[0].PubKey)
+	if err != nil {
+	    t.Fatalf("Failed to convert public key to proto: %v", err)
+	}
+	tmPubKey2, err := cryptoenc.PubKeyToProto(key2.PubKey())
+	if err != nil {
+	    t.Fatalf("Failed to convert public key to proto: %v", err)
+	}
 
 	// tmpubKey2
 	key2 := ed25519.GenPrivKey()
