@@ -5,3 +5,5 @@ types/pb/tendermint
 .vscode/launch.json
 */**.html
 *.idea
+*.env
+.*env

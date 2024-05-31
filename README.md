@@ -11,6 +11,7 @@ A modular framework for rollups, with an ABCI-compatible client interface. For m
 <!-- markdownlint-enable MD013 -->
 
 ## Using Rollkit
+
 ### Rollkit CLI
 
 The easiest way to use rollkit is via the rollkit CLI.
@@ -52,7 +53,6 @@ range of data availability layers, settlement layers, and execution
 environments.
 
 Check out our tutorials on our [website][docs].
-
 
 ## Contributing
 
@@ -104,10 +104,9 @@ Graph](https://github.com/rollkit/rollkit/blob/main/specs/src/specs/rollkit-depe
 
 ## Audits
 
-| Date       | Auditor                                       | Version                                                                             | Report                                                  |
-|------------|-----------------------------------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------|
-| 2024/01/12  | [Informal Systems](https://informal.systems/) | [eccdd...bcb9d](https://github.com/rollkit/rollkit/commit/eccdd0f1793a5ac532011ef4d896de9e0d8bcb9d)   | [informal-systems.pdf](specs/audit/informal-systems.pdf) |
+| Date | Auditor | Version | Report |
+|---|---|---|---|
+| 2024/01/12 | [Informal Systems](https://informal.systems/) | [eccdd...bcb9d](https://github.com/rollkit/rollkit/commit/eccdd0f1793a5ac532011ef4d896de9e0d8bcb9d) | [informal-systems.pdf](specs/audit/informal-systems.pdf) |
 | 2024/01/10 | [Binary Builders](https://binary.builders/)   | [eccdd...bcb9d](https://github.com/rollkit/rollkit/commit/eccdd0f1793a5ac532011ef4d896de9e0d8bcb9d) | [binary-builders.pdf](specs/audit/binary-builders.pdf)   |
-
 
 [docs]: https://rollkit.dev

@@ -1,5 +1,7 @@
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
+PACKAGE_NAME          := github.com/rollkit/rollkit
+GOLANG_CROSS_VERSION  ?= v1.22.1
 
 # Define pkgs, run, and cover variables for test so that we can override them in
 # the terminal more easily.
@@ -109,3 +111,19 @@ install:
 	@echo "    Check the version with: rollkit version"
 	@echo "    Check the binary with: which rollkit"
 .PHONY: install
+
+## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
+prebuilt-binary:
+	@if [ ! -f ".release-env" ]; then \
+		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
+		exit 1;\
+	fi
+	docker run \
+		--rm \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		release --clean
+.PHONY: prebuilt-binary

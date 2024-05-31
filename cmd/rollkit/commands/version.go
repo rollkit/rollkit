@@ -29,9 +29,9 @@ var VersionCmd = &cobra.Command{
 			return errors.New("version not set")
 		}
 		w := tabwriter.NewWriter(os.Stdout, 2, 0, 2, ' ', 0)
-		fmt.Fprintf(w, "\nrollkit version:\t%v\n", Version)
-		fmt.Fprintf(w, "rollkit git sha:\t%v\n", GitSHA)
-		fmt.Fprintln(w, "")
-		return w.Flush()
+		_, err1 := fmt.Fprintf(w, "\nrollkit version:\t%v\n", Version)
+		_, err2 := fmt.Fprintf(w, "rollkit git sha:\t%v\n", GitSHA)
+		_, err3 := fmt.Fprintln(w, "")
+		return errors.Join(err1, err2, err3, w.Flush())
 	},
 }
