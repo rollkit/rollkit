@@ -26,20 +26,25 @@ var initCmd = &cobra.Command{
 	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitToml),
 	Long:  fmt.Sprintf("This command initializes a new %s file in the current directory.", rollconf.RollkitToml),
 	Run: func(cmd *cobra.Command, args []string) {
-		// we want to find a main.go file under the cmd directory and use that as the entrypoint
-		// for the rollkit.toml file
-		// also we want to read the directory of that main.go so we can check for configDir based on that
-
-		// try find main.go file
-		dirName, entrypoint := rollconf.FindEntrypoint()
-		if entrypoint == "" {
-			fmt.Println("Could not find a main.go file under the current directory. Please put an entrypoint in the rollkit.toml file manually.\n")
+		if _, err := os.Stat(rollconf.RollkitToml); err == nil {
+			fmt.Printf("%s file already exists in the current directory.\n", rollconf.RollkitToml)
+			os.Exit(1)
 		}
 
-		// checking ~/.{dirName} for configDir, which is default for cosmos-sdk chains
-		chainConfigDir := rollconf.CheckConfigDir(dirName)
-		if chainConfigDir == "" {
-			fmt.Printf("Could not find a rollup config under %s. Please put the chain.config_dir in the rollkit.toml file manually.\n", chainConfigDir)
+		// try find main.go file under the current directory
+		dirName, entrypoint := rollconf.FindEntrypoint()
+		if entrypoint == "" {
+			fmt.Println("Could not find a rollup main.go entrypoint under the current directory. Please put an entrypoint in the rollkit.toml file manually.\n")
+		} else {
+			fmt.Printf("Found rollup entrypoint: %s, adding to rollkit.toml\n", entrypoint)
+		}
+
+		// checking for default cosmos chain config directory
+		chainConfigDir, ok := rollconf.CheckConfigDir(dirName)
+		if !ok {
+			fmt.Printf("Could not find rollup config under %s. Please put the chain.config_dir in the rollkit.toml file manually.\n", chainConfigDir)
+		} else {
+			fmt.Printf("Found rollup configuration under %s, adding to rollkit.toml\n", chainConfigDir)
 		}
 
 		config := rollconf.TomlConfig{
@@ -54,5 +59,7 @@ var initCmd = &cobra.Command{
 			fmt.Println("Error writing rollkit.toml file:", err)
 			os.Exit(1)
 		}
+
+		fmt.Printf("Initialized %s file in the current directory.\n", rollconf.RollkitToml)
 	},
 }

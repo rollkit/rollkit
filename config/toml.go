@@ -89,8 +89,8 @@ func findDefaultEntrypoint(dir string) (string, string) {
 	// Check if there is a main.go file in the current directory
 	mainPath := filepath.Join(dir, "main.go")
 	if _, err := os.Stat(mainPath); err == nil && !os.IsNotExist(err) {
-		dirName := filepath.Dir(dir)
-		return dirName, mainPath
+		//dirName := filepath.Dir(dir)
+		return dir, mainPath
 	}
 
 	// Check subdirectories for a main.go file
@@ -114,18 +114,24 @@ func findDefaultEntrypoint(dir string) (string, string) {
 
 // CheckConfigDir checks if there is a ~/.{dir} directory and returns the full path to it or an empty string.
 // This is used to find the default config directory for cosmos-sdk chains.
-func CheckConfigDir(dir string) string {
+func CheckConfigDir(dir string) (string, bool) {
+	dir = filepath.Base(dir)
+	// trim last 'd' from dir if it exists
+	if dir[len(dir)-1] == 'd' {
+		dir = dir[:len(dir)-1]
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ""
+		return dir, false
 	}
 
 	configDir := filepath.Join(home, "."+dir)
 	if _, err := os.Stat(configDir); err == nil {
-		return configDir
+		return configDir, true
 	}
 
-	return ""
+	return dir, false
 }
 
 // WriteTomlConfig writes the given TomlConfig to the rollkit.toml file in the current directory.
