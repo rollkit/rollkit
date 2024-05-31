@@ -22,9 +22,9 @@ func main() {
 	)
 	if err == nil {
 		return
+	} else if err != cmd.ErrHelpVersionToml {
+		fmt.Printf("No %s file found: %v\nStarting fresh rollup in ~/.rollkit directory\n", rollconf.RollkitToml, err)
 	}
-
-	fmt.Fprintf(os.Stdout, "No rollkit.toml file found: %v\nStarting fresh rollup in ~/.rollkit directory\n", err)
 
 	// Initiate the root command
 	rootCmd := cmd.RootCmd
@@ -34,6 +34,7 @@ func main() {
 		cmd.DocsGenCmd,
 		cmd.NewRunNodeCmd(),
 		cmd.VersionCmd,
+		cmd.NewTomlCmd(),
 	)
 
 	// Prepare the base command and execute

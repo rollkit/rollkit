@@ -13,14 +13,26 @@ import (
 
 const rollupBinEntrypoint = "entrypoint"
 
-var rollkitConfig rollconf.TomlConfig
+var (
+	rollkitConfig rollconf.TomlConfig
+
+	ErrHelpVersionToml = fmt.Errorf("help or version or toml")
+)
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
 // specified in the rollkit.toml configuration file.
 func InterceptCommand(
 	readToml func() (rollconf.TomlConfig, error),
-	runEntrypoint func(rollconf.TomlConfig, []string) error,
+	runEntrypoint func(*rollconf.TomlConfig, []string) error,
 ) error {
+	// check if user attempted to run help or version
+	if len(os.Args) >= 2 {
+		switch os.Args[1] {
+		case "help", "--help", "h", "-h", "version", "--version", "v", "-v", "toml":
+			return ErrHelpVersionToml
+		}
+	}
+
 	var err error
 	rollkitConfig, err = readToml()
 	if err != nil {
@@ -28,7 +40,7 @@ func InterceptCommand(
 	}
 
 	if rollkitConfig.Entrypoint == "" {
-		return fmt.Errorf("no entrypoint specified in rollkit.toml")
+		return fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
 	}
 
 	flags := []string{}
@@ -36,7 +48,7 @@ func InterceptCommand(
 		flags = os.Args[1:]
 	}
 
-	return runEntrypoint(rollkitConfig, flags)
+	return runEntrypoint(&rollkitConfig, flags)
 }
 
 // RunRollupEntrypoint runs the entrypoint specified in the rollkit.toml configuration file.
@@ -45,7 +57,7 @@ func InterceptCommand(
 // same flags as the original command, but with the `--home` flag set to the config
 // directory of the chain specified in the rollkit.toml file. This is so the entrypoint,
 // which is a separate binary of the rollup, can read the correct chain configuration files.
-func RunRollupEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error {
+func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) error {
 	entrypointSourceFile := filepath.Join(rollkitConfig.RootDir, rollkitConfig.Entrypoint)
 	entrypointBinaryFile := filepath.Join(rollkitConfig.RootDir, rollupBinEntrypoint)
 
@@ -56,9 +68,7 @@ func RunRollupEntrypoint(rollkitConfig rollconf.TomlConfig, args []string) error
 
 		// try to build the entrypoint as a go binary
 		var buildArgs []string
-		buildArgs = append(buildArgs, "build")
-		buildArgs = append(buildArgs, "-o", entrypointBinaryFile)
-		buildArgs = append(buildArgs, entrypointSourceFile)
+		buildArgs = []string{"build", "-o", entrypointBinaryFile, entrypointSourceFile}
 		buildCmd := exec.Command("go", buildArgs...) //nolint:gosec
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr

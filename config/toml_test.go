@@ -53,7 +53,7 @@ config_dir = "config"
 `), 0600)
 		require.NoError(t, err)
 
-		_ = os.Chdir(dir)
+		require.NoError(t, os.Chdir(dir))
 		config, err := ReadToml()
 		require.NoError(t, err)
 		require.Equal(t, TomlConfig{
@@ -67,7 +67,7 @@ config_dir = "config"
 
 	t.Run("returns error if config file not found", func(t *testing.T) {
 		dir := t.TempDir()
-		_ = os.Chdir(dir)
+		require.NoError(t, os.Chdir(dir))
 
 		_, err := ReadToml()
 		require.Error(t, err)
@@ -79,7 +79,7 @@ config_dir = "config"
 		err := os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
 
-		_ = os.Chdir(dir)
+		require.NoError(t, os.Chdir(dir))
 		config, err := ReadToml()
 		require.NoError(t, err)
 
@@ -90,11 +90,11 @@ config_dir = "config"
 	t.Run("returns error if config file cannot be decoded", func(t *testing.T) {
 		dir := t.TempDir()
 		configPath := filepath.Join(dir, RollkitToml)
-		_ = os.WriteFile(configPath, []byte(`
+		require.NoError(t, os.WriteFile(configPath, []byte(`
 blablabla
-`), 0600)
+`), 0600))
 
-		_ = os.Chdir(dir)
+		require.NoError(t, os.Chdir(dir))
 		_, err := ReadToml()
 		require.Error(t, err)
 	})

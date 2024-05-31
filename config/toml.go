@@ -16,7 +16,7 @@ type TomlConfig struct {
 	Entrypoint string          `toml:"entrypoint"`
 	Chain      ChainTomlConfig `toml:"chain"`
 
-	RootDir string
+	RootDir string `toml:"-"`
 }
 
 // ChainTomlConfig is the configuration for the chain section of rollkit.toml
@@ -25,30 +25,32 @@ type ChainTomlConfig struct {
 }
 
 // ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed TomlConfig.
-func ReadToml() (TomlConfig, error) {
-	var config TomlConfig
+func ReadToml() (config TomlConfig, err error) {
 	startDir, err := os.Getwd()
 	if err != nil {
-		return config, fmt.Errorf("error getting current directory: %w", err)
+		err = fmt.Errorf("error getting current directory: %w", err)
+		return
 	}
 
 	configPath, err := findConfigFile(startDir)
 	if err != nil {
-		return config, err
+		err = fmt.Errorf("error finding %s: %w", RollkitToml, err)
+		return
 	}
 
-	if _, err := toml.DecodeFile(configPath, &config); err != nil {
-		return config, fmt.Errorf("error reading %s: %w", configPath, err)
-	}
-
-	// Add configPath to chain.ConfigDir if it is a relative path
-	if !filepath.IsAbs(config.Chain.ConfigDir) && config.Chain.ConfigDir != "" {
-		config.Chain.ConfigDir = filepath.Join(filepath.Dir(configPath), config.Chain.ConfigDir)
+	if _, err = toml.DecodeFile(configPath, &config); err != nil {
+		err = fmt.Errorf("error reading %s: %w", configPath, err)
+		return
 	}
 
 	config.RootDir = filepath.Dir(configPath)
 
-	return config, nil
+	// Add configPath to chain.ConfigDir if it is a relative path
+	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
+		config.Chain.ConfigDir = filepath.Join(config.RootDir, config.Chain.ConfigDir)
+	}
+
+	return
 }
 
 // findConfigFile searches for the rollkit.toml file starting from the given
@@ -69,4 +71,75 @@ func findConfigFile(startDir string) (string, error) {
 		dir = parentDir
 	}
 	return "", fmt.Errorf("no %s found", RollkitToml)
+}
+
+// FindEntrypoint searches for a main.go file in the current directory and its
+// subdirectories. It returns the directory name of the main.go file and the full
+// path to the main.go file.
+func FindEntrypoint() (string, string) {
+	startDir, err := os.Getwd()
+	if err != nil {
+		return "", ""
+	}
+
+	return findDefaultEntrypoint(startDir)
+}
+
+func findDefaultEntrypoint(dir string) (string, string) {
+	// Check if there is a main.go file in the current directory
+	mainPath := filepath.Join(dir, "main.go")
+	if _, err := os.Stat(mainPath); err == nil && !os.IsNotExist(err) {
+		dirName := filepath.Dir(dir)
+		return dirName, mainPath
+	}
+
+	// Check subdirectories for a main.go file
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return "", ""
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			subdir := filepath.Join(dir, file.Name())
+			dirName, entrypoint := findDefaultEntrypoint(subdir)
+			if entrypoint != "" {
+				return dirName, entrypoint
+			}
+		}
+	}
+
+	return "", ""
+}
+
+// CheckConfigDir checks if there is a ~/.{dir} directory and returns the full path to it or an empty string.
+// This is used to find the default config directory for cosmos-sdk chains.
+func CheckConfigDir(dir string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+
+	configDir := filepath.Join(home, "."+dir)
+	if _, err := os.Stat(configDir); err == nil {
+		return configDir
+	}
+
+	return ""
+}
+
+// WriteTomlConfig writes the given TomlConfig to the rollkit.toml file in the current directory.
+func WriteTomlConfig(config TomlConfig) error {
+	configPath := filepath.Join(config.RootDir, RollkitToml)
+	f, err := os.Create(configPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := toml.NewEncoder(f).Encode(config); err != nil {
+		return err
+	}
+
+	return nil
 }
