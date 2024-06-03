@@ -42,7 +42,7 @@ var initCmd = &cobra.Command{
 		}
 
 		// checking for default cosmos chain config directory
-		chainConfigDir, ok := rollconf.CheckConfigDir(dirName)
+		chainConfigDir, ok := rollconf.FindConfigDir(dirName)
 		if !ok {
 			fmt.Printf("Could not find rollup config under %s. Please put the chain.config_dir in the rollkit.toml file manually.\n", chainConfigDir)
 		} else {

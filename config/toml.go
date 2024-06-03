@@ -115,9 +115,9 @@ func findDefaultEntrypoint(dir string) (string, string) {
 	return "", ""
 }
 
-// CheckConfigDir checks if there is a ~/.{dir} directory and returns the full path to it or an empty string.
+// FindConfigDir checks if there is a ~/.{dir} directory and returns the full path to it or an empty string.
 // This is used to find the default config directory for cosmos-sdk chains.
-func CheckConfigDir(dir string) (string, bool) {
+func FindConfigDir(dir string) (string, bool) {
 	dir = filepath.Base(dir)
 	// trim last 'd' from dir if it exists
 	if dir[len(dir)-1] == 'd' {

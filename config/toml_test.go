@@ -8,6 +8,48 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFindentrypoint(t *testing.T) {
+	t.Run("finds entrypoint in current directory", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.Chdir(dir))
+
+		entrypointPath := filepath.Join(dir, "main.go")
+		err := os.WriteFile(entrypointPath, []byte{}, 0600)
+		require.NoError(t, err)
+
+		dirName, fullDirPath := FindEntrypoint()
+		require.Equal(t, dir, dirName)
+		require.Equal(t, entrypointPath, fullDirPath)
+	})
+
+	t.Run("returns error if entrypoint not found", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.Chdir(dir))
+
+		dirName, fullDirPath := FindEntrypoint()
+		require.Empty(t, dirName)
+		require.Empty(t, fullDirPath)
+	})
+
+	t.Run("finds entrypoint in subdirectory", func(t *testing.T) {
+		parentDir := t.TempDir()
+
+		dir := filepath.Join(parentDir, "child")
+		err := os.Mkdir(dir, 0750)
+		require.NoError(t, err)
+
+		require.NoError(t, os.Chdir(dir))
+
+		entrypointPath := filepath.Join(dir, "main.go")
+		err = os.WriteFile(entrypointPath, []byte{}, 0600)
+		require.NoError(t, err)
+
+		dirName, fullDirPath := FindEntrypoint()
+		require.Equal(t, dir, dirName)
+		require.Equal(t, entrypointPath, fullDirPath)
+	})
+}
+
 func TestFindConfigFile(t *testing.T) {
 	t.Run("finds config file in current directory", func(t *testing.T) {
 		dir := t.TempDir()
