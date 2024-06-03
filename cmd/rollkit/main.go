@@ -13,11 +13,23 @@ import (
 )
 
 func main() {
+	// Initiate the root command
+	rootCmd := cmd.RootCmd
+
+	// Add subcommands to the root command
+	rootCmd.AddCommand(
+		cmd.DocsGenCmd,
+		cmd.NewRunNodeCmd(),
+		cmd.VersionCmd,
+		cmd.NewTomlCmd(),
+	)
+
 	// In case there is a rollkit.toml file in the current dir or somewhere up the
 	// directory tree - we want to intercept the command and execute it against an entrypoint
 	// specified in the rollkit.toml file. In case of missing toml file or missing entrypoint key
 	// or missing actual entrypoint file - the normal rootCmd command is executed.
 	err := cmd.InterceptCommand(
+		rootCmd,
 		rollconf.ReadToml,
 		cmd.RunRollupEntrypoint,
 	)
@@ -30,19 +42,9 @@ func main() {
 	case errors.Is(err, rollconf.ErrReadToml):
 		fmt.Printf("%v\n", err)
 		fmt.Println("Starting fresh rollup in ~/.rollkit directory")
-	case errors.Is(err, cmd.ErrHelpVersionToml):
+	case errors.Is(err, cmd.ErrRollkitCommand):
+	case errors.Is(err, cmd.ErrHelpVersion):
 	}
-
-	// Initiate the root command
-	rootCmd := cmd.RootCmd
-
-	// Add subcommands to the root command
-	rootCmd.AddCommand(
-		cmd.DocsGenCmd,
-		cmd.NewRunNodeCmd(),
-		cmd.VersionCmd,
-		cmd.NewTomlCmd(),
-	)
 
 	// Prepare the base command and execute
 	executor := cli.PrepareBaseCmd(rootCmd, "RK", os.ExpandEnv(filepath.Join("$HOME", ".rollkit")))
