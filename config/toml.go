@@ -11,6 +11,8 @@ import (
 // RollkitToml is the filename for the rollkit configuration file.
 const RollkitToml = "rollkit.toml"
 
+var ErrReadToml = fmt.Errorf("error reading %s", RollkitToml)
+
 // TomlConfig is the configuration read from rollkit.toml
 type TomlConfig struct {
 	Entrypoint string          `toml:"entrypoint"`
@@ -28,18 +30,18 @@ type ChainTomlConfig struct {
 func ReadToml() (config TomlConfig, err error) {
 	startDir, err := os.Getwd()
 	if err != nil {
-		err = fmt.Errorf("error getting current directory: %w", err)
+		err = fmt.Errorf("%w: getting current dir: %w", ErrReadToml, err)
 		return
 	}
 
 	configPath, err := findConfigFile(startDir)
 	if err != nil {
-		err = fmt.Errorf("error finding %s: %w", RollkitToml, err)
+		err = fmt.Errorf("%w: %w", ErrReadToml, err)
 		return
 	}
 
 	if _, err = toml.DecodeFile(configPath, &config); err != nil {
-		err = fmt.Errorf("error reading %s: %w", configPath, err)
+		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
 		return
 	}
 

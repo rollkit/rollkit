@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,10 +21,16 @@ func main() {
 		rollconf.ReadToml,
 		cmd.RunRollupEntrypoint,
 	)
-	if err == nil {
+	switch {
+	case err == nil:
 		return
-	} else if err != cmd.ErrHelpVersionToml {
-		fmt.Printf("No %s file found: %v\nStarting fresh rollup in ~/.rollkit directory\n", rollconf.RollkitToml, err)
+	case errors.Is(err, cmd.ErrRunEntrypoint):
+		fmt.Printf("%v\n", err)
+		return
+	case errors.Is(err, rollconf.ErrReadToml):
+		fmt.Printf("%v\n", err)
+		fmt.Println("Starting fresh rollup in ~/.rollkit directory")
+	case err == cmd.ErrHelpVersionToml:
 	}
 
 	// Initiate the root command

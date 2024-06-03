@@ -17,6 +17,7 @@ var (
 	rollkitConfig rollconf.TomlConfig
 
 	ErrHelpVersionToml = fmt.Errorf("help or version or toml")
+	ErrRunEntrypoint   = fmt.Errorf("run rollup entrypoint")
 )
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
@@ -58,12 +59,18 @@ func InterceptCommand(
 // directory of the chain specified in the rollkit.toml file. This is so the entrypoint,
 // which is a separate binary of the rollup, can read the correct chain configuration files.
 func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) error {
-	entrypointSourceFile := filepath.Join(rollkitConfig.RootDir, rollkitConfig.Entrypoint)
+	var entrypointSourceFile string
+	if !filepath.IsAbs(rollkitConfig.RootDir) {
+		entrypointSourceFile = filepath.Join(rollkitConfig.RootDir, rollkitConfig.Entrypoint)
+	} else {
+		entrypointSourceFile = rollkitConfig.Entrypoint
+	}
+
 	entrypointBinaryFile := filepath.Join(rollkitConfig.RootDir, rollupBinEntrypoint)
 
 	if !cometos.FileExists(entrypointBinaryFile) {
 		if !cometos.FileExists(entrypointSourceFile) {
-			return fmt.Errorf("no such entrypoint file: %s", entrypointSourceFile)
+			return fmt.Errorf("%w: no entrypoint file: %s", ErrRunEntrypoint, entrypointSourceFile)
 		}
 
 		// try to build the entrypoint as a go binary
@@ -73,7 +80,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr
 		if err := buildCmd.Run(); err != nil {
-			return fmt.Errorf("failed to build entrypoint: %w", err)
+			return fmt.Errorf("%w: failed to build entrypoint: %w", ErrRunEntrypoint, err)
 		}
 	}
 
@@ -84,12 +91,13 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		// we have to pass --home flag to the entrypoint to read the correct chain configuration files if specified.
 		runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
 	}
+
 	entrypointCmd := exec.Command(entrypointBinaryFile, runArgs...) //nolint:gosec
 	entrypointCmd.Stdout = os.Stdout
 	entrypointCmd.Stderr = os.Stderr
 
 	if err := entrypointCmd.Run(); err != nil {
-		return fmt.Errorf("failed to run entrypoint: %w", err)
+		return fmt.Errorf("%w: failed to run entrypoint: %w", ErrRunEntrypoint, err)
 	}
 
 	return nil
