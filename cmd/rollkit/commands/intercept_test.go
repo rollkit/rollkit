@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	rollconf "github.com/rollkit/rollkit/config"
+
 	"github.com/spf13/cobra"
 )
 
