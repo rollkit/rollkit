@@ -5,9 +5,11 @@ import (
 	"os"
 
 	rollconf "github.com/rollkit/rollkit/config"
+
 	"github.com/spf13/cobra"
 )
 
+// NewTomlCmd creates a new cobra command group for TOML file operations.
 func NewTomlCmd() *cobra.Command {
 	TomlCmd := &cobra.Command{
 		Use:     "toml",
@@ -34,7 +36,7 @@ var initCmd = &cobra.Command{
 		// try find main.go file under the current directory
 		dirName, entrypoint := rollconf.FindEntrypoint()
 		if entrypoint == "" {
-			fmt.Println("Could not find a rollup main.go entrypoint under the current directory. Please put an entrypoint in the rollkit.toml file manually.\n")
+			fmt.Println("Could not find a rollup main.go entrypoint under the current directory. Please put an entrypoint in the rollkit.toml file manually.")
 		} else {
 			fmt.Printf("Found rollup entrypoint: %s, adding to rollkit.toml\n", entrypoint)
 		}

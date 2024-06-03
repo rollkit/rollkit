@@ -16,8 +16,11 @@ const rollupBinEntrypoint = "entrypoint"
 var (
 	rollkitConfig rollconf.TomlConfig
 
+	// ErrHelpVersionToml is returned when the user attempts to run help, version, or toml.
 	ErrHelpVersionToml = fmt.Errorf("help or version or toml")
-	ErrRunEntrypoint   = fmt.Errorf("run rollup entrypoint")
+
+	// ErrRunEntrypoint is returned when the entrypoint fails to run.
+	ErrRunEntrypoint = fmt.Errorf("run rollup entrypoint")
 )
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
@@ -74,8 +77,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		}
 
 		// try to build the entrypoint as a go binary
-		var buildArgs []string
-		buildArgs = []string{"build", "-o", entrypointBinaryFile, entrypointSourceFile}
+		buildArgs := []string{"build", "-o", entrypointBinaryFile, entrypointSourceFile}
 		buildCmd := exec.Command("go", buildArgs...) //nolint:gosec
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr

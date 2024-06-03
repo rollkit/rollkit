@@ -30,7 +30,7 @@ func main() {
 	case errors.Is(err, rollconf.ErrReadToml):
 		fmt.Printf("%v\n", err)
 		fmt.Println("Starting fresh rollup in ~/.rollkit directory")
-	case err == cmd.ErrHelpVersionToml:
+	case errors.Is(err, cmd.ErrHelpVersionToml):
 	}
 
 	// Initiate the root command

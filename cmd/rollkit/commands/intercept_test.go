@@ -12,7 +12,7 @@ func TestInterceptCommand(t *testing.T) {
 	tests := []struct {
 		name              string
 		mockReadToml      func() (rollconf.TomlConfig, error)
-		mockRunEntrypoint func(rollkitConfig rollconf.TomlConfig, args []string) error
+		mockRunEntrypoint func(rollkitConfig *rollconf.TomlConfig, args []string) error
 		args              []string
 		wantErr           bool
 	}{
@@ -26,7 +26,7 @@ func TestInterceptCommand(t *testing.T) {
 					RootDir: "/test/root",
 				}, nil
 			},
-			mockRunEntrypoint: func(config rollconf.TomlConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
 				return nil
 			},
 			args:    []string{"cmd", "arg1", "arg2"},

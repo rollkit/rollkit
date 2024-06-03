@@ -11,6 +11,7 @@ import (
 // RollkitToml is the filename for the rollkit configuration file.
 const RollkitToml = "rollkit.toml"
 
+// ErrReadToml is the error returned when reading the rollkit.toml file fails.
 var ErrReadToml = fmt.Errorf("error reading %s", RollkitToml)
 
 // TomlConfig is the configuration read from rollkit.toml
@@ -139,11 +140,11 @@ func CheckConfigDir(dir string) (string, bool) {
 // WriteTomlConfig writes the given TomlConfig to the rollkit.toml file in the current directory.
 func WriteTomlConfig(config TomlConfig) error {
 	configPath := filepath.Join(config.RootDir, RollkitToml)
-	f, err := os.Create(configPath)
+	f, err := os.Create(configPath) //nolint:gosec
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	if err := toml.NewEncoder(f).Encode(config); err != nil {
 		return err
