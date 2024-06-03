@@ -12,7 +12,7 @@ import (
 const RollkitToml = "rollkit.toml"
 
 // ErrReadToml is the error returned when reading the rollkit.toml file fails.
-var ErrReadToml = fmt.Errorf("error reading %s", RollkitToml)
+var ErrReadToml = fmt.Errorf("Reading %s", RollkitToml)
 
 // TomlConfig is the configuration read from rollkit.toml
 type TomlConfig struct {

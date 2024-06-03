@@ -41,7 +41,6 @@ func main() {
 		return
 	case errors.Is(err, rollconf.ErrReadToml):
 		fmt.Printf("%v\n", err)
-		fmt.Println("Starting fresh rollup in ~/.rollkit directory")
 	case errors.Is(err, cmd.ErrRollkitCommand):
 	case errors.Is(err, cmd.ErrHelpVersion):
 	}
