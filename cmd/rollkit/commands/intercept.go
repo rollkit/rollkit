@@ -51,7 +51,7 @@ func InterceptCommand(
 
 		// check if user attempted to run help or version
 		switch os.Args[1] {
-		case "help", "--help", "h", "-h", "version", "--version", "v", "-v", "toml":
+		case "help", "--help", "h", "-h", "version", "--version", "v", "-v":
 			return ErrHelpVersion
 		}
 	}
