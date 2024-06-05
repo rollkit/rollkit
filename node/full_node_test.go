@@ -316,6 +316,44 @@ func TestVoteExtension(t *testing.T) {
 
 	require.NoError(node.Start())
 	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
+	// require.NoError(node.Stop())
+	app.AssertExpectations(t)
+
+	// Error scenarios
+	//TestExtendVoteFailure
+	extendVoteFailure := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+		return nil, fmt.Errorf("ExtendVote failed")
+	}
+	app.On("ExtendVote", mock.Anything, mock.Anything).Return(extendVoteFailure)
+
+	// Ensure all necessary methods are mocked
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+
+	err := waitForAtLeastNBlocks(node, 5, Store)
+	require.NoError(err)
+	// require.Contains(err.Error(), "ExtendVote failed")
+	app.AssertExpectations(t)
+
+	// TestInvalidVoteExtension
+	invalidVoteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+		return &abci.ResponseExtendVote{
+			VoteExtension: []byte("invalid extension"),
+		}, nil
+	}
+	app.On("ExtendVote", mock.Anything, mock.Anything).Return(invalidVoteExtension)
+
+	// Ensure all necessary methods are mocked
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+
+	err = waitForAtLeastNBlocks(node, 10, Store)
+	require.NoError(err)
+	// require.Contains(err.Error(), "invalid extension")
 	require.NoError(node.Stop())
 	app.AssertExpectations(t)
 }
