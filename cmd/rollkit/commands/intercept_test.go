@@ -18,6 +18,7 @@ func TestInterceptCommand(t *testing.T) {
 		mockRunEntrypoint func(rollkitConfig *rollconf.TomlConfig, args []string) error
 		args              []string
 		wantErr           bool
+		wantExecuted      bool
 	}{
 		{
 			name: "Successful intercept with entrypoint",
@@ -32,24 +33,27 @@ func TestInterceptCommand(t *testing.T) {
 			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
 				return nil
 			},
-			args:    []string{"cmd", "arg1", "arg2"},
-			wantErr: false,
+			args:         []string{"cmd", "arg1", "arg2"},
+			wantErr:      false,
+			wantExecuted: true,
 		},
 		{
 			name: "Configuration read error",
 			mockReadToml: func() (rollconf.TomlConfig, error) {
 				return rollconf.TomlConfig{}, errors.New("read error")
 			},
-			args:    []string{"cmd"},
-			wantErr: true,
+			args:         []string{"cmd"},
+			wantErr:      true,
+			wantExecuted: false,
 		},
 		{
 			name: "Empty entrypoint",
 			mockReadToml: func() (rollconf.TomlConfig, error) {
 				return rollconf.TomlConfig{Entrypoint: ""}, nil
 			},
-			args:    []string{"cmd"},
-			wantErr: true,
+			args:         []string{"cmd"},
+			wantErr:      true,
+			wantExecuted: true,
 		},
 		{
 			name:            "Skip intercept",
@@ -65,8 +69,9 @@ func TestInterceptCommand(t *testing.T) {
 			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
 				return nil
 			},
-			args:    []string{"cmd"},
-			wantErr: false,
+			args:         []string{"cmd"},
+			wantErr:      false,
+			wantExecuted: true,
 		},
 	}
 
@@ -79,13 +84,17 @@ func TestInterceptCommand(t *testing.T) {
 				cmd.AddCommand(&cobra.Command{Use: c})
 			}
 
-			_, err := InterceptCommand(
+			ok, err := InterceptCommand(
 				cmd,
 				tt.mockReadToml,
 				tt.mockRunEntrypoint,
 			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InterceptCommand() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if ok != tt.wantExecuted {
+				t.Errorf("InterceptCommand() executed = %v, wantExecuted %v", ok, tt.wantExecuted)
 				return
 			}
 		})
