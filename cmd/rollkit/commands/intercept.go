@@ -14,19 +14,7 @@ import (
 
 const rollupBinEntrypoint = "entrypoint"
 
-var (
-	rollkitConfig rollconf.TomlConfig
-
-	// ErrRollkitCommand is returned when the command is a rollkit command
-	// which we don't want to intercept.
-	ErrRollkitCommand = fmt.Errorf("rollkit command")
-
-	// ErrHelpVersion is returned when the user attempts to run help or version.
-	ErrHelpVersion = fmt.Errorf("help or version")
-
-	// ErrRunEntrypoint is returned when the entrypoint fails to run.
-	ErrRunEntrypoint = fmt.Errorf("run rollup entrypoint")
-)
+var rollkitConfig rollconf.TomlConfig
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
 // specified in the rollkit.toml configuration file.
@@ -34,44 +22,42 @@ func InterceptCommand(
 	rollkitCommand *cobra.Command,
 	readToml func() (rollconf.TomlConfig, error),
 	runEntrypoint func(*rollconf.TomlConfig, []string) error,
-) error {
-	skipCommands := []string{}
-	for _, cmd := range rollkitCommand.Commands() {
-		skipCommands = append(skipCommands, cmd.Use)
-	}
-
-	if len(os.Args) >= 2 {
-		// check if user attempted to run a rollkit command
-		// if so, we don't want to intercept it except for `start`
-		for _, skipCmd := range skipCommands {
-			if os.Args[1] == skipCmd && os.Args[1] != "start" {
-				return ErrRollkitCommand
-			}
-		}
-
-		// check if user attempted to run help or version
-		switch os.Args[1] {
-		case "help", "--help", "h", "-h", "version", "--version", "v", "-v":
-			return ErrHelpVersion
-		}
-	}
-
-	var err error
-	rollkitConfig, err = readToml()
-	if err != nil {
-		return err
-	}
-
-	if rollkitConfig.Entrypoint == "" {
-		return fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
-	}
-
+) (bool, error) {
+	// Grab flags and verify command
 	flags := []string{}
 	if len(os.Args) >= 2 {
 		flags = os.Args[1:]
+
+		// Handle specific cases first for help, version, and start
+		switch os.Args[1] {
+		case "help", "--help", "h", "-h",
+			"version", "--version", "v", "-v":
+			return false, nil
+		case "start":
+			goto readTOML
+		}
+
+		// Check if user attempted to run a rollkit command
+		for _, cmd := range rollkitCommand.Commands() {
+			if os.Args[1] == cmd.Use {
+				return false, nil
+			}
+		}
 	}
 
-	return runEntrypoint(&rollkitConfig, flags)
+readTOML:
+	var err error
+	rollkitConfig, err = readToml()
+	if err != nil {
+		return false, err
+	}
+
+	// After successfully reading the TOML file, we expect to be able to use the entrypoint
+	if rollkitConfig.Entrypoint == "" {
+		return true, fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
+	}
+
+	return true, runEntrypoint(&rollkitConfig, flags)
 }
 
 // RunRollupEntrypoint runs the entrypoint specified in the rollkit.toml configuration file.
@@ -88,11 +74,12 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		entrypointSourceFile = rollkitConfig.Entrypoint
 	}
 
+	// The entrypoint binary file is always in the same directory as the rollkit.toml file.
 	entrypointBinaryFile := filepath.Join(rollkitConfig.RootDir, rollupBinEntrypoint)
 
 	if !cometos.FileExists(entrypointBinaryFile) {
 		if !cometos.FileExists(entrypointSourceFile) {
-			return fmt.Errorf("%w: no entrypoint file: %s", ErrRunEntrypoint, entrypointSourceFile)
+			return fmt.Errorf("no entrypoint file: %s", entrypointSourceFile)
 		}
 
 		// try to build the entrypoint as a go binary
@@ -101,7 +88,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr
 		if err := buildCmd.Run(); err != nil {
-			return fmt.Errorf("%w: failed to build entrypoint: %w", ErrRunEntrypoint, err)
+			return fmt.Errorf("failed to build entrypoint: %w", err)
 		}
 	}
 
@@ -118,7 +105,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 	entrypointCmd.Stderr = os.Stderr
 
 	if err := entrypointCmd.Run(); err != nil {
-		return fmt.Errorf("%w: failed to run entrypoint: %w", ErrRunEntrypoint, err)
+		return fmt.Errorf("failed to run entrypoint: %w", err)
 	}
 
 	return nil

@@ -79,7 +79,7 @@ func TestInterceptCommand(t *testing.T) {
 				cmd.AddCommand(&cobra.Command{Use: c})
 			}
 
-			err := InterceptCommand(
+			_, err := InterceptCommand(
 				cmd,
 				tt.mockReadToml,
 				tt.mockRunEntrypoint,

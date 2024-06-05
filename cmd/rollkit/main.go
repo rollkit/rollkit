@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,21 +27,16 @@ func main() {
 	// directory tree - we want to intercept the command and execute it against an entrypoint
 	// specified in the rollkit.toml file. In case of missing toml file or missing entrypoint key
 	// or missing actual entrypoint file - the normal rootCmd command is executed.
-	err := cmd.InterceptCommand(
+	executed, err := cmd.InterceptCommand(
 		rootCmd,
 		rollconf.ReadToml,
 		cmd.RunRollupEntrypoint,
 	)
-	switch {
-	case err == nil:
+	if err != nil {
+		fmt.Println("Rollkit: ", err)
+	}
+	if executed {
 		return
-	case errors.Is(err, cmd.ErrRunEntrypoint):
-		fmt.Printf("%v\n", err)
-		return
-	case errors.Is(err, rollconf.ErrReadToml):
-		fmt.Printf("%v\n", err)
-	case errors.Is(err, cmd.ErrRollkitCommand):
-	case errors.Is(err, cmd.ErrHelpVersion):
 	}
 
 	// Prepare the base command and execute
