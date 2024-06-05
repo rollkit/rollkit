@@ -33,7 +33,7 @@ func main() {
 		cmd.RunRollupEntrypoint,
 	)
 	if err != nil {
-		fmt.Println("Rollkit: ", err)
+		fmt.Println("Error intercepting command: ", err)
 	}
 	if executed {
 		return
