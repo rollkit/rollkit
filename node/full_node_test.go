@@ -316,7 +316,6 @@ func TestVoteExtension(t *testing.T) {
 
 	require.NoError(node.Start())
 	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
-	// require.NoError(node.Stop())
 	app.AssertExpectations(t)
 
 	// Error scenarios
@@ -334,7 +333,6 @@ func TestVoteExtension(t *testing.T) {
 
 	err := waitForAtLeastNBlocks(node, 5, Store)
 	require.NoError(err)
-	// require.Contains(err.Error(), "ExtendVote failed")
 	app.AssertExpectations(t)
 
 	// TestInvalidVoteExtension
@@ -353,7 +351,6 @@ func TestVoteExtension(t *testing.T) {
 
 	err = waitForAtLeastNBlocks(node, 10, Store)
 	require.NoError(err)
-	// require.Contains(err.Error(), "invalid extension")
 	require.NoError(node.Stop())
 	app.AssertExpectations(t)
 }
