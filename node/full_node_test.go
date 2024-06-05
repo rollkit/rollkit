@@ -265,94 +265,121 @@ func TestPendingBlocks(t *testing.T) {
 
 func TestVoteExtension(t *testing.T) {
 	require := require.New(t)
+	const voteExtensionEnableHeight = 5
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	const voteExtensionEnableHeight = 5
-	const expectedExtension = "vote extension from height %d"
+	t.Run("TestPrepareProposalVoteExtChecker", func(t *testing.T) {
+		const expectedExtension = "vote extension from height %d"
 
-	// Create & configure node with app. Get signing key for mock functions.
+		app, node, signingKey := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
+		require.NotNil(node)
+		require.NotNil(signingKey)
+
+		prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			if req.Height <= voteExtensionEnableHeight {
+				require.Empty(req.LocalLastCommit.Votes)
+			} else {
+				require.Len(req.LocalLastCommit.Votes, 1)
+				extendedCommit := req.LocalLastCommit.Votes[0]
+				require.NotNil(extendedCommit)
+				require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
+				// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
+				require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
+				require.NotNil(extendedCommit.Validator)
+				require.NotNil(extendedCommit.Validator.Address)
+				require.NotEmpty(extendedCommit.ExtensionSignature)
+				ok, err := signingKey.GetPublic().Verify(extendedCommit.VoteExtension, extendedCommit.ExtensionSignature)
+				require.NoError(err)
+				require.True(ok)
+			}
+			return &abci.ResponsePrepareProposal{
+				Txs: req.Txs,
+			}, nil
+		}
+
+		voteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+			return &abci.ResponseExtendVote{
+				VoteExtension: []byte(fmt.Sprintf(expectedExtension, req.Height)),
+			}, nil
+		}
+
+		app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
+		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+		app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+		app.On("ExtendVote", mock.Anything, mock.Anything).Return(voteExtension)
+		require.NotNil(app)
+
+		require.NoError(node.Start())
+		require.NoError(waitForAtLeastNBlocks(node, 10, Store))
+		require.NoError(node.Stop())
+		app.AssertExpectations(t)
+	})
+
+	// Error scenarios
+	//TestExtendVoteFailure
+	t.Run("TestExtendVoteFailure", func(t *testing.T) {
+		app, node, signingKey := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
+		require.NotNil(node)
+		require.NotNil(signingKey)
+
+		extendVoteFailure := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+			return nil, fmt.Errorf("ExtendVote failed")
+		}
+		app.On("ExtendVote", mock.Anything, mock.Anything).Return(extendVoteFailure)
+
+		// Ensure all necessary methods are mocked
+		app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(&abci.ResponsePrepareProposal{Txs: nil}, nil)
+		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+		app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+
+		require.NoError(node.Start())
+		err := waitForAtLeastNBlocks(node, 10, Store)
+		require.Error(err)
+		require.NoError(node.Stop())
+		app.AssertExpectations(t)
+	})
+
+	// TestInvalidVoteExtension
+	t.Run("TestInvalidVoteExtension", func(t *testing.T) {
+		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
+		require.NotNil(node)
+		// require.NotNil(signingKey)
+
+		invalidVoteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+			return &abci.ResponseExtendVote{
+				VoteExtension: []byte("invalid extension"),
+			}, nil
+		}
+		app.On("InvalidExtension", mock.Anything, mock.Anything).Return(invalidVoteExtension)
+
+		// Ensure all necessary methods are mocked
+		app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(&abci.ResponsePrepareProposal{Txs: nil}, nil)
+		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil)
+		app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+
+		require.NoError(node.Start())
+		err := waitForAtLeastNBlocks(node, 5, Store)
+		require.Error(err)
+		require.NoError(node.Stop())
+		app.AssertExpectations(t)
+	})
+}
+
+// Create & configure node with app. Get signing key for mock functions.
+func createNodeAndApp(ctx context.Context, voteExtensionEnableHeight int64, t *testing.T) (*mocks.Application, Node, crypto.PrivKey) {
+	require := require.New(t)
+
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	node, signingKey := createAggregatorWithApp(ctx, app, voteExtensionEnableHeight, t)
 	require.NotNil(node)
 	require.NotNil(signingKey)
-
-	prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-		if req.Height <= voteExtensionEnableHeight {
-			require.Empty(req.LocalLastCommit.Votes)
-		} else {
-			require.Len(req.LocalLastCommit.Votes, 1)
-			extendedCommit := req.LocalLastCommit.Votes[0]
-			require.NotNil(extendedCommit)
-			require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
-			// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
-			require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
-			require.NotNil(extendedCommit.Validator)
-			require.NotNil(extendedCommit.Validator.Address)
-			require.NotEmpty(extendedCommit.ExtensionSignature)
-			ok, err := signingKey.GetPublic().Verify(extendedCommit.VoteExtension, extendedCommit.ExtensionSignature)
-			require.NoError(err)
-			require.True(ok)
-		}
-		return &abci.ResponsePrepareProposal{
-			Txs: req.Txs,
-		}, nil
-	}
-
-	voteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-		return &abci.ResponseExtendVote{
-			VoteExtension: []byte(fmt.Sprintf(expectedExtension, req.Height)),
-		}, nil
-	}
-
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-	app.On("ExtendVote", mock.Anything, mock.Anything).Return(voteExtension)
-	require.NotNil(app)
-
-	require.NoError(node.Start())
-	require.NoError(waitForAtLeastNBlocks(node, 10, Store))
-	app.AssertExpectations(t)
-
-	// Error scenarios
-	//TestExtendVoteFailure
-	extendVoteFailure := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-		return nil, fmt.Errorf("ExtendVote failed")
-	}
-	app.On("ExtendVote", mock.Anything, mock.Anything).Return(extendVoteFailure)
-
-	// Ensure all necessary methods are mocked
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-
-	err := waitForAtLeastNBlocks(node, 5, Store)
-	require.NoError(err)
-	app.AssertExpectations(t)
-
-	// TestInvalidVoteExtension
-	invalidVoteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-		return &abci.ResponseExtendVote{
-			VoteExtension: []byte("invalid extension"),
-		}, nil
-	}
-	app.On("ExtendVote", mock.Anything, mock.Anything).Return(invalidVoteExtension)
-
-	// Ensure all necessary methods are mocked
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-
-	err = waitForAtLeastNBlocks(node, 10, Store)
-	require.NoError(err)
-	require.NoError(node.Stop())
-	app.AssertExpectations(t)
+	return app, node, signingKey
 }
 
 func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
