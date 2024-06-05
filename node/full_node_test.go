@@ -268,7 +268,7 @@ func TestVoteExtension(t *testing.T) {
 	const voteExtensionEnableHeight = 5
 	const expectedExtension = "vote extension from height %d"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	t.Run("TestPrepareProposalVoteExtChecker", func(t *testing.T) {
