@@ -730,6 +730,14 @@ func getMockApplication() *mocks.Application {
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
 func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
+	// stop the nodes in case of a failure during start procedure
+	defer func() {
+		if t.Failed() {
+			for _, n := range nodes {
+				assert.NoError(t, n.Stop())
+			}
+		}
+	}()
 
 	// Wait for aggregator node to publish the first block for full nodes to initialize header exchange service
 	require.NoError(t, nodes[0].Start())
