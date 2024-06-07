@@ -21,7 +21,8 @@ func TestInterceptCommand(t *testing.T) {
 		wantExecuted      bool
 	}{
 		{
-			name: "Successful intercept with entrypoint",
+			name:            "Successful intercept with entrypoint",
+			rollkitCommands: []string{"docs-gen", "toml"},
 			mockReadToml: func() (rollconf.TomlConfig, error) {
 				return rollconf.TomlConfig{
 					Entrypoint: "test-entrypoint",
@@ -33,31 +34,33 @@ func TestInterceptCommand(t *testing.T) {
 			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
 				return nil
 			},
-			args:         []string{"cmd", "arg1", "arg2"},
+			args:         []string{"rollkit", "start"},
 			wantErr:      false,
 			wantExecuted: true,
 		},
 		{
-			name: "Configuration read error",
+			name:            "Configuration read error",
+			rollkitCommands: []string{"docs-gen", "toml"},
 			mockReadToml: func() (rollconf.TomlConfig, error) {
 				return rollconf.TomlConfig{}, errors.New("read error")
 			},
-			args:         []string{"cmd"},
+			args:         []string{"rollkit", "start"},
 			wantErr:      true,
 			wantExecuted: false,
 		},
 		{
-			name: "Empty entrypoint",
+			name:            "Empty entrypoint",
+			rollkitCommands: []string{"docs-gen", "toml"},
 			mockReadToml: func() (rollconf.TomlConfig, error) {
 				return rollconf.TomlConfig{Entrypoint: ""}, nil
 			},
-			args:         []string{"cmd"},
+			args:         []string{"rollkit", "start"},
 			wantErr:      true,
 			wantExecuted: true,
 		},
 		{
-			name:            "Skip intercept",
-			rollkitCommands: []string{"cmd1, cmd2"},
+			name:            "Skip intercept, rollkit command",
+			rollkitCommands: []string{"docs-gen", "toml"},
 			mockReadToml: func() (rollconf.TomlConfig, error) {
 				return rollconf.TomlConfig{
 					Entrypoint: "test-entrypoint",
@@ -69,9 +72,27 @@ func TestInterceptCommand(t *testing.T) {
 			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
 				return nil
 			},
-			args:         []string{"cmd"},
+			args:         []string{"rollkit", "docs-gen"},
 			wantErr:      false,
-			wantExecuted: true,
+			wantExecuted: false,
+		},
+		{
+			name:            "Skip intercept, help command",
+			rollkitCommands: []string{"docs-gen", "toml"},
+			mockReadToml: func() (rollconf.TomlConfig, error) {
+				return rollconf.TomlConfig{
+					Entrypoint: "test-entrypoint",
+					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/test/config"},
+
+					RootDir: "/test/root",
+				}, nil
+			},
+			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
+				return nil
+			},
+			args:         []string{"rollkit", "-h"},
+			wantErr:      false,
+			wantExecuted: false,
 		},
 	}
 
