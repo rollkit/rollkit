@@ -50,6 +50,10 @@ lint: vet
 	@hadolint test/docker/mockserv.Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
+	@echo "--> Running goreleaser check"
+	@goreleaser check
+	@echo "--> Running actionlint"
+	@actionlint
 
 .PHONY: lint
 
