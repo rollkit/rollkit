@@ -81,3 +81,14 @@ jobs:
             echo "$DIFF"
             exit 1
           fi
+
+  # Checks that the .goreleaser.yaml file is valid
+  goreleaser-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: check
