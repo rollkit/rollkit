@@ -387,7 +387,6 @@ func TestVoteExtension(t *testing.T) {
 			case <-called:
 				fmt.Println("Block processed successfully")
 			default:
-				fmt.Println("No block processed yet")
 				// Adding a short sleep to avoid busy waiting
 				time.Sleep(100 * time.Millisecond)
 			}
