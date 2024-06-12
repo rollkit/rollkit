@@ -314,28 +314,31 @@ func TestVoteExtension(t *testing.T) {
 		app.AssertExpectations(t)
 	})
 
-	//TestExtendVoteFailure
+	// TestExtendVoteFailure
 	t.Run("TestExtendVoteFailure", func(t *testing.T) {
-		app, node, signingKey := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
+		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
 		require.NotNil(node)
-		require.NotNil(signingKey)
 
-		// Define the expected error message for ExtendVote failure
-		expectedError := fmt.Errorf("ExtendVote failed")
-		app.On("ExtendVote", mock.Anything, mock.Anything).Return(func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-			return nil, expectedError
-		})
+		// Create a channel to signal from extendVoteFailure
+		extendVoteFailureChan := make(chan struct{})
 
-		// Mock other necessary methods
+		invalidVoteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+			extendVoteFailureChan <- struct{}{}
+			return nil, fmt.Errorf("ExtendVote failed")
+		}
+		app.On("ExtendVote", mock.Anything, mock.Anything).Return(invalidVoteExtension)
+
+		// Ensure all necessary methods are mocked
 		app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(&abci.ResponsePrepareProposal{Txs: nil}, nil)
 		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 		app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 		require.NotNil(app)
 
+		// Start the node
 		require.NoError(node.Start())
 
-		// Wait until the height reaches voteExtensionEnableHeight
+		// Wait for blocks to be produced until voteExtensionEnableHeight
 		for i := 1; i < voteExtensionEnableHeight; i++ {
 			select {
 			case <-ctx.Done():
@@ -347,29 +350,38 @@ func TestVoteExtension(t *testing.T) {
 
 		status, err := node.GetClient().Status(ctx)
 		require.NoError(err)
-		require.EqualValues(int64(voteExtensionEnableHeight-1), status.SyncInfo.LatestBlockHeight)
+		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Expected block height mismatch")
 
-		// Process some additional blocks
-		for i := 0; i < 5; i++ {
-			select {
-			case <-ctx.Done():
-				require.Fail("timeout waiting for additional blocks")
-			default:
-				time.Sleep(100 * time.Millisecond)
-			}
-		}
+		// Wait for extendVoteFailure to be called, indicating a retry attempt
+		<-extendVoteFailureChan
 
-		// Verify the block height after additional blocks
+		// Ensure that the ExtendVote method is called with the expected arguments
+		app.AssertCalled(t, "ExtendVote", mock.Anything, mock.Anything)
+
+		// Check the node's behavior after encountering the invalid vote extension error
+		// verify that the block height has not advanced
 		status, err = node.GetClient().Status(ctx)
 		require.NoError(err)
-		require.EqualValues(int64(voteExtensionEnableHeight-1), status.SyncInfo.LatestBlockHeight)
+		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
 
-		// Test ExtendVote failure
-		_, err = app.ExtendVote(ctx, &abci.RequestExtendVote{})
-		require.Error(err)
-		require.EqualError(err, expectedError.Error(), "ExtendVote should return the expected error")
+		// Additional retries to ensure extendVoteFailure is triggered multiple times
+		for i := 0; i < 4; i++ {
+			<-extendVoteFailureChan
 
+			// Ensure that the ExtendVote method is called with the expected arguments
+			app.AssertCalled(t, "ExtendVote", mock.Anything, mock.Anything)
+
+			// Check the node's behavior after encountering the invalid vote extension error
+			// verify that the block height has not advanced
+			status, err = node.GetClient().Status(ctx)
+			require.NoError(err)
+			require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
+		}
+
+		// Stop the node
 		require.NoError(node.Stop())
+
+		// Ensure expectations are met
 		app.AssertExpectations(t)
 	})
 }
