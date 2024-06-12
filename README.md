@@ -1,6 +1,6 @@
 # Rollkit
 
-A modular framework for rollups, with an ABCI-compatible client interface. For more in-depth information about Rollkit, please visit our [website][docs].
+Rollkit is the first soveriegn rollup framework. For more in-depth information about Rollkit, please visit our [website][docs].
 
 <!-- markdownlint-disable MD013 -->
 [![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
@@ -48,9 +48,7 @@ Explore the CLI documentation [here](./cmd/rollkit/docs/rollkit.md)
 
 ## Building with Rollkit
 
-While Rollkit is a modular framework that aims to be compatible with a wide
-range of data availability layers, settlement layers, and execution
-environments.
+Rollkit is the first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
 
 Check out our tutorials on our [website][docs].
 
