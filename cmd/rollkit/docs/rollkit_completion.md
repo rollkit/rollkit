@@ -24,7 +24,7 @@ See each sub-command's help for details on how to use the generated script.
 
 ### SEE ALSO
 
-* [rollkit](rollkit.md)	 - A modular framework for rollups, with an ABCI-compatible client interface.
+* [rollkit](rollkit.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
 * [rollkit completion bash](rollkit_completion_bash.md)	 - Generate the autocompletion script for bash
 * [rollkit completion fish](rollkit_completion_fish.md)	 - Generate the autocompletion script for fish
 * [rollkit completion powershell](rollkit_completion_powershell.md)	 - Generate the autocompletion script for powershell
