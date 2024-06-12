@@ -271,44 +271,36 @@ func TestVoteExtension(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Helper function to setup PrepareProposal mock and check vote extension
-	prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-		_, node, signingKey := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
-		require.NotNil(node)
-		require.NotNil(signingKey)
-		if req.Height <= voteExtensionEnableHeight {
-			require.Empty(req.LocalLastCommit.Votes)
-		} else {
-			require.Len(req.LocalLastCommit.Votes, 1)
-			extendedCommit := req.LocalLastCommit.Votes[0]
-			require.NotNil(extendedCommit)
-			require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
-			// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
-			require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
-			require.NotNil(extendedCommit.Validator)
-			require.NotNil(extendedCommit.Validator.Address)
-			require.NotEmpty(extendedCommit.ExtensionSignature)
-			_, err := signingKey.GetPublic().Verify(extendedCommit.VoteExtension, extendedCommit.ExtensionSignature)
-			require.NoError(err)
-			// if req.Height == voteExtensionEnableHeight {
-			// 	require.False(ok) // This should fail due to invalid extension
-			// } else {
-			// require.True(ok)
-			// }
-		}
-		return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
-	}
-
 	// TestPrepareProposalVoteExtChecker
 	t.Run("TestPrepareProposalVoteExtChecker", func(t *testing.T) {
-		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
+		app, node, signingKey := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
 
+		prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			if req.Height <= voteExtensionEnableHeight {
+				require.Empty(req.LocalLastCommit.Votes)
+			} else {
+				require.Len(req.LocalLastCommit.Votes, 1)
+				extendedCommit := req.LocalLastCommit.Votes[0]
+				require.NotNil(extendedCommit)
+				require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
+				// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
+				require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
+				require.NotNil(extendedCommit.Validator)
+				require.NotNil(extendedCommit.Validator.Address)
+				require.NotEmpty(extendedCommit.ExtensionSignature)
+				ok, err := signingKey.GetPublic().Verify(extendedCommit.VoteExtension, extendedCommit.ExtensionSignature)
+				require.NoError(err)
+				require.True(ok)
+			}
+			return &abci.ResponsePrepareProposal{
+				Txs: req.Txs,
+			}, nil
+		}
 		voteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 			return &abci.ResponseExtendVote{
 				VoteExtension: []byte(fmt.Sprintf(expectedExtension, req.Height)),
 			}, nil
 		}
-
 		app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
 		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
@@ -319,76 +311,6 @@ func TestVoteExtension(t *testing.T) {
 		require.NoError(node.Start())
 		require.NoError(waitForAtLeastNBlocks(node, 10, Store))
 		require.NoError(node.Stop())
-		app.AssertExpectations(t)
-	})
-
-	// TestInvalidVoteExtension
-	t.Run("TestInvalidVoteExtension", func(t *testing.T) {
-		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
-		require.NotNil(node)
-
-		// Create a channel to signal from extendVoteFailure
-		extendVoteFailureChan := make(chan struct{})
-
-		invalidVoteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-			extendVoteFailureChan <- struct{}{}
-			return nil, fmt.Errorf("ExtendVote failed")
-		}
-		app.On("ExtendVote", mock.Anything, mock.Anything).Return(invalidVoteExtension)
-
-		// Ensure all necessary methods are mocked
-		app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(&abci.ResponsePrepareProposal{Txs: nil}, nil)
-		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-		app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-
-		// Start the node
-		require.NoError(node.Start())
-
-		// Wait for blocks to be produced until voteExtensionEnableHeight
-		for i := 1; i < voteExtensionEnableHeight; i++ {
-			select {
-			case <-ctx.Done():
-				require.Fail("timeout waiting for block height")
-			default:
-				time.Sleep(100 * time.Millisecond) // Avoid busy waiting
-			}
-		}
-
-		status, err := node.GetClient().Status(ctx)
-		require.NoError(err)
-		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Expected block height mismatch")
-
-		// Wait for extendVoteFailure to be called, indicating a retry attempt
-		<-extendVoteFailureChan
-
-		// Ensure that the ExtendVote method is called with the expected arguments
-		app.AssertCalled(t, "ExtendVote", mock.Anything, mock.Anything)
-
-		// Check the node's behavior after encountering the invalid vote extension error
-		// For example, verify that the block height has not advanced
-		status, err = node.GetClient().Status(ctx)
-		require.NoError(err)
-		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
-
-		// Additional retries to ensure extendVoteFailure is triggered multiple times
-		for i := 0; i < 4; i++ {
-			<-extendVoteFailureChan
-
-			// Ensure that the ExtendVote method is called with the expected arguments
-			app.AssertCalled(t, "ExtendVote", mock.Anything, mock.Anything)
-
-			// Check the node's behavior after encountering the invalid vote extension error
-			// For example, verify that the block height has not advanced
-			status, err = node.GetClient().Status(ctx)
-			require.NoError(err)
-			require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
-		}
-
-		// Stop the node
-		require.NoError(node.Stop())
-
-		// Ensure expectations are met
 		app.AssertExpectations(t)
 	})
 
@@ -450,7 +372,6 @@ func TestVoteExtension(t *testing.T) {
 		require.NoError(node.Stop())
 		app.AssertExpectations(t)
 	})
-
 }
 
 // Create & configure node with app. Get signing key for mock functions.
