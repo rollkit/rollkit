@@ -9,11 +9,11 @@ retract v0.12.0 // Published by accident
 require (
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.7
-	github.com/cosmos/gogoproto v1.4.12
+	github.com/cosmos/gogoproto v1.5.0
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/rpc v1.2.1
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.33.2
