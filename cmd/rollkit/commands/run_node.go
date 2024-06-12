@@ -113,6 +113,11 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
+			// handle lazy aggregator mode
+			if lazyAgg := cmd.Flags().Lookup("rollkit.lazy_aggregator"); lazyAgg.Changed {
+				rollkitConfig.LazyAggregator = lazyAgg.Value.String() == "true"
+			}
+
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
 				srv, err := startMockDAServJSONRPC(cmd.Context())
