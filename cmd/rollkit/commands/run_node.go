@@ -37,7 +37,7 @@ var (
 	// initialize the config with the cometBFT defaults
 	config = cometconf.DefaultConfig()
 
-	// initialize the rollkit configuration
+	// initialize the rollkit node configuration
 	nodeConfig = rollconf.DefaultNodeConfig
 
 	// initialize the logger with the cometBFT defaults
@@ -114,7 +114,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// handle lazy aggregator mode
 			if lazyAgg := cmd.Flags().Lookup("rollkit.lazy_aggregator"); lazyAgg.Changed {
-				rollkitConfig.LazyAggregator = lazyAgg.Value.String() == "true"
+				nodeConfig.LazyAggregator = lazyAgg.Value.String() == "true"
 			}
 
 			// use mock jsonrpc da server by default
