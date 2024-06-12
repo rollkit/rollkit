@@ -52,6 +52,11 @@ readTOML:
 		return false, err
 	}
 
+	// To avoid recursive calls, we check if the root directory is the rollkit repository itself
+	if filepath.Base(rollkitConfig.RootDir) == "rollkit" {
+		return false, nil
+	}
+
 	// After successfully reading the TOML file, we expect to be able to use the entrypoint
 	if rollkitConfig.Entrypoint == "" {
 		return true, fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)

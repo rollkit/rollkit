@@ -94,6 +94,24 @@ func TestInterceptCommand(t *testing.T) {
 			wantErr:      false,
 			wantExecuted: false,
 		},
+		{
+			name:            "Skip intercept, rollkit repository itself",
+			rollkitCommands: []string{"docs-gen", "toml"},
+			mockReadToml: func() (rollconf.TomlConfig, error) {
+				return rollconf.TomlConfig{
+					Entrypoint: "test-entrypoint",
+					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/test/config"},
+
+					RootDir: "/test/rollkit",
+				}, nil
+			},
+			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
+				return nil
+			},
+			args:         []string{"rollkit", "start"},
+			wantErr:      false,
+			wantExecuted: false,
+		},
 	}
 
 	for _, tt := range tests {
