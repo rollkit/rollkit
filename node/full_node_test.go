@@ -345,20 +345,9 @@ func TestVoteExtension(t *testing.T) {
 		require.NoError(err)
 		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Expected block height mismatch")
 
-		// Wait for extendVoteFailure to be called, indicating a retry attempt
-		<-extendVoteFailureChan
-
-		// Ensure that the ExtendVote method is called with the expected arguments
-		app.AssertCalled(t, "ExtendVote", mock.Anything, mock.Anything)
-
-		// Check the node's behavior after encountering the invalid vote extension error
-		// verify that the block height has not advanced
-		status, err = node.GetClient().Status(ctx)
-		require.NoError(err)
-		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
-
 		// Additional retries to ensure extendVoteFailure is triggered multiple times
 		for i := 0; i < 4; i++ {
+			// Wait for extendVoteFailure to be called, indicating a retry attempt
 			<-extendVoteFailureChan
 
 			// Ensure that the ExtendVote method is called with the expected arguments
