@@ -109,13 +109,11 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
+			// update the node configuration with values from the command line flags if they are set
+			rollconf.UpdateNodeConfigWithFlags(&nodeConfig, cmd.Flags())
+
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
-
-			// handle lazy aggregator mode
-			if lazyAgg := cmd.Flags().Lookup("rollkit.lazy_aggregator"); lazyAgg.Changed {
-				nodeConfig.LazyAggregator = lazyAgg.Value.String() == "true"
-			}
 
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
@@ -125,6 +123,11 @@ func NewRunNodeCmd() *cobra.Command {
 				}
 				// nolint:errcheck,gosec
 				defer func() { srv.Stop(cmd.Context()) }()
+			}
+
+			// use noop proxy app by default
+			if !cmd.Flags().Lookup("proxy_app").Changed {
+				config.ProxyApp = "noop"
 			}
 
 			// create the rollkit node
@@ -189,15 +192,6 @@ func NewRunNodeCmd() *cobra.Command {
 
 	addNodeFlags(cmd)
 
-	// use noop proxy app by default
-	if !cmd.Flags().Lookup("proxy_app").Changed {
-		config.ProxyApp = "noop"
-	}
-
-	// use aggregator by default
-	if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-		nodeConfig.Aggregator = true
-	}
 	return cmd
 }
 

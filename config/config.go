@@ -1,11 +1,13 @@
 package config
 
 import (
+	"strconv"
 	"time"
 
 	cmcfg "github.com/cometbft/cometbft/config"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -36,6 +38,10 @@ const (
 	FlagLazyAggregator = "rollkit.lazy_aggregator"
 	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
 	FlagMaxPendingBlocks = "rollkit.max_pending_blocks"
+	// FlagDAMempoolTTL is a flag for specifying the DA mempool TTL
+	FlagDAMempoolTTL = "rollkit.da_mempool_ttl"
+	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
+	FlagLazyBlockTime = "rollkit.lazy_block_time"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -111,6 +117,140 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 	}
 }
 
+// UpdateNodeConfigWithFlags updates NodeConfig with values from command line flags.
+func UpdateNodeConfigWithFlags(nodeConf *NodeConfig, flags *pflag.FlagSet) (err error) {
+	updateBoolFlag := func(flagName string, updateFunc func(bool)) {
+		if flag := flags.Lookup(flagName); flag.Changed {
+			updateFunc(flag.Value.String() == "true")
+		}
+	}
+
+	updateStringFlag := func(flagName string, updateFunc func(string)) {
+		if flag := flags.Lookup(flagName); flag.Changed {
+			updateFunc(flag.Value.String())
+		}
+	}
+
+	updateDurationFlag := func(flagName string, updateFunc func(time.Duration) error) error {
+		if flag := flags.Lookup(flagName); flag.Changed {
+			duration, err := time.ParseDuration(flag.Value.String())
+			if err != nil {
+				return err
+			}
+			return updateFunc(duration)
+		}
+		return nil
+	}
+
+	updateFloatFlag := func(flagName string, updateFunc func(float64) error) error {
+		if flag := flags.Lookup(flagName); flag.Changed {
+			value, err := strconv.ParseFloat(flag.Value.String(), 64)
+			if err != nil {
+				return err
+			}
+			return updateFunc(value)
+		}
+		return nil
+	}
+
+	updateUint64Flag := func(flagName string, updateFunc func(uint64) error) error {
+		if flag := flags.Lookup(flagName); flag.Changed {
+			value, err := strconv.ParseUint(flag.Value.String(), 10, 64)
+			if err != nil {
+				return err
+			}
+			return updateFunc(value)
+		}
+		return nil
+	}
+
+	updateBoolFlag(FlagAggregator, func(value bool) {
+		nodeConf.Aggregator = value
+	})
+
+	updateStringFlag(FlagDAAddress, func(value string) {
+		nodeConf.DAAddress = value
+	})
+
+	updateStringFlag(FlagDAAuthToken, func(value string) {
+		nodeConf.DAAuthToken = value
+	})
+
+	if err := updateDurationFlag(FlagBlockTime, func(value time.Duration) error {
+		nodeConf.BlockTime = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := updateDurationFlag(FlagDABlockTime, func(value time.Duration) error {
+		nodeConf.DABlockTime = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := updateFloatFlag(FlagDAGasPrice, func(value float64) error {
+		nodeConf.DAGasPrice = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := updateFloatFlag(FlagDAGasMultiplier, func(value float64) error {
+		nodeConf.DAGasMultiplier = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := updateUint64Flag(FlagDAStartHeight, func(value uint64) error {
+		nodeConf.DAStartHeight = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	updateStringFlag(FlagDANamespace, func(value string) {
+		nodeConf.DANamespace = value
+	})
+
+	updateBoolFlag(FlagLight, func(value bool) {
+		nodeConf.Light = value
+	})
+
+	updateStringFlag(FlagTrustedHash, func(value string) {
+		nodeConf.TrustedHash = value
+	})
+
+	updateBoolFlag(FlagLazyAggregator, func(value bool) {
+		nodeConf.LazyAggregator = value
+	})
+
+	if err := updateUint64Flag(FlagMaxPendingBlocks, func(value uint64) error {
+		nodeConf.MaxPendingBlocks = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := updateUint64Flag(FlagDAMempoolTTL, func(value uint64) error {
+		nodeConf.DAMempoolTTL = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := updateDurationFlag(FlagLazyBlockTime, func(value time.Duration) error {
+		nodeConf.LazyBlockTime = value
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetViperConfig reads configuration parameters from Viper instance.
 //
 // This method is called in cosmos-sdk.
@@ -129,6 +269,8 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
+	nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
+	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
 	return nil
 }
 
@@ -150,4 +292,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
+	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DAMempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
+	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
 }
