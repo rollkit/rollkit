@@ -339,14 +339,7 @@ func TestVoteExtension(t *testing.T) {
 		require.NoError(node.Start())
 
 		// Wait for blocks to be produced until voteExtensionEnableHeight
-		for i := 1; i < voteExtensionEnableHeight; i++ {
-			select {
-			case <-ctx.Done():
-				require.Fail("timeout waiting for block height")
-			default:
-				time.Sleep(100 * time.Millisecond) // Avoid busy waiting
-			}
-		}
+		require.NoError(waitForAtLeastNBlocks(node, 4, Store))
 
 		status, err := node.GetClient().Status(ctx)
 		require.NoError(err)
