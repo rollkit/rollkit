@@ -101,7 +101,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		entrypointSourceFile = rollkitConfig.Entrypoint
 	}
 
-	entrypointBinary, err := buildEntrypoint(rollkitConfig.RootDir, entrypointSourceFile, false)
+	entrypointBinaryFilePath, err := buildEntrypoint(rollkitConfig.RootDir, entrypointSourceFile, false)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
 	}
 
-	entrypointCmd := exec.Command(entrypointBinary, runArgs...) //nolint:gosec
+	entrypointCmd := exec.Command(entrypointBinaryFilePath, runArgs...) //nolint:gosec
 	entrypointCmd.Stdout = os.Stdout
 	entrypointCmd.Stderr = os.Stderr
 
