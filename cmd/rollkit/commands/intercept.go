@@ -65,7 +65,7 @@ readTOML:
 	return true, runEntrypoint(&rollkitConfig, flags)
 }
 
-func entrypointBinaryFilePath(rootDir, entrypointSourceFile string, forceRebuild bool) (string, error) {
+func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (string, error) {
 	// The entrypoint binary file is always in the same directory as the rollkit.toml file.
 	entrypointBinaryFile := filepath.Join(rootDir, rollupBinEntrypoint)
 
@@ -101,7 +101,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 		entrypointSourceFile = rollkitConfig.Entrypoint
 	}
 
-	entrypointBinary, err := entrypointBinaryFilePath(rollkitConfig.RootDir, entrypointSourceFile, false)
+	entrypointBinary, err := buildEntrypoint(rollkitConfig.RootDir, entrypointSourceFile, false)
 	if err != nil {
 		return err
 	}
