@@ -22,8 +22,7 @@ var RebuildCmd = &cobra.Command{
 		}
 
 		if _, err := buildEntrypoint(rollkitConfig.RootDir, rollkitConfig.Entrypoint, true); err != nil {
-			fmt.Printf("Could not rebuild rollup entrypoint: %s", err)
-			os.Exit(1)
+			log.Fatalf("Could not rebuild rollup entrypoint: %s", err)
 		}
 	},
 }
