@@ -18,8 +18,7 @@ var RebuildCmd = &cobra.Command{
 		var err error
 		rollkitConfig, err = rollconf.ReadToml()
 		if err != nil {
-			fmt.Printf("Could not read rollkit.toml file: %s", err)
-			os.Exit(1)
+			log.Fatalf("Could not read rollkit.toml file: %s", err)
 		}
 
 		if _, err := buildEntrypoint(rollkitConfig.RootDir, rollkitConfig.Entrypoint, true); err != nil {
