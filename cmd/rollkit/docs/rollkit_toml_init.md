@@ -1,15 +1,19 @@
-## rollkit version
+## rollkit toml init
 
-Show version info
+Initialize a new rollkit.toml file
+
+### Synopsis
+
+This command initializes a new rollkit.toml file in the current directory.
 
 ```
-rollkit version [flags]
+rollkit toml init [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for version
+  -h, --help   help for init
 ```
 
 ### Options inherited from parent commands
@@ -22,4 +26,4 @@ rollkit version [flags]
 
 ### SEE ALSO
 
-* [rollkit](rollkit.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
+* [rollkit toml](rollkit_toml.md)	 - TOML file operations

@@ -9,32 +9,33 @@ retract v0.12.0 // Published by accident
 require (
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.7
-	github.com/cosmos/gogoproto v1.4.12
+	github.com/cosmos/gogoproto v1.5.0
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/rpc v1.2.1
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.33.2
 	github.com/libp2p/go-libp2p-kad-dht v0.23.0
 	github.com/libp2p/go-libp2p-pubsub v0.10.1
-	github.com/multiformats/go-multiaddr v0.12.3
+	github.com/multiformats/go-multiaddr v0.12.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/rollkit/go-da v0.5.0
 	github.com/rs/cors v1.11.0
 	github.com/spf13/cobra v1.8.0
-	github.com/spf13/viper v1.18.2
+	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.35.9
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.25.0
+	golang.org/x/net v0.26.0
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.1
 )
 
 require (
+	github.com/BurntSushi/toml v1.3.2
 	github.com/celestiaorg/go-header v0.6.1
 	github.com/ipfs/go-ds-badger4 v0.1.5
 )
@@ -139,7 +140,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.2.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
-	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/petermattis/goid v0.0.0-20230317030725-371a4b8eda08 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/polydawn/refmt v0.89.0 // indirect
@@ -167,20 +168,20 @@ require (
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/otel v1.21.0 // indirect
-	go.opentelemetry.io/otel/metric v1.21.0 // indirect
-	go.opentelemetry.io/otel/trace v1.21.0 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.uber.org/dig v1.17.1 // indirect
 	go.uber.org/fx v1.20.1 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a // indirect
-	golang.org/x/mod v0.15.0 // indirect
-	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
-	golang.org/x/tools v0.18.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gonum.org/v1/gonum v0.12.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
