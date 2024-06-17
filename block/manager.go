@@ -211,7 +211,10 @@ func NewManager(
 		if err != nil {
 			return nil, err
 		}
-		updateState(&s, res)
+		if err := updateState(&s, res); err != nil {
+			return nil, err
+		}
+
 		if err := store.UpdateState(context.Background(), s); err != nil {
 			return nil, err
 		}
@@ -1130,7 +1133,7 @@ func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.Sta
 	return m.executor.ApplyBlock(ctx, m.lastState, block)
 }
 
-func updateState(s *types.State, res *abci.ResponseInitChain) {
+func updateState(s *types.State, res *abci.ResponseInitChain) error {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
 	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.
@@ -1164,21 +1167,22 @@ func updateState(s *types.State, res *abci.ResponseInitChain) {
 
 	vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// apply initchain valset change
 	nValSet := s.Validators.Copy()
 	err = nValSet.UpdateWithChangeSet(vals)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if len(nValSet.Validators) != 1 {
-		panic("expected exactly one validator")
+		return fmt.Errorf("expected exactly one validator")
 	}
 
 	s.Validators = cmtypes.NewValidatorSet(nValSet.Validators)
 	s.NextValidators = cmtypes.NewValidatorSet(nValSet.Validators).CopyIncrementProposerPriority(1)
 	s.LastValidators = cmtypes.NewValidatorSet(nValSet.Validators)
 
+	return nil
 }
