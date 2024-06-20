@@ -12,7 +12,7 @@ import (
 
 var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)
 
-// TxIndex implements a no-op block indexer.
+// BlockerIndexer implements a no-op block indexer.
 type BlockerIndexer struct{}
 
 func (idx *BlockerIndexer) Has(height int64) (bool, error) {

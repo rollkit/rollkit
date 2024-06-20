@@ -37,8 +37,8 @@ var (
 	// initialize the config with the cometBFT defaults
 	config = cometconf.DefaultConfig()
 
-	// initialize the rollkit configuration
-	rollkitConfig = rollconf.DefaultNodeConfig
+	// initialize the rollkit node configuration
+	nodeConfig = rollconf.DefaultNodeConfig
 
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
@@ -52,7 +52,6 @@ func NewRunNodeCmd() *cobra.Command {
 		Short:   "Run the rollkit node",
 		// PersistentPreRunE is used to parse the config and initial the config files
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// Parse the config
 			err := parseConfig(cmd)
 			if err != nil {
 				return err
@@ -105,13 +104,18 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// get the node configuration
-			rollconf.GetNodeConfig(&rollkitConfig, config)
-			if err := rollconf.TranslateAddresses(&rollkitConfig); err != nil {
+			rollconf.GetNodeConfig(&nodeConfig, config)
+			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
 				return err
 			}
 
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
+
+			// handle lazy aggregator mode
+			if lazyAgg := cmd.Flags().Lookup("rollkit.lazy_aggregator"); lazyAgg.Changed {
+				nodeConfig.LazyAggregator = lazyAgg.Value.String() == "true"
+			}
 
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
@@ -126,10 +130,10 @@ func NewRunNodeCmd() *cobra.Command {
 			// create the rollkit node
 			rollnode, err := rollnode.NewNode(
 				context.Background(),
-				rollkitConfig,
+				nodeConfig,
 				p2pKey,
 				signingKey,
-				cometproxy.DefaultClientCreator(config.ProxyApp, config.ABCI, rollkitConfig.DBPath),
+				cometproxy.DefaultClientCreator(config.ProxyApp, config.ABCI, nodeConfig.DBPath),
 				genDoc,
 				metrics,
 				logger,
@@ -192,7 +196,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 	// use aggregator by default
 	if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-		rollkitConfig.Aggregator = true
+		nodeConfig.Aggregator = true
 	}
 	return cmd
 }
@@ -212,7 +216,7 @@ func addNodeFlags(cmd *cobra.Command) {
 
 // startMockDAServJSONRPC starts a mock JSONRPC server
 func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
-	addr, _ := url.Parse(rollkitConfig.DAAddress)
+	addr, _ := url.Parse(nodeConfig.DAAddress)
 	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	err := srv.Start(ctx)
 	if err != nil {
