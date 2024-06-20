@@ -250,6 +250,12 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 			return nil, fmt.Errorf("error unmarshalling node private key: %w", err)
 		}
 		return privKey, nil
+	case "secp256k1":
+		privKey, err := crypto.UnmarshalSecp256k1PrivateKey(nodeKey.PrivKey.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling node private key: %w", err)
+		}
+		return privKey, nil
 	default:
 		return nil, errUnsupportedKeyType
 	}

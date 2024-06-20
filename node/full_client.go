@@ -822,10 +822,11 @@ func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.Result
 }
 
 // Header returns a cometbft ResultsHeader for the FullClient
-func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
-	blockMeta := c.getBlockMeta(ctx, *height)
+func (c *FullClient) Header(ctx context.Context, heightPtr *int64) (*ctypes.ResultHeader, error) {
+	height := c.normalizeHeight(heightPtr)
+	blockMeta := c.getBlockMeta(ctx, height)
 	if blockMeta == nil {
-		return nil, fmt.Errorf("block at height %d not found", *height)
+		return nil, fmt.Errorf("block at height %d not found", height)
 	}
 	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
 }
@@ -919,7 +920,7 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 	return heightValue
 }
 
-func (rpc *FullClient) getBlockMeta(ctx context.Context, n int64) *cmtypes.BlockMeta {
+func (rpc *FullClient) getBlockMeta(ctx context.Context, n uint64) *cmtypes.BlockMeta {
 	b, err := rpc.node.Store.GetBlock(ctx, uint64(n))
 	if err != nil {
 		return nil

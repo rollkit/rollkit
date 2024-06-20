@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -200,15 +202,12 @@ func NewManager(
 		conf.DAMempoolTTL = defaultMempoolTTL
 	}
 
-	proposerAddress, err := getAddress(proposerKey)
-	if err != nil {
-		return nil, err
-	}
-
 	isProposer, err := isProposer(genesis, proposerKey)
 	if err != nil {
 		return nil, err
 	}
+
+	proposerAddress := valSet.Proposer.Address.Bytes()
 
 	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
 	if err != nil {
@@ -269,14 +268,6 @@ func NewManager(
 		isProposer:    isProposer,
 	}
 	return agg, nil
-}
-
-func getAddress(key crypto.PrivKey) ([]byte, error) {
-	rawKey, err := key.GetPublic().Raw()
-	if err != nil {
-		return nil, err
-	}
-	return cmcrypto.AddressHash(rawKey), nil
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
@@ -755,9 +746,30 @@ func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	// note: for compatibility with tendermint light client
 	consensusVote := header.MakeCometBFTVote()
 
-	sign, err := m.proposerKey.Sign(consensusVote)
-	if err != nil {
-		return nil, err
+	var (
+		sign []byte
+		err  error
+	)
+	switch m.proposerKey.(type) {
+	case *crypto.Ed25519PrivateKey:
+		sign, err = m.proposerKey.Sign(consensusVote)
+		if err != nil {
+			return nil, err
+		}
+	case *crypto.Secp256k1PrivateKey:
+		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
+		rawBytes, err := k.Raw()
+		if err != nil {
+			return nil, err
+		}
+		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
+		sig, err := ecdsa.SignCompact(priv, cmcrypto.Sha256(consensusVote), false)
+		if err != nil {
+			return nil, err
+		}
+		sign = sig[1:]
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
 	}
 	return &types.Commit{
 		Signatures: []types.Signature{sign},
@@ -849,6 +861,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 	}
 
+	blockHeight := block.Height()
+	// Update the store height before submitting to the DA layer and committing to the DB
+	// Also, apply block invokes rpcs that requires latest height
+	m.store.SetHeight(ctx, blockHeight)
+
 	newState, responses, err := m.applyBlock(ctx, block)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -857,7 +874,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 		panic(err)
 	}
-
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
 	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
 	if err != nil {
@@ -879,10 +895,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err := m.executor.Validate(m.lastState, block); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
-
-	blockHeight := block.Height()
-	// Update the stored height before submitting to the DA layer and committing to the DB
-	m.store.SetHeight(ctx, blockHeight)
 
 	blockHash := block.Hash().String()
 	m.blockCache.setSeen(blockHash)
@@ -945,10 +957,34 @@ func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, 
 	if err != nil {
 		return fmt.Errorf("error returned by ExtendVote: %w", err)
 	}
-	sign, err := m.proposerKey.Sign(extension)
-	if err != nil {
-		return fmt.Errorf("error signing vote extension: %w", err)
+
+	vote := &cmproto.Vote{
+		Height:    int64(newHeight),
+		Round:     0,
+		Extension: extension,
 	}
+	extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
+	var sign []byte
+	switch m.proposerKey.(type) {
+	case *crypto.Ed25519PrivateKey:
+		sign, err = m.proposerKey.Sign(extSignBytes)
+		if err != nil {
+			return err
+		}
+	case *crypto.Secp256k1PrivateKey:
+		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
+		rawBytes, err := k.Raw()
+		if err != nil {
+			return err
+		}
+		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
+		sig, err := ecdsa.SignCompact(priv, cmcrypto.Sha256(extSignBytes), false)
+		if err != nil {
+			return err
+		}
+		sign = sig[1:]
+	}
+
 	extendedCommit := buildExtendedCommit(block, extension, sign)
 	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
 	if err != nil {

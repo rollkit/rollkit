@@ -67,10 +67,10 @@ func TestGetNodeKey(t *testing.T) {
 	t.Parallel()
 
 	privKey := ed25519.GenPrivKey()
-	valid := p2p.NodeKey{
+	ed25519Key := p2p.NodeKey{
 		PrivKey: privKey,
 	}
-	invalid := p2p.NodeKey{
+	secp256k1Key := p2p.NodeKey{
 		PrivKey: secp256k1.GenPrivKey(),
 	}
 
@@ -82,8 +82,8 @@ func TestGetNodeKey(t *testing.T) {
 	}{
 		{"nil", nil, pb.KeyType(-1), errNilKey},
 		{"empty", &p2p.NodeKey{}, pb.KeyType(-1), errNilKey},
-		{"invalid", &invalid, pb.KeyType(-1), errUnsupportedKeyType},
-		{"valid", &valid, pb.KeyType_Ed25519, nil},
+		{"secp256k1", &secp256k1Key, pb.KeyType_Secp256k1, nil},
+		{"ed25519", &ed25519Key, pb.KeyType_Ed25519, nil},
 	}
 
 	for _, c := range cases {

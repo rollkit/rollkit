@@ -84,6 +84,9 @@ func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseIn
 			Version: &cmproto.VersionParams{
 				App: params.Version.App,
 			},
+			Abci: &cmproto.ABCIParams{
+				VoteExtensionsEnableHeight: params.ABCI.VoteExtensionsEnableHeight,
+			},
 		},
 		Validators:    cmtypes.TM2PB.ValidatorUpdates(cmtypes.NewValidatorSet(validators)),
 		AppStateBytes: genesis.AppState,
@@ -186,7 +189,15 @@ func (e *BlockExecutor) ProcessProposal(
 		Txs:    block.Data.Txs.ToSliceOfBytes(),
 		ProposedLastCommit: abci.CommitInfo{
 			Round: 0,
-			Votes: []abci.VoteInfo{},
+			Votes: []abci.VoteInfo{
+				{
+					Validator: abci.Validator{
+						Address: block.SignedHeader.Validators.GetProposer().Address,
+						Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+					},
+					BlockIdFlag: cmproto.BlockIDFlagCommit,
+				},
+			},
 		},
 		Misbehavior:        []abci.Misbehavior{},
 		ProposerAddress:    e.proposerAddress,
