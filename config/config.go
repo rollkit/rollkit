@@ -79,6 +79,9 @@ type BlockManagerConfig struct {
 	// MaxPendingBlocks defines limit of blocks pending DA submission. 0 means no limit.
 	// When limit is reached, aggregator pauses block production.
 	MaxPendingBlocks uint64 `mapstructure:"max_pending_blocks"`
+
+	// GoHeaderBatchSize defines size of a batch used in go-header. 0 means default.
+	GoHeaderBatchSize int
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`

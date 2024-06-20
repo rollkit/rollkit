@@ -94,7 +94,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	clientNodes := 4
 	aggCtx := context.Background()
 	ctx := context.Background()
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), types.TestChainID, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), types.TestChainID, false, t)
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
@@ -240,7 +240,7 @@ func TestFastDASync(t *testing.T) {
 	const numberOfBlocksToSyncTill = 5
 
 	// Create the 2 nodes
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -320,7 +320,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 
 	ch := make(chan struct{})
 	defer close(ch)
-	timer := time.NewTimer(numberOfBlocksTSyncTill * bmConfig.BlockTime)
+	timer := time.NewTimer(bmConfig.DABlockTime - 1*time.Second)
 
 	go func() {
 		select {
@@ -333,7 +333,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 			return
 		}
 	}()
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -350,6 +350,8 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 
 	require.NoError(verifyNodesSynced(node1, node2, Store))
 	require.NoError(verifyNodesSynced(node1, node3, Store))
+
+	fmt.Println("tzdybal: elo")
 }
 
 func TestBlockExchange(t *testing.T) {
@@ -383,17 +385,10 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	clientNodes := 1
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nodes, _ := createNodes(
-		ctx,
-		context.Background(),
-		clientNodes,
-		config.BlockManagerConfig{
-			DABlockTime: 20 * time.Millisecond,
-			BlockTime:   10 * time.Millisecond,
-		},
-		types.TestChainID,
-		t,
-	)
+	nodes, _ := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
+		DABlockTime: 20 * time.Millisecond,
+		BlockTime:   10 * time.Millisecond,
+	}, types.TestChainID, false, t)
 	seq := nodes[0]
 	startNodeWithCleanup(t, seq)
 
@@ -461,7 +456,7 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 		DABlockTime:   blockTime1,
 		DAStartHeight: daStartHeight,
 		DAMempoolTTL:  daMempoolTTL,
-	}, chainID1, t)
+	}, chainID1, true, t)
 
 	require.Len(rollupNetwork1, n)
 	require.Len(apps1, n)
@@ -474,7 +469,7 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 		DABlockTime:   blockTime2,
 		DAStartHeight: daStartHeight,
 		DAMempoolTTL:  daMempoolTTL,
-	}, chainID2, t)
+	}, chainID2, true, t)
 
 	require.Len(rollupNetwork2, n)
 	require.Len(apps2, n)
@@ -561,18 +556,11 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 	clientNodes := 1
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	nodes, _ := createNodes(
-		ctx,
-		context.Background(),
-		clientNodes,
-		config.BlockManagerConfig{
-			DABlockTime:      20 * time.Millisecond,
-			BlockTime:        10 * time.Millisecond,
-			MaxPendingBlocks: maxPending,
-		},
-		types.TestChainID,
-		t,
-	)
+	nodes, _ := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
+		DABlockTime:      20 * time.Millisecond,
+		BlockTime:        10 * time.Millisecond,
+		MaxPendingBlocks: maxPending,
+	}, types.TestChainID, false, t)
 	seq := nodes[0]
 	mockDA := &mocks.DA{}
 
@@ -621,7 +609,7 @@ func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -643,7 +631,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 3
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -670,7 +658,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -705,7 +693,7 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	bmConfig := getBMConfig()
 	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, keys, bmConfig, dalc, t)
 	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, types.TestChainID, t)
+	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, types.TestChainID, false, t)
 
 	startNodeWithCleanup(t, sequencer)
 	startNodeWithCleanup(t, fullNode)
@@ -784,7 +772,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, chainID string, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, chainID string, skipPeers bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -803,14 +791,15 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 	nodes := make([]*FullNode, num)
 	apps := make([]*mocks.Application, num)
 	dalc := getMockDA(t)
-	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, chainID, t)
+
+	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, chainID, skipPeers, t)
 	apps[0] = app
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, false, false, keys, bmConfig, chainID, t)
+		node, apps[i] = createNode(ctx, i, false, false, keys, bmConfig, chainID, skipPeers, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
@@ -819,7 +808,7 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 	return nodes, apps
 }
 
-func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, chainID string, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, chainID string, skipPeers bool, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -828,7 +817,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	p2pConfig := config.P2PConfig{
 		ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 	}
-	for i := 0; i < len(keys); i++ {
+	for i := 0; !skipPeers && i < len(keys); i++ {
 		if i == n {
 			continue
 		}
@@ -884,7 +873,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 
 func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
-	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, types.TestChainID, t)
+	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, types.TestChainID, false, t)
 	node.(*FullNode).dalc = dalc
 	node.(*FullNode).blockManager.SetDALC(dalc)
 
