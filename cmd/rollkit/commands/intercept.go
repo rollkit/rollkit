@@ -71,7 +71,7 @@ func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (s
 
 	if !cometos.FileExists(entrypointBinaryFile) || forceRebuild {
 		if !cometos.FileExists(entrypointSourceFile) {
-			return "", fmt.Errorf("no entrypoint file: %s", entrypointSourceFile)
+			return "", fmt.Errorf("no entrypoint source file: %s", entrypointSourceFile)
 		}
 
 		// try to build the entrypoint as a go binary

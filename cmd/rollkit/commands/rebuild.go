@@ -1,8 +1,7 @@
 package commands
 
 import (
-	"fmt"
-	"os"
+	"log"
 
 	rollconf "github.com/rollkit/rollkit/config"
 
