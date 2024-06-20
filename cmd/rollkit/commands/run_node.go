@@ -110,7 +110,9 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// update the node configuration with values from the command line flags if they are set
-			rollconf.UpdateNodeConfigWithFlags(&nodeConfig, cmd.Flags())
+			if err := rollconf.UpdateNodeConfigWithFlags(&nodeConfig, cmd.Flags()); err != nil {
+				return err
+			}
 
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
