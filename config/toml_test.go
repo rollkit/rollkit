@@ -10,7 +10,7 @@ import (
 
 func TestFindentrypoint(t *testing.T) {
 	t.Run("finds entrypoint in current directory", func(t *testing.T) {
-		dir := t.TempDir()
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, os.Chdir(dir))
 
 		entrypointPath := filepath.Join(dir, "main.go")
@@ -23,7 +23,7 @@ func TestFindentrypoint(t *testing.T) {
 	})
 
 	t.Run("returns error if entrypoint not found", func(t *testing.T) {
-		dir := t.TempDir()
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, os.Chdir(dir))
 
 		dirName, fullDirPath := FindEntrypoint()
@@ -32,7 +32,7 @@ func TestFindentrypoint(t *testing.T) {
 	})
 
 	t.Run("finds entrypoint in subdirectory", func(t *testing.T) {
-		parentDir := t.TempDir()
+		parentDir, _ := filepath.EvalSymlinks(t.TempDir())
 
 		dir := filepath.Join(parentDir, "child")
 		err := os.Mkdir(dir, 0750)
@@ -52,7 +52,7 @@ func TestFindentrypoint(t *testing.T) {
 
 func TestFindConfigFile(t *testing.T) {
 	t.Run("finds config file in current directory", func(t *testing.T) {
-		dir := t.TempDir()
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
 		configPath := filepath.Join(dir, RollkitToml)
 		err := os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestFindConfigFile(t *testing.T) {
 	})
 
 	t.Run("finds config file in parent directory", func(t *testing.T) {
-		parentDir := t.TempDir()
+		parentDir, _ := filepath.EvalSymlinks(t.TempDir())
 		dir := filepath.Join(parentDir, "child")
 		err := os.Mkdir(dir, 0750)
 		require.NoError(t, err)
@@ -78,14 +78,15 @@ func TestFindConfigFile(t *testing.T) {
 	})
 
 	t.Run("returns error if config file not found", func(t *testing.T) {
-		_, err := findConfigFile(t.TempDir())
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
+		_, err := findConfigFile(dir)
 		require.Error(t, err)
 	})
 }
 
 func TestReadToml(t *testing.T) {
 	t.Run("reads TOML configuration from file", func(t *testing.T) {
-		dir := t.TempDir()
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
 		configPath := filepath.Join(dir, RollkitToml)
 		err := os.WriteFile(configPath, []byte(`
 entrypoint = "./cmd/gm/main.go"
@@ -108,7 +109,8 @@ config_dir = "config"
 	})
 
 	t.Run("returns error if config file not found", func(t *testing.T) {
-		dir := t.TempDir()
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
+
 		require.NoError(t, os.Chdir(dir))
 
 		_, err := ReadToml()
@@ -116,7 +118,8 @@ config_dir = "config"
 	})
 
 	t.Run("sets RootDir even if empty toml", func(t *testing.T) {
-		dir := t.TempDir()
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
+
 		configPath := filepath.Join(dir, RollkitToml)
 		err := os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
@@ -130,7 +133,8 @@ config_dir = "config"
 	})
 
 	t.Run("returns error if config file cannot be decoded", func(t *testing.T) {
-		dir := t.TempDir()
+		dir, _ := filepath.EvalSymlinks(t.TempDir())
+
 		configPath := filepath.Join(dir, RollkitToml)
 		require.NoError(t, os.WriteFile(configPath, []byte(`
 blablabla
