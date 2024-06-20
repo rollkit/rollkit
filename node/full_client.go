@@ -934,7 +934,7 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 }
 
 func (rpc *FullClient) getBlockMeta(ctx context.Context, n uint64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.GetBlock(ctx, uint64(n))
+	b, err := rpc.node.Store.GetBlock(ctx, n)
 	if err != nil {
 		return nil
 	}
