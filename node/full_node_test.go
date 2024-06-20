@@ -289,7 +289,7 @@ func TestVoteExtension(t *testing.T) {
 				require.NotNil(extendedCommit.Validator.Address)
 				require.NotEmpty(extendedCommit.ExtensionSignature)
 				vote := &cmproto.Vote{
-					Height:    int64(req.Height - 1),
+					Height:    req.Height - 1,
 					Round:     0,
 					Extension: extendedCommit.VoteExtension,
 				}
