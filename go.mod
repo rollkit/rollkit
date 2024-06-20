@@ -38,6 +38,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/celestiaorg/go-header v0.6.1
 	github.com/ipfs/go-ds-badger4 v0.1.5
+	github.com/spf13/pflag v1.0.5
 )
 
 require (
@@ -161,7 +162,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
