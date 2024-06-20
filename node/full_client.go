@@ -707,9 +707,22 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 
 // Status returns detailed information about current status of the node.
 func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
-	latest, err := c.node.Store.GetBlock(ctx, c.node.Store.Height())
-	if err != nil {
-		return nil, fmt.Errorf("failed to find latest block: %w", err)
+	var (
+		latestBlockHash cmbytes.HexBytes
+		latestAppHash   cmbytes.HexBytes
+		latestBlockTime time.Time
+
+		latestHeight = c.node.Store.Height()
+	)
+
+	if latestHeight != 0 {
+		latest, err := c.node.Store.GetBlock(ctx, latestHeight)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find latest block: %w", err)
+		}
+		latestBlockHash = cmbytes.HexBytes(latest.SignedHeader.DataHash)
+		latestAppHash = cmbytes.HexBytes(latest.SignedHeader.AppHash)
+		latestBlockTime = latest.Time()
 	}
 
 	initial, err := c.node.Store.GetBlock(ctx, uint64(c.node.GetGenesis().InitialHeight))
@@ -761,10 +774,10 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.DataHash),
-			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.AppHash),
-			LatestBlockHeight:   int64(latest.Height()),
-			LatestBlockTime:     latest.Time(),
+			LatestBlockHash:     latestBlockHash,
+			LatestAppHash:       latestAppHash,
+			LatestBlockHeight:   int64(latestHeight),
+			LatestBlockTime:     latestBlockTime,
 			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.DataHash),
 			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
 			EarliestBlockHeight: int64(initial.Height()),

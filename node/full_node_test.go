@@ -288,7 +288,13 @@ func TestVoteExtension(t *testing.T) {
 				require.NotNil(extendedCommit.Validator)
 				require.NotNil(extendedCommit.Validator.Address)
 				require.NotEmpty(extendedCommit.ExtensionSignature)
-				ok, err := signingKey.GetPublic().Verify(extendedCommit.VoteExtension, extendedCommit.ExtensionSignature)
+				vote := &cmproto.Vote{
+					Height:    int64(req.Height - 1),
+					Round:     0,
+					Extension: extendedCommit.VoteExtension,
+				}
+				extSignBytes := cmtypes.VoteExtensionSignBytes(types.TestChainID, vote)
+				ok, err := signingKey.GetPublic().Verify(extSignBytes, extendedCommit.ExtensionSignature)
 				require.NoError(err)
 				require.True(ok)
 			}
