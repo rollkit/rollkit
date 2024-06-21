@@ -62,7 +62,9 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 			// populate the node configuration from flags
-			nodeConfig.GetViperConfig(v)
+			if err := nodeConfig.GetViperConfig(v); err != nil {
+				return err
+			}
 
 			// Update log format if the flag is set
 			if config.LogFormat == cometconf.LogFormatJSON {
