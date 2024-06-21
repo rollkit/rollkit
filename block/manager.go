@@ -745,31 +745,9 @@ func getRemainingSleep(start time.Time, interval, defaultSleep time.Duration) ti
 func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	// note: for compatibility with tendermint light client
 	consensusVote := header.MakeCometBFTVote()
-
-	var (
-		sign []byte
-		err  error
-	)
-	switch m.proposerKey.(type) {
-	case *crypto.Ed25519PrivateKey:
-		sign, err = m.proposerKey.Sign(consensusVote)
-		if err != nil {
-			return nil, err
-		}
-	case *crypto.Secp256k1PrivateKey:
-		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
-		rawBytes, err := k.Raw()
-		if err != nil {
-			return nil, err
-		}
-		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig, err := ecdsa.SignCompact(priv, cmcrypto.Sha256(consensusVote), false)
-		if err != nil {
-			return nil, err
-		}
-		sign = sig[1:]
-	default:
-		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
+	sign, err := m.sign(consensusVote)
+	if err != nil {
+		return nil, err
 	}
 	return &types.Commit{
 		Signatures: []types.Signature{sign},
@@ -947,6 +925,28 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
+func (m *Manager) sign(payload []byte) ([]byte, error) {
+	var sig []byte
+	switch m.proposerKey.(type) {
+	case *crypto.Ed25519PrivateKey:
+		return m.proposerKey.Sign(payload)
+	case *crypto.Secp256k1PrivateKey:
+		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
+		rawBytes, err := k.Raw()
+		if err != nil {
+			return nil, err
+		}
+		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
+		sig, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
+		if err != nil {
+			return nil, err
+		}
+		return sig[1:], nil
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
+	}
+}
+
 func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, newHeight uint64) error {
 	if !m.voteExtensionEnabled(newHeight) {
 		return nil
@@ -963,27 +963,11 @@ func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, 
 		Extension: extension,
 	}
 	extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
-	var sign []byte
-	switch m.proposerKey.(type) {
-	case *crypto.Ed25519PrivateKey:
-		sign, err = m.proposerKey.Sign(extSignBytes)
-		if err != nil {
-			return err
-		}
-	case *crypto.Secp256k1PrivateKey:
-		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
-		rawBytes, err := k.Raw()
-		if err != nil {
-			return err
-		}
-		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig, err := ecdsa.SignCompact(priv, cmcrypto.Sha256(extSignBytes), false)
-		if err != nil {
-			return err
-		}
-		sign = sig[1:]
-	}
 
+	sign, err := m.sign(extSignBytes)
+	if err != nil {
+		return fmt.Errorf("failed to sign vote extension: %w", err)
+	}
 	extendedCommit := buildExtendedCommit(block, extension, sign)
 	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
 	if err != nil {
