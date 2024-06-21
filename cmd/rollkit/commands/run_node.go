@@ -57,6 +57,13 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
+			v := viper.GetViper()
+			if err := v.BindPFlags(cmd.Flags()); err != nil {
+				return err
+			}
+			// populate the node configuration from flags
+			nodeConfig.GetViperConfig(v)
+
 			// Update log format if the flag is set
 			if config.LogFormat == cometconf.LogFormatJSON {
 				logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
@@ -106,11 +113,6 @@ func NewRunNodeCmd() *cobra.Command {
 			// get the node configuration
 			rollconf.GetNodeConfig(&nodeConfig, config)
 			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
-				return err
-			}
-
-			// update the node configuration with values from the command line flags if they are set
-			if err := rollconf.UpdateNodeConfigWithFlags(&nodeConfig, cmd.Flags()); err != nil {
 				return err
 			}
 
