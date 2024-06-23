@@ -193,6 +193,7 @@ func TestLazyAggregator(t *testing.T) {
 		BlockManagerConfig: blockManagerConfig,
 		LazyAggregator:     true,
 	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	require.NoError(err)
 	assert.False(node.IsRunning())
 	assert.NoError(err)
 

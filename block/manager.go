@@ -166,12 +166,12 @@ func NewManager(
 	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
-	//set block height in store
-	store.SetHeight(context.Background(), s.LastBlockHeight)
-
 	if err != nil {
 		return nil, err
 	}
+	//set block height in store
+	store.SetHeight(context.Background(), s.LastBlockHeight)
+
 	// genesis should have exactly one "validator", the centralized sequencer.
 	// this should have been validated in the above call to getInitialState.
 	valSet := types.GetValidatorSetFromGenesis(genesis)
