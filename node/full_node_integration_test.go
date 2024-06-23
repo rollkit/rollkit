@@ -771,7 +771,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	require.NoError(waitForFirstBlock(node1, source))
 
 	// Get the trusted hash from node1 and pass it to node2 config
-	trustedHash, err := node1.hSyncService.HeaderStore().GetByHeight(aggCtx, 1)
+	trustedHash, err := node1.hSyncService.Store().GetByHeight(aggCtx, 1)
 	require.NoError(err)
 
 	node2.nodeConfig.TrustedHash = trustedHash.Hash().String()

@@ -73,17 +73,17 @@ func isBlockHashSeen(node Node, blockHash string) bool {
 
 func getNodeHeightFromHeader(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.hSyncService.HeaderStore().Height(), nil
+		return fn.hSyncService.Store().Height(), nil
 	}
 	if ln, ok := node.(*LightNode); ok {
-		return ln.hSyncService.HeaderStore().Height(), nil
+		return ln.hSyncService.Store().Height(), nil
 	}
 	return 0, errors.New("not a full or light node")
 }
 
 func getNodeHeightFromBlock(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.bSyncService.BlockStore().Height(), nil
+		return fn.bSyncService.Store().Height(), nil
 	}
 	return 0, errors.New("not a full node")
 }
