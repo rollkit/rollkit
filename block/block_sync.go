@@ -59,16 +59,10 @@ func NewBlockSyncService(ctx context.Context, store ds.TxnDatastore, conf config
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	options := []goheaderstore.Option{
-		goheaderstore.WithStorePrefix("blockSync"),
-		goheaderstore.WithMetrics(),
-	}
-	if conf.GoHeaderBatchSize != 0 {
-		options = append(options, goheaderstore.WithWriteBatchSize(conf.GoHeaderBatchSize))
-	}
 	ss, err := goheaderstore.NewStore[*types.Block](
 		storeBatch,
-		options...,
+		goheaderstore.WithStorePrefix("blockSync"),
+		goheaderstore.WithMetrics(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize the block store: %w", err)

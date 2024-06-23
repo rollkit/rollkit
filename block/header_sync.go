@@ -58,16 +58,10 @@ func NewHeaderSyncService(ctx context.Context, store ds.TxnDatastore, conf confi
 	if !ok {
 		return nil, errors.New("failed to access the datastore")
 	}
-	options := []goheaderstore.Option{
-		goheaderstore.WithStorePrefix("headerSync"),
-		goheaderstore.WithMetrics(),
-	}
-	if conf.GoHeaderBatchSize != 0 {
-		options = append(options, goheaderstore.WithWriteBatchSize(conf.GoHeaderBatchSize))
-	}
 	ss, err := goheaderstore.NewStore[*types.SignedHeader](
 		storeBatch,
-		options...,
+		goheaderstore.WithStorePrefix("headerSync"),
+		goheaderstore.WithMetrics(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize the header store: %w", err)
