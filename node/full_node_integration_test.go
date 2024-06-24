@@ -195,7 +195,6 @@ func TestLazyAggregator(t *testing.T) {
 	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	assert.False(node.IsRunning())
-	assert.NoError(err)
 
 	startNodeWithCleanup(t, node)
 	require.NoError(waitForFirstBlock(node.(*FullNode), Header))

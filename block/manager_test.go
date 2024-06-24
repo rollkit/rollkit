@@ -93,7 +93,6 @@ func TestInitialStateStored(t *testing.T) {
 	s, err := getInitialState(store, genesis)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
-	require.NoError(err)
 	require.Equal(s.InitialHeight, uint64(1))
 }
 
