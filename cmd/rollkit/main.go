@@ -21,6 +21,7 @@ func main() {
 		cmd.NewRunNodeCmd(),
 		cmd.VersionCmd,
 		cmd.NewTomlCmd(),
+		cmd.RebuildCmd,
 	)
 
 	// In case there is a rollkit.toml file in the current dir or somewhere up the

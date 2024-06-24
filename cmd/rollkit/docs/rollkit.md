@@ -23,6 +23,7 @@ If a path is not specified for RKHOME, the rollkit command will create a folder 
 
 * [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell
 * [rollkit docs-gen](rollkit_docs-gen.md)	 - Generate documentation for rollkit CLI
+* [rollkit rebuild](rollkit_rebuild.md)	 - Rebuild rollup entrypoint
 * [rollkit start](rollkit_start.md)	 - Run the rollkit node
 * [rollkit toml](rollkit_toml.md)	 - TOML file operations
 * [rollkit version](rollkit_version.md)	 - Show version info

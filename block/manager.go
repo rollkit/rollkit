@@ -1029,7 +1029,11 @@ daSubmitRetryLoop:
 		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "count", res.SubmittedCount)
+			txCount := 0
+			for _, block := range blocksToSubmit {
+				txCount += len(block.Data.Txs)
+			}
+			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "blockCount", res.SubmittedCount, "txCount", txCount)
 			if res.SubmittedCount == uint64(len(blocksToSubmit)) {
 				submittedAllBlocks = true
 			}
