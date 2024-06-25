@@ -296,6 +296,15 @@ func parseConfig(cmd *cobra.Command) error {
 		return fmt.Errorf("error in config file: %w", err)
 	}
 
+	// Parse the flags
+	if err := parseFlags(cmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func parseFlags(cmd *cobra.Command) error {
 	v := viper.GetViper()
 	if err := v.BindPFlags(cmd.Flags()); err != nil {
 		return err
