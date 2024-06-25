@@ -1,12 +1,9 @@
 package commands
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/spf13/pflag"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -18,7 +15,7 @@ func TestParseFlags(t *testing.T) {
 		"--db_backend", "cleverdb",
 		"--db_dir", "data2",
 		"--moniker", "yarik-playground2",
-		//"--p2p.external-address", "127.0.0.0:26000",
+		"--p2p.external-address", "127.0.0.0:26000",
 		"--p2p.laddr", "tcp://127.0.0.1:27000",
 		"--p2p.pex",
 		"--p2p.private_peer_ids", "1,2,3",
@@ -49,11 +46,9 @@ func TestParseFlags(t *testing.T) {
 	args := append([]string{"start"}, flags...)
 
 	newRunNodeCmd := NewRunNodeCmd()
-	newRunNodeCmd.ParseFlags(args)
-
-	newRunNodeCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		fmt.Println(flag.Name, flag.Value)
-	})
+	if err := newRunNodeCmd.ParseFlags(args); err != nil {
+		t.Errorf("Error: %v", err)
+	}
 
 	if err := parseFlags(newRunNodeCmd); err != nil {
 		t.Errorf("Error: %v", err)
@@ -71,7 +66,7 @@ func TestParseFlags(t *testing.T) {
 		{"DBBackend", config.DBBackend, "cleverdb"},
 		{"DBDir", config.DBDir(), "data2"},
 		{"Moniker", config.Moniker, "yarik-playground2"},
-		//{"ExternalAddress", config.P2P.ExternalAddress, "127.0.0.0:26000"},
+		{"ExternalAddress", config.P2P.ExternalAddress, "127.0.0.0:26000"},
 		{"ListenAddress", config.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
 		{"PexReactor", config.P2P.PexReactor, true},
 		{"PrivatePeerIDs", config.P2P.PrivatePeerIDs, "1,2,3"},

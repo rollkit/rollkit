@@ -322,6 +322,11 @@ func parseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to decode command flags into config: %w", err)
 	}
 
+	// special handling for the p2p external address, due to inconsistencies in mapstructure and flag name
+	if cmd.Flags().Lookup("p2p.external-address").Changed {
+		config.P2P.ExternalAddress = viper.GetString("p2p.external-address")
+	}
+
 	// handle rollkit node configuration
 	if err := nodeConfig.GetViperConfig(v); err != nil {
 		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
