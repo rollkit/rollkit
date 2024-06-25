@@ -710,17 +710,13 @@ func TestCatchUp(t *testing.T) {
 		name string
 		n    int
 	}{
-		//{
-		//	name: "small catch-up",
-		//	n:    10,
-		//},
-		//{
-		//	name: "medium catch-up",
-		//	n:    100,
-		//},
+		{
+			name: "small catch-up",
+			n:    200,
+		},
 		{
 			name: "large catch-up",
-			n:    1000,
+			n:    3000,
 		},
 	}
 
@@ -732,7 +728,7 @@ func TestCatchUp(t *testing.T) {
 }
 
 func doTestCatchup(t *testing.T, n int) {
-	t.Parallel()
+	//t.Parallel()
 	require := require.New(t)
 
 	const (
@@ -751,6 +747,8 @@ func doTestCatchup(t *testing.T, n int) {
 			DABlockTime: daBlockTime,
 			BlockTime:   blockTime,
 		},
+		types.TestChainID,
+		false,
 		t,
 	)
 	seq := nodes[0]
