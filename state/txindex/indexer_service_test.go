@@ -10,11 +10,12 @@ import (
 	"github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
+	"github.com/stretchr/testify/require"
+
 	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
 	"github.com/rollkit/rollkit/state/txindex"
 	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
-	"github.com/stretchr/testify/require"
 )
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {
