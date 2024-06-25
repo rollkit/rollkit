@@ -38,6 +38,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/celestiaorg/go-header v0.6.1
 	github.com/ipfs/go-ds-badger4 v0.1.5
+	github.com/mitchellh/mapstructure v1.5.0
 )
 
 require (
@@ -124,7 +125,6 @@ require (
 	github.com/mikioh/tcpopt v0.0.0-20190314235656-172688c1accc // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
