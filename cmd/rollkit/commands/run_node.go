@@ -20,6 +20,7 @@ import (
 	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
+	"github.com/mitchellh/mapstructure"
 
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
@@ -54,15 +55,6 @@ func NewRunNodeCmd() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			err := parseConfig(cmd)
 			if err != nil {
-				return err
-			}
-
-			v := viper.GetViper()
-			if err := v.BindPFlags(cmd.Flags()); err != nil {
-				return err
-			}
-			// populate the node configuration from flags
-			if err := nodeConfig.GetViperConfig(v); err != nil {
 				return err
 			}
 
@@ -284,8 +276,6 @@ func initFiles() error {
 	return nil
 }
 
-// parseConfig retrieves the default environment configuration, sets up the
-// Rollkit root and ensures that the root exists
 func parseConfig(cmd *cobra.Command) error {
 	// Set the root directory for the config to the home directory
 	home := os.Getenv("RKHOME")
@@ -305,5 +295,28 @@ func parseConfig(cmd *cobra.Command) error {
 	if err := config.ValidateBasic(); err != nil {
 		return fmt.Errorf("error in config file: %w", err)
 	}
+
+	v := viper.GetViper()
+	if err := v.BindPFlags(cmd.Flags()); err != nil {
+		return err
+	}
+
+	// unmarshal viper into config
+	err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+		c.TagName = "mapstructure"
+		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+		)
+	})
+	if err != nil {
+		return fmt.Errorf("unable to decode command flags into config: %w", err)
+	}
+
+	// handle rollkit node configuration
+	if err := nodeConfig.GetViperConfig(v); err != nil {
+		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
+	}
+
 	return nil
 }

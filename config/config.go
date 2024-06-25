@@ -131,7 +131,6 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
 	nc.Light = v.GetBool(FlagLight)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
-	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
 	nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
 	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
