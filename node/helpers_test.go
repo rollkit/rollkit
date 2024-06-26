@@ -45,7 +45,7 @@ func TestGetNodeHeight(t *testing.T) {
 	}
 	bmConfig := getBMConfig()
 	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 1, true, true, keys, bmConfig, types.TestChainID, t)
+	lightNode, _ := createNode(ctx, 1, false, true, keys, bmConfig, types.TestChainID, false, t)
 
 	startNodeWithCleanup(t, fullNode)
 	startNodeWithCleanup(t, lightNode)
