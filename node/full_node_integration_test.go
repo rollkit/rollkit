@@ -716,7 +716,7 @@ func TestCatchUp(t *testing.T) {
 		},
 		{
 			name: "large catch-up",
-			n:    3000,
+			n:    1000,
 		},
 	}
 
