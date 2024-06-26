@@ -350,8 +350,6 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 
 	require.NoError(verifyNodesSynced(node1, node2, Store))
 	require.NoError(verifyNodesSynced(node1, node3, Store))
-
-	fmt.Println("tzdybal: elo")
 }
 
 func TestBlockExchange(t *testing.T) {
