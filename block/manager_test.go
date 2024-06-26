@@ -66,7 +66,6 @@ func TestInitialStateClean(t *testing.T) {
 	s, err := getInitialState(emptyStore, genesis)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(genesis.InitialHeight-1))
-	require.NoError(err)
 	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
 }
 
