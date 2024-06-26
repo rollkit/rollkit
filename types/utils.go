@@ -281,10 +281,10 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 		Validators: valSet,
 	}
 	commit, err := GetCommit(header, privkey)
-	signedHeader.Commit = *commit
 	if err != nil {
 		return nil, err
 	}
+	signedHeader.Commit = *commit
 	return &signedHeader, nil
 }
 
