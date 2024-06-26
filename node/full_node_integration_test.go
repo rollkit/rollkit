@@ -604,21 +604,13 @@ func TestCatchUp(t *testing.T) {
 		name string
 		n    int
 	}{
-		//{
-		//	name: "small catch-up",
-		//	n:    63,
-		//},
-		//{
-		//	name: "medium catch-up",
-		//	n:    64,
-		//},
-		//{
-		//	name: "medium catch-up",
-		//	n:    65,
-		//},
+		{
+			name: "small catch-up",
+			n:    200,
+		},
 		{
 			name: "large catch-up",
-			n:    2200,
+			n:    3000,
 		},
 	}
 
