@@ -13,6 +13,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmconfig "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -199,7 +200,9 @@ func TestPendingBlocks(t *testing.T) {
 		_ = os.RemoveAll(dbPath)
 	}()
 
-	node, _ := createAggregatorWithPersistence(ctx, dbPath, dac, t)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+
+	node, _ := createAggregatorWithPersistence(ctx, dbPath, dac, genesis, genesisValidatorKey, t)
 	err = node.Start()
 	assert.NoError(t, err)
 
@@ -215,7 +218,7 @@ func TestPendingBlocks(t *testing.T) {
 	assert.NoError(t, err)
 
 	// create & start new node
-	node, _ = createAggregatorWithPersistence(ctx, dbPath, dac, t)
+	node, _ = createAggregatorWithPersistence(ctx, dbPath, dac, genesis, genesisValidatorKey, t)
 
 	// reset DA mock to ensure that Submit was called
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Unset()
@@ -380,11 +383,10 @@ func createNodeAndApp(ctx context.Context, voteExtensionEnableHeight int64, t *t
 	return app, node, signingKey
 }
 
-func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
+func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, genesis *cmtypes.GenesisDoc, genesisValidatorKey ed25519.PrivKey, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(t, err)
 
