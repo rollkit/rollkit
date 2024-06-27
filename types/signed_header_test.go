@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/go-header"
+	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ func TestSignedHeader(t *testing.T) {
 	})
 }
 
-func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader, privKey ed25519.PrivKey) {
+func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader, privKey cmcrypto.PrivKey) {
 	tests := []struct {
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case
 		err     error                        // Expected error
@@ -125,7 +126,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 	}
 }
 
-func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey ed25519.PrivKey) {
+func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypto.PrivKey) {
 	// Define test cases
 	tests := []struct {
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case

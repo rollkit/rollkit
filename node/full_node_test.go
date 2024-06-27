@@ -13,6 +13,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmconfig "github.com/cometbft/cometbft/config"
+	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -271,58 +272,66 @@ func TestVoteExtension(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// TestPrepareProposalVoteExtChecker
-	t.Run("TestPrepareProposalVoteExtChecker", func(t *testing.T) {
-		app, node, signingKey := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
+	testCases := []struct {
+		sigingKeyType string
+	}{
+		{sigingKeyType: "ed25519"},
+		{sigingKeyType: "secp256k1"},
+	}
 
-		prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-			if req.Height <= voteExtensionEnableHeight {
-				require.Empty(req.LocalLastCommit.Votes)
-			} else {
-				require.Len(req.LocalLastCommit.Votes, 1)
-				extendedCommit := req.LocalLastCommit.Votes[0]
-				require.NotNil(extendedCommit)
-				require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
-				// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
-				require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
-				require.NotNil(extendedCommit.Validator)
-				require.NotNil(extendedCommit.Validator.Address)
-				require.NotEmpty(extendedCommit.ExtensionSignature)
-				vote := &cmproto.Vote{
-					Height:    req.Height - 1,
-					Round:     0,
-					Extension: extendedCommit.VoteExtension,
+	for _, tc := range testCases {
+		// TestPrepareProposalVoteExtChecker
+		t.Run("TestPrepareProposalVoteExtChecker", func(t *testing.T) {
+			app, node, pubKey := createNodeAndApp(ctx, voteExtensionEnableHeight, tc.sigingKeyType, t)
+
+			prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+				if req.Height <= voteExtensionEnableHeight {
+					require.Empty(req.LocalLastCommit.Votes)
+				} else {
+					require.Len(req.LocalLastCommit.Votes, 1)
+					extendedCommit := req.LocalLastCommit.Votes[0]
+					require.NotNil(extendedCommit)
+					require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
+					// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
+					require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
+					require.NotNil(extendedCommit.Validator)
+					require.NotNil(extendedCommit.Validator.Address)
+					require.NotEmpty(extendedCommit.ExtensionSignature)
+					vote := &cmproto.Vote{
+						Height:    req.Height - 1,
+						Round:     0,
+						Extension: extendedCommit.VoteExtension,
+					}
+					extSignBytes := cmtypes.VoteExtensionSignBytes(types.TestChainID, vote)
+					fmt.Println("failing block height", req.Height)
+					ok := pubKey.VerifySignature(extSignBytes, extendedCommit.ExtensionSignature)
+					require.True(ok)
 				}
-				extSignBytes := cmtypes.VoteExtensionSignBytes(types.TestChainID, vote)
-				ok, err := signingKey.GetPublic().Verify(extSignBytes, extendedCommit.ExtensionSignature)
-				require.NoError(err)
-				require.True(ok)
+				return &abci.ResponsePrepareProposal{
+					Txs: req.Txs,
+				}, nil
 			}
-			return &abci.ResponsePrepareProposal{
-				Txs: req.Txs,
-			}, nil
-		}
-		voteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-			return &abci.ResponseExtendVote{
-				VoteExtension: []byte(fmt.Sprintf(expectedExtension, req.Height)),
-			}, nil
-		}
-		app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
-		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-		app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-		app.On("ExtendVote", mock.Anything, mock.Anything).Return(voteExtension)
-		require.NotNil(app)
+			voteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+				return &abci.ResponseExtendVote{
+					VoteExtension: []byte(fmt.Sprintf(expectedExtension, req.Height)),
+				}, nil
+			}
+			app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+			app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalVoteExtChecker)
+			app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+			app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+			app.On("ExtendVote", mock.Anything, mock.Anything).Return(voteExtension)
+			require.NotNil(app)
 
-		require.NoError(node.Start())
-		require.NoError(waitForAtLeastNBlocks(node, 10, Store))
-		require.NoError(node.Stop())
-		app.AssertExpectations(t)
-	})
-
+			require.NoError(node.Start())
+			require.NoError(waitForAtLeastNBlocks(node, 10, Store))
+			require.NoError(node.Stop())
+			app.AssertExpectations(t)
+		})
+	}
 	// TestExtendVoteFailure
 	t.Run("TestExtendVoteFailure", func(t *testing.T) {
-		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, t)
+		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, types.DefaultSigingKeyType, t)
 		require.NotNil(node)
 
 		// Create a channel to signal from extendVoteFailure
@@ -375,22 +384,22 @@ func TestVoteExtension(t *testing.T) {
 }
 
 // Create & configure node with app. Get signing key for mock functions.
-func createNodeAndApp(ctx context.Context, voteExtensionEnableHeight int64, t *testing.T) (*mocks.Application, Node, crypto.PrivKey) {
+func createNodeAndApp(ctx context.Context, voteExtensionEnableHeight int64, sigingKeyType string, t *testing.T) (*mocks.Application, Node, cmcrypto.PubKey) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	node, signingKey := createAggregatorWithApp(ctx, app, voteExtensionEnableHeight, t)
+	node, pubKey := createAggregatorWithApp(ctx, app, voteExtensionEnableHeight, sigingKeyType, t)
 	require.NotNil(node)
-	require.NotNil(signingKey)
-	return app, node, signingKey
+	require.NotNil(pubKey)
+	return app, node, pubKey
 }
 
 func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigingKeyType)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(t, err)
 
@@ -426,11 +435,12 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	return fullNode, app
 }
 
-func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExtensionEnableHeight int64, t *testing.T) (Node, crypto.PrivKey) {
+func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExtensionEnableHeight int64, sigingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(sigingKeyType)
+	fmt.Println("genesis key type", genesis.Validators[0].PubKey.Type())
 	genesis.ConsensusParams = &cmtypes.ConsensusParams{
 		Block:     cmtypes.DefaultBlockParams(),
 		Evidence:  cmtypes.DefaultEvidenceParams(),
@@ -463,7 +473,7 @@ func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExte
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
-	return node, signingKey
+	return node, genesis.Validators[0].PubKey
 }
 
 // setupMockApplication initializes a mock application
