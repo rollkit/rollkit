@@ -5,11 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 
-	"github.com/celestiaorg/go-header"
-	goheaderp2p "github.com/celestiaorg/go-header/p2p"
-	goheaderstore "github.com/celestiaorg/go-header/store"
-	goheadersync "github.com/celestiaorg/go-header/sync"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -17,6 +14,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+	"github.com/multiformats/go-multiaddr"
+
+	"github.com/celestiaorg/go-header"
+	goheaderp2p "github.com/celestiaorg/go-header/p2p"
+	goheaderstore "github.com/celestiaorg/go-header/store"
+	goheadersync "github.com/celestiaorg/go-header/sync"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
@@ -173,6 +176,9 @@ func (bSyncService *BlockSyncService) Start() error {
 	}
 
 	peerIDs := bSyncService.p2p.PeerIDs()
+	if !bSyncService.conf.Aggregator {
+		peerIDs = append(peerIDs, getSeedNodes(bSyncService.conf.P2P.Seeds, bSyncService.logger)...)
+	}
 	if bSyncService.ex, err = newBlockP2PExchange(bSyncService.p2p.Host(), peerIDs, networkIDBlock, chainIDBlock, bSyncService.p2p.ConnectionGater()); err != nil {
 		return fmt.Errorf("error while creating exchange: %w", err)
 	}
@@ -291,4 +297,22 @@ func (bSyncService *BlockSyncService) StartSyncer() error {
 	}
 	bSyncService.syncerStatus.started.Store(true)
 	return nil
+}
+
+func getSeedNodes(seeds string, logger log.Logger) []peer.ID {
+	var peerIDs []peer.ID
+	for _, seed := range strings.Split(seeds, ",") {
+		maddr, err := multiaddr.NewMultiaddr(seed)
+		if err != nil {
+			logger.Error("failed to parse peer", "address", seed, "error", err)
+			continue
+		}
+		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
+		if err != nil {
+			logger.Error("failed to create addr info for peer", "address", maddr, "error", err)
+			continue
+		}
+		peerIDs = append(peerIDs, addrInfo.ID)
+	}
+	return peerIDs
 }

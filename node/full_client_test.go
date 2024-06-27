@@ -184,6 +184,7 @@ func TestGenesisChunked(t *testing.T) {
 	startNodeWithCleanup(t, rpc.node)
 	expectedID = 0
 	gc2, err := rpc.GenesisChunked(context.Background(), expectedID)
+	require.NoError(t, err)
 	gotID := gc2.ChunkNumber
 	assert.NoError(err)
 	assert.NotNil(gc2)
