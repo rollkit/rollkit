@@ -200,7 +200,7 @@ func TestPendingBlocks(t *testing.T) {
 		_ = os.RemoveAll(dbPath)
 	}()
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigingKeyType)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 
 	node, _ := createAggregatorWithPersistence(ctx, dbPath, dac, genesis, genesisValidatorKey, t)
 	err = node.Start()
@@ -333,7 +333,7 @@ func TestVoteExtension(t *testing.T) {
 	}
 	// TestExtendVoteFailure
 	t.Run("TestExtendVoteFailure", func(t *testing.T) {
-		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, types.DefaultSigingKeyType, t)
+		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, types.DefaultSigningKeyType, t)
 		require.NotNil(node)
 
 		// Create a channel to signal from extendVoteFailure

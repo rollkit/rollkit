@@ -19,8 +19,8 @@ import (
 // TestChainID is a constant used for testing purposes. It represents a mock chain ID.
 const TestChainID = "test"
 
-// DefaultSigingKeyType is the key type used by the sequencer signing key
-const DefaultSigingKeyType = "ed25519"
+// DefaultSigningKeyType is the key type used by the sequencer signing key
+const DefaultSigningKeyType = "ed25519"
 
 var (
 	errNilKey             = errors.New("key can't be nil")

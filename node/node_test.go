@@ -117,7 +117,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, cm
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
 	app := setupMockApplication()
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigingKeyType)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	if err != nil {
 		return nil, nil, err
