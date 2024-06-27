@@ -184,6 +184,13 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// CI mode. Wait for 5s and then verify the node is running before calling stop node.
 			time.Sleep(5 * time.Second)
+			res, err := rollnode.GetClient().Block(context.Background(), nil)
+			if err != nil {
+				return err
+			}
+			if res.Block.Height == 0 {
+				return fmt.Errorf("node hasn't produced any blocks")
+			}
 			if !rollnode.IsRunning() {
 				return fmt.Errorf("node is not running")
 
