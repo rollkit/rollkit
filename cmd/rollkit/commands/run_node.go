@@ -188,7 +188,7 @@ func NewRunNodeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if res.Block.Height  == 0 {
+			if res.Block.Height == 0 {
 				return fmt.Errorf("node hasn't produced any blocks")
 			}
 			if !rollnode.IsRunning() {
