@@ -20,6 +20,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto/pb"
 	pkgErrors "github.com/pkg/errors"
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
@@ -927,10 +928,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 func (m *Manager) sign(payload []byte) ([]byte, error) {
 	var sig []byte
-	switch m.proposerKey.(type) {
-	case *crypto.Ed25519PrivateKey:
+	switch m.proposerKey.Type() {
+	case pb.KeyType_Ed25519:
 		return m.proposerKey.Sign(payload)
-	case *crypto.Secp256k1PrivateKey:
+	case pb.KeyType_Secp256k1:
 		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
 		rawBytes, err := k.Raw()
 		if err != nil {
