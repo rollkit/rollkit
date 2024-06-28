@@ -142,12 +142,12 @@ func newFullNode(
 	}
 
 	mainKV := newPrefixKV(baseKV, mainPrefix)
-	headerSyncService, err := initHeaderSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
+	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	blockSyncService, err := initBlockSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger)
+	blockSyncService, err := initBlockSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -247,16 +247,16 @@ func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempo
 	return mempool
 }
 
-func initHeaderSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
-	headerSyncService, err := block.NewHeaderSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
+	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 	return headerSyncService, nil
 }
 
-func initBlockSyncService(ctx context.Context, mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.BlockSyncService, error) {
-	blockSyncService, err := block.NewBlockSyncService(ctx, mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "BlockSyncService"))
+func initBlockSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.BlockSyncService, error) {
+	blockSyncService, err := block.NewBlockSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "BlockSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -376,11 +376,11 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
-	if err = n.hSyncService.Start(); err != nil {
+	if err = n.hSyncService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	if err = n.bSyncService.Start(); err != nil {
+	if err = n.bSyncService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting block sync service: %w", err)
 	}
 
@@ -422,8 +422,8 @@ func (n *FullNode) OnStop() {
 	n.Logger.Info("shutting down full node sub services...")
 	err := errors.Join(
 		n.p2pClient.Close(),
-		n.hSyncService.Stop(),
-		n.bSyncService.Stop(),
+		n.hSyncService.Stop(n.ctx),
+		n.bSyncService.Stop(n.ctx),
 		n.IndexerService.Stop(),
 	)
 	if n.prometheusSrv != nil {
