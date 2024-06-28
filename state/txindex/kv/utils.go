@@ -5,6 +5,7 @@ import (
 
 	cmtsyntax "github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
+
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/state/indexer"
 )

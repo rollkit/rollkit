@@ -50,7 +50,7 @@ func doTestCreateBlock(t *testing.T) {
 	fmt.Println("Made NID")
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
-	executor := NewBlockExecutor([]byte("test address"), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, NopMetrics(), types.GetRandomBytes(32))
+	executor := NewBlockExecutor([]byte("test address"), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, NopMetrics())
 	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
@@ -58,6 +58,17 @@ func doTestCreateBlock(t *testing.T) {
 	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
+
+	vKey := ed25519.GenPrivKey()
+	validators := []*cmtypes.Validator{
+		{
+			Address:          vKey.PubKey().Address(),
+			PubKey:           vKey.PubKey(),
+			VotingPower:      int64(100),
+			ProposerPriority: int64(1),
+		},
+	}
+	state.Validators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
 	block, err := executor.CreateBlock(1, &types.Commit{}, abci.ExtendedCommitInfo{}, []byte{}, state)
@@ -160,14 +171,18 @@ func doTestApplyBlock(t *testing.T) {
 			ProposerPriority: int64(1),
 		},
 	}
-	state := types.State{}
+	state := types.State{
+		NextValidators: cmtypes.NewValidatorSet(validators),
+		Validators:     cmtypes.NewValidatorSet(validators),
+		LastValidators: cmtypes.NewValidatorSet(validators),
+	}
 	state.InitialHeight = 1
 	state.LastBlockHeight = 0
 	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 	chainID := "test"
-	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics(), types.GetRandomBytes(32))
+	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
@@ -270,7 +285,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(t, eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics(), types.GetRandomBytes(32))
+	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
 	state := types.State{
 		ConsensusParams: cmproto.ConsensusParams{
@@ -286,6 +301,8 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 			},
 			Abci: &cmproto.ABCIParams{},
 		},
+		Validators:     cmtypes.NewValidatorSet([]*cmtypes.Validator{{Address: []byte("test"), PubKey: nil, VotingPower: 100, ProposerPriority: 1}}),
+		NextValidators: cmtypes.NewValidatorSet([]*cmtypes.Validator{{Address: []byte("test"), PubKey: nil, VotingPower: 100, ProposerPriority: 1}}),
 	}
 
 	block := types.GetRandomBlock(1234, 2)
@@ -310,10 +327,13 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 				App: 2,
 			},
 		},
+
 		TxResults: txResults,
 	}
+	validatorUpdates, err := cmtypes.PB2TM.ValidatorUpdates(resp.ValidatorUpdates)
+	assert.NoError(t, err)
 
-	updatedState, err := executor.updateState(state, block, resp)
+	updatedState, err := executor.updateState(state, block, resp, validatorUpdates)
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(1235), updatedState.LastHeightConsensusParamsChanged)

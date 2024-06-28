@@ -201,7 +201,6 @@ func TestPendingBlocks(t *testing.T) {
 	}()
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
-
 	node, _ := createAggregatorWithPersistence(ctx, dbPath, dac, genesis, genesisValidatorKey, t)
 	err = node.Start()
 	assert.NoError(t, err)

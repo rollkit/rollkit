@@ -5,6 +5,7 @@ import (
 
 	"github.com/cometbft/cometbft/libs/service"
 	"github.com/cometbft/cometbft/types"
+
 	"github.com/rollkit/rollkit/state/indexer"
 )
 
