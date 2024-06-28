@@ -488,7 +488,7 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 // Commit returns signed header (aka commit) at given height.
 func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	heightValue := c.normalizeHeight(height)
-	com, err := c.node.Store.GetCommit(ctx, heightValue)
+	sig, err := c.node.Store.GetSignature(ctx, heightValue)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +503,7 @@ func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultC
 	}
 
 	val := b.SignedHeader.Validators.Validators[0].Address
-	commit := com.ToABCICommit(heightValue, b.Hash(), val, b.SignedHeader.Time())
+	commit := sig.ToABCICommit(heightValue, b.Hash(), val, b.SignedHeader.Time())
 
 	block, err := abciconv.ToABCIBlock(b)
 	if err != nil {
