@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
+	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/crypto/secp256k1"
 	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -17,6 +19,9 @@ import (
 // TestChainID is a constant used for testing purposes. It represents a mock chain ID.
 const TestChainID = "test"
 
+// DefaultSigningKeyType is the key type used by the sequencer signing key
+const DefaultSigningKeyType = "ed25519"
+
 var (
 	errNilKey             = errors.New("key can't be nil")
 	errUnsupportedKeyType = errors.New("unsupported key type")
@@ -24,7 +29,7 @@ var (
 
 // ValidatorConfig carries all necessary state for generating a Validator
 type ValidatorConfig struct {
-	PrivKey     ed25519.PrivKey
+	PrivKey     cmcrypto.PrivKey
 	VotingPower int64
 }
 
@@ -57,8 +62,8 @@ func GetValidatorSetCustom(config ValidatorConfig) *cmtypes.ValidatorSet {
 type BlockConfig struct {
 	Height       uint64
 	NTxs         int
-	PrivKey      ed25519.PrivKey // Input and Output option
-	ProposerAddr []byte          // Input option
+	PrivKey      cmcrypto.PrivKey // Input and Output option
+	ProposerAddr []byte           // Input option
 }
 
 // GetRandomBlock creates a block with a given height and number of transactions, intended for testing.
@@ -75,7 +80,7 @@ func GetRandomBlock(height uint64, nTxs int) *Block {
 }
 
 // GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
-func GenerateRandomBlockCustom(config *BlockConfig) (*Block, ed25519.PrivKey) {
+func GenerateRandomBlockCustom(config *BlockConfig) (*Block, cmcrypto.PrivKey) {
 	block := getBlockDataWith(config.NTxs)
 	dataHash, err := block.Data.Hash()
 	if err != nil {
@@ -106,7 +111,7 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*Block, ed25519.PrivKey) {
 }
 
 // GetRandomNextBlock returns a block with random data and height of +1 from the provided block
-func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Hash, nTxs int) *Block {
+func GetRandomNextBlock(block *Block, privKey cmcrypto.PrivKey, appHash header.Hash, nTxs int) *Block {
 	nextBlock := getBlockDataWith(nTxs)
 	dataHash, err := nextBlock.Data.Hash()
 	if err != nil {
@@ -139,7 +144,7 @@ func GetRandomNextBlock(block *Block, privKey ed25519.PrivKey, appHash header.Ha
 type HeaderConfig struct {
 	Height      uint64
 	DataHash    header.Hash
-	PrivKey     ed25519.PrivKey
+	PrivKey     cmcrypto.PrivKey
 	VotingPower int64
 }
 
@@ -179,7 +184,7 @@ func GetRandomNextHeader(header Header) Header {
 }
 
 // GetRandomSignedHeader generates a signed header with random data and returns it.
-func GetRandomSignedHeader() (*SignedHeader, ed25519.PrivKey, error) {
+func GetRandomSignedHeader() (*SignedHeader, cmcrypto.PrivKey, error) {
 	config := HeaderConfig{
 		Height:      uint64(rand.Int63()), //nolint:gosec
 		DataHash:    GetRandomBytes(32),
@@ -221,7 +226,7 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
 
 // GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
 // the provided signed header
-func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey ed25519.PrivKey) (*SignedHeader, error) {
+func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.PrivKey) (*SignedHeader, error) {
 	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{
 		Header:     GetRandomNextHeader(signedHeader.Header),
@@ -246,6 +251,12 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 	switch nodeKey.PrivKey.Type() {
 	case "ed25519":
 		privKey, err := crypto.UnmarshalEd25519PrivateKey(nodeKey.PrivKey.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling node private key: %w", err)
+		}
+		return privKey, nil
+	case "secp256k1":
+		privKey, err := crypto.UnmarshalSecp256k1PrivateKey(nodeKey.PrivKey.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshalling node private key: %w", err)
 		}
@@ -305,8 +316,14 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 }
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
-	genesisValidatorKey := ed25519.GenPrivKey()
+func GetGenesisWithPrivkey(sigingKeyType string) (*cmtypes.GenesisDoc, cmcrypto.PrivKey) {
+	var genesisValidatorKey cmcrypto.PrivKey
+	switch sigingKeyType {
+	case "secp256k1":
+		genesisValidatorKey = secp256k1.GenPrivKey()
+	default:
+		genesisValidatorKey = ed25519.GenPrivKey()
+	}
 	pubKey := genesisValidatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{{
@@ -324,7 +341,7 @@ func GetGenesisWithPrivkey() (*cmtypes.GenesisDoc, ed25519.PrivKey) {
 }
 
 // PrivKeyToSigningKey converts a privKey to a signing key
-func PrivKeyToSigningKey(privKey ed25519.PrivKey) (crypto.PrivKey, error) {
+func PrivKeyToSigningKey(privKey cmcrypto.PrivKey) (crypto.PrivKey, error) {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: privKey,
 	}
@@ -349,7 +366,7 @@ func GetRandomBytes(n uint) []byte {
 }
 
 // GetCommit returns a commit with a signature from the given private key over the given header
-func GetCommit(header Header, privKey ed25519.PrivKey) (*Commit, error) {
+func GetCommit(header Header, privKey cmcrypto.PrivKey) (*Commit, error) {
 	consensusVote := header.MakeCometBFTVote()
 	sign, err := privKey.Sign(consensusVote)
 	if err != nil {

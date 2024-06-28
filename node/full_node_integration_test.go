@@ -56,7 +56,7 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
@@ -170,7 +170,7 @@ func TestLazyAggregator(t *testing.T) {
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
@@ -328,7 +328,7 @@ func TestChangeValSet(t *testing.T) {
 
 	// tmpubKey1
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	tmPubKey1, err := cryptoenc.PubKeyToProto(genesisDoc.Validators[0].PubKey)

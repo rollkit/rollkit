@@ -5,6 +5,7 @@ import (
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
+	"github.com/cometbft/cometbft/crypto/sr25519"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
 	"github.com/stretchr/testify/assert"
@@ -66,12 +67,14 @@ func TestGetRandomHeader(t *testing.T) {
 func TestGetNodeKey(t *testing.T) {
 	t.Parallel()
 
-	privKey := ed25519.GenPrivKey()
-	valid := p2p.NodeKey{
-		PrivKey: privKey,
+	ed25519Key := p2p.NodeKey{
+		PrivKey: ed25519.GenPrivKey(),
+	}
+	secp256k1Key := p2p.NodeKey{
+		PrivKey: secp256k1.GenPrivKey(),
 	}
 	invalid := p2p.NodeKey{
-		PrivKey: secp256k1.GenPrivKey(),
+		PrivKey: sr25519.GenPrivKey(),
 	}
 
 	cases := []struct {
@@ -82,8 +85,9 @@ func TestGetNodeKey(t *testing.T) {
 	}{
 		{"nil", nil, pb.KeyType(-1), errNilKey},
 		{"empty", &p2p.NodeKey{}, pb.KeyType(-1), errNilKey},
+		{"secp256k1", &secp256k1Key, pb.KeyType_Secp256k1, nil},
+		{"ed25519", &ed25519Key, pb.KeyType_Ed25519, nil},
 		{"invalid", &invalid, pb.KeyType(-1), errUnsupportedKeyType},
-		{"valid", &valid, pb.KeyType_Ed25519, nil},
 	}
 
 	for _, c := range cases {

@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
@@ -18,6 +20,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto/pb"
 	pkgErrors "github.com/pkg/errors"
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
@@ -192,10 +195,7 @@ func NewManager(
 		conf.DAMempoolTTL = defaultMempoolTTL
 	}
 
-	proposerAddress, err := getAddress(proposerKey)
-	if err != nil {
-		return nil, err
-	}
+	proposerAddress := s.Validators.Proposer.Address.Bytes()
 
 	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
 	if err != nil {
@@ -262,14 +262,6 @@ func NewManager(
 		isProposer:    isProposer,
 	}
 	return agg, nil
-}
-
-func getAddress(key crypto.PrivKey) ([]byte, error) {
-	rawKey, err := key.GetPublic().Raw()
-	if err != nil {
-		return nil, err
-	}
-	return cmcrypto.AddressHash(rawKey), nil
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
@@ -749,8 +741,7 @@ func getRemainingSleep(start time.Time, interval, defaultSleep time.Duration) ti
 func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
 	// note: for compatibility with tendermint light client
 	consensusVote := header.MakeCometBFTVote()
-
-	sign, err := m.proposerKey.Sign(consensusVote)
+	sign, err := m.sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
@@ -851,7 +842,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 		panic(err)
 	}
-
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
 	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
 	if err != nil {
@@ -875,7 +865,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	blockHeight := block.Height()
-	// Update the stored height before submitting to the DA layer and committing to the DB
+	// Update the store height before submitting to the DA layer and committing to the DB
 	m.store.SetHeight(ctx, blockHeight)
 
 	blockHash := block.Hash().String()
@@ -930,6 +920,28 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
+func (m *Manager) sign(payload []byte) ([]byte, error) {
+	var sig []byte
+	switch m.proposerKey.Type() {
+	case pb.KeyType_Ed25519:
+		return m.proposerKey.Sign(payload)
+	case pb.KeyType_Secp256k1:
+		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
+		rawBytes, err := k.Raw()
+		if err != nil {
+			return nil, err
+		}
+		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
+		sig, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
+		if err != nil {
+			return nil, err
+		}
+		return sig[1:], nil
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
+	}
+}
+
 func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, newHeight uint64) error {
 	if !m.voteExtensionEnabled(newHeight) {
 		return nil
@@ -939,9 +951,17 @@ func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, 
 	if err != nil {
 		return fmt.Errorf("error returned by ExtendVote: %w", err)
 	}
-	sign, err := m.proposerKey.Sign(extension)
+
+	vote := &cmproto.Vote{
+		Height:    int64(newHeight),
+		Round:     0,
+		Extension: extension,
+	}
+	extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
+
+	sign, err := m.sign(extSignBytes)
 	if err != nil {
-		return fmt.Errorf("error signing vote extension: %w", err)
+		return fmt.Errorf("failed to sign vote extension: %w", err)
 	}
 	extendedCommit := buildExtendedCommit(block, extension, sign)
 	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)

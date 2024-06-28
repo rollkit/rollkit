@@ -707,9 +707,22 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 
 // Status returns detailed information about current status of the node.
 func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
-	latest, err := c.node.Store.GetBlock(ctx, c.node.Store.Height())
-	if err != nil {
-		return nil, fmt.Errorf("failed to find latest block: %w", err)
+	var (
+		latestBlockHash cmbytes.HexBytes
+		latestAppHash   cmbytes.HexBytes
+		latestBlockTime time.Time
+
+		latestHeight = c.node.Store.Height()
+	)
+
+	if latestHeight != 0 {
+		latest, err := c.node.Store.GetBlock(ctx, latestHeight)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find latest block: %w", err)
+		}
+		latestBlockHash = cmbytes.HexBytes(latest.SignedHeader.DataHash)
+		latestAppHash = cmbytes.HexBytes(latest.SignedHeader.AppHash)
+		latestBlockTime = latest.Time()
 	}
 
 	initial, err := c.node.Store.GetBlock(ctx, uint64(c.node.GetGenesis().InitialHeight))
@@ -761,10 +774,10 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			},
 		},
 		SyncInfo: ctypes.SyncInfo{
-			LatestBlockHash:     cmbytes.HexBytes(latest.SignedHeader.DataHash),
-			LatestAppHash:       cmbytes.HexBytes(latest.SignedHeader.AppHash),
-			LatestBlockHeight:   int64(latest.Height()),
-			LatestBlockTime:     latest.Time(),
+			LatestBlockHash:     latestBlockHash,
+			LatestAppHash:       latestAppHash,
+			LatestBlockHeight:   int64(latestHeight),
+			LatestBlockTime:     latestBlockTime,
 			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.DataHash),
 			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
 			EarliestBlockHeight: int64(initial.Height()),
@@ -822,10 +835,11 @@ func (c *FullClient) CheckTx(ctx context.Context, tx cmtypes.Tx) (*ctypes.Result
 }
 
 // Header returns a cometbft ResultsHeader for the FullClient
-func (c *FullClient) Header(ctx context.Context, height *int64) (*ctypes.ResultHeader, error) {
-	blockMeta := c.getBlockMeta(ctx, *height)
+func (c *FullClient) Header(ctx context.Context, heightPtr *int64) (*ctypes.ResultHeader, error) {
+	height := c.normalizeHeight(heightPtr)
+	blockMeta := c.getBlockMeta(ctx, height)
 	if blockMeta == nil {
-		return nil, fmt.Errorf("block at height %d not found", *height)
+		return nil, fmt.Errorf("block at height %d not found", height)
 	}
 	return &ctypes.ResultHeader{Header: &blockMeta.Header}, nil
 }
@@ -919,8 +933,8 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 	return heightValue
 }
 
-func (rpc *FullClient) getBlockMeta(ctx context.Context, n int64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.GetBlock(ctx, uint64(n))
+func (rpc *FullClient) getBlockMeta(ctx context.Context, n uint64) *cmtypes.BlockMeta {
+	b, err := rpc.node.Store.GetBlock(ctx, n)
 	if err != nil {
 		return nil
 	}

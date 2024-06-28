@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/crypto/secp256k1"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -54,7 +56,7 @@ func getBlockBiggerThan(blockHeight, limit uint64) (*types.Block, error) {
 
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "myChain",
 		InitialHeight: 1,
@@ -71,7 +73,7 @@ func TestInitialStateClean(t *testing.T) {
 
 func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey()
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	valset := types.GetRandomValidatorSet()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "myChain",
@@ -102,8 +104,8 @@ func TestInitialStateStored(t *testing.T) {
 
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	valset := types.GetRandomValidatorSet()
-	genesisDoc, _ := types.GetGenesisWithPrivkey()
 	genesis := &cmtypes.GenesisDoc{
 		ChainID:       "myChain",
 		InitialHeight: 2,
@@ -126,6 +128,31 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require.NoError(err)
 	_, err = getInitialState(store, genesis)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
+}
+
+func TestSignVerifySignature(t *testing.T) {
+	require := require.New(t)
+	m := getManager(t, goDATest.NewDummyDA())
+	payload := []byte("test")
+	cases := []struct {
+		name  string
+		input cmcrypto.PrivKey
+	}{
+		{"ed25519", ed25519.GenPrivKey()},
+		{"secp256k1", secp256k1.GenPrivKey()},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pubKey := c.input.PubKey()
+			signingKey, err := types.PrivKeyToSigningKey(c.input)
+			require.NoError(err)
+			m.proposerKey = signingKey
+			sig, err := m.sign(payload)
+			require.NoError(err)
+			ok := pubKey.VerifySignature(payload, sig)
+			require.True(ok)
+		})
+	}
 }
 
 func TestIsDAIncluded(t *testing.T) {
@@ -426,7 +453,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey()
+				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
 				signingKey, err := types.PrivKeyToSigningKey(privKey)
@@ -442,7 +469,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key does not match genesis proposer public key",
 			args: func() args {
-				genesisData, _ := types.GetGenesisWithPrivkey()
+				genesisData, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
 
@@ -460,7 +487,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "No validators found in genesis",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey()
+				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 				genesisData.Validators = nil
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)

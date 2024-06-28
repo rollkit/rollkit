@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	cmconfig "github.com/cometbft/cometbft/config"
-	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmcrypto "github.com/cometbft/cometbft/crypto"
 	proxy "github.com/cometbft/cometbft/proxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -97,7 +97,7 @@ func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType Nod
 }
 
 // setupTestNode sets up a test node based on the NodeType.
-func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, ed25519.PrivKey) {
+func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, cmcrypto.PrivKey) {
 	node, privKey, err := newTestNode(ctx, t, nodeType)
 	require.NoError(t, err)
 	require.NotNil(t, node)
@@ -106,7 +106,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, 
 }
 
 // newTestNode creates a new test node based on the NodeType.
-func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, ed25519.PrivKey, error) {
+func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, cmcrypto.PrivKey, error) {
 	config := config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}
 	switch nodeType {
 	case Light:
@@ -117,7 +117,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, ed
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
 	app := setupMockApplication()
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	if err != nil {
 		return nil, nil, err
