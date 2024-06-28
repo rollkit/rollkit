@@ -46,7 +46,10 @@ type SyncService[H header.Header[H]] struct {
 	ctx    context.Context
 }
 
+// BlockSyncService is the P2P Sync Service for blocks.
 type BlockSyncService = SyncService[*types.Block]
+
+// HeaderSyncService is the P2P Sync Service for headers.
 type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewBlockSyncService returns a new BlockSyncService.
@@ -93,14 +96,14 @@ func newSyncService[H header.Header[H]](ctx context.Context, store ds.TxnDatasto
 	}, nil
 }
 
-// Store returns the blockstore of the BlockSyncService
+// Store returns the store of the SyncService
 func (syncService *SyncService[H]) Store() *goheaderstore.Store[H] {
 	return syncService.store
 }
 
-func (syncService *SyncService[H]) initBlockStoreAndStartSyncer(ctx context.Context, initial H) error {
+func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, initial H) error {
 	if initial.IsZero() {
-		return fmt.Errorf("failed to initialize the blockstore and start syncer")
+		return fmt.Errorf("failed to initialize the store and start syncer")
 	}
 	if err := syncService.store.Init(ctx, initial); err != nil {
 		return err
@@ -111,35 +114,33 @@ func (syncService *SyncService[H]) initBlockStoreAndStartSyncer(ctx context.Cont
 	return nil
 }
 
-// WriteToStoreAndBroadcast initializes block store if needed and broadcasts
-// provided block.
-// Note: Only returns an error in case block store can't be initialized. Logs
-// error if there's one while broadcasting.
-func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, block H) error {
+// WriteToStoreAndBroadcast initializes store if needed and broadcasts  provided header or block.
+// Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
+func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrBlock H) error {
 	if syncService.genesis.InitialHeight < 0 {
 		return fmt.Errorf("invalid initial height; cannot be negative")
 	}
-	isGenesis := block.Height() == uint64(syncService.genesis.InitialHeight)
-	// For genesis block initialize the store and start the syncer
+	isGenesis := headerOrBlock.Height() == uint64(syncService.genesis.InitialHeight)
+	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
-		if err := syncService.store.Init(ctx, block); err != nil {
-			return fmt.Errorf("failed to initialize block store")
+		if err := syncService.store.Init(ctx, headerOrBlock); err != nil {
+			return fmt.Errorf("failed to initialize the store")
 		}
 
 		if err := syncService.StartSyncer(); err != nil {
-			return fmt.Errorf("failed to start syncer after initializing block store")
+			return fmt.Errorf("failed to start syncer after initializing the store")
 		}
 	}
 
 	// Broadcast for subscribers
-	if err := syncService.sub.Broadcast(ctx, block); err != nil {
+	if err := syncService.sub.Broadcast(ctx, headerOrBlock); err != nil {
 		// for the genesis header, broadcast error is expected as we have already initialized the store
 		// for starting the syncer. Hence, we ignore the error.
 		// exact reason: validation failed, err header verification failed: known header: '1' <= current '1'
 		if isGenesis && errors.Is(err, pubsub.ValidationError{Reason: pubsub.RejectValidationFailed}) {
 			return nil
 		}
-		return fmt.Errorf("failed to broadcast block: %w", err)
+		return fmt.Errorf("failed to broadcast: %w", err)
 	}
 	return nil
 }
@@ -152,13 +153,13 @@ func (syncService *SyncService[H]) isInitialized() bool {
 func (syncService *SyncService[H]) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := syncService.p2p.PubSub()
-	chainIDBlock := syncService.genesis.ChainID + "-" + syncService.prefix
+	chainID := syncService.genesis.ChainID + "-" + syncService.prefix
 
 	var err error
 	syncService.sub, err = goheaderp2p.NewSubscriber[H](
 		ps,
 		pubsub.DefaultMsgIdFn,
-		goheaderp2p.WithSubscriberNetworkID(chainIDBlock),
+		goheaderp2p.WithSubscriberNetworkID(chainID),
 		goheaderp2p.WithSubscriberMetrics(),
 	)
 	if err != nil {
@@ -173,16 +174,16 @@ func (syncService *SyncService[H]) Start() error {
 	}
 
 	if err := syncService.store.Start(syncService.ctx); err != nil {
-		return fmt.Errorf("error while starting block store: %w", err)
+		return fmt.Errorf("error while starting store: %w", err)
 	}
 
 	_, _, network, err := syncService.p2p.Info()
 	if err != nil {
 		return fmt.Errorf("error while fetching the network: %w", err)
 	}
-	networkIDBlock := network + "-" + syncService.prefix
+	networkID := network + "-" + syncService.prefix
 
-	if syncService.p2pServer, err = newBlockP2PServer(syncService.p2p.Host(), syncService.store, networkIDBlock); err != nil {
+	if syncService.p2pServer, err = newP2PServer(syncService.p2p.Host(), syncService.store, networkID); err != nil {
 		return fmt.Errorf("error while creating p2p server: %w", err)
 	}
 	if err := syncService.p2pServer.Start(syncService.ctx); err != nil {
@@ -193,14 +194,14 @@ func (syncService *SyncService[H]) Start() error {
 	if !syncService.conf.Aggregator {
 		peerIDs = append(peerIDs, getSeedNodes(syncService.conf.P2P.Seeds, syncService.logger)...)
 	}
-	if syncService.ex, err = newBlockP2PExchange[H](syncService.p2p.Host(), peerIDs, networkIDBlock, syncService.genesis.ChainID, syncService.p2p.ConnectionGater()); err != nil {
+	if syncService.ex, err = newP2PExchange[H](syncService.p2p.Host(), peerIDs, networkID, syncService.genesis.ChainID, syncService.p2p.ConnectionGater()); err != nil {
 		return fmt.Errorf("error while creating exchange: %w", err)
 	}
 	if err := syncService.ex.Start(syncService.ctx); err != nil {
 		return fmt.Errorf("error while starting exchange: %w", err)
 	}
 
-	if syncService.syncer, err = newBlockSyncer[H](
+	if syncService.syncer, err = newSyncer[H](
 		syncService.ex,
 		syncService.store,
 		syncService.sub,
@@ -216,28 +217,28 @@ func (syncService *SyncService[H]) Start() error {
 		return nil
 	}
 
-	// Look to see if trusted hash is passed, if not get the genesis block
-	var trustedBlock H
-	// Try fetching the trusted block from peers if exists
+	// Look to see if trusted hash is passed, if not get the genesis header/block
+	var trusted H
+	// Try fetching the trusted header/block from peers if exists
 	if len(peerIDs) > 0 {
 		if syncService.conf.TrustedHash != "" {
 			trustedHashBytes, err := hex.DecodeString(syncService.conf.TrustedHash)
 			if err != nil {
-				return fmt.Errorf("failed to parse the trusted hash for initializing the blockstore: %w", err)
+				return fmt.Errorf("failed to parse the trusted hash for initializing the store: %w", err)
 			}
 
-			if trustedBlock, err = syncService.ex.Get(syncService.ctx, header.Hash(trustedHashBytes)); err != nil {
-				return fmt.Errorf("failed to fetch the trusted block for initializing the store: %w", err)
+			if trusted, err = syncService.ex.Get(syncService.ctx, header.Hash(trustedHashBytes)); err != nil {
+				return fmt.Errorf("failed to fetch the trusted header/block for initializing the store: %w", err)
 			}
 		} else {
-			// Try fetching the genesis block if available, otherwise fallback to blocks
-			if trustedBlock, err = syncService.ex.GetByHeight(syncService.ctx, uint64(syncService.genesis.InitialHeight)); err != nil {
+			// Try fetching the genesis header/block if available, otherwise fallback to block
+			if trusted, err = syncService.ex.GetByHeight(syncService.ctx, uint64(syncService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis block
 				// proposing aggregator can init the store and start the syncer when the first block is published
-				return fmt.Errorf("failed to fetch the genesis block: %w", err)
+				return fmt.Errorf("failed to fetch the genesis: %w", err)
 			}
 		}
-		return syncService.initBlockStoreAndStartSyncer(syncService.ctx, trustedBlock)
+		return syncService.initStoreAndStartSyncer(syncService.ctx, trusted)
 	}
 	return nil
 }
@@ -258,8 +259,8 @@ func (syncService *SyncService[H]) Stop() error {
 	return err
 }
 
-// newBlockP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
-func newBlockP2PServer[H header.Header[H]](
+// newP2PServer constructs a new ExchangeServer using the given Network as a protocolID suffix.
+func newP2PServer[H header.Header[H]](
 	host host.Host,
 	store *goheaderstore.Store[H],
 	network string,
@@ -272,7 +273,7 @@ func newBlockP2PServer[H header.Header[H]](
 	return goheaderp2p.NewExchangeServer[H](host, store, opts...)
 }
 
-func newBlockP2PExchange[H header.Header[H]](
+func newP2PExchange[H header.Header[H]](
 	host host.Host,
 	peers []peer.ID,
 	network, chainID string,
@@ -287,8 +288,8 @@ func newBlockP2PExchange[H header.Header[H]](
 	return goheaderp2p.NewExchange[H](host, peers, conngater, opts...)
 }
 
-// newBlockSyncer constructs new Syncer for blocks.
-func newBlockSyncer[H header.Header[H]](
+// newSyncer constructs new Syncer for headers/blocks.
+func newSyncer[H header.Header[H]](
 	ex header.Exchange[H],
 	store header.Store[H],
 	sub header.Subscriber[H],
@@ -300,7 +301,7 @@ func newBlockSyncer[H header.Header[H]](
 	return goheadersync.NewSyncer[H](ex, store, sub, opts...)
 }
 
-// StartSyncer starts the BlockSyncService's syncer
+// StartSyncer starts the SyncService's syncer
 func (syncService *SyncService[H]) StartSyncer() error {
 	if syncService.syncerStatus.isStarted() {
 		return nil
