@@ -20,6 +20,7 @@ import (
 	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
+	"github.com/mitchellh/mapstructure"
 
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
@@ -55,6 +56,11 @@ func NewRunNodeCmd() *cobra.Command {
 			err := parseConfig(cmd)
 			if err != nil {
 				return err
+			}
+
+			// use aggregator by default
+			if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
+				nodeConfig.Aggregator = true
 			}
 
 			// Update log format if the flag is set
@@ -112,11 +118,6 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
-			// handle lazy aggregator mode
-			if lazyAgg := cmd.Flags().Lookup("rollkit.lazy_aggregator"); lazyAgg.Changed {
-				nodeConfig.LazyAggregator = lazyAgg.Value.String() == "true"
-			}
-
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
 				srv, err := startMockDAServJSONRPC(cmd.Context())
@@ -125,6 +126,11 @@ func NewRunNodeCmd() *cobra.Command {
 				}
 				// nolint:errcheck,gosec
 				defer func() { srv.Stop(cmd.Context()) }()
+			}
+
+			// use noop proxy app by default
+			if !cmd.Flags().Lookup("proxy_app").Changed {
+				config.ProxyApp = "noop"
 			}
 
 			// create the rollkit node
@@ -178,6 +184,13 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// CI mode. Wait for 5s and then verify the node is running before calling stop node.
 			time.Sleep(5 * time.Second)
+			res, err := rollnode.GetClient().Block(context.Background(), nil)
+			if err != nil {
+				return err
+			}
+			if res.Block.Height == 0 {
+				return fmt.Errorf("node hasn't produced any blocks")
+			}
 			if !rollnode.IsRunning() {
 				return fmt.Errorf("node is not running")
 
@@ -189,15 +202,6 @@ func NewRunNodeCmd() *cobra.Command {
 
 	addNodeFlags(cmd)
 
-	// use noop proxy app by default
-	if !cmd.Flags().Lookup("proxy_app").Changed {
-		config.ProxyApp = "noop"
-	}
-
-	// use aggregator by default
-	if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-		nodeConfig.Aggregator = true
-	}
 	return cmd
 }
 
@@ -284,8 +288,6 @@ func initFiles() error {
 	return nil
 }
 
-// parseConfig retrieves the default environment configuration, sets up the
-// Rollkit root and ensures that the root exists
 func parseConfig(cmd *cobra.Command) error {
 	// Set the root directory for the config to the home directory
 	home := os.Getenv("RKHOME")
@@ -305,5 +307,42 @@ func parseConfig(cmd *cobra.Command) error {
 	if err := config.ValidateBasic(); err != nil {
 		return fmt.Errorf("error in config file: %w", err)
 	}
+
+	// Parse the flags
+	if err := parseFlags(cmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func parseFlags(cmd *cobra.Command) error {
+	v := viper.GetViper()
+	if err := v.BindPFlags(cmd.Flags()); err != nil {
+		return err
+	}
+
+	// unmarshal viper into config
+	err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+		c.TagName = "mapstructure"
+		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+		)
+	})
+	if err != nil {
+		return fmt.Errorf("unable to decode command flags into config: %w", err)
+	}
+
+	// special handling for the p2p external address, due to inconsistencies in mapstructure and flag name
+	if cmd.Flags().Lookup("p2p.external-address").Changed {
+		config.P2P.ExternalAddress = viper.GetString("p2p.external-address")
+	}
+
+	// handle rollkit node configuration
+	if err := nodeConfig.GetViperConfig(v); err != nil {
+		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
+	}
+
 	return nil
 }

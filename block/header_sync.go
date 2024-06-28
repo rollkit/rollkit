@@ -6,10 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-header"
-	goheaderp2p "github.com/celestiaorg/go-header/p2p"
-	goheaderstore "github.com/celestiaorg/go-header/store"
-	goheadersync "github.com/celestiaorg/go-header/sync"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -17,6 +13,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
+
+	"github.com/celestiaorg/go-header"
+	goheaderp2p "github.com/celestiaorg/go-header/p2p"
+	goheaderstore "github.com/celestiaorg/go-header/store"
+	goheadersync "github.com/celestiaorg/go-header/sync"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
@@ -169,6 +170,9 @@ func (hSyncService *HeaderSyncService) Start() error {
 	}
 
 	peerIDs := hSyncService.p2p.PeerIDs()
+	if !hSyncService.conf.Aggregator {
+		peerIDs = append(peerIDs, getSeedNodes(hSyncService.conf.P2P.Seeds, hSyncService.logger)...)
+	}
 	if hSyncService.ex, err = newP2PExchange(hSyncService.p2p.Host(), peerIDs, network, hSyncService.genesis.ChainID, hSyncService.p2p.ConnectionGater()); err != nil {
 		return fmt.Errorf("error while creating exchange: %w", err)
 	}

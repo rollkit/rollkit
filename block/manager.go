@@ -162,12 +162,11 @@ func NewManager(
 	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(store, genesis)
-	//set block height in store
-	store.SetHeight(context.Background(), s.LastBlockHeight)
-
 	if err != nil {
 		return nil, err
 	}
+	//set block height in store
+	store.SetHeight(context.Background(), s.LastBlockHeight)
 
 	if s.DAHeight < conf.DAStartHeight {
 		s.DAHeight = conf.DAStartHeight

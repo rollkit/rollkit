@@ -117,6 +117,7 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 	entrypointCmd := exec.Command(entrypointBinaryFilePath, runArgs...) //nolint:gosec
 	entrypointCmd.Stdout = os.Stdout
 	entrypointCmd.Stderr = os.Stderr
+	entrypointCmd.Stdin = os.Stdin
 
 	if err := entrypointCmd.Run(); err != nil {
 		return fmt.Errorf("failed to run entrypoint: %w", err)

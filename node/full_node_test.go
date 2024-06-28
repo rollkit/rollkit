@@ -14,10 +14,9 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
-
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

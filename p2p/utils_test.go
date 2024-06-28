@@ -43,7 +43,7 @@ type hostDescr struct {
 }
 
 // copied from libp2p net/mock
-var blackholeIP6 = net.ParseIP("100::")
+var unicastAddr = net.ParseIP("2000::")
 
 // copied from libp2p net/mock
 func getAddr(sk crypto.PrivKey) (multiaddr.Multiaddr, error) {
@@ -55,7 +55,7 @@ func getAddr(sk crypto.PrivKey) (multiaddr.Multiaddr, error) {
 	if len(id) > 8 {
 		suffix = id[len(id)-8:]
 	}
-	ip := append(net.IP{}, blackholeIP6...)
+	ip := append(net.IP{}, unicastAddr...)
 	copy(ip[net.IPv6len-len(suffix):], suffix)
 	a, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/4242", ip))
 	if err != nil {
@@ -74,6 +74,8 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 		if d, ok := conf[i]; ok {
 			descr = d
 		}
+		// workaround to always generate our own addr
+		descr.realKey = true
 		if descr.realKey {
 			privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 			addr, err := getAddr(privKey)
