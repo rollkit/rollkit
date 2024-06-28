@@ -26,6 +26,13 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+type syncType string
+
+const (
+	headerSync syncType = "headerSync"
+	blockSync  syncType = "blockSync"
+)
+
 // SyncService is the P2P Sync Service for blocks and headers.
 //
 // Uses the go-header library for handling all P2P logic.
@@ -37,7 +44,7 @@ type SyncService[H header.Header[H]] struct {
 	sub       *goheaderp2p.Subscriber[H]
 	p2pServer *goheaderp2p.ExchangeServer[H]
 	store     *goheaderstore.Store[H]
-	prefix    string
+	syncType  syncType
 
 	syncer       *goheadersync.Syncer[H]
 	syncerStatus *SyncerStatus
@@ -54,15 +61,15 @@ type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewBlockSyncService returns a new BlockSyncService.
 func NewBlockSyncService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*BlockSyncService, error) {
-	return newSyncService[*types.Block](ctx, store, "block", conf, genesis, p2p, logger)
+	return newSyncService[*types.Block](ctx, store, blockSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.
 func NewHeaderSyncService(ctx context.Context, store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
-	return newSyncService[*types.SignedHeader](ctx, store, "header", conf, genesis, p2p, logger)
+	return newSyncService[*types.SignedHeader](ctx, store, headerSync, conf, genesis, p2p, logger)
 }
 
-func newSyncService[H header.Header[H]](ctx context.Context, store ds.TxnDatastore, prefix string, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
+func newSyncService[H header.Header[H]](ctx context.Context, store ds.TxnDatastore, syncType syncType, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
 	}
@@ -77,11 +84,11 @@ func newSyncService[H header.Header[H]](ctx context.Context, store ds.TxnDatasto
 	}
 	ss, err := goheaderstore.NewStore[H](
 		storeBatch,
-		goheaderstore.WithStorePrefix(prefix+"Sync"),
+		goheaderstore.WithStorePrefix(string(syncType)),
 		goheaderstore.WithMetrics(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize the %s store: %w", prefix, err)
+		return nil, fmt.Errorf("failed to initialize the %s store: %w", syncType, err)
 	}
 
 	return &SyncService[H]{
@@ -90,7 +97,7 @@ func newSyncService[H header.Header[H]](ctx context.Context, store ds.TxnDatasto
 		p2p:          p2p,
 		ctx:          ctx,
 		store:        ss,
-		prefix:       prefix,
+		syncType:     syncType,
 		logger:       logger,
 		syncerStatus: new(SyncerStatus),
 	}, nil
@@ -153,7 +160,7 @@ func (syncService *SyncService[H]) isInitialized() bool {
 func (syncService *SyncService[H]) Start() error {
 	// have to do the initializations here to utilize the p2p node which is created on start
 	ps := syncService.p2p.PubSub()
-	chainID := syncService.genesis.ChainID + "-" + syncService.prefix
+	chainID := syncService.genesis.ChainID + "-" + string(syncService.syncType)
 
 	var err error
 	syncService.sub, err = goheaderp2p.NewSubscriber[H](
@@ -181,7 +188,7 @@ func (syncService *SyncService[H]) Start() error {
 	if err != nil {
 		return fmt.Errorf("error while fetching the network: %w", err)
 	}
-	networkID := network + "-" + syncService.prefix
+	networkID := network + "-" + string(syncService.syncType)
 
 	if syncService.p2pServer, err = newP2PServer(syncService.p2p.Host(), syncService.store, networkID); err != nil {
 		return fmt.Errorf("error while creating p2p server: %w", err)
