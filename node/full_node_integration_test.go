@@ -328,7 +328,7 @@ func TestChangeValSet(t *testing.T) {
 
 	// tmpubKey1
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey()
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	tmPubKey1, err := cryptoenc.PubKeyToProto(genesisDoc.Validators[0].PubKey)
