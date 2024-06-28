@@ -79,7 +79,7 @@ func newLightNode(
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSyncService(ctx, datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -120,7 +120,7 @@ func (ln *LightNode) OnStart() error {
 		return err
 	}
 
-	if err := ln.hSyncService.Start(); err != nil {
+	if err := ln.hSyncService.Start(ln.ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
@@ -132,7 +132,7 @@ func (ln *LightNode) OnStop() {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()
 	err := ln.P2P.Close()
-	err = errors.Join(err, ln.hSyncService.Stop())
+	err = errors.Join(err, ln.hSyncService.Stop(ln.ctx))
 	ln.Logger.Error("errors while stopping node:", "errors", err)
 }
 
