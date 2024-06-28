@@ -45,31 +45,47 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 		}
 	}
 
-	isAdjacent := sh.Height()+1 == untrstH.Height()
-	if isAdjacent {
-		if !bytes.Equal(untrstH.LastHeader(), sh.Hash()) {
-			return &header.VerifyError{
-				Reason: fmt.Errorf("%w: expected (%X), but got (%X)",
-					ErrLastHeaderHashMismatch,
-					sh.Hash(),
-					untrstH.LastHeader(),
-				),
-			}
+	if sh.isAdjacent(untrstH) {
+		if err := sh.verifyHeaderHash(untrstH); err != nil {
+			return err
 		}
-
-		sHHash := sh.Header.Hash()
-		sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
-		if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
-			return &header.VerifyError{
-				Reason: fmt.Errorf("%w: expected %v, but got %v",
-					ErrLastCommitHashMismatch,
-					untrstH.LastCommitHash[:], sHHash,
-				),
-			}
+		if err := sh.verifyCommitHash(untrstH); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// verifyHeaderHash verifies the header hash.
+func (sh *SignedHeader) verifyHeaderHash(untrstH *SignedHeader) error {
+	hash := sh.Hash()
+	if !bytes.Equal(hash, untrstH.LastHeader()) {
+		return sh.newVerifyError(ErrLastHeaderHashMismatch, hash, untrstH.LastHeader())
+	}
+	return nil
+}
+
+// verifyCommitHash verifies the commit hash.
+func (sh *SignedHeader) verifyCommitHash(untrstH *SignedHeader) error {
+	expectedCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
+	if !bytes.Equal(expectedCommitHash, untrstH.LastCommitHash) {
+		return sh.newVerifyError(ErrLastCommitHashMismatch, expectedCommitHash, untrstH.LastCommitHash)
+	}
+
+	return nil
+}
+
+// isAdjacent checks if the height of headers is adjacent.
+func (sh *SignedHeader) isAdjacent(untrstH *SignedHeader) bool {
+	return sh.Height()+1 == untrstH.Height()
+}
+
+// newVerifyError creates and returns a new error verification.
+func (sh *SignedHeader) newVerifyError(err error, expected, got []byte) *header.VerifyError {
+	return &header.VerifyError{
+		Reason: fmt.Errorf("verification error at height %d: %w: expected %X, but got %X", sh.Height(), err, expected, got),
+	}
 }
 
 var (
