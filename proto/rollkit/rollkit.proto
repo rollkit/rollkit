@@ -58,13 +58,9 @@ message Header {
   string chain_id = 12;
 }
 
-message Commit {
-  repeated bytes signatures = 1;
-}
-
 message SignedHeader {
   Header header = 1;
-  Commit commit = 2;
+  bytes signature = 2;
   tendermint.types.ValidatorSet validators = 3;
 }
 
