@@ -310,7 +310,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 	if finalizeBlockResponse.ConsensusParamUpdates != nil {
 		nextParamsProto, appVersion, err := e.updateConsensusParams(height, types.ConsensusParamsFromProto(state.ConsensusParams), finalizeBlockResponse.ConsensusParamUpdates)
 		if err != nil {
-			return state, err
+			return types.State{}, err
 		}
 		// Change results from this height but only applies to the next height.
 		state.LastHeightConsensusParamsChanged = height + 1
