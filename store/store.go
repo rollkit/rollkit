@@ -20,7 +20,7 @@ import (
 var (
 	blockPrefix          = "b"
 	indexPrefix          = "i"
-	commitPrefix         = "c"
+	signaturePrefix      = "sig"
 	extendedCommitPrefix = "ec"
 	statePrefix          = "s"
 	responsesPrefix      = "r"
@@ -67,16 +67,11 @@ func (s *DefaultStore) Height() uint64 {
 
 // SaveBlock adds block to the store along with corresponding commit.
 // Stored height is updated if block height is greater than stored value.
-func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit *types.Commit) error {
+func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, signature *types.Signature) error {
 	hash := block.Hash()
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal Block to binary: %w", err)
-	}
-
-	commitBlob, err := commit.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("failed to marshal Commit to binary: %w", err)
 	}
 
 	bb, err := s.db.NewTransaction(ctx, false)
@@ -89,7 +84,7 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, commit
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Block Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getCommitKey(hash)), commitBlob)
+	err = bb.Put(ctx, ds.NewKey(getSignatureKey(hash)), *signature)
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
@@ -156,26 +151,22 @@ func (s *DefaultStore) GetBlockResponses(ctx context.Context, height uint64) (*a
 }
 
 // GetCommit returns commit for a block at given height, or error if it's not found in Store.
-func (s *DefaultStore) GetCommit(ctx context.Context, height uint64) (*types.Commit, error) {
+func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
 	hash, err := s.loadHashFromIndex(ctx, height)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
-	return s.GetCommitByHash(ctx, hash)
+	return s.GetSignatureByHash(ctx, hash)
 }
 
 // GetCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) GetCommitByHash(ctx context.Context, hash types.Hash) (*types.Commit, error) {
-	commitData, err := s.db.Get(ctx, ds.NewKey(getCommitKey(hash)))
+func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
+	signatureData, err := s.db.Get(ctx, ds.NewKey(getSignatureKey(hash)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve commit from hash %v: %w", hash, err)
+		return nil, fmt.Errorf("failed to retrieve signature from hash %v: %w", hash, err)
 	}
-	commit := new(types.Commit)
-	err = commit.UnmarshalBinary(commitData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Commit into object: %w", err)
-	}
-	return commit, nil
+	signature := types.Signature(signatureData)
+	return &signature, nil
 }
 
 // SaveExtendedCommit saves extended commit information in Store.
@@ -269,8 +260,8 @@ func getBlockKey(hash types.Hash) string {
 	return GenerateKey([]string{blockPrefix, hex.EncodeToString(hash[:])})
 }
 
-func getCommitKey(hash types.Hash) string {
-	return GenerateKey([]string{commitPrefix, hex.EncodeToString(hash[:])})
+func getSignatureKey(hash types.Hash) string {
+	return GenerateKey([]string{signaturePrefix, hex.EncodeToString(hash[:])})
 }
 
 func getExtendedCommitKey(height uint64) string {

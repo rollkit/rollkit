@@ -127,24 +127,24 @@ func (_m *Store) GetBlockResponses(ctx context.Context, height uint64) (*abcityp
 	return r0, r1
 }
 
-// GetCommit provides a mock function with given fields: ctx, height
-func (_m *Store) GetCommit(ctx context.Context, height uint64) (*types.Commit, error) {
+// GetSignature provides a mock function with given fields: ctx, height
+func (_m *Store) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
 	ret := _m.Called(ctx, height)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetCommit")
+		panic("no return value specified for GetSignature")
 	}
 
-	var r0 *types.Commit
+	var r0 *types.Signature
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*types.Commit, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*types.Signature, error)); ok {
 		return rf(ctx, height)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) *types.Commit); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) *types.Signature); ok {
 		r0 = rf(ctx, height)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Commit)
+			r0 = ret.Get(0).(*types.Signature)
 		}
 	}
 
@@ -157,24 +157,24 @@ func (_m *Store) GetCommit(ctx context.Context, height uint64) (*types.Commit, e
 	return r0, r1
 }
 
-// GetCommitByHash provides a mock function with given fields: ctx, hash
-func (_m *Store) GetCommitByHash(ctx context.Context, hash header.Hash) (*types.Commit, error) {
+// GetSignatureByHash provides a mock function with given fields: ctx, hash
+func (_m *Store) GetSignatureByHash(ctx context.Context, hash header.Hash) (*types.Signature, error) {
 	ret := _m.Called(ctx, hash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommitByHash")
 	}
 
-	var r0 *types.Commit
+	var r0 *types.Signature
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, header.Hash) (*types.Commit, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, header.Hash) (*types.Signature, error)); ok {
 		return rf(ctx, hash)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, header.Hash) *types.Commit); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, header.Hash) *types.Signature); ok {
 		r0 = rf(ctx, hash)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Commit)
+			r0 = ret.Get(0).(*types.Signature)
 		}
 	}
 
@@ -294,7 +294,7 @@ func (_m *Store) Height() uint64 {
 }
 
 // SaveBlock provides a mock function with given fields: ctx, block, commit
-func (_m *Store) SaveBlock(ctx context.Context, block *types.Block, commit *types.Commit) error {
+func (_m *Store) SaveBlock(ctx context.Context, block *types.Block, commit *types.Signature) error {
 	ret := _m.Called(ctx, block, commit)
 
 	if len(ret) == 0 {
@@ -302,7 +302,7 @@ func (_m *Store) SaveBlock(ctx context.Context, block *types.Block, commit *type
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Block, *types.Commit) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *types.Block, *types.Signature) error); ok {
 		r0 = rf(ctx, block, commit)
 	} else {
 		r0 = ret.Error(0)

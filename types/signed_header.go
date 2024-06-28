@@ -14,7 +14,7 @@ import (
 // Used mostly for gossiping.
 type SignedHeader struct {
 	Header
-	Commit     Commit
+	Signature  Signature
 	Validators *cmtypes.ValidatorSet
 }
 
@@ -68,7 +68,7 @@ func (sh *SignedHeader) verifyHeaderHash(untrstH *SignedHeader) error {
 
 // verifyCommitHash verifies the commit hash.
 func (sh *SignedHeader) verifyCommitHash(untrstH *SignedHeader) error {
-	expectedCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
+	expectedCommitHash := sh.Signature.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
 	if !bytes.Equal(expectedCommitHash, untrstH.LastCommitHash) {
 		return sh.newVerifyError(ErrLastCommitHashMismatch, expectedCommitHash, untrstH.LastCommitHash)
 	}
@@ -106,9 +106,6 @@ var (
 	// ErrProposerNotInValSet is returned when the proposer address in the validator set is not in the validator set
 	ErrProposerNotInValSet = errors.New("proposer address in the validator set is not in the validator set")
 
-	// ErrNoSignatures is returned when there are no signatures
-	ErrNoSignatures = errors.New("no signatures")
-
 	// ErrSignatureEmpty is returned when signature is empty
 	ErrSignatureEmpty = errors.New("signature is empty")
 )
@@ -133,7 +130,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return err
 	}
 
-	if err := sh.Commit.ValidateBasic(); err != nil {
+	if err := sh.Signature.ValidateBasic(); err != nil {
 		return err
 	}
 
@@ -156,12 +153,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return ErrProposerNotInValSet
 	}
 
-	// Make sure there is exactly one signature
-	if len(sh.Commit.Signatures) != 1 {
-		return errors.New("expected exactly one signature")
-	}
-
-	signature := sh.Commit.Signatures[0]
+	signature := sh.Signature
 
 	vote := sh.Header.MakeCometBFTVote()
 	if !sh.Validators.Validators[0].PubKey.VerifySignature(vote, signature) {

@@ -211,7 +211,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			blob, err := block.MarshalBinary()
 			require.NoError(t, err)
 
-			err = m.store.SaveBlock(ctx, block, &types.Commit{})
+			err = m.store.SaveBlock(ctx, block, &types.Signature{})
 			require.NoError(t, err)
 			m.store.SetHeight(ctx, 1)
 
@@ -327,7 +327,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// PendingBlocks depend on store, so blocks needs to be saved and height updated
 			for _, block := range tc.blocks {
-				require.NoError(m.store.SaveBlock(ctx, block, &types.Commit{}))
+				require.NoError(m.store.SaveBlock(ctx, block, &types.Signature{}))
 			}
 			m.store.SetHeight(ctx, uint64(len(tc.blocks)))
 
