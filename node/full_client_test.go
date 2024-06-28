@@ -315,7 +315,7 @@ func TestGetBlock(t *testing.T) {
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 	block := types.GetRandomBlock(1, 10)
-	err := rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
+	err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
 	rpc.node.Store.SetHeight(ctx, block.Height())
 	require.NoError(err)
 
@@ -338,7 +338,7 @@ func TestGetCommit(t *testing.T) {
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 	for _, b := range blocks {
-		err := rpc.node.Store.SaveBlock(ctx, b, &types.Commit{})
+		err := rpc.node.Store.SaveBlock(ctx, b, &types.Signature{})
 		rpc.node.Store.SetHeight(ctx, b.Height())
 		require.NoError(err)
 	}
@@ -383,7 +383,7 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 
 	// save the 3 blocks
 	for _, b := range blocks {
-		err := rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Commit) // #nosec G601
+		err := rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Signature) // #nosec G601
 		rpc.node.Store.SetHeight(ctx, b.Height())
 		require.NoError(err)
 	}
@@ -438,7 +438,7 @@ func TestBlockSearch(t *testing.T) {
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
 		block := types.GetRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
+		err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
 		require.NoError(err)
 	}
 	indexBlocks(t, rpc, heights)
@@ -497,7 +497,7 @@ func TestGetBlockByHash(t *testing.T) {
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 	block := types.GetRandomBlock(1, 10)
-	err := rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
+	err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
 	require.NoError(err)
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	require.NoError(err)
@@ -695,7 +695,7 @@ func TestBlockchainInfo(t *testing.T) {
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
 		block := types.GetRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(ctx, block, &types.Commit{})
+		err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
 		rpc.node.Store.SetHeight(ctx, block.Height())
 		require.NoError(err)
 	}
@@ -917,7 +917,7 @@ func TestStatus(t *testing.T) {
 		ProposerAddr: pubKey.Bytes(),
 	}
 	earliestBlock, _ := types.GenerateRandomBlockCustom(&config)
-	err = rpc.node.Store.SaveBlock(ctx, earliestBlock, &types.Commit{})
+	err = rpc.node.Store.SaveBlock(ctx, earliestBlock, &types.Signature{})
 	rpc.node.Store.SetHeight(ctx, earliestBlock.Height())
 	require.NoError(err)
 
@@ -927,7 +927,7 @@ func TestStatus(t *testing.T) {
 		ProposerAddr: pubKey.Bytes(),
 	}
 	latestBlock, _ := types.GenerateRandomBlockCustom(&config)
-	err = rpc.node.Store.SaveBlock(ctx, latestBlock, &types.Commit{})
+	err = rpc.node.Store.SaveBlock(ctx, latestBlock, &types.Signature{})
 	rpc.node.Store.SetHeight(ctx, latestBlock.Height())
 	require.NoError(err)
 

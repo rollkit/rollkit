@@ -87,7 +87,7 @@ func newPendingBlocks(t *testing.T) *PendingBlocks {
 
 func fillWithBlocks(ctx context.Context, t *testing.T, pb *PendingBlocks) {
 	for i := uint64(1); i <= numBlocks; i++ {
-		require.NoError(t, pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Commit{}))
+		require.NoError(t, pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Signature{}))
 		pb.store.SetHeight(ctx, i)
 	}
 }

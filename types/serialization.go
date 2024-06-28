@@ -59,22 +59,6 @@ func (d *Data) UnmarshalBinary(data []byte) error {
 	return err
 }
 
-// MarshalBinary encodes Commit into binary form and returns it.
-func (c *Commit) MarshalBinary() ([]byte, error) {
-	return c.ToProto().Marshal()
-}
-
-// UnmarshalBinary decodes binary form of Commit into object.
-func (c *Commit) UnmarshalBinary(data []byte) error {
-	var pCommit pb.Commit
-	err := pCommit.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-	err = c.FromProto(&pCommit)
-	return err
-}
-
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
 	vSet, err := sh.Validators.ToProto()
@@ -83,7 +67,7 @@ func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
 	}
 	return &pb.SignedHeader{
 		Header:     sh.Header.ToProto(),
-		Commit:     sh.Commit.ToProto(),
+		Signature:  sh.Signature[:],
 		Validators: vSet,
 	}, nil
 }
@@ -94,10 +78,7 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	if err != nil {
 		return err
 	}
-	err = sh.Commit.FromProto(other.Commit)
-	if err != nil {
-		return err
-	}
+	sh.Signature = other.Signature
 
 	if other.Validators != nil && other.Validators.GetProposer() != nil {
 		validators, err := types.ValidatorSetFromProto(other.Validators)
@@ -222,20 +203,6 @@ func (d *Data) FromProto(other *pb.Data) error {
 	return nil
 }
 
-// ToProto converts Commit into protobuf representation and returns it.
-func (c *Commit) ToProto() *pb.Commit {
-	return &pb.Commit{
-		Signatures: signaturesToByteSlices(c.Signatures),
-	}
-}
-
-// FromProto fills Commit with data from its protobuf representation.
-func (c *Commit) FromProto(other *pb.Commit) error {
-	c.Signatures = byteSlicesToSignatures(other.Signatures)
-
-	return nil
-}
-
 // ToProto converts State into protobuf representation and returns it.
 func (s *State) ToProto() (*pb.State, error) {
 	nextValidators, err := s.NextValidators.ToProto()
@@ -346,28 +313,6 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 // 	// TODO(tzdybal): right now Evidence is just an interface without implementations
 // 	return ret
 // }
-
-func signaturesToByteSlices(sigs []Signature) [][]byte {
-	if sigs == nil {
-		return nil
-	}
-	bytes := make([][]byte, len(sigs))
-	for i := range sigs {
-		bytes[i] = sigs[i]
-	}
-	return bytes
-}
-
-func byteSlicesToSignatures(bytes [][]byte) []Signature {
-	if bytes == nil {
-		return nil
-	}
-	sigs := make([]Signature, len(bytes))
-	for i := range bytes {
-		sigs[i] = bytes[i]
-	}
-	return sigs
-}
 
 // ConsensusParamsFromProto converts protobuf consensus parameters to consensus parameters
 func ConsensusParamsFromProto(pbParams cmproto.ConsensusParams) types.ConsensusParams {
