@@ -51,6 +51,12 @@ type State struct {
 
 	// the latest AppHash we've received from calling abci.Commit()
 	AppHash Hash
+
+	// In the MVP implementation, there will be only one Validator
+	Validators                  *types.ValidatorSet
+	NextValidators              *types.ValidatorSet
+	LastValidators              *types.ValidatorSet
+	LastHeightValidatorsChanged int64
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
@@ -60,8 +66,17 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		return State{}, fmt.Errorf("error in genesis doc: %w", err)
 	}
 
-	if len(genDoc.Validators) != 1 {
-		return State{}, fmt.Errorf("must have exactly 1 validator (the centralized sequencer)")
+	var validatorSet, nextValidatorSet *types.ValidatorSet
+	if genDoc.Validators == nil {
+		validatorSet = types.NewValidatorSet(nil)
+		nextValidatorSet = types.NewValidatorSet(nil)
+	} else {
+		validators := make([]*types.Validator, len(genDoc.Validators))
+		for i, val := range genDoc.Validators {
+			validators[i] = types.NewValidator(val.PubKey, val.Power)
+		}
+		validatorSet = types.NewValidatorSet(validators)
+		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
 
 	s := State{
@@ -74,6 +89,11 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
+
+		NextValidators:              nextValidatorSet,
+		Validators:                  validatorSet,
+		LastValidators:              validatorSet,
+		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
 		ConsensusParams: cmproto.ConsensusParams{
 			Block: &cmproto.BlockParams{

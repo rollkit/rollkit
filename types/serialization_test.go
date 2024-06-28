@@ -102,6 +102,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
+	valSet := GetRandomValidatorSet()
 
 	cases := []struct {
 		name  string
@@ -110,6 +111,9 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			"with max bytes",
 			State{
+				LastValidators: valSet,
+				Validators:     valSet,
+				NextValidators: valSet,
 				ConsensusParams: cmproto.ConsensusParams{
 					Block: &cmproto.BlockParams{
 						MaxBytes: 123,
@@ -121,6 +125,9 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			name: "with all fields set",
 			state: State{
+				LastValidators: valSet,
+				Validators:     valSet,
+				NextValidators: valSet,
 				Version: cmstate.Version{
 					Consensus: cmversion.Consensus{
 						Block: 123,
