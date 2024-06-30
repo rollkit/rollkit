@@ -141,7 +141,7 @@ func (b *Block) IsZero() bool {
 
 // ChainID returns chain ID of the block.
 func (b *Block) ChainID() string {
-	return b.SignedHeader.ChainID() + "-block"
+	return b.SignedHeader.ChainID()
 }
 
 // Height returns height of the block.

@@ -29,9 +29,6 @@ func (sh *SignedHeader) IsZero() bool {
 }
 
 var (
-	// ErrNonAdjacentHeaders is returned when the headers are not adjacent.
-	ErrNonAdjacentHeaders = errors.New("non-adjacent headers")
-
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
 	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
 
@@ -48,35 +45,30 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 		}
 	}
 
-	if sh.Height()+1 < untrstH.Height() {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: untrusted %d, trusted %d",
-				ErrNonAdjacentHeaders,
-				untrstH.Height(),
-				sh.Height(),
-			),
-			SoftFailure: true,
+	isAdjacent := sh.Height()+1 == untrstH.Height()
+	if isAdjacent {
+		if !bytes.Equal(untrstH.LastHeader(), sh.Hash()) {
+			return &header.VerifyError{
+				Reason: fmt.Errorf("%w: expected (%X), but got (%X)",
+					ErrLastHeaderHashMismatch,
+					sh.Hash(),
+					untrstH.LastHeader(),
+				),
+			}
+		}
+
+		sHHash := sh.Header.Hash()
+		sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
+		if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
+			return &header.VerifyError{
+				Reason: fmt.Errorf("%w: expected %v, but got %v",
+					ErrLastCommitHashMismatch,
+					untrstH.LastCommitHash[:], sHHash,
+				),
+			}
 		}
 	}
 
-	sHHash := sh.Header.Hash()
-	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: expected %v, but got %v",
-				ErrLastHeaderHashMismatch,
-				untrstH.LastHeaderHash[:], sHHash,
-			),
-		}
-	}
-	sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
-	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: expected %v, but got %v",
-				ErrLastCommitHashMismatch,
-				untrstH.LastCommitHash[:], sHHash,
-			),
-		}
-	}
 	return nil
 }
 
