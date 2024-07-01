@@ -195,7 +195,10 @@ func NewManager(
 		conf.DAMempoolTTL = defaultMempoolTTL
 	}
 
-	proposerAddress := s.Validators.Proposer.Address.Bytes()
+	proposerAddress, err := getAddress(proposerKey)
+	if err != nil {
+		return nil, err
+	}
 
 	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
 	if err != nil {
@@ -262,6 +265,13 @@ func NewManager(
 		isProposer:    isProposer,
 	}
 	return agg, nil
+}
+func getAddress(key crypto.PrivKey) ([]byte, error) {
+	rawKey, err := key.GetPublic().Raw()
+	if err != nil {
+		return nil, err
+	}
+	return cmcrypto.AddressHash(rawKey), nil
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
