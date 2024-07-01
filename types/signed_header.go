@@ -29,9 +29,6 @@ func (sh *SignedHeader) IsZero() bool {
 }
 
 var (
-	// ErrNonAdjacentHeaders is returned when the headers are not adjacent.
-	ErrNonAdjacentHeaders = errors.New("non-adjacent headers")
-
 	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
 	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
 
@@ -48,36 +45,47 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 		}
 	}
 
-	if sh.Height()+1 < untrstH.Height() {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: untrusted %d, trusted %d",
-				ErrNonAdjacentHeaders,
-				untrstH.Height(),
-				sh.Height(),
-			),
-			SoftFailure: true,
+	if sh.isAdjacent(untrstH) {
+		if err := sh.verifyHeaderHash(untrstH); err != nil {
+			return err
+		}
+		if err := sh.verifyCommitHash(untrstH); err != nil {
+			return err
 		}
 	}
 
-	sHHash := sh.Header.Hash()
-	if !bytes.Equal(untrstH.LastHeaderHash[:], sHHash) {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: expected %v, but got %v",
-				ErrLastHeaderHashMismatch,
-				untrstH.LastHeaderHash[:], sHHash,
-			),
-		}
-	}
-	sHLastCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
-	if !bytes.Equal(untrstH.LastCommitHash[:], sHLastCommitHash) {
-		return &header.VerifyError{
-			Reason: fmt.Errorf("%w: expected %v, but got %v",
-				ErrLastCommitHashMismatch,
-				untrstH.LastCommitHash[:], sHHash,
-			),
-		}
+	return nil
+}
+
+// verifyHeaderHash verifies the header hash.
+func (sh *SignedHeader) verifyHeaderHash(untrstH *SignedHeader) error {
+	hash := sh.Hash()
+	if !bytes.Equal(hash, untrstH.LastHeader()) {
+		return sh.newVerifyError(ErrLastHeaderHashMismatch, hash, untrstH.LastHeader())
 	}
 	return nil
+}
+
+// verifyCommitHash verifies the commit hash.
+func (sh *SignedHeader) verifyCommitHash(untrstH *SignedHeader) error {
+	expectedCommitHash := sh.Commit.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
+	if !bytes.Equal(expectedCommitHash, untrstH.LastCommitHash) {
+		return sh.newVerifyError(ErrLastCommitHashMismatch, expectedCommitHash, untrstH.LastCommitHash)
+	}
+
+	return nil
+}
+
+// isAdjacent checks if the height of headers is adjacent.
+func (sh *SignedHeader) isAdjacent(untrstH *SignedHeader) bool {
+	return sh.Height()+1 == untrstH.Height()
+}
+
+// newVerifyError creates and returns a new error verification.
+func (sh *SignedHeader) newVerifyError(err error, expected, got []byte) *header.VerifyError {
+	return &header.VerifyError{
+		Reason: fmt.Errorf("verification error at height %d: %w: expected %X, but got %X", sh.Height(), err, expected, got),
+	}
 }
 
 var (
