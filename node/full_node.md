@@ -102,5 +102,5 @@ See [full node]
 [store interface]: https://github.com/rollkit/rollkit/blob/main/store/types.go
 [Block Manager]: https://github.com/rollkit/rollkit/blob/main/block/manager.go
 [dalc]: https://github.com/rollkit/rollkit/blob/main/da/da.go
-[Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/header_sync.go
-[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/block_sync.go
+[Header Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/sync_service.go
+[Block Sync Service]: https://github.com/rollkit/rollkit/blob/main/block/sync_service.go
