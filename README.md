@@ -48,7 +48,8 @@ Explore the CLI documentation [here](./cmd/rollkit/docs/rollkit.md)
 
 ## Building with Rollkit
 
-Rollkit is the first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
+Rollkit is the first sovereign rollup framework that allows you to launch
+a sovereign, customizable blockchain as easily as a smart contract.
 
 Check out our tutorials on our [website][docs].
 

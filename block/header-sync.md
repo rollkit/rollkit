@@ -36,11 +36,11 @@ The sequencer node, upon successfully creating the block, publishes the signed b
 
 ## Implementation
 
-The header sync implementation can be found in [node/header_sync.go][header sync]. The full and light nodes create and start the header sync service under [full][fullnode] and [light][lightnode].
+The header sync implementation can be found in [block/sync_service.go][sync-service]. The full and light nodes create and start the header sync service under [full][fullnode] and [light][lightnode].
 
 ## References
 
-[1] [Header Sync][header sync]
+[1] [Header Sync][sync-service]
 
 [2] [Full Node][fullnode]
 
@@ -48,7 +48,7 @@ The header sync implementation can be found in [node/header_sync.go][header sync
 
 [4] [go-header][go-header]
 
-[header sync]: https://github.com/rollkit/rollkit/blob/main/block/header_sync.go
+[sync-service]: https://github.com/rollkit/rollkit/blob/main/block/sync_service.go
 [fullnode]: https://github.com/rollkit/rollkit/blob/main/node/full.go
 [lightnode]: https://github.com/rollkit/rollkit/blob/main/node/light.go
 [go-header]: https://github.com/celestiaorg/go-header
