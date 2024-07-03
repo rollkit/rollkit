@@ -169,6 +169,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signatur
 	}
 
 	block.Data.Txs = toRollkitTxs(txl)
+	// Note: This is hash of an ABCI type commit equivalent of the last signature in the signed header.
 	block.SignedHeader.LastCommitHash = lastSignature.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.LastHeaderHash = lastHeaderHash
 

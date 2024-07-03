@@ -6,8 +6,6 @@ import (
 	"errors"
 	"time"
 
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
@@ -51,32 +49,9 @@ type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }
 
-// ToABCICommit converts Rollkit signature into commit format defined by ABCI.
-// Other fields (especially ValidatorAddress and Timestamp of Signature) have to be filled by caller.
-func (signature *Signature) ToABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time) *cmtypes.Commit {
-	tmCommit := cmtypes.Commit{
-		Height: int64(height),
-		Round:  0,
-		BlockID: cmtypes.BlockID{
-			Hash:          cmbytes.HexBytes(hash),
-			PartSetHeader: cmtypes.PartSetHeader{},
-		},
-		Signatures: make([]cmtypes.CommitSig, 1),
-	}
-	commitSig := cmtypes.CommitSig{
-		BlockIDFlag:      cmtypes.BlockIDFlagCommit,
-		Signature:        *signature,
-		ValidatorAddress: val,
-		Timestamp:        time,
-	}
-	tmCommit.Signatures[0] = commitSig
-
-	return &tmCommit
-}
-
 // GetCommitHash returns an ABCI commit equivalent hash associated to a signature.
 func (signature *Signature) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-	abciCommit := signature.ToABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time())
+	abciCommit := GetABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time(), *signature)
 	abciCommit.Signatures[0].ValidatorAddress = proposerAddress
 	abciCommit.Signatures[0].Timestamp = header.Time()
 	return abciCommit.Hash()

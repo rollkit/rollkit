@@ -85,7 +85,7 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 	}
 
 	val := block.SignedHeader.Validators.Validators[0].Address
-	abciCommit := block.SignedHeader.Signature.ToABCICommit(block.Height(), block.Hash(), val, block.Time())
+	abciCommit := types.GetABCICommit(block.Height(), block.Hash(), val, block.Time(), block.SignedHeader.Signature)
 
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {

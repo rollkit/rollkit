@@ -70,7 +70,7 @@ Block.Verify()
 	// verify the link to previous.
 	untrustH.LastHeaderHash == h.Header.Hash()
 	// Verify LastCommit hash
-	untrustH.LastCommitHash == sh.Commit.GetCommitHash(...)
+	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
 	
 ```
 

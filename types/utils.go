@@ -11,6 +11,7 @@ import (
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -397,4 +398,27 @@ func getBlockDataWith(nTxs int) *Block {
 		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 	return block
+}
+
+// GetABCICommit returns a commit format defined by ABCI.
+// Other fields (especially ValidatorAddress and Timestamp of Signature) have to be filled by caller.
+func GetABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time, signature Signature) *cmtypes.Commit {
+	tmCommit := cmtypes.Commit{
+		Height: int64(height),
+		Round:  0,
+		BlockID: cmtypes.BlockID{
+			Hash:          cmbytes.HexBytes(hash),
+			PartSetHeader: cmtypes.PartSetHeader{},
+		},
+		Signatures: make([]cmtypes.CommitSig, 1),
+	}
+	commitSig := cmtypes.CommitSig{
+		BlockIDFlag:      cmtypes.BlockIDFlagCommit,
+		Signature:        signature,
+		ValidatorAddress: val,
+		Timestamp:        time,
+	}
+	tmCommit.Signatures[0] = commitSig
+
+	return &tmCommit
 }
