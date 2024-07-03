@@ -20,7 +20,7 @@ import (
 var (
 	blockPrefix          = "b"
 	indexPrefix          = "i"
-	signaturePrefix      = "sig"
+	signaturePrefix      = "c"
 	extendedCommitPrefix = "ec"
 	statePrefix          = "s"
 	responsesPrefix      = "r"
