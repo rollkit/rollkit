@@ -117,9 +117,9 @@ func TestStoreLoad(t *testing.T) {
 					assert.NotNil(block)
 					assert.Equal(expected, block)
 
-					commit, err := bstore.GetSignature(ctx, expected.Height())
+					signature, err := bstore.GetSignature(ctx, expected.Height())
 					assert.NoError(err)
-					assert.NotNil(commit)
+					assert.NotNil(signature)
 				}
 			})
 		}
