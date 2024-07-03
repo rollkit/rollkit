@@ -69,6 +69,7 @@ func (s *DefaultStore) Height() uint64 {
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, signature *types.Signature) error {
 	hash := block.Hash()
+	signatureHash := *signature
 	blockBlob, err := block.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal Block to binary: %w", err)
@@ -84,7 +85,7 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, signat
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Block Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getSignatureKey(hash)), *signature)
+	err = bb.Put(ctx, ds.NewKey(getSignatureKey(hash)), signatureHash[:])
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
@@ -150,7 +151,7 @@ func (s *DefaultStore) GetBlockResponses(ctx context.Context, height uint64) (*a
 	return &responses, nil
 }
 
-// GetCommit returns commit for a block at given height, or error if it's not found in Store.
+// GetCommit returns signature for a block at given height, or error if it's not found in Store.
 func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
 	hash, err := s.loadHashFromIndex(ctx, height)
 	if err != nil {
@@ -159,7 +160,7 @@ func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.
 	return s.GetSignatureByHash(ctx, hash)
 }
 
-// GetCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
+// GetCommitByHash returns signature for a block with given block header hash, or error if it's not found in Store.
 func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
 	signatureData, err := s.db.Get(ctx, ds.NewKey(getSignatureKey(hash)))
 	if err != nil {

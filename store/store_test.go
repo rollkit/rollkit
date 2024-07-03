@@ -101,14 +101,10 @@ func TestStoreLoad(t *testing.T) {
 
 				bstore := New(kv)
 
-				lastSignature := &types.Signature{}
 				for _, block := range c.blocks {
-					signature := &types.Signature{}
-					block.SignedHeader.Signature = *lastSignature
-					block.SignedHeader.Validators = types.GetRandomValidatorSet()
+					signature := &block.SignedHeader.Signature
 					err := bstore.SaveBlock(ctx, block, signature)
 					require.NoError(err)
-					lastSignature = signature
 				}
 
 				for _, expected := range c.blocks {
