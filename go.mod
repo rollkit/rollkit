@@ -19,7 +19,7 @@ require (
 	github.com/libp2p/go-libp2p v0.35.0
 	github.com/libp2p/go-libp2p-kad-dht v0.25.2
 	github.com/libp2p/go-libp2p-pubsub v0.11.0
-	github.com/multiformats/go-multiaddr v0.12.4
+	github.com/multiformats/go-multiaddr v0.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/rollkit/go-da v0.5.0
@@ -36,7 +36,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/btcsuite/btcd/btcec/v2 v2.3.2
+	github.com/btcsuite/btcd/btcec/v2 v2.3.3
 	github.com/celestiaorg/go-header v0.6.2
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/mitchellh/mapstructure v1.5.0

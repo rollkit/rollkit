@@ -32,14 +32,14 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case
 		err     error                        // Expected error
 	}{
-		// 1. Test valid
+		// 0. Test valid
 		// Verify valid adjacent headers
 		// Expect success
 		{
 			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
 			err:     nil,
 		},
-		// 2. Test invalid LastHeaderHash link
+		// 1. Test invalid LastHeaderHash link
 		// break the LastHeaderHash link between the trusted and untrusted header
 		// Expect failure
 		{
@@ -52,7 +52,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrLastHeaderHashMismatch,
 			},
 		},
-		// 3. Test LastCommitHash link between trusted and untrusted header
+		// 2. Test LastCommitHash link between trusted and untrusted header
 		// break the LastCommitHash link between the trusted and untrusted header
 		// Expect failure
 		{
@@ -65,9 +65,9 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrLastCommitHashMismatch,
 			},
 		},
-		// 4. Test non-adjacent
-		// increments the BaseHeader.Height so it's unexpected
-		// Expect failure
+		// 3. Test non-adjacent
+		// increments the BaseHeader.Height so it's headers are non-adjacent
+		// Expect success
 		{
 			prepare: func() (*SignedHeader, bool) {
 				// Checks for non-adjacency
@@ -75,17 +75,29 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				untrusted.Header.BaseHeader.Height++
 				return &untrusted, true
 			},
-			err: &header.VerifyError{
-				Reason: ErrNonAdjacentHeaders,
-			},
+			err: nil,
 		},
-		// 5. Test proposer verification
+		// 4. Test proposer verification
 		// changes the proposed address to a random address
 		// Expect failure
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				untrusted.Header.ProposerAddress = GetRandomBytes(32)
+				return &untrusted, true
+			},
+			err: &header.VerifyError{
+				Reason: ErrProposerVerificationFailed,
+			},
+		},
+		// 5. Test proposer verification for non-adjacent headers
+		// changes the proposed address to a random address and updates height
+		// Expect failure
+		{
+			prepare: func() (*SignedHeader, bool) {
+				untrusted := *untrustedAdj
+				untrusted.Header.ProposerAddress = GetRandomBytes(32)
+				untrusted.BaseHeader.Height++
 				return &untrusted, true
 			},
 			err: &header.VerifyError{
