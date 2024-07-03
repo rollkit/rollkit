@@ -920,7 +920,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) sign(payload []byte) ([]byte, error) {
-	var signature []byte
+	var sig []byte
 	switch m.proposerKey.Type() {
 	case pb.KeyType_Ed25519:
 		return m.proposerKey.Sign(payload)
@@ -931,11 +931,11 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 			return nil, err
 		}
 		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		signature, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
+		sig, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
 		if err != nil {
 			return nil, err
 		}
-		return signature[1:], nil
+		return sig[1:], nil
 	default:
 		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
 	}

@@ -160,7 +160,7 @@ func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.
 	return s.GetSignatureByHash(ctx, hash)
 }
 
-// GetCommitByHash returns signature for a block with given block header hash, or error if it's not found in Store.
+// GetSignatureByHash returns signature for a block with given block header hash, or error if it's not found in Store.
 func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
 	signatureData, err := s.db.Get(ctx, ds.NewKey(getSignatureKey(hash)))
 	if err != nil {
