@@ -151,7 +151,7 @@ func (s *DefaultStore) GetBlockResponses(ctx context.Context, height uint64) (*a
 	return &responses, nil
 }
 
-// GetCommit returns signature for a block at given height, or error if it's not found in Store.
+// GetSignature returns signature for a block at given height, or error if it's not found in Store.
 func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
 	hash, err := s.loadHashFromIndex(ctx, height)
 	if err != nil {
