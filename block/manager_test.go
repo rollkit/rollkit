@@ -147,9 +147,9 @@ func TestSignVerifySignature(t *testing.T) {
 			signingKey, err := types.PrivKeyToSigningKey(c.input)
 			require.NoError(err)
 			m.proposerKey = signingKey
-			sig, err := m.sign(payload)
+			signature, err := m.sign(payload)
 			require.NoError(err)
-			ok := pubKey.VerifySignature(payload, sig)
+			ok := pubKey.VerifySignature(payload, signature)
 			require.True(ok)
 		})
 	}

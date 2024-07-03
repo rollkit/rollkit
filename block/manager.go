@@ -787,7 +787,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	var block *types.Block
-	var sig *types.Signature
+	var signature *types.Signature
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
@@ -820,14 +820,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block.SignedHeader.Validators = m.getLastStateValidators()
 		block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
 
-		sig, err = m.getSignature(block.SignedHeader.Header)
+		signature, err = m.getSignature(block.SignedHeader.Header)
 		if err != nil {
 			return err
 		}
 
 		// set the commit to current block's signed header
-		block.SignedHeader.Signature = *sig
-		err = m.store.SaveBlock(ctx, block, sig)
+		block.SignedHeader.Signature = *signature
+		err = m.store.SaveBlock(ctx, block, signature)
 		if err != nil {
 			return err
 		}
@@ -847,7 +847,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	sig, err = m.getSignature(block.SignedHeader.Header)
+	signature, err = m.getSignature(block.SignedHeader.Header)
 	if err != nil {
 		return err
 	}
@@ -857,7 +857,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// set the commit to current block's signed header
-	block.SignedHeader.Signature = *sig
+	block.SignedHeader.Signature = *signature
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, block); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
@@ -871,7 +871,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.blockCache.setSeen(blockHash)
 
 	// SaveBlock commits the DB tx
-	err = m.store.SaveBlock(ctx, block, sig)
+	err = m.store.SaveBlock(ctx, block, signature)
 	if err != nil {
 		return err
 	}
@@ -920,7 +920,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) sign(payload []byte) ([]byte, error) {
-	var sig []byte
+	var signature []byte
 	switch m.proposerKey.Type() {
 	case pb.KeyType_Ed25519:
 		return m.proposerKey.Sign(payload)
@@ -931,11 +931,11 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 			return nil, err
 		}
 		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
+		signature, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
 		if err != nil {
 			return nil, err
 		}
-		return sig[1:], nil
+		return signature[1:], nil
 	default:
 		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
 	}

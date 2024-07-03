@@ -146,9 +146,9 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	junkProposerBlock.SignedHeader.ProposerAddress = types.GetRandomBytes(32)
 
 	// Recompute signature over the block with the invalid proposer address
-	sig, err := types.GetSignature(junkProposerBlock.SignedHeader.Header, signingKey)
+	signature, err := types.GetSignature(junkProposerBlock.SignedHeader.Header, signingKey)
 	require.NoError(t, err)
-	junkProposerBlock.SignedHeader.Signature = *sig
+	junkProposerBlock.SignedHeader.Signature = *signature
 	require.ErrorIs(t, junkProposerBlock.ValidateBasic(), types.ErrProposerAddressMismatch)
 
 	// Create a block with an invalid commit

@@ -198,8 +198,8 @@ func doTestApplyBlock(t *testing.T) {
 
 	// Update the signature on the block to current from last
 	voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
-	sig, _ := vKey.Sign(voteBytes)
-	block.SignedHeader.Signature = sig
+	signature, _ = vKey.Sign(voteBytes)
+	block.SignedHeader.Signature = signature
 	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
@@ -226,8 +226,8 @@ func doTestApplyBlock(t *testing.T) {
 	block.SignedHeader.DataHash = dataHash
 
 	voteBytes = block.SignedHeader.Header.MakeCometBFTVote()
-	sig, _ = vKey.Sign(voteBytes)
-	block.SignedHeader.Signature = sig
+	signature, _ = vKey.Sign(voteBytes)
+	block.SignedHeader.Signature = signature
 	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)

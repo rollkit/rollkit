@@ -111,9 +111,9 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				sig, err := GetSignature(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
-				preparedHeader.Signature = *sig
+				preparedHeader.Signature = *signature
 			}
 
 			err := trusted.Verify(preparedHeader)
@@ -269,9 +269,9 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				sig, err := GetSignature(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
-				preparedHeader.Signature = *sig
+				preparedHeader.Signature = *signature
 			}
 
 			err := preparedHeader.ValidateBasic()

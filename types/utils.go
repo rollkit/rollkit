@@ -131,11 +131,11 @@ func GetRandomNextBlock(block *Block, privKey cmcrypto.PrivKey, appHash header.H
 	newSignedHeader.LastCommitHash = block.SignedHeader.Signature.GetCommitHash(
 		&newSignedHeader.Header, block.SignedHeader.ProposerAddress,
 	)
-	sig, err := GetSignature(newSignedHeader.Header, privKey)
+	signature, err := GetSignature(newSignedHeader.Header, privKey)
 	if err != nil {
 		panic(err)
 	}
-	newSignedHeader.Signature = *sig
+	newSignedHeader.Signature = *signature
 	nextBlock.SignedHeader = *newSignedHeader
 	return nextBlock
 }
@@ -216,11 +216,11 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
 	signedHeader.Header.ValidatorHash = valSet.Hash()
 	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
 
-	sig, err := GetSignature(signedHeader.Header, config.PrivKey)
+	signature, err := GetSignature(signedHeader.Header, config.PrivKey)
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Signature = *sig
+	signedHeader.Signature = *signature
 	return signedHeader, nil
 }
 
@@ -235,11 +235,11 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.Priv
 	newSignedHeader.LastCommitHash = signedHeader.Signature.GetCommitHash(
 		&newSignedHeader.Header, signedHeader.ProposerAddress,
 	)
-	sig, err := GetSignature(newSignedHeader.Header, privKey)
+	signature, err := GetSignature(newSignedHeader.Header, privKey)
 	if err != nil {
 		return nil, err
 	}
-	newSignedHeader.Signature = *sig
+	newSignedHeader.Signature = *signature
 	return newSignedHeader, nil
 }
 
@@ -291,11 +291,11 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 		Header:     header,
 		Validators: valSet,
 	}
-	sig, err := GetSignature(header, privkey)
+	signature, err := GetSignature(header, privkey)
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Signature = *sig
+	signedHeader.Signature = *signature
 	return &signedHeader, nil
 }
 
@@ -372,8 +372,8 @@ func GetSignature(header Header, privKey cmcrypto.PrivKey) (*Signature, error) {
 	if err != nil {
 		return nil, err
 	}
-	sig := Signature(sign)
-	return &sig, nil
+	signature := Signature(sign)
+	return &signature, nil
 }
 
 func getBlockDataWith(nTxs int) *Block {
