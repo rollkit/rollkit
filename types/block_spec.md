@@ -47,8 +47,7 @@ Block.ValidateBasic()
 		validator.VotingPower >= 0
 		validator.Address == correct size
     Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-    Assert that len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
-	Verify the 1 signature
+	Verify SignedHeader.Signature
   Data.ValidateBasic() // always passes
   // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
   Data.Hash() == SignedHeader.DataHash
@@ -87,7 +86,7 @@ Block.Verify()
 | **Field Name** | **Valid State**                                                          | **Validation**                                                                              |
 |----------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | Header         | Valid header for the block                                               | `Header` passes `ValidateBasic()` and `Verify()`                                            |
-| Commit         | 1 valid signature from the centralized sequencer                             | `Commit` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
+| Signature         | 1 valid signature from the centralized sequencer                      | `Signature` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
 | Validators     | Array of Aggregators, must have length exactly 1. | `Validators` passes `ValidateBasic()`                                                       |
 
 ## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L39)

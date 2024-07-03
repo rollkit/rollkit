@@ -14,6 +14,7 @@ import (
 // Used mostly for gossiping.
 type SignedHeader struct {
 	Header
+	// Note: This is backwards compatible as ABCI exported types are not affected.
 	Signature  Signature
 	Validators *cmtypes.ValidatorSet
 }

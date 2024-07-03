@@ -808,7 +808,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		/*
-		   here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
+		   here we set the SignedHeader.DataHash, and SignedHeader.Signature as a hack
 		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
 		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
