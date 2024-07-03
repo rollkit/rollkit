@@ -65,7 +65,7 @@ func (s *DefaultStore) Height() uint64 {
 	return s.height.Load()
 }
 
-// SaveBlock adds block to the store along with corresponding commit.
+// SaveBlock adds block to the store along with corresponding signature.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, signature *types.Signature) error {
 	hash := block.Hash()

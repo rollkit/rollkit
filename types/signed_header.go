@@ -9,7 +9,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
-// SignedHeader combines Header and its Commit.
+// SignedHeader combines Header and its signature.
 //
 // Used mostly for gossiping.
 type SignedHeader struct {

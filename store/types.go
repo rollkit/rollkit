@@ -16,8 +16,8 @@ type Store interface {
 	// SetHeight sets the height saved in the Store if it is higher than the existing height.
 	SetHeight(ctx context.Context, height uint64)
 
-	// SaveBlock saves block along with its seen commit (which will be included in the next block).
-	SaveBlock(ctx context.Context, block *types.Block, commit *types.Signature) error
+	// SaveBlock saves block along with its seen signature (which will be included in the next block).
+	SaveBlock(ctx context.Context, block *types.Block, signature *types.Signature) error
 
 	// GetBlock returns block at given height, or error if it's not found in Store.
 	GetBlock(ctx context.Context, height uint64) (*types.Block, error)

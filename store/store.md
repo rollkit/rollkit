@@ -10,13 +10,13 @@ The Store interface defines the following methods:
 
 - `Height`: Returns the height of the highest block in the store.
 - `SetHeight`: Sets given height in the store if it's higher than the existing height in the store.
-- `SaveBlock`: Saves a block along with its seen commit.
+- `SaveBlock`: Saves a block along with its seen signature.
 - `GetBlock`: Returns a block at a given height.
 - `GetBlockByHash`: Returns a block with a given block header hash.
 - `SaveBlockResponses`: Saves block responses in the Store.
 - `GetBlockResponses`: Returns block results at a given height.
-- `GetCommit`: Returns a commit for a block at a given height.
-- `GetCommitByHash`: Returns a commit for a block with a given block header hash.
+- `GetSignature`: Returns a signature for a block at a given height.
+- `GetSignatureByHash`: Returns a signature for a block with a given block header hash.
 - `UpdateState`: Updates the state saved in the Store. Only one State is stored.
 - `GetState`: Returns the last state saved with UpdateState.
 - `SaveValidators`: Saves the validator set at a given height.
@@ -41,7 +41,7 @@ For the main node data, `DefaultStore` struct, an implementation of the Store in
 
 For example, in a call to `GetBlockByHash` for some block hash `<block_hash>`, the key used in the full node's base key-value store will be `/0/b/<block_hash>` where `0` is the main store prefix and `b` is the block prefix. Similarly, in a call to `GetValidators` for some height `<height>`, the key used in the full node's base key-value store will be `/0/v/<height>` where `0` is the main store prefix and `v` is the validator set prefix.
 
-Inside the key-value store, the value of these various types of data like `Block`, `Commit`, etc is stored as a byte array which is encoded and decoded using the corresponding Protobuf [marshal and unmarshal methods][serialization].
+Inside the key-value store, the value of these various types of data like `Block` is stored as a byte array which is encoded and decoded using the corresponding Protobuf [marshal and unmarshal methods][serialization].
 
 The store is most widely used inside the [block manager] and [full client] to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, `lastStateMtx`, to synchronize read/write access to it and prevent race conditions.
 

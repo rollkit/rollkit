@@ -4,13 +4,13 @@
 
 Like all blockchains, rollups are defined as the chain of **valid** blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.
 
-Verifying a block / header is done in 3 parts:
+Verifying a block/header is done in 3 parts:
 
 1. Verify correct serialization according to the protobuf spec
 
 2. Perform basic validation of the types
 
-3. Perform verification of the new block against the previous accepted block
+3. Perform verification of the new block against the previously accepted block
 
 ## Basic Validation
 
@@ -25,8 +25,8 @@ Block.ValidateBasic()
     // Make sure the SignedHeader's Header passes basic validation
     Header.ValidateBasic()
 	  verify ProposerAddress not nil
-	// Make sure the SignedHeader's Commit passes basic validation
-	Commit.ValidateBasic()
+	// Make sure the SignedHeader's signature passes basic validation
+	Signature.ValidateBasic()
 	  // Ensure that someone signed the block
 	  verify len(c.Signatures) not 0
 	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
@@ -109,12 +109,7 @@ Block.Verify()
 | AppHash             | The correct state root after executing the block's transactions against the accepted state | checked during block execution        |
 | LastResultsHash     | Correct results from executing transactions                                                | checked during block execution        |
 | ProposerAddress     | Address of the expected proposer                                                           | checked in the `Verify()` step          |
-
-## [Commit](https://github.com/rollkit/rollkit/blob/main/types/block.go#L48)
-
-| **Field Name** | **Valid State**                                         | **Validation**             |
-|----------------|---------------------------------------------------------|----------------------------|
-| Signatures     | Array containing a signature from the expected proposer | checked in `ValidateBasic()`,  signature verification occurs in `SignedHeader.ValidateBasic()` |
+| Signature     | Signature of the expected proposer                                                               | signature verification occurs in the `ValidateBasic()` step          |
 
 ## [ValidatorSet](https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51)
 

@@ -51,9 +51,8 @@ type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }
 
-// ToABCICommit converts Rollkit commit into commit format defined by ABCI.
-// This function only converts fields that are available in Rollkit commit.
-// Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
+// ToABCICommit converts Rollkit signature into commit format defined by ABCI.
+// Other fields (especially ValidatorAddress and Timestamp of Signature) have to be filled by caller.
 func (signature *Signature) ToABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time) *cmtypes.Commit {
 	tmCommit := cmtypes.Commit{
 		Height: int64(height),
@@ -75,13 +74,12 @@ func (signature *Signature) ToABCICommit(height uint64, hash Hash, val cmtypes.A
 	return &tmCommit
 }
 
-// GetCommitHash returns hash of the commit.
+// GetCommitHash returns an ABCI commit equivalent hash associated to a signature.
 func (signature *Signature) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-
-	lastABCICommit := signature.ToABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time())
-	lastABCICommit.Signatures[0].ValidatorAddress = proposerAddress
-	lastABCICommit.Signatures[0].Timestamp = header.Time()
-	return lastABCICommit.Hash()
+	abciCommit := signature.ToABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time())
+	abciCommit.Signatures[0].ValidatorAddress = proposerAddress
+	abciCommit.Signatures[0].Timestamp = header.Time()
+	return abciCommit.Hash()
 }
 
 // ValidateBasic performs basic validation of block data.

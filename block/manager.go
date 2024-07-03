@@ -825,7 +825,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return err
 		}
 
-		// set the commit to current block's signed header
+		// set the signature to current block's signed header
 		block.SignedHeader.Signature = *signature
 		err = m.store.SaveBlock(ctx, block, signature)
 		if err != nil {
@@ -856,7 +856,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// set the commit to current block's signed header
+	// set the signature to current block's signed header
 	block.SignedHeader.Signature = *signature
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, block); err != nil {
