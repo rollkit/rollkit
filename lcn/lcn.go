@@ -1,46 +1,44 @@
 package lcn
 
 import (
-	"log"
+	"github.com/LastL2/cuberollkit/lcn/types"
+	"github.com/LastL2/cuberollkit/third_party/log"
 )
-
-// StatusCode is the return status for the LcnClient;
-// Modeled after StatusCode in pkg da
-type StatusCode uint64
-
-// lcn return codes
-const (
-	StatusUnknown StatusCode = iota
-	StatusSuccess
-	StatusTimeout
-	StatusError
-)
-
-// BaseResult contains basic information returned by the LCN;
-// Modeled after BaseResult in pkg da
-type BaseResult struct {
-	// Code is to determine if the action succeeded
-	Code StatusCode
-	// Message may contain lcn specific information
-	Message string
-}
-
-// Batch groups together multiple settlement operations to be performed at the same time;
-// Modeled after Batch in pkg txindex
-type Batch struct {
-	// TO-DO: Add batch fields
-}
-
-// ResultRetrieveBlocks contains batch of blocks returned from the LCN client;
-// Modeled after ResultRetrieveBlocks in pkg da
-type ResultRetrieveBatch struct {
-	BaseResult
-	*Batch
-}
 
 // LcnClient is a new settlement implementation;
 // Modeled after DAClient in pkg da
 type LcnClient struct {
+	// TO-DO: Add LcnClient fields
 	Config *Config
 	Logger log.Logger
+}
+
+// Ensure LcnClient implements the Settler interface
+var _ Settler = &LcnClient{}
+
+func NewLcnClient(config *Config, logger log.Logger) *LcnClient {
+	return &LcnClient{
+		Config: config,
+		Logger: logger,
+	}
+}
+
+// TO-DO
+func (c *LcnClient) OnStart() error {
+	return nil
+}
+
+// TO-DO
+func (c *LcnClient) OnStop() error {
+	return nil
+}
+
+// TO-DO
+func (c *LcnClient) SubmitBatch() types.ResultSubmitBatch {
+	return types.ResultSubmitBatch{}
+}
+
+// TO-DO
+func (c *LcnClient) RetrieveBatch() types.ResultRetrieveBatch {
+	return types.ResultRetrieveBatch{}
 }
