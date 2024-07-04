@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	rollconf "github.com/rollkit/rollkit/config"
+	rollconf "github.com/LastL2/cuberollkit/config"
 
 	"github.com/spf13/cobra"
 )

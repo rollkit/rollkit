@@ -21,9 +21,9 @@ import (
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	goheadersync "github.com/celestiaorg/go-header/sync"
 
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/config"
+	"github.com/LastL2/cuberollkit/p2p"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 type syncType string

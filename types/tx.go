@@ -7,10 +7,10 @@ import (
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 
-	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
-	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
-	"github.com/rollkit/rollkit/third_party/celestia-app/shares"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	"github.com/LastL2/cuberollkit/third_party/celestia-app/appconsts"
+	appns "github.com/LastL2/cuberollkit/third_party/celestia-app/namespace"
+	"github.com/LastL2/cuberollkit/third_party/celestia-app/shares"
+	pb "github.com/LastL2/cuberollkit/types/pb/rollkit"
 )
 
 // Tx represents transaction.

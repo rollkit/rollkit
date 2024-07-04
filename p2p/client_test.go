@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
-	test "github.com/rollkit/rollkit/test/log"
+	"github.com/LastL2/cuberollkit/config"
+	test "github.com/LastL2/cuberollkit/test/log"
 )
 
 func TestClientStartup(t *testing.T) {

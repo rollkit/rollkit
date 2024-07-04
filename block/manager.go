@@ -25,13 +25,13 @@ import (
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
-	"github.com/rollkit/rollkit/state"
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/config"
+	"github.com/LastL2/cuberollkit/da"
+	"github.com/LastL2/cuberollkit/mempool"
+	"github.com/LastL2/cuberollkit/state"
+	"github.com/LastL2/cuberollkit/store"
+	"github.com/LastL2/cuberollkit/third_party/log"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager

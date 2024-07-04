@@ -9,7 +9,7 @@ import (
 	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
 
-	rollconf "github.com/rollkit/rollkit/config"
+	rollconf "github.com/LastL2/cuberollkit/config"
 )
 
 const rollupBinEntrypoint = "entrypoint"

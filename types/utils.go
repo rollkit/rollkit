@@ -392,7 +392,7 @@ func getBlockDataWith(nTxs int) *Block {
 		// block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
 	}
 
-	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
+	// TODO(tzdybal): see https://github.com/LastL2/cuberollkit/issues/143
 	if nTxs == 0 {
 		block.Data.Txs = nil
 		// block.Data.IntermediateStateRoots.RawRootsList = nil

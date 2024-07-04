@@ -14,7 +14,7 @@ import (
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/LastL2/cuberollkit/types/pb/rollkit"
 )
 
 func TestBlockSerializationRoundTrip(t *testing.T) {

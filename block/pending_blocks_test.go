@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/store"
+	test "github.com/LastL2/cuberollkit/test/log"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 const (

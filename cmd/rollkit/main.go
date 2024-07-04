@@ -7,8 +7,8 @@ import (
 
 	"github.com/cometbft/cometbft/libs/cli"
 
-	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
-	rollconf "github.com/rollkit/rollkit/config"
+	cmd "github.com/LastL2/cuberollkit/cmd/rollkit/commands"
+	rollconf "github.com/LastL2/cuberollkit/config"
 )
 
 func main() {

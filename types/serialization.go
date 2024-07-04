@@ -4,7 +4,7 @@ import (
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/LastL2/cuberollkit/types/pb/rollkit"
 )
 
 // MarshalBinary encodes Block into binary form and returns it.

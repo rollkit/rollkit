@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/rollkit/rollkit/state/indexer"
+	"github.com/LastL2/cuberollkit/state/indexer"
 )
 
 // If the actual event value is a float, we get the condition and parse it as a float

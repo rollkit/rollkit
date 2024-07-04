@@ -1,4 +1,4 @@
-module github.com/rollkit/rollkit
+module github.com/LastL2/cuberollkit
 
 go 1.22
 

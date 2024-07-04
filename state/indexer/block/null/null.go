@@ -7,7 +7,7 @@ import (
 	"github.com/cometbft/cometbft/libs/pubsub/query"
 	"github.com/cometbft/cometbft/types"
 
-	"github.com/rollkit/rollkit/state/indexer"
+	"github.com/LastL2/cuberollkit/state/indexer"
 )
 
 var _ indexer.BlockIndexer = (*BlockerIndexer)(nil)

@@ -28,11 +28,11 @@ import (
 
 	"github.com/cometbft/cometbft/light"
 
-	"github.com/rollkit/rollkit/config"
-	test "github.com/rollkit/rollkit/test/log"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
-	abciconv "github.com/rollkit/rollkit/types/abci"
+	"github.com/LastL2/cuberollkit/config"
+	test "github.com/LastL2/cuberollkit/test/log"
+	"github.com/LastL2/cuberollkit/test/mocks"
+	"github.com/LastL2/cuberollkit/types"
+	abciconv "github.com/LastL2/cuberollkit/types/abci"
 
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 )

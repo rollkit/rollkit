@@ -9,9 +9,9 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/store"
+	"github.com/LastL2/cuberollkit/third_party/log"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 // LastSubmittedHeightKey is the key used for persisting the last submitted height in store.

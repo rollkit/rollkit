@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
-	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
+	"github.com/LastL2/cuberollkit/third_party/celestia-app/appconsts"
+	appns "github.com/LastL2/cuberollkit/third_party/celestia-app/namespace"
 )
 
 type Builder struct {

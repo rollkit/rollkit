@@ -8,7 +8,7 @@ import (
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 // ToABCIHeaderPB converts Rollkit header to Header format defined in ABCI.

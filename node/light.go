@@ -13,10 +13,10 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/store"
+	"github.com/LastL2/cuberollkit/block"
+	"github.com/LastL2/cuberollkit/config"
+	"github.com/LastL2/cuberollkit/p2p"
+	"github.com/LastL2/cuberollkit/store"
 )
 
 var _ Node = &LightNode{}

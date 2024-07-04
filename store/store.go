@@ -13,8 +13,8 @@ import (
 
 	"github.com/celestiaorg/go-header"
 
-	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	"github.com/LastL2/cuberollkit/types"
+	pb "github.com/LastL2/cuberollkit/types/pb/rollkit"
 )
 
 var (

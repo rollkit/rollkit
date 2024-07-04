@@ -10,7 +10,7 @@ import (
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	"github.com/rollkit/rollkit/config"
+	"github.com/LastL2/cuberollkit/config"
 )
 
 // Node is the interface for a rollup node

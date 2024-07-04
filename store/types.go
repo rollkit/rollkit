@@ -5,7 +5,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 // Store is minimal interface for storing and retrieving blocks, commits and state.

@@ -11,7 +11,7 @@ import (
 	"github.com/cometbft/cometbft/libs/pubsub/query"
 	"github.com/cometbft/cometbft/types"
 
-	"github.com/rollkit/rollkit/store"
+	"github.com/LastL2/cuberollkit/store"
 )
 
 func BenchmarkTxSearch(b *testing.B) {

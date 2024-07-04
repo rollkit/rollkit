@@ -7,7 +7,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/pubsub/query"
 
-	"github.com/rollkit/rollkit/state/txindex"
+	"github.com/LastL2/cuberollkit/state/txindex"
 )
 
 var _ txindex.TxIndexer = (*TxIndex)(nil)

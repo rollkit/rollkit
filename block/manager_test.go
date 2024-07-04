@@ -21,12 +21,12 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/mock"
-	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/da"
+	"github.com/LastL2/cuberollkit/da/mock"
+	"github.com/LastL2/cuberollkit/store"
+	test "github.com/LastL2/cuberollkit/test/log"
+	"github.com/LastL2/cuberollkit/test/mocks"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 // Returns a minimalistic block manager

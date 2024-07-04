@@ -17,8 +17,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/third_party/log"
+	"github.com/LastL2/cuberollkit/config"
+	"github.com/LastL2/cuberollkit/third_party/log"
 )
 
 type testNet []*Client

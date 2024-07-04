@@ -8,7 +8,7 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 
-	"github.com/rollkit/rollkit/config"
+	"github.com/LastL2/cuberollkit/config"
 )
 
 // Source is an enum representing different sources of height

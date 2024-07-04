@@ -27,14 +27,14 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 
+	"github.com/LastL2/cuberollkit/block"
+	"github.com/LastL2/cuberollkit/config"
+	"github.com/LastL2/cuberollkit/da"
+	"github.com/LastL2/cuberollkit/mempool"
+	test "github.com/LastL2/cuberollkit/test/log"
+	"github.com/LastL2/cuberollkit/test/mocks"
+	"github.com/LastL2/cuberollkit/types"
 	goDA "github.com/rollkit/go-da"
-	"github.com/rollkit/rollkit/block"
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
-	test "github.com/rollkit/rollkit/test/log"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
 )
 
 // simply check that node is starting and stopping without panicking
@@ -175,7 +175,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	require.False(t, manager.IsBlockHashSeen(junkProposerBlock.Hash().String()))
 }
 
-// TestPendingBlocks is a test for bug described in https://github.com/rollkit/rollkit/issues/1548
+// TestPendingBlocks is a test for bug described in https://github.com/LastL2/cuberollkit/issues/1548
 //
 // Test scenario:
 // - mock DA to refuse all submissions (returning error)

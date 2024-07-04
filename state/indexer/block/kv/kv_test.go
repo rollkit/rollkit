@@ -12,8 +12,8 @@ import (
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/stretchr/testify/require"
 
-	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
-	"github.com/rollkit/rollkit/store"
+	blockidxkv "github.com/LastL2/cuberollkit/state/indexer/block/kv"
+	"github.com/LastL2/cuberollkit/store"
 )
 
 func TestBlockIndexer(t *testing.T) {

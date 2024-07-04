@@ -18,8 +18,8 @@ import (
 	cmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/types"
 
-	"github.com/rollkit/rollkit/state/txindex"
-	"github.com/rollkit/rollkit/store"
+	"github.com/LastL2/cuberollkit/state/txindex"
+	"github.com/LastL2/cuberollkit/store"
 )
 
 func TestTxIndex(t *testing.T) {

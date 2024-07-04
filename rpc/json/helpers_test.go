@@ -18,10 +18,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/node"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/rollkit/rollkit/types"
+	"github.com/LastL2/cuberollkit/config"
+	"github.com/LastL2/cuberollkit/node"
+	"github.com/LastL2/cuberollkit/test/mocks"
+	"github.com/LastL2/cuberollkit/types"
 )
 
 const (

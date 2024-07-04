@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
-	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
-	"github.com/rollkit/rollkit/third_party/celestia-app/testfactory"
+	"github.com/LastL2/cuberollkit/third_party/celestia-app/appconsts"
+	appns "github.com/LastL2/cuberollkit/third_party/celestia-app/namespace"
+	"github.com/LastL2/cuberollkit/third_party/celestia-app/testfactory"
 )
 
 func TestCompactShareSplitter(t *testing.T) {

@@ -28,10 +28,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	rollconf "github.com/rollkit/rollkit/config"
-	rollnode "github.com/rollkit/rollkit/node"
-	rollrpc "github.com/rollkit/rollkit/rpc"
-	rolltypes "github.com/rollkit/rollkit/types"
+	rollconf "github.com/LastL2/cuberollkit/config"
+	rollnode "github.com/LastL2/cuberollkit/node"
+	rollrpc "github.com/LastL2/cuberollkit/rpc"
+	rolltypes "github.com/LastL2/cuberollkit/types"
 )
 
 var (
