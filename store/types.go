@@ -16,8 +16,8 @@ type Store interface {
 	// SetHeight sets the height saved in the Store if it is higher than the existing height.
 	SetHeight(ctx context.Context, height uint64)
 
-	// SaveBlock saves block along with its seen commit (which will be included in the next block).
-	SaveBlock(ctx context.Context, block *types.Block, commit *types.Commit) error
+	// SaveBlock saves block along with its seen signature (which will be included in the next block).
+	SaveBlock(ctx context.Context, block *types.Block, signature *types.Signature) error
 
 	// GetBlock returns block at given height, or error if it's not found in Store.
 	GetBlock(ctx context.Context, height uint64) (*types.Block, error)
@@ -30,10 +30,10 @@ type Store interface {
 	// GetBlockResponses returns block results at given height, or error if it's not found in Store.
 	GetBlockResponses(ctx context.Context, height uint64) (*abci.ResponseFinalizeBlock, error)
 
-	// GetCommit returns commit for a block at given height, or error if it's not found in Store.
-	GetCommit(ctx context.Context, height uint64) (*types.Commit, error)
-	// GetCommitByHash returns commit for a block with given block header hash, or error if it's not found in Store.
-	GetCommitByHash(ctx context.Context, hash types.Hash) (*types.Commit, error)
+	// GetSignature returns signature for a block at given height, or error if it's not found in Store.
+	GetSignature(ctx context.Context, height uint64) (*types.Signature, error)
+	// GetSignatureByHash returns signature for a block with given block header hash, or error if it's not found in Store.
+	GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error)
 
 	// SaveExtendedCommit saves extended commit information in Store.
 	SaveExtendedCommit(ctx context.Context, height uint64, commit *abci.ExtendedCommitInfo) error

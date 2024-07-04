@@ -6,8 +6,6 @@ import (
 	"errors"
 	"time"
 
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-
 	cmtypes "github.com/cometbft/cometbft/types"
 )
 
@@ -42,11 +40,6 @@ type EvidenceData struct {
 	Evidence []cmtypes.Evidence
 }
 
-// Commit contains evidence of block creation.
-type Commit struct {
-	Signatures []Signature // most of the time this is a single signature
-}
-
 // Signature represents signature of block creator.
 type Signature []byte
 
@@ -56,42 +49,12 @@ type IntermediateStateRoots struct {
 	RawRootsList [][]byte
 }
 
-// ToABCICommit converts Rollkit commit into commit format defined by ABCI.
-// This function only converts fields that are available in Rollkit commit.
-// Other fields (especially ValidatorAddress and Timestamp of Signature) has to be filled by caller.
-func (c *Commit) ToABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time) *cmtypes.Commit {
-	tmCommit := cmtypes.Commit{
-		Height: int64(height),
-		Round:  0,
-		BlockID: cmtypes.BlockID{
-			Hash:          cmbytes.HexBytes(hash),
-			PartSetHeader: cmtypes.PartSetHeader{},
-		},
-		Signatures: make([]cmtypes.CommitSig, len(c.Signatures)),
-	}
-	for i, sig := range c.Signatures {
-		commitSig := cmtypes.CommitSig{
-			BlockIDFlag:      cmtypes.BlockIDFlagCommit,
-			Signature:        sig,
-			ValidatorAddress: val,
-			Timestamp:        time,
-		}
-		tmCommit.Signatures[i] = commitSig
-	}
-
-	return &tmCommit
-}
-
-// GetCommitHash returns hash of the commit.
-func (c *Commit) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-
-	lastABCICommit := c.ToABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time())
-	// Rollkit does not support a multi signature scheme so there can only be one signature
-	if len(c.Signatures) == 1 {
-		lastABCICommit.Signatures[0].ValidatorAddress = proposerAddress
-		lastABCICommit.Signatures[0].Timestamp = header.Time()
-	}
-	return lastABCICommit.Hash()
+// GetCommitHash returns an ABCI commit equivalent hash associated to a signature.
+func (signature *Signature) GetCommitHash(header *Header, proposerAddress []byte) []byte {
+	abciCommit := GetABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time(), *signature)
+	abciCommit.Signatures[0].ValidatorAddress = proposerAddress
+	abciCommit.Signatures[0].Timestamp = header.Time()
+	return abciCommit.Hash()
 }
 
 // ValidateBasic performs basic validation of block data.
@@ -100,12 +63,9 @@ func (d *Data) ValidateBasic() error {
 	return nil
 }
 
-// ValidateBasic performs basic validation of a commit.
-func (c *Commit) ValidateBasic() error {
-	if len(c.Signatures) == 0 {
-		return ErrNoSignatures
-	}
-	if len(c.Signatures[0]) == 0 {
+// ValidateBasic performs basic validation of a signature.
+func (signature *Signature) ValidateBasic() error {
+	if len(*signature) == 0 {
 		return ErrSignatureEmpty
 	}
 	return nil

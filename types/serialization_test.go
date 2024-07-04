@@ -51,9 +51,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
-	pubKey2 := ed25519.GenPrivKey().PubKey()
 	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
-	validator2 := &cmtypes.Validator{Address: pubKey2.Address(), PubKey: pubKey2}
 
 	cases := []struct {
 		name  string
@@ -62,14 +60,11 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		{"empty block", &Block{}},
 		{"full", &Block{
 			SignedHeader: SignedHeader{
-				Header: h1,
-				Commit: Commit{
-					Signatures: []Signature{Signature([]byte{1, 1, 1}), Signature([]byte{2, 2, 2})},
-				},
+				Header:    h1,
+				Signature: Signature([]byte{1, 1, 1}),
 				Validators: &cmtypes.ValidatorSet{
 					Validators: []*cmtypes.Validator{
 						validator1,
-						validator2,
 					},
 					Proposer: validator1,
 				},
@@ -217,30 +212,6 @@ func TestTxsRoundtrip(t *testing.T) {
 	assert.Equal(t, len(txs), len(newTxs))
 	for i := range txs {
 		assert.Equal(t, txs[i], newTxs[i])
-	}
-}
-
-func TestSignaturesRoundtrip(t *testing.T) {
-	// Test the nil case
-	var sigs []Signature
-	bytes := signaturesToByteSlices(sigs)
-	newSigs := byteSlicesToSignatures(bytes)
-	assert.Nil(t, newSigs)
-
-	// Generate 100 random signatures and convert them to byte slices
-	sigs = make([]Signature, 100)
-	for i := range sigs {
-		sigs[i] = []byte{byte(i)}
-	}
-	bytes = signaturesToByteSlices(sigs)
-
-	// Convert the byte slices back to signatures
-	newSigs = byteSlicesToSignatures(bytes)
-
-	// Check that the new signatures match the original signatures
-	assert.Equal(t, len(sigs), len(newSigs))
-	for i := range sigs {
-		assert.Equal(t, newSigs[i], sigs[i])
 	}
 }
 

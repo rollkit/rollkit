@@ -4,13 +4,13 @@
 
 Like all blockchains, rollups are defined as the chain of **valid** blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.
 
-Verifying a block / header is done in 3 parts:
+Verifying a block/header is done in 3 parts:
 
 1. Verify correct serialization according to the protobuf spec
 
 2. Perform basic validation of the types
 
-3. Perform verification of the new block against the previous accepted block
+3. Perform verification of the new block against the previously accepted block
 
 ## Basic Validation
 
@@ -25,8 +25,8 @@ Block.ValidateBasic()
     // Make sure the SignedHeader's Header passes basic validation
     Header.ValidateBasic()
 	  verify ProposerAddress not nil
-	// Make sure the SignedHeader's Commit passes basic validation
-	Commit.ValidateBasic()
+	// Make sure the SignedHeader's signature passes basic validation
+	Signature.ValidateBasic()
 	  // Ensure that someone signed the block
 	  verify len(c.Signatures) not 0
 	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
@@ -47,8 +47,7 @@ Block.ValidateBasic()
 		validator.VotingPower >= 0
 		validator.Address == correct size
     Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-    Assert that len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
-	Verify the 1 signature
+	Verify SignedHeader.Signature
   Data.ValidateBasic() // always passes
   // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
   Data.Hash() == SignedHeader.DataHash
@@ -71,7 +70,7 @@ Block.Verify()
 	// verify the link to previous.
 	untrustH.LastHeaderHash == h.Header.Hash()
 	// Verify LastCommit hash
-	untrustH.LastCommitHash == sh.Commit.GetCommitHash(...)
+	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
 	
 ```
 
@@ -87,7 +86,7 @@ Block.Verify()
 | **Field Name** | **Valid State**                                                          | **Validation**                                                                              |
 |----------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | Header         | Valid header for the block                                               | `Header` passes `ValidateBasic()` and `Verify()`                                            |
-| Commit         | 1 valid signature from the centralized sequencer                             | `Commit` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
+| Signature         | 1 valid signature from the centralized sequencer                      | `Signature` passes `ValidateBasic()`, with additional checks in `SignedHeader.ValidateBasic()` |
 | Validators     | Array of Aggregators, must have length exactly 1. | `Validators` passes `ValidateBasic()`                                                       |
 
 ## [Header](https://github.com/rollkit/rollkit/blob/main/types/header.go#L39)
@@ -109,12 +108,7 @@ Block.Verify()
 | AppHash             | The correct state root after executing the block's transactions against the accepted state | checked during block execution        |
 | LastResultsHash     | Correct results from executing transactions                                                | checked during block execution        |
 | ProposerAddress     | Address of the expected proposer                                                           | checked in the `Verify()` step          |
-
-## [Commit](https://github.com/rollkit/rollkit/blob/main/types/block.go#L48)
-
-| **Field Name** | **Valid State**                                         | **Validation**             |
-|----------------|---------------------------------------------------------|----------------------------|
-| Signatures     | Array containing a signature from the expected proposer | checked in `ValidateBasic()`,  signature verification occurs in `SignedHeader.ValidateBasic()` |
+| Signature     | Signature of the expected proposer                                                               | signature verification occurs in the `ValidateBasic()` step          |
 
 ## [ValidatorSet](https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51)
 

@@ -111,9 +111,9 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				commit, err := GetCommit(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
-				preparedHeader.Commit = *commit
+				preparedHeader.Signature = *signature
 			}
 
 			err := trusted.Verify(preparedHeader)
@@ -179,7 +179,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.Commit.Signatures[0] = GetRandomBytes(32)
+				untrusted.Signature = GetRandomBytes(32)
 				return &untrusted, false // Signature verification should fail
 			},
 			err: ErrSignatureVerificationFailed,
@@ -251,24 +251,13 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 			},
 			err: ErrProposerNotInValSet,
 		},
-		// 9. Test no signatures
-		// Set the signature list to be empty
-		// Expect failure
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				untrusted.Commit.Signatures = make([]Signature, 0)
-				return &untrusted, false
-			},
-			err: ErrNoSignatures,
-		},
-		// 10. Test empty signature values in signature list
+		// 9. Test empty signature values in signature list
 		// Set the signature to be an empty value in signature list
 		// Expect failure
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				untrusted.Commit.Signatures[0] = Signature{}
+				untrusted.Signature = Signature{}
 				return &untrusted, false
 			},
 			err: ErrSignatureEmpty,
@@ -280,9 +269,9 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 			preparedHeader, shouldRecomputeCommit := test.prepare()
 
 			if shouldRecomputeCommit {
-				commit, err := GetCommit(preparedHeader.Header, privKey)
+				signature, err := GetSignature(preparedHeader.Header, privKey)
 				require.NoError(t, err)
-				preparedHeader.Commit = *commit
+				preparedHeader.Signature = *signature
 			}
 
 			err := preparedHeader.ValidateBasic()

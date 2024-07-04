@@ -71,7 +71,7 @@ func doTestCreateBlock(t *testing.T) {
 	state.Validators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
-	block, err := executor.CreateBlock(1, &types.Commit{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	block, err := executor.CreateBlock(1, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
@@ -80,7 +80,7 @@ func doTestCreateBlock(t *testing.T) {
 	// one small Tx
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(2, &types.Commit{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	block, err = executor.CreateBlock(2, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Height())
@@ -91,7 +91,7 @@ func doTestCreateBlock(t *testing.T) {
 	require.NoError(err)
 	err = mpool.CheckTx(make([]byte, 100), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(3, &types.Commit{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	block, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Len(block.Data.Txs, 2)
@@ -101,7 +101,7 @@ func doTestCreateBlock(t *testing.T) {
 	executor.maxBytes = 10
 	err = mpool.CheckTx(make([]byte, 10), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(4, &types.Commit{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	block, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Empty(block.Data.Txs)
@@ -186,7 +186,8 @@ func doTestApplyBlock(t *testing.T) {
 
 	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err := executor.CreateBlock(1, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	signature := types.Signature([]byte{1, 1, 1})
+	block, err := executor.CreateBlock(1, &signature, abci.ExtendedCommitInfo{}, []byte{}, state)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(1), block.Height())
@@ -197,10 +198,8 @@ func doTestApplyBlock(t *testing.T) {
 
 	// Update the signature on the block to current from last
 	voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
-	sig, _ := vKey.Sign(voteBytes)
-	block.SignedHeader.Commit = types.Commit{
-		Signatures: []types.Signature{sig},
-	}
+	signature, _ = vKey.Sign(voteBytes)
+	block.SignedHeader.Signature = signature
 	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
@@ -216,7 +215,8 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
-	block, err = executor.CreateBlock(2, &types.Commit{Signatures: []types.Signature{types.Signature([]byte{1, 1, 1})}}, abci.ExtendedCommitInfo{}, []byte{}, newState)
+	signature = types.Signature([]byte{1, 1, 1})
+	block, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState)
 	require.NoError(err)
 	require.NotNil(block)
 	assert.Equal(uint64(2), block.Height())
@@ -226,10 +226,8 @@ func doTestApplyBlock(t *testing.T) {
 	block.SignedHeader.DataHash = dataHash
 
 	voteBytes = block.SignedHeader.Header.MakeCometBFTVote()
-	sig, _ = vKey.Sign(voteBytes)
-	block.SignedHeader.Commit = types.Commit{
-		Signatures: []types.Signature{sig},
-	}
+	signature, _ = vKey.Sign(voteBytes)
+	block.SignedHeader.Signature = signature
 	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
 
 	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
