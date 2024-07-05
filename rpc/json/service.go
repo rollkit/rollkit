@@ -179,7 +179,12 @@ func (s *service) GenesisChunked(req *http.Request, args *genesisChunkedArgs) (*
 }
 
 func (s *service) Block(req *http.Request, args *blockArgs) (*ctypes.ResultBlock, error) {
-	return s.client.Block(req.Context(), (*int64)(&args.Height))
+	var height *int64
+	if args.Height != nil {
+		h := int64(*args.Height)
+		height = &h
+	}
+	return s.client.Block(req.Context(), height)
 }
 
 func (s *service) BlockByHash(req *http.Request, args *blockByHashArgs) (*ctypes.ResultBlock, error) {
