@@ -29,6 +29,7 @@ import (
 	"github.com/LastL2/cuberollkit/block"
 	"github.com/LastL2/cuberollkit/config"
 	"github.com/LastL2/cuberollkit/da"
+	"github.com/LastL2/cuberollkit/lcn"
 	"github.com/LastL2/cuberollkit/mempool"
 	"github.com/LastL2/cuberollkit/p2p"
 	"github.com/LastL2/cuberollkit/state"
@@ -69,6 +70,7 @@ type FullNode struct {
 	proxyApp     proxy.AppConns
 	eventBus     *cmtypes.EventBus
 	dalc         *da.DAClient
+	lcnClient    *lcn.LcnClient
 	p2pClient    *p2p.Client
 	hSyncService *block.HeaderSyncService
 	bSyncService *block.BlockSyncService
@@ -136,6 +138,11 @@ func newFullNode(
 		return nil, err
 	}
 
+	lcnClient, err := initLcnClient(nodeConfig, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
@@ -155,7 +162,7 @@ func newFullNode(
 	mempool := initMempool(logger, proxyApp, memplMetrics)
 
 	store := store.New(mainKV)
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockSyncService, seqMetrics, smMetrics)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, nil, eventBus, logger, blockSyncService, seqMetrics, smMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +181,7 @@ func newFullNode(
 		p2pClient:      p2pClient,
 		blockManager:   blockManager,
 		dalc:           dalc,
+		lcnClient:      lcnClient,
 		Mempool:        mempool,
 		mempoolIDs:     newMempoolIDs(),
 		Store:          store,
@@ -241,6 +249,11 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 		namespace, logger.With("module", "da_client")), nil
 }
 
+func initLcnClient(nodeConfig config.NodeConfig, logger log.Logger) (*lcn.LcnClient, error) {
+	client := lcn.NewLcnClient(&nodeConfig.Lcn, logger.With("module", "settler"))
+	return client, nil
+}
+
 func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
 	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0, mempool.WithMetrics(memplMetrics))
 	mempool.EnableTxsAvailable()
@@ -263,8 +276,8 @@ func initBlockSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, 
 	return blockSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
-	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.Store(), seqMetrics, execMetrics)
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc *da.DAClient, settler *lcn.Settler, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
+	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, settler, eventBus, logger.With("module", "BlockManager"), blockSyncService.Store(), seqMetrics, execMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}

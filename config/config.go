@@ -3,6 +3,7 @@ package config
 import (
 	"time"
 
+	"github.com/LastL2/cuberollkit/lcn"
 	cmcfg "github.com/cometbft/cometbft/config"
 
 	"github.com/spf13/cobra"
@@ -49,6 +50,8 @@ type NodeConfig struct {
 	DBPath  string
 	P2P     P2PConfig
 	RPC     RPCConfig
+	Lcn     lcn.Config
+
 	// parameters below are Rollkit specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`

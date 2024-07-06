@@ -27,6 +27,7 @@ import (
 
 	"github.com/LastL2/cuberollkit/config"
 	"github.com/LastL2/cuberollkit/da"
+	"github.com/LastL2/cuberollkit/lcn"
 	"github.com/LastL2/cuberollkit/mempool"
 	"github.com/LastL2/cuberollkit/state"
 	"github.com/LastL2/cuberollkit/store"
@@ -95,6 +96,8 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
+	LcnClient *lcn.Settler
+
 	HeaderCh chan *types.SignedHeader
 	BlockCh  chan *types.Block
 
@@ -158,6 +161,7 @@ func NewManager(
 	mempool mempool.Mempool,
 	proxyApp proxy.AppConnConsensus,
 	dalc *da.DAClient,
+	LcnClient *lcn.Settler,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	blockStore *goheaderstore.Store[*types.Block],
@@ -245,6 +249,7 @@ func NewManager(
 		executor:    exec,
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
+		LcnClient:   LcnClient,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
 		HeaderCh:      make(chan *types.SignedHeader, channelLength),
 		BlockCh:       make(chan *types.Block, channelLength),

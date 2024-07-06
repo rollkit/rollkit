@@ -24,12 +24,12 @@ func NewLcnClient(config *Config, logger log.Logger) *LcnClient {
 }
 
 // TO-DO
-func (c *LcnClient) OnStart() error {
+func (c *LcnClient) Start() error {
 	return nil
 }
 
 // TO-DO
-func (c *LcnClient) OnStop() error {
+func (c *LcnClient) Stop() error {
 	return nil
 }
 

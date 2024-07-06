@@ -4,8 +4,8 @@ import "github.com/LastL2/cuberollkit/lcn/types"
 
 // Settler is the interface that LcnClient must implement
 type Settler interface {
-	OnStart() error
-	OnStop() error
+	Start() error
+	Stop() error
 	// SubmitBatch submits a batch to the LCN;
 	// Modeled after SubmitBlocks in pkg da
 	SubmitBatch() types.ResultSubmitBatch
