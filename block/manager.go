@@ -531,7 +531,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
 		}
-		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Commit)
+		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Signature)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
@@ -743,16 +743,15 @@ func getRemainingSleep(start time.Time, interval, defaultSleep time.Duration) ti
 	return sleepDuration
 }
 
-func (m *Manager) getCommit(header types.Header) (*types.Commit, error) {
+func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 	// note: for compatibility with tendermint light client
 	consensusVote := header.MakeCometBFTVote()
 	sign, err := m.sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
-	return &types.Commit{
-		Signatures: []types.Signature{sign},
-	}, nil
+	signature := types.Signature(sign)
+	return &signature, nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -771,7 +770,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	var (
-		lastCommit     *types.Commit
+		lastSignature  *types.Signature
 		lastHeaderHash types.Hash
 		err            error
 	)
@@ -779,9 +778,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight == uint64(m.genesis.InitialHeight) {
-		lastCommit = &types.Commit{}
+		lastSignature = &types.Signature{}
 	} else {
-		lastCommit, err = m.store.GetCommit(ctx, height)
+		lastSignature, err = m.store.GetSignature(ctx, height)
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
@@ -793,7 +792,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	var block *types.Block
-	var commit *types.Commit
+	var signature *types.Signature
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
@@ -807,14 +806,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
-		block, err = m.createBlock(newHeight, lastCommit, lastHeaderHash, extendedCommit)
+		block, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit)
 		if err != nil {
 			return err
 		}
 		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
 
 		/*
-		   here we set the SignedHeader.DataHash, and SignedHeader.Commit as a hack
+		   here we set the SignedHeader.DataHash, and SignedHeader.Signature as a hack
 		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
 		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
@@ -826,14 +825,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		block.SignedHeader.Validators = m.getLastStateValidators()
 		block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
 
-		commit, err = m.getCommit(block.SignedHeader.Header)
+		signature, err = m.getSignature(block.SignedHeader.Header)
 		if err != nil {
 			return err
 		}
 
-		// set the commit to current block's signed header
-		block.SignedHeader.Commit = *commit
-		err = m.store.SaveBlock(ctx, block, commit)
+		// set the signature to current block's signed header
+		block.SignedHeader.Signature = *signature
+		err = m.store.SaveBlock(ctx, block, signature)
 		if err != nil {
 			return err
 		}
@@ -853,7 +852,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	commit, err = m.getCommit(block.SignedHeader.Header)
+	signature, err = m.getSignature(block.SignedHeader.Header)
 	if err != nil {
 		return err
 	}
@@ -862,8 +861,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	// set the commit to current block's signed header
-	block.SignedHeader.Commit = *commit
+	// set the signature to current block's signed header
+	block.SignedHeader.Signature = *signature
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, block); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
@@ -877,7 +876,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.blockCache.setSeen(blockHash)
 
 	// SaveBlock commits the DB tx
-	err = m.store.SaveBlock(ctx, block, commit)
+	err = m.store.SaveBlock(ctx, block, signature)
 	if err != nil {
 		return err
 	}
@@ -1149,10 +1148,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastCommit *types.Commit, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo) (*types.Block, error) {
+func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo) (*types.Block, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastCommit, extendedCommit, lastHeaderHash, m.lastState)
+	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {

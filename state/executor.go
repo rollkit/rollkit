@@ -93,7 +93,7 @@ func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, lastExtendedCommit abci.ExtendedCommitInfo, lastHeaderHash types.Hash, state types.State) (*types.Block, error) {
+func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signature, lastExtendedCommit abci.ExtendedCommitInfo, lastHeaderHash types.Hash, state types.State) (*types.Block, error) {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	emptyMaxBytes := maxBytes == -1
 	if emptyMaxBytes {
@@ -128,7 +128,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 				LastResultsHash: state.LastResultsHash,
 				ProposerAddress: e.proposerAddress,
 			},
-			Commit: *lastCommit,
+			Signature: *lastSignature,
 		},
 		Data: types.Data{
 			Txs: toRollkitTxs(mempoolTxs),
@@ -169,7 +169,8 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastCommit *types.Commit, las
 	}
 
 	block.Data.Txs = toRollkitTxs(txl)
-	block.SignedHeader.LastCommitHash = lastCommit.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
+	// Note: This is hash of an ABCI type commit equivalent of the last signature in the signed header.
+	block.SignedHeader.LastCommitHash = lastSignature.GetCommitHash(&block.SignedHeader.Header, e.proposerAddress)
 	block.SignedHeader.LastHeaderHash = lastHeaderHash
 
 	return block, nil

@@ -49,7 +49,7 @@ func TestStoreHeight(t *testing.T) {
 			assert.Equal(uint64(0), bstore.Height())
 
 			for _, block := range c.blocks {
-				err := bstore.SaveBlock(ctx, block, &types.Commit{})
+				err := bstore.SaveBlock(ctx, block, &types.Signature{})
 				bstore.SetHeight(ctx, block.Height())
 				assert.NoError(err)
 			}
@@ -101,14 +101,10 @@ func TestStoreLoad(t *testing.T) {
 
 				bstore := New(kv)
 
-				lastCommit := &types.Commit{}
 				for _, block := range c.blocks {
-					commit := &types.Commit{}
-					block.SignedHeader.Commit = *lastCommit
-					block.SignedHeader.Validators = types.GetRandomValidatorSet()
-					err := bstore.SaveBlock(ctx, block, commit)
+					signature := &block.SignedHeader.Signature
+					err := bstore.SaveBlock(ctx, block, signature)
 					require.NoError(err)
-					lastCommit = commit
 				}
 
 				for _, expected := range c.blocks {
@@ -117,9 +113,9 @@ func TestStoreLoad(t *testing.T) {
 					assert.NotNil(block)
 					assert.Equal(expected, block)
 
-					commit, err := bstore.GetCommit(ctx, expected.Height())
+					signature, err := bstore.GetSignature(ctx, expected.Height())
 					assert.NoError(err)
-					assert.NotNil(commit)
+					assert.NotNil(signature)
 				}
 			})
 		}

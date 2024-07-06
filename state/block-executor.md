@@ -22,7 +22,7 @@ The `BlockExecutor` is initialized with a proposer address, `namespace ID`, `cha
   - Initial Validator Set using genesis validators
   - Initial Height
 
-- `CreateBlock`: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the commit as parameters.
+- `CreateBlock`: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the signature as parameters.
 
 - `ApplyBlock`: This method applies the block to the state. Given the current state and block to be applied, it:
   - Validates the block, as described in `Validate`.

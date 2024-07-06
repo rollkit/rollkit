@@ -11,6 +11,7 @@ import (
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -128,14 +129,14 @@ func GetRandomNextBlock(block *Block, privKey cmcrypto.PrivKey, appHash header.H
 	newSignedHeader.LastResultsHash = nil
 	newSignedHeader.Header.DataHash = dataHash
 	newSignedHeader.AppHash = appHash
-	newSignedHeader.LastCommitHash = block.SignedHeader.Commit.GetCommitHash(
+	newSignedHeader.LastCommitHash = block.SignedHeader.Signature.GetCommitHash(
 		&newSignedHeader.Header, block.SignedHeader.ProposerAddress,
 	)
-	commit, err := GetCommit(newSignedHeader.Header, privKey)
+	signature, err := GetSignature(newSignedHeader.Header, privKey)
 	if err != nil {
 		panic(err)
 	}
-	newSignedHeader.Commit = *commit
+	newSignedHeader.Signature = *signature
 	nextBlock.SignedHeader = *newSignedHeader
 	return nextBlock
 }
@@ -216,11 +217,11 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
 	signedHeader.Header.ValidatorHash = valSet.Hash()
 	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
 
-	commit, err := GetCommit(signedHeader.Header, config.PrivKey)
+	signature, err := GetSignature(signedHeader.Header, config.PrivKey)
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Commit = *commit
+	signedHeader.Signature = *signature
 	return signedHeader, nil
 }
 
@@ -232,14 +233,14 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.Priv
 		Header:     GetRandomNextHeader(signedHeader.Header),
 		Validators: valSet,
 	}
-	newSignedHeader.LastCommitHash = signedHeader.Commit.GetCommitHash(
+	newSignedHeader.LastCommitHash = signedHeader.Signature.GetCommitHash(
 		&newSignedHeader.Header, signedHeader.ProposerAddress,
 	)
-	commit, err := GetCommit(newSignedHeader.Header, privKey)
+	signature, err := GetSignature(newSignedHeader.Header, privKey)
 	if err != nil {
 		return nil, err
 	}
-	newSignedHeader.Commit = *commit
+	newSignedHeader.Signature = *signature
 	return newSignedHeader, nil
 }
 
@@ -291,11 +292,11 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet)
 		Header:     header,
 		Validators: valSet,
 	}
-	commit, err := GetCommit(header, privkey)
+	signature, err := GetSignature(header, privkey)
 	if err != nil {
 		return nil, err
 	}
-	signedHeader.Commit = *commit
+	signedHeader.Signature = *signature
 	return &signedHeader, nil
 }
 
@@ -365,16 +366,15 @@ func GetRandomBytes(n uint) []byte {
 	return data
 }
 
-// GetCommit returns a commit with a signature from the given private key over the given header
-func GetCommit(header Header, privKey cmcrypto.PrivKey) (*Commit, error) {
+// GetSignature returns a signature from the given private key over the given header
+func GetSignature(header Header, privKey cmcrypto.PrivKey) (*Signature, error) {
 	consensusVote := header.MakeCometBFTVote()
 	sign, err := privKey.Sign(consensusVote)
 	if err != nil {
 		return nil, err
 	}
-	return &Commit{
-		Signatures: []Signature{sign},
-	}, nil
+	signature := Signature(sign)
+	return &signature, nil
 }
 
 func getBlockDataWith(nTxs int) *Block {
@@ -398,4 +398,27 @@ func getBlockDataWith(nTxs int) *Block {
 		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 	return block
+}
+
+// GetABCICommit returns a commit format defined by ABCI.
+// Other fields (especially ValidatorAddress and Timestamp of Signature) have to be filled by caller.
+func GetABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time, signature Signature) *cmtypes.Commit {
+	tmCommit := cmtypes.Commit{
+		Height: int64(height),
+		Round:  0,
+		BlockID: cmtypes.BlockID{
+			Hash:          cmbytes.HexBytes(hash),
+			PartSetHeader: cmtypes.PartSetHeader{},
+		},
+		Signatures: make([]cmtypes.CommitSig, 1),
+	}
+	commitSig := cmtypes.CommitSig{
+		BlockIDFlag:      cmtypes.BlockIDFlagCommit,
+		Signature:        signature,
+		ValidatorAddress: val,
+		Timestamp:        time,
+	}
+	tmCommit.Signatures[0] = commitSig
+
+	return &tmCommit
 }
