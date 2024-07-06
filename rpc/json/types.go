@@ -36,7 +36,7 @@ type genesisChunkedArgs struct {
 	ID StrInt `json:"chunk"`
 }
 type blockArgs struct {
-	Height StrInt64 `json:"height"`
+	Height *StrInt64 `json:"height"`
 }
 type blockByHashArgs struct {
 	Hash []byte `json:"hash"`

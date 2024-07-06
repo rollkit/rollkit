@@ -131,13 +131,17 @@ func (h *handler) newHandler(methodSpec *method) func(http.ResponseWriter, *http
 		for i := 0; i < methodSpec.argsType.NumField(); i++ {
 			field := methodSpec.argsType.Field(i)
 			name := field.Tag.Get("json")
-			if !values.Has(name) {
+			kind := field.Type.Kind()
+			// pointers can be skipped from required check
+			if kind != reflect.Pointer && !values.Has(name) {
 				h.encodeAndWriteResponse(w, nil, fmt.Errorf("missing param '%s'", name), int(json2.E_INVALID_REQ))
 				return
 			}
 			rawVal := values.Get(name)
 			var err error
-			switch field.Type.Kind() {
+			switch kind {
+			case reflect.Pointer:
+				err = setPointerParam(rawVal, &args, i)
 			case reflect.Bool:
 				err = setBoolParam(rawVal, &args, i)
 			case reflect.Int, reflect.Int64:
@@ -201,6 +205,26 @@ func (h *handler) encodeAndWriteResponse(w http.ResponseWriter, result interface
 	err := encoder.Encode(resp)
 	if err != nil {
 		h.logger.Error("failed to encode RPC response", "error", err)
+	}
+}
+
+func setPointerParam(rawVal string, args *reflect.Value, i int) error {
+	if rawVal == "" {
+		return nil
+	}
+	field := args.Elem().Field(i)
+	switch {
+	// only *StrInt64 is supported for now
+	case field.Type() == reflect.TypeOf(blockArgs{}.Height):
+		val, err := strconv.ParseInt(rawVal, 10, 64)
+		if err != nil {
+			return err
+		}
+		strInt64Val := StrInt64(val)
+		args.Elem().Field(i).Set(reflect.ValueOf(&strInt64Val))
+		return nil
+	default:
+		return fmt.Errorf("unsupported pointer type: %v", field)
 	}
 }
 
