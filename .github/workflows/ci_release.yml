@@ -43,7 +43,7 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v5
         with:
-          go-version: ./go.mod
+          go-version-file: ./go.mod
       - name: Build cli
         run: make install
       - name: Run cli
