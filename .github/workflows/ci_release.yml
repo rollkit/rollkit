@@ -25,13 +25,9 @@ on:
 jobs:
   lint:
     uses: ./.github/workflows/lint.yml
-    with:
-      go-version: ./go.mod
 
   test:
     uses: ./.github/workflows/test.yml
-    with:
-      go-version: ./go.mod
 
   proto:
     uses: ./.github/workflows/proto.yml
