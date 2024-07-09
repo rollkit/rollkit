@@ -23,36 +23,17 @@ on:
           - major
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    env:
-      # use consistent go version throughout pipeline here
-      GO_VERSION: "1.22"
-    outputs:
-      go-version: ${{ steps.set-vars.outputs.go-version }}
-    steps:
-      - name: Set go version
-        id: set-vars
-        run: echo "go-version=${{env.GO_VERSION}}" >> "$GITHUB_OUTPUT"
-
   lint:
-    needs: [setup]
     uses: ./.github/workflows/lint.yml
-    with:
-      go-version: ${{ needs.setup.outputs.go-version }}
 
   test:
-    needs: [setup]
     uses: ./.github/workflows/test.yml
-    with:
-      go-version: ${{ needs.setup.outputs.go-version }}
 
   proto:
     uses: ./.github/workflows/proto.yml
 
   cli:
     name: Test CLI
-    needs: [setup]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -62,7 +43,7 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ needs.setup.outputs.go-version }}
+          go-version-file: ./go.mod
       - name: Build cli
         run: make install
       - name: Run cli
