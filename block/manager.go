@@ -295,6 +295,21 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
+// GetDAIncludedHeight returns the manager's da included height
+// FIXME(tuxcanfly): this is in accurate before first retrieve loop
+func (m *Manager) GetDAIncludedHeight(ctx context.Context) uint64 {
+	for height := m.store.Height(); height > 0; height-- {
+		block, err := m.store.GetBlock(ctx, height)
+		if err != nil {
+			return 0
+		}
+		if m.IsDAIncluded(block.Hash()) {
+			return height
+		}
+	}
+	return 0
+}
+
 // GetBlockInCh returns the manager's blockInCh
 func (m *Manager) GetBlockInCh() chan NewBlockEvent {
 	return m.blockInCh

@@ -412,12 +412,23 @@ func (c *FullClient) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 // Block method returns BlockID and block itself for given height.
 //
 // If height is nil, it returns information about last known block.
+// If height is a valid block tag, it returns information about the tagged
+// block, see BlockNumber for details.
 func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-	heightValue := c.normalizeHeight(height)
+	var heightValue uint64
+
+	switch {
+	// block tag = included
+	case height != nil && *height == -1:
+		heightValue = c.node.blockManager.GetDAIncludedHeight(ctx)
+	default:
+		heightValue = c.normalizeHeight(height)
+	}
 	block, err := c.node.Store.GetBlock(ctx, heightValue)
 	if err != nil {
 		return nil, err
 	}
+
 	hash := block.Hash()
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	if err != nil {

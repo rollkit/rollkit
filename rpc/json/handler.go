@@ -215,6 +215,14 @@ func setPointerParam(rawVal string, args *reflect.Value, i int) error {
 	}
 	field := args.Elem().Field(i)
 	switch field.Type() {
+	case reflect.TypeOf((*BlockNumber)(nil)):
+		var bn BlockNumber
+		err := bn.UnmarshalJSON([]byte(rawVal))
+		if err != nil {
+			return err
+		}
+		args.Elem().Field(i).Set(reflect.ValueOf(&bn))
+		return nil
 	case reflect.TypeOf((*StrInt64)(nil)):
 		val, err := strconv.ParseInt(rawVal, 10, 64)
 		if err != nil {
