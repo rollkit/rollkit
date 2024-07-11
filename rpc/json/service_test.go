@@ -66,7 +66,7 @@ func TestREST(t *testing.T) {
 
 		{"valid/malformed request", "/block?so{}wrong!", http.StatusOK, int(json2.E_INTERNAL), ``},
 		// to keep test simple, allow returning application error in following case
-		{"invalid/missing required param", "/header", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'height'`},
+		{"invalid/missing required param", "/tx", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'hash'`},
 		{"valid/missing optional param", "/block", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
 		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
 		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
@@ -148,31 +148,31 @@ func TestSubscription(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	const (
+	var (
 		query        = "message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
 		query2       = "message.sender CONTAINS 'cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'"
 		invalidQuery = "message.sender='broken"
 	)
 	subscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
-		Query: query,
+		Query: &query,
 	})
 	require.NoError(err)
 	require.NotEmpty(subscribeReq)
 
 	subscribeReq2, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
-		Query: query2,
+		Query: &query2,
 	})
 	require.NoError(err)
 	require.NotEmpty(subscribeReq2)
 
 	invalidSubscribeReq, err := json2.EncodeClientRequest("subscribe", &subscribeArgs{
-		Query: invalidQuery,
+		Query: &invalidQuery,
 	})
 	require.NoError(err)
 	require.NotEmpty(invalidSubscribeReq)
 
 	unsubscribeReq, err := json2.EncodeClientRequest("unsubscribe", &unsubscribeArgs{
-		Query: query,
+		Query: &query,
 	})
 	require.NoError(err)
 	require.NotEmpty(unsubscribeReq)
