@@ -247,8 +247,8 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 		return types.State{}, nil, err
 	}
 
-	if state.ConsensusParams.Block.MaxBytes == 0 {
-		e.logger.Error("maxBytes=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
+	if state.ConsensusParams.Block.MaxBytes <= 0 {
+		e.logger.Error("maxBytes<=0", "state.ConsensusParams.Block", state.ConsensusParams.Block, "block", block)
 	}
 
 	return state, resp, nil
