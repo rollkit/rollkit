@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/rollkit/rollkit/test/server"
 	"math/rand"
-	"net"
 	"net/url"
 	"os"
 	"testing"
@@ -50,11 +50,11 @@ const (
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	jsonrpcSrv := startMockDAServJSONRPC(ctx)
+	jsonrpcSrv := server.StartMockDAServJSONRPC(ctx, MockDAAddressHTTP)
 	if jsonrpcSrv == nil {
 		os.Exit(1)
 	}
-	grpcSrv := startMockDAServGRPC()
+	grpcSrv := server.StartMockDAServGRPC(MockDAAddress)
 	exitCode := m.Run()
 
 	// teardown servers
@@ -143,19 +143,6 @@ func TestSubmitRetrieve(t *testing.T) {
 	}
 }
 
-func startMockDAServGRPC() *grpc.Server {
-	server := proxygrpc.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	addr, _ := url.Parse(MockDAAddress)
-	lis, err := net.Listen("tcp", addr.Host)
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	return server
-}
-
 func startMockDAClientGRPC() *DAClient {
 	client := proxygrpc.NewClient()
 	addr, _ := url.Parse(MockDAAddress)
@@ -163,16 +150,6 @@ func startMockDAClientGRPC() *DAClient {
 		panic(err)
 	}
 	return NewDAClient(client, -1, -1, nil, log.TestingLogger())
-}
-
-func startMockDAServJSONRPC(ctx context.Context) *proxyjsonrpc.Server {
-	addr, _ := url.Parse(MockDAAddressHTTP)
-	srv := proxyjsonrpc.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	err := srv.Start(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return srv
 }
 
 func startMockDAClientJSONRPC(ctx context.Context) (*DAClient, error) {

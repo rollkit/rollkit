@@ -3,6 +3,7 @@ package json
 import (
 	"context"
 	"crypto/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -21,16 +22,35 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
 	"github.com/rollkit/rollkit/test/mocks"
+	testServer "github.com/rollkit/rollkit/test/server"
 	"github.com/rollkit/rollkit/types"
 )
 
 const (
 	// MockDAAddress is the mock address for the gRPC server
-	MockDAAddress = "grpc://localhost:7980"
+	MockDAAddress = "grpc://localhost:7981"
 
 	// MockDANamespace is the mock namespace
 	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
 )
+
+// TestMain starts the mock gRPC server
+// gRPC service listens on MockDAAddress
+// Static ports are used to keep client configuration simple
+// NOTE: this should be unique per test package to avoid
+// "bind: listen address already in use" because multiple packages
+// are tested in parallel
+func TestMain(m *testing.M) {
+	grpcSrv := testServer.StartMockDAServGRPC(MockDAAddress)
+
+	exitCode := m.Run()
+
+	// teardown servers
+	// nolint:errcheck,gosec
+	grpcSrv.Stop()
+
+	os.Exit(exitCode)
+}
 
 func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	return &abci.ResponsePrepareProposal{
