@@ -96,7 +96,10 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 	const subBufferSize = 100
 
 	addr := req.RemoteAddr
-	query := args.Query
+	var query string
+	if args.Query != nil {
+		query = *args.Query
+	}
 
 	ctx, cancel := context.WithTimeout(req.Context(), SubscribeTimeout)
 	defer cancel()
@@ -137,7 +140,13 @@ func (s *service) Subscribe(req *http.Request, args *subscribeArgs, wsConn *wsCo
 
 func (s *service) Unsubscribe(req *http.Request, args *unsubscribeArgs) (*emptyResult, error) {
 	s.logger.Debug("unsubscribe from query", "remote", req.RemoteAddr, "query", args.Query)
-	err := s.client.Unsubscribe(context.Background(), req.RemoteAddr, args.Query)
+
+	var query string
+	if args.Query != nil {
+		query = *args.Query
+	}
+
+	err := s.client.Unsubscribe(context.Background(), req.RemoteAddr, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unsubscribe: %w", err)
 	}
@@ -167,7 +176,16 @@ func (s *service) NetInfo(req *http.Request, args *netInfoArgs) (*ctypes.ResultN
 }
 
 func (s *service) BlockchainInfo(req *http.Request, args *blockchainInfoArgs) (*ctypes.ResultBlockchainInfo, error) {
-	return s.client.BlockchainInfo(req.Context(), int64(args.MinHeight), int64(args.MaxHeight))
+	var minHeight, maxHeight int64
+	if args.MinHeight != nil {
+		h := int64(*args.MinHeight)
+		minHeight = h
+	}
+	if args.MaxHeight != nil {
+		h := int64(*args.MaxHeight)
+		maxHeight = h
+	}
+	return s.client.BlockchainInfo(req.Context(), minHeight, maxHeight)
 }
 
 func (s *service) Genesis(req *http.Request, args *genesisArgs) (*ctypes.ResultGenesis, error) {
@@ -192,15 +210,30 @@ func (s *service) BlockByHash(req *http.Request, args *blockByHashArgs) (*ctypes
 }
 
 func (s *service) BlockResults(req *http.Request, args *blockResultsArgs) (*ctypes.ResultBlockResults, error) {
-	return s.client.BlockResults(req.Context(), (*int64)(&args.Height))
+	var height *int64
+	if args.Height != nil {
+		h := int64(*args.Height)
+		height = &h
+	}
+	return s.client.BlockResults(req.Context(), height)
 }
 
 func (s *service) Commit(req *http.Request, args *commitArgs) (*ctypes.ResultCommit, error) {
-	return s.client.Commit(req.Context(), (*int64)(&args.Height))
+	var height *int64
+	if args.Height != nil {
+		h := int64(*args.Height)
+		height = &h
+	}
+	return s.client.Commit(req.Context(), height)
 }
 
 func (s *service) Header(req *http.Request, args *headerArgs) (*ctypes.ResultHeader, error) {
-	return s.client.Header(req.Context(), (*int64)(&args.Height))
+	var height *int64
+	if args.Height != nil {
+		h := int64(*args.Height)
+		height = &h
+	}
+	return s.client.Header(req.Context(), height)
 }
 
 func (s *service) HeaderByHash(req *http.Request, args *headerByHashArgs) (*ctypes.ResultHeader, error) {
@@ -216,15 +249,61 @@ func (s *service) Tx(req *http.Request, args *txArgs) (*ctypes.ResultTx, error) 
 }
 
 func (s *service) TxSearch(req *http.Request, args *txSearchArgs) (*ctypes.ResultTxSearch, error) {
-	return s.client.TxSearch(req.Context(), args.Query, args.Prove, (*int)(&args.Page), (*int)(&args.PerPage), args.OrderBy)
+	var page, perPage *int
+	var orderBy string
+
+	if args.Page != nil {
+		p := int(*args.Page)
+		page = &p
+	}
+	if args.PerPage != nil {
+		pp := int(*args.PerPage)
+		perPage = &pp
+	}
+	if args.OrderBy != nil {
+		orderBy = *args.OrderBy
+	}
+
+	return s.client.TxSearch(req.Context(), args.Query, args.Prove, page, perPage, orderBy)
 }
 
 func (s *service) BlockSearch(req *http.Request, args *blockSearchArgs) (*ctypes.ResultBlockSearch, error) {
-	return s.client.BlockSearch(req.Context(), args.Query, (*int)(&args.Page), (*int)(&args.PerPage), args.OrderBy)
+	var page, perPage *int
+	var orderBy string
+
+	if args.Page != nil {
+		p := int(*args.Page)
+		page = &p
+	}
+	if args.PerPage != nil {
+		pp := int(*args.PerPage)
+		perPage = &pp
+	}
+	if args.OrderBy != nil {
+		orderBy = *args.OrderBy
+	}
+
+	return s.client.BlockSearch(req.Context(), args.Query, page, perPage, orderBy)
 }
 
 func (s *service) Validators(req *http.Request, args *validatorsArgs) (*ctypes.ResultValidators, error) {
-	return s.client.Validators(req.Context(), (*int64)(&args.Height), (*int)(&args.Page), (*int)(&args.PerPage))
+	var height *int64
+	var page, perPage *int
+
+	if args.Height != nil {
+		h := int64(*args.Height)
+		height = &h
+	}
+	if args.Page != nil {
+		p := int(*args.Page)
+		page = &p
+	}
+	if args.PerPage != nil {
+		pp := int(*args.PerPage)
+		perPage = &pp
+	}
+
+	return s.client.Validators(req.Context(), height, page, perPage)
 }
 
 func (s *service) DumpConsensusState(req *http.Request, args *dumpConsensusStateArgs) (*ctypes.ResultDumpConsensusState, error) {
@@ -236,11 +315,21 @@ func (s *service) GetConsensusState(req *http.Request, args *getConsensusStateAr
 }
 
 func (s *service) ConsensusParams(req *http.Request, args *consensusParamsArgs) (*ctypes.ResultConsensusParams, error) {
-	return s.client.ConsensusParams(req.Context(), (*int64)(&args.Height))
+	var height *int64
+	if args.Height != nil {
+		h := int64(*args.Height)
+		height = &h
+	}
+	return s.client.ConsensusParams(req.Context(), height)
 }
 
 func (s *service) UnconfirmedTxs(req *http.Request, args *unconfirmedTxsArgs) (*ctypes.ResultUnconfirmedTxs, error) {
-	return s.client.UnconfirmedTxs(req.Context(), (*int)(&args.Limit))
+	var limit *int
+	if args.Limit != nil {
+		l := int(*args.Limit)
+		limit = &l
+	}
+	return s.client.UnconfirmedTxs(req.Context(), limit)
 }
 
 func (s *service) NumUnconfirmedTxs(req *http.Request, args *numUnconfirmedTxsArgs) (*ctypes.ResultUnconfirmedTxs, error) {
@@ -262,10 +351,16 @@ func (s *service) BroadcastTxAsync(req *http.Request, args *broadcastTxAsyncArgs
 
 // abci API
 func (s *service) ABCIQuery(req *http.Request, args *ABCIQueryArgs) (*ctypes.ResultABCIQuery, error) {
-	return s.client.ABCIQueryWithOptions(req.Context(), args.Path, args.Data, rpcclient.ABCIQueryOptions{
-		Height: int64(args.Height),
-		Prove:  args.Prove,
-	})
+	options := rpcclient.ABCIQueryOptions{}
+
+	if args.Height != nil {
+		options.Height = int64(*args.Height)
+	}
+	if args.Prove != nil {
+		options.Prove = *args.Prove
+	}
+
+	return s.client.ABCIQueryWithOptions(req.Context(), args.Path, args.Data, options)
 }
 
 func (s *service) ABCIInfo(req *http.Request, args *ABCIInfoArgs) (*ctypes.ResultABCIInfo, error) {

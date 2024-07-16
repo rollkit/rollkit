@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/cometbft/cometbft/libs/bytes"
 	cmjson "github.com/cometbft/cometbft/libs/json"
 
 	"github.com/gorilla/rpc/v2"
@@ -213,19 +214,40 @@ func setPointerParam(rawVal string, args *reflect.Value, i int) error {
 		return nil
 	}
 	field := args.Elem().Field(i)
-	switch {
-	// only *StrInt64 is supported for now
-	case field.Type() == reflect.TypeOf(blockArgs{}.Height):
+	switch field.Type() {
+	case reflect.TypeOf((*StrInt64)(nil)):
 		val, err := strconv.ParseInt(rawVal, 10, 64)
 		if err != nil {
 			return err
 		}
 		strInt64Val := StrInt64(val)
-		args.Elem().Field(i).Set(reflect.ValueOf(&strInt64Val))
-		return nil
+		field.Set(reflect.ValueOf(&strInt64Val))
+	case reflect.TypeOf((*StrInt)(nil)):
+		val, err := strconv.Atoi(rawVal)
+		if err != nil {
+			return err
+		}
+		strIntVal := StrInt(val)
+		field.Set(reflect.ValueOf(&strIntVal))
+	case reflect.TypeOf((*string)(nil)):
+		field.Set(reflect.ValueOf(&rawVal))
+	case reflect.TypeOf((*bool)(nil)):
+		val, err := strconv.ParseBool(rawVal)
+		if err != nil {
+			return err
+		}
+		field.Set(reflect.ValueOf(&val))
+	case reflect.TypeOf((*bytes.HexBytes)(nil)):
+		hexBytes, err := hex.DecodeString(rawVal)
+		if err != nil {
+			return err
+		}
+		hb := bytes.HexBytes(hexBytes)
+		field.Set(reflect.ValueOf(&hb))
 	default:
-		return fmt.Errorf("unsupported pointer type: %v", field)
+		return fmt.Errorf("unsupported pointer type: %v", field.Type())
 	}
+	return nil
 }
 
 func setBoolParam(rawVal string, args *reflect.Value, i int) error {

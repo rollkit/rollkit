@@ -11,13 +11,14 @@ import (
 )
 
 type subscribeArgs struct {
-	Query string `json:"query"`
+	Query *string `json:"query"`
 }
+
 type unsubscribeArgs struct {
-	Query string `json:"query"`
+	Query *string `json:"query"`
 }
-type unsubscribeAllArgs struct {
-}
+
+type unsubscribeAllArgs struct{}
 
 // info API
 type healthArgs struct {
@@ -27,69 +28,83 @@ type statusArgs struct {
 type netInfoArgs struct {
 }
 type blockchainInfoArgs struct {
-	MinHeight StrInt64
-	MaxHeight StrInt64
+	MinHeight *StrInt64 `json:"minHeight"`
+	MaxHeight *StrInt64 `json:"maxHeight"`
 }
-type genesisArgs struct {
-}
+
+type genesisArgs struct{}
+
 type genesisChunkedArgs struct {
 	ID StrInt `json:"chunk"`
 }
+
 type blockArgs struct {
 	Height *StrInt64 `json:"height"`
 }
+
 type blockByHashArgs struct {
 	Hash []byte `json:"hash"`
 }
+
 type blockResultsArgs struct {
-	Height StrInt64 `json:"height"`
+	Height *StrInt64 `json:"height"`
 }
+
 type commitArgs struct {
-	Height StrInt64 `json:"height"`
+	Height *StrInt64 `json:"height"`
 }
+
 type headerArgs struct {
-	Height StrInt64 `json:"height"`
+	Height *StrInt64 `json:"height"`
 }
+
 type headerByHashArgs struct {
 	Hash []byte `json:"hash"`
 }
+
 type checkTxArgs struct {
 	Tx types.Tx `json:"tx"`
 }
+
 type txArgs struct {
 	Hash  []byte `json:"hash"`
 	Prove bool   `json:"prove"`
 }
+
 type txSearchArgs struct {
-	Query   string `json:"query"`
-	Prove   bool   `json:"prove"`
-	Page    StrInt `json:"page"`
-	PerPage StrInt `json:"per_page"`
-	OrderBy string `json:"order_by"`
+	Query   string  `json:"query"`
+	Prove   bool    `json:"prove"`
+	Page    *StrInt `json:"page"`
+	PerPage *StrInt `json:"per_page"`
+	OrderBy *string `json:"order_by"`
 }
+
 type blockSearchArgs struct {
-	Query   string `json:"query"`
-	Page    StrInt `json:"page"`
-	PerPage StrInt `json:"per_page"`
-	OrderBy string `json:"order_by"`
+	Query   string  `json:"query"`
+	Page    *StrInt `json:"page"`
+	PerPage *StrInt `json:"per_page"`
+	OrderBy *string `json:"order_by"`
 }
+
 type validatorsArgs struct {
-	Height  StrInt64 `json:"height"`
-	Page    StrInt   `json:"page"`
-	PerPage StrInt   `json:"per_page"`
+	Height  *StrInt64 `json:"height"`
+	Page    *StrInt   `json:"page"`
+	PerPage *StrInt   `json:"per_page"`
 }
-type dumpConsensusStateArgs struct {
-}
-type getConsensusStateArgs struct {
-}
+
+type dumpConsensusStateArgs struct{}
+
+type getConsensusStateArgs struct{}
+
 type consensusParamsArgs struct {
-	Height StrInt64 `json:"height"`
+	Height *StrInt64 `json:"height"`
 }
+
 type unconfirmedTxsArgs struct {
-	Limit StrInt `json:"limit"`
+	Limit *StrInt `json:"limit"`
 }
-type numUnconfirmedTxsArgs struct {
-}
+
+type numUnconfirmedTxsArgs struct{}
 
 // tx broadcast API
 type broadcastTxCommitArgs struct {
@@ -108,8 +123,8 @@ type broadcastTxAsyncArgs struct {
 type ABCIQueryArgs struct {
 	Path   string         `json:"path"`
 	Data   bytes.HexBytes `json:"data"`
-	Height StrInt64       `json:"height"`
-	Prove  bool           `json:"prove"`
+	Height *StrInt64      `json:"height"`
+	Prove  *bool          `json:"prove"`
 }
 
 // ABCIInfoArgs defines args for ABCI Info method.
