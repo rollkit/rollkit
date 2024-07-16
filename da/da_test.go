@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/rollkit/rollkit/test/server"
 	"math/rand"
 	"net/url"
 	"os"
@@ -22,6 +21,7 @@ import (
 	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da/mock"
+	testServer "github.com/rollkit/rollkit/test/server"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -50,11 +50,11 @@ const (
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	jsonrpcSrv := server.StartMockDAServJSONRPC(ctx, MockDAAddressHTTP)
+	jsonrpcSrv := testServer.StartMockDAServJSONRPC(ctx, MockDAAddressHTTP)
 	if jsonrpcSrv == nil {
 		os.Exit(1)
 	}
-	grpcSrv := server.StartMockDAServGRPC(MockDAAddress)
+	grpcSrv := testServer.StartMockDAServGRPC(MockDAAddress)
 	exitCode := m.Run()
 
 	// teardown servers
