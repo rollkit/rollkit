@@ -1,0 +1,30 @@
+name: Docker Build & Publish
+
+# Trigger on all push events, new semantic version tags, and all PRs
+on:
+  push:
+    branches:
+      - "main"
+    tags:
+      - "v*"
+  pull_request:
+
+jobs:
+  rollkit-docker:
+    permissions:
+      contents: write
+      packages: write
+    uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.1 # yamllint disable-line rule:line-length
+    with:
+      dockerfile: Dockerfile
+    secrets: inherit
+
+  mock-server-docker:
+    permissions:
+      contents: write
+      packages: write
+    uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.1 # yamllint disable-line rule:line-length
+    with:
+      dockerfile: test/docker/mockserv.Dockerfile
+      packageName: mockserv
+    secrets: inherit

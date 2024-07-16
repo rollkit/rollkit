@@ -31,7 +31,12 @@ jobs:
         if: env.GIT_DIFF
 
   # hadolint lints the Dockerfile
-  hadolint:
+  hadolint-rollkit:
+    uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.1 # yamllint disable-line rule:line-length
+    with:
+      dockerfile: Dockerfile
+
+  hadolint-mockserv:
     uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.1 # yamllint disable-line rule:line-length
     with:
       dockerfile: test/docker/mockserv.Dockerfile
