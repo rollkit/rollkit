@@ -420,7 +420,7 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 	switch {
 	// block tag = included
 	case height != nil && *height == -1:
-		heightValue = c.node.blockManager.GetDAIncludedHeight(ctx)
+		heightValue = c.node.blockManager.GetDAIncludedHeight()
 	default:
 		heightValue = c.normalizeHeight(height)
 	}

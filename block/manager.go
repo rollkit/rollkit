@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -63,6 +64,9 @@ const blockInChLength = 10000
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
 
+// DAIncludedKey is the key used for persisting the da included height in store.
+const DAIncludedKey = "da included"
+
 var (
 	// ErrNoValidatorsInState is used when no validators/proposers are found in state
 	ErrNoValidatorsInState = errors.New("no validators found in state")
@@ -122,6 +126,10 @@ type Manager struct {
 
 	// true if the manager is a proposer
 	isProposer bool
+
+	// daIncludedHeight is rollup height at which all blocks have been included
+	// in the DA
+	daIncludedHeight atomic.Uint64
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -261,7 +269,24 @@ func NewManager(
 		metrics:       seqMetrics,
 		isProposer:    isProposer,
 	}
+	agg.loadDAIncludedHeight()
 	return agg, nil
+}
+
+func (m *Manager) updateDAIncludedHeight(height uint64) error {
+	m.daIncludedHeight.Store(height)
+	ctx := context.Background()
+	heightBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(heightBytes, height)
+	return m.store.SetMetadata(ctx, DAIncludedKey, heightBytes)
+}
+
+func (m *Manager) loadDAIncludedHeight() {
+	ctx := context.Background()
+	height, err := m.store.GetMetadata(ctx, DAIncludedKey)
+	if err == nil && len(height) == 8 {
+		m.daIncludedHeight.Store(binary.BigEndian.Uint64(height))
+	}
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
@@ -295,19 +320,10 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
-// GetDAIncludedHeight returns the manager's da included height
-// FIXME(tuxcanfly): this is in accurate before first retrieve loop
-func (m *Manager) GetDAIncludedHeight(ctx context.Context) uint64 {
-	for height := m.store.Height(); height > 0; height-- {
-		block, err := m.store.GetBlock(ctx, height)
-		if err != nil {
-			return 0
-		}
-		if m.IsDAIncluded(block.Hash()) {
-			return height
-		}
-	}
-	return 0
+// GetDAIncludedHeight returns the rollup height at which all blocks have been
+// included in the DA
+func (m *Manager) GetDAIncludedHeight() uint64 {
+	return m.daIncludedHeight.Load()
 }
 
 // GetBlockInCh returns the manager's blockInCh
@@ -693,6 +709,12 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				}
 				blockHash := block.Hash().String()
 				m.blockCache.setDAIncluded(blockHash)
+				if block.Height() > m.GetDAIncludedHeight() {
+					err := m.updateDAIncludedHeight(block.Height())
+					if err != nil {
+						return pkgErrors.WithMessage(ctx.Err(), "unable to update da included height")
+					}
+				}
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
 				if !m.blockCache.isSeen(blockHash) {
 					// Check for shut down event prior to logging
@@ -1074,6 +1096,12 @@ daSubmitRetryLoop:
 			numSubmittedBlocks += len(submittedBlocks)
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
+				if block.Height() > m.GetDAIncludedHeight() {
+					err = m.updateDAIncludedHeight(block.Height())
+					if err != nil {
+						return err
+					}
+				}
 			}
 			lastSubmittedHeight := uint64(0)
 			if l := len(submittedBlocks); l > 0 {
