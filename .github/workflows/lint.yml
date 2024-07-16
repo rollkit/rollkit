@@ -35,11 +35,13 @@ jobs:
     uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.1 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
+      failure-threshold: error
 
   hadolint-mockserv:
     uses: rollkit/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.1 # yamllint disable-line rule:line-length
     with:
       dockerfile: test/docker/mockserv.Dockerfile
+      failure-threshold: error
 
   yamllint:
     runs-on: ubuntu-latest
