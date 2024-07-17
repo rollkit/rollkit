@@ -184,18 +184,19 @@ func unmarshalBlockNumber(b []byte, bn *BlockNumber) error {
 	case "included":
 		*bn = IncludedBlockNumber
 	default:
-		var i interface{}
-		err := json.Unmarshal(b, &i)
-		if err != nil {
-			return err
-		}
-		switch v := i.(type) {
-		case float64:
-			*bn = BlockNumber(v)
-		default:
-			return &json.UnsupportedValueError{
-				Value: reflect.ValueOf(i),
-				Str:   string(b),
+		// Try to parse as int64
+		if i, err := strconv.ParseInt(input, 10, 64); err == nil {
+			*bn = BlockNumber(i)
+		} else {
+			// If parsing as int64 fails, try to unmarshal as JSON number
+			var f float64
+			if err := json.Unmarshal(b, &f); err == nil {
+				*bn = BlockNumber(f)
+			} else {
+				return &json.UnsupportedValueError{
+					Value: reflect.ValueOf(input),
+					Str:   string(b),
+				}
 			}
 		}
 	}
