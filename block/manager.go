@@ -269,20 +269,24 @@ func NewManager(
 		metrics:       seqMetrics,
 		isProposer:    isProposer,
 	}
-	agg.loadDAIncludedHeight()
+	agg.loadDAIncludedHeight(context.Background())
 	return agg, nil
 }
 
-func (m *Manager) updateDAIncludedHeight(height uint64) error {
-	m.daIncludedHeight.Store(height)
-	ctx := context.Background()
+func (m *Manager) updateDAIncludedHeight(ctx context.Context, newHeight uint64) error {
+	currentHeight := m.daIncludedHeight.Load()
+	if newHeight <= currentHeight {
+		// No update needed
+		return nil
+	}
+
+	m.daIncludedHeight.Store(newHeight)
 	heightBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(heightBytes, height)
+	binary.BigEndian.PutUint64(heightBytes, newHeight)
 	return m.store.SetMetadata(ctx, DAIncludedKey, heightBytes)
 }
 
-func (m *Manager) loadDAIncludedHeight() {
-	ctx := context.Background()
+func (m *Manager) loadDAIncludedHeight(ctx context.Context) {
 	height, err := m.store.GetMetadata(ctx, DAIncludedKey)
 	if err == nil && len(height) == 8 {
 		m.daIncludedHeight.Store(binary.BigEndian.Uint64(height))
@@ -709,11 +713,9 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 				}
 				blockHash := block.Hash().String()
 				m.blockCache.setDAIncluded(blockHash)
-				if block.Height() > m.GetDAIncludedHeight() {
-					err := m.updateDAIncludedHeight(block.Height())
-					if err != nil {
-						return pkgErrors.WithMessage(ctx.Err(), "unable to update da included height")
-					}
+				err = m.updateDAIncludedHeight(ctx, block.Height())
+				if err != nil {
+					return err
 				}
 				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
 				if !m.blockCache.isSeen(blockHash) {
@@ -1096,11 +1098,9 @@ daSubmitRetryLoop:
 			numSubmittedBlocks += len(submittedBlocks)
 			for _, block := range submittedBlocks {
 				m.blockCache.setDAIncluded(block.Hash().String())
-				if block.Height() > m.GetDAIncludedHeight() {
-					err = m.updateDAIncludedHeight(block.Height())
-					if err != nil {
-						return err
-					}
+				err = m.updateDAIncludedHeight(ctx, block.Height())
+				if err != nil {
+					return err
 				}
 			}
 			lastSubmittedHeight := uint64(0)
