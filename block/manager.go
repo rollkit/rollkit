@@ -348,7 +348,7 @@ func (m *Manager) IsDAIncluded(hash types.Hash) bool {
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
-func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
+func (m *Manager) AggregationLoop(ctx context.Context) {
 	initialHeight := uint64(m.genesis.InitialHeight)
 	height := m.store.Height()
 	var delay time.Duration
@@ -375,13 +375,9 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 	// Lazy Aggregator mode.
 	// In Lazy Aggregator mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
-	if lazy {
+	if m.conf.LazyAggregator {
 		// start is used to track the start time of the block production period
 		var start time.Time
-
-		// defaultSleep is used when coming out of a period of inactivity,
-		// to try and pull in more transactions in the first block
-		defaultSleep := time.Second
 
 		// lazyTimer is used to signal when a block should be built in
 		// lazy mode to signal that the chain is still live during long
@@ -404,7 +400,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 					// if we are coming out of a period of inactivity.  If we had recently
 					// produced a block (i.e. within the block time) then we will sleep for
 					// the remaining time within the block time interval.
-					blockTimer.Reset(getRemainingSleep(start, m.conf.BlockTime, defaultSleep))
+					blockTimer.Reset(m.getRemainingSleep(start))
 
 				}
 				continue
@@ -424,7 +420,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 			// is still live. Default sleep is set to 0 because care
 			// about producing blocks on time vs giving time for
 			// transactions to accumulate.
-			lazyTimer.Reset(getRemainingSleep(start, m.conf.LazyBlockTime, 0))
+			lazyTimer.Reset(m.getRemainingSleep(start))
 		}
 	}
 
@@ -444,7 +440,7 @@ func (m *Manager) AggregationLoop(ctx context.Context, lazy bool) {
 		// period based on the block time. Default sleep is set to 0
 		// because care about producing blocks on time vs giving time
 		// for transactions to accumulate.
-		blockTimer.Reset(getRemainingSleep(start, m.conf.BlockTime, 0))
+		blockTimer.Reset(m.getRemainingSleep(start))
 	}
 }
 
@@ -763,19 +759,31 @@ func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRet
 	return blockRes, err
 }
 
-// getRemainingSleep calculates the remaining sleep time based on an interval
-// and a start time.
-func getRemainingSleep(start time.Time, interval, defaultSleep time.Duration) time.Duration {
+// getRemainingSleep calculates the remaining sleep time based on config and a start time.
+func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	// Initialize the sleep duration to the default sleep duration to cover
 	// the case where more time has past than the interval duration.
-	sleepDuration := defaultSleep
+	sleepDuration := time.Duration(0)
 	// Calculate the time elapsed since the start time.
 	elapse := time.Since(start)
+
+	interval := m.conf.BlockTime
+	if m.conf.LazyAggregator {
+		// If it's in lazy aggregator mode and is buildingBlock, reset sleepDuration for
+		// blockTimer, else reset interval for lazyTimer
+		if m.buildingBlock {
+			sleepDuration = m.conf.BlockTime
+		} else {
+			interval = m.conf.LazyBlockTime
+		}
+	}
+
 	// If less time has elapsed than the interval duration, calculate the
 	// remaining time to sleep.
 	if elapse < interval {
 		sleepDuration = interval - elapse
 	}
+
 	return sleepDuration
 }
 

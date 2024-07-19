@@ -264,6 +264,7 @@ func initBlockSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, 
 }
 
 func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
+	nodeConfig.BlockManagerConfig.LazyAggregator = nodeConfig.LazyAggregator
 	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.Store(), seqMetrics, execMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
@@ -386,7 +387,7 @@ func (n *FullNode) OnStart() error {
 
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
-		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx, n.nodeConfig.LazyAggregator) })
+		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.BlockSubmissionLoop(n.ctx) })
 		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockPublishLoop(n.ctx) })

@@ -83,6 +83,8 @@ type BlockManagerConfig struct {
 	// MaxPendingBlocks defines limit of blocks pending DA submission. 0 means no limit.
 	// When limit is reached, aggregator pauses block production.
 	MaxPendingBlocks uint64 `mapstructure:"max_pending_blocks"`
+	// LazyAggregator defines whether new blocks are produced in lazy mode
+	LazyAggregator bool `mapstructure:"lazy_aggregator"`
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
