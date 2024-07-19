@@ -16,7 +16,7 @@ const (
 	ShareSize = 512
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
-	// byte contains the share version and a sequence start idicator.
+	// byte contains the share version and a sequence start indicator.
 	ShareInfoBytes = 1
 
 	// SequenceLenBytes is the number of bytes reserved for the sequence length

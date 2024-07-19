@@ -106,7 +106,7 @@ type Manager struct {
 	// blockStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve blocks from blockStore
 	blockStoreCh chan struct{}
 
-	// retrieveCond is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
+	// retrieveCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
 	retrieveCh chan struct{}
 
 	logger log.Logger

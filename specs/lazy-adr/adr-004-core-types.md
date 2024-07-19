@@ -108,7 +108,7 @@ type EvidenceData struct {
 `Evidence` represents a go-interface (or oneof in protobuf) of known set of concrete fraud-proofs.
 The details for this will be defined in a separated adr/PR.
 
-Here is an incomplete list of potenial evidence types:
+Here is an incomplete list of potential evidence types:
 
 - Same Aggregator signed two different blocks at the same height
   - figure out if this is actually malicious / slashable behaviour - e.g. clients could simply accept the last block included in a LL block
