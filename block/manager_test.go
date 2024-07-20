@@ -21,6 +21,7 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
@@ -533,4 +534,112 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
+}
+
+func Test_getRemainingSleep_OverTheInterval(t *testing.T) {
+	now := time.Now()
+	blockTime := 1 * time.Second
+	lazyBlockTime := 10 * time.Second
+
+	// start height over the interval in the past
+	farPastStart := now.Add(-blockTime - 1)
+	farPastStartLazy := now.Add(-lazyBlockTime - 1)
+
+	var tests = []struct {
+		name           string
+		start          time.Time
+		blockTime      time.Duration
+		lazyBlockTime  time.Duration
+		lazyAggregator bool
+		buildingBlock  bool
+		expectedSleep  time.Duration
+	}{
+		{
+			"nil case",
+			time.Time{}, 0, 0,
+			false, false,
+			0,
+		},
+		{"normal aggregator mode",
+			farPastStart, blockTime, lazyBlockTime,
+			false, false,
+			0,
+		},
+		{"aggregator mode - building block",
+			farPastStart, blockTime, lazyBlockTime,
+			true, true,
+			blockTime,
+		},
+		{"aggregator mode - not building block",
+			farPastStartLazy, blockTime, lazyBlockTime,
+			true, false,
+			0,
+		},
+	}
+
+	for _, test := range tests {
+		m := Manager{
+			conf: config.BlockManagerConfig{
+				BlockTime:      test.blockTime,
+				LazyBlockTime:  test.lazyBlockTime,
+				LazyAggregator: test.lazyAggregator,
+			},
+			buildingBlock: test.buildingBlock,
+		}
+
+		assert.Equalf(t, test.expectedSleep, m.getRemainingSleep(test.start), "test case: %s", test.name)
+
+	}
+
+}
+
+func Test_getRemainingSleep_OverInterval(t *testing.T) {
+	now := time.Now()
+	blockTime := 1 * time.Second
+	lazyBlockTime := 10 * time.Second
+
+	// start height over interval in the past
+	start := now.Add(-blockTime / 2)
+	startLazy := now.Add(-lazyBlockTime / 2)
+
+	var tests = []struct {
+		name           string
+		start          time.Time
+		blockTime      time.Duration
+		lazyBlockTime  time.Duration
+		lazyAggregator bool
+		buildingBlock  bool
+		compareTime    time.Duration
+	}{
+		{"normal aggregator mode",
+			start, blockTime, lazyBlockTime,
+			false, false,
+			blockTime,
+		},
+		{"aggregator mode - building block",
+			start, blockTime, lazyBlockTime,
+			true, true,
+			blockTime,
+		},
+		{"aggregator mode - not building block",
+			startLazy, blockTime, lazyBlockTime,
+			true, false,
+			lazyBlockTime,
+		},
+	}
+
+	for _, test := range tests {
+		m := Manager{
+			conf: config.BlockManagerConfig{
+				BlockTime:      test.blockTime,
+				LazyBlockTime:  test.lazyBlockTime,
+				LazyAggregator: test.lazyAggregator,
+			},
+			buildingBlock: test.buildingBlock,
+		}
+
+		assert.Truef(t, test.compareTime > m.getRemainingSleep(test.start), "test case: %s", test.name)
+
+	}
+
 }
