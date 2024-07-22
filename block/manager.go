@@ -275,8 +275,7 @@ func NewManager(
 
 func (m *Manager) init(ctx context.Context) {
 	// initialize da included height
-	height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey)
-	if err == nil && len(height) == 8 {
+	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
 		m.daIncludedHeight.Store(binary.BigEndian.Uint64(height))
 	}
 }

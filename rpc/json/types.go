@@ -172,7 +172,8 @@ const (
 	EarliestBlockNumber = BlockNumber(1)
 )
 
-func unmarshalBlockNumber(b []byte, bn *BlockNumber) error {
+// UnmarshalJSON parses JSON (int or block tag quoted as string) into BlockNumber
+func (bn *BlockNumber) UnmarshalJSON(b []byte) error {
 	input := strings.TrimSpace(string(b))
 	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
 		input = input[1 : len(input)-1]
@@ -202,11 +203,6 @@ func unmarshalBlockNumber(b []byte, bn *BlockNumber) error {
 	}
 
 	return nil
-}
-
-// UnmarshalJSON parses JSON (int or block tag quoted as string) into BlockNumber
-func (bn *BlockNumber) UnmarshalJSON(b []byte) error {
-	return unmarshalBlockNumber(b, bn)
 }
 
 func unmarshalStrInt64(b []byte, s *StrInt64) error {

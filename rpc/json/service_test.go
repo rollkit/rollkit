@@ -394,39 +394,6 @@ func TestRESTSerialization(t *testing.T) {
 	}
 }
 
-func TestUnmarshalBlockNumber(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   []byte
-		want    BlockNumber
-		wantErr bool
-	}{
-		{"Earliest", []byte(`"earliest"`), EarliestBlockNumber, false},
-		{"Included", []byte(`"included"`), IncludedBlockNumber, false},
-		{"PositiveInteger", []byte(`42`), BlockNumber(42), false},
-		{"NegativeInteger", []byte(`-10`), BlockNumber(-10), false},
-		{"Zero", []byte(`0`), BlockNumber(0), false},
-		{"QuotedInteger", []byte(`"123"`), BlockNumber(123), false},
-		{"InvalidString", []byte(`"invalid"`), BlockNumber(0), true},
-		{"InvalidJSON", []byte(`{`), BlockNumber(0), true},
-		{"UnsupportedType", []byte(`true`), BlockNumber(0), true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var got BlockNumber
-			err := unmarshalBlockNumber(tt.input, &got)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("unmarshalBlockNumber() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && got != tt.want {
-				t.Errorf("unmarshalBlockNumber() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestBlockNumber_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
