@@ -282,16 +282,18 @@ func (m *Manager) init(ctx context.Context) {
 }
 
 func (m *Manager) setDAIncludedHeight(ctx context.Context, newHeight uint64) error {
-	currentHeight := m.daIncludedHeight.Load()
-	if newHeight <= currentHeight {
-		// No update needed
-		return nil
+	for {
+		currentHeight := m.daIncludedHeight.Load()
+		if newHeight <= currentHeight {
+			break
+		}
+		if m.daIncludedHeight.CompareAndSwap(currentHeight, newHeight) {
+			heightBytes := make([]byte, 8)
+			binary.BigEndian.PutUint64(heightBytes, newHeight)
+			return m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
+		}
 	}
-
-	m.daIncludedHeight.Store(newHeight)
-	heightBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(heightBytes, newHeight)
-	return m.store.SetMetadata(ctx, DAIncludedHeightKey, heightBytes)
+	return nil
 }
 
 // GetDAIncludedHeight returns the rollup height at which all blocks have been
