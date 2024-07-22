@@ -36,7 +36,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/btcsuite/btcd/btcec/v2 v2.3.3
+	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/celestiaorg/go-header v0.6.2
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/mitchellh/mapstructure v1.5.0
