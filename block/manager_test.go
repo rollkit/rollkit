@@ -259,12 +259,38 @@ func TestSubmitBlocksToDA(t *testing.T) {
 		blocks                      []*types.Block
 		isErrExpected               bool
 		expectedPendingBlocksLength int
+		expectedDAIncludedHeight    uint64
 	}{
 		{
-			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
-			blocks:                      []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
-			isErrExpected:               false,
-			expectedPendingBlocksLength: 0,
+			name: "B is too big on its own. So A gets submitted but, B and C never get submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
+				blocks[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
+				require.NoError(err)
+				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
+				return blocks
+			}(),
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 2,
+			expectedDAIncludedHeight:    1,
+		},
+		{
+			name: "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
+			blocks: func() []*types.Block {
+				numBlocks, numTxs := 3, 5
+				blocks := make([]*types.Block, numBlocks)
+				for i := 0; i < numBlocks-1; i++ {
+					blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
+				}
+				blocks[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
+				require.NoError(err)
+				return blocks
+			}(),
+			isErrExpected:               true,
+			expectedPendingBlocksLength: 1,
+			expectedDAIncludedHeight:    2,
 		},
 		{
 			name: "blocks A and B are submitted together without C because including C triggers blob size limit. C is submitted in a separate round",
@@ -286,35 +312,14 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			}(),
 			isErrExpected:               false,
 			expectedPendingBlocksLength: 0,
+			expectedDAIncludedHeight:    3,
 		},
 		{
-			name: "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
-			blocks: func() []*types.Block {
-				numBlocks, numTxs := 3, 5
-				blocks := make([]*types.Block, numBlocks)
-				for i := 0; i < numBlocks-1; i++ {
-					blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
-				}
-				blocks[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
-				require.NoError(err)
-				return blocks
-			}(),
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 1,
-		},
-		{
-			name: "B is too big on its own. So A gets submitted but, B and C never get submitted",
-			blocks: func() []*types.Block {
-				numBlocks, numTxs := 3, 5
-				blocks := make([]*types.Block, numBlocks)
-				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
-				blocks[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
-				require.NoError(err)
-				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
-				return blocks
-			}(),
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 2,
+			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
+			blocks:                      []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
+			isErrExpected:               false,
+			expectedPendingBlocksLength: 0,
+			expectedDAIncludedHeight:    3,
 		},
 	}
 
@@ -343,6 +348,9 @@ func TestSubmitBlocksToDA(t *testing.T) {
 			lshInKV, err := strconv.ParseUint(string(raw), 10, 64)
 			require.NoError(err)
 			assert.Equal(m.store.Height(), lshInKV+uint64(tc.expectedPendingBlocksLength))
+
+			// ensure that da included height is updated in KV store
+			assert.Equal(tc.expectedDAIncludedHeight, m.GetDAIncludedHeight())
 		})
 	}
 }
@@ -406,6 +414,8 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(block3)
+	store.On("SetMetadata", ctx, DAIncludedHeightKey, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}).Return(nil)
+	store.On("SetMetadata", ctx, DAIncludedHeightKey, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}).Return(nil)
 	store.On("SetMetadata", ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(2, 10))).Return(nil)
 	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlock", ctx, uint64(1)).Return(block1, nil)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/types"
@@ -39,7 +40,7 @@ type genesisChunkedArgs struct {
 }
 
 type blockArgs struct {
-	Height *StrInt64 `json:"height"`
+	Height *BlockNumber `json:"height"`
 }
 
 type blockByHashArgs struct {
@@ -158,6 +159,50 @@ func (s *StrInt) UnmarshalJSON(b []byte) error {
 	err := unmarshalStrInt64(b, &val)
 	*s = StrInt(val)
 	return err
+}
+
+// BlockNumber is a StrInt64 with helper tags for block heights
+type BlockNumber StrInt64
+
+// BlockNumber tags:
+// - "earliest" = literal 1
+// - "included" = seen on DA
+const (
+	IncludedBlockNumber = BlockNumber(-1)
+	EarliestBlockNumber = BlockNumber(1)
+)
+
+// UnmarshalJSON parses JSON (int or block tag quoted as string) into BlockNumber
+func (bn *BlockNumber) UnmarshalJSON(b []byte) error {
+	input := strings.TrimSpace(string(b))
+	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
+		input = input[1 : len(input)-1]
+	}
+
+	switch input {
+	case "earliest":
+		*bn = EarliestBlockNumber
+	case "included":
+		*bn = IncludedBlockNumber
+	default:
+		// Try to parse as int64
+		if i, err := strconv.ParseInt(input, 10, 64); err == nil {
+			*bn = BlockNumber(i)
+		} else {
+			// If parsing as int64 fails, try to unmarshal as JSON number
+			var f float64
+			if err := json.Unmarshal(b, &f); err == nil {
+				*bn = BlockNumber(f)
+			} else {
+				return &json.UnsupportedValueError{
+					Value: reflect.ValueOf(input),
+					Str:   string(b),
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func unmarshalStrInt64(b []byte, s *StrInt64) error {

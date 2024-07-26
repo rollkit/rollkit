@@ -68,6 +68,7 @@ func TestREST(t *testing.T) {
 		// to keep test simple, allow returning application error in following case
 		{"invalid/missing required param", "/tx", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'hash'`},
 		{"valid/missing optional param", "/block", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
+		{"valid/included block tag param", "/block?height=included", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
 		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
 		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
 		{"invalid/int param", "/block?height=foo", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'height'"},
@@ -389,6 +390,39 @@ func TestRESTSerialization(t *testing.T) {
 
 			assert.Equal(t, tt.mockCode, resp.Code)
 			assert.JSONEq(t, tt.expectedResp, s)
+		})
+	}
+}
+
+func TestBlockNumber_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    BlockNumber
+		wantErr bool
+	}{
+		{"Earliest", `"earliest"`, EarliestBlockNumber, false},
+		{"Included", `"included"`, IncludedBlockNumber, false},
+		{"PositiveInteger", `42`, BlockNumber(42), false},
+		{"NegativeInteger", `-10`, BlockNumber(-10), false},
+		{"Zero", `0`, BlockNumber(0), false},
+		{"QuotedInteger", `"123"`, BlockNumber(123), false},
+		{"InvalidString", `"invalid"`, BlockNumber(0), true},
+		{"InvalidJSON", `{`, BlockNumber(0), true},
+		{"UnsupportedType", `true`, BlockNumber(0), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got BlockNumber
+			err := json.Unmarshal([]byte(tt.input), &got)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockNumber.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && got != tt.want {
+				t.Errorf("BlockNumber.UnmarshalJSON() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
