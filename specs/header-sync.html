@@ -164,9 +164,9 @@
 <li>The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
 </ul>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">node/header_sync.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
+<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">block/sync_service.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">Header Sync</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">Light Node</a></p>
 <p>[4] <a href="https://github.com/celestiaorg/go-header">go-header</a></p>

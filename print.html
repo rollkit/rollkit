@@ -350,13 +350,13 @@ This block is marked as soft confirmed by the validating full node until the sam
 </ul>
 <h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block-manager</a></p>
-<p>See <a href="https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
+<p>See <a href="https://rollkit.dev/guides/full-and-sequencer-node">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
 <h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <p>[1] <a href="https://github.com/celestiaorg/go-header">Go Header</a></p>
-<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/block_sync.go">Block Sync</a></p>
+<p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[5] <a href="https://rollkit.dev/tutorials/full-and-sequencer-node#getting-started">Tutorial</a></p>
+<p>[5] <a href="https://rollkit.dev/guides/full-and-sequencer-node">Tutorial</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="block-executor"><a class="header" href="#block-executor">Block Executor</a></h1>
 <h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
 <p>The <code>BlockExecutor</code> is a component responsible for creating, applying, and maintaining blocks and state in the system. It interacts with the mempool and the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>.</p>
@@ -385,7 +385,7 @@ This block is marked as soft confirmed by the validating full node until the sam
 </ul>
 </li>
 <li>
-<p><code>CreateBlock</code>: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the commit as parameters.</p>
+<p><code>CreateBlock</code>: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the signature as parameters.</p>
 </li>
 <li>
 <p><code>ApplyBlock</code>: This method applies the block to the state. Given the current state and block to be applied, it:</p>
@@ -541,7 +541,7 @@ This block is marked as soft confirmed by the validating full node until the sam
 <div style="break-before: page; page-break-before: always;"></div><h1 id="block-and-header-validity"><a class="header" href="#block-and-header-validity">Block and Header Validity</a></h1>
 <h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
 <p>Like all blockchains, rollups are defined as the chain of <strong>valid</strong> blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.</p>
-<p>Verifying a block / header is done in 3 parts:</p>
+<p>Verifying a block/header is done in 3 parts:</p>
 <ol>
 <li>
 <p>Verify correct serialization according to the protobuf spec</p>
@@ -550,7 +550,7 @@ This block is marked as soft confirmed by the validating full node until the sam
 <p>Perform basic validation of the types</p>
 </li>
 <li>
-<p>Perform verification of the new block against the previous accepted block</p>
+<p>Perform verification of the new block against the previously accepted block</p>
 </li>
 </ol>
 <h2 id="basic-validation"><a class="header" href="#basic-validation">Basic Validation</a></h2>
@@ -562,8 +562,8 @@ This block is marked as soft confirmed by the validating full node until the sam
     // Make sure the SignedHeader's Header passes basic validation
     Header.ValidateBasic()
 	  verify ProposerAddress not nil
-	// Make sure the SignedHeader's Commit passes basic validation
-	Commit.ValidateBasic()
+	// Make sure the SignedHeader's signature passes basic validation
+	Signature.ValidateBasic()
 	  // Ensure that someone signed the block
 	  verify len(c.Signatures) not 0
 	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
@@ -584,8 +584,7 @@ This block is marked as soft confirmed by the validating full node until the sam
 		validator.VotingPower &gt;= 0
 		validator.Address == correct size
     Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-    Assert that len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
-	Verify the 1 signature
+	Verify SignedHeader.Signature
   Data.ValidateBasic() // always passes
   // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
   Data.Hash() == SignedHeader.DataHash
@@ -605,7 +604,7 @@ Block.Verify()
 	// verify the link to previous.
 	untrustH.LastHeaderHash == h.Header.Hash()
 	// Verify LastCommit hash
-	untrustH.LastCommitHash == sh.Commit.GetCommitHash(...)
+	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
 	
 </code></pre>
 <h2 id="block"><a class="header" href="#block"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L26">Block</a></a></h2>
@@ -617,7 +616,7 @@ Block.Verify()
 <h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16">SignedHeader</a></a></h2>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
 <tr><td>Header</td><td>Valid header for the block</td><td><code>Header</code> passes <code>ValidateBasic()</code> and <code>Verify()</code></td></tr>
-<tr><td>Commit</td><td>1 valid signature from the centralized sequencer</td><td><code>Commit</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
+<tr><td>Signature</td><td>1 valid signature from the centralized sequencer</td><td><code>Signature</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
 <tr><td>Validators</td><td>Array of Aggregators, must have length exactly 1.</td><td><code>Validators</code> passes <code>ValidateBasic()</code></td></tr>
 </tbody></table>
 </div>
@@ -637,11 +636,7 @@ Block.Verify()
 <tr><td>AppHash</td><td>The correct state root after executing the block's transactions against the accepted state</td><td>checked during block execution</td></tr>
 <tr><td>LastResultsHash</td><td>Correct results from executing transactions</td><td>checked during block execution</td></tr>
 <tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>checked in the <code>Verify()</code> step</td></tr>
-</tbody></table>
-</div>
-<h2 id="commit"><a class="header" href="#commit"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L48">Commit</a></a></h2>
-<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
-<tr><td>Signatures</td><td>Array containing a signature from the expected proposer</td><td>checked in <code>ValidateBasic()</code>,  signature verification occurs in <code>SignedHeader.ValidateBasic()</code></td></tr>
+<tr><td>Signature</td><td>Signature of the expected proposer</td><td>signature verification occurs in the <code>ValidateBasic()</code> step</td></tr>
 </tbody></table>
 </div>
 <h2 id="validatorset"><a class="header" href="#validatorset"><a href="https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51">ValidatorSet</a></a></h2>
@@ -699,9 +694,9 @@ Block.Verify()
 <h3 id="dalc"><a class="header" href="#dalc">dalc</a></h3>
 <p>The <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a> is used to interact with the data availability layer. It is initialized with the DA Layer and DA Config specified in the node configuration.</p>
 <h3 id="hexservice"><a class="header" href="#hexservice">hExService</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">Header Sync Service</a> is used for syncing block headers between nodes over P2P.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a> is used for syncing block headers between nodes over P2P.</p>
 <h3 id="bsyncservice"><a class="header" href="#bsyncservice">bSyncService</a></h3>
-<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/block_sync.go">Block Sync Service</a> is used for syncing blocks between nodes over P2P.</p>
+<p>The <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a> is used for syncing blocks between nodes over P2P.</p>
 <h2 id="message-structurecommunication-format-3"><a class="header" href="#message-structurecommunication-format-3">Message Structure/Communication Format</a></h2>
 <p>The Full Node communicates with other nodes in the network using the P2P client. It also communicates with the application using the ABCI proxy connections. The communication format is based on the P2P and ABCI protocols.</p>
 <h2 id="assumptions-and-considerations-3"><a class="header" href="#assumptions-and-considerations-3">Assumptions and Considerations</a></h2>
@@ -719,8 +714,8 @@ Block.Verify()
 <p>[8] <a href="https://github.com/rollkit/rollkit/blob/main/store/types.go">Store Interface</a></p>
 <p>[9] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
 <p>[10] <a href="https://github.com/rollkit/rollkit/blob/main/da/da.go">Data Availability Layer Client</a></p>
-<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">Header Sync Service</a></p>
-<p>[12] <a href="https://github.com/rollkit/rollkit/blob/main/block/block_sync.go">Block Sync Service</a></p>
+<p>[11] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync Service</a></p>
+<p>[12] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync Service</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="header-sync"><a class="header" href="#header-sync">Header Sync</a></h1>
 <h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
 <p>The nodes in the P2P network sync headers using the header sync service that implements the <a href="https://github.com/celestiaorg/go-header">go-header</a> interface. The header sync service consists of several components as listed below.</p>
@@ -748,9 +743,9 @@ Block.Verify()
 <li>The node's context is passed down to all the components of the P2P header sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
 </ul>
 <h2 id="implementation-5"><a class="header" href="#implementation-5">Implementation</a></h2>
-<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">node/header_sync.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
+<p>The header sync implementation can be found in <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">block/sync_service.go</a>. The full and light nodes create and start the header sync service under <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">full</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">light</a>.</p>
 <h2 id="references-5"><a class="header" href="#references-5">References</a></h2>
-<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/block/header_sync.go">Header Sync</a></p>
+<p>[1] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Header Sync</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/light.go">Light Node</a></p>
 <p>[4] <a href="https://github.com/celestiaorg/go-header">go-header</a></p>
@@ -918,7 +913,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 </ul>
 </li>
 <li>
-<p><code>CreateBlock</code>: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the commit as parameters.</p>
+<p><code>CreateBlock</code>: This method reaps transactions from the mempool and builds a block. It takes the state, the height of the block, last header hash, and the signature as parameters.</p>
 </li>
 <li>
 <p><code>ApplyBlock</code>: This method applies the block to the state. Given the current state and block to be applied, it:</p>
@@ -1079,13 +1074,13 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <ul>
 <li><code>Height</code>: Returns the height of the highest block in the store.</li>
 <li><code>SetHeight</code>: Sets given height in the store if it's higher than the existing height in the store.</li>
-<li><code>SaveBlock</code>: Saves a block along with its seen commit.</li>
+<li><code>SaveBlock</code>: Saves a block along with its seen signature.</li>
 <li><code>GetBlock</code>: Returns a block at a given height.</li>
 <li><code>GetBlockByHash</code>: Returns a block with a given block header hash.</li>
 <li><code>SaveBlockResponses</code>: Saves block responses in the Store.</li>
 <li><code>GetBlockResponses</code>: Returns block results at a given height.</li>
-<li><code>GetCommit</code>: Returns a commit for a block at a given height.</li>
-<li><code>GetCommitByHash</code>: Returns a commit for a block with a given block header hash.</li>
+<li><code>GetSignature</code>: Returns a signature for a block at a given height.</li>
+<li><code>GetSignatureByHash</code>: Returns a signature for a block with a given block header hash.</li>
 <li><code>UpdateState</code>: Updates the state saved in the Store. Only one State is stored.</li>
 <li><code>GetState</code>: Returns the last state saved with UpdateState.</li>
 <li><code>SaveValidators</code>: Saves the validator set at a given height.</li>
@@ -1111,7 +1106,7 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <li><code>validatorsPrefix</code> with value &quot;v&quot;: Used to store validator sets at a given height.</li>
 </ul>
 <p>For example, in a call to <code>GetBlockByHash</code> for some block hash <code>&lt;block_hash&gt;</code>, the key used in the full node's base key-value store will be <code>/0/b/&lt;block_hash&gt;</code> where <code>0</code> is the main store prefix and <code>b</code> is the block prefix. Similarly, in a call to <code>GetValidators</code> for some height <code>&lt;height&gt;</code>, the key used in the full node's base key-value store will be <code>/0/v/&lt;height&gt;</code> where <code>0</code> is the main store prefix and <code>v</code> is the validator set prefix.</p>
-<p>Inside the key-value store, the value of these various types of data like <code>Block</code>, <code>Commit</code>, etc is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
+<p>Inside the key-value store, the value of these various types of data like <code>Block</code> is stored as a byte array which is encoded and decoded using the corresponding Protobuf <a href="https://github.com/rollkit/rollkit/blob/main/types/serialization.go">marshal and unmarshal methods</a>.</p>
 <p>The store is most widely used inside the <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block manager</a> and <a href="https://github.com/rollkit/rollkit/blob/main/node/full_client.go">full client</a> to perform their functions correctly. Within the block manager, since it has multiple go-routines in it, it is protected by a mutex lock, <code>lastStateMtx</code>, to synchronize read/write access to it and prevent race conditions.</p>
 <h2 id="message-structurecommunication-format-7"><a class="header" href="#message-structurecommunication-format-7">Message Structure/Communication Format</a></h2>
 <p>The Store does not communicate over the network, so there is no message structure or communication format.</p>

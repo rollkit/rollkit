@@ -140,7 +140,7 @@
                         <h1 id="block-and-header-validity"><a class="header" href="#block-and-header-validity">Block and Header Validity</a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
 <p>Like all blockchains, rollups are defined as the chain of <strong>valid</strong> blocks from the genesis, to the head. Thus, the block and header validity rules define the chain.</p>
-<p>Verifying a block / header is done in 3 parts:</p>
+<p>Verifying a block/header is done in 3 parts:</p>
 <ol>
 <li>
 <p>Verify correct serialization according to the protobuf spec</p>
@@ -149,7 +149,7 @@
 <p>Perform basic validation of the types</p>
 </li>
 <li>
-<p>Perform verification of the new block against the previous accepted block</p>
+<p>Perform verification of the new block against the previously accepted block</p>
 </li>
 </ol>
 <h2 id="basic-validation"><a class="header" href="#basic-validation">Basic Validation</a></h2>
@@ -161,8 +161,8 @@
     // Make sure the SignedHeader's Header passes basic validation
     Header.ValidateBasic()
 	  verify ProposerAddress not nil
-	// Make sure the SignedHeader's Commit passes basic validation
-	Commit.ValidateBasic()
+	// Make sure the SignedHeader's signature passes basic validation
+	Signature.ValidateBasic()
 	  // Ensure that someone signed the block
 	  verify len(c.Signatures) not 0
 	If sh.Validators is nil, or len(sh.Validators.Validators) is 0, assume based rollup, pass validation, and skip all remaining checks.
@@ -183,8 +183,7 @@
 		validator.VotingPower &gt;= 0
 		validator.Address == correct size
     Assert that SignedHeader.Validators.Hash() == SignedHeader.AggregatorsHash
-    Assert that len(SignedHeader.Commit.Signatures) == 1 (Exactly one signer check)
-	Verify the 1 signature
+	Verify SignedHeader.Signature
   Data.ValidateBasic() // always passes
   // make sure the SignedHeader's DataHash is equal to the hash of the actual data in the block.
   Data.Hash() == SignedHeader.DataHash
@@ -204,7 +203,7 @@ Block.Verify()
 	// verify the link to previous.
 	untrustH.LastHeaderHash == h.Header.Hash()
 	// Verify LastCommit hash
-	untrustH.LastCommitHash == sh.Commit.GetCommitHash(...)
+	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
 	
 </code></pre>
 <h2 id="block"><a class="header" href="#block"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L26">Block</a></a></h2>
@@ -216,7 +215,7 @@ Block.Verify()
 <h2 id="signedheader"><a class="header" href="#signedheader"><a href="https://github.com/rollkit/rollkit/blob/main/types/signed_header.go#L16">SignedHeader</a></a></h2>
 <div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
 <tr><td>Header</td><td>Valid header for the block</td><td><code>Header</code> passes <code>ValidateBasic()</code> and <code>Verify()</code></td></tr>
-<tr><td>Commit</td><td>1 valid signature from the centralized sequencer</td><td><code>Commit</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
+<tr><td>Signature</td><td>1 valid signature from the centralized sequencer</td><td><code>Signature</code> passes <code>ValidateBasic()</code>, with additional checks in <code>SignedHeader.ValidateBasic()</code></td></tr>
 <tr><td>Validators</td><td>Array of Aggregators, must have length exactly 1.</td><td><code>Validators</code> passes <code>ValidateBasic()</code></td></tr>
 </tbody></table>
 </div>
@@ -236,11 +235,7 @@ Block.Verify()
 <tr><td>AppHash</td><td>The correct state root after executing the block's transactions against the accepted state</td><td>checked during block execution</td></tr>
 <tr><td>LastResultsHash</td><td>Correct results from executing transactions</td><td>checked during block execution</td></tr>
 <tr><td>ProposerAddress</td><td>Address of the expected proposer</td><td>checked in the <code>Verify()</code> step</td></tr>
-</tbody></table>
-</div>
-<h2 id="commit"><a class="header" href="#commit"><a href="https://github.com/rollkit/rollkit/blob/main/types/block.go#L48">Commit</a></a></h2>
-<div class="table-wrapper"><table><thead><tr><th><strong>Field Name</strong></th><th><strong>Valid State</strong></th><th><strong>Validation</strong></th></tr></thead><tbody>
-<tr><td>Signatures</td><td>Array containing a signature from the expected proposer</td><td>checked in <code>ValidateBasic()</code>,  signature verification occurs in <code>SignedHeader.ValidateBasic()</code></td></tr>
+<tr><td>Signature</td><td>Signature of the expected proposer</td><td>signature verification occurs in the <code>ValidateBasic()</code> step</td></tr>
 </tbody></table>
 </div>
 <h2 id="validatorset"><a class="header" href="#validatorset"><a href="https://github.com/cometbft/cometbft/blob/main/types/validator_set.go#L51">ValidatorSet</a></a></h2>
