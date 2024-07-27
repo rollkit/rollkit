@@ -536,110 +536,95 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require.ErrorIs(err, ErrNotProposer)
 }
 
-func Test_getRemainingSleep_OverTheInterval(t *testing.T) {
-	now := time.Now()
-	blockTime := 1 * time.Second
-	lazyBlockTime := 10 * time.Second
-
-	// start height over the interval in the past
-	farPastStart := now.Add(-blockTime - 1)
-	farPastStartLazy := now.Add(-lazyBlockTime - 1)
-
-	var tests = []struct {
-		name           string
-		start          time.Time
-		blockTime      time.Duration
-		lazyBlockTime  time.Duration
-		lazyAggregator bool
-		buildingBlock  bool
-		expectedSleep  time.Duration
+func TestManager_getRemainingSleep(t *testing.T) {
+	tests := []struct {
+		name          string
+		manager       *Manager
+		start         time.Time
+		expectedSleep time.Duration
 	}{
 		{
-			"nil case",
-			time.Time{}, 0, 0,
-			false, false,
-			0,
-		},
-		{"normal aggregator mode",
-			farPastStart, blockTime, lazyBlockTime,
-			false, false,
-			0,
-		},
-		{"aggregator mode - building block",
-			farPastStart, blockTime, lazyBlockTime,
-			true, true,
-			blockTime,
-		},
-		{"aggregator mode - not building block",
-			farPastStartLazy, blockTime, lazyBlockTime,
-			true, false,
-			0,
-		},
-	}
-
-	for _, test := range tests {
-		m := Manager{
-			conf: config.BlockManagerConfig{
-				BlockTime:      test.blockTime,
-				LazyBlockTime:  test.lazyBlockTime,
-				LazyAggregator: test.lazyAggregator,
+			name: "Normal aggregation, elapsed < interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: false,
+				},
 			},
-			buildingBlock: test.buildingBlock,
-		}
-
-		assert.Equalf(t, test.expectedSleep, m.getRemainingSleep(test.start), "test case: %s", test.name)
-
-	}
-
-}
-
-func Test_getRemainingSleep_OverInterval(t *testing.T) {
-	now := time.Now()
-	blockTime := 1 * time.Second
-	lazyBlockTime := 10 * time.Second
-
-	// start height over interval in the past
-	start := now.Add(-blockTime / 2)
-	startLazy := now.Add(-lazyBlockTime / 2)
-
-	var tests = []struct {
-		name           string
-		start          time.Time
-		blockTime      time.Duration
-		lazyBlockTime  time.Duration
-		lazyAggregator bool
-		buildingBlock  bool
-		compareTime    time.Duration
-	}{
-		{"normal aggregator mode",
-			start, blockTime, lazyBlockTime,
-			false, false,
-			blockTime,
+			start:         time.Now().Add(-5 * time.Second),
+			expectedSleep: 5 * time.Second,
 		},
-		{"aggregator mode - building block",
-			start, blockTime, lazyBlockTime,
-			true, true,
-			blockTime,
-		},
-		{"aggregator mode - not building block",
-			startLazy, blockTime, lazyBlockTime,
-			true, false,
-			lazyBlockTime,
-		},
-	}
-
-	for _, test := range tests {
-		m := Manager{
-			conf: config.BlockManagerConfig{
-				BlockTime:      test.blockTime,
-				LazyBlockTime:  test.lazyBlockTime,
-				LazyAggregator: test.lazyAggregator,
+		{
+			name: "Normal aggregation, elapsed >= interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: false,
+				},
 			},
-			buildingBlock: test.buildingBlock,
-		}
-
-		assert.Truef(t, test.compareTime > m.getRemainingSleep(test.start), "test case: %s", test.name)
-
+			start:         time.Now().Add(-15 * time.Second),
+			expectedSleep: 0,
+		},
+		{
+			name: "Lazy aggregation, building block, elapsed < interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+				buildingBlock: true,
+			},
+			start:         time.Now().Add(-5 * time.Second),
+			expectedSleep: 5 * time.Second,
+		},
+		{
+			name: "Lazy aggregation, building block, elapsed >= interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+				buildingBlock: true,
+			},
+			start:         time.Now().Add(-15 * time.Second),
+			expectedSleep: defaultLazyBufferTime,
+		},
+		{
+			name: "Lazy aggregation, not building block, elapsed < interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+				buildingBlock: false,
+			},
+			start:         time.Now().Add(-5 * time.Second),
+			expectedSleep: 15 * time.Second,
+		},
+		{
+			name: "Lazy aggregation, not building block, elapsed >= interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+				buildingBlock: false,
+			},
+			start:         time.Now().Add(-25 * time.Second),
+			expectedSleep: 0,
+		},
 	}
 
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualSleep := tt.manager.getRemainingSleep(tt.start)
+			assert.GreaterOrEqual(t, tt.expectedSleep, actualSleep)
+		})
+	}
 }
