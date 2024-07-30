@@ -87,6 +87,9 @@ type BlockManagerConfig struct {
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
+	// LazyBufferTime defines the additional time to wait to accumulate
+	// transactions in lazy mode
+	LazyBufferTime time.Duration `mapstructure:"lazy_buffer_time"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
