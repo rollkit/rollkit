@@ -362,16 +362,14 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	interval := m.conf.BlockTime
 
 	if m.conf.LazyAggregator {
-		if m.buildingBlock {
+		if m.buildingBlock && elapsed >= interval {
 			// LazyBufferTime is used to give time for transactions to
 			// accumulate if we are coming out of a period of inactivity. If we
 			// had recently produced a block (i.e. within the block time) then
 			// we will sleep for the remaining time within the block time
 			// interval.
-			if elapsed >= interval {
-				return m.conf.LazyBufferTime
-			}
-		} else {
+			return m.conf.LazyBufferTime
+		} else if !m.buildingBlock {
 			interval = m.conf.LazyBlockTime
 		}
 	}

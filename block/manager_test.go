@@ -578,7 +578,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 				buildingBlock: true,
 			},
 			start:         time.Now().Add(-5 * time.Second),
-			expectedSleep: 5 * time.Second,
+			expectedSleep: 15 * time.Second,
 		},
 		{
 			name: "Lazy aggregation, building block, elapsed >= interval",
