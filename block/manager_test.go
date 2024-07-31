@@ -586,6 +586,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 				conf: config.BlockManagerConfig{
 					BlockTime:      10 * time.Second,
 					LazyBlockTime:  20 * time.Second,
+					LazyBufferTime: defaultLazyBufferTime,
 					LazyAggregator: true,
 				},
 				buildingBlock: true,
