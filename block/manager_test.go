@@ -680,9 +680,10 @@ func TestAggregationLoop(t *testing.T) {
 func TestLazyAggregationLoop(t *testing.T) {
 	mockLogger := new(test.MockLogger)
 
+	txsAvailable := make(chan struct{}, 1)
 	m := &Manager{
 		logger:       mockLogger,
-		txsAvailable: make(chan struct{}, 1),
+		txsAvailable: txsAvailable,
 		conf: config.BlockManagerConfig{
 			BlockTime:      time.Second,
 			LazyAggregator: true,
@@ -696,6 +697,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
+	txsAvailable <- struct{}{}
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
