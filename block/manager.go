@@ -56,7 +56,7 @@ const defaultMempoolTTL = 25
 const blockProtocolOverhead = 1 << 16
 
 // maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
-// This is temporary solution. It will be removed in future versions.
+// This is a temporary solution. It will be removed in future versions.
 const maxSubmitAttempts = 30
 
 // Applies to most channels, 100 is a large enough buffer to avoid blocking
@@ -430,7 +430,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		select {
 		case <-ctx.Done():
 			return
-		// the txsAvailable channel is signalled when Txns become available
+		// the txsAvailable channel is signaled when Txns become available
 		// in the mempool, or after transactions remain in the mempool after
 		// building a block.
 		case _, ok := <-m.txsAvailable:
