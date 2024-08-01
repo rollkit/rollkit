@@ -386,7 +386,7 @@ func (n *FullNode) OnStart() error {
 
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
-		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx, n.nodeConfig.LazyAggregator) })
+		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.BlockSubmissionLoop(n.ctx) })
 		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockPublishLoop(n.ctx) })

@@ -56,7 +56,6 @@ type NodeConfig struct {
 	DAAuthToken        string `mapstructure:"da_auth_token"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
-	LazyAggregator     bool                         `mapstructure:"lazy_aggregator"`
 	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
 	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
@@ -83,9 +82,14 @@ type BlockManagerConfig struct {
 	// MaxPendingBlocks defines limit of blocks pending DA submission. 0 means no limit.
 	// When limit is reached, aggregator pauses block production.
 	MaxPendingBlocks uint64 `mapstructure:"max_pending_blocks"`
+	// LazyAggregator defines whether new blocks are produced in lazy mode
+	LazyAggregator bool `mapstructure:"lazy_aggregator"`
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
+	// LazyBufferTime defines the additional time to wait to accumulate
+	// transactions in lazy mode
+	LazyBufferTime time.Duration `mapstructure:"lazy_buffer_time"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.

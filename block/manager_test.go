@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -21,13 +22,26 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/da/mock"
+	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
+
+// WithinDuration asserts that the two durations are within the specified tolerance of each other.
+func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
+	diff := expected - actual
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff <= tolerance {
+		return true
+	}
+	return assert.Fail(t, fmt.Sprintf("Not within duration.\nExpected: %v\nActual: %v\nTolerance: %v", expected, actual, tolerance))
+}
 
 // Returns a minimalistic block manager
 func getManager(t *testing.T, backend goDA.DA) *Manager {
@@ -198,7 +212,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &mock.MockDA{}
+			mockDA := &mockda.MockDA{}
 			m := getManager(t, mockDA)
 			m.conf.DABlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
@@ -529,48 +543,185 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, &mock.MockDA{})
+	m := getManager(t, &mockda.MockDA{})
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
 }
 
-func TestGetRemainingSleep(t *testing.T) {
-	now := time.Now()
-	interval := 10 * time.Second
-	defaultSleep := time.Second
-
-	// start height over the interval in the past
-	farPastStart := now.Add(-interval - 1)
-
-	// Table test in case we need to easily extend this in the future.
-	var tests = []struct {
+func TestManager_getRemainingSleep(t *testing.T) {
+	tests := []struct {
 		name          string
+		manager       *Manager
 		start         time.Time
-		interval      time.Duration
-		defaultSleep  time.Duration
 		expectedSleep time.Duration
 	}{
-		{"nil case", time.Time{}, 0, 0, 0},
-		{"start over the interval in the past", farPastStart, interval, defaultSleep, defaultSleep},
+		{
+			name: "Normal aggregation, elapsed < interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: false,
+				},
+			},
+			start:         time.Now().Add(-5 * time.Second),
+			expectedSleep: 5 * time.Second,
+		},
+		{
+			name: "Normal aggregation, elapsed >= interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: false,
+				},
+			},
+			start:         time.Now().Add(-15 * time.Second),
+			expectedSleep: 0,
+		},
+		{
+			name: "Lazy aggregation, building block, elapsed < interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+				buildingBlock: true,
+			},
+			start:         time.Now().Add(-5 * time.Second),
+			expectedSleep: 5 * time.Second,
+		},
+		{
+			name: "Lazy aggregation, building block, elapsed >= interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyBufferTime: defaultLazyBufferTime,
+					LazyAggregator: true,
+				},
+				buildingBlock: true,
+			},
+			start:         time.Now().Add(-15 * time.Second),
+			expectedSleep: defaultLazyBufferTime,
+		},
+		{
+			name: "Lazy aggregation, not building block, elapsed < interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+				buildingBlock: false,
+			},
+			start:         time.Now().Add(-5 * time.Second),
+			expectedSleep: 15 * time.Second,
+		},
+		{
+			name: "Lazy aggregation, not building block, elapsed >= interval",
+			manager: &Manager{
+				conf: config.BlockManagerConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+				buildingBlock: false,
+			},
+			start:         time.Now().Add(-25 * time.Second),
+			expectedSleep: 0,
+		},
 	}
 
-	for _, test := range tests {
-		assert.Equalf(t, test.expectedSleep, getRemainingSleep(test.start, test.interval, test.defaultSleep), "test case: %s", test.name)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualSleep := tt.manager.getRemainingSleep(tt.start)
+			// Allow for a small difference, e.g., 1 millisecond
+			assert.True(t, WithinDuration(t, tt.expectedSleep, actualSleep, 1*time.Millisecond))
+		})
+	}
+}
 
+// TestAggregationLoop tests the AggregationLoop function
+func TestAggregationLoop(t *testing.T) {
+	mockStore := new(mocks.Store)
+	mockLogger := new(test.MockLogger)
+
+	m := &Manager{
+		store:  mockStore,
+		logger: mockLogger,
+		genesis: &cmtypes.GenesisDoc{
+			ChainID:       "myChain",
+			InitialHeight: 1,
+			AppHash:       []byte("app hash"),
+		},
+		conf: config.BlockManagerConfig{
+			BlockTime:      time.Second,
+			LazyAggregator: false,
+		},
 	}
 
-	// Custom handler for start is within the interval in the past since
-	// getRemainingSleep uses time.Since which results in a
-	// non-deterministic result. But we know that it should be less than
-	// timeInThePast and greater than defaultSleep based on the test setup.
-	timeInThePast := interval / 2
+	mockStore.On("Height").Return(uint64(0))
 
-	// start height within the interval in the past
-	pastStart := now.Add(-timeInThePast)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-	sleep := getRemainingSleep(pastStart, interval, defaultSleep)
-	assert.True(t, sleep <= timeInThePast)
-	assert.True(t, sleep > defaultSleep)
+	go m.AggregationLoop(ctx)
 
+	// Wait for the function to complete or timeout
+	<-ctx.Done()
+
+	mockStore.AssertExpectations(t)
+}
+
+// TestLazyAggregationLoop tests the lazyAggregationLoop function
+func TestLazyAggregationLoop(t *testing.T) {
+	mockLogger := new(test.MockLogger)
+
+	txsAvailable := make(chan struct{}, 1)
+	m := &Manager{
+		logger:       mockLogger,
+		txsAvailable: txsAvailable,
+		conf: config.BlockManagerConfig{
+			BlockTime:      time.Second,
+			LazyAggregator: true,
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	blockTimer := time.NewTimer(m.conf.BlockTime)
+	defer blockTimer.Stop()
+
+	go m.lazyAggregationLoop(ctx, blockTimer)
+	txsAvailable <- struct{}{}
+
+	// Wait for the function to complete or timeout
+	<-ctx.Done()
+}
+
+// TestNormalAggregationLoop tests the normalAggregationLoop function
+func TestNormalAggregationLoop(t *testing.T) {
+	mockLogger := new(test.MockLogger)
+
+	m := &Manager{
+		logger: mockLogger,
+		conf: config.BlockManagerConfig{
+			BlockTime: time.Second,
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	blockTimer := time.NewTimer(m.conf.BlockTime)
+	defer blockTimer.Stop()
+
+	go m.normalAggregationLoop(ctx, blockTimer)
+
+	// Wait for the function to complete or timeout
+	<-ctx.Done()
 }
