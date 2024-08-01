@@ -28,6 +28,7 @@ jobs:
 
   test:
     uses: ./.github/workflows/test.yml
+    secrets: inherit
 
   proto:
     uses: ./.github/workflows/proto.yml
