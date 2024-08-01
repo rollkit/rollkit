@@ -380,7 +380,7 @@ func getTempKVStore(t *testing.T) ds.TxnDatastore {
 	return kvStore
 }
 
-// Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
+// Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshaling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
