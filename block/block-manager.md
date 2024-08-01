@@ -52,7 +52,7 @@ signing key|crypto.PrivKey|used for signing a block after it is created
 config|config.BlockManagerConfig|block manager configurations (see config options below)
 genesis|*cmtypes.GenesisDoc|initialize the block manager with genesis state (genesis configuration defined in `config/genesis.json` file under the app directory)
 store|store.Store|local datastore for storing rollup blocks and states (default local store path is `$db_dir/rollkit` and `db_dir` specified in the `config.toml` file under the app directory)
-mempool, proxyapp, eventbus|mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus|for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
+mempool, proxyapp, eventbus|mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus|for initializing the executor (state transition function). mempool is also used in the manager to check for the availability of transactions for lazy block production
 dalc|da.DAClient|the data availability light client used to submit and retrieve blocks to DA network
 blockstore|*goheaderstore.Store[*types.Block]|to retrieve blocks gossiped over the P2P network
 
@@ -86,7 +86,7 @@ The block manager of the sequencer nodes performs the following steps to produce
 
 ### Block Publication to DA Network
 
-The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform [`maxSubmitAttempts`][maxSubmitAttempts] attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at [`initialBackoff`][initialBackoff] and it doubles in the next attempt and capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting without emptying of `pendingBlocks` queue.
+The block manager of the sequencer full nodes regularly publishes the produced blocks (that are pending in the `pendingBlocks` queue) to the DA network using the `DABlockTime` configuration parameter defined in the block manager config. In the event of failure to publish the block to the DA network, the manager will perform [`maxSubmitAttempts`][maxSubmitAttempts] attempts and an exponential backoff interval between the attempts. The exponential backoff interval starts off at [`initialBackoff`][initialBackoff] and it doubles in the next attempt and is capped at `DABlockTime`. A successful publish event leads to the emptying of `pendingBlocks` queue and a failure event leads to proper error reporting without emptying of `pendingBlocks` queue.
 
 ### Block Retrieval from DA Network
 
