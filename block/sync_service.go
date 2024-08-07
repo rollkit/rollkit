@@ -52,15 +52,15 @@ type SyncService[H header.Header[H]] struct {
 	logger log.Logger
 }
 
-// BlockSyncService is the P2P Sync Service for blocks.
-type BlockSyncService = SyncService[*types.Block]
+// DataSyncService is the P2P Sync Service for blocks.
+type DataSyncService = SyncService[*types.Data]
 
 // HeaderSyncService is the P2P Sync Service for headers.
 type HeaderSyncService = SyncService[*types.SignedHeader]
 
-// NewBlockSyncService returns a new BlockSyncService.
-func NewBlockSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*BlockSyncService, error) {
-	return newSyncService[*types.Block](store, blockSync, conf, genesis, p2p, logger)
+// NewDataSyncService returns a new DataSyncService.
+func NewDataSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
+	return newSyncService[*types.Data](store, blockSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.
@@ -121,14 +121,14 @@ func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, 
 
 // WriteToStoreAndBroadcast initializes store if needed and broadcasts  provided header or block.
 // Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
-func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrBlock H) error {
+func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrData H) error {
 	if syncService.genesis.InitialHeight < 0 {
 		return fmt.Errorf("invalid initial height; cannot be negative")
 	}
-	isGenesis := headerOrBlock.Height() == uint64(syncService.genesis.InitialHeight)
+	isGenesis := headerOrData.Height() == uint64(syncService.genesis.InitialHeight)
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
-		if err := syncService.store.Init(ctx, headerOrBlock); err != nil {
+		if err := syncService.store.Init(ctx, headerOrData); err != nil {
 			return fmt.Errorf("failed to initialize the store")
 		}
 
@@ -138,7 +138,7 @@ func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context,
 	}
 
 	// Broadcast for subscribers
-	if err := syncService.sub.Broadcast(ctx, headerOrBlock); err != nil {
+	if err := syncService.sub.Broadcast(ctx, headerOrData); err != nil {
 		// for the genesis header, broadcast error is expected as we have already initialized the store
 		// for starting the syncer. Hence, we ignore the error.
 		// exact reason: validation failed, err header verification failed: known header: '1' <= current '1'

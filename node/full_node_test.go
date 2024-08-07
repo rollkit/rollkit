@@ -164,9 +164,14 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	maxBlobSize, err := fullNode.dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
-	// Submit invalid blocks to the mock DA
-	// Invalid blocks should be ignored by the node
-	submitResp := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{&junkProposerBlock, &junkCommitBlock, b1}, maxBlobSize, -1)
+	// Submit invalid block data to the mock DA
+	// Invalid block data should be ignored by the node
+	submitResp := fullNode.dalc.SubmitBlockData(ctx, []*types.Data{&junkProposerBlock.Data, &junkCommitBlock.Data, &b1.Data}, maxBlobSize, -1)
+	require.Equal(t, submitResp.Code, da.StatusSuccess)
+
+	// Submit invalid block headers to the mock DA
+	// Invalid block headers should be ignored by the node
+	submitResp = fullNode.dalc.SubmitBlockHeaders(ctx, []*types.SignedHeader{&junkProposerBlock.SignedHeader, &junkCommitBlock.SignedHeader, &b1.SignedHeader}, maxBlobSize, -1)
 	require.Equal(t, submitResp.Code, da.StatusSuccess)
 
 	// Only the valid block gets synced
@@ -193,7 +198,7 @@ func TestPendingBlocks(t *testing.T) {
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(10240), nil)
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
 
-	dac := da.NewDAClient(mockDA, 1234, -1, goDA.Namespace(MockDANamespace), nil)
+	dac := da.NewDAClient(mockDA, 1234, -1, goDA.Namespace(MockDAHeaderNamespace), goDA.Namespace(MockDADataNamespace), nil)
 	dbPath, err := os.MkdirTemp("", "testdb")
 	require.NoError(t, err)
 	defer func() {
@@ -409,10 +414,11 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
-			DBPath:      dbPath,
-			DAAddress:   MockDAAddress,
-			DANamespace: MockDANamespace,
-			Aggregator:  true,
+			DBPath:            dbPath,
+			DAAddress:         MockDAAddress,
+			DAHeaderNamespace: MockDAHeaderNamespace,
+			DADataNamespace:   MockDADataNamespace,
+			Aggregator:        true,
 			BlockManagerConfig: config.BlockManagerConfig{
 				BlockTime:   100 * time.Millisecond,
 				DABlockTime: 300 * time.Millisecond,
@@ -455,9 +461,10 @@ func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExte
 	node, err := NewNode(
 		ctx,
 		config.NodeConfig{
-			DAAddress:   MockDAAddress,
-			DANamespace: MockDANamespace,
-			Aggregator:  true,
+			DAAddress:         MockDAAddress,
+			DAHeaderNamespace: MockDAHeaderNamespace,
+			DADataNamespace:   MockDADataNamespace,
+			Aggregator:        true,
 			BlockManagerConfig: config.BlockManagerConfig{
 				BlockTime:   100 * time.Millisecond,
 				DABlockTime: 300 * time.Millisecond,

@@ -26,6 +26,8 @@ import (
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
+	"github.com/rollkit/go-sequencing"
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
@@ -49,6 +51,9 @@ const defaultBlockTime = 1 * time.Second
 // defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
 const defaultLazyBlockTime = 60 * time.Second
 
+// defaultDABlockTime is used only if DABlockTime is not configured for manager
+const defaultBatchRetrievalInterval = 1 * time.Second
+
 // defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 const defaultMempoolTTL = 25
 
@@ -63,8 +68,8 @@ const maxSubmitAttempts = 30
 // Applies to most channels, 100 is a large enough buffer to avoid blocking
 const channelLength = 100
 
-// Applies to the blockInCh, 10000 is a large enough number for blocks per DA block.
-const blockInChLength = 10000
+// Applies to the headerInCh, 10000 is a large enough number for header per DA block.
+const headerInChLength = 10000
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
@@ -80,9 +85,15 @@ var (
 	ErrNotProposer = errors.New("not a proposer")
 )
 
-// NewBlockEvent is used to pass block and DA height to blockInCh
-type NewBlockEvent struct {
-	Block    *types.Block
+// NewHeaderEvent is used to pass header and DA height to headerInCh
+type NewHeaderEvent struct {
+	Header   *types.SignedHeader
+	DAHeight uint64
+}
+
+// NewDataEvent is used to pass header and DA height to headerInCh
+type NewDataEvent struct {
+	Data     *types.Data
 	DAHeight uint64
 }
 
@@ -105,15 +116,22 @@ type Manager struct {
 	daHeight uint64
 
 	HeaderCh chan *types.SignedHeader
-	BlockCh  chan *types.Block
+	DataCh   chan *types.Data
 
-	blockInCh  chan NewBlockEvent
-	blockStore *goheaderstore.Store[*types.Block]
+	headerInCh  chan NewHeaderEvent
+	headerStore *goheaderstore.Store[*types.SignedHeader]
 
-	blockCache *BlockCache
+	dataInCh  chan NewDataEvent
+	dataStore *goheaderstore.Store[*types.Data]
 
-	// blockStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve blocks from blockStore
-	blockStoreCh chan struct{}
+	headerCache *HeaderCache
+	dataCache   *DataCache
+
+	// headerStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve headers from headerStore
+	headerStoreCh chan struct{}
+
+	// dataStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data from dataStore
+	dataStoreCh chan struct{}
 
 	// retrieveCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
 	retrieveCh chan struct{}
@@ -124,7 +142,7 @@ type Manager struct {
 	buildingBlock bool
 	txsAvailable  <-chan struct{}
 
-	pendingBlocks *PendingBlocks
+	pendingHeaders *PendingHeaders
 
 	// for reporting metrics
 	metrics *Metrics
@@ -135,6 +153,10 @@ type Manager struct {
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
+	// grpc client for sequencing middleware
+	seqClient *seqGRPC.Client
+	lastBatch *sequencing.Batch
+	bq        *BatchQueue
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -169,11 +191,13 @@ func NewManager(
 	genesis *cmtypes.GenesisDoc,
 	store store.Store,
 	mempool mempool.Mempool,
+	seqClient *seqGRPC.Client,
 	proxyApp proxy.AppConnConsensus,
 	dalc *da.DAClient,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
-	blockStore *goheaderstore.Store[*types.Block],
+	headerStore *goheaderstore.Store[*types.SignedHeader],
+	dataStore *goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
 	execMetrics *state.Metrics,
 ) (*Manager, error) {
@@ -244,7 +268,7 @@ func NewManager(
 		txsAvailableCh = nil
 	}
 
-	pendingBlocks, err := NewPendingBlocks(store, logger)
+	pendingHeaders, err := NewPendingHeaders(store, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -259,20 +283,25 @@ func NewManager(
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
-		HeaderCh:      make(chan *types.SignedHeader, channelLength),
-		BlockCh:       make(chan *types.Block, channelLength),
-		blockInCh:     make(chan NewBlockEvent, blockInChLength),
-		blockStoreCh:  make(chan struct{}, 1),
-		blockStore:    blockStore,
-		lastStateMtx:  new(sync.RWMutex),
-		blockCache:    NewBlockCache(),
-		retrieveCh:    make(chan struct{}, 1),
-		logger:        logger,
-		txsAvailable:  txsAvailableCh,
-		buildingBlock: false,
-		pendingBlocks: pendingBlocks,
-		metrics:       seqMetrics,
-		isProposer:    isProposer,
+		HeaderCh:       make(chan *types.SignedHeader, channelLength),
+		DataCh:         make(chan *types.Data, channelLength),
+		headerInCh:     make(chan NewHeaderEvent, headerInChLength),
+		dataInCh:       make(chan NewDataEvent, headerInChLength),
+		headerStoreCh:  make(chan struct{}, 1),
+		headerStore:    headerStore,
+		dataStore:      dataStore,
+		lastStateMtx:   new(sync.RWMutex),
+		headerCache:    NewHeaderCache(),
+		dataCache:      NewDataCache(),
+		retrieveCh:     make(chan struct{}, 1),
+		logger:         logger,
+		txsAvailable:   txsAvailableCh,
+		buildingBlock:  false,
+		pendingHeaders: pendingHeaders,
+		metrics:        seqMetrics,
+		isProposer:     isProposer,
+		seqClient:      seqClient,
+		bq:             NewBatchQueue(),
 	}
 	agg.init(context.Background())
 	return agg, nil
@@ -337,19 +366,24 @@ func (m *Manager) GetStoreHeight() uint64 {
 	return m.store.Height()
 }
 
-// GetBlockInCh returns the manager's blockInCh
-func (m *Manager) GetBlockInCh() chan NewBlockEvent {
-	return m.blockInCh
+// GetHeaderInCh returns the manager's blockInCh
+func (m *Manager) GetHeaderInCh() chan NewHeaderEvent {
+	return m.headerInCh
+}
+
+// GetDataInCh returns the manager's blockInCh
+func (m *Manager) GetDataInCh() chan NewHeaderEvent {
+	return m.headerInCh
 }
 
 // IsBlockHashSeen returns true if the block with the given hash has been seen.
 func (m *Manager) IsBlockHashSeen(blockHash string) bool {
-	return m.blockCache.isSeen(blockHash)
+	return m.headerCache.isSeen(blockHash)
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
-	return m.blockCache.isDAIncluded(hash.String())
+	return m.headerCache.isDAIncluded(hash.String())
 }
 
 // getRemainingSleep calculates the remaining sleep time based on config and a start time.
@@ -372,6 +406,37 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	}
 
 	return 0
+}
+
+func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
+	// batchTimer is used to signal when to retrieve batch from the sequencer
+	batchTimer := time.NewTimer(0)
+	defer batchTimer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-batchTimer.C:
+			// Define the start time for the block production period
+			start := time.Now()
+			batch, err := m.seqClient.GetNextBatch(ctx, m.lastBatch)
+			if err != nil && ctx.Err() == nil {
+				m.logger.Error("error while retrieving batch", "error", err)
+			}
+			// If the batch is nil, we will reset the timer to try again
+			if batch != nil {
+				m.bq.AddBatch(*batch)
+			}
+			// Reset the blockTimer to signal the next block production
+			// period based on the block time.
+			remainingSleep := time.Duration(0)
+			elapsed := time.Since(start)
+			if elapsed < defaultBatchRetrievalInterval {
+				remainingSleep = defaultBatchRetrievalInterval - elapsed
+			}
+			batchTimer.Reset(remainingSleep)
+		}
+	}
 }
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
@@ -469,8 +534,8 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 	}
 }
 
-// BlockSubmissionLoop is responsible for submitting blocks to the DA layer.
-func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
+// HeaderSubmissionLoop is responsible for submitting blocks to the DA layer.
+func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 	timer := time.NewTicker(m.conf.DABlockTime)
 	defer timer.Stop()
 	for {
@@ -479,10 +544,10 @@ func (m *Manager) BlockSubmissionLoop(ctx context.Context) {
 			return
 		case <-timer.C:
 		}
-		if m.pendingBlocks.isEmpty() {
+		if m.pendingHeaders.isEmpty() {
 			continue
 		}
-		err := m.submitBlocksToDA(ctx)
+		err := m.submitHeadersToDA(ctx)
 		if err != nil {
 			m.logger.Error("error while submitting block to DA", "error", err)
 		}
@@ -503,25 +568,25 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		case <-daTicker.C:
 			m.sendNonBlockingSignalToRetrieveCh()
 		case <-blockTicker.C:
-			m.sendNonBlockingSignalToBlockStoreCh()
-		case blockEvent := <-m.blockInCh:
+			m.sendNonBlockingSignalToHeaderStoreCh()
+		case headerEvent := <-m.headerInCh:
 			// Only validated blocks are sent to blockInCh, so we can safely assume that blockEvent.block is valid
-			block := blockEvent.Block
-			daHeight := blockEvent.DAHeight
-			blockHash := block.Hash().String()
-			blockHeight := block.Height()
-			m.logger.Debug("block body retrieved",
-				"height", blockHeight,
+			header := headerEvent.Header
+			daHeight := headerEvent.DAHeight
+			headerHash := header.Hash().String()
+			headerHeight := header.Height()
+			m.logger.Debug("header retrieved",
+				"height", headerHash,
 				"daHeight", daHeight,
-				"hash", blockHash,
+				"hash", headerHash,
 			)
-			if blockHeight <= m.store.Height() || m.blockCache.isSeen(blockHash) {
-				m.logger.Debug("block already seen", "height", blockHeight, "block hash", blockHash)
+			if headerHeight <= m.store.Height() || m.headerCache.isSeen(headerHash) {
+				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
-			m.blockCache.setBlock(blockHeight, block)
+			m.headerCache.setHeader(headerHeight, header)
 
-			m.sendNonBlockingSignalToBlockStoreCh()
+			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToRetrieveCh()
 
 			err := m.trySyncNextBlock(ctx, daHeight)
@@ -529,16 +594,47 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
 			}
-			m.blockCache.setSeen(blockHash)
+			m.headerCache.setSeen(headerHash)
+		case dataEvent := <-m.dataInCh:
+			data := dataEvent.Data
+			daHeight := dataEvent.DAHeight
+			dataHash := data.Hash().String()
+			dataHeight := data.Metadata.Height
+			m.logger.Debug("data retrieved",
+				"height", dataHash,
+				"daHeight", daHeight,
+				"hash", dataHash,
+			)
+			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
+				m.logger.Debug("data already seen", "height", dataHeight, "block hash", dataHash)
+				continue
+			}
+			m.dataCache.setData(dataHeight, data)
+
+			m.sendNonBlockingSignalToDataStoreCh()
+
+			err := m.trySyncNextBlock(ctx, daHeight)
+			if err != nil {
+				m.logger.Info("failed to sync next block", "error", err)
+				continue
+			}
+			m.dataCache.setSeen(dataHash)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (m *Manager) sendNonBlockingSignalToBlockStoreCh() {
+func (m *Manager) sendNonBlockingSignalToHeaderStoreCh() {
 	select {
-	case m.blockStoreCh <- struct{}{}:
+	case m.headerStoreCh <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) sendNonBlockingSignalToDataStoreCh() {
+	select {
+	case m.dataStoreCh <- struct{}{}:
 	default:
 	}
 }
@@ -564,19 +660,24 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		default:
 		}
 		currentHeight := m.store.Height()
-		b, ok := m.blockCache.getBlock(currentHeight + 1)
+		h, ok := m.headerCache.getHeader(currentHeight + 1)
 		if !ok {
 			m.logger.Debug("block not found in cache", "height", currentHeight+1)
 			return nil
 		}
+		d, ok := m.dataCache.getData(currentHeight + 1)
+		if !ok {
+			m.logger.Debug("data not found in cache", "height", currentHeight+1)
+			return nil
+		}
 
-		bHeight := b.Height()
-		m.logger.Info("Syncing block", "height", bHeight)
+		hHeight := h.Height()
+		m.logger.Info("Syncing header and data", "height", hHeight)
 		// Validate the received block before applying
-		if err := m.executor.Validate(m.lastState, b); err != nil {
+		if err := m.executor.Validate(m.lastState, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
-		newState, responses, err := m.applyBlock(ctx, b)
+		newState, responses, err := m.applyBlock(ctx, h, d)
 		if err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -584,22 +685,22 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
 			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
 		}
-		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Signature)
+		err = m.store.SaveBlockData(ctx, h, d, &h.Signature)
 		if err != nil {
 			return fmt.Errorf("failed to save block: %w", err)
 		}
-		_, _, err = m.executor.Commit(ctx, newState, b, responses)
+		_, _, err = m.executor.Commit(ctx, newState, h, d, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		err = m.store.SaveBlockResponses(ctx, bHeight, responses)
+		err = m.store.SaveBlockResponses(ctx, hHeight, responses)
 		if err != nil {
 			return fmt.Errorf("failed to save block responses: %w", err)
 		}
 
 		// Height gets updated
-		m.store.SetHeight(ctx, bHeight)
+		m.store.SetHeight(ctx, hHeight)
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -608,30 +709,31 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
-		m.blockCache.deleteBlock(currentHeight + 1)
+		m.headerCache.deleteHeader(currentHeight + 1)
+		m.dataCache.deleteData(currentHeight + 1)
 	}
 }
 
-// BlockStoreRetrieveLoop is responsible for retrieving blocks from the Block Store.
-func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
-	lastBlockStoreHeight := uint64(0)
+// HeaderStoreRetrieveLoop is responsible for retrieving headers from the Header Store.
+func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
+	lastHeaderStoreHeight := uint64(0)
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-m.blockStoreCh:
+		case <-m.headerStoreCh:
 		}
-		blockStoreHeight := m.blockStore.Height()
-		if blockStoreHeight > lastBlockStoreHeight {
-			blocks, err := m.getBlocksFromBlockStore(ctx, lastBlockStoreHeight+1, blockStoreHeight)
+		headerStoreHeight := m.headerStore.Height()
+		if headerStoreHeight > lastHeaderStoreHeight {
+			headers, err := m.getHeadersFromHeaderStore(ctx, lastHeaderStoreHeight+1, headerStoreHeight)
 			if err != nil {
-				m.logger.Error("failed to get blocks from Block Store", "lastBlockHeight", lastBlockStoreHeight, "blockStoreHeight", blockStoreHeight, "errors", err.Error())
+				m.logger.Error("failed to get headers from Header Store", "lastHeaderHeight", lastHeaderStoreHeight, "headerStoreHeight", headerStoreHeight, "errors", err.Error())
 				continue
 			}
 			daHeight := atomic.LoadUint64(&m.daHeight)
-			for _, block := range blocks {
+			for _, header := range headers {
 				// Check for shut down event prior to logging
-				// and sending block to blockInCh. The reason
+				// and sending header to headerInCh. The reason
 				// for checking for the shutdown event
 				// separately is due to the inconsistent nature
 				// of the select statement when multiple cases
@@ -642,33 +744,89 @@ func (m *Manager) BlockStoreRetrieveLoop(ctx context.Context) {
 				default:
 				}
 				// early validation to reject junk blocks
-				if !m.isUsingExpectedCentralizedSequencer(block) {
+				if !m.isUsingExpectedCentralizedSequencer(header) {
 					continue
 				}
-				m.logger.Debug("block retrieved from p2p block sync", "blockHeight", block.Height(), "daHeight", daHeight)
-				m.blockInCh <- NewBlockEvent{block, daHeight}
+				m.logger.Debug("header retrieved from p2p header sync", "headerHeight", header.Height(), "daHeight", daHeight)
+				m.headerInCh <- NewHeaderEvent{header, daHeight}
 			}
 		}
-		lastBlockStoreHeight = blockStoreHeight
+		lastHeaderStoreHeight = headerStoreHeight
 	}
 }
 
-func (m *Manager) getBlocksFromBlockStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Block, error) {
+// DataStoreRetrieveLoop is responsible for retrieving data from the Data Store.
+func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
+	lastDataStoreHeight := uint64(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-m.dataStoreCh:
+		}
+		dataStoreHeight := m.dataStore.Height()
+		if dataStoreHeight > lastDataStoreHeight {
+			data, err := m.getDataFromDataStore(ctx, lastDataStoreHeight+1, dataStoreHeight)
+			if err != nil {
+				m.logger.Error("failed to get data from Data Store", "lastDataStoreHeight", lastDataStoreHeight, "dataStoreHeight", dataStoreHeight, "errors", err.Error())
+				continue
+			}
+			daHeight := atomic.LoadUint64(&m.daHeight)
+			for _, d := range data {
+				// Check for shut down event prior to logging
+				// and sending header to dataInCh. The reason
+				// for checking for the shutdown event
+				// separately is due to the inconsistent nature
+				// of the select statement when multiple cases
+				// are satisfied.
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				//TODO: remove junk if possible
+				m.logger.Debug("data retrieved from p2p data sync", "dataHeight", d.Metadata.Height, "daHeight", daHeight)
+				m.dataInCh <- NewDataEvent{d, daHeight}
+			}
+		}
+		lastDataStoreHeight = dataStoreHeight
+	}
+}
+
+func (m *Manager) getHeadersFromHeaderStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.SignedHeader, error) {
 	if startHeight > endHeight {
 		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
 	}
 	if startHeight == 0 {
 		startHeight++
 	}
-	blocks := make([]*types.Block, endHeight-startHeight+1)
+	headers := make([]*types.SignedHeader, endHeight-startHeight+1)
 	for i := startHeight; i <= endHeight; i++ {
-		block, err := m.blockStore.GetByHeight(ctx, i)
+		header, err := m.headerStore.GetByHeight(ctx, i)
 		if err != nil {
 			return nil, err
 		}
-		blocks[i-startHeight] = block
+		headers[i-startHeight] = header
 	}
-	return blocks, nil
+	return headers, nil
+}
+
+func (m *Manager) getDataFromDataStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Data, error) {
+	if startHeight > endHeight {
+		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
+	}
+	if startHeight == 0 {
+		startHeight++
+	}
+	data := make([]*types.Data, endHeight-startHeight+1)
+	for i := startHeight; i <= endHeight; i++ {
+		d, err := m.dataStore.GetByHeight(ctx, i)
+		if err != nil {
+			return nil, err
+		}
+		data[i-startHeight] = d
+	}
+	return data, nil
 }
 
 // RetrieveLoop is responsible for interacting with DA layer.
@@ -676,31 +834,31 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 	// blockFoundCh is used to track when we successfully found a block so
 	// that we can continue to try and find blocks that are in the next DA height.
 	// This enables syncing faster than the DA block time.
-	blockFoundCh := make(chan struct{}, 1)
-	defer close(blockFoundCh)
+	headerFoundCh := make(chan struct{}, 1)
+	defer close(headerFoundCh)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-m.retrieveCh:
-		case <-blockFoundCh:
+		case <-headerFoundCh:
 		}
 		daHeight := atomic.LoadUint64(&m.daHeight)
-		err := m.processNextDABlock(ctx)
+		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
 			m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			continue
 		}
 		// Signal the blockFoundCh to try and retrieve the next block
 		select {
-		case blockFoundCh <- struct{}{}:
+		case headerFoundCh <- struct{}{}:
 		default:
 		}
 		atomic.AddUint64(&m.daHeight, 1)
 	}
 }
 
-func (m *Manager) processNextDABlock(ctx context.Context) error {
+func (m *Manager) processNextDAHeader(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -719,29 +877,29 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 			return ctx.Err()
 		default:
 		}
-		blockResp, fetchErr := m.fetchBlock(ctx, daHeight)
+		headerResp, fetchErr := m.fetchBlock(ctx, daHeight)
 		if fetchErr == nil {
-			if blockResp.Code == da.StatusNotFound {
-				m.logger.Debug("no block found", "daHeight", daHeight, "reason", blockResp.Message)
+			if headerResp.Code == da.StatusNotFound {
+				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential blocks", "n", len(blockResp.Blocks), "daHeight", daHeight)
-			for _, block := range blockResp.Blocks {
+			m.logger.Debug("retrieved potential blocks", "n", len(headerResp.Headers), "daHeight", daHeight)
+			for _, header := range headerResp.Headers {
 				// early validation to reject junk blocks
-				if !m.isUsingExpectedCentralizedSequencer(block) {
-					m.logger.Debug("skipping block from unexpected sequencer",
-						"blockHeight", block.Height(),
-						"blockHash", block.Hash().String())
+				if !m.isUsingExpectedCentralizedSequencer(header) {
+					m.logger.Debug("skipping header from unexpected sequencer",
+						"headerHeight", header.Height(),
+						"headerHash", header.Hash().String())
 					continue
 				}
-				blockHash := block.Hash().String()
-				m.blockCache.setDAIncluded(blockHash)
-				err = m.setDAIncludedHeight(ctx, block.Height())
+				blockHash := header.Hash().String()
+				m.headerCache.setDAIncluded(blockHash)
+				err = m.setDAIncludedHeight(ctx, header.Height())
 				if err != nil {
 					return err
 				}
-				m.logger.Info("block marked as DA included", "blockHeight", block.Height(), "blockHash", blockHash)
-				if !m.blockCache.isSeen(blockHash) {
+				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
+				if !m.headerCache.isSeen(blockHash) {
 					// Check for shut down event prior to logging
 					// and sending block to blockInCh. The reason
 					// for checking for the shutdown event
@@ -753,7 +911,7 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 						return pkgErrors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
 					default:
 					}
-					m.blockInCh <- NewBlockEvent{block, daHeight}
+					m.headerInCh <- NewHeaderEvent{header, daHeight}
 				}
 			}
 			return nil
@@ -771,17 +929,17 @@ func (m *Manager) processNextDABlock(ctx context.Context) error {
 	return err
 }
 
-func (m *Manager) isUsingExpectedCentralizedSequencer(block *types.Block) bool {
-	return bytes.Equal(block.SignedHeader.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) && block.ValidateBasic() == nil
+func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
+	return bytes.Equal(header.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) && header.ValidateBasic() == nil
 }
 
-func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveBlocks, error) {
+func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
 	var err error
-	blockRes := m.dalc.RetrieveBlocks(ctx, daHeight)
-	if blockRes.Code == da.StatusError {
-		err = fmt.Errorf("failed to retrieve block: %s", blockRes.Message)
+	headerRes := m.dalc.RetrieveHeaders(ctx, daHeight)
+	if headerRes.Code == da.StatusError {
+		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
-	return blockRes, err
+	return headerRes, err
 }
 
 func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
@@ -795,6 +953,19 @@ func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 	return &signature, nil
 }
 
+func (m *Manager) getTxsFromBatch() cmtypes.Txs {
+	batch := m.bq.Next()
+	var txs cmtypes.Txs
+	if batch == nil {
+		txs = make(cmtypes.Txs, 0)
+	} else {
+		for _, tx := range batch.Transactions {
+			txs = append(txs, tx)
+		}
+	}
+	return txs
+}
+
 func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -806,9 +977,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return ErrNotProposer
 	}
 
-	if m.conf.MaxPendingBlocks != 0 && m.pendingBlocks.numPendingBlocks() >= m.conf.MaxPendingBlocks {
+	if m.conf.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.conf.MaxPendingBlocks {
 		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingBlocks.numPendingBlocks(), m.conf.MaxPendingBlocks)
+			m.pendingHeaders.numPendingHeaders(), m.conf.MaxPendingBlocks)
 	}
 
 	var (
@@ -826,61 +997,62 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
-		lastBlock, err := m.store.GetBlock(ctx, height)
+		lastHeader, _, err := m.store.GetBlockData(ctx, height)
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
-		lastHeaderHash = lastBlock.Hash()
+		lastHeaderHash = lastHeader.Hash()
 	}
 
-	var block *types.Block
-	var signature *types.Signature
+	var (
+		header    *types.SignedHeader
+		data      *types.Data
+		signature *types.Signature
+	)
 
 	// Check if there's an already stored block at a newer height
 	// If there is use that instead of creating a new block
-	pendingBlock, err := m.store.GetBlock(ctx, newHeight)
+	pendingHeader, pendingData, err := m.store.GetBlockData(ctx, newHeight)
 	if err == nil {
 		m.logger.Info("Using pending block", "height", newHeight)
-		block = pendingBlock
+		header = pendingHeader
+		data = pendingData
 	} else {
 		m.logger.Info("Creating and publishing block", "height", newHeight)
 		extendedCommit, err := m.getExtendedCommit(ctx, height)
 		if err != nil {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
-		block, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit)
+
+		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, m.getTxsFromBatch())
 		if err != nil {
 			return err
 		}
-		m.logger.Debug("block info", "num_tx", len(block.Data.Txs))
+		m.logger.Debug("block info", "num_tx", len(data.Txs))
 
 		/*
 		   here we set the SignedHeader.DataHash, and SignedHeader.Signature as a hack
 		   to make the block pass ValidateBasic() when it gets called by applyBlock on line 681
 		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
-		block.SignedHeader.DataHash, err = block.Data.Hash()
-		if err != nil {
-			return err
-		}
+		header.DataHash = data.Hash()
+		header.Validators = m.getLastStateValidators()
+		header.ValidatorHash = header.Validators.Hash()
 
-		block.SignedHeader.Validators = m.getLastStateValidators()
-		block.SignedHeader.ValidatorHash = block.SignedHeader.Validators.Hash()
-
-		signature, err = m.getSignature(block.SignedHeader.Header)
+		signature, err = m.getSignature(header.Header)
 		if err != nil {
 			return err
 		}
 
 		// set the signature to current block's signed header
-		block.SignedHeader.Signature = *signature
-		err = m.store.SaveBlock(ctx, block, signature)
+		header.Signature = *signature
+		err = m.store.SaveBlockData(ctx, header, data, signature)
 		if err != nil {
 			return err
 		}
 	}
 
-	newState, responses, err := m.applyBlock(ctx, block)
+	newState, responses, err := m.applyBlock(ctx, header, data)
 	if err != nil {
 		if ctx.Err() != nil {
 			return err
@@ -889,40 +1061,37 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		panic(err)
 	}
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
-	block.SignedHeader.Header.DataHash, err = block.Data.Hash()
+	header.Header.DataHash = data.Hash()
+
+	signature, err = m.getSignature(header.Header)
 	if err != nil {
 		return err
 	}
 
-	signature, err = m.getSignature(block.SignedHeader.Header)
-	if err != nil {
-		return err
-	}
-
-	if err := m.processVoteExtension(ctx, block, newHeight); err != nil {
+	if err := m.processVoteExtension(ctx, header, data, newHeight); err != nil {
 		return err
 	}
 
 	// set the signature to current block's signed header
-	block.SignedHeader.Signature = *signature
+	header.Signature = *signature
 	// Validate the created block before storing
-	if err := m.executor.Validate(m.lastState, block); err != nil {
+	if err := m.executor.Validate(m.lastState, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
-	blockHeight := block.Height()
+	headerHeight := header.Height()
 
-	blockHash := block.Hash().String()
-	m.blockCache.setSeen(blockHash)
+	headerHash := header.Hash().String()
+	m.headerCache.setSeen(headerHash)
 
 	// SaveBlock commits the DB tx
-	err = m.store.SaveBlock(ctx, block, signature)
+	err = m.store.SaveBlockData(ctx, header, data, signature)
 	if err != nil {
 		return err
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	appHash, _, err := m.executor.Commit(ctx, newState, block, responses)
+	appHash, _, err := m.executor.Commit(ctx, newState, header, data, responses)
 	if err != nil {
 		return err
 	}
@@ -930,13 +1099,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.AppHash = appHash
 
 	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(ctx, blockHeight, responses)
+	err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
 	if err != nil {
 		return err
 	}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
-	m.store.SetHeight(ctx, blockHeight)
+	m.store.SetHeight(ctx, headerHeight)
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
@@ -945,7 +1114,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	m.recordMetrics(block)
+	m.recordMetrics(data)
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
@@ -957,12 +1126,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Publish header to channel so that header exchange service can broadcast
-	m.HeaderCh <- &block.SignedHeader
+	m.HeaderCh <- header
 
 	// Publish block to channel so that block exchange service can broadcast
-	m.BlockCh <- block
+	m.DataCh <- data
 
-	m.logger.Debug("successfully proposed block", "proposer", hex.EncodeToString(block.SignedHeader.ProposerAddress), "height", blockHeight)
+	m.logger.Debug("successfully proposed header", "proposer", hex.EncodeToString(header.ProposerAddress), "height", headerHeight)
 
 	return nil
 }
@@ -989,12 +1158,12 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	}
 }
 
-func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, newHeight uint64) error {
+func (m *Manager) processVoteExtension(ctx context.Context, header *types.SignedHeader, data *types.Data, newHeight uint64) error {
 	if !m.voteExtensionEnabled(newHeight) {
 		return nil
 	}
 
-	extension, err := m.executor.ExtendVote(ctx, block)
+	extension, err := m.executor.ExtendVote(ctx, header, data)
 	if err != nil {
 		return fmt.Errorf("error returned by ExtendVote: %w", err)
 	}
@@ -1010,7 +1179,7 @@ func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, 
 	if err != nil {
 		return fmt.Errorf("failed to sign vote extension: %w", err)
 	}
-	extendedCommit := buildExtendedCommit(block, extension, sign)
+	extendedCommit := buildExtendedCommit(header, extension, sign)
 	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
 	if err != nil {
 		return fmt.Errorf("failed to save extended commit: %w", err)
@@ -1035,13 +1204,13 @@ func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.Ex
 	return *extendedCommit, nil
 }
 
-func buildExtendedCommit(block *types.Block, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
+func buildExtendedCommit(header *types.SignedHeader, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
 	extendedCommit := &abci.ExtendedCommitInfo{
 		Round: 0,
 		Votes: []abci.ExtendedVoteInfo{{
 			Validator: abci.Validator{
-				Address: block.SignedHeader.Validators.GetProposer().Address,
-				Power:   block.SignedHeader.Validators.GetProposer().VotingPower,
+				Address: header.Validators.GetProposer().Address,
+				Power:   header.Validators.GetProposer().VotingPower,
 			},
 			VoteExtension:      extension,
 			ExtensionSignature: sign,
@@ -1051,30 +1220,30 @@ func buildExtendedCommit(block *types.Block, extension []byte, sign []byte) *abc
 	return extendedCommit
 }
 
-func (m *Manager) recordMetrics(block *types.Block) {
-	m.metrics.NumTxs.Set(float64(len(block.Data.Txs)))
-	m.metrics.TotalTxs.Add(float64(len(block.Data.Txs)))
-	m.metrics.BlockSizeBytes.Set(float64(block.Size()))
-	m.metrics.CommittedHeight.Set(float64(block.Height()))
+func (m *Manager) recordMetrics(data *types.Data) {
+	m.metrics.NumTxs.Set(float64(len(data.Txs)))
+	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
+	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
+	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
 }
-func (m *Manager) submitBlocksToDA(ctx context.Context) error {
-	submittedAllBlocks := false
+func (m *Manager) submitHeadersToDA(ctx context.Context) error {
+	submittedAllHeaders := false
 	var backoff time.Duration
-	blocksToSubmit, err := m.pendingBlocks.getPendingBlocks(ctx)
-	if len(blocksToSubmit) == 0 {
-		// There are no pending blocks; return because there's nothing to do, but:
+	headersToSubmit, err := m.pendingHeaders.getPendingHeaders(ctx)
+	if len(headersToSubmit) == 0 {
+		// There are no pending headers; return because there's nothing to do, but:
 		// - it might be caused by error, then err != nil
-		// - all pending blocks are processed, then err == nil
+		// - all pending headers are processed, then err == nil
 		// whatever the reason, error information is propagated correctly to the caller
 		return err
 	}
 	if err != nil {
 		// There are some pending blocks but also an error. It's very unlikely case - probably some error while reading
-		// blocks from the store.
+		// headers from the store.
 		// The error is logged and normal processing of pending blocks continues.
 		m.logger.Error("error while fetching blocks pending DA", "err", err)
 	}
-	numSubmittedBlocks := 0
+	numSubmittedHeaders := 0
 	attempt := 0
 	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)
 	if err != nil {
@@ -1085,28 +1254,24 @@ func (m *Manager) submitBlocksToDA(ctx context.Context) error {
 	gasPrice := m.dalc.GasPrice
 
 daSubmitRetryLoop:
-	for !submittedAllBlocks && attempt < maxSubmitAttempts {
+	for !submittedAllHeaders && attempt < maxSubmitAttempts {
 		select {
 		case <-ctx.Done():
 			break daSubmitRetryLoop
 		case <-time.After(backoff):
 		}
 
-		res := m.dalc.SubmitBlocks(ctx, blocksToSubmit, maxBlobSize, gasPrice)
+		res := m.dalc.SubmitHeaders(ctx, headersToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case da.StatusSuccess:
-			txCount := 0
-			for _, block := range blocksToSubmit {
-				txCount += len(block.Data.Txs)
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "headerCount", res.SubmittedCount)
+			if res.SubmittedCount == uint64(len(headersToSubmit)) {
+				submittedAllHeaders = true
 			}
-			m.logger.Info("successfully submitted Rollkit blocks to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "blockCount", res.SubmittedCount, "txCount", txCount)
-			if res.SubmittedCount == uint64(len(blocksToSubmit)) {
-				submittedAllBlocks = true
-			}
-			submittedBlocks, notSubmittedBlocks := blocksToSubmit[:res.SubmittedCount], blocksToSubmit[res.SubmittedCount:]
-			numSubmittedBlocks += len(submittedBlocks)
+			submittedBlocks, notSubmittedBlocks := headersToSubmit[:res.SubmittedCount], headersToSubmit[res.SubmittedCount:]
+			numSubmittedHeaders += len(submittedBlocks)
 			for _, block := range submittedBlocks {
-				m.blockCache.setDAIncluded(block.Hash().String())
+				m.headerCache.setDAIncluded(block.Hash().String())
 				err = m.setDAIncludedHeight(ctx, block.Height())
 				if err != nil {
 					return err
@@ -1116,8 +1281,8 @@ daSubmitRetryLoop:
 			if l := len(submittedBlocks); l > 0 {
 				lastSubmittedHeight = submittedBlocks[l-1].Height()
 			}
-			m.pendingBlocks.setLastSubmittedHeight(ctx, lastSubmittedHeight)
-			blocksToSubmit = notSubmittedBlocks
+			m.pendingHeaders.setLastSubmittedHeight(ctx, lastSubmittedHeight)
+			headersToSubmit = notSubmittedBlocks
 			// reset submission options when successful
 			// scale back gasPrice gradually
 			backoff = 0
@@ -1148,11 +1313,11 @@ daSubmitRetryLoop:
 		attempt += 1
 	}
 
-	if !submittedAllBlocks {
+	if !submittedAllHeaders {
 		return fmt.Errorf(
 			"failed to submit all blocks to DA layer, submitted %d blocks (%d left) after %d attempts",
-			numSubmittedBlocks,
-			len(blocksToSubmit),
+			numSubmittedHeaders,
+			len(headersToSubmit),
 			attempt,
 		)
 	}
@@ -1195,16 +1360,16 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo) (*types.Block, error) {
+func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState)
+	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs)
 }
 
-func (m *Manager) applyBlock(ctx context.Context, block *types.Block) (types.State, *abci.ResponseFinalizeBlock, error) {
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.ApplyBlock(ctx, m.lastState, block)
+	return m.executor.ApplyBlock(ctx, m.lastState, header, data)
 }
 
 func updateState(s *types.State, res *abci.ResponseInitChain) error {

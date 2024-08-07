@@ -18,17 +18,20 @@ type Version struct {
 	App   uint64
 }
 
-// Block defines the structure of Rollkit block.
-type Block struct {
-	SignedHeader SignedHeader
-	Data         Data
-}
+var _ encoding.BinaryMarshaler = &Data{}
+var _ encoding.BinaryUnmarshaler = &Data{}
 
-var _ encoding.BinaryMarshaler = &Block{}
-var _ encoding.BinaryUnmarshaler = &Block{}
+// Metadata defines metadata for Data struct to help with p2p gossiping.
+type Metadata struct {
+	ChainID      string
+	Height       uint64
+	LastDataHash Hash
+	Time         uint64
+}
 
 // Data defines Rollkit block data.
 type Data struct {
+	Metadata
 	Txs Txs
 	// IntermediateStateRoots IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896
@@ -71,73 +74,70 @@ func (signature *Signature) ValidateBasic() error {
 	return nil
 }
 
-// ValidateBasic performs basic validation of a block.
-func (b *Block) ValidateBasic() error {
-	if err := b.SignedHeader.ValidateBasic(); err != nil {
+// Validate performs basic validation of a block.
+func Validate(header *SignedHeader, data *Data) error {
+	if err := header.ValidateBasic(); err != nil {
 		return err
 	}
-	if err := b.Data.ValidateBasic(); err != nil {
+	if err := data.ValidateBasic(); err != nil {
 		return err
 	}
-	dataHash, err := b.Data.Hash()
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(dataHash[:], b.SignedHeader.DataHash[:]) {
+	dataHash := data.Hash()
+	if !bytes.Equal(dataHash[:], header.DataHash[:]) {
 		return errors.New("dataHash from the header does not match with hash of the block's data")
 	}
 	return nil
 }
 
 // New returns a new Block.
-func (b *Block) New() *Block {
-	return new(Block)
+func (d *Data) New() *Data {
+	return new(Data)
 }
 
 // IsZero returns true if the block is nil.
-func (b *Block) IsZero() bool {
-	return b == nil
+func (d *Data) IsZero() bool {
+	return d == nil
 }
 
 // ChainID returns chain ID of the block.
-func (b *Block) ChainID() string {
-	return b.SignedHeader.ChainID()
+func (d *Data) ChainID() string {
+	return d.Metadata.ChainID
 }
 
 // Height returns height of the block.
-func (b *Block) Height() uint64 {
-	return b.SignedHeader.Height()
+func (d *Data) Height() uint64 {
+	return d.Metadata.Height
 }
 
 // LastHeader returns last header hash of the block.
-func (b *Block) LastHeader() Hash {
-	return b.SignedHeader.LastHeader()
+func (d *Data) LastHeader() Hash {
+	return d.Metadata.LastDataHash
 }
 
 // Time returns time of the block.
-func (b *Block) Time() time.Time {
-	return b.SignedHeader.Time()
+func (d *Data) Time() time.Time {
+	return time.Unix(0, int64(d.Metadata.Time))
 }
 
 // Verify Verifies a new, untrusted block against a trusted block.
-func (b *Block) Verify(untrustedBlock *Block) error {
-	if untrustedBlock == nil {
+func (d *Data) Verify(untrustedData *Data) error {
+	if untrustedData == nil {
 		return errors.New("untrusted block cannot be nil")
 	}
-	return b.SignedHeader.Verify(&untrustedBlock.SignedHeader)
+	dataHash := d.Hash()
+	// Check if the data hash of the untrusted block matches the last data hash of the trusted block
+	if !bytes.Equal(dataHash[:], untrustedData.Metadata.LastDataHash[:]) {
+		return errors.New("dataHash from the header does not match with hash of the block's data")
+	}
+	return nil
 }
 
 // Validate performs basic validation of a block.
-func (b *Block) Validate() error {
-	return b.ValidateBasic()
+func (d *Data) Validate() error {
+	return d.ValidateBasic()
 }
 
 // Size returns size of the block in bytes.
-func (b *Block) Size() int {
-	pbb, err := b.ToProto()
-	if err != nil {
-		return 0
-	}
-
-	return pbb.Size()
+func (d *Data) Size() int {
+	return d.ToProto().Size()
 }
