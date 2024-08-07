@@ -17,29 +17,29 @@ import (
 // LastSubmittedHeightKey is the key used for persisting the last submitted height in store.
 const LastSubmittedHeightKey = "last submitted"
 
-// PendingBlocks maintains blocks that need to be published to DA layer
+// PendingHeaders maintains headers that need to be published to DA layer
 //
 // Important assertions:
-// - blocks are safely stored in database before submission to DA
-// - blocks are always pushed to DA in order (by height)
-// - DA submission of multiple blocks is atomic - it's impossible to submit only part of a batch
+// - headers are safely stored in database before submission to DA
+// - headers are always pushed to DA in order (by height)
+// - DA submission of multiple headers is atomic - it's impossible to submit only part of a batch
 //
 // lastSubmittedHeight is updated only after receiving confirmation from DA.
-// Worst case scenario is when blocks was successfully submitted to DA, but confirmation was not received (e.g. node was
-// restarted, networking issue occurred). In this case blocks are re-submitted to DA (it's extra cost).
-// rollkit is able to skip duplicate blocks so this shouldn't affect full nodes.
-// TODO(tzdybal): we shouldn't try to push all pending blocks at once; this should depend on max blob size
-type PendingBlocks struct {
+// Worst case scenario is when headers was successfully submitted to DA, but confirmation was not received (e.g. node was
+// restarted, networking issue occurred). In this case headers are re-submitted to DA (it's extra cost).
+// rollkit is able to skip duplicate headers so this shouldn't affect full nodes.
+// TODO(tzdybal): we shouldn't try to push all pending headers at once; this should depend on max blob size
+type PendingHeaders struct {
 	store  store.Store
 	logger log.Logger
 
-	// lastSubmittedHeight holds information about last block successfully submitted to DA
+	// lastSubmittedHeight holds information about last header successfully submitted to DA
 	lastSubmittedHeight atomic.Uint64
 }
 
-// NewPendingBlocks returns a new PendingBlocks struct
-func NewPendingBlocks(store store.Store, logger log.Logger) (*PendingBlocks, error) {
-	pb := &PendingBlocks{
+// NewPendingHeaders returns a new PendingHeaders struct
+func NewPendingHeaders(store store.Store, logger log.Logger) (*PendingHeaders, error) {
+	pb := &PendingHeaders{
 		store:  store,
 		logger: logger,
 	}
@@ -49,9 +49,9 @@ func NewPendingBlocks(store store.Store, logger log.Logger) (*PendingBlocks, err
 	return pb, nil
 }
 
-// getPendingBlocks returns a sorted slice of pending blocks
-// that need to be published to DA layer in order of block height
-func (pb *PendingBlocks) getPendingBlocks(ctx context.Context) ([]*types.Block, error) {
+// getPendingHeaders returns a sorted slice of pending headers
+// that need to be published to DA layer in order of header height
+func (pb *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.SignedHeader, error) {
 	lastSubmitted := pb.lastSubmittedHeight.Load()
 	height := pb.store.Height()
 
@@ -59,31 +59,31 @@ func (pb *PendingBlocks) getPendingBlocks(ctx context.Context) ([]*types.Block, 
 		return nil, nil
 	}
 	if lastSubmitted > height {
-		panic(fmt.Sprintf("height of last block submitted to DA (%d) is greater than height of last block (%d)",
+		panic(fmt.Sprintf("height of last header submitted to DA (%d) is greater than height of last header (%d)",
 			lastSubmitted, height))
 	}
 
-	blocks := make([]*types.Block, 0, height-lastSubmitted)
+	headers := make([]*types.SignedHeader, 0, height-lastSubmitted)
 	for i := lastSubmitted + 1; i <= height; i++ {
-		block, err := pb.store.GetBlock(ctx, i)
+		header, _, err := pb.store.GetBlockData(ctx, i)
 		if err != nil {
 			// return as much as possible + error information
-			return blocks, err
+			return headers, err
 		}
-		blocks = append(blocks, block)
+		headers = append(headers, header)
 	}
-	return blocks, nil
+	return headers, nil
 }
 
-func (pb *PendingBlocks) isEmpty() bool {
+func (pb *PendingHeaders) isEmpty() bool {
 	return pb.store.Height() == pb.lastSubmittedHeight.Load()
 }
 
-func (pb *PendingBlocks) numPendingBlocks() uint64 {
+func (pb *PendingHeaders) numPendingHeaders() uint64 {
 	return pb.store.Height() - pb.lastSubmittedHeight.Load()
 }
 
-func (pb *PendingBlocks) setLastSubmittedHeight(ctx context.Context, newLastSubmittedHeight uint64) {
+func (pb *PendingHeaders) setLastSubmittedHeight(ctx context.Context, newLastSubmittedHeight uint64) {
 	lsh := pb.lastSubmittedHeight.Load()
 
 	if newLastSubmittedHeight > lsh && pb.lastSubmittedHeight.CompareAndSwap(lsh, newLastSubmittedHeight) {
@@ -91,13 +91,13 @@ func (pb *PendingBlocks) setLastSubmittedHeight(ctx context.Context, newLastSubm
 		if err != nil {
 			// This indicates IO error in KV store. We can't do much about this.
 			// After next successful DA submission, update will be re-attempted (with new value).
-			// If store is not updated, after node restart some blocks will be re-submitted to DA.
-			pb.logger.Error("failed to store height of latest block submitted to DA", "err", err)
+			// If store is not updated, after node restart some headers will be re-submitted to DA.
+			pb.logger.Error("failed to store height of latest header submitted to DA", "err", err)
 		}
 	}
 }
 
-func (pb *PendingBlocks) init() error {
+func (pb *PendingHeaders) init() error {
 	raw, err := pb.store.GetMetadata(context.Background(), LastSubmittedHeightKey)
 	if errors.Is(err, ds.ErrNotFound) {
 		// LastSubmittedHeightKey was never used, it's special case not actual error

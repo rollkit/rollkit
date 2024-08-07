@@ -17,12 +17,12 @@ type Store interface {
 	SetHeight(ctx context.Context, height uint64)
 
 	// SaveBlock saves block along with its seen signature (which will be included in the next block).
-	SaveBlock(ctx context.Context, block *types.Block, signature *types.Signature) error
+	SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error
 
 	// GetBlock returns block at given height, or error if it's not found in Store.
-	GetBlock(ctx context.Context, height uint64) (*types.Block, error)
+	GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error)
 	// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
-	GetBlockByHash(ctx context.Context, hash types.Hash) (*types.Block, error)
+	GetBlockByHash(ctx context.Context, hash types.Hash) (*types.SignedHeader, *types.Data, error)
 
 	// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
 	SaveBlockResponses(ctx context.Context, height uint64, responses *abci.ResponseFinalizeBlock) error

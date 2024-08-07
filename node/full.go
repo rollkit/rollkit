@@ -14,6 +14,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	llcfg "github.com/cometbft/cometbft/config"
@@ -26,6 +28,7 @@ import (
 
 	proxyda "github.com/rollkit/go-da/proxy"
 
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -71,7 +74,7 @@ type FullNode struct {
 	dalc         *da.DAClient
 	p2pClient    *p2p.Client
 	hSyncService *block.HeaderSyncService
-	bSyncService *block.BlockSyncService
+	dSyncService *block.DataSyncService
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool      mempool.Mempool
 	mempoolIDs   *mempoolIDs
@@ -90,6 +93,8 @@ type FullNode struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	threadManager *types.ThreadManager
+	seqClient     *seqGRPC.Client
+	mempoolReaper *mempool.CListMempoolReaper
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -147,15 +152,20 @@ func newFullNode(
 		return nil, err
 	}
 
-	blockSyncService, err := initBlockSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
+	dataSyncService, err := initDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	mempool := initMempool(logger, proxyApp, memplMetrics)
+	seqClient := seqGRPC.NewClient()
+	mempoolReaper, err := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient)
+	if err != nil {
+		return nil, err
+	}
 
 	store := store.New(mainKV)
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, proxyApp, dalc, eventBus, logger, blockSyncService, seqMetrics, smMetrics)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, seqClient, proxyApp, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +185,15 @@ func newFullNode(
 		blockManager:   blockManager,
 		dalc:           dalc,
 		Mempool:        mempool,
+		seqClient:      seqClient,
+		mempoolReaper:  mempoolReaper,
 		mempoolIDs:     newMempoolIDs(),
 		Store:          store,
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
 		BlockIndexer:   blockIndexer,
 		hSyncService:   headerSyncService,
-		bSyncService:   blockSyncService,
+		dSyncService:   dataSyncService,
 		ctx:            ctx,
 		cancel:         cancel,
 		threadManager:  types.NewThreadManager(),
@@ -247,6 +259,10 @@ func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempo
 	return mempool
 }
 
+func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client) (*mempool.CListMempoolReaper, error) {
+	return mempool.NewCListMempoolReaper(m, rollupID, seqClient)
+}
+
 func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
 	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
@@ -255,16 +271,16 @@ func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig,
 	return headerSyncService, nil
 }
 
-func initBlockSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.BlockSyncService, error) {
-	blockSyncService, err := block.NewBlockSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "BlockSyncService"))
+func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.DataSyncService, error) {
+	dataSyncService, err := block.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
-	return blockSyncService, nil
+	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, blockSyncService *block.BlockSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
-	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), blockSyncService.Store(), seqMetrics, execMetrics)
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, seqClient *seqGRPC.Client, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
+	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, seqClient, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
@@ -316,11 +332,11 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	}
 }
 
-func (n *FullNode) blockPublishLoop(ctx context.Context) {
+func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	for {
 		select {
-		case block := <-n.blockManager.BlockCh:
-			err := n.bSyncService.WriteToStoreAndBroadcast(ctx, block)
+		case data := <-n.blockManager.DataCh:
+			err := n.dSyncService.WriteToStoreAndBroadcast(ctx, data)
 			if err != nil {
 				// failed to init or start blockstore
 				n.Logger.Error(err.Error())
@@ -380,20 +396,33 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	if err = n.bSyncService.Start(n.ctx); err != nil {
+	if err = n.dSyncService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting block sync service: %w", err)
+	}
+
+	if err := n.seqClient.Start(
+		n.nodeConfig.SequencerAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	); err != nil {
+		return err
+	}
+
+	if err = n.mempoolReaper.StartReaper(n.nodeConfig.SequencerAddress); err != nil {
+		return fmt.Errorf("error while starting mempool reaper: %w", err)
 	}
 
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
+		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
-		n.threadManager.Go(func() { n.blockManager.BlockSubmissionLoop(n.ctx) })
+		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(n.ctx) })
 		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
-		n.threadManager.Go(func() { n.blockPublishLoop(n.ctx) })
+		n.threadManager.Go(func() { n.dataPublishLoop(n.ctx) })
 		return nil
 	}
 	n.threadManager.Go(func() { n.blockManager.RetrieveLoop(n.ctx) })
-	n.threadManager.Go(func() { n.blockManager.BlockStoreRetrieveLoop(n.ctx) })
+	n.threadManager.Go(func() { n.blockManager.HeaderStoreRetrieveLoop(n.ctx) })
+	n.threadManager.Go(func() { n.blockManager.DataStoreRetrieveLoop(n.ctx) })
 	n.threadManager.Go(func() { n.blockManager.SyncLoop(n.ctx, n.cancel) })
 	return nil
 }
@@ -423,11 +452,15 @@ func (n *FullNode) OnStop() {
 	err := errors.Join(
 		n.p2pClient.Close(),
 		n.hSyncService.Stop(n.ctx),
-		n.bSyncService.Stop(n.ctx),
+		n.dSyncService.Stop(n.ctx),
+		n.seqClient.Stop(),
 		n.IndexerService.Stop(),
 	)
 	if n.prometheusSrv != nil {
 		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
+	}
+	if n.mempoolReaper != nil {
+		n.mempoolReaper.StopReaper()
 	}
 	n.cancel()
 	n.threadManager.Wait()
