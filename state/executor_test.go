@@ -87,7 +87,7 @@ func doTestCreateBlock(t *testing.T) {
 	assert.Equal(uint64(2), header.Height())
 	assert.Len(data.Txs, 1)
 
-	// now there are 3 Txs, and only two can fit into single block
+	// now there are 2 Txs, and max bytes is 100, so create block should fail
 	tx1 := []byte{4, 5, 6, 7}
 	tx2 := make([]byte, 100)
 	err = mpool.CheckTx(tx1, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
@@ -95,20 +95,20 @@ func doTestCreateBlock(t *testing.T) {
 	err = mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	header, data, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx1, tx2})
-	require.NoError(err)
-	require.NotNil(header)
-	assert.Len(data.Txs, 2)
+	require.Error(err)
+	require.Nil(header)
+	require.Nil(data)
 
-	// limit max bytes
+	// limit max bytes and create block should fail
 	tx = make([]byte, 10)
 	mpool.Flush()
 	executor.maxBytes = 10
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	header, data, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
-	require.NoError(err)
-	require.NotNil(header)
-	assert.Empty(data.Txs)
+	require.Error(err)
+	require.Nil(header)
+	require.Nil(data)
 }
 
 func TestCreateBlockWithFraudProofsDisabled(t *testing.T) {
@@ -218,13 +218,11 @@ func doTestApplyBlock(t *testing.T) {
 	tx1 := []byte{0, 1, 2, 3, 4}
 	tx2 := []byte{5, 6, 7, 8, 9}
 	tx3 := []byte{1, 2, 3, 4, 5}
-	tx4 := make([]byte, 90)
 	require.NoError(mpool.CheckTx(tx1, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(tx3, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx(tx4, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	signature = types.Signature([]byte{1, 1, 1})
-	header, data, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState, cmtypes.Txs{tx1, tx2, tx3, tx4})
+	header, data, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState, cmtypes.Txs{tx1, tx2, tx3})
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Equal(uint64(2), header.Height())

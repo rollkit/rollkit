@@ -36,7 +36,7 @@ func TestBlockCache(t *testing.T) {
 	require.True(ok1, "getHeader should return true after overwriting a header")
 	require.Equal(header1, gotHeader1)
 	dc.setData(height, data1)
-	gotData1, ok1 := hc.getHeader(height)
+	gotData1, ok1 := dc.getData(height)
 	require.True(ok1, "getData should return true after overwriting a data")
 	require.Equal(data1, gotData1)
 

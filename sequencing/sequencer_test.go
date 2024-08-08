@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// MockSequencerAddress is the mock address for the gRPC server
 	MockSequencerAddress = "grpc://localhost:50051"
 )
 
