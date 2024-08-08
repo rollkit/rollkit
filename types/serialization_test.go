@@ -85,7 +85,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			deserializedHeader := &SignedHeader{}
 			err = deserializedHeader.UnmarshalBinary(blob)
 			assert.NoError(err)
-			assert.Equal(c.data, deserializedHeader)
+			assert.Equal(c.header, deserializedHeader)
 
 			blob, err = c.data.MarshalBinary()
 			assert.NoError(err)
