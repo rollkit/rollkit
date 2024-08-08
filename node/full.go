@@ -157,7 +157,8 @@ func newFullNode(
 		return nil, err
 	}
 
-	mempool := initMempool(logger, proxyApp, memplMetrics)
+	mempool := initMempool(proxyApp, memplMetrics)
+
 	seqClient := seqGRPC.NewClient()
 	mempoolReaper, err := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient)
 	if err != nil {
@@ -253,7 +254,7 @@ func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.L
 		namespace, logger.With("module", "da_client")), nil
 }
 
-func initMempool(logger log.Logger, proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
+func initMempool(proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
 	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0, mempool.WithMetrics(memplMetrics))
 	mempool.EnableTxsAvailable()
 	return mempool

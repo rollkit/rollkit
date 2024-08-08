@@ -427,6 +427,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			// If the batch is nil, we will reset the timer to try again
 			if batch != nil {
 				m.bq.AddBatch(*batch)
+				m.lastBatch = batch
 			}
 			// Reset the blockTimer to signal the next block production
 			// period based on the block time.
