@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	// MockDAAddress is the mock address for the gRPC server
+	// MockSequencerAddress is the mock address for the gRPC server
 	MockSequencerAddress = "localhost:50051"
 )
 
