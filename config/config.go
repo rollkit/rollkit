@@ -170,4 +170,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagLazyBufferTime, def.LazyBufferTime, "additional time to wait to accumulate transactions in lazy mode")
 	cmd.Flags().String(FlagDAAddress, def.SequencerAddress, "Sequencer middleware address (host:port)(default: localhost:50051)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "Sequencer middleware address (host:port)(default: localhost:50051)")
+	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)(default: localhost:50051)")
 }
