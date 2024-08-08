@@ -162,7 +162,7 @@ func (txi *TxIndex) indexEvents(result *abci.TxResult, hash []byte, store ds.Txn
 			}
 
 			// index if `index: true` is set
-			compositeTag := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
+			compositeTag := event.Type + "." + attr.Key
 			if attr.GetIndex() {
 				err := store.Put(txi.ctx, ds.NewKey(keyForEvent(compositeTag, attr.Value, result)), hash)
 				if err != nil {
