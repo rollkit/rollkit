@@ -66,7 +66,7 @@ func (s *DefaultStore) Height() uint64 {
 	return s.height.Load()
 }
 
-// SaveBlock adds block to the store along with corresponding signature.
+// SaveBlockData adds block header and data to the store along with corresponding signature.
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
 	hash := header.Hash()
@@ -110,7 +110,7 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 	return nil
 }
 
-// GetBlock returns block at given height, or error if it's not found in Store.
+// GetBlockData returns block header and data at given height, or error if it's not found in Store.
 // TODO(tzdybal): what is more common access pattern? by height or by hash?
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
