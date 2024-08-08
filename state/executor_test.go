@@ -71,40 +71,44 @@ func doTestCreateBlock(t *testing.T) {
 	state.Validators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
-	block, err := executor.CreateBlock(1, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	header, data, err := executor.CreateBlock(1, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{})
 	require.NoError(err)
-	require.NotNil(block)
-	assert.Empty(block.Data.Txs)
-	assert.Equal(uint64(1), block.Height())
+	require.NotNil(header)
+	assert.Empty(data.Txs)
+	assert.Equal(uint64(1), header.Height())
 
 	// one small Tx
-	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
+	tx := []byte{1, 2, 3, 4}
+	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(2, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	header, data, err = executor.CreateBlock(2, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
 	require.NoError(err)
-	require.NotNil(block)
-	assert.Equal(uint64(2), block.Height())
-	assert.Len(block.Data.Txs, 1)
+	require.NotNil(header)
+	assert.Equal(uint64(2), header.Height())
+	assert.Len(data.Txs, 1)
 
 	// now there are 3 Txs, and only two can fit into single block
-	err = mpool.CheckTx([]byte{4, 5, 6, 7}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
+	tx1 := []byte{4, 5, 6, 7}
+	tx2 := make([]byte, 100)
+	err = mpool.CheckTx(tx1, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	err = mpool.CheckTx(make([]byte, 100), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
+	err = mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	header, data, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx1, tx2})
 	require.NoError(err)
-	require.NotNil(block)
-	assert.Len(block.Data.Txs, 2)
+	require.NotNil(header)
+	assert.Len(data.Txs, 2)
 
 	// limit max bytes
+	tx = make([]byte, 10)
 	mpool.Flush()
 	executor.maxBytes = 10
-	err = mpool.CheckTx(make([]byte, 10), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
+	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	block, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state)
+	header, data, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
 	require.NoError(err)
-	require.NotNil(block)
-	assert.Empty(block.Data.Txs)
+	require.NotNil(header)
+	assert.Empty(data.Txs)
 }
 
 func TestCreateBlockWithFraudProofsDisabled(t *testing.T) {
@@ -184,58 +188,61 @@ func doTestApplyBlock(t *testing.T) {
 	chainID := "test"
 	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
-	err = mpool.CheckTx([]byte{1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
+	tx := []byte{1, 2, 3, 4}
+	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	signature := types.Signature([]byte{1, 1, 1})
-	block, err := executor.CreateBlock(1, &signature, abci.ExtendedCommitInfo{}, []byte{}, state)
+	header, data, err := executor.CreateBlock(1, &signature, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
 	require.NoError(err)
-	require.NotNil(block)
-	assert.Equal(uint64(1), block.Height())
-	assert.Len(block.Data.Txs, 1)
-	dataHash, err := block.Data.Hash()
-	assert.NoError(err)
-	block.SignedHeader.DataHash = dataHash
+	require.NotNil(header)
+	assert.Equal(uint64(1), header.Height())
+	assert.Len(data.Txs, 1)
+	dataHash := data.Hash()
+	header.DataHash = dataHash
 
 	// Update the signature on the block to current from last
-	voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
+	voteBytes := header.Header.MakeCometBFTVote()
 	signature, _ = vKey.Sign(voteBytes)
-	block.SignedHeader.Signature = signature
-	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
+	header.Signature = signature
+	header.Validators = cmtypes.NewValidatorSet(validators)
 
-	newState, resp, err := executor.ApplyBlock(context.Background(), state, block)
+	newState, resp, err := executor.ApplyBlock(context.Background(), state, header, data)
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(uint64(1), newState.LastBlockHeight)
-	appHash, _, err := executor.Commit(context.Background(), newState, block, resp)
+	appHash, _, err := executor.Commit(context.Background(), newState, header, data, resp)
 	require.NoError(err)
 	assert.Equal(mockAppHash, appHash)
 
-	require.NoError(mpool.CheckTx([]byte{0, 1, 2, 3, 4}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx([]byte{5, 6, 7, 8, 9}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx([]byte{1, 2, 3, 4, 5}, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
-	require.NoError(mpool.CheckTx(make([]byte, 90), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
+	tx1 := []byte{0, 1, 2, 3, 4}
+	tx2 := []byte{5, 6, 7, 8, 9}
+	tx3 := []byte{1, 2, 3, 4, 5}
+	tx4 := make([]byte, 90)
+	require.NoError(mpool.CheckTx(tx1, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(tx3, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
+	require.NoError(mpool.CheckTx(tx4, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	signature = types.Signature([]byte{1, 1, 1})
-	block, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState)
+	header, data, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState, cmtypes.Txs{tx1, tx2, tx3, tx4})
 	require.NoError(err)
-	require.NotNil(block)
-	assert.Equal(uint64(2), block.Height())
-	assert.Len(block.Data.Txs, 3)
-	dataHash, err = block.Data.Hash()
-	assert.NoError(err)
-	block.SignedHeader.DataHash = dataHash
+	require.NotNil(header)
+	assert.Equal(uint64(2), header.Height())
+	assert.Len(data.Txs, 3)
+	dataHash = data.Hash()
+	header.DataHash = dataHash
 
-	voteBytes = block.SignedHeader.Header.MakeCometBFTVote()
+	voteBytes = header.Header.MakeCometBFTVote()
 	signature, _ = vKey.Sign(voteBytes)
-	block.SignedHeader.Signature = signature
-	block.SignedHeader.Validators = cmtypes.NewValidatorSet(validators)
+	header.Signature = signature
+	header.Validators = cmtypes.NewValidatorSet(validators)
 
-	newState, resp, err = executor.ApplyBlock(context.Background(), newState, block)
+	newState, resp, err = executor.ApplyBlock(context.Background(), newState, header, data)
 	require.NoError(err)
 	require.NotNil(newState)
 	require.NotNil(resp)
 	assert.Equal(uint64(2), newState.LastBlockHeight)
-	_, _, err = executor.Commit(context.Background(), newState, block, resp)
+	_, _, err = executor.Commit(context.Background(), newState, header, data, resp)
 	require.NoError(err)
 
 	// wait for at least 4 Tx events, for up to 3 second.
@@ -303,10 +310,10 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 		NextValidators: cmtypes.NewValidatorSet([]*cmtypes.Validator{{Address: []byte("test"), PubKey: nil, VotingPower: 100, ProposerPriority: 1}}),
 	}
 
-	block := types.GetRandomBlock(1234, 2)
+	header, data := types.GetRandomBlock(1234, 2)
 
-	txResults := make([]*abci.ExecTxResult, len(block.Data.Txs))
-	for idx := range block.Data.Txs {
+	txResults := make([]*abci.ExecTxResult, len(data.Txs))
+	for idx := range data.Txs {
 		txResults[idx] = &abci.ExecTxResult{
 			Code: abci.CodeTypeOK,
 		}
@@ -331,7 +338,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 	validatorUpdates, err := cmtypes.PB2TM.ValidatorUpdates(resp.ValidatorUpdates)
 	assert.NoError(t, err)
 
-	updatedState, err := executor.updateState(state, block, resp, validatorUpdates)
+	updatedState, err := executor.updateState(state, header, data, resp, validatorUpdates)
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(1235), updatedState.LastHeightConsensusParamsChanged)

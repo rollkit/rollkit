@@ -44,11 +44,11 @@ var expectedInfo = &abci.ResponseInfo{
 }
 
 func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.GetBlock(context.Background(), uint64(n))
+	h, d, err := rpc.node.Store.GetBlockData(context.Background(), uint64(n))
 	if err != nil {
 		return nil
 	}
-	bmeta, err := abciconv.ToABCIBlockMeta(b)
+	bmeta, err := abciconv.ToABCIBlockMeta(h, d)
 	if err != nil {
 		return nil
 	}
@@ -69,9 +69,8 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
-			DAAddress:         MockDAAddress,
-			DAHeaderNamespace: MockDAHeaderNamespace,
-			DADataNamespace:   MockDADataNamespace,
+			DAAddress:   MockDAAddress,
+			DANamespace: MockDANamespace,
 		},
 		key,
 		signingKey,
@@ -173,7 +172,7 @@ func TestGenesisChunked(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DAHeaderNamespace: MockDAHeaderNamespace, DADataNamespace: MockDADataNamespace}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
+	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -315,9 +314,9 @@ func TestGetBlock(t *testing.T) {
 
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
-	block := types.GetRandomBlock(1, 10)
-	err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
-	rpc.node.Store.SetHeight(ctx, block.Height())
+	header, data := types.GetRandomBlock(1, 10)
+	err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
+	rpc.node.Store.SetHeight(ctx, header.Height())
 	require.NoError(err)
 
 	blockResp, err := rpc.Block(ctx, nil)
@@ -334,18 +333,24 @@ func TestGetCommit(t *testing.T) {
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
-	blocks := []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 6), types.GetRandomBlock(3, 8), types.GetRandomBlock(4, 10)}
+	header1, data1 := types.GetRandomBlock(1, 5)
+	header2, data2 := types.GetRandomBlock(2, 6)
+	header3, data3 := types.GetRandomBlock(3, 8)
+	header4, data4 := types.GetRandomBlock(4, 10)
+	headers := []*types.SignedHeader{header1, header2, header3, header4}
+	data := []*types.Data{data1, data2, data3, data4}
 
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
-	for _, b := range blocks {
-		err := rpc.node.Store.SaveBlock(ctx, b, &types.Signature{})
-		rpc.node.Store.SetHeight(ctx, b.Height())
+	for i, h := range headers {
+		d := data[i]
+		err := rpc.node.Store.SaveBlockData(ctx, h, d, &types.Signature{})
+		rpc.node.Store.SetHeight(ctx, h.Height())
 		require.NoError(err)
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
-		for _, b := range blocks {
-			h := int64(b.Height()) //nolint:gosec
+		for _, header := range headers {
+			h := int64(header.Height()) //nolint:gosec
 			commit, err := rpc.Commit(ctx, &h)
 			require.NoError(err)
 			require.NotNil(commit)
@@ -357,7 +362,7 @@ func TestGetCommit(t *testing.T) {
 		commit, err := rpc.Commit(ctx, nil)
 		require.NoError(err)
 		require.NotNil(commit)
-		assert.Equal(int64(blocks[3].Height()), commit.Height) //nolint:gosec
+		assert.Equal(int64(headers[3].Height()), commit.Height) //nolint:gosec
 	})
 }
 
@@ -373,19 +378,21 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 		Height: 1,
 		NTxs:   1,
 	}
-	block1, privKey := types.GenerateRandomBlockCustom(&config)
-	block2 := types.GetRandomNextBlock(block1, privKey, []byte{}, 2)
-	block3 := types.GetRandomNextBlock(block2, privKey, []byte{}, 3)
+	header1, data1, privKey := types.GenerateRandomBlockCustom(&config)
+	header2, data2 := types.GetRandomNextBlock(header1, data1, privKey, []byte{}, 2)
+	header3, data3 := types.GetRandomNextBlock(header2, data2, privKey, []byte{}, 3)
 
-	blocks := []*types.Block{block1, block2, block3}
+	headers := []*types.SignedHeader{header1, header2, header3}
+	data := []*types.Data{data1, data2, data3}
 
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
 
 	// save the 3 blocks
-	for _, b := range blocks {
-		err := rpc.node.Store.SaveBlock(ctx, b, &b.SignedHeader.Signature) // #nosec G601
-		rpc.node.Store.SetHeight(ctx, b.Height())
+	for i, h := range headers {
+		d := data[i]
+		err := rpc.node.Store.SaveBlockData(ctx, h, d, &h.Signature) // #nosec G601
+		rpc.node.Store.SetHeight(ctx, h.Height())
 		require.NoError(err)
 	}
 
@@ -401,11 +408,11 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 		var trustedHeader cmtypes.SignedHeader
 		setTrustedHeader := false
 		// valset of single sequencer is constant
-		fixedValSet := block1.SignedHeader.Validators
+		fixedValSet := header1.Validators
 
 		// for each block (except block 1), verify it's ABCI header with previous block's ABCI header as trusted header
-		for _, b := range blocks {
-			h := int64(b.Height()) //nolint:gosec
+		for _, header := range headers {
+			h := int64(header.Height()) //nolint:gosec
 			commit, err := rpc.Commit(context.Background(), &h)
 			require.NoError(err)
 			require.NotNil(commit)
@@ -420,7 +427,7 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 			}
 
 			// verify the ABCI header
-			err = light.Verify(&trustedHeader, fixedValSet, &commit.SignedHeader, fixedValSet, trustingPeriod, b.Time(), maxClockDrift, trustLevel)
+			err = light.Verify(&trustedHeader, fixedValSet, &commit.SignedHeader, fixedValSet, trustingPeriod, header.Time(), maxClockDrift, trustLevel)
 			require.NoError(err, "failed to pass light.Verify()")
 
 			trustedHeader = commit.SignedHeader
@@ -438,8 +445,8 @@ func TestBlockSearch(t *testing.T) {
 	ctx := context.Background()
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		block := types.GetRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
+		header, data := types.GetRandomBlock(uint64(h), 5)
+		err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
 		require.NoError(err)
 	}
 	indexBlocks(t, rpc, heights)
@@ -497,20 +504,20 @@ func TestGetBlockByHash(t *testing.T) {
 
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
-	block := types.GetRandomBlock(1, 10)
-	err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
+	header, data := types.GetRandomBlock(1, 10)
+	err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
 	require.NoError(err)
-	abciBlock, err := abciconv.ToABCIBlock(block)
+	abciBlock, err := abciconv.ToABCIBlock(header, data)
 	require.NoError(err)
 
-	height := int64(block.Height()) //nolint:gosec
+	height := int64(header.Height()) //nolint:gosec
 	retrievedBlock, err := rpc.Block(context.Background(), &height)
 	require.NoError(err)
 	require.NotNil(retrievedBlock)
 	assert.Equal(abciBlock, retrievedBlock.Block)
 	assert.Equal(abciBlock.Hash(), retrievedBlock.Block.Hash())
 
-	blockHash := block.Hash()
+	blockHash := header.Hash()
 	blockResp, err := rpc.BlockByHash(context.Background(), blockHash[:])
 	require.NoError(err)
 	require.NotNil(blockResp)
@@ -546,10 +553,9 @@ func TestTx(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:         MockDAAddress,
-		DAHeaderNamespace: MockDAHeaderNamespace,
-		DADataNamespace:   MockDADataNamespace,
-		Aggregator:        true,
+		DAAddress:   MockDAAddress,
+		DANamespace: MockDANamespace,
+		Aggregator:  true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
 		}},
@@ -696,9 +702,9 @@ func TestBlockchainInfo(t *testing.T) {
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		block := types.GetRandomBlock(uint64(h), 5)
-		err := rpc.node.Store.SaveBlock(ctx, block, &types.Signature{})
-		rpc.node.Store.SetHeight(ctx, block.Height())
+		header, data := types.GetRandomBlock(uint64(h), 5)
+		err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
+		rpc.node.Store.SetHeight(ctx, header.Height())
 		require.NoError(err)
 	}
 
@@ -805,10 +811,9 @@ func TestMempool2Nodes(t *testing.T) {
 	defer cancel()
 	// make node1 an aggregator, so that node2 can start gracefully
 	node1, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:         MockDAAddress,
-		DAHeaderNamespace: MockDAHeaderNamespace,
-		DADataNamespace:   MockDADataNamespace,
-		Aggregator:        true,
+		DAAddress:   MockDAAddress,
+		DANamespace: MockDANamespace,
+		Aggregator:  true,
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
@@ -818,9 +823,8 @@ func TestMempool2Nodes(t *testing.T) {
 	require.NotNil(node1)
 
 	node2, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:         MockDAAddress,
-		DAHeaderNamespace: MockDAHeaderNamespace,
-		DADataNamespace:   MockDADataNamespace,
+		DAAddress:   MockDAAddress,
+		DANamespace: MockDANamespace,
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Loggable()["peerID"].(string),
@@ -882,9 +886,8 @@ func TestStatus(t *testing.T) {
 	node, err := newFullNode(
 		context.Background(),
 		config.NodeConfig{
-			DAAddress:         MockDAAddress,
-			DAHeaderNamespace: MockDAHeaderNamespace,
-			DADataNamespace:   MockDADataNamespace,
+			DAAddress:   MockDAAddress,
+			DANamespace: MockDANamespace,
 			P2P: config.P2PConfig{
 				ListenAddress: "/ip4/0.0.0.0/tcp/26656",
 			},
@@ -921,9 +924,9 @@ func TestStatus(t *testing.T) {
 		NTxs:         1,
 		ProposerAddr: pubKey.Bytes(),
 	}
-	earliestBlock, _ := types.GenerateRandomBlockCustom(&config)
-	err = rpc.node.Store.SaveBlock(ctx, earliestBlock, &types.Signature{})
-	rpc.node.Store.SetHeight(ctx, earliestBlock.Height())
+	earliestHeader, earliestData, _ := types.GenerateRandomBlockCustom(&config)
+	err = rpc.node.Store.SaveBlockData(ctx, earliestHeader, earliestData, &types.Signature{})
+	rpc.node.Store.SetHeight(ctx, earliestHeader.Height())
 	require.NoError(err)
 
 	config = types.BlockConfig{
@@ -931,26 +934,26 @@ func TestStatus(t *testing.T) {
 		NTxs:         1,
 		ProposerAddr: pubKey.Bytes(),
 	}
-	latestBlock, _ := types.GenerateRandomBlockCustom(&config)
-	err = rpc.node.Store.SaveBlock(ctx, latestBlock, &types.Signature{})
-	rpc.node.Store.SetHeight(ctx, latestBlock.Height())
+	latestHeader, latestData, _ := types.GenerateRandomBlockCustom(&config)
+	err = rpc.node.Store.SaveBlockData(ctx, latestHeader, latestData, &types.Signature{})
+	rpc.node.Store.SetHeight(ctx, latestHeader.Height())
 	require.NoError(err)
 
 	resp, err := rpc.Status(context.Background())
 	assert.NoError(err)
 
 	t.Run("SyncInfo", func(t *testing.T) {
-		assert.EqualValues(earliestBlock.Height(), resp.SyncInfo.EarliestBlockHeight)
-		assert.EqualValues(latestBlock.Height(), resp.SyncInfo.LatestBlockHeight)
+		assert.EqualValues(earliestHeader.Height(), resp.SyncInfo.EarliestBlockHeight)
+		assert.EqualValues(latestHeader.Height(), resp.SyncInfo.LatestBlockHeight)
 		assert.Equal(
-			hex.EncodeToString(earliestBlock.SignedHeader.AppHash),
+			hex.EncodeToString(earliestHeader.AppHash),
 			hex.EncodeToString(resp.SyncInfo.EarliestAppHash))
 		assert.Equal(
-			hex.EncodeToString(latestBlock.SignedHeader.AppHash),
+			hex.EncodeToString(latestHeader.AppHash),
 			hex.EncodeToString(resp.SyncInfo.LatestAppHash))
 
-		assert.Equal(hex.EncodeToString(earliestBlock.SignedHeader.DataHash), hex.EncodeToString(resp.SyncInfo.EarliestBlockHash))
-		assert.Equal(hex.EncodeToString(latestBlock.SignedHeader.DataHash), hex.EncodeToString(resp.SyncInfo.LatestBlockHash))
+		assert.Equal(hex.EncodeToString(earliestHeader.DataHash), hex.EncodeToString(resp.SyncInfo.EarliestBlockHash))
+		assert.Equal(hex.EncodeToString(latestHeader.DataHash), hex.EncodeToString(resp.SyncInfo.LatestBlockHash))
 		assert.Equal(false, resp.SyncInfo.CatchingUp)
 	})
 	t.Run("ValidatorInfo", func(t *testing.T) {
@@ -1025,10 +1028,9 @@ func TestFutureGenesisTime(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	node, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:         MockDAAddress,
-		DAHeaderNamespace: MockDAHeaderNamespace,
-		DADataNamespace:   MockDADataNamespace,
-		Aggregator:        true,
+		DAAddress:   MockDAAddress,
+		DANamespace: MockDANamespace,
+		Aggregator:  true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
 		}},

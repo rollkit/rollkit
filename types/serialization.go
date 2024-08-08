@@ -157,6 +157,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 	return nil
 }
 
+// ToProto ...
 func (m *Metadata) ToProto() (*pb.Metadata, error) {
 	return &pb.Metadata{
 		ChainId:      m.ChainID,
@@ -166,6 +167,7 @@ func (m *Metadata) ToProto() (*pb.Metadata, error) {
 	}, nil
 }
 
+// FromProto ...
 func (m *Metadata) FromProto(other *pb.Metadata) error {
 	m.ChainID = other.ChainId
 	m.Height = other.Height
@@ -192,7 +194,11 @@ func (d *Data) ToProto() *pb.Data {
 
 // FromProto fills the Data with data from its protobuf representation
 func (d *Data) FromProto(other *pb.Data) error {
-	d.Metadata.FromProto(other.Metadata)
+	err := d.Metadata.FromProto(other.Metadata)
+	if err != nil {
+		return err
+	}
+
 	d.Txs = byteSlicesToTxs(other.Txs)
 	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896

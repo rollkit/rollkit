@@ -148,11 +148,12 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 
 		// assert that all blocks known to node are same as produced by aggregator
 		for h := uint64(1); h <= nodes[i].Store.Height(); h++ {
-			aggBlock, err := nodes[0].Store.GetBlock(ctx, h)
+			aggHeader, aggData, err := nodes[0].Store.GetBlockData(ctx, h)
 			require.NoError(err)
-			nodeBlock, err := nodes[i].Store.GetBlock(ctx, h)
+			nodeHeader, nodeData, err := nodes[i].Store.GetBlockData(ctx, h)
 			require.NoError(err)
-			assert.Equal(aggBlock, nodeBlock, fmt.Sprintf("height: %d", h))
+			assert.Equal(aggHeader, nodeHeader, fmt.Sprintf("height: %d", h))
+			assert.Equal(aggData, nodeData, fmt.Sprintf("height: %d", h))
 		}
 	}
 }
@@ -300,9 +301,9 @@ func TestFastDASync(t *testing.T) {
 	// Verify that the block we synced to is DA included. This is to
 	// ensure that the test is passing due to the DA syncing, since the P2P
 	// block sync will sync quickly but the block won't be DA included.
-	block, err := node2.Store.GetBlock(ctx, numberOfBlocksToSyncTill)
+	header, _, err := node2.Store.GetBlockData(ctx, numberOfBlocksToSyncTill)
 	require.NoError(err)
-	require.True(node2.blockManager.IsDAIncluded(block.Hash()))
+	require.True(node2.blockManager.IsDAIncluded(header.Hash()))
 }
 
 // TestChangeValSet tests the scenario where the sequencer changes and the chain is able to provide blocks by new sequencer
@@ -501,12 +502,12 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	//Make sure all produced blocks made it to DA
 	for i := uint64(1); i <= numberOfBlocksToSyncTill; i++ {
 		require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-			block, err := seq.Store.GetBlock(ctx, i)
+			header, _, err := seq.Store.GetBlockData(ctx, i)
 			if err != nil {
 				return err
 			}
-			if !seq.blockManager.IsDAIncluded(block.Hash()) {
-				return fmt.Errorf("block %d not DA included", block.Height())
+			if !seq.blockManager.IsDAIncluded(header.Hash()) {
+				return fmt.Errorf("block %d not DA included", header.Height())
 			}
 			return nil
 		}))

@@ -89,20 +89,20 @@ func TestToABCIHeader(t *testing.T) {
 
 func TestToABCIBlock(t *testing.T) {
 	blockHeight, nTxs := uint64(1), 2
-	block := types.GetRandomBlock(blockHeight, nTxs)
-	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
+	header, data := types.GetRandomBlock(blockHeight, nTxs)
+	abciHeader, err := ToABCIHeader(&header.Header)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// we only have one centralize sequencer
-	assert.Equal(t, 1, len(block.SignedHeader.Validators.Validators))
-	val := block.SignedHeader.Validators.Validators[0].Address
+	assert.Equal(t, 1, len(header.Validators.Validators))
+	val := header.Validators.Validators[0].Address
 
-	abciCommit := types.GetABCICommit(block.Height(), block.Hash(), val, block.Time(), block.SignedHeader.Signature)
+	abciCommit := types.GetABCICommit(header.Height(), header.Hash(), val, header.Time(), header.Signature)
 
 	if len(abciCommit.Signatures) == 1 {
-		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
+		abciCommit.Signatures[0].ValidatorAddress = header.ProposerAddress
 	}
 
 	abciBlock := cmtypes.Block{
@@ -112,13 +112,13 @@ func TestToABCIBlock(t *testing.T) {
 		},
 		LastCommit: abciCommit,
 	}
-	abciBlock.Data.Txs = make([]cmtypes.Tx, len(block.Data.Txs))
-	for i := range block.Data.Txs {
-		abciBlock.Data.Txs[i] = cmtypes.Tx(block.Data.Txs[i])
+	abciBlock.Data.Txs = make([]cmtypes.Tx, len(data.Txs))
+	for i := range data.Txs {
+		abciBlock.Data.Txs[i] = cmtypes.Tx(data.Txs[i])
 	}
-	abciBlock.Header.DataHash = cmbytes.HexBytes(block.SignedHeader.DataHash)
+	abciBlock.Header.DataHash = cmbytes.HexBytes(header.DataHash)
 
-	actual, err := ToABCIBlock(block)
+	actual, err := ToABCIBlock(header, data)
 	if err != nil {
 		t.Fatalf("ToABCIBlock returned an error: %v", err)
 	}
@@ -127,8 +127,8 @@ func TestToABCIBlock(t *testing.T) {
 
 func TestToABCIBlockMeta(t *testing.T) {
 	blockHeight, nTxs := uint64(1), 2
-	block := types.GetRandomBlock(blockHeight, nTxs)
-	cmblock, err := ToABCIBlock(block)
+	header, data := types.GetRandomBlock(blockHeight, nTxs)
+	cmblock, err := ToABCIBlock(header, data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestToABCIBlockMeta(t *testing.T) {
 		NumTxs:    len(cmblock.Txs),
 	}
 
-	actual, err := ToABCIBlockMeta(block)
+	actual, err := ToABCIBlockMeta(header, data)
 	if err != nil {
 		t.Fatalf("ToABCIBlock returned an error: %v", err)
 	}

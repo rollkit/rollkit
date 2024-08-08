@@ -19,14 +19,14 @@ func TestBlockCache(t *testing.T) {
 
 	// Test setBlock and getBlock
 	height, nTxs := uint64(1), 2
-	header, data := types.GetRandomBlock(height, nTxs)
+	header, _ := types.GetRandomBlock(height, nTxs)
 	hc.setHeader(height, header)
 	gotHeader, ok := hc.getHeader(height)
 	require.True(ok, "getBlock should return true after setBlock")
 	require.Equal(header, gotHeader)
 
 	// Test overwriting a block
-	header1, data1 := types.GetRandomBlock(height, nTxs)
+	header1, _ := types.GetRandomBlock(height, nTxs)
 	hc.setHeader(height, header1)
 	gotHeader1, ok1 := hc.getHeader(height)
 	require.True(ok1, "getBlock should return true after overwriting a block")
