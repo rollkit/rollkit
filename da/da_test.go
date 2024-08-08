@@ -35,11 +35,8 @@ const (
 	// MockDAAddressHTTP is mock address for the JSONRPC server
 	MockDAAddressHTTP = "http://localhost:7988"
 
-	// MockDAHeaderNamespace is the mock namespace
-	MockDAHeaderNamespace = "00000000000000000000000000000000000000000000000000deadbeef"
-
-	// MockDADataNamespace is the mock namespace
-	MockDADataNamespace = "00000000000000000000000000000000000000000000000000deedbeef"
+	// MockDANamespace is the mock namespace
+	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
 )
 
 // TestMain starts the mock gRPC and JSONRPC DA services

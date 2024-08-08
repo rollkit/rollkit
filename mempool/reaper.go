@@ -8,8 +8,10 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 )
 
+// ReapInterval is the interval at which the reaper checks the mempool for transactions to reap.
 const ReapInterval time.Duration = 1 * time.Second
 
+// CListMempoolReaper is a reaper that reaps transactions from the mempool and sends them to the gRPC server.
 type CListMempoolReaper struct {
 	mempool    Mempool
 	stopCh     chan struct{}

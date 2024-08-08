@@ -7,4 +7,3 @@ types/pb/tendermint
 *.idea
 *.env
 .*env
-$HOME

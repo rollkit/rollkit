@@ -18,26 +18,25 @@ import (
 
 func TestStoreHeight(t *testing.T) {
 	t.Parallel()
+	header1, data1 := types.GetRandomBlock(1, 0)
+	header2, data2 := types.GetRandomBlock(1, 0)
+	header3, data3 := types.GetRandomBlock(2, 0)
+	header4, data4 := types.GetRandomBlock(2, 0)
+	header5, data5 := types.GetRandomBlock(3, 0)
+	header6, data6 := types.GetRandomBlock(1, 0)
+	header7, data7 := types.GetRandomBlock(1, 0)
+	header8, data8 := types.GetRandomBlock(9, 0)
+	header9, data9 := types.GetRandomBlock(10, 0)
 	cases := []struct {
 		name     string
-		blocks   []*types.Block
+		headers  []*types.SignedHeader
+		data     []*types.Data
 		expected uint64
 	}{
-		{"single block", []*types.Block{types.GetRandomBlock(1, 0)}, 1},
-		{"two consecutive blocks", []*types.Block{
-			types.GetRandomBlock(1, 0),
-			types.GetRandomBlock(2, 0),
-		}, 2},
-		{"blocks out of order", []*types.Block{
-			types.GetRandomBlock(2, 0),
-			types.GetRandomBlock(3, 0),
-			types.GetRandomBlock(1, 0),
-		}, 3},
-		{"with a gap", []*types.Block{
-			types.GetRandomBlock(1, 0),
-			types.GetRandomBlock(9, 0),
-			types.GetRandomBlock(10, 0),
-		}, 10},
+		{"single block", []*types.SignedHeader{header1}, []*types.Data{data1}, 1},
+		{"two consecutive blocks", []*types.SignedHeader{header2, header3}, []*types.Data{data2, data3}, 2},
+		{"blocks out of order", []*types.SignedHeader{header4, header5, header6}, []*types.Data{data4, data5, data6}, 3},
+		{"with a gap", []*types.SignedHeader{header7, header8, header9}, []*types.Data{data7, data8, data9}, 10},
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -48,9 +47,10 @@ func TestStoreHeight(t *testing.T) {
 			bstore := New(ds)
 			assert.Equal(uint64(0), bstore.Height())
 
-			for _, block := range c.blocks {
-				err := bstore.SaveBlock(ctx, block, &types.Signature{})
-				bstore.SetHeight(ctx, block.Height())
+			for i, header := range c.headers {
+				data := c.data[i]
+				err := bstore.SaveBlockData(ctx, header, data, &types.Signature{})
+				bstore.SetHeight(ctx, header.Height())
 				assert.NoError(err)
 			}
 
@@ -61,15 +61,16 @@ func TestStoreHeight(t *testing.T) {
 
 func TestStoreLoad(t *testing.T) {
 	t.Parallel()
+	header1, data1 := types.GetRandomBlock(1, 10)
+	header2, data2 := types.GetRandomBlock(1, 10)
+	header3, data3 := types.GetRandomBlock(2, 20)
 	cases := []struct {
-		name   string
-		blocks []*types.Block
+		name    string
+		headers []*types.SignedHeader
+		data    []*types.Data
 	}{
-		{"single block", []*types.Block{types.GetRandomBlock(1, 10)}},
-		{"two consecutive blocks", []*types.Block{
-			types.GetRandomBlock(1, 10),
-			types.GetRandomBlock(2, 20),
-		}},
+		{"single block", []*types.SignedHeader{header1}, []*types.Data{data1}},
+		{"two consecutive blocks", []*types.SignedHeader{header2, header3}, []*types.Data{data2, data3}},
 		// TODO(tzdybal): this test needs extra handling because of lastCommits
 		//{"blocks out of order", []*types.Block{
 		//	getRandomBlock(2, 20),
@@ -101,19 +102,23 @@ func TestStoreLoad(t *testing.T) {
 
 				bstore := New(kv)
 
-				for _, block := range c.blocks {
-					signature := &block.SignedHeader.Signature
-					err := bstore.SaveBlock(ctx, block, signature)
+				for i, header := range c.headers {
+					data := c.data[i]
+					signature := &header.Signature
+					err := bstore.SaveBlockData(ctx, header, data, signature)
 					require.NoError(err)
 				}
 
-				for _, expected := range c.blocks {
-					block, err := bstore.GetBlock(ctx, expected.Height())
+				for i, expectedHeader := range c.headers {
+					expectedData := c.data[i]
+					header, data, err := bstore.GetBlockData(ctx, expectedHeader.Height())
 					assert.NoError(err)
-					assert.NotNil(block)
-					assert.Equal(expected, block)
+					assert.NotNil(header)
+					assert.NotNil(data)
+					assert.Equal(expectedHeader, header)
+					assert.Equal(expectedData, data)
 
-					signature, err := bstore.GetSignature(ctx, expected.Height())
+					signature, err := bstore.GetSignature(ctx, expectedHeader.Height())
 					assert.NoError(err)
 					assert.NotNil(signature)
 				}
