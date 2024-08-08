@@ -166,5 +166,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
 	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DAMempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
-	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "Sequencer middleware address (host:port)(default: localhost:50051)")
+	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)(default: localhost:50051)")
 }
