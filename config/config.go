@@ -171,4 +171,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagDAAddress, def.SequencerAddress, "Sequencer middleware address (host:port)(default: localhost:50051)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "Sequencer middleware address (host:port)(default: localhost:50051)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)(default: localhost:50051)")
+	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 }
