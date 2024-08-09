@@ -408,7 +408,7 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	return 0
 }
 
-// BatchRetrieveLoop ...
+// BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
 func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 	// batchTimer is used to signal when to retrieve batch from the sequencer
 	batchTimer := time.NewTimer(0)

@@ -31,7 +31,7 @@ type Metadata struct {
 
 // Data defines Rollkit block data.
 type Data struct {
-	Metadata
+	*Metadata
 	Txs Txs
 	// IntermediateStateRoots IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896

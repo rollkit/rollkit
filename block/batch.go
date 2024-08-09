@@ -6,7 +6,7 @@ import (
 	"github.com/rollkit/go-sequencing"
 )
 
-// BatchQueue ...
+// BatchQueue is a queue of transactions
 type BatchQueue struct {
 	queue []sequencing.Batch
 	mu    sync.Mutex
@@ -26,7 +26,7 @@ func (bq *BatchQueue) AddBatch(batch sequencing.Batch) {
 	bq.queue = append(bq.queue, batch)
 }
 
-// Next ...
+// Next returns the next transaction in the queue
 func (bq *BatchQueue) Next() *sequencing.Batch {
 	if len(bq.queue) == 0 {
 		return nil

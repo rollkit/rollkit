@@ -135,8 +135,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	dalcKV := newPrefixKV(baseKV, dalcPrefix)
-	dalc, err := initDALC(nodeConfig, dalcKV, logger)
+	dalc, err := initDALC(nodeConfig, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +233,7 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }
 
-func initDALC(nodeConfig config.NodeConfig, dalcKV ds.TxnDatastore, logger log.Logger) (*da.DAClient, error) {
+func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
 	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
 	if err != nil {
