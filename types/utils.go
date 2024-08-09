@@ -104,6 +104,13 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcry
 		signedHeader.ProposerAddress = config.ProposerAddr
 	}
 
+	data.Metadata = &Metadata{
+		ChainID:      TestChainID,
+		Height:       signedHeader.Height(),
+		LastDataHash: header.Hash{},
+		Time:         uint64(signedHeader.Time().UnixNano()),
+	}
+
 	return signedHeader, data, config.PrivKey
 }
 

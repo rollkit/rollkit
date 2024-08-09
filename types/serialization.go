@@ -178,10 +178,13 @@ func (m *Metadata) FromProto(other *pb.Metadata) error {
 
 // ToProto converts Data into protobuf representation and returns it.
 func (d *Data) ToProto() *pb.Data {
-	m := &Metadata{}
-	mProto, err := m.ToProto()
-	if err != nil {
-		return nil
+	var mProto *pb.Metadata
+	var err error
+	if d.Metadata != nil {
+		mProto, err = d.Metadata.ToProto()
+		if err != nil {
+			return nil
+		}
 	}
 	return &pb.Data{
 		Metadata: mProto,
