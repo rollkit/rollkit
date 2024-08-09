@@ -389,12 +389,13 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, header *t
 
 // Validate validates the state and the block for the executor
 func (e *BlockExecutor) Validate(state types.State, header *types.SignedHeader, data *types.Data) error {
-	err := header.ValidateBasic()
-	if err != nil {
+	if err := header.ValidateBasic(); err != nil {
 		return err
 	}
-	err = data.ValidateBasic()
-	if err != nil {
+	if err := data.ValidateBasic(); err != nil {
+		return err
+	}
+	if err := types.Validate(header, data); err != nil {
 		return err
 	}
 	if header.Version.App != state.Version.Consensus.App ||

@@ -74,15 +74,19 @@ func (signature *Signature) ValidateBasic() error {
 	return nil
 }
 
-// Validate performs basic validation of a block.
+// Validate performs validation of data with respect to its header
 func Validate(header *SignedHeader, data *Data) error {
-	if err := header.ValidateBasic(); err != nil {
-		return err
+	// Validate Metadata only when available
+	if data.Metadata != nil {
+		if header.ChainID() != data.ChainID() ||
+			header.Height() != data.Height() ||
+			header.Time() != data.Time() { // skipping LastDataHash comparison as it needs access to previous header
+			return errors.New("header and data do not match")
+		}
 	}
-	if err := data.ValidateBasic(); err != nil {
-		return err
-	}
-	dataHash := data.Hash()
+	// exclude Metadata while computing the data hash for comparison
+	d := Data{Txs: data.Txs}
+	dataHash := d.Hash()
 	if !bytes.Equal(dataHash[:], header.DataHash[:]) {
 		return errors.New("dataHash from the header does not match with hash of the block's data")
 	}

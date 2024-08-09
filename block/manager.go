@@ -68,7 +68,7 @@ const maxSubmitAttempts = 30
 // Applies to most channels, 100 is a large enough buffer to avoid blocking
 const channelLength = 100
 
-// Applies to the headerInCh, 10000 is a large enough number for header per DA block.
+// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
 const headerInChLength = 10000
 
 // initialBackoff defines initial value for block submission backoff
@@ -572,7 +572,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToHeaderStoreCh()
 		case headerEvent := <-m.headerInCh:
-			// Only validated blocks are sent to blockInCh, so we can safely assume that blockEvent.block is valid
+			// Only validated headers are sent to headerInCh, so we can safely assume that headerEvent.header is valid
 			header := headerEvent.Header
 			daHeight := headerEvent.DAHeight
 			headerHash := header.Hash().String()
@@ -608,7 +608,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"hash", dataHash,
 			)
 			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
-				m.logger.Debug("data already seen", "height", dataHeight, "block hash", dataHash)
+				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
 			m.dataCache.setData(dataHeight, data)
@@ -664,7 +664,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		currentHeight := m.store.Height()
 		h, ok := m.headerCache.getHeader(currentHeight + 1)
 		if !ok {
-			m.logger.Debug("block not found in cache", "height", currentHeight+1)
+			m.logger.Debug("header not found in cache", "height", currentHeight+1)
 			return nil
 		}
 		d, ok := m.dataCache.getData(currentHeight + 1)
@@ -1076,6 +1076,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// set the signature to current block's signed header
 	header.Signature = *signature
+
+	// append metadata to Data before validating and saving
+	data.Metadata = &types.Metadata{
+		ChainID: header.ChainID(),
+		Height:  header.Height(),
+		Time:    uint64(header.Time().Nanosecond()),
+	}
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
