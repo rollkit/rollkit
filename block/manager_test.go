@@ -3,20 +3,28 @@ package block
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	cfg "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
+	"github.com/cometbft/cometbft/libs/log"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	goDA "github.com/rollkit/go-da"
@@ -25,11 +33,19 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
+
+func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	return &abci.ResponsePrepareProposal{
+		Txs: req.Txs,
+	}, nil
+}
 
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
@@ -547,6 +563,160 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
+}
+
+func TestManager_publishBlock(t *testing.T) {
+	mockStore := new(mocks.Store)
+	mockLogger := new(test.MockLogger)
+	assert := assert.New(t)
+	require := require.New(t)
+
+	logger := log.TestingLogger()
+
+	var mockAppHash []byte
+	_, err := rand.Read(mockAppHash[:])
+	require.NoError(err)
+
+	app := &mocks.Application{}
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse)
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
+		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+			txResults := make([]*abci.ExecTxResult, len(req.Txs))
+			for idx := range req.Txs {
+				txResults[idx] = &abci.ExecTxResult{
+					Code: abci.CodeTypeOK,
+				}
+			}
+
+			return &abci.ResponseFinalizeBlock{
+				TxResults: txResults,
+				AppHash:   mockAppHash,
+			}, nil
+		},
+	)
+
+	client, err := proxy.NewLocalClientCreator(app).NewABCIClient()
+	require.NoError(err)
+	require.NotNil(client)
+
+	vKey := ed25519.GenPrivKey()
+	validators := []*cmtypes.Validator{
+		{
+			Address:          vKey.PubKey().Address(),
+			PubKey:           vKey.PubKey(),
+			VotingPower:      int64(100),
+			ProposerPriority: int64(1),
+		},
+	}
+
+	lastState := types.State{}
+	lastState.ConsensusParams.Block = &cmproto.BlockParams{}
+	lastState.ConsensusParams.Block.MaxBytes = 100
+	lastState.ConsensusParams.Block.MaxGas = 100000
+	lastState.ConsensusParams.Abci = &cmproto.ABCIParams{VoteExtensionsEnableHeight: 0}
+	lastState.Validators = cmtypes.NewValidatorSet(validators)
+	lastState.NextValidators = cmtypes.NewValidatorSet(validators)
+	lastState.LastValidators = cmtypes.NewValidatorSet(validators)
+
+	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	executor := state.NewBlockExecutor(vKey.PubKey().Address(), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
+
+	signingKey, err := types.PrivKeyToSigningKey(vKey)
+	require.NoError(err)
+	m := &Manager{
+		lastState:    lastState,
+		lastStateMtx: new(sync.RWMutex),
+		blockCache:   NewBlockCache(),
+		executor:     executor,
+		store:        mockStore,
+		logger:       mockLogger,
+		genesis: &cmtypes.GenesisDoc{
+			ChainID:       "myChain",
+			InitialHeight: 1,
+			AppHash:       []byte("app hash"),
+		},
+		conf: config.BlockManagerConfig{
+			BlockTime:      time.Second,
+			LazyAggregator: false,
+		},
+		isProposer:  true,
+		proposerKey: signingKey,
+		metrics:     NopMetrics(),
+	}
+
+	mockStore.On("Height").Return(uint64(0))
+
+	t.Run("height should be updated after saving block responses", func(t *testing.T) {
+		mockStore.On("Height").Return(uint64(0))
+		signature := types.Signature([]byte{1, 1, 1})
+		block, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState)
+		require.NoError(err)
+		require.NotNil(block)
+		assert.Equal(uint64(0), block.Height())
+		dataHash, err := block.Data.Hash()
+		assert.NoError(err)
+		block.SignedHeader.DataHash = dataHash
+
+		// Update the signature on the block to current from last
+		voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
+		signature, _ = vKey.Sign(voteBytes)
+		block.SignedHeader.Signature = signature
+		block.SignedHeader.Validators = lastState.Validators
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		mockStore.On("GetBlock", ctx, uint64(1)).Return(block, nil)
+		mockStore.On("SaveBlock", ctx, block, mock.Anything).Return(nil)
+		mockStore.On("SaveBlockResponses", ctx, uint64(0), mock.Anything).Return(nil)
+		mockStore.On("UpdateState", ctx, mock.Anything).Return(nil)
+		mockStore.On("SetHeight", ctx, uint64(0)).Return()
+
+		go func() {
+			time.Sleep(time.Millisecond)
+			cancel()
+		}()
+
+		err = m.publishBlock(ctx)
+		assert.ErrorContains(err, "unable to send header and block, context done")
+
+		mockStore.AssertExpectations(t)
+	})
+
+	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
+		mockStore.On("Height").Return(uint64(0))
+		signature := types.Signature([]byte{1, 1, 1})
+		block, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState)
+		require.NoError(err)
+		require.NotNil(block)
+		assert.Equal(uint64(0), block.Height())
+		dataHash, err := block.Data.Hash()
+		assert.NoError(err)
+		block.SignedHeader.DataHash = dataHash
+
+		// Update the signature on the block to current from last
+		voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
+		signature, _ = vKey.Sign(voteBytes)
+		block.SignedHeader.Signature = signature
+		block.SignedHeader.Validators = lastState.Validators
+		ctx, cancel := context.WithCancel(context.Background())
+
+		mockStore.On("GetBlock", ctx, uint64(1)).Return(block, nil)
+		mockStore.On("SaveBlock", ctx, block, mock.Anything).Return(nil)
+		mockStore.On("SaveBlockResponses", ctx, uint64(0), mock.Anything).Return(errors.New("failed to save block responses"))
+
+		go func() {
+			time.Sleep(time.Millisecond)
+			cancel()
+		}()
+
+		err = m.publishBlock(ctx)
+		assert.ErrorContains(err, "failed to save block responses")
+
+		mockStore.AssertExpectations(t)
+	})
 }
 
 func TestManager_getRemainingSleep(t *testing.T) {
