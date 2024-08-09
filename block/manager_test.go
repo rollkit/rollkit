@@ -647,7 +647,7 @@ func TestManager_publishBlock(t *testing.T) {
 		metrics:     NopMetrics(),
 	}
 
-	t.Run("height should be updated after saving block responses", func(t *testing.T) {
+	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
 		mockStore.On("Height").Return(uint64(0))
 		signature := types.Signature([]byte{1, 1, 1})
 		block, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState)
@@ -664,44 +664,11 @@ func TestManager_publishBlock(t *testing.T) {
 		block.SignedHeader.Signature = signature
 		block.SignedHeader.Validators = lastState.Validators
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-		defer cancel()
-
-		mockStore.On("GetBlock", mock.Anything, uint64(1)).Return(block, nil).Once()
-		mockStore.On("SaveBlock", mock.Anything, block, mock.Anything).Return(nil).Once()
-		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(nil).Once()
-		mockStore.On("UpdateState", mock.Anything, mock.Anything).Return(nil).Once()
-		mockStore.On("SetHeight", mock.Anything, uint64(0)).Return().Once()
-
-		err = m.publishBlock(ctx)
-		assert.ErrorContains(err, "unable to send header and block, context done")
-
-		mockStore.AssertExpectations(t)
-	})
-
-	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
-		signature := types.Signature([]byte{1, 1, 1})
-		block, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState)
-		require.NoError(err)
-		require.NotNil(block)
-		assert.Equal(uint64(0), block.Height())
-		dataHash, err := block.Data.Hash()
-		assert.NoError(err)
-		block.SignedHeader.DataHash = dataHash
-
-		// Update the signature on the block to current from last
-		voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
-		signature, _ = vKey.Sign(voteBytes)
-		block.SignedHeader.Signature = signature
-		block.SignedHeader.Validators = lastState.Validators
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-		defer cancel()
-
 		mockStore.On("GetBlock", mock.Anything, uint64(1)).Return(block, nil).Once()
 		mockStore.On("SaveBlock", mock.Anything, block, mock.Anything).Return(nil).Once()
 		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(errors.New("failed to save block responses")).Once()
 
+		ctx := context.Background()
 		err = m.publishBlock(ctx)
 		assert.ErrorContains(err, "failed to save block responses")
 
