@@ -28,6 +28,8 @@ func (bq *BatchQueue) AddBatch(batch sequencing.Batch) {
 
 // Next returns the next transaction in the queue
 func (bq *BatchQueue) Next() *sequencing.Batch {
+	bq.mu.Lock()
+	defer bq.mu.Unlock()
 	if len(bq.queue) == 0 {
 		return nil
 	}

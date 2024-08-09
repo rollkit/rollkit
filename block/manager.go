@@ -424,7 +424,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			if err != nil && ctx.Err() == nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
-			// If the batch is nil, we will reset the timer to try again
+			// Add the batch to the batch queue
 			if batch != nil {
 				m.bq.AddBatch(*batch)
 				m.lastBatch = batch
