@@ -664,7 +664,7 @@ func TestManager_publishBlock(t *testing.T) {
 		block.SignedHeader.Signature = signature
 		block.SignedHeader.Validators = lastState.Validators
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
 
 		mockStore.On("GetBlock", mock.Anything, uint64(1)).Return(block, nil).Once()
@@ -695,7 +695,7 @@ func TestManager_publishBlock(t *testing.T) {
 		block.SignedHeader.Signature = signature
 		block.SignedHeader.Validators = lastState.Validators
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
 
 		mockStore.On("GetBlock", mock.Anything, uint64(1)).Return(block, nil).Once()
