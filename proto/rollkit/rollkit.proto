@@ -64,14 +64,24 @@ message SignedHeader {
   tendermint.types.ValidatorSet validators = 3;
 }
 
-message Data {
-  repeated bytes txs = 1;
-  // repeated bytes intermediate_state_roots = 2;
+message Metadata {
+  // Rollup chain id
+  string chain_id = 1;
+
+  // Block height
+  uint64 height = 2;
+
+  // Block creation time
+  uint64 time = 3;
+
+  // Previous block info
+  bytes last_data_hash = 4;
 }
 
-message Block {
-  SignedHeader signed_header = 1;
-  Data data = 2;
+message Data {
+  Metadata metadata = 1;
+  repeated bytes txs = 2;
+  // repeated bytes intermediate_state_roots = 2;
 }
 
 message TxWithISRs {

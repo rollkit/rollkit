@@ -43,18 +43,12 @@ func (h *Header) Hash() Hash {
 	return Hash(abciHeader.Hash())
 }
 
-// Hash returns ABCI-compatible hash of a block.
-func (b *Block) Hash() Hash {
-	return b.SignedHeader.Hash()
-}
-
 // Hash returns hash of the Data
-func (d *Data) Hash() (Hash, error) {
-	dBytes, err := d.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+func (d *Data) Hash() Hash {
+	// Ignoring the marshal error for now to satify the go-header interface
+	// Later on the usage of Hash should be replaced with DA commitment
+	dBytes, _ := d.MarshalBinary()
 	return merkle.HashFromByteSlices([][]byte{
 		dBytes,
-	}), nil
+	})
 }

@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	blockPrefix          = "b"
+	headerPrefix         = "h"
+	dataPrefix           = "d"
 	indexPrefix          = "i"
 	signaturePrefix      = "c"
 	extendedCommitPrefix = "ec"
@@ -65,14 +66,18 @@ func (s *DefaultStore) Height() uint64 {
 	return s.height.Load()
 }
 
-// SaveBlock adds block to the store along with corresponding signature.
+// SaveBlockData adds block header and data to the store along with corresponding signature.
 // Stored height is updated if block height is greater than stored value.
-func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, signature *types.Signature) error {
-	hash := block.Hash()
+func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
+	hash := header.Hash()
 	signatureHash := *signature
-	blockBlob, err := block.MarshalBinary()
+	headerBlob, err := header.MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("failed to marshal Block to binary: %w", err)
+		return fmt.Errorf("failed to marshal Header to binary: %w", err)
+	}
+	dataBlob, err := data.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal Data to binary: %w", err)
 	}
 
 	bb, err := s.db.NewTransaction(ctx, false)
@@ -81,15 +86,19 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, signat
 	}
 	defer bb.Discard(ctx)
 
-	err = bb.Put(ctx, ds.NewKey(getBlockKey(hash)), blockBlob)
+	err = bb.Put(ctx, ds.NewKey(getHeaderKey(hash)), headerBlob)
 	if err != nil {
-		return fmt.Errorf("failed to create a new key for Block Blob: %w", err)
+		return fmt.Errorf("failed to create a new key for Header Blob: %w", err)
+	}
+	err = bb.Put(ctx, ds.NewKey(getDataKey(hash)), dataBlob)
+	if err != nil {
+		return fmt.Errorf("failed to create a new key for Data Blob: %w", err)
 	}
 	err = bb.Put(ctx, ds.NewKey(getSignatureKey(hash)), signatureHash[:])
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getIndexKey(block.Height())), hash[:])
+	err = bb.Put(ctx, ds.NewKey(getIndexKey(header.Height())), hash[:])
 	if err != nil {
 		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
 	}
@@ -101,31 +110,40 @@ func (s *DefaultStore) SaveBlock(ctx context.Context, block *types.Block, signat
 	return nil
 }
 
-// GetBlock returns block at given height, or error if it's not found in Store.
+// GetBlockData returns block header and data at given height, or error if it's not found in Store.
 // TODO(tzdybal): what is more common access pattern? by height or by hash?
 // currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
 // and index hash->height
-func (s *DefaultStore) GetBlock(ctx context.Context, height uint64) (*types.Block, error) {
+func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {
 	h, err := s.loadHashFromIndex(ctx, height)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load hash from index: %w", err)
+		return nil, nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
 	return s.GetBlockByHash(ctx, h)
 }
 
 // GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*types.Block, error) {
-	blockData, err := s.db.Get(ctx, ds.NewKey(getBlockKey(hash)))
+func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*types.SignedHeader, *types.Data, error) {
+	headerBlob, err := s.db.Get(ctx, ds.NewKey(getHeaderKey(hash)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load block data: %w", err)
+		return nil, nil, fmt.Errorf("failed to load block header: %w", err)
 	}
-	block := new(types.Block)
-	err = block.UnmarshalBinary(blockData)
+	header := new(types.SignedHeader)
+	err = header.UnmarshalBinary(headerBlob)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal block data: %w", err)
+		return nil, nil, fmt.Errorf("failed to unmarshal block header: %w", err)
 	}
 
-	return block, nil
+	dataBlob, err := s.db.Get(ctx, ds.NewKey(getDataKey(hash)))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load block data: %w", err)
+	}
+	data := new(types.Data)
+	err = data.UnmarshalBinary(dataBlob)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal block data: %w", err)
+	}
+	return header, data, nil
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
@@ -257,8 +275,12 @@ func (s *DefaultStore) loadHashFromIndex(ctx context.Context, height uint64) (he
 	return blob, nil
 }
 
-func getBlockKey(hash types.Hash) string {
-	return GenerateKey([]string{blockPrefix, hex.EncodeToString(hash[:])})
+func getHeaderKey(hash types.Hash) string {
+	return GenerateKey([]string{headerPrefix, hex.EncodeToString(hash[:])})
+}
+
+func getDataKey(hash types.Hash) string {
+	return GenerateKey([]string{dataPrefix, hex.EncodeToString(hash[:])})
 }
 
 func getSignatureKey(hash types.Hash) string {
