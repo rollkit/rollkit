@@ -197,11 +197,12 @@ func (d *Data) ToProto() *pb.Data {
 
 // FromProto fills the Data with data from its protobuf representation
 func (d *Data) FromProto(other *pb.Data) error {
-	err := d.Metadata.FromProto(other.Metadata)
-	if err != nil {
-		return err
+	if d.Metadata != nil {
+		err := d.Metadata.FromProto(other.Metadata)
+		if err != nil {
+			return err
+		}
 	}
-
 	d.Txs = byteSlicesToTxs(other.Txs)
 	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896
