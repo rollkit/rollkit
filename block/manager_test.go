@@ -571,8 +571,6 @@ func TestManager_publishBlock(t *testing.T) {
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
 
-
-
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
