@@ -26,6 +26,7 @@ var (
 	statePrefix          = "s"
 	responsesPrefix      = "r"
 	metaPrefix           = "m"
+	heightIndexPrefix    = "h"
 )
 
 // DefaultStore is a default store implmementation.
@@ -102,7 +103,11 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 	if err != nil {
 		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
 	}
-
+	// Store height indexed by hash
+	err = s.storeHeightForHash(ctx, block.Hash(), block.Height())
+	if err != nil {
+		return fmt.Errorf("failed to create a new key using hash of the block: %w", err)
+	}
 	if err = bb.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
