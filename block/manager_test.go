@@ -41,12 +41,6 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-	return &abci.ResponsePrepareProposal{
-		Txs: req.Txs,
-	}, nil
-}
-
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
 	diff := expected - actual
@@ -577,10 +571,16 @@ func TestManager_publishBlock(t *testing.T) {
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
 
+
+
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+		return &abci.ResponsePrepareProposal{
+			Txs: req.Txs,
+		}, nil
+	})
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(
 		func(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
