@@ -46,8 +46,7 @@ import (
 // prefixes used in KV store to separate main node data from DALC data
 var (
 	mainPrefix    = "0"
-	dalcPrefix    = "1"
-	indexerPrefix = "2" // indexPrefix uses "i", so using "0-2" to avoid clash
+	indexerPrefix = "1" // indexPrefix uses "i", so using "0-2" to avoid clash
 )
 
 const (
