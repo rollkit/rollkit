@@ -77,6 +77,12 @@ var (
 
 	// ErrNotProposer is used when the manager is not a proposer
 	ErrNotProposer = errors.New("not a proposer")
+
+	// ErrSaveBlock is used when fail to save block
+	ErrSaveBlock = errors.New("save block")
+
+	// ErrSaveBlockResponse is used when fail to save block response
+	ErrSaveBlockResponse = errors.New("save block response")
 )
 
 // NewBlockEvent is used to pass block and DA height to blockInCh
@@ -593,7 +599,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Signature)
 		if err != nil {
-			return fmt.Errorf("failed to save block: %w", err)
+			return fmt.Errorf("%w: %w", ErrSaveBlock, err)
 		}
 		_, _, err = m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
@@ -602,7 +608,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		err = m.store.SaveBlockResponses(ctx, bHeight, responses)
 		if err != nil {
-			return fmt.Errorf("failed to save block responses: %w", err)
+			return fmt.Errorf("%w: %w", ErrSaveBlockResponse, err)
 		}
 
 		// Height gets updated
