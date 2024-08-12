@@ -1081,7 +1081,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	data.Metadata = &types.Metadata{
 		ChainID: header.ChainID(),
 		Height:  header.Height(),
-		Time:    uint64(header.Time().Nanosecond()),
+		Time:    header.BaseHeader.Time,
 	}
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, header, data); err != nil {
