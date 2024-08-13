@@ -40,6 +40,8 @@ const (
 	FlagDAMempoolTTL = "rollkit.da_mempool_ttl"
 	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
 	FlagLazyBlockTime = "rollkit.lazy_block_time"
+	// FlagLazyBufferTime is a flag for specifying the additional time to wait to accumulate transactions in lazy mode
+	FlagLazyBufferTime = "rollkit.lazy_buffer_time"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -138,6 +140,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
 	nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
 	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
+	nc.LazyBufferTime = v.GetDuration(FlagLazyBufferTime)
 	return nil
 }
 
@@ -161,4 +164,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
 	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DAMempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
+	cmd.Flags().Duration(FlagLazyBufferTime, def.LazyBufferTime, "additional time to wait to accumulate transactions in lazy mode")
 }
