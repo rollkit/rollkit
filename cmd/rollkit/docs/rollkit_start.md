@@ -41,6 +41,7 @@ rollkit start [flags]
       --rollkit.da_start_height uint                    starting DA block height (for syncing)
       --rollkit.lazy_aggregator                         wait for transactions, don't build empty blocks
       --rollkit.lazy_block_time duration                block time (for lazy mode) (default 1m0s)
+      --rollkit.lazy_buffer_time duration               additional time to wait to accumulate transactions in lazy mode (default 1s)
       --rollkit.light                                   run light client
       --rollkit.max_pending_blocks uint                 limit of blocks pending DA submission (0 for no limit)
       --rollkit.trusted_hash string                     initial trusted hash to start the header exchange service
