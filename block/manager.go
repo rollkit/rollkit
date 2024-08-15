@@ -917,8 +917,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	blockHeight := block.Height()
-	// Update the store height before submitting to the DA layer and committing to the DB
-	m.store.SetHeight(ctx, blockHeight)
 
 	blockHash := block.Hash().String()
 	m.blockCache.setSeen(blockHash)
@@ -942,6 +940,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Update the store height before submitting to the DA layer but after committing to the DB
+	m.store.SetHeight(ctx, blockHeight)
 
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
