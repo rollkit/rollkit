@@ -30,7 +30,7 @@ type syncType string
 
 const (
 	headerSync syncType = "headerSync"
-	blockSync  syncType = "blockSync"
+	dataSync   syncType = "dataSync"
 )
 
 // SyncService is the P2P Sync Service for blocks and headers.
@@ -60,7 +60,7 @@ type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewDataSyncService returns a new DataSyncService.
 func NewDataSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
-	return newSyncService[*types.Data](store, blockSync, conf, genesis, p2p, logger)
+	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.

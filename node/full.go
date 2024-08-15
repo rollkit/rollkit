@@ -273,7 +273,7 @@ func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig,
 func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.DataSyncService, error) {
 	dataSyncService, err := block.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
-		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
+		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
 	}
 	return dataSyncService, nil
 }
@@ -391,9 +391,9 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
-	if err = n.hSyncService.Start(n.ctx); err != nil {
-		return fmt.Errorf("error while starting header sync service: %w", err)
-	}
+	// if err = n.hSyncService.Start(n.ctx); err != nil {
+	// 	return fmt.Errorf("error while starting header sync service: %w", err)
+	// }
 
 	if err = n.dSyncService.Start(n.ctx); err != nil {
 		return fmt.Errorf("error while starting block sync service: %w", err)
@@ -415,7 +415,7 @@ func (n *FullNode) OnStart() error {
 		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(n.ctx) })
-		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
+		// n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
 		n.threadManager.Go(func() { n.dataPublishLoop(n.ctx) })
 		return nil
 	}

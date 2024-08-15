@@ -1137,11 +1137,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Publish header to channel so that header exchange service can broadcast
 	m.HeaderCh <- header
 
-	fmt.Println(
-		"data",
-		data.Metadata.Time,
-		data.Metadata.Height,
-	)
 	// Publish block to channel so that block exchange service can broadcast
 	m.DataCh <- data
 

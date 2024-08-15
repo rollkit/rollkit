@@ -9,11 +9,7 @@ import (
 
 // MarshalBinary encodes Metadata into binary form and returns it.
 func (m *Metadata) MarshalBinary() ([]byte, error) {
-	mp, err := m.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	return mp.Marshal()
+	return m.ToProto().Marshal()
 }
 
 // UnmarshalBinary decodes binary form of Metadata into object.
@@ -23,8 +19,8 @@ func (m *Metadata) UnmarshalBinary(metadata []byte) error {
 	if err != nil {
 		return err
 	}
-	err = m.FromProto(&pMetadata)
-	return err
+	m.FromProto(&pMetadata)
+	return nil
 }
 
 // MarshalBinary encodes Header into binary form and returns it.
@@ -158,33 +154,28 @@ func (h *Header) FromProto(other *pb.Header) error {
 }
 
 // ToProto ...
-func (m *Metadata) ToProto() (*pb.Metadata, error) {
+func (m *Metadata) ToProto() *pb.Metadata {
 	return &pb.Metadata{
 		ChainId:      m.ChainID,
 		Height:       m.Height,
 		Time:         m.Time,
 		LastDataHash: m.LastDataHash[:],
-	}, nil
+	}
 }
 
 // FromProto ...
-func (m *Metadata) FromProto(other *pb.Metadata) error {
+func (m *Metadata) FromProto(other *pb.Metadata) {
 	m.ChainID = other.ChainId
 	m.Height = other.Height
 	m.Time = other.Time
 	m.LastDataHash = other.LastDataHash
-	return nil
 }
 
 // ToProto converts Data into protobuf representation and returns it.
 func (d *Data) ToProto() *pb.Data {
 	var mProto *pb.Metadata
-	var err error
 	if d.Metadata != nil {
-		mProto, err = d.Metadata.ToProto()
-		if err != nil {
-			return nil
-		}
+		mProto = d.Metadata.ToProto()
 	}
 	return &pb.Data{
 		Metadata: mProto,
@@ -197,11 +188,11 @@ func (d *Data) ToProto() *pb.Data {
 
 // FromProto fills the Data with data from its protobuf representation
 func (d *Data) FromProto(other *pb.Data) error {
-	if d.Metadata != nil {
-		err := d.Metadata.FromProto(other.Metadata)
-		if err != nil {
-			return err
+	if other.Metadata != nil {
+		if d.Metadata == nil {
+			d.Metadata = &Metadata{}
 		}
+		d.Metadata.FromProto(other.Metadata)
 	}
 	d.Txs = byteSlicesToTxs(other.Txs)
 	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots

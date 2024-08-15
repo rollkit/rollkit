@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding"
 	"errors"
-	"fmt"
 	"time"
 
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -26,8 +25,8 @@ var _ encoding.BinaryUnmarshaler = &Data{}
 type Metadata struct {
 	ChainID      string
 	Height       uint64
-	LastDataHash Hash
 	Time         uint64
+	LastDataHash Hash
 }
 
 // Data defines Rollkit block data.
@@ -121,8 +120,6 @@ func (d *Data) LastHeader() Hash {
 
 // Time returns time of the block.
 func (d *Data) Time() time.Time {
-	fmt.Println("d.metadata", d.Metadata)
-	fmt.Println("d.Metadata.Time: ", d.Metadata.Time)
 	return time.Unix(0, int64(d.Metadata.Time))
 }
 
