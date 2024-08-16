@@ -724,13 +724,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 				conf: config.BlockManagerConfig{
 					BlockTime:      10 * time.Second,
 					LazyBlockTime:  20 * time.Second,
-					LazyBufferTime: defaultLazyBufferTime,
 					LazyAggregator: true,
 				},
 				buildingBlock: true,
 			},
 			start:         time.Now().Add(-15 * time.Second),
-			expectedSleep: defaultLazyBufferTime,
+			expectedSleep: (10 * time.Second * time.Duration(defaultLazySleepPercent) / 100),
 		},
 		{
 			name: "Lazy aggregation, not building block, elapsed < interval",

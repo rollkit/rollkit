@@ -26,7 +26,6 @@ var DefaultNodeConfig = NodeConfig{
 		DABlockTime:    15 * time.Second,
 		LazyAggregator: false,
 		LazyBlockTime:  60 * time.Second,
-		LazyBufferTime: 1 * time.Second,
 	},
 	DAAddress:       "http://localhost:26658",
 	DAGasPrice:      -1,
