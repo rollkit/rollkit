@@ -391,12 +391,12 @@ func (n *FullNode) OnStart() error {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
-	// if err = n.hSyncService.Start(n.ctx); err != nil {
-	// 	return fmt.Errorf("error while starting header sync service: %w", err)
-	// }
+	if err = n.hSyncService.Start(n.ctx); err != nil {
+		return fmt.Errorf("error while starting header sync service: %w", err)
+	}
 
 	if err = n.dSyncService.Start(n.ctx); err != nil {
-		return fmt.Errorf("error while starting block sync service: %w", err)
+		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
 	if err := n.seqClient.Start(
@@ -415,7 +415,7 @@ func (n *FullNode) OnStart() error {
 		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(n.ctx) })
-		// n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
+		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
 		n.threadManager.Go(func() { n.dataPublishLoop(n.ctx) })
 		return nil
 	}
