@@ -83,7 +83,7 @@ func getNodeHeightFromHeader(node Node) (uint64, error) {
 
 func getNodeHeightFromBlock(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
-		return fn.hSyncService.Store().Height(), nil
+		return fn.dSyncService.Store().Height(), nil
 	}
 	return 0, errors.New("not a full node")
 }
