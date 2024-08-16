@@ -58,7 +58,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		header *SignedHeader
 		data   *Data
 	}{
-		{"empty block", &SignedHeader{}, &Data{}},
+		{"empty block", &SignedHeader{}, &Data{Metadata: &Metadata{}}},
 		{"full", &SignedHeader{
 			Header:    h1,
 			Signature: Signature([]byte{1, 1, 1}),
@@ -67,7 +67,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 					validator1,
 				}),
 		}, &Data{
-			Txs: nil,
+			Metadata: &Metadata{},
+			Txs:      nil,
 			//IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
 			// TODO(tzdybal): update when we have actual evidence types
 			// Note: Temporarily remove Evidence #896
