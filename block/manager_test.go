@@ -664,11 +664,11 @@ func TestManager_publishBlock(t *testing.T) {
 
 		mockStore.On("GetBlock", mock.Anything, uint64(1)).Return(block, nil).Once()
 		mockStore.On("SaveBlock", mock.Anything, block, mock.Anything).Return(nil).Once()
-		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(errors.New("failed to save block responses")).Once()
+		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(SaveBlockResponsesError{}).Once()
 
 		ctx := context.Background()
 		err = m.publishBlock(ctx)
-		assert.ErrorContains(err, "failed to save block responses")
+		assert.ErrorAs(err, &SaveBlockResponsesError{})
 
 		mockStore.AssertExpectations(t)
 	})

@@ -77,18 +77,38 @@ var (
 
 	// ErrNotProposer is used when the manager is not a proposer
 	ErrNotProposer = errors.New("not a proposer")
-
-	// ErrSaveBlock is used when fail to save block
-	ErrSaveBlock = errors.New("save block")
-
-	// ErrSaveBlockResponse is used when fail to save block response
-	ErrSaveBlockResponse = errors.New("save block response")
 )
 
 // NewBlockEvent is used to pass block and DA height to blockInCh
 type NewBlockEvent struct {
 	Block    *types.Block
 	DAHeight uint64
+}
+
+// SaveBlockError is used when failed to save block
+type SaveBlockError struct {
+	Err error
+}
+
+func (e SaveBlockError) Error() string {
+	return fmt.Sprintf("failed to save block: %v", e.Err)
+}
+
+func (e SaveBlockError) Unwrap() error {
+	return e.Err
+}
+
+// SaveBlockResponsesError is used when failed to save block responses
+type SaveBlockResponsesError struct {
+	Err error
+}
+
+func (e SaveBlockResponsesError) Error() string {
+	return fmt.Sprintf("failed to save block responses: %v", e.Err)
+}
+
+func (e SaveBlockResponsesError) Unwrap() error {
+	return e.Err
 }
 
 // Manager is responsible for aggregating transactions into blocks.
@@ -599,7 +619,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		err = m.store.SaveBlock(ctx, b, &b.SignedHeader.Signature)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrSaveBlock, err)
+			return SaveBlockError{err}
 		}
 		_, _, err = m.executor.Commit(ctx, newState, b, responses)
 		if err != nil {
@@ -608,7 +628,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		err = m.store.SaveBlockResponses(ctx, bHeight, responses)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrSaveBlockResponse, err)
+			return SaveBlockResponsesError{err}
 		}
 
 		// Height gets updated
