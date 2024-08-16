@@ -288,6 +288,7 @@ func NewManager(
 		headerInCh:     make(chan NewHeaderEvent, headerInChLength),
 		dataInCh:       make(chan NewDataEvent, headerInChLength),
 		headerStoreCh:  make(chan struct{}, 1),
+		dataStoreCh:    make(chan struct{}, 1),
 		headerStore:    headerStore,
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
@@ -371,9 +372,9 @@ func (m *Manager) GetHeaderInCh() chan NewHeaderEvent {
 	return m.headerInCh
 }
 
-// GetDataInCh returns the manager's blockInCh
-func (m *Manager) GetDataInCh() chan NewHeaderEvent {
-	return m.headerInCh
+// GetDataInCh returns the manager's dataInCh
+func (m *Manager) GetDataInCh() chan NewDataEvent {
+	return m.dataInCh
 }
 
 // IsBlockHashSeen returns true if the block with the given hash has been seen.
@@ -429,8 +430,8 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				m.bq.AddBatch(*batch)
 				m.lastBatch = batch
 			}
-			// Reset the blockTimer to signal the next block production
-			// period based on the block time.
+			// Reset the batchTimer to signal the next batch production
+			// period based on the batch retrieval time.
 			remainingSleep := time.Duration(0)
 			elapsed := time.Since(start)
 			if elapsed < defaultBatchRetrievalInterval {
@@ -571,6 +572,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			m.sendNonBlockingSignalToRetrieveCh()
 		case <-blockTicker.C:
 			m.sendNonBlockingSignalToHeaderStoreCh()
+			m.sendNonBlockingSignalToDataStoreCh()
 		case headerEvent := <-m.headerInCh:
 			// Only validated headers are sent to headerInCh, so we can safely assume that headerEvent.header is valid
 			header := headerEvent.Header
