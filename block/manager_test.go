@@ -641,7 +641,8 @@ func TestManager_publishBlock(t *testing.T) {
 	m := &Manager{
 		lastState:    lastState,
 		lastStateMtx: new(sync.RWMutex),
-		blockCache:   NewBlockCache(),
+		headerCache:  NewHeaderCache(),
+		dataCache:    NewDataCache(),
 		executor:     executor,
 		store:        mockStore,
 		logger:       mockLogger,
@@ -662,22 +663,22 @@ func TestManager_publishBlock(t *testing.T) {
 	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
 		mockStore.On("Height").Return(uint64(0))
 		signature := types.Signature([]byte{1, 1, 1})
-		block, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState)
+		header, data, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState, cmtypes.Txs{})
 		require.NoError(err)
-		require.NotNil(block)
-		assert.Equal(uint64(0), block.Height())
-		dataHash, err := block.Data.Hash()
-		assert.NoError(err)
-		block.SignedHeader.DataHash = dataHash
+		require.NotNil(header)
+		require.NotNil(data)
+		assert.Equal(uint64(0), header.Height())
+		dataHash := data.Hash()
+		header.DataHash = dataHash
 
 		// Update the signature on the block to current from last
-		voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
+		voteBytes := header.Header.MakeCometBFTVote()
 		signature, _ = vKey.Sign(voteBytes)
-		block.SignedHeader.Signature = signature
-		block.SignedHeader.Validators = lastState.Validators
+		header.Signature = signature
+		header.Validators = lastState.Validators
 
-		mockStore.On("GetBlock", mock.Anything, uint64(1)).Return(block, nil).Once()
-		mockStore.On("SaveBlock", mock.Anything, block, mock.Anything).Return(nil).Once()
+		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(header, data, nil).Once()
+		mockStore.On("SaveBlockData", mock.Anything, header, data, mock.Anything).Return(nil).Once()
 		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(errors.New("failed to save block responses")).Once()
 
 		ctx := context.Background()
