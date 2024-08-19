@@ -194,6 +194,7 @@ func TestLazyAggregator(t *testing.T) {
 		DANamespace:        MockDANamespace,
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
+		SequencerAddress:   MockSequencerAddress,
 	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	assert.False(node.IsRunning())
@@ -1056,6 +1057,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 			Aggregator:         aggregator,
 			BlockManagerConfig: bmConfig,
 			Light:              isLight,
+			SequencerAddress:   MockSequencerAddress,
 		},
 		keys[n],
 		keys[n],

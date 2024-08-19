@@ -552,13 +552,16 @@ func TestTx(t *testing.T) {
 	require.NoError(err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{
-		DAAddress:   MockDAAddress,
-		DANamespace: MockDANamespace,
-		Aggregator:  true,
-		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-		}},
+	node, err := newFullNode(ctx,
+		config.NodeConfig{
+			DAAddress:   MockDAAddress,
+			DANamespace: MockDANamespace,
+			Aggregator:  true,
+			BlockManagerConfig: config.BlockManagerConfig{
+				BlockTime: 1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
+			},
+			SequencerAddress: MockSequencerAddress,
+		},
 		key, signingKey, proxy.NewLocalClientCreator(mockApp),
 		genesisDoc,
 		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
@@ -578,7 +581,7 @@ func TestTx(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(res)
 
-	time.Sleep(2 * time.Second)
+	require.NoError(waitForAtLeastNBlocks(rpc.node, 3, Store))
 
 	resTx, errTx := rpc.Tx(ctx, res.Hash, true)
 	assert.NoError(errTx)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	cmtypes "github.com/cometbft/cometbft/types"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 )
 
@@ -18,6 +19,7 @@ type CListMempoolReaper struct {
 	grpcClient *seqGRPC.Client
 	ctx        context.Context
 	rollupId   []byte
+	submitted  map[cmtypes.TxKey]struct{}
 }
 
 // NewCListMempool initializes the mempool and sets up the gRPC client.
@@ -28,6 +30,7 @@ func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *seqGRPC.
 		grpcClient: seqClient,
 		ctx:        context.Background(),
 		rollupId:   rollupId,
+		submitted:  make(map[cmtypes.TxKey]struct{}),
 	}, nil
 }
 
@@ -58,8 +61,12 @@ func (reaper *CListMempoolReaper) StopReaper() {
 func (reaper *CListMempoolReaper) reap() {
 	txs := reaper.mempool.ReapMaxTxs(-1)
 	for _, tx := range txs {
+		if _, ok := reaper.submitted[tx.Key()]; ok {
+			continue
+		}
 		if err := reaper.grpcClient.SubmitRollupTransaction(reaper.ctx, reaper.rollupId, tx); err != nil {
 			panic(fmt.Errorf("submitting reaped tx failed with error: %w", err))
 		}
+		reaper.submitted[tx.Key()] = struct{}{}
 	}
 }

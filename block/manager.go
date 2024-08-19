@@ -303,6 +303,7 @@ func NewManager(
 		isProposer:     isProposer,
 		seqClient:      seqClient,
 		bq:             NewBatchQueue(),
+		lastBatch:      &sequencing.Batch{},
 	}
 	agg.init(context.Background())
 	return agg, nil
@@ -426,7 +427,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
 			// Add the batch to the batch queue
-			if batch != nil {
+			if batch != nil && batch.Transactions != nil {
 				m.bq.AddBatch(*batch)
 				m.lastBatch = batch
 			}
@@ -989,6 +990,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	var (
 		lastSignature  *types.Signature
 		lastHeaderHash types.Hash
+		lastDataHash   types.Hash
 		err            error
 	)
 	height := m.store.Height()
@@ -1001,11 +1003,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while loading last commit: %w", err)
 		}
-		lastHeader, _, err := m.store.GetBlockData(ctx, height)
+		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
 		if err != nil {
 			return fmt.Errorf("error while loading last block: %w", err)
 		}
 		lastHeaderHash = lastHeader.Hash()
+		lastDataHash = lastData.Hash()
 	}
 
 	var (
@@ -1081,9 +1084,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	// append metadata to Data before validating and saving
 	data.Metadata = &types.Metadata{
-		ChainID: header.ChainID(),
-		Height:  header.Height(),
-		Time:    header.BaseHeader.Time,
+		ChainID:      header.ChainID(),
+		Height:       header.Height(),
+		Time:         header.BaseHeader.Time,
+		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
 	if err := m.executor.Validate(m.lastState, header, data); err != nil {
