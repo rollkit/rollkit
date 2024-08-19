@@ -35,9 +35,10 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// defaultLazyBufferTime is the additional time to wait to accumulate transactions
-// in lazy mode
-const defaultLazyBufferTime = 1 * time.Second
+// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
+// in lazy mode.
+// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
+const defaultLazySleepPercent = 10
 
 // defaultDABlockTime is used only if DABlockTime is not configured for manager
 const defaultDABlockTime = 15 * time.Second
@@ -202,11 +203,6 @@ func NewManager(
 		conf.LazyBlockTime = defaultLazyBlockTime
 	}
 
-	if conf.LazyBufferTime == 0 {
-		logger.Info("Using default lazy buffer time", "LazyBufferTime", defaultLazyBufferTime)
-		conf.LazyBufferTime = defaultLazyBufferTime
-	}
-
 	if conf.DAMempoolTTL == 0 {
 		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
 		conf.DAMempoolTTL = defaultMempoolTTL
@@ -363,12 +359,9 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 
 	if m.conf.LazyAggregator {
 		if m.buildingBlock && elapsed >= interval {
-			// LazyBufferTime is used to give time for transactions to
-			// accumulate if we are coming out of a period of inactivity. If we
-			// had recently produced a block (i.e. within the block time) then
-			// we will sleep for the remaining time within the block time
-			// interval.
-			return m.conf.LazyBufferTime
+			// Special case to give time for transactions to accumulate if we
+			// are coming out of a period of inactivity.
+			return (interval * time.Duration(defaultLazySleepPercent) / 100)
 		} else if !m.buildingBlock {
 			interval = m.conf.LazyBlockTime
 		}
