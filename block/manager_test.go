@@ -64,19 +64,19 @@ func getManager(t *testing.T, backend goDA.DA) *Manager {
 }
 
 // getBlockBiggerThan generates a block with the given height bigger than the specified limit.
-func getBlockBiggerThan(blockHeight, limit uint64) (*types.SignedHeader, *types.Data, error) {
-	for numTxs := 0; ; numTxs += 100 {
-		header, data := types.GetRandomBlock(blockHeight, numTxs)
-		blob, err := header.MarshalBinary()
-		if err != nil {
-			return nil, nil, err
-		}
+// func getBlockBiggerThan(blockHeight, limit uint64) (*types.SignedHeader, *types.Data, error) {
+// 	for numTxs := 0; ; numTxs += 100 {
+// 		header, data := types.GetRandomBlock(blockHeight, numTxs)
+// 		blob, err := header.MarshalBinary()
+// 		if err != nil {
+// 			return nil, nil, err
+// 		}
 
-		if uint64(len(blob)) > limit {
-			return header, data, nil
-		}
-	}
-}
+// 		if uint64(len(blob)) > limit {
+// 			return header, data, nil
+// 		}
+// 	}
+// }
 
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
@@ -412,16 +412,16 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	header1, _ := types.GetRandomBlock(uint64(1), 5)
-	header2, _ := types.GetRandomBlock(uint64(2), 5)
-	header3, _ := types.GetRandomBlock(uint64(3), 5)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header1)
 	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
-	store.On("GetBlock", ctx, uint64(1)).Return(header1, nil)
-	store.On("GetBlock", ctx, uint64(2)).Return(header2, nil)
-	store.On("GetBlock", ctx, uint64(3)).Return(header3, nil)
+	store.On("GetBlockData", ctx, uint64(1)).Return(header1, data1, nil)
+	store.On("GetBlockData", ctx, uint64(2)).Return(header2, data2, nil)
+	store.On("GetBlockData", ctx, uint64(3)).Return(header3, data3, nil)
 	store.On("Height").Return(uint64(3))
 
 	m.store = store
@@ -446,9 +446,9 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	header1, _ := types.GetRandomBlock(uint64(1), 5)
-	header2, _ := types.GetRandomBlock(uint64(2), 5)
-	header3, _ := types.GetRandomBlock(uint64(3), 5)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header3)
@@ -456,9 +456,9 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	store.On("SetMetadata", ctx, DAIncludedHeightKey, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}).Return(nil)
 	store.On("SetMetadata", ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(2, 10))).Return(nil)
 	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
-	store.On("GetBlock", ctx, uint64(1)).Return(header1, nil)
-	store.On("GetBlock", ctx, uint64(2)).Return(header2, nil)
-	store.On("GetBlock", ctx, uint64(3)).Return(header3, nil)
+	store.On("GetBlockData", ctx, uint64(1)).Return(header1, data1, nil)
+	store.On("GetBlockData", ctx, uint64(2)).Return(header2, data2, nil)
+	store.On("GetBlockData", ctx, uint64(3)).Return(header3, data3, nil)
 	store.On("Height").Return(uint64(3))
 
 	m.store = store
