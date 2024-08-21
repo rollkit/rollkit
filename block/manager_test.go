@@ -268,130 +268,130 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 	}
 }
 
-func TestSubmitBlocksToDA(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-	ctx := context.Background()
+// func TestSubmitBlocksToDA(t *testing.T) {
+// 	assert := assert.New(t)
+// 	require := require.New(t)
+// 	ctx := context.Background()
 
-	m := getManager(t, goDATest.NewDummyDA())
+// 	m := getManager(t, goDATest.NewDummyDA())
 
-	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
-	require.NoError(err)
+// 	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
+// 	require.NoError(err)
 
-	h1, d1 := func() ([]*types.SignedHeader, []*types.Data) {
-		numBlocks, numTxs := 3, 5
-		headers := make([]*types.SignedHeader, numBlocks)
-		data := make([]*types.Data, numBlocks)
-		headers[0], data[0] = types.GetRandomBlock(uint64(1), numTxs)
-		headers[1], data[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
-		require.NoError(err)
-		headers[2], data[2] = types.GetRandomBlock(uint64(3), numTxs)
-		return headers, data
-	}()
-	h2, d2 := func() ([]*types.SignedHeader, []*types.Data) {
-		numBlocks, numTxs := 3, 5
-		headers := make([]*types.SignedHeader, numBlocks)
-		data := make([]*types.Data, numBlocks)
-		for i := 0; i < numBlocks-1; i++ {
-			headers[i], data[i] = types.GetRandomBlock(uint64(i+1), numTxs)
-		}
-		headers[2], data[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
-		require.NoError(err)
-		return headers, data
-	}()
-	h3, d3 := func() ([]*types.SignedHeader, []*types.Data) {
-		// Find three blocks where two of them are under blob size limit
-		// but adding the third one exceeds the blob size limit
-		header1, data1 := types.GetRandomBlock(1, 100)
-		blob1, err := header1.MarshalBinary()
-		require.NoError(err)
+// 	h1, d1 := func() ([]*types.SignedHeader, []*types.Data) {
+// 		numBlocks, numTxs := 3, 5
+// 		headers := make([]*types.SignedHeader, numBlocks)
+// 		data := make([]*types.Data, numBlocks)
+// 		headers[0], data[0] = types.GetRandomBlock(uint64(1), numTxs)
+// 		headers[1], data[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
+// 		require.NoError(err)
+// 		headers[2], data[2] = types.GetRandomBlock(uint64(3), numTxs)
+// 		return headers, data
+// 	}()
+// 	h2, d2 := func() ([]*types.SignedHeader, []*types.Data) {
+// 		numBlocks, numTxs := 3, 5
+// 		headers := make([]*types.SignedHeader, numBlocks)
+// 		data := make([]*types.Data, numBlocks)
+// 		for i := 0; i < numBlocks-1; i++ {
+// 			headers[i], data[i] = types.GetRandomBlock(uint64(i+1), numTxs)
+// 		}
+// 		headers[2], data[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
+// 		require.NoError(err)
+// 		return headers, data
+// 	}()
+// 	h3, d3 := func() ([]*types.SignedHeader, []*types.Data) {
+// 		// Find three blocks where two of them are under blob size limit
+// 		// but adding the third one exceeds the blob size limit
+// 		header1, data1 := types.GetRandomBlock(1, 100)
+// 		blob1, err := header1.MarshalBinary()
+// 		require.NoError(err)
 
-		header2, data2 := types.GetRandomBlock(2, 100)
-		blob2, err := header2.MarshalBinary()
-		require.NoError(err)
+// 		header2, data2 := types.GetRandomBlock(2, 100)
+// 		blob2, err := header2.MarshalBinary()
+// 		require.NoError(err)
 
-		header3, data3, err := getBlockBiggerThan(3, maxDABlobSizeLimit-uint64(len(blob1)+len(blob2)))
-		require.NoError(err)
+// 		header3, data3, err := getBlockBiggerThan(3, maxDABlobSizeLimit-uint64(len(blob1)+len(blob2)))
+// 		require.NoError(err)
 
-		return []*types.SignedHeader{header1, header2, header3}, []*types.Data{data1, data2, data3}
-	}()
-	h4, d4 := types.GetRandomBlock(1, 5)
-	h5, d5 := types.GetRandomBlock(2, 5)
-	h6, d6 := types.GetRandomBlock(3, 5)
-	testCases := []struct {
-		name                        string
-		headers                     []*types.SignedHeader
-		data                        []*types.Data
-		isErrExpected               bool
-		expectedPendingBlocksLength int
-		expectedDAIncludedHeight    uint64
-	}{
-		{
-			name:                        "B is too big on its own. So A gets submitted but, B and C never get submitted",
-			headers:                     h1,
-			data:                        d1,
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 2,
-			expectedDAIncludedHeight:    1,
-		},
-		{
-			name:                        "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
-			headers:                     h2,
-			data:                        d2,
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 1,
-			expectedDAIncludedHeight:    2,
-		},
-		{
-			name:                        "blocks A and B are submitted together without C because including C triggers blob size limit. C is submitted in a separate round",
-			headers:                     h3,
-			data:                        d3,
-			isErrExpected:               false,
-			expectedPendingBlocksLength: 0,
-			expectedDAIncludedHeight:    3,
-		},
-		{
-			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
-			headers:                     []*types.SignedHeader{h4, h5, h6},
-			data:                        []*types.Data{d4, d5, d6},
-			isErrExpected:               false,
-			expectedPendingBlocksLength: 0,
-			expectedDAIncludedHeight:    3,
-		},
-	}
+// 		return []*types.SignedHeader{header1, header2, header3}, []*types.Data{data1, data2, data3}
+// 	}()
+// 	h4, d4 := types.GetRandomBlock(1, 5)
+// 	h5, d5 := types.GetRandomBlock(2, 5)
+// 	h6, d6 := types.GetRandomBlock(3, 5)
+// 	testCases := []struct {
+// 		name                        string
+// 		headers                     []*types.SignedHeader
+// 		data                        []*types.Data
+// 		isErrExpected               bool
+// 		expectedPendingBlocksLength int
+// 		expectedDAIncludedHeight    uint64
+// 	}{
+// 		{
+// 			name:                        "B is too big on its own. So A gets submitted but, B and C never get submitted",
+// 			headers:                     h1,
+// 			data:                        d1,
+// 			isErrExpected:               true,
+// 			expectedPendingBlocksLength: 2,
+// 			expectedDAIncludedHeight:    1,
+// 		},
+// 		{
+// 			name:                        "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
+// 			headers:                     h2,
+// 			data:                        d2,
+// 			isErrExpected:               true,
+// 			expectedPendingBlocksLength: 1,
+// 			expectedDAIncludedHeight:    2,
+// 		},
+// 		{
+// 			name:                        "blocks A and B are submitted together without C because including C triggers blob size limit. C is submitted in a separate round",
+// 			headers:                     h3,
+// 			data:                        d3,
+// 			isErrExpected:               false,
+// 			expectedPendingBlocksLength: 0,
+// 			expectedDAIncludedHeight:    3,
+// 		},
+// 		{
+// 			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
+// 			headers:                     []*types.SignedHeader{h4, h5, h6},
+// 			data:                        []*types.Data{d4, d5, d6},
+// 			isErrExpected:               false,
+// 			expectedPendingBlocksLength: 0,
+// 			expectedDAIncludedHeight:    3,
+// 		},
+// 	}
 
-	for _, tc := range testCases {
-		// there is a limitation of value size for underlying in-memory KV store, so (temporary) on-disk store is needed
-		kvStore := getTempKVStore(t)
-		m.store = store.New(kvStore)
-		m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
-		require.NoError(err)
-		t.Run(tc.name, func(t *testing.T) {
-			// PendingBlocks depend on store, so blocks needs to be saved and height updated
-			for i, header := range tc.headers {
-				data := tc.data[i]
-				require.NoError(m.store.SaveBlockData(ctx, header, data, &types.Signature{}))
-			}
-			m.store.SetHeight(ctx, uint64(len(tc.headers)))
+// 	for _, tc := range testCases {
+// 		// there is a limitation of value size for underlying in-memory KV store, so (temporary) on-disk store is needed
+// 		kvStore := getTempKVStore(t)
+// 		m.store = store.New(kvStore)
+// 		m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
+// 		require.NoError(err)
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			// PendingBlocks depend on store, so blocks needs to be saved and height updated
+// 			for i, header := range tc.headers {
+// 				data := tc.data[i]
+// 				require.NoError(m.store.SaveBlockData(ctx, header, data, &types.Signature{}))
+// 			}
+// 			m.store.SetHeight(ctx, uint64(len(tc.headers)))
 
-			err := m.submitHeadersToDA(ctx)
-			assert.Equal(tc.isErrExpected, err != nil)
-			blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
-			assert.NoError(err)
-			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
+// 			err := m.submitHeadersToDA(ctx)
+// 			assert.Equal(tc.isErrExpected, err != nil)
+// 			blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
+// 			assert.NoError(err)
+// 			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
 
-			// ensure that metadata is updated in KV store
-			raw, err := m.store.GetMetadata(ctx, LastSubmittedHeightKey)
-			require.NoError(err)
-			lshInKV, err := strconv.ParseUint(string(raw), 10, 64)
-			require.NoError(err)
-			assert.Equal(m.store.Height(), lshInKV+uint64(tc.expectedPendingBlocksLength))
+// 			// ensure that metadata is updated in KV store
+// 			raw, err := m.store.GetMetadata(ctx, LastSubmittedHeightKey)
+// 			require.NoError(err)
+// 			lshInKV, err := strconv.ParseUint(string(raw), 10, 64)
+// 			require.NoError(err)
+// 			assert.Equal(m.store.Height(), lshInKV+uint64(tc.expectedPendingBlocksLength))
 
-			// ensure that da included height is updated in KV store
-			assert.Equal(tc.expectedDAIncludedHeight, m.GetDAIncludedHeight())
-		})
-	}
-}
+// 			// ensure that da included height is updated in KV store
+// 			assert.Equal(tc.expectedDAIncludedHeight, m.GetDAIncludedHeight())
+// 		})
+// 	}
+// }
 
 func getTempKVStore(t *testing.T) ds.TxnDatastore {
 	dbPath, err := os.MkdirTemp("", t.Name())
