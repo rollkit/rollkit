@@ -381,6 +381,7 @@ func TestChangeValSet(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		RootDir:            "valset_change",
+		SequencerAddress:   MockSequencerAddress,
 	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	assert.False(node1.IsRunning())
 	assert.NoError(err)
@@ -401,7 +402,9 @@ func TestChangeValSet(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		RootDir:            "valset_change",
-	}, key, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+		SequencerAddress:   MockSequencerAddress,
+	},
+		key, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 
 	assert.False(node2.IsRunning())
 	assert.NoError(err)
