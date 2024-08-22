@@ -581,7 +581,7 @@ func TestTx(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(res)
 
-	require.NoError(waitForAtLeastNBlocks(rpc.node, 3, Store))
+	require.NoError(waitForAtLeastNBlocks(rpc.node, 4, Store))
 
 	resTx, errTx := rpc.Tx(ctx, res.Hash, true)
 	assert.NoError(errTx)
