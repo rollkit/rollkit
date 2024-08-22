@@ -120,7 +120,7 @@ func (d *Data) LastHeader() Hash {
 
 // Time returns time of the block.
 func (d *Data) Time() time.Time {
-	return time.Unix(0, int64(d.Metadata.Time))
+	return time.Unix(0, int64(d.Metadata.Time)) //nolint:gosec
 }
 
 // Verify Verifies a new, untrusted block against a trusted block.
