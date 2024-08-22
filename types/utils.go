@@ -136,6 +136,12 @@ func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivK
 		panic(err)
 	}
 	newSignedHeader.Signature = *signature
+	nextData.Metadata = &Metadata{
+		ChainID:      TestChainID,
+		Height:       newSignedHeader.Height(),
+		LastDataHash: nil,
+		Time:         uint64(newSignedHeader.Time().UnixNano()),
+	}
 	return newSignedHeader, nextData
 }
 

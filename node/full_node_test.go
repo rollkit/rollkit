@@ -73,7 +73,7 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 		PrivKey: signingKey,
 	}
 	h1, d1, _ := types.GenerateRandomBlockCustom(&config)
-	h2, _ := types.GetRandomNextBlock(h1, d1, signingKey, []byte{1, 2, 3, 4}, 0)
+	h2, d2 := types.GetRandomNextBlock(h1, d1, signingKey, []byte{1, 2, 3, 4}, 0)
 	h2.AppHash = []byte{1, 2, 3, 4}
 
 	// Update state with hashes generated from block
@@ -91,6 +91,11 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 		Header:   h2,
 		DAHeight: state.DAHeight,
 	}
+	dataInCh := manager.GetDataInCh()
+	dataInCh <- block.NewDataEvent{
+		Data:     d2,
+		DAHeight: state.DAHeight,
+	}
 
 	startNodeWithCleanup(t, node)
 	require.NoError(t, waitUntilBlockHashSeen(node, h2.Hash().String()))
@@ -101,6 +106,10 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 	// Adding first block to blockInCh should sync both blocks
 	headerInCh <- block.NewHeaderEvent{
 		Header:   h1,
+		DAHeight: state.DAHeight,
+	}
+	dataInCh <- block.NewDataEvent{
+		Data:     d1,
 		DAHeight: state.DAHeight,
 	}
 
