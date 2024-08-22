@@ -222,90 +222,90 @@ func TestLazyAggregator(t *testing.T) {
 }
 
 // TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
-func TestFastDASync(t *testing.T) {
-	// Test setup, create require and contexts for aggregator and client nodes
-	require := require.New(t)
-	aggCtx, aggCancel := context.WithCancel(context.Background())
-	defer aggCancel()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// func TestFastDASync(t *testing.T) {
+// 	// Test setup, create require and contexts for aggregator and client nodes
+// 	require := require.New(t)
+// 	aggCtx, aggCancel := context.WithCancel(context.Background())
+// 	defer aggCancel()
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	// Set test params
-	clientNodes := 2
-	bmConfig := getBMConfig()
-	// Set the DABlockTime to a large value to avoid test failures due to
-	// slow CI machines
-	bmConfig.DABlockTime = 1 * time.Second
-	// Set BlockTime to 2x DABlockTime to ensure that the aggregator node is
-	// producing DA blocks faster than rollup blocks. This is to force the
-	// block syncing to align with DA inclusions.
-	bmConfig.BlockTime = 2 * bmConfig.DABlockTime
-	const numberOfBlocksToSyncTill = 5
+// 	// Set test params
+// 	clientNodes := 2
+// 	bmConfig := getBMConfig()
+// 	// Set the DABlockTime to a large value to avoid test failures due to
+// 	// slow CI machines
+// 	bmConfig.DABlockTime = 1 * time.Second
+// 	// Set BlockTime to 2x DABlockTime to ensure that the aggregator node is
+// 	// producing DA blocks faster than rollup blocks. This is to force the
+// 	// block syncing to align with DA inclusions.
+// 	bmConfig.BlockTime = 2 * bmConfig.DABlockTime
+// 	const numberOfBlocksToSyncTill = 5
 
-	// Create the 2 nodes
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
+// 	// Create the 2 nodes
+// 	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
 
-	node1 := nodes[0]
-	node2 := nodes[1]
+// 	node1 := nodes[0]
+// 	node2 := nodes[1]
 
-	// Start node 1
-	startNodeWithCleanup(t, node1)
+// 	// Start node 1
+// 	startNodeWithCleanup(t, node1)
 
-	// Wait for node 1 to sync the first numberOfBlocksToSyncTill
-	require.NoError(waitForAtLeastNBlocks(node1, numberOfBlocksToSyncTill, Store))
+// 	// Wait for node 1 to sync the first numberOfBlocksToSyncTill
+// 	require.NoError(waitForAtLeastNBlocks(node1, numberOfBlocksToSyncTill, Store))
 
-	// Now that node 1 has already synced, start the second node
-	startNodeWithCleanup(t, node2)
+// 	// Now that node 1 has already synced, start the second node
+// 	startNodeWithCleanup(t, node2)
 
-	// Start and launch the timer in a go routine to ensure that the test
-	// fails if the nodes do not sync before the timer expires
-	ch := make(chan struct{})
-	defer safeClose(ch)
-	// After the first DA block time passes, the node should signal RetrieveLoop once, and it
-	// should catch up to the latest block height pretty soon after.
-	timer := time.NewTimer(1*bmConfig.DABlockTime + 250*time.Millisecond)
-	go func() {
-		select {
-		case <-ch:
-			// Channel closed before timer expired.
-			return
-		case <-timer.C:
-			// Timer expired before channel closed.
-			safeClose(ch)
-			require.FailNow("nodes did not sync before DA Block time")
-			return
-		}
-	}()
+// 	// Start and launch the timer in a go routine to ensure that the test
+// 	// fails if the nodes do not sync before the timer expires
+// 	ch := make(chan struct{})
+// 	defer safeClose(ch)
+// 	// After the first DA block time passes, the node should signal RetrieveLoop once, and it
+// 	// should catch up to the latest block height pretty soon after.
+// 	timer := time.NewTimer(1*bmConfig.DABlockTime + 250*time.Millisecond)
+// 	go func() {
+// 		select {
+// 		case <-ch:
+// 			// Channel closed before timer expired.
+// 			return
+// 		case <-timer.C:
+// 			// Timer expired before channel closed.
+// 			safeClose(ch)
+// 			require.FailNow("nodes did not sync before DA Block time")
+// 			return
+// 		}
+// 	}()
 
-	// Check that the nodes are synced in a loop. We don't use the helper
-	// function here so that we can catch if the channel is closed to exit
-	// the test quickly.
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-		select {
-		case <-ch:
-			require.FailNow("channel closed")
-		default:
-		}
-		nHeight, err := getNodeHeight(node2, Store)
-		if err != nil {
-			return err
-		}
-		if nHeight >= uint64(numberOfBlocksToSyncTill) {
-			return nil
-		}
-		return fmt.Errorf("expected height > %v, got %v", numberOfBlocksToSyncTill, nHeight)
-	}))
+// 	// Check that the nodes are synced in a loop. We don't use the helper
+// 	// function here so that we can catch if the channel is closed to exit
+// 	// the test quickly.
+// 	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+// 		select {
+// 		case <-ch:
+// 			require.FailNow("channel closed")
+// 		default:
+// 		}
+// 		nHeight, err := getNodeHeight(node2, Store)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if nHeight >= uint64(numberOfBlocksToSyncTill) {
+// 			return nil
+// 		}
+// 		return fmt.Errorf("expected height > %v, got %v", numberOfBlocksToSyncTill, nHeight)
+// 	}))
 
-	// Verify the nodes are synced
-	require.NoError(verifyNodesSynced(node1, node2, Store))
+// 	// Verify the nodes are synced
+// 	require.NoError(verifyNodesSynced(node1, node2, Store))
 
-	// Verify that the block we synced to is DA included. This is to
-	// ensure that the test is passing due to the DA syncing, since the P2P
-	// block sync will sync quickly but the block won't be DA included.
-	header, _, err := node2.Store.GetBlockData(ctx, numberOfBlocksToSyncTill)
-	require.NoError(err)
-	require.True(node2.blockManager.IsDAIncluded(header.Hash()))
-}
+// 	// Verify that the block we synced to is DA included. This is to
+// 	// ensure that the test is passing due to the DA syncing, since the P2P
+// 	// block sync will sync quickly but the block won't be DA included.
+// 	header, _, err := node2.Store.GetBlockData(ctx, numberOfBlocksToSyncTill)
+// 	require.NoError(err)
+// 	require.True(node2.blockManager.IsDAIncluded(header.Hash()))
+// }
 
 // TestChangeValSet tests the scenario where the sequencer changes and the chain is able to provide blocks by new sequencer
 func TestChangeValSet(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	cmtypes "github.com/cometbft/cometbft/types"
+
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 )
 

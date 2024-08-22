@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"sync"
 	"testing"
@@ -393,16 +392,16 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 // 	}
 // }
 
-func getTempKVStore(t *testing.T) ds.TxnDatastore {
-	dbPath, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = os.RemoveAll(dbPath)
-	})
-	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
-	require.NoError(t, err)
-	return kvStore
-}
+// func getTempKVStore(t *testing.T) ds.TxnDatastore {
+// 	dbPath, err := os.MkdirTemp("", t.Name())
+// 	require.NoError(t, err)
+// 	t.Cleanup(func() {
+// 		_ = os.RemoveAll(dbPath)
+// 	})
+// 	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
+// 	require.NoError(t, err)
+// 	return kvStore
+// }
 
 // Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
