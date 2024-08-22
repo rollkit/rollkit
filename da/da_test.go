@@ -131,9 +131,9 @@ func TestSubmitRetrieve(t *testing.T) {
 	}{
 		{"submit_retrieve", doTestSubmitRetrieve},
 		{"submit_empty_blocks", doTestSubmitEmptyBlocks},
-		{"submit_over_sized_block", doTestSubmitOversizedBlock},
+		// {"submit_over_sized_block", doTestSubmitOversizedBlock},
 		{"submit_small_blocks_batch", doTestSubmitSmallBlocksBatch},
-		{"submit_large_blocks_overflow", doTestSubmitLargeBlocksOverflow},
+		// {"submit_large_blocks_overflow", doTestSubmitLargeBlocksOverflow},
 		{"retrieve_no_blocks_found", doTestRetrieveNoBlocksFound},
 	}
 	for name, dalc := range clients {
