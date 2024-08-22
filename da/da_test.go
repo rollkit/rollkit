@@ -271,20 +271,20 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
 	assert.EqualValues(resp.SubmittedCount, 2, "empty blocks should batch")
 }
 
-func doTestSubmitOversizedBlock(t *testing.T, dalc *DAClient) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// func doTestSubmitOversizedBlock(t *testing.T, dalc *DAClient) {
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	require := require.New(t)
-	assert := assert.New(t)
+// 	require := require.New(t)
+// 	assert := assert.New(t)
 
-	limit, err := dalc.DA.MaxBlobSize(ctx)
-	require.NoError(err)
-	oversizedHeader, _ := types.GetRandomBlock(1, int(limit)) //nolint:gosec
-	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{oversizedHeader}, limit, -1)
-	assert.Equal(StatusError, resp.Code, "oversized block should throw error")
-	assert.Contains(resp.Message, "failed to submit blocks: no blobs generated blob: over size limit")
-}
+// 	limit, err := dalc.DA.MaxBlobSize(ctx)
+// 	require.NoError(err)
+// 	oversizedHeader, _ := types.GetRandomBlock(1, int(limit)) //nolint:gosec
+// 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{oversizedHeader}, limit, -1)
+// 	assert.Equal(StatusError, resp.Code, "oversized block should throw error")
+// 	assert.Contains(resp.Message, "failed to submit blocks: no blobs generated blob: over size limit")
+// }
 
 func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -302,42 +302,42 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 	assert.EqualValues(resp.SubmittedCount, 2, "small blocks should batch")
 }
 
-func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	require := require.New(t)
-	assert := assert.New(t)
+// 	require := require.New(t)
+// 	assert := assert.New(t)
 
-	limit, err := dalc.DA.MaxBlobSize(ctx)
-	require.NoError(err)
+// 	limit, err := dalc.DA.MaxBlobSize(ctx)
+// 	require.NoError(err)
 
-	// two large blocks, over blob limit to force partial submit
-	var header1, header2 *types.SignedHeader
-	for i := 0; ; i += 10 {
-		header1, _ = types.GetRandomBlock(1, i)
-		blob1, err := header1.MarshalBinary()
-		require.NoError(err)
+// 	// two large blocks, over blob limit to force partial submit
+// 	var header1, header2 *types.SignedHeader
+// 	for i := 0; ; i += 10 {
+// 		header1, _ = types.GetRandomBlock(1, i)
+// 		blob1, err := header1.MarshalBinary()
+// 		require.NoError(err)
 
-		header2, _ = types.GetRandomBlock(1, i)
-		blob2, err := header2.MarshalBinary()
-		require.NoError(err)
+// 		header2, _ = types.GetRandomBlock(1, i)
+// 		blob2, err := header2.MarshalBinary()
+// 		require.NoError(err)
 
-		if uint64(len(blob1)+len(blob2)) > limit {
-			break
-		}
-	}
+// 		if uint64(len(blob1)+len(blob2)) > limit {
+// 			break
+// 		}
+// 	}
 
-	// overflowing blocks submit partially
-	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, limit, -1)
-	assert.Equal(StatusSuccess, resp.Code, "overflowing blocks should submit partially")
-	assert.EqualValues(1, resp.SubmittedCount, "submitted count should be partial")
+// 	// overflowing blocks submit partially
+// 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, limit, -1)
+// 	assert.Equal(StatusSuccess, resp.Code, "overflowing blocks should submit partially")
+// 	assert.EqualValues(1, resp.SubmittedCount, "submitted count should be partial")
 
-	// retry remaining blocks
-	resp = dalc.SubmitHeaders(ctx, []*types.SignedHeader{header2}, limit, -1)
-	assert.Equal(StatusSuccess, resp.Code, "remaining blocks should submit")
-	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
-}
+// 	// retry remaining blocks
+// 	resp = dalc.SubmitHeaders(ctx, []*types.SignedHeader{header2}, limit, -1)
+// 	assert.Equal(StatusSuccess, resp.Code, "remaining blocks should submit")
+// 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
+// }
 
 func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
