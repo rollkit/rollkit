@@ -58,11 +58,6 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// use aggregator by default
-			if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-				nodeConfig.Aggregator = true
-			}
-
 			// Update log format if the flag is set
 			if config.LogFormat == cometconf.LogFormatJSON {
 				logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
