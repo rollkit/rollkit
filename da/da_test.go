@@ -278,7 +278,7 @@ func doTestSubmitOversizedBlock(t *testing.T, dalc *DAClient) {
 
 	limit, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(err)
-	oversizedBlock := types.GetRandomBlock(1, int(limit))
+	oversizedBlock := types.GetRandomBlock(1, int(limit)) //nolint:gosec
 	resp := dalc.SubmitBlocks(ctx, []*types.Block{oversizedBlock}, limit, -1)
 	assert.Equal(StatusError, resp.Code, "oversized block should throw error")
 	assert.Contains(resp.Message, "failed to submit blocks: no blobs generated blob: over size limit")

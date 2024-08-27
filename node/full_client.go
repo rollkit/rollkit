@@ -294,13 +294,13 @@ func (c *FullClient) GenesisChunked(context context.Context, id uint) (*ctypes.R
 		return nil, fmt.Errorf("service configuration error, there are no chunks")
 	}
 
-	if int(id) > chunkLen-1 {
+	if int(id) > chunkLen-1 { //nolint:gosec
 		return nil, fmt.Errorf("there are %d chunks, %d is invalid", chunkLen-1, id)
 	}
 
 	return &ctypes.ResultGenesisChunk{
 		TotalChunks: chunkLen,
-		ChunkNumber: int(id),
+		ChunkNumber: int(id), //nolint:gosec
 		Data:        genChunks[id],
 	}, nil
 }
@@ -312,7 +312,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	// Currently blocks are not pruned and are synced linearly so the base height is 0
 	minHeight, maxHeight, err := filterMinMax(
 		0,
-		int64(c.node.Store.Height()),
+		int64(c.node.Store.Height()), //nolint:gosec
 		minHeight,
 		maxHeight,
 		limit)
@@ -337,7 +337,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	}
 
 	return &ctypes.ResultBlockchainInfo{
-		LastHeight: int64(c.node.Store.Height()),
+		LastHeight: int64(c.node.Store.Height()), //nolint:gosec
 		BlockMetas: blocks,
 	}, nil
 
@@ -383,7 +383,7 @@ func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctype
 	}
 	params := state.ConsensusParams
 	return &ctypes.ResultConsensusParams{
-		BlockHeight: int64(c.normalizeHeight(height)),
+		BlockHeight: int64(c.normalizeHeight(height)), //nolint:gosec
 		ConsensusParams: cmtypes.ConsensusParams{
 			Block: cmtypes.BlockParams{
 				MaxBytes: params.Block.MaxBytes,
@@ -487,7 +487,7 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	}
 
 	return &ctypes.ResultBlockResults{
-		Height:                int64(h),
+		Height:                int64(h), //nolint:gosec
 		TxsResults:            resp.TxResults,
 		FinalizeBlockEvents:   resp.Events,
 		ValidatorUpdates:      resp.ValidatorUpdates,
@@ -539,7 +539,7 @@ func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, 
 	}
 
 	return &ctypes.ResultValidators{
-		BlockHeight: int64(height),
+		BlockHeight: int64(height), //nolint:gosec
 		Validators: []*cmtypes.Validator{
 			&validator,
 		},
@@ -783,11 +783,11 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		SyncInfo: ctypes.SyncInfo{
 			LatestBlockHash:     latestBlockHash,
 			LatestAppHash:       latestAppHash,
-			LatestBlockHeight:   int64(latestHeight),
+			LatestBlockHeight:   int64(latestHeight), //nolint:gosec
 			LatestBlockTime:     latestBlockTime,
 			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.DataHash),
 			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
-			EarliestBlockHeight: int64(initial.Height()),
+			EarliestBlockHeight: int64(initial.Height()), //nolint:gosec
 			EarliestBlockTime:   initial.Time(),
 			CatchingUp:          false, // hard-code this to "false" to pass Go IBC relayer's legacy encoding check
 		},

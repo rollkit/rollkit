@@ -92,7 +92,7 @@ func (h *Header) LastHeader() Hash {
 
 // Time returns timestamp as unix time with nanosecond precision
 func (h *Header) Time() time.Time {
-	return time.Unix(0, int64(h.BaseHeader.Time))
+	return time.Unix(0, int64(h.BaseHeader.Time)) //nolint:gosec
 }
 
 // Verify verifies the header.
@@ -128,7 +128,7 @@ func (h *Header) ValidateBasic() error {
 func (h *Header) MakeCometBFTVote() []byte {
 	vote := cmtproto.Vote{
 		Type:   cmtproto.PrecommitType,
-		Height: int64(h.Height()),
+		Height: int64(h.Height()), //nolint:gosec
 		Round:  0,
 		// Header hash = block hash in rollkit
 		BlockID: cmtproto.BlockID{

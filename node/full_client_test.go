@@ -188,7 +188,7 @@ func TestGenesisChunked(t *testing.T) {
 	gotID := gc2.ChunkNumber
 	assert.NoError(err)
 	assert.NotNil(gc2)
-	assert.Equal(int(expectedID), gotID)
+	assert.Equal(int(expectedID), gotID) //nolint:gosec
 
 	gc3, err := rpc.GenesisChunked(context.Background(), 5)
 	assert.Error(err)
@@ -344,7 +344,7 @@ func TestGetCommit(t *testing.T) {
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
 		for _, b := range blocks {
-			h := int64(b.Height())
+			h := int64(b.Height()) //nolint:gosec
 			commit, err := rpc.Commit(ctx, &h)
 			require.NoError(err)
 			require.NotNil(commit)
@@ -356,7 +356,7 @@ func TestGetCommit(t *testing.T) {
 		commit, err := rpc.Commit(ctx, nil)
 		require.NoError(err)
 		require.NotNil(commit)
-		assert.Equal(int64(blocks[3].Height()), commit.Height)
+		assert.Equal(int64(blocks[3].Height()), commit.Height) //nolint:gosec
 	})
 }
 
@@ -404,7 +404,7 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 
 		// for each block (except block 1), verify it's ABCI header with previous block's ABCI header as trusted header
 		for _, b := range blocks {
-			h := int64(b.Height())
+			h := int64(b.Height()) //nolint:gosec
 			commit, err := rpc.Commit(context.Background(), &h)
 			require.NoError(err)
 			require.NotNil(commit)
@@ -502,7 +502,7 @@ func TestGetBlockByHash(t *testing.T) {
 	abciBlock, err := abciconv.ToABCIBlock(block)
 	require.NoError(err)
 
-	height := int64(block.Height())
+	height := int64(block.Height()) //nolint:gosec
 	retrievedBlock, err := rpc.Block(context.Background(), &height)
 	require.NoError(err)
 	require.NotNil(retrievedBlock)
