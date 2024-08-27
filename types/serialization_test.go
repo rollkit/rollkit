@@ -51,7 +51,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
-	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1}
+	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1, VotingPower: 1}
 
 	cases := []struct {
 		name  string
@@ -62,12 +62,11 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 			SignedHeader: SignedHeader{
 				Header:    h1,
 				Signature: Signature([]byte{1, 1, 1}),
-				Validators: &cmtypes.ValidatorSet{
-					Validators: []*cmtypes.Validator{
+				Validators: cmtypes.NewValidatorSet(
+					[]*cmtypes.Validator{
 						validator1,
 					},
-					Proposer: validator1,
-				},
+				),
 			},
 			Data: Data{
 				Txs: nil,
