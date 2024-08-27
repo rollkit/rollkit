@@ -63,7 +63,7 @@ type NodeConfig struct {
 	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
 
 	// CLI flags
-	DANamespace string `mapstructure:"da_namespace"`
+	DANamespace      string `mapstructure:"da_namespace"`
 	DAKeyringKeyname string `mapstructure:"da_keyring_keyname"`
 }
 
