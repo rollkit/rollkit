@@ -625,7 +625,7 @@ func getLastSubmittedHeight(ctx context.Context, node *FullNode, t *testing.T) i
 
 	val, err := strconv.ParseUint(string(raw), 10, 64)
 	require.NoError(t, err)
-	return int(val)
+	return int(val) //nolint:gosec
 }
 
 func TestMaxPending(t *testing.T) {
@@ -683,7 +683,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 		require.NoError(waitForAtLeastNBlocks(seq, 3, Store))
 		return
 	} else { // if there is a limit, sequencer should produce exactly maxPending blocks and pause
-		require.NoError(waitForAtLeastNBlocks(seq, int(maxPending), Store))
+		require.NoError(waitForAtLeastNBlocks(seq, int(maxPending), Store)) //nolint:gosec
 		// wait few block times and ensure that new blocks are not produced
 		time.Sleep(3 * seq.nodeConfig.BlockTime)
 		require.EqualValues(maxPending, seq.Store.Height())
@@ -702,7 +702,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 		})
 
 	// wait for next block to ensure that sequencer is producing blocks again
-	require.NoError(waitForAtLeastNBlocks(seq, int(maxPending+1), Store))
+	require.NoError(waitForAtLeastNBlocks(seq, int(maxPending+1), Store)) //nolint:gosec
 }
 
 func TestCatchUp(t *testing.T) {
