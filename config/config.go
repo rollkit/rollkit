@@ -28,6 +28,8 @@ const (
 	FlagDAStartHeight = "rollkit.da_start_height"
 	// FlagDANamespace is a flag for specifying the DA namespace ID
 	FlagDANamespace = "rollkit.da_namespace"
+	// FlagDAKeyringKeyname is a flag to specify the key name to use for blobs submission on celestia-node
+	FlagDAKeyringKeyname = "rollkit.da_keyring_keyname"
 	// FlagLight is a flag for running the node in light mode
 	FlagLight = "rollkit.light"
 	// FlagTrustedHash is a flag for specifying the trusted hash
@@ -62,6 +64,7 @@ type NodeConfig struct {
 
 	// CLI flags
 	DANamespace string `mapstructure:"da_namespace"`
+	DAKeyringKeyname string `mapstructure:"da_keyring_keyname"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -128,6 +131,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DANamespace = v.GetString(FlagDANamespace)
 	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
+	nc.DAKeyringKeyname = v.GetString(FlagDAKeyringKeyname)
 	nc.BlockTime = v.GetDuration(FlagBlockTime)
 	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
 	nc.Light = v.GetBool(FlagLight)
@@ -153,6 +157,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Float64(FlagDAGasMultiplier, def.DAGasMultiplier, "DA gas price multiplier for retrying blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
+	cmd.Flags().String(FlagDAKeyringKeyname, def.DAKeyringKeyname, "DA keyring.keyname to submit blob transactions")
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
