@@ -8,7 +8,6 @@ import (
 	"github.com/rollkit/go-sequencing"
 )
 
-// MockBatch is a mock implementation of sequencing.Batch for testing purposes
 var (
 	batch1 = sequencing.Batch{
 		Transactions: []sequencing.Tx{
