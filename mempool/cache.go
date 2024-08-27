@@ -40,7 +40,6 @@ type LRUTxCache struct {
 	list     *list.List
 }
 
-// NewLRUTxCache ...
 func NewLRUTxCache(cacheSize int) *LRUTxCache {
 	return &LRUTxCache{
 		size:     cacheSize,
@@ -55,7 +54,6 @@ func (c *LRUTxCache) GetList() *list.List {
 	return c.list
 }
 
-// Reset ...
 func (c *LRUTxCache) Reset() {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -64,7 +62,6 @@ func (c *LRUTxCache) Reset() {
 	c.list.Init()
 }
 
-// Push ...
 func (c *LRUTxCache) Push(tx types.Tx) bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -92,7 +89,6 @@ func (c *LRUTxCache) Push(tx types.Tx) bool {
 	return true
 }
 
-// Remove ...
 func (c *LRUTxCache) Remove(tx types.Tx) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -106,7 +102,6 @@ func (c *LRUTxCache) Remove(tx types.Tx) {
 	}
 }
 
-// Has ...
 func (c *LRUTxCache) Has(tx types.Tx) bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
