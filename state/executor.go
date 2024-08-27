@@ -99,9 +99,9 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signatur
 	if emptyMaxBytes {
 		maxBytes = int64(cmtypes.MaxBlockSizeBytes)
 	}
-	if maxBytes > int64(e.maxBytes) {
+	if maxBytes > int64(e.maxBytes) { //nolint:gosec
 		e.logger.Debug("limiting maxBytes to", "e.maxBytes=%d", e.maxBytes)
-		maxBytes = int64(e.maxBytes)
+		maxBytes = int64(e.maxBytes) //nolint:gosec
 	}
 
 	maxGas := state.ConsensusParams.Block.MaxGas
@@ -145,7 +145,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signatur
 			Txs:                mempoolTxs.ToSliceOfBytes(),
 			LocalLastCommit:    lastExtendedCommit,
 			Misbehavior:        []abci.Misbehavior{},
-			Height:             int64(block.Height()),
+			Height:             int64(block.Height()), //nolint:gosec
 			Time:               block.Time(),
 			NextValidatorsHash: state.Validators.Hash(),
 			ProposerAddress:    e.proposerAddress,
@@ -183,7 +183,7 @@ func (e *BlockExecutor) ProcessProposal(
 ) (bool, error) {
 	resp, err := e.proxyApp.ProcessProposal(context.TODO(), &abci.RequestProcessProposal{
 		Hash:   block.Hash(),
-		Height: int64(block.Height()),
+		Height: int64(block.Height()), //nolint:gosec
 		Time:   block.Time(),
 		Txs:    block.Data.Txs.ToSliceOfBytes(),
 		ProposedLastCommit: abci.CommitInfo{
@@ -258,7 +258,7 @@ func (e *BlockExecutor) ApplyBlock(ctx context.Context, state types.State, block
 func (e *BlockExecutor) ExtendVote(ctx context.Context, block *types.Block) ([]byte, error) {
 	resp, err := e.proxyApp.ExtendVote(ctx, &abci.RequestExtendVote{
 		Hash:   block.Hash(),
-		Height: int64(block.Height()),
+		Height: int64(block.Height()), //nolint:gosec
 		Time:   block.Time(),
 		Txs:    block.Data.Txs.ToSliceOfBytes(),
 		ProposedLastCommit: abci.CommitInfo{
@@ -300,7 +300,7 @@ func (e *BlockExecutor) updateConsensusParams(height uint64, params cmtypes.Cons
 	if err := types.ConsensusParamsValidateBasic(nextParams); err != nil {
 		return cmproto.ConsensusParams{}, 0, fmt.Errorf("validating new consensus params: %w", err)
 	}
-	if err := nextParams.ValidateUpdate(consensusParamUpdates, int64(height)); err != nil {
+	if err := nextParams.ValidateUpdate(consensusParamUpdates, int64(height)); err != nil { //nolint:gosec
 		return cmproto.ConsensusParams{}, 0, fmt.Errorf("updating consensus params: %w", err)
 	}
 	return nextParams.ToProto(), nextParams.Version.App, nil
@@ -334,7 +334,7 @@ func (e *BlockExecutor) updateState(state types.State, block *types.Block, final
 			}
 		}
 		// Change results from this height but only applies to the next next height.
-		lastHeightValSetChanged = int64(block.SignedHeader.Header.Height() + 1 + 1)
+		lastHeightValSetChanged = int64(block.SignedHeader.Header.Height() + 1 + 1) //nolint:gosec
 
 		if len(nValSet.Validators) > 0 {
 			nValSet.IncrementProposerPriority(1)
@@ -510,7 +510,7 @@ func (e *BlockExecutor) publishEvents(resp *abci.ResponseFinalizeBlock, block *t
 		for _, ev := range abciBlock.Evidence.Evidence {
 			if err := e.eventBus.PublishEventNewEvidence(cmtypes.EventDataNewEvidence{
 				Evidence: ev,
-				Height:   int64(block.SignedHeader.Header.Height()),
+				Height:   int64(block.SignedHeader.Header.Height()), //nolint:gosec
 			}); err != nil {
 				e.logger.Error("failed publishing new evidence", "err", err)
 			}
@@ -521,7 +521,7 @@ func (e *BlockExecutor) publishEvents(resp *abci.ResponseFinalizeBlock, block *t
 		err := e.eventBus.PublishEventTx(cmtypes.EventDataTx{
 			TxResult: abci.TxResult{
 				Height: abciBlock.Height,
-				Index:  uint32(i),
+				Index:  uint32(i), //nolint:gosec
 				Tx:     tx,
 				Result: *(resp.TxResults[i]),
 			},

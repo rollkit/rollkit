@@ -999,7 +999,7 @@ func (m *Manager) processVoteExtension(ctx context.Context, block *types.Block, 
 	}
 
 	vote := &cmproto.Vote{
-		Height:    int64(newHeight),
+		Height:    int64(newHeight), //nolint:gosec
 		Round:     0,
 		Extension: extension,
 	}
@@ -1130,7 +1130,7 @@ daSubmitRetryLoop:
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
+			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
 			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
