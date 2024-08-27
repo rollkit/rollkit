@@ -11,12 +11,12 @@ import (
 var (
 	batch1 = sequencing.Batch{
 		Transactions: []sequencing.Tx{
-			sequencing.Tx([]byte("batch1")),
+			sequencing.Tx("batch1"),
 		},
 	}
 	batch2 = sequencing.Batch{
 		Transactions: []sequencing.Tx{
-			sequencing.Tx([]byte("batch2")),
+			sequencing.Tx("batch2"),
 		},
 	}
 )
