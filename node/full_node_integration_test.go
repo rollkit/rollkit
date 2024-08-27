@@ -157,6 +157,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
+// TODO: https://github.com/rollkit/rollkit/issues/1819
 // func TestLazyAggregator(t *testing.T) {
 // 	assert := assert.New(t)
 // 	require := require.New(t)
@@ -220,6 +221,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 // 	require.NoError(waitForAtLeastNBlocks(node, 5, Header))
 // }
 
+// TODO: https://github.com/rollkit/rollkit/issues/1809
 // TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
 // func TestFastDASync(t *testing.T) {
 // 	// Test setup, create require and contexts for aggregator and client nodes
@@ -517,6 +519,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	}
 }
 
+// TODO: https://github.com/rollkit/rollkit/issues/1812
 // func TestTwoRollupsInOneNamespace(t *testing.T) {
 // 	cases := []struct {
 // 		name     string
@@ -709,6 +712,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 	require.NoError(waitForAtLeastNBlocks(seq, int(maxPending+1), Store)) //nolint:gosec
 }
 
+// TODO: https://github.com/rollkit/rollkit/issues/1811
 // func TestCatchUp(t *testing.T) {
 // 	cases := []struct {
 // 		name string

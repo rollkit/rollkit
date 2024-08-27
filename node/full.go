@@ -158,7 +158,7 @@ func newFullNode(
 	mempool := initMempool(proxyApp, memplMetrics)
 
 	seqClient := seqGRPC.NewClient()
-	mempoolReaper, err := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient)
+	mempoolReaper, err := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient, logger.With("module", "reaper"))
 	if err != nil {
 		return nil, err
 	}
@@ -258,8 +258,8 @@ func initMempool(proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempoo
 	return mempool
 }
 
-func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client) (*mempool.CListMempoolReaper, error) {
-	return mempool.NewCListMempoolReaper(m, rollupID, seqClient)
+func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client, logger log.Logger) (*mempool.CListMempoolReaper, error) {
+	return mempool.NewCListMempoolReaper(m, rollupID, seqClient, logger)
 }
 
 func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
