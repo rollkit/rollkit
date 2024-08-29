@@ -36,7 +36,7 @@ rollkit start [flags]
       --rollkit.da_block_time duration                  DA chain block time (for syncing) (default 15s)
       --rollkit.da_gas_multiplier float                 DA gas price multiplier for retrying blob transactions
       --rollkit.da_gas_price float                      DA gas price for blob transactions (default -1)
-      --rollkit.da_keyring_keyname string               DA keyring.keyname to submit blob transactions
+      --rollkit.da_keyname string                       DA keyring keyname to submit blob transactions
       --rollkit.da_mempool_ttl uint                     number of DA blocks until transaction is dropped from the mempool
       --rollkit.da_namespace string                     DA namespace to submit blob transactions
       --rollkit.da_start_height uint                    starting DA block height (for syncing)

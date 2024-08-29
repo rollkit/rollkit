@@ -9,7 +9,7 @@ Rollkit provides a wrapper for [go-da][go-da], a generic data availability inter
 * `--rollkit.da_address`: url address of the DA service (default: "grpc://localhost:26650")
 * `--rollkit.da_auth_token`: authentication token of the DA service
 * `--rollkit.da_namespace`: namespace to use when submitting blobs to the DA service
-* `--rollkit.da_keyring_keyname`: keyring.keyname used when submitting blobs to the DA service (default: my_celes_key)
+* `--rollkit.da_keyname`: keyring keyname used when submitting blobs to the DA service (default: my_celes_key)
 
 Given a set of blocks to be submitted to DA by the block manager, the `SubmitBlocks` first encodes the blocks using protobuf (the encoded data are called blobs) and invokes the `Submit` method on the underlying DA implementation. On successful submission (`StatusSuccess`), the DA block height which included in the rollup blocks is returned.
 
