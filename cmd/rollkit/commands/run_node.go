@@ -58,7 +58,7 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// use aggregator by default
+			// use aggregator by default if the flag is not specified explicitly
 			if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
 				nodeConfig.Aggregator = true
 			}

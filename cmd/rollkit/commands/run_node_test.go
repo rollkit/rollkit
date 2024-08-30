@@ -23,7 +23,7 @@ func TestParseFlags(t *testing.T) {
 		"--p2p.unconditional_peer_ids", "4,5,6",
 		"--priv_validator_laddr", "tcp://127.0.0.1:27003",
 		"--proxy_app", "tcp://127.0.0.1:27004",
-		"--rollkit.aggregator",
+		"--rollkit.aggregator=false",
 		"--rollkit.block_time", "2s",
 		"--rollkit.da_address", "http://127.0.0.1:27005",
 		"--rollkit.da_auth_token", "token",
@@ -46,6 +46,7 @@ func TestParseFlags(t *testing.T) {
 	args := append([]string{"start"}, flags...)
 
 	newRunNodeCmd := NewRunNodeCmd()
+
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -74,7 +75,7 @@ func TestParseFlags(t *testing.T) {
 		{"UnconditionalPeerIDs", config.P2P.UnconditionalPeerIDs, "4,5,6"},
 		{"PrivValidatorListenAddr", config.PrivValidatorListenAddr, "tcp://127.0.0.1:27003"},
 		{"ProxyApp", config.ProxyApp, "tcp://127.0.0.1:27004"},
-		{"Aggregator", nodeConfig.Aggregator, true},
+		{"Aggregator", nodeConfig.Aggregator, false},
 		{"BlockTime", nodeConfig.BlockTime, 2 * time.Second},
 		{"DAAddress", nodeConfig.DAAddress, "http://127.0.0.1:27005"},
 		{"DAAuthToken", nodeConfig.DAAuthToken, "token"},
