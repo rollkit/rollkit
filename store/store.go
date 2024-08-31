@@ -26,7 +26,7 @@ var (
 	statePrefix          = "s"
 	responsesPrefix      = "r"
 	metaPrefix           = "m"
-	heightIndexPrefix    = "h"
+	hashToHeightPrefix   = "ha2h"
 )
 
 // DefaultStore is a default store implmementation.
@@ -100,18 +100,15 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
 	err = bb.Put(ctx, ds.NewKey(getIndexKey(header.Height())), hash[:])
+	err = bb.Put(ctx, ds.NewKey(getHashToHeightKey(hash)), encodeHeight(height))
 	if err != nil {
-		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
-	}
-	// Store height indexed by hash
-	err = s.storeHeightForHash(ctx, block.Hash(), block.Height())
-	if err != nil {
-		return fmt.Errorf("failed to create a new key using hash of the block: %w", err)
+		return fmt.Errorf("failed to create a new key for hash to height index: %w", err)
 	}
 	if err = bb.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	s.SetHeight(ctx, height)
 	return nil
 }
 
@@ -135,20 +132,38 @@ func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*ty
 	}
 	header := new(types.SignedHeader)
 	err = header.UnmarshalBinary(headerBlob)
+// GetBlock returns block at given height, or error if it's not found in Store.
+func (s *DefaultStore) GetBlock(ctx context.Context, height uint64) (*types.Block, error) {
+	blockData, err := s.db.Get(ctx, ds.NewKey(getBlockKey(height)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal block header: %w", err)
 	}
 
 	dataBlob, err := s.db.Get(ctx, ds.NewKey(getDataKey(hash)))
+	return block, nil
+}
+
+// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
+func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*types.Block, error) {
+	height, err := s.GetHeightByHash(ctx, hash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load block data: %w", err)
+		return nil, fmt.Errorf("failed to get height for hash %v: %w", hash, err)
 	}
 	data := new(types.Data)
 	err = data.UnmarshalBinary(dataBlob)
+	return s.GetBlock(ctx, height)
+}
+
+// GetHeightByHash returns height for a block with given block header hash.
+func (s *DefaultStore) GetHeightByHash(ctx context.Context, hash types.Hash) (uint64, error) {
+	heightBytes, err := s.db.Get(ctx, ds.NewKey(getHashToHeightKey(hash)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal block data: %w", err)
+		return 0, fmt.Errorf("failed to get height for hash %v: %w", hash, err)
 	}
 	return header, data, nil
+	return decodeHeight(heightBytes), nil
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
@@ -310,4 +325,18 @@ func getResponsesKey(height uint64) string {
 
 func getMetaKey(key string) string {
 	return GenerateKey([]string{metaPrefix, key})
+}
+
+func getHashToHeightKey(hash types.Hash) string {
+	return GenerateKey([]string{hashToHeightPrefix, hash.String()})
+}
+
+func encodeHeight(height uint64) []byte {
+	heightBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(heightBytes, height)
+	return heightBytes
+}
+
+func decodeHeight(heightBytes []byte) uint64 {
+	return binary.BigEndian.Uint64(heightBytes)
 }
