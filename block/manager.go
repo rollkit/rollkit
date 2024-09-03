@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -97,6 +98,12 @@ type NewDataEvent struct {
 	DAHeight uint64
 }
 
+// BatchWithTime is used to pass batch and time to BatchQueue
+type BatchWithTime struct {
+	*sequencing.Batch
+	time.Time
+}
+
 // Manager is responsible for aggregating transactions into blocks.
 type Manager struct {
 	lastState types.State
@@ -154,9 +161,9 @@ type Manager struct {
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	// grpc client for sequencing middleware
-	seqClient *seqGRPC.Client
-	lastBatch *sequencing.Batch
-	bq        *BatchQueue
+	seqClient     *seqGRPC.Client
+	lastBatchHash []byte
+	bq            *BatchQueue
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -303,7 +310,6 @@ func NewManager(
 		isProposer:     isProposer,
 		seqClient:      seqClient,
 		bq:             NewBatchQueue(),
-		lastBatch:      &sequencing.Batch{},
 	}
 	agg.init(context.Background())
 	return agg, nil
@@ -422,14 +428,20 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 		case <-batchTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
-			batch, err := m.seqClient.GetNextBatch(ctx, m.lastBatch)
+			batch, batchTime, err := m.seqClient.GetNextBatch(ctx, m.lastBatchHash)
 			if err != nil && ctx.Err() == nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
 			// Add the batch to the batch queue
 			if batch != nil && batch.Transactions != nil {
-				m.bq.AddBatch(*batch)
-				m.lastBatch = batch
+				m.bq.AddBatch(BatchWithTime{batch, batchTime})
+				// Calculate the hash of the batch and store it for the next batch retrieval
+				batchBytes, err := batch.Marshal()
+				if err != nil {
+					m.logger.Error("error while marshaling batch", "error", err)
+				}
+				h := sha256.Sum256(batchBytes)
+				m.lastBatchHash = h[:]
 			}
 			// Reset the batchTimer to signal the next batch production
 			// period based on the batch retrieval time.

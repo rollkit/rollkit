@@ -75,6 +75,7 @@ func (reaper *CListMempoolReaper) reap() {
 			reaper.logger.Error("Error submitting transaction", "tx key", tx.Key(), "error", err)
 			continue
 		}
+		reaper.logger.Info("Reaper submitted transaction successfully", "tx key", tx.Key())
 		reaper.submitted[tx.Key()] = struct{}{}
 	}
 }

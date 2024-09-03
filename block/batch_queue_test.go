@@ -2,6 +2,7 @@ package block
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -9,16 +10,16 @@ import (
 )
 
 var (
-	batch1 = sequencing.Batch{
+	batch1 = BatchWithTime{&sequencing.Batch{
 		Transactions: []sequencing.Tx{
 			sequencing.Tx("batch1"),
 		},
-	}
-	batch2 = sequencing.Batch{
+	}, time.Time{}}
+	batch2 = BatchWithTime{&sequencing.Batch{
 		Transactions: []sequencing.Tx{
 			sequencing.Tx("batch2"),
 		},
-	}
+	}, time.Time{}}
 )
 
 func TestNewBatchQueue(t *testing.T) {

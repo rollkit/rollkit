@@ -76,7 +76,7 @@ func startMockGRPCServ() *grpc.Server {
 	return srv
 }
 
-// StartMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
+// startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
 	dummySeq := seqTest.NewDummySequencer()
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)

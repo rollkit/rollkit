@@ -40,7 +40,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.2
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/rollkit/go-sequencing v0.0.0-20240819074615-f2daab53104d
+	github.com/rollkit/go-sequencing v0.0.0-20240903052704-f7979984096b
 )
 
 require (
@@ -203,7 +203,7 @@ require (
 	golang.org/x/tools v0.24.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gonum.org/v1/gonum v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240617180043-68d350f18fd4 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240827150818-7e3bb234dfed // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
