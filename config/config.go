@@ -143,7 +143,8 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 // This function is called in cosmos-sdk.
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
-	cmd.Flags().Bool(FlagAggregator, def.Aggregator, "run node in aggregator mode")
+
+	cmd.Flags().BoolVar(&def.Aggregator, FlagAggregator, def.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
 	cmd.Flags().String(FlagDAAddress, def.DAAddress, "DA address (host:port)")
 	cmd.Flags().String(FlagDAAuthToken, def.DAAuthToken, "DA auth token")
