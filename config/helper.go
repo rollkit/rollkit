@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-// FlexibleBool is a custom boolean type that can be set in multiple ways
+// FlexibleBool is a custom bool flag that can be set to true, false, or empty
 type FlexibleBool struct {
 	value *bool
 }
 
-// NewFlexibleBool creates a new FlexibleBool with a default value
-func NewFlexibleBool(defaultValue bool) *FlexibleBool {
-	return &FlexibleBool{value: &defaultValue}
+// NewFlexibleBool creates a new FlexibleBool with the given value
+func NewFlexibleBool(val bool) *FlexibleBool {
+	return &FlexibleBool{value: &val}
 }
 
 // String returns the string representation of the FlexibleBool
