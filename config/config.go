@@ -141,10 +141,10 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 // AddFlags adds Rollkit specific configuration options to cobra Command.
 //
 // This function is called in cosmos-sdk.
-func AddFlags(cmd *cobra.Command, conf *NodeConfig) {
+func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 
-	cmd.Flags().BoolVar(&conf.Aggregator, FlagAggregator, def.Aggregator, "run node in aggregator mode")
+	cmd.Flags().BoolVar(&def.Aggregator, FlagAggregator, def.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
 	cmd.Flags().String(FlagDAAddress, def.DAAddress, "DA address (host:port)")
 	cmd.Flags().String(FlagDAAuthToken, def.DAAuthToken, "DA auth token")

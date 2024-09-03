@@ -215,7 +215,7 @@ func addNodeFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// Add Rollkit flags
-	rollconf.AddFlags(cmd, &nodeConfig)
+	rollconf.AddFlags(cmd)
 }
 
 // startMockDAServJSONRPC starts a mock JSONRPC server
