@@ -103,3 +103,33 @@ func TestParseFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestAggregatorFlagInvariants(t *testing.T) {
+	flagVariants := [][]string{{
+		"--rollkit.aggregator=false",
+	}, {
+		"--rollkit.aggregator=true",
+	}, {
+		"--rollkit.aggregator",
+	}}
+
+	validValues := []bool{false, true, true}
+
+	for i, flags := range flagVariants {
+		args := append([]string{"start"}, flags...)
+
+		newRunNodeCmd := NewRunNodeCmd()
+
+		if err := newRunNodeCmd.ParseFlags(args); err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		if err := parseFlags(newRunNodeCmd); err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		if nodeConfig.Aggregator != validValues[i] {
+			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Aggregator)
+		}
+	}
+}
