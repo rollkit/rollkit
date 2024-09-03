@@ -27,6 +27,7 @@ var (
 	responsesPrefix      = "r"
 	metaPrefix           = "m"
 	hashToHeightPrefix   = "ha2h"
+	heightToHashPrefix   = "h2ha"
 )
 
 // DefaultStore is a default store implmementation.
@@ -99,7 +100,10 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getIndexKey(header.Height())), hash[:])
+	err = bb.Put(ctx, ds.NewKey(getHeightToHashKey(height)), hash)
+	if err != nil {
+		return fmt.Errorf("failed to create a new key for height to hash index: %w", err)
+	}
 	err = bb.Put(ctx, ds.NewKey(getHashToHeightKey(hash)), encodeHeight(height))
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for hash to height index: %w", err)
@@ -284,7 +288,7 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 
 // loadHashFromIndex returns the hash of a block given its height
 func (s *DefaultStore) loadHashFromIndex(ctx context.Context, height uint64) (header.Hash, error) {
-	blob, err := s.db.Get(ctx, ds.NewKey(getIndexKey(height)))
+	blob, err := s.db.Get(ctx, ds.NewKey(getHeightToHashKey(height)))
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load block hash for height %v: %w", height, err)
@@ -311,8 +315,8 @@ func getExtendedCommitKey(height uint64) string {
 	return GenerateKey([]string{extendedCommitPrefix, strconv.FormatUint(height, 10)})
 }
 
-func getIndexKey(height uint64) string {
-	return GenerateKey([]string{indexPrefix, strconv.FormatUint(height, 10)})
+func getHeightToHashKey(height uint64) string {
+	return GenerateKey([]string{heightToHashPrefix, strconv.FormatUint(height, 10)})
 }
 
 func getStateKey() string {
