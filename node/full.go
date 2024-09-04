@@ -406,7 +406,7 @@ func (n *FullNode) OnStart() error {
 		return err
 	}
 
-	if err = n.mempoolReaper.StartReaper(n.nodeConfig.SequencerAddress); err != nil {
+	if err = n.mempoolReaper.StartReaper(); err != nil {
 		return fmt.Errorf("error while starting mempool reaper: %w", err)
 	}
 

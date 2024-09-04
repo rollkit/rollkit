@@ -42,7 +42,7 @@ func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *seqGRPC.
 }
 
 // StartReaper starts the reaper goroutine.
-func (reaper *CListMempoolReaper) StartReaper(grpcAddressSequencerMiddleware string) error {
+func (r *CListMempoolReaper) StartReaper() error {
 	go func() {
 		ticker := time.NewTicker(ReapInterval)
 		defer ticker.Stop()
@@ -50,8 +50,8 @@ func (reaper *CListMempoolReaper) StartReaper(grpcAddressSequencerMiddleware str
 		for {
 			select {
 			case <-ticker.C:
-				reaper.reap()
-			case <-reaper.stopCh:
+				r.reap()
+			case <-r.stopCh:
 				return
 			}
 		}
@@ -60,23 +60,23 @@ func (reaper *CListMempoolReaper) StartReaper(grpcAddressSequencerMiddleware str
 }
 
 // StopReaper stops the reaper goroutine.
-func (reaper *CListMempoolReaper) StopReaper() {
-	close(reaper.stopCh)
+func (r *CListMempoolReaper) StopReaper() {
+	close(r.stopCh)
 }
 
 // reap removes all transactions from the mempool and sends them to the gRPC server.
-func (reaper *CListMempoolReaper) reap() {
-	txs := reaper.mempool.ReapMaxTxs(-1)
+func (r *CListMempoolReaper) reap() {
+	txs := r.mempool.ReapMaxTxs(-1)
 	for _, tx := range txs {
-		if _, ok := reaper.submitted[tx.Key()]; ok {
+		if _, ok := r.submitted[tx.Key()]; ok {
 			continue
 		}
-		if err := reaper.retrySubmitTransaction(tx, MaxRetries, RetryDelay); err != nil {
-			reaper.logger.Error("Error submitting transaction", "tx key", tx.Key(), "error", err)
+		if err := r.retrySubmitTransaction(tx, MaxRetries, RetryDelay); err != nil {
+			r.logger.Error("Error submitting transaction", "tx key", tx.Key(), "error", err)
 			continue
 		}
-		reaper.logger.Info("Reaper submitted transaction successfully", "tx key", tx.Key())
-		reaper.submitted[tx.Key()] = struct{}{}
+		r.logger.Info("Reaper submitted transaction successfully", "tx key", tx.Key())
+		r.submitted[tx.Key()] = struct{}{}
 	}
 }
 

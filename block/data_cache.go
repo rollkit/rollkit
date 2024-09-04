@@ -22,18 +22,16 @@ func NewDataCache() *DataCache {
 	}
 }
 
-func (hc *DataCache) getData(height uint64) (*types.Data, bool) {
+func (hc *DataCache) getData(height uint64) *types.Data {
 	data, ok := hc.data.Load(height)
 	if !ok {
-		return nil, false
+		return nil
 	}
-	return data.(*types.Data), true
+	return data.(*types.Data)
 }
 
 func (hc *DataCache) setData(height uint64, data *types.Data) {
-	if data != nil {
-		hc.data.Store(height, data)
-	}
+	hc.data.Store(height, data)
 }
 
 func (hc *DataCache) deleteData(height uint64) {

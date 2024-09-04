@@ -104,10 +104,6 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signatur
 		maxBytes = int64(e.maxBytes) //nolint:gosec
 	}
 
-	// maxGas := state.ConsensusParams.Block.MaxGas
-
-	// mempoolTxs := e.mempool.ReapMaxBytesMaxGas(maxBytes, maxGas)
-
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -119,8 +115,6 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signatur
 				Height:  height,
 				Time:    uint64(time.Now().UnixNano()),
 			},
-			//LastHeaderHash: lastHeaderHash,
-			//LastCommitHash:  lastCommitHash,
 			DataHash:        make(types.Hash, 32),
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         state.AppHash,

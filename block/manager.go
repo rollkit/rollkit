@@ -677,13 +677,13 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		default:
 		}
 		currentHeight := m.store.Height()
-		h, ok := m.headerCache.getHeader(currentHeight + 1)
-		if !ok {
+		h := m.headerCache.getHeader(currentHeight + 1)
+		if h == nil {
 			m.logger.Debug("header not found in cache", "height", currentHeight+1)
 			return nil
 		}
-		d, ok := m.dataCache.getData(currentHeight + 1)
-		if !ok {
+		d := m.dataCache.getData(currentHeight + 1)
+		if d == nil {
 			m.logger.Debug("data not found in cache", "height", currentHeight+1)
 			return nil
 		}
@@ -894,7 +894,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 			return ctx.Err()
 		default:
 		}
-		headerResp, fetchErr := m.fetchBlock(ctx, daHeight)
+		headerResp, fetchErr := m.fetchHeaders(ctx, daHeight)
 		if fetchErr == nil {
 			if headerResp.Code == da.StatusNotFound {
 				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
@@ -950,7 +950,7 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader
 	return bytes.Equal(header.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) && header.ValidateBasic() == nil
 }
 
-func (m *Manager) fetchBlock(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
+func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
 	var err error
 	headerRes := m.dalc.RetrieveHeaders(ctx, daHeight)
 	if headerRes.Code == da.StatusError {

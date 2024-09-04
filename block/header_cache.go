@@ -22,18 +22,16 @@ func NewHeaderCache() *HeaderCache {
 	}
 }
 
-func (hc *HeaderCache) getHeader(height uint64) (*types.SignedHeader, bool) {
+func (hc *HeaderCache) getHeader(height uint64) *types.SignedHeader {
 	header, ok := hc.headers.Load(height)
 	if !ok {
-		return nil, false
+		return nil
 	}
-	return header.(*types.SignedHeader), true
+	return header.(*types.SignedHeader)
 }
 
 func (hc *HeaderCache) setHeader(height uint64, header *types.SignedHeader) {
-	if header != nil {
-		hc.headers.Store(height, header)
-	}
+	hc.headers.Store(height, header)
 }
 
 func (hc *HeaderCache) deleteHeader(height uint64) {
