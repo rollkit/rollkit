@@ -90,7 +90,10 @@ func (r *CListMempoolReaper) reap() {
 			continue
 		}
 		r.logger.Info("Reaper submitted transaction successfully", "tx key", tx.Key())
+
+		r.mu.Lock() // Lock the mutex before writing to the map
 		r.submitted[tx.Key()] = struct{}{}
+		r.mu.Unlock() // Unlock after modifying the map
 	}
 }
 
