@@ -807,7 +807,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	if m.conf.MaxPendingBlocks != 0 && m.pendingBlocks.numPendingBlocks() >= m.conf.MaxPendingBlocks {
-		return fmt.Errorf("number of blocks pending DA submission (%d) reached configured limit (%d)", m.pendingBlocks.numPendingBlocks(), m.conf.MaxPendingBlocks)
+		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
+			m.pendingBlocks.numPendingBlocks(), m.conf.MaxPendingBlocks)
 	}
 
 	var (
