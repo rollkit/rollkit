@@ -198,6 +198,7 @@ func NewManager(
 	genesis *cmtypes.GenesisDoc,
 	store store.Store,
 	mempool mempool.Mempool,
+	mempoolReaper *mempool.CListMempoolReaper,
 	seqClient *seqGRPC.Client,
 	proxyApp proxy.AppConnConsensus,
 	dalc *da.DAClient,
@@ -248,7 +249,7 @@ func NewManager(
 	// allow buffer for the block header and protocol encoding
 	maxBlobSize -= blockProtocolOverhead
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
 		res, err := exec.InitChain(genesis)
 		if err != nil {

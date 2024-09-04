@@ -31,6 +31,7 @@ type BlockExecutor struct {
 	chainID         string
 	proxyApp        proxy.AppConnConsensus
 	mempool         mempool.Mempool
+	mempoolReaper   *mempool.CListMempoolReaper
 	maxBytes        uint64
 
 	eventBus *cmtypes.EventBus
@@ -41,12 +42,13 @@ type BlockExecutor struct {
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
-func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, maxBytes uint64, logger log.Logger, metrics *Metrics) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, mempoolReaper *mempool.CListMempoolReaper, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, maxBytes uint64, logger log.Logger, metrics *Metrics) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		chainID:         chainID,
 		proxyApp:        proxyApp,
 		mempool:         mempool,
+		mempoolReaper:   mempoolReaper,
 		eventBus:        eventBus,
 		maxBytes:        maxBytes,
 		logger:          logger,
@@ -373,7 +375,9 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, header *t
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
-	err = e.mempool.Update(header.Height(), fromRollkitTxs(data.Txs), resp.TxResults, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
+	cTxs := fromRollkitTxs(data.Txs)
+	e.mempoolReaper.UpdateCommitedTxs(cTxs)
+	err = e.mempool.Update(header.Height(), cTxs, resp.TxResults, mempool.PreCheckMaxBytes(maxBytes), mempool.PostCheckMaxGas(maxGas))
 	if err != nil {
 		return nil, 0, err
 	}

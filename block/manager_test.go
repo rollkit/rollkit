@@ -25,10 +25,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
@@ -39,6 +42,9 @@ import (
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
+
+// MockSequencerAddress is a sample address used by the mock sequencer
+const MockSequencerAddress = "localhost:50051"
 
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
@@ -633,7 +639,13 @@ func TestManager_publishBlock(t *testing.T) {
 	lastState.LastValidators = cmtypes.NewValidatorSet(validators)
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
-	executor := state.NewBlockExecutor(vKey.PubKey().Address(), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
+	seqClient := seqGRPC.NewClient()
+	require.NoError(seqClient.Start(
+		MockSequencerAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	))
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
+	executor := state.NewBlockExecutor(vKey.PubKey().Address(), "test", mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
 
 	signingKey, err := types.PrivKeyToSigningKey(vKey)
 	require.NoError(err)

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cfg "github.com/cometbft/cometbft/config"
@@ -20,10 +22,14 @@ import (
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
+
+// MockSequencerAddress is a sample address used by the mock sequencer
+const MockSequencerAddress = "localhost:50051"
 
 func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	return &abci.ResponsePrepareProposal{
@@ -50,7 +56,7 @@ func doTestCreateBlock(t *testing.T) {
 	fmt.Println("Made NID")
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
-	executor := NewBlockExecutor([]byte("test address"), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, NopMetrics())
+	executor := NewBlockExecutor([]byte("test address"), "test", mpool, nil, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, NopMetrics())
 	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
@@ -154,6 +160,13 @@ func doTestApplyBlock(t *testing.T) {
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(eventBus.Start())
 
+	seqClient := seqGRPC.NewClient()
+	require.NoError(seqClient.Start(
+		MockSequencerAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	))
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
+	require.NoError(mpoolReaper.StartReaper())
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
 	txSub, err := eventBus.Subscribe(context.Background(), "test", txQuery, 1000)
@@ -186,7 +199,7 @@ func doTestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 	chainID := "test"
-	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
+	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
 	tx := []byte{1, 2, 3, 4}
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
@@ -286,9 +299,16 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 	chainID := "test"
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
+	seqClient := seqGRPC.NewClient()
+	require.NoError(t, seqClient.Start(
+		MockSequencerAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	))
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
+	require.NoError(t, mpoolReaper.StartReaper())
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(t, eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
+	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
 	state := types.State{
 		ConsensusParams: cmproto.ConsensusParams{

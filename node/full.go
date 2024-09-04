@@ -158,13 +158,10 @@ func newFullNode(
 	mempool := initMempool(proxyApp, memplMetrics)
 
 	seqClient := seqGRPC.NewClient()
-	mempoolReaper, err := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient, logger.With("module", "reaper"))
-	if err != nil {
-		return nil, err
-	}
+	mempoolReaper := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient, logger.With("module", "reaper"))
 
 	store := store.New(mainKV)
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, seqClient, proxyApp, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, mempoolReaper, seqClient, proxyApp, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +255,7 @@ func initMempool(proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempoo
 	return mempool
 }
 
-func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client, logger log.Logger) (*mempool.CListMempoolReaper, error) {
+func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client, logger log.Logger) *mempool.CListMempoolReaper {
 	return mempool.NewCListMempoolReaper(m, rollupID, seqClient, logger)
 }
 
@@ -278,8 +275,8 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, seqClient *seqGRPC.Client, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
-	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, seqClient, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, mempoolReaper *mempool.CListMempoolReaper, seqClient *seqGRPC.Client, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
+	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, mempoolReaper, seqClient, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
@@ -406,12 +403,12 @@ func (n *FullNode) OnStart() error {
 		return err
 	}
 
-	if err = n.mempoolReaper.StartReaper(); err != nil {
-		return fmt.Errorf("error while starting mempool reaper: %w", err)
-	}
-
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
+		// reaper is started only in aggregator mode
+		if err = n.mempoolReaper.StartReaper(); err != nil {
+			return fmt.Errorf("error while starting mempool reaper: %w", err)
+		}
 		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(n.ctx) })

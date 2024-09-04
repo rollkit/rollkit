@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -25,11 +26,12 @@ type CListMempoolReaper struct {
 	ctx        context.Context
 	rollupId   []byte
 	submitted  map[cmtypes.TxKey]struct{}
+	mu         sync.RWMutex // Add a mutex to protect the submitted map
 	logger     log.Logger
 }
 
 // NewCListMempool initializes the mempool and sets up the gRPC client.
-func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *seqGRPC.Client, logger log.Logger) (*CListMempoolReaper, error) {
+func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *seqGRPC.Client, logger log.Logger) *CListMempoolReaper {
 	return &CListMempoolReaper{
 		mempool:    mempool,
 		stopCh:     make(chan struct{}),
@@ -38,7 +40,7 @@ func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *seqGRPC.
 		rollupId:   rollupId,
 		submitted:  make(map[cmtypes.TxKey]struct{}),
 		logger:     logger,
-	}, nil
+	}
 }
 
 // StartReaper starts the reaper goroutine.
@@ -59,6 +61,14 @@ func (r *CListMempoolReaper) StartReaper() error {
 	return nil
 }
 
+func (r *CListMempoolReaper) UpdateCommitedTxs(txs []cmtypes.Tx) {
+	r.mu.Lock() // Lock the mutex before modifying the map
+	defer r.mu.Unlock()
+	for _, tx := range txs {
+		delete(r.submitted, tx.Key())
+	}
+}
+
 // StopReaper stops the reaper goroutine.
 func (r *CListMempoolReaper) StopReaper() {
 	close(r.stopCh)
@@ -68,7 +78,11 @@ func (r *CListMempoolReaper) StopReaper() {
 func (r *CListMempoolReaper) reap() {
 	txs := r.mempool.ReapMaxTxs(-1)
 	for _, tx := range txs {
-		if _, ok := r.submitted[tx.Key()]; ok {
+		r.mu.RLock() // Read lock before checking the map
+		_, ok := r.submitted[tx.Key()]
+		r.mu.RUnlock() // Unlock after checking
+
+		if ok {
 			continue
 		}
 		if err := r.retrySubmitTransaction(tx, MaxRetries, RetryDelay); err != nil {
