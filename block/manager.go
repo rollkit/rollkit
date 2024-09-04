@@ -52,7 +52,7 @@ const defaultBlockTime = 1 * time.Second
 // defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
 const defaultLazyBlockTime = 60 * time.Second
 
-// defaultDABlockTime is used only if DABlockTime is not configured for manager
+// defaultBatchRetrievalInterval is the interval at which the sequencer retrieves batches
 const defaultBatchRetrievalInterval = 1 * time.Second
 
 // defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
@@ -760,7 +760,7 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 					return
 				default:
 				}
-				// early validation to reject junk blocks
+				// early validation to reject junk headers
 				if !m.isUsingExpectedCentralizedSequencer(header) {
 					continue
 				}
@@ -900,9 +900,9 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential blocks", "n", len(headerResp.Headers), "daHeight", daHeight)
+			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Headers), "daHeight", daHeight)
 			for _, header := range headerResp.Headers {
-				// early validation to reject junk blocks
+				// early validation to reject junk headers
 				if !m.isUsingExpectedCentralizedSequencer(header) {
 					m.logger.Debug("skipping header from unexpected sequencer",
 						"headerHeight", header.Height(),
@@ -972,13 +972,12 @@ func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 
 func (m *Manager) getTxsFromBatch() cmtypes.Txs {
 	batch := m.bq.Next()
-	var txs cmtypes.Txs
 	if batch == nil {
-		txs = make(cmtypes.Txs, 0)
-	} else {
-		for _, tx := range batch.Transactions {
-			txs = append(txs, tx)
-		}
+		return make(cmtypes.Txs, 0)
+	}
+	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
+	for _, tx := range batch.Transactions {
+		txs = append(txs, tx)
 	}
 	return txs
 }
