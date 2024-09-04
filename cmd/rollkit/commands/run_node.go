@@ -139,7 +139,7 @@ func NewRunNodeCmd() *cobra.Command {
 			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
 				srv, err := startMockSequencerServerGRPC(MockSequencerAddress)
 				if err != nil {
-					return fmt.Errorf("failed to launch mock da server: %w", err)
+					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
 				// nolint:errcheck,gosec
 				defer func() { srv.Stop() }()
