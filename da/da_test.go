@@ -345,8 +345,9 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
 
 	assert := assert.New(t)
 	result := dalc.RetrieveHeaders(ctx, 123)
-	// Namespaces don't work on dummy da right now, so there is no way to get BlockNotFound error
-	//assert.Equal(StatusNotFound, result.Code)
-	//assert.Contains(result.Message, ErrBlobNotFound.Error())
+	// Namespaces don't work on dummy da right now (https://github.com/rollkit/go-da/issues/94),
+	// when namespaces are implemented, this should be uncommented
+	// assert.Equal(StatusNotFound, result.Code)
+	// assert.Contains(result.Message, ErrBlobNotFound.Error())
 	assert.Equal(StatusError, result.Code)
 }
