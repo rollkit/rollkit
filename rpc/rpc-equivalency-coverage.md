@@ -46,9 +46,9 @@ curl http://127.0.0.1:26657/block?height=1
 curl http://127.0.0.1:26657/block?height=included
 ```
 
-#### Parameters
-- height (integer or string): height of the requested block. If no height is specified the latest block will be used. If height is set to the string "included", the latest DA included block will be returned.
+### Parameters
 
+- height (integer or string): height of the requested block. If no height is specified the latest block will be used. If height is set to the string "included", the latest DA included block will be returned.
 
 ## Implementation
 
