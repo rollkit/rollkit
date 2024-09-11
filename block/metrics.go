@@ -13,11 +13,28 @@ const (
 	MetricsSubsystem = "sequencer"
 )
 
+// DAMetrics contains metrics related to DA.
+type DAMetrics struct {
+	// cost / byte
+	CostPerByte metrics.Gauge
+	// GasPrice
+	GasPrice metrics.Gauge
+	// Last submitted blob size
+	LastBlobSize metrics.Gauge
+	// Wallet Balance
+	WalletBalance metrics.Gauge
+	// Transaction Status
+	TransactionStatus metrics.Gauge
+	// Number of pending blocks.
+	NumPendingBlocks metrics.Gauge
+	// Last included block height
+	IncludedBlockHeight metrics.Gauge
+}
+
 // Metrics contains metrics exposed by this package.
 type Metrics struct {
 	// Height of the chain.
 	Height metrics.Gauge
-
 	// Number of transactions.
 	NumTxs metrics.Gauge
 	// Size of the block.
@@ -26,6 +43,7 @@ type Metrics struct {
 	TotalTxs metrics.Gauge
 	// The latest block height.
 	CommittedHeight metrics.Gauge `metrics_name:"latest_block_height"`
+	DAMetrics
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
