@@ -72,35 +72,44 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 		NTxs:    0,
 		PrivKey: signingKey,
 	}
-	b1, _ := types.GenerateRandomBlockCustom(&config)
-	b2 := types.GetRandomNextBlock(b1, signingKey, []byte{1, 2, 3, 4}, 0)
-	b2.SignedHeader.AppHash = []byte{1, 2, 3, 4}
+	h1, d1, _ := types.GenerateRandomBlockCustom(&config)
+	h2, d2 := types.GetRandomNextBlock(h1, d1, signingKey, []byte{1, 2, 3, 4}, 0)
+	h2.AppHash = []byte{1, 2, 3, 4}
 
 	// Update state with hashes generated from block
 	state, err := store.GetState(ctx)
 	require.NoError(t, err)
-	state.AppHash = b1.SignedHeader.AppHash
-	state.LastResultsHash = b1.SignedHeader.LastResultsHash
+	state.AppHash = h1.AppHash
+	state.LastResultsHash = h1.LastResultsHash
 	manager := fullNode.blockManager
 	manager.SetLastState(state)
 
 	// Add second block to blockInCh
 	// This should not trigger a sync since b1 hasn't been seen yet
-	blockInCh := manager.GetBlockInCh()
-	blockInCh <- block.NewBlockEvent{
-		Block:    b2,
+	headerInCh := manager.GetHeaderInCh()
+	headerInCh <- block.NewHeaderEvent{
+		Header:   h2,
+		DAHeight: state.DAHeight,
+	}
+	dataInCh := manager.GetDataInCh()
+	dataInCh <- block.NewDataEvent{
+		Data:     d2,
 		DAHeight: state.DAHeight,
 	}
 
 	startNodeWithCleanup(t, node)
-	require.NoError(t, waitUntilBlockHashSeen(node, b2.Hash().String()))
+	require.NoError(t, waitUntilBlockHashSeen(node, h2.Hash().String()))
 
 	newHeight := store.Height()
 	require.Equal(t, height, newHeight)
 
 	// Adding first block to blockInCh should sync both blocks
-	blockInCh <- block.NewBlockEvent{
-		Block:    b1,
+	headerInCh <- block.NewHeaderEvent{
+		Header:   h1,
+		DAHeight: state.DAHeight,
+	}
+	dataInCh <- block.NewDataEvent{
+		Data:     d1,
 		DAHeight: state.DAHeight,
 	}
 
@@ -125,13 +134,13 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 		PrivKey: signingKey,
 	}
 
-	b1, _ := types.GenerateRandomBlockCustom(&config)
+	h1, _, _ := types.GenerateRandomBlockCustom(&config)
 
 	// Update state with hashes generated from block
 	state, err := store.GetState(ctx)
 	require.NoError(t, err)
-	state.AppHash = b1.SignedHeader.AppHash
-	state.LastResultsHash = b1.SignedHeader.LastResultsHash
+	state.AppHash = h1.AppHash
+	state.LastResultsHash = h1.LastResultsHash
 	manager.SetLastState(state)
 
 	// Set up mock DA
@@ -139,40 +148,40 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	fullNode.dalc = dalc
 	manager.SetDALC(dalc)
 
-	require.NoError(t, b1.ValidateBasic())
+	require.NoError(t, h1.ValidateBasic())
 
 	// Create a block with an invalid proposer address
-	junkProposerBlock := *b1
-	junkProposerBlock.SignedHeader.ProposerAddress = types.GetRandomBytes(32)
+	junkProposerHeader := *h1
+	junkProposerHeader.ProposerAddress = types.GetRandomBytes(32)
 
 	// Recompute signature over the block with the invalid proposer address
-	signature, err := types.GetSignature(junkProposerBlock.SignedHeader.Header, signingKey)
+	signature, err := types.GetSignature(junkProposerHeader.Header, signingKey)
 	require.NoError(t, err)
-	junkProposerBlock.SignedHeader.Signature = *signature
-	require.ErrorIs(t, junkProposerBlock.ValidateBasic(), types.ErrProposerAddressMismatch)
+	junkProposerHeader.Signature = *signature
+	require.ErrorIs(t, junkProposerHeader.ValidateBasic(), types.ErrProposerAddressMismatch)
 
 	// Create a block with an invalid commit
-	junkCommitBlock := *b1
-	junkCommitBlock.SignedHeader.Signature = types.GetRandomBytes(32)
-	require.ErrorIs(t, junkCommitBlock.ValidateBasic(), types.ErrSignatureVerificationFailed)
+	junkCommitHeader := *h1
+	junkCommitHeader.Signature = types.GetRandomBytes(32)
+	require.ErrorIs(t, junkCommitHeader.ValidateBasic(), types.ErrSignatureVerificationFailed)
 
 	// Validate b1 to make sure it's still valid
-	require.NoError(t, b1.ValidateBasic())
+	require.NoError(t, h1.ValidateBasic())
 
 	startNodeWithCleanup(t, node)
 
 	maxBlobSize, err := fullNode.dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
-	// Submit invalid blocks to the mock DA
-	// Invalid blocks should be ignored by the node
-	submitResp := fullNode.dalc.SubmitBlocks(ctx, []*types.Block{&junkProposerBlock, &junkCommitBlock, b1}, maxBlobSize, -1)
+	// Submit invalid block headers to the mock DA
+	// Invalid block headers should be ignored by the node
+	submitResp := fullNode.dalc.SubmitHeaders(ctx, []*types.SignedHeader{&junkProposerHeader, &junkCommitHeader, h1}, maxBlobSize, -1)
 	require.Equal(t, submitResp.Code, da.StatusSuccess)
 
 	// Only the valid block gets synced
-	require.NoError(t, waitUntilBlockHashSeen(node, b1.Hash().String()))
-	require.True(t, b1.Hash().String() == junkCommitBlock.Hash().String())
-	require.False(t, manager.IsBlockHashSeen(junkProposerBlock.Hash().String()))
+	require.NoError(t, waitUntilBlockHashSeen(node, h1.Hash().String()))
+	require.True(t, h1.Hash().String() == junkCommitHeader.Hash().String())
+	require.False(t, manager.IsBlockHashSeen(junkProposerHeader.Hash().String()))
 }
 
 // TestPendingBlocks is a test for bug described in https://github.com/rollkit/rollkit/issues/1548
@@ -193,7 +202,7 @@ func TestPendingBlocks(t *testing.T) {
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(10240), nil)
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
 
-	dac := da.NewDAClient(mockDA, 1234, -1, goDA.Namespace(MockDANamespace), nil)
+	dac := da.NewDAClient(mockDA, 1234, -1, goDA.Namespace(MockDAAddress), nil)
 	dbPath, err := os.MkdirTemp("", "testdb")
 	require.NoError(t, err)
 	defer func() {
@@ -258,7 +267,7 @@ func TestPendingBlocks(t *testing.T) {
 
 	// ensure that all blocks were submitted in order
 	for i := 0; i < len(allBlobs); i++ {
-		b := &types.Block{}
+		b := &types.SignedHeader{}
 		err := b.UnmarshalBinary(allBlobs[i])
 		require.NoError(t, err)
 		require.Equal(t, uint64(i+1), b.Height()) // '+1' because blocks start at genesis with height 1
@@ -417,7 +426,8 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 				BlockTime:   100 * time.Millisecond,
 				DABlockTime: 300 * time.Millisecond,
 			},
-			Light: false,
+			Light:            false,
+			SequencerAddress: MockSequencerAddress,
 		},
 		key,
 		signingKey,
@@ -462,7 +472,8 @@ func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExte
 				BlockTime:   100 * time.Millisecond,
 				DABlockTime: 300 * time.Millisecond,
 			},
-			Light: false,
+			Light:            false,
+			SequencerAddress: MockSequencerAddress,
 		},
 		key,
 		signingKey,

@@ -73,23 +73,23 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 
 // ToABCIBlock converts Rolkit block into block format defined by ABCI.
 // Returned block should pass `ValidateBasic`.
-func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
-	abciHeader, err := ToABCIHeader(&block.SignedHeader.Header)
+func ToABCIBlock(header *types.SignedHeader, data *types.Data) (*cmtypes.Block, error) {
+	abciHeader, err := ToABCIHeader(&header.Header)
 	if err != nil {
 		return nil, err
 	}
 
 	// we have one validator
-	if len(block.SignedHeader.Validators.Validators) == 0 {
+	if len(header.Validators.Validators) == 0 {
 		return nil, errors.New("empty validator set found in block")
 	}
 
-	val := block.SignedHeader.Validators.Validators[0].Address
-	abciCommit := types.GetABCICommit(block.Height(), block.Hash(), val, block.Time(), block.SignedHeader.Signature)
+	val := header.Validators.Validators[0].Address
+	abciCommit := types.GetABCICommit(header.Height(), header.Hash(), val, header.Time(), header.Signature)
 
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
-		abciCommit.Signatures[0].ValidatorAddress = block.SignedHeader.ProposerAddress
+		abciCommit.Signatures[0].ValidatorAddress = header.ProposerAddress
 	}
 	abciBlock := cmtypes.Block{
 		Header: abciHeader,
@@ -98,18 +98,18 @@ func ToABCIBlock(block *types.Block) (*cmtypes.Block, error) {
 		},
 		LastCommit: abciCommit,
 	}
-	abciBlock.Data.Txs = make([]cmtypes.Tx, len(block.Data.Txs))
-	for i := range block.Data.Txs {
-		abciBlock.Data.Txs[i] = cmtypes.Tx(block.Data.Txs[i])
+	abciBlock.Data.Txs = make([]cmtypes.Tx, len(data.Txs))
+	for i := range data.Txs {
+		abciBlock.Data.Txs[i] = cmtypes.Tx(data.Txs[i])
 	}
-	abciBlock.Header.DataHash = cmbytes.HexBytes(block.SignedHeader.DataHash)
+	abciBlock.Header.DataHash = cmbytes.HexBytes(header.DataHash)
 
 	return &abciBlock, nil
 }
 
 // ToABCIBlockMeta converts Rollkit block into BlockMeta format defined by ABCI
-func ToABCIBlockMeta(block *types.Block) (*cmtypes.BlockMeta, error) {
-	cmblock, err := ToABCIBlock(block)
+func ToABCIBlockMeta(header *types.SignedHeader, data *types.Data) (*cmtypes.BlockMeta, error) {
+	cmblock, err := ToABCIBlock(header, data)
 	if err != nil {
 		return nil, err
 	}

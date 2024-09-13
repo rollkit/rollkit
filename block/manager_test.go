@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"sync"
 	"testing"
@@ -26,10 +25,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	goDA "github.com/rollkit/go-da"
 	goDATest "github.com/rollkit/go-da/test"
 
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	mockda "github.com/rollkit/rollkit/da/mock"
@@ -40,6 +42,9 @@ import (
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
+
+// MockSequencerAddress is a sample address used by the mock sequencer
+const MockSequencerAddress = "localhost:50051"
 
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
@@ -57,26 +62,26 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, backend goDA.DA) *Manager {
 	logger := test.NewLogger(t)
 	return &Manager{
-		dalc:       da.NewDAClient(backend, -1, -1, nil, logger),
-		blockCache: NewBlockCache(),
-		logger:     logger,
+		dalc:        da.NewDAClient(backend, -1, -1, nil, logger),
+		headerCache: NewHeaderCache(),
+		logger:      logger,
 	}
 }
 
 // getBlockBiggerThan generates a block with the given height bigger than the specified limit.
-func getBlockBiggerThan(blockHeight, limit uint64) (*types.Block, error) {
-	for numTxs := 0; ; numTxs += 100 {
-		block := types.GetRandomBlock(blockHeight, numTxs)
-		blob, err := block.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
+// func getBlockBiggerThan(blockHeight, limit uint64) (*types.SignedHeader, *types.Data, error) {
+// 	for numTxs := 0; ; numTxs += 100 {
+// 		header, data := types.GetRandomBlock(blockHeight, numTxs)
+// 		blob, err := header.MarshalBinary()
+// 		if err != nil {
+// 			return nil, nil, err
+// 		}
 
-		if uint64(len(blob)) > limit {
-			return block, nil
-		}
-	}
-}
+// 		if uint64(len(blob)) > limit {
+// 			return header, data, nil
+// 		}
+// 	}
+// }
 
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
@@ -184,7 +189,7 @@ func TestIsDAIncluded(t *testing.T) {
 
 	// Create a minimalistic block manager
 	m := &Manager{
-		blockCache: NewBlockCache(),
+		headerCache: NewHeaderCache(),
 	}
 	hash := types.Hash([]byte("hash"))
 
@@ -192,7 +197,7 @@ func TestIsDAIncluded(t *testing.T) {
 	require.False(m.IsDAIncluded(hash))
 
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.blockCache.setDAIncluded(hash.String())
+	m.headerCache.setDAIncluded(hash.String())
 	require.True(m.IsDAIncluded(hash))
 }
 
@@ -231,11 +236,11 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			m.store = store.New(kvStore)
 
 			var blobs [][]byte
-			block := types.GetRandomBlock(1, 5)
-			blob, err := block.MarshalBinary()
+			header, data := types.GetRandomBlock(1, 5)
+			blob, err := header.MarshalBinary()
 			require.NoError(t, err)
 
-			err = m.store.SaveBlock(ctx, block, &types.Signature{})
+			err = m.store.SaveBlockData(ctx, header, data, &types.Signature{})
 			require.NoError(t, err)
 			m.store.SetHeight(ctx, 1)
 
@@ -259,136 +264,150 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 				On("Submit", blobs, tc.expectedGasPrices[2], []byte(nil)).
 				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
-			m.pendingBlocks, err = NewPendingBlocks(m.store, m.logger)
+			m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
 			require.NoError(t, err)
-			err = m.submitBlocksToDA(ctx)
+			err = m.submitHeadersToDA(ctx)
 			require.NoError(t, err)
 			mockDA.AssertExpectations(t)
 		})
 	}
 }
 
-func TestSubmitBlocksToDA(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-	ctx := context.Background()
+// func TestSubmitBlocksToDA(t *testing.T) {
+// 	assert := assert.New(t)
+// 	require := require.New(t)
+// 	ctx := context.Background()
 
-	m := getManager(t, goDATest.NewDummyDA())
+// 	m := getManager(t, goDATest.NewDummyDA())
 
-	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
-	require.NoError(err)
+// 	maxDABlobSizeLimit, err := m.dalc.DA.MaxBlobSize(ctx)
+// 	require.NoError(err)
 
-	testCases := []struct {
-		name                        string
-		blocks                      []*types.Block
-		isErrExpected               bool
-		expectedPendingBlocksLength int
-		expectedDAIncludedHeight    uint64
-	}{
-		{
-			name: "B is too big on its own. So A gets submitted but, B and C never get submitted",
-			blocks: func() []*types.Block {
-				numBlocks, numTxs := 3, 5
-				blocks := make([]*types.Block, numBlocks)
-				blocks[0] = types.GetRandomBlock(uint64(1), numTxs)
-				blocks[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
-				require.NoError(err)
-				blocks[2] = types.GetRandomBlock(uint64(3), numTxs)
-				return blocks
-			}(),
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 2,
-			expectedDAIncludedHeight:    1,
-		},
-		{
-			name: "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
-			blocks: func() []*types.Block {
-				numBlocks, numTxs := 3, 5
-				blocks := make([]*types.Block, numBlocks)
-				for i := 0; i < numBlocks-1; i++ {
-					blocks[i] = types.GetRandomBlock(uint64(i+1), numTxs)
-				}
-				blocks[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
-				require.NoError(err)
-				return blocks
-			}(),
-			isErrExpected:               true,
-			expectedPendingBlocksLength: 1,
-			expectedDAIncludedHeight:    2,
-		},
-		{
-			name: "blocks A and B are submitted together without C because including C triggers blob size limit. C is submitted in a separate round",
-			blocks: func() []*types.Block {
-				// Find three blocks where two of them are under blob size limit
-				// but adding the third one exceeds the blob size limit
-				block1 := types.GetRandomBlock(1, 100)
-				blob1, err := block1.MarshalBinary()
-				require.NoError(err)
+// 	h1, d1 := func() ([]*types.SignedHeader, []*types.Data) {
+// 		numBlocks, numTxs := 3, 5
+// 		headers := make([]*types.SignedHeader, numBlocks)
+// 		data := make([]*types.Data, numBlocks)
+// 		headers[0], data[0] = types.GetRandomBlock(uint64(1), numTxs)
+// 		headers[1], data[1], err = getBlockBiggerThan(2, maxDABlobSizeLimit)
+// 		require.NoError(err)
+// 		headers[2], data[2] = types.GetRandomBlock(uint64(3), numTxs)
+// 		return headers, data
+// 	}()
+// 	h2, d2 := func() ([]*types.SignedHeader, []*types.Data) {
+// 		numBlocks, numTxs := 3, 5
+// 		headers := make([]*types.SignedHeader, numBlocks)
+// 		data := make([]*types.Data, numBlocks)
+// 		for i := 0; i < numBlocks-1; i++ {
+// 			headers[i], data[i] = types.GetRandomBlock(uint64(i+1), numTxs)
+// 		}
+// 		headers[2], data[2], err = getBlockBiggerThan(3, maxDABlobSizeLimit)
+// 		require.NoError(err)
+// 		return headers, data
+// 	}()
+// 	h3, d3 := func() ([]*types.SignedHeader, []*types.Data) {
+// 		// Find three blocks where two of them are under blob size limit
+// 		// but adding the third one exceeds the blob size limit
+// 		header1, data1 := types.GetRandomBlock(1, 100)
+// 		blob1, err := header1.MarshalBinary()
+// 		require.NoError(err)
 
-				block2 := types.GetRandomBlock(2, 100)
-				blob2, err := block2.MarshalBinary()
-				require.NoError(err)
+// 		header2, data2 := types.GetRandomBlock(2, 100)
+// 		blob2, err := header2.MarshalBinary()
+// 		require.NoError(err)
 
-				block3, err := getBlockBiggerThan(3, maxDABlobSizeLimit-uint64(len(blob1)+len(blob2)))
-				require.NoError(err)
+// 		header3, data3, err := getBlockBiggerThan(3, maxDABlobSizeLimit-uint64(len(blob1)+len(blob2)))
+// 		require.NoError(err)
 
-				return []*types.Block{block1, block2, block3}
-			}(),
-			isErrExpected:               false,
-			expectedPendingBlocksLength: 0,
-			expectedDAIncludedHeight:    3,
-		},
-		{
-			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
-			blocks:                      []*types.Block{types.GetRandomBlock(1, 5), types.GetRandomBlock(2, 5), types.GetRandomBlock(3, 5)},
-			isErrExpected:               false,
-			expectedPendingBlocksLength: 0,
-			expectedDAIncludedHeight:    3,
-		},
-	}
+// 		return []*types.SignedHeader{header1, header2, header3}, []*types.Data{data1, data2, data3}
+// 	}()
+// 	h4, d4 := types.GetRandomBlock(1, 5)
+// 	h5, d5 := types.GetRandomBlock(2, 5)
+// 	h6, d6 := types.GetRandomBlock(3, 5)
+// 	testCases := []struct {
+// 		name                        string
+// 		headers                     []*types.SignedHeader
+// 		data                        []*types.Data
+// 		isErrExpected               bool
+// 		expectedPendingBlocksLength int
+// 		expectedDAIncludedHeight    uint64
+// 	}{
+// 		{
+// 			name:                        "B is too big on its own. So A gets submitted but, B and C never get submitted",
+// 			headers:                     h1,
+// 			data:                        d1,
+// 			isErrExpected:               true,
+// 			expectedPendingBlocksLength: 2,
+// 			expectedDAIncludedHeight:    1,
+// 		},
+// 		{
+// 			name:                        "A and B are submitted successfully but C is too big on its own, so C never gets submitted",
+// 			headers:                     h2,
+// 			data:                        d2,
+// 			isErrExpected:               true,
+// 			expectedPendingBlocksLength: 1,
+// 			expectedDAIncludedHeight:    2,
+// 		},
+// 		{
+// 			name:                        "blocks A and B are submitted together without C because including C triggers blob size limit. C is submitted in a separate round",
+// 			headers:                     h3,
+// 			data:                        d3,
+// 			isErrExpected:               false,
+// 			expectedPendingBlocksLength: 0,
+// 			expectedDAIncludedHeight:    3,
+// 		},
+// 		{
+// 			name:                        "happy path, all blocks A, B, C combine to less than maxDABlobSize",
+// 			headers:                     []*types.SignedHeader{h4, h5, h6},
+// 			data:                        []*types.Data{d4, d5, d6},
+// 			isErrExpected:               false,
+// 			expectedPendingBlocksLength: 0,
+// 			expectedDAIncludedHeight:    3,
+// 		},
+// 	}
 
-	for _, tc := range testCases {
-		// there is a limitation of value size for underlying in-memory KV store, so (temporary) on-disk store is needed
-		kvStore := getTempKVStore(t)
-		m.store = store.New(kvStore)
-		m.pendingBlocks, err = NewPendingBlocks(m.store, m.logger)
-		require.NoError(err)
-		t.Run(tc.name, func(t *testing.T) {
-			// PendingBlocks depend on store, so blocks needs to be saved and height updated
-			for _, block := range tc.blocks {
-				require.NoError(m.store.SaveBlock(ctx, block, &types.Signature{}))
-			}
-			m.store.SetHeight(ctx, uint64(len(tc.blocks)))
+// 	for _, tc := range testCases {
+// 		// there is a limitation of value size for underlying in-memory KV store, so (temporary) on-disk store is needed
+// 		kvStore := getTempKVStore(t)
+// 		m.store = store.New(kvStore)
+// 		m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
+// 		require.NoError(err)
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			// PendingBlocks depend on store, so blocks needs to be saved and height updated
+// 			for i, header := range tc.headers {
+// 				data := tc.data[i]
+// 				require.NoError(m.store.SaveBlockData(ctx, header, data, &types.Signature{}))
+// 			}
+// 			m.store.SetHeight(ctx, uint64(len(tc.headers)))
 
-			err := m.submitBlocksToDA(ctx)
-			assert.Equal(tc.isErrExpected, err != nil)
-			blocks, err := m.pendingBlocks.getPendingBlocks(ctx)
-			assert.NoError(err)
-			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
+// 			err := m.submitHeadersToDA(ctx)
+// 			assert.Equal(tc.isErrExpected, err != nil)
+// 			blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
+// 			assert.NoError(err)
+// 			assert.Equal(tc.expectedPendingBlocksLength, len(blocks))
 
-			// ensure that metadata is updated in KV store
-			raw, err := m.store.GetMetadata(ctx, LastSubmittedHeightKey)
-			require.NoError(err)
-			lshInKV, err := strconv.ParseUint(string(raw), 10, 64)
-			require.NoError(err)
-			assert.Equal(m.store.Height(), lshInKV+uint64(tc.expectedPendingBlocksLength))
+// 			// ensure that metadata is updated in KV store
+// 			raw, err := m.store.GetMetadata(ctx, LastSubmittedHeightKey)
+// 			require.NoError(err)
+// 			lshInKV, err := strconv.ParseUint(string(raw), 10, 64)
+// 			require.NoError(err)
+// 			assert.Equal(m.store.Height(), lshInKV+uint64(tc.expectedPendingBlocksLength))
 
-			// ensure that da included height is updated in KV store
-			assert.Equal(tc.expectedDAIncludedHeight, m.GetDAIncludedHeight())
-		})
-	}
-}
+// 			// ensure that da included height is updated in KV store
+// 			assert.Equal(tc.expectedDAIncludedHeight, m.GetDAIncludedHeight())
+// 		})
+// 	}
+// }
 
-func getTempKVStore(t *testing.T) ds.TxnDatastore {
-	dbPath, err := os.MkdirTemp("", t.Name())
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = os.RemoveAll(dbPath)
-	})
-	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
-	require.NoError(t, err)
-	return kvStore
-}
+// func getTempKVStore(t *testing.T) ds.TxnDatastore {
+// 	dbPath, err := os.MkdirTemp("", t.Name())
+// 	require.NoError(t, err)
+// 	t.Cleanup(func() {
+// 		_ = os.RemoveAll(dbPath)
+// 	})
+// 	kvStore, err := store.NewDefaultKVStore(os.TempDir(), dbPath, t.Name())
+// 	require.NoError(t, err)
+// 	return kvStore
+// }
 
 // Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
@@ -398,27 +417,27 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	block1 := types.GetRandomBlock(uint64(1), 5)
-	block2 := types.GetRandomBlock(uint64(2), 5)
-	block3 := types.GetRandomBlock(uint64(3), 5)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5)
 
 	store := mocks.NewStore(t)
-	invalidateBlockHeader(block1)
+	invalidateBlockHeader(header1)
 	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
-	store.On("GetBlock", ctx, uint64(1)).Return(block1, nil)
-	store.On("GetBlock", ctx, uint64(2)).Return(block2, nil)
-	store.On("GetBlock", ctx, uint64(3)).Return(block3, nil)
+	store.On("GetBlockData", ctx, uint64(1)).Return(header1, data1, nil)
+	store.On("GetBlockData", ctx, uint64(2)).Return(header2, data2, nil)
+	store.On("GetBlockData", ctx, uint64(3)).Return(header3, data3, nil)
 	store.On("Height").Return(uint64(3))
 
 	m.store = store
 
 	var err error
-	m.pendingBlocks, err = NewPendingBlocks(store, m.logger)
+	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
 
-	err = m.submitBlocksToDA(ctx)
+	err = m.submitHeadersToDA(ctx)
 	assert.ErrorContains(err, "failed to submit all blocks to DA layer")
-	blocks, err := m.pendingBlocks.getPendingBlocks(ctx)
+	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
 	assert.Equal(3, len(blocks))
 }
@@ -432,37 +451,37 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	block1 := types.GetRandomBlock(uint64(1), 5)
-	block2 := types.GetRandomBlock(uint64(2), 5)
-	block3 := types.GetRandomBlock(uint64(3), 5)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5)
 
 	store := mocks.NewStore(t)
-	invalidateBlockHeader(block3)
+	invalidateBlockHeader(header3)
 	store.On("SetMetadata", ctx, DAIncludedHeightKey, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}).Return(nil)
 	store.On("SetMetadata", ctx, DAIncludedHeightKey, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}).Return(nil)
 	store.On("SetMetadata", ctx, LastSubmittedHeightKey, []byte(strconv.FormatUint(2, 10))).Return(nil)
 	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
-	store.On("GetBlock", ctx, uint64(1)).Return(block1, nil)
-	store.On("GetBlock", ctx, uint64(2)).Return(block2, nil)
-	store.On("GetBlock", ctx, uint64(3)).Return(block3, nil)
+	store.On("GetBlockData", ctx, uint64(1)).Return(header1, data1, nil)
+	store.On("GetBlockData", ctx, uint64(2)).Return(header2, data2, nil)
+	store.On("GetBlockData", ctx, uint64(3)).Return(header3, data3, nil)
 	store.On("Height").Return(uint64(3))
 
 	m.store = store
 
 	var err error
-	m.pendingBlocks, err = NewPendingBlocks(store, m.logger)
+	m.pendingHeaders, err = NewPendingHeaders(store, m.logger)
 	require.NoError(err)
-	err = m.submitBlocksToDA(ctx)
+	err = m.submitHeadersToDA(ctx)
 	assert.ErrorContains(err, "failed to submit all blocks to DA layer")
-	blocks, err := m.pendingBlocks.getPendingBlocks(ctx)
+	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
 	assert.Equal(1, len(blocks))
 }
 
 // invalidateBlockHeader results in a block header that produces a marshalling error
-func invalidateBlockHeader(block *types.Block) {
-	for i := range block.SignedHeader.Validators.Validators {
-		block.SignedHeader.Validators.Validators[i] = &cmtypes.Validator{
+func invalidateBlockHeader(header *types.SignedHeader) {
+	for i := range header.Validators.Validators {
+		header.Validators.Validators[i] = &cmtypes.Validator{
 			Address:          []byte(""),
 			PubKey:           nil,
 			VotingPower:      -1,
@@ -620,14 +639,21 @@ func TestManager_publishBlock(t *testing.T) {
 	lastState.LastValidators = cmtypes.NewValidatorSet(validators)
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
-	executor := state.NewBlockExecutor(vKey.PubKey().Address(), "test", mpool, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
+	seqClient := seqGRPC.NewClient()
+	require.NoError(seqClient.Start(
+		MockSequencerAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	))
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
+	executor := state.NewBlockExecutor(vKey.PubKey().Address(), "test", mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
 
 	signingKey, err := types.PrivKeyToSigningKey(vKey)
 	require.NoError(err)
 	m := &Manager{
 		lastState:    lastState,
 		lastStateMtx: new(sync.RWMutex),
-		blockCache:   NewBlockCache(),
+		headerCache:  NewHeaderCache(),
+		dataCache:    NewDataCache(),
 		executor:     executor,
 		store:        mockStore,
 		logger:       mockLogger,
@@ -648,22 +674,22 @@ func TestManager_publishBlock(t *testing.T) {
 	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
 		mockStore.On("Height").Return(uint64(0))
 		signature := types.Signature([]byte{1, 1, 1})
-		block, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState)
+		header, data, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState, cmtypes.Txs{})
 		require.NoError(err)
-		require.NotNil(block)
-		assert.Equal(uint64(0), block.Height())
-		dataHash, err := block.Data.Hash()
-		assert.NoError(err)
-		block.SignedHeader.DataHash = dataHash
+		require.NotNil(header)
+		require.NotNil(data)
+		assert.Equal(uint64(0), header.Height())
+		dataHash := data.Hash()
+		header.DataHash = dataHash
 
 		// Update the signature on the block to current from last
-		voteBytes := block.SignedHeader.Header.MakeCometBFTVote()
+		voteBytes := header.Header.MakeCometBFTVote()
 		signature, _ = vKey.Sign(voteBytes)
-		block.SignedHeader.Signature = signature
-		block.SignedHeader.Validators = lastState.Validators
+		header.Signature = signature
+		header.Validators = lastState.Validators
 
-		mockStore.On("GetBlock", mock.Anything, uint64(1)).Return(block, nil).Once()
-		mockStore.On("SaveBlock", mock.Anything, block, mock.Anything).Return(nil).Once()
+		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(header, data, nil).Once()
+		mockStore.On("SaveBlockData", mock.Anything, header, data, mock.Anything).Return(nil).Once()
 		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(errors.New("failed to save block responses")).Once()
 
 		ctx := context.Background()

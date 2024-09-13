@@ -40,6 +40,8 @@ const (
 	FlagDAMempoolTTL = "rollkit.da_mempool_ttl"
 	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
 	FlagLazyBlockTime = "rollkit.lazy_block_time"
+	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
+	FlagSequencerAddress = "rollkit.sequencer_address"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -61,7 +63,8 @@ type NodeConfig struct {
 	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
 
 	// CLI flags
-	DANamespace string `mapstructure:"da_namespace"`
+	DANamespace      string `mapstructure:"da_namespace"`
+	SequencerAddress string `mapstructure:"sequencer_address"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -135,6 +138,8 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
 	nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
 	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
+	nc.SequencerAddress = v.GetString(FlagSequencerAddress)
+
 	return nil
 }
 
@@ -159,4 +164,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
 	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DAMempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
+	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 }

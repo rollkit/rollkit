@@ -34,5 +34,6 @@ var DefaultNodeConfig = NodeConfig{
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
-	Instrumentation: config.DefaultInstrumentationConfig(),
+	Instrumentation:  config.DefaultInstrumentationConfig(),
+	SequencerAddress: "localhost:50051",
 }

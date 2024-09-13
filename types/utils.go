@@ -69,24 +69,21 @@ type BlockConfig struct {
 
 // GetRandomBlock creates a block with a given height and number of transactions, intended for testing.
 // It's tailored for simplicity, primarily used in test setups where additional outputs are not needed.
-func GetRandomBlock(height uint64, nTxs int) *Block {
+func GetRandomBlock(height uint64, nTxs int) (*SignedHeader, *Data) {
 	config := BlockConfig{
 		Height: height,
 		NTxs:   nTxs,
 	}
 	// Assuming GenerateBlock modifies the context directly with the generated block and other needed data.
-	block, _ := GenerateRandomBlockCustom(&config)
+	header, data, _ := GenerateRandomBlockCustom(&config)
 
-	return block
+	return header, data
 }
 
 // GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
-func GenerateRandomBlockCustom(config *BlockConfig) (*Block, cmcrypto.PrivKey) {
-	block := getBlockDataWith(config.NTxs)
-	dataHash, err := block.Data.Hash()
-	if err != nil {
-		panic(err)
-	}
+func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcrypto.PrivKey) {
+	data := getBlockDataWith(config.NTxs)
+	dataHash := data.Hash()
 
 	if config.PrivKey == nil {
 		config.PrivKey = ed25519.GenPrivKey()
@@ -103,42 +100,49 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*Block, cmcrypto.PrivKey) {
 		panic(err)
 	}
 
-	block.SignedHeader = *signedHeader
 	if config.ProposerAddr != nil {
-		block.SignedHeader.ProposerAddress = config.ProposerAddr
+		signedHeader.ProposerAddress = config.ProposerAddr
 	}
 
-	return block, config.PrivKey
+	data.Metadata = &Metadata{
+		ChainID:      TestChainID,
+		Height:       signedHeader.Height(),
+		LastDataHash: nil,
+		Time:         uint64(signedHeader.Time().UnixNano()),
+	}
+
+	return signedHeader, data, config.PrivKey
 }
 
 // GetRandomNextBlock returns a block with random data and height of +1 from the provided block
-func GetRandomNextBlock(block *Block, privKey cmcrypto.PrivKey, appHash header.Hash, nTxs int) *Block {
-	nextBlock := getBlockDataWith(nTxs)
-	dataHash, err := nextBlock.Data.Hash()
-	if err != nil {
-		panic(err)
-	}
-	nextBlock.SignedHeader.Header.ProposerAddress = block.SignedHeader.Header.ProposerAddress
-	nextBlock.SignedHeader.Header.AppHash = appHash
+func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivKey, appHash header.Hash, nTxs int) (*SignedHeader, *Data) {
+	nextData := getBlockDataWith(nTxs)
+	dataHash := nextData.Hash()
 
-	valSet := block.SignedHeader.Validators
+	valSet := header.Validators
 	newSignedHeader := &SignedHeader{
-		Header:     GetRandomNextHeader(block.SignedHeader.Header),
+		Header:     GetRandomNextHeader(header.Header),
 		Validators: valSet,
 	}
+	newSignedHeader.ProposerAddress = header.Header.ProposerAddress
 	newSignedHeader.LastResultsHash = nil
 	newSignedHeader.Header.DataHash = dataHash
 	newSignedHeader.AppHash = appHash
-	newSignedHeader.LastCommitHash = block.SignedHeader.Signature.GetCommitHash(
-		&newSignedHeader.Header, block.SignedHeader.ProposerAddress,
+	newSignedHeader.LastCommitHash = header.Signature.GetCommitHash(
+		&newSignedHeader.Header, header.ProposerAddress,
 	)
 	signature, err := GetSignature(newSignedHeader.Header, privKey)
 	if err != nil {
 		panic(err)
 	}
 	newSignedHeader.Signature = *signature
-	nextBlock.SignedHeader = *newSignedHeader
-	return nextBlock
+	nextData.Metadata = &Metadata{
+		ChainID:      TestChainID,
+		Height:       newSignedHeader.Height(),
+		LastDataHash: nil,
+		Time:         uint64(newSignedHeader.Time().UnixNano()),
+	}
+	return newSignedHeader, nextData
 }
 
 // HeaderConfig carries all necessary state for header generation
@@ -153,7 +157,7 @@ type HeaderConfig struct {
 func GetRandomHeader() Header {
 	return Header{
 		BaseHeader: BaseHeader{
-			Height:  uint64(rand.Int63()), //nolint:gosec,
+			Height:  uint64(rand.Int63()), //nolint:gosec
 			Time:    uint64(time.Now().UnixNano()),
 			ChainID: TestChainID,
 		},
@@ -271,7 +275,7 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
-			Height:  1, //nolint:gosec,
+			Height:  1,
 			Time:    uint64(time.Now().UnixNano()),
 			ChainID: TestChainID,
 		},
@@ -377,27 +381,25 @@ func GetSignature(header Header, privKey cmcrypto.PrivKey) (*Signature, error) {
 	return &signature, nil
 }
 
-func getBlockDataWith(nTxs int) *Block {
-	block := &Block{
-		Data: Data{
-			Txs: make(Txs, nTxs),
-			// IntermediateStateRoots: IntermediateStateRoots{
-			// 	RawRootsList: make([][]byte, nTxs),
-			// },
-		},
+func getBlockDataWith(nTxs int) *Data {
+	data := &Data{
+		Txs: make(Txs, nTxs),
+		// IntermediateStateRoots: IntermediateStateRoots{
+		// 	RawRootsList: make([][]byte, nTxs),
+		// },
 	}
 
 	for i := 0; i < nTxs; i++ {
-		block.Data.Txs[i] = GetRandomTx()
+		data.Txs[i] = GetRandomTx()
 		// block.Data.IntermediateStateRoots.RawRootsList[i] = GetRandomBytes(32)
 	}
 
 	// TODO(tzdybal): see https://github.com/rollkit/rollkit/issues/143
 	if nTxs == 0 {
-		block.Data.Txs = nil
+		data.Txs = nil
 		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
-	return block
+	return data
 }
 
 // GetABCICommit returns a commit format defined by ABCI.

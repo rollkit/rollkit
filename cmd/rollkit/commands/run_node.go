@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/url"
 	"os"
 	"time"
@@ -21,9 +22,12 @@ import (
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
 	"github.com/mitchellh/mapstructure"
+	"google.golang.org/grpc"
 
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+	seqTest "github.com/rollkit/go-sequencing/test"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -44,6 +48,9 @@ var (
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
 )
+
+// MockSequencerAddress is a sample address used by the mock sequencer
+const MockSequencerAddress = "localhost:50051"
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
 func NewRunNodeCmd() *cobra.Command {
@@ -126,6 +133,16 @@ func NewRunNodeCmd() *cobra.Command {
 				}
 				// nolint:errcheck,gosec
 				defer func() { srv.Stop(cmd.Context()) }()
+			}
+
+			// use mock grpc sequencer server by default
+			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
+				srv, err := startMockSequencerServerGRPC(MockSequencerAddress)
+				if err != nil {
+					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
+				}
+				// nolint:errcheck,gosec
+				defer func() { srv.Stop() }()
 			}
 
 			// use noop proxy app by default
@@ -227,6 +244,20 @@ func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
 		return nil, err
 	}
 	return srv, nil
+}
+
+// startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
+func startMockSequencerServerGRPC(listenAddress string) (*grpc.Server, error) {
+	dummySeq := seqTest.NewDummySequencer()
+	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
+	lis, err := net.Listen("tcp", listenAddress)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		_ = server.Serve(lis)
+	}()
+	return server, nil
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default

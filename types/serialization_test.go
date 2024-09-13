@@ -54,42 +54,48 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1, VotingPower: 1}
 
 	cases := []struct {
-		name  string
-		input *Block
+		name   string
+		header *SignedHeader
+		data   *Data
 	}{
-		{"empty block", &Block{}},
-		{"full", &Block{
-			SignedHeader: SignedHeader{
-				Header:    h1,
-				Signature: Signature([]byte{1, 1, 1}),
-				Validators: cmtypes.NewValidatorSet(
-					[]*cmtypes.Validator{
-						validator1,
-					},
-				),
-			},
-			Data: Data{
-				Txs: nil,
-				//IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
-				// TODO(tzdybal): update when we have actual evidence types
-				// Note: Temporarily remove Evidence #896
-				// Evidence: EvidenceData{Evidence: nil},
-			},
-		}},
+		{"empty block", &SignedHeader{}, &Data{Metadata: &Metadata{}}},
+		{"full", &SignedHeader{
+			Header:    h1,
+			Signature: Signature([]byte{1, 1, 1}),
+			Validators: cmtypes.NewValidatorSet(
+				[]*cmtypes.Validator{
+					validator1,
+				}),
+		}, &Data{
+			Metadata: &Metadata{},
+			Txs:      nil,
+			//IntermediateStateRoots: IntermediateStateRoots{RawRootsList: [][]byte{{0x1}}},
+			// TODO(tzdybal): update when we have actual evidence types
+			// Note: Temporarily remove Evidence #896
+			// Evidence: EvidenceData{Evidence: nil},
+		},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
-			blob, err := c.input.MarshalBinary()
+			blob, err := c.header.MarshalBinary()
 			assert.NoError(err)
 			assert.NotEmpty(blob)
+			deserializedHeader := &SignedHeader{}
+			err = deserializedHeader.UnmarshalBinary(blob)
+			assert.NoError(err)
+			assert.Equal(c.header, deserializedHeader)
 
-			deserialized := &Block{}
-			err = deserialized.UnmarshalBinary(blob)
+			blob, err = c.data.MarshalBinary()
+			assert.NoError(err)
+			assert.NotEmpty(blob)
+			deserializedData := &Data{}
+			err = deserializedData.UnmarshalBinary(blob)
 			assert.NoError(err)
 
-			assert.Equal(c.input, deserialized)
+			assert.Equal(c.data, deserializedData)
 		})
 	}
 }
