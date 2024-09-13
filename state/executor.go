@@ -115,7 +115,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signatur
 			BaseHeader: types.BaseHeader{
 				ChainID: e.chainID,
 				Height:  height,
-				Time:    uint64(time.Now().UnixNano()),
+				Time:    uint64(time.Now().UnixNano()), //nolint:gosec
 			},
 			DataHash:        make(types.Hash, 32),
 			ConsensusHash:   make(types.Hash, 32),
@@ -382,7 +382,7 @@ func (e *BlockExecutor) commit(ctx context.Context, state types.State, header *t
 		return nil, 0, err
 	}
 
-	return resp.AppHash, uint64(commitResp.RetainHeight), err
+	return resp.AppHash, uint64(commitResp.RetainHeight), err //nolint:gosec
 }
 
 // Validate validates the state and the block for the executor

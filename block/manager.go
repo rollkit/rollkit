@@ -183,7 +183,7 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
 		// if they meant to hard-fork, they should have cleared the stored State
-		if uint64(genesis.InitialHeight) > s.LastBlockHeight {
+		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:gosec
 			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 		}
 	}
