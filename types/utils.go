@@ -157,7 +157,7 @@ type HeaderConfig struct {
 func GetRandomHeader() Header {
 	return Header{
 		BaseHeader: BaseHeader{
-			Height:  uint64(rand.Int63()),
+			Height:  uint64(rand.Int63()), //nolint:gosec
 			Time:    uint64(time.Now().UnixNano()),
 			ChainID: TestChainID,
 		},
@@ -356,7 +356,7 @@ func PrivKeyToSigningKey(privKey cmcrypto.PrivKey) (crypto.PrivKey, error) {
 
 // GetRandomTx returns a tx with random data
 func GetRandomTx() Tx {
-	size := rand.Int()%100 + 100
+	size := rand.Int()%100 + 100 //nolint:gosec
 	return Tx(GetRandomBytes(uint(size)))
 }
 
