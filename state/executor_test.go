@@ -166,16 +166,17 @@ func doTestApplyBlock(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
 	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
-	require.NoError(mpoolReaper.StartReaper())
+	ctx := context.Background()
+	require.NoError(mpoolReaper.StartReaper(ctx))
 	txQuery, err := query.New("tm.event='Tx'")
 	require.NoError(err)
-	txSub, err := eventBus.Subscribe(context.Background(), "test", txQuery, 1000)
+	txSub, err := eventBus.Subscribe(ctx, "test", txQuery, 1000)
 	require.NoError(err)
 	require.NotNil(txSub)
 
 	headerQuery, err := query.New("tm.event='NewBlockHeader'")
 	require.NoError(err)
-	headerSub, err := eventBus.Subscribe(context.Background(), "test", headerQuery, 100)
+	headerSub, err := eventBus.Subscribe(ctx, "test", headerQuery, 100)
 	require.NoError(err)
 	require.NotNil(headerSub)
 
@@ -305,7 +306,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
 	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
-	require.NoError(t, mpoolReaper.StartReaper())
+	require.NoError(t, mpoolReaper.StartReaper(context.Background()))
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(t, eventBus.Start())
 	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
