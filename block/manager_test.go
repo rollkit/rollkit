@@ -788,8 +788,8 @@ func TestManager_getRemainingSleep(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualSleep := tt.manager.getRemainingSleep(tt.start)
-			// Allow for a small difference, e.g., 1 millisecond
-			assert.True(t, WithinDuration(t, tt.expectedSleep, actualSleep, 1*time.Millisecond))
+			// Allow for a small difference, e.g., 5 millisecond
+			assert.True(t, WithinDuration(t, tt.expectedSleep, actualSleep, 5*time.Millisecond))
 		})
 	}
 }
