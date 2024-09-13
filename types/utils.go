@@ -181,7 +181,7 @@ func GetRandomHeader() Header {
 func GetRandomNextHeader(header Header) Header {
 	nextHeader := GetRandomHeader()
 	nextHeader.BaseHeader.Height = header.Height() + 1
-	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
+	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano()) //nolint:gosec
 	nextHeader.LastHeaderHash = header.Hash()
 	nextHeader.ProposerAddress = header.ProposerAddress
 	nextHeader.ValidatorHash = header.ValidatorHash
@@ -219,7 +219,7 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
 	signedHeader.Header.DataHash = config.DataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	signedHeader.Header.ValidatorHash = valSet.Hash()
-	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
+	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10 //nolint:gosec
 
 	signature, err := GetSignature(signedHeader.Header, config.PrivKey)
 	if err != nil {
@@ -275,8 +275,8 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
-			Height:  1, //nolint:gosec,
-			Time:    uint64(time.Now().UnixNano()),
+			Height:  1,                             //nolint:gosec,
+			Time:    uint64(time.Now().UnixNano()), //nolint:gosec
 			ChainID: TestChainID,
 		},
 		Version: Version{
