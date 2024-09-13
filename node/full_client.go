@@ -921,7 +921,8 @@ func (c *FullClient) resubscribe(subscriber string, q cmpubsub.Query) cmtypes.Su
 		}
 
 		attempts++
-		time.Sleep((10 << uint(attempts)) * time.Millisecond) // 10ms -> 20ms -> 40ms
+		// 10ms -> 20ms -> 40ms
+		time.Sleep((10 << uint(attempts)) * time.Millisecond) //nolint:gosec
 	}
 }
 

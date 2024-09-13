@@ -23,7 +23,6 @@ type CListMempoolReaper struct {
 	mempool    Mempool
 	stopCh     chan struct{}
 	grpcClient *grpc.Client
-	ctx        context.Context
 	rollupId   []byte
 	submitted  map[cmtypes.TxKey]struct{}
 	mu         sync.RWMutex // Add a mutex to protect the submitted map
@@ -36,7 +35,6 @@ func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *grpc.Cli
 		mempool:    mempool,
 		stopCh:     make(chan struct{}),
 		grpcClient: seqClient,
-		ctx:        context.Background(),
 		rollupId:   rollupId,
 		submitted:  make(map[cmtypes.TxKey]struct{}),
 		logger:     logger,
@@ -44,15 +42,17 @@ func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *grpc.Cli
 }
 
 // StartReaper starts the reaper goroutine.
-func (r *CListMempoolReaper) StartReaper() error {
+func (r *CListMempoolReaper) StartReaper(ctx context.Context) error {
 	go func() {
 		ticker := time.NewTicker(ReapInterval)
 		defer ticker.Stop()
 
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-ticker.C:
-				r.reap()
+				r.reap(ctx)
 			case <-r.stopCh:
 				return
 			}
@@ -76,7 +76,7 @@ func (r *CListMempoolReaper) StopReaper() {
 }
 
 // reap removes all transactions from the mempool and sends them to the gRPC server.
-func (r *CListMempoolReaper) reap() {
+func (r *CListMempoolReaper) reap(ctx context.Context) {
 	txs := r.mempool.ReapMaxTxs(-1)
 	for _, tx := range txs {
 		r.mu.RLock() // Read lock before checking the map
@@ -86,7 +86,7 @@ func (r *CListMempoolReaper) reap() {
 		if ok {
 			continue
 		}
-		if err := r.retrySubmitTransaction(tx, MaxRetries, RetryDelay); err != nil {
+		if err := r.retrySubmitTransaction(ctx, tx, MaxRetries, RetryDelay); err != nil {
 			r.logger.Error("Error submitting transaction", "tx key", tx.Key(), "error", err)
 			continue
 		}
@@ -98,10 +98,10 @@ func (r *CListMempoolReaper) reap() {
 	}
 }
 
-func (reaper *CListMempoolReaper) retrySubmitTransaction(tx cmtypes.Tx, maxRetries int, delay time.Duration) error {
+func (reaper *CListMempoolReaper) retrySubmitTransaction(ctx context.Context, tx cmtypes.Tx, maxRetries int, delay time.Duration) error {
 	var err error
 	for i := 0; i < maxRetries; i++ {
-		err = reaper.grpcClient.SubmitRollupTransaction(reaper.ctx, reaper.rollupId, tx)
+		err = reaper.grpcClient.SubmitRollupTransaction(ctx, reaper.rollupId, tx)
 		if err == nil {
 			return nil
 		}

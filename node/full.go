@@ -406,7 +406,7 @@ func (n *FullNode) OnStart() error {
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
 		// reaper is started only in aggregator mode
-		if err = n.mempoolReaper.StartReaper(); err != nil {
+		if err = n.mempoolReaper.StartReaper(n.ctx); err != nil {
 			return fmt.Errorf("error while starting mempool reaper: %w", err)
 		}
 		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })

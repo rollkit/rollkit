@@ -82,11 +82,11 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 	s := State{
 		Version:       InitStateVersion,
 		ChainID:       genDoc.ChainID,
-		InitialHeight: uint64(genDoc.InitialHeight),
+		InitialHeight: uint64(genDoc.InitialHeight), //nolint:gosec
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
+		LastBlockHeight: uint64(genDoc.InitialHeight) - 1, //nolint:gosec
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
 
@@ -115,7 +115,7 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 				VoteExtensionsEnableHeight: genDoc.ConsensusParams.ABCI.VoteExtensionsEnableHeight,
 			},
 		},
-		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight),
+		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight), //nolint:gosec
 	}
 	s.AppHash = genDoc.AppHash.Bytes()
 
