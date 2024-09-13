@@ -323,7 +323,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 
 	blocks := make([]*cmtypes.BlockMeta, 0, maxHeight-minHeight+1)
 	for height := maxHeight; height >= minHeight; height-- {
-		header, data, err := c.node.Store.GetBlockData(ctx, uint64(height))
+		header, data, err := c.node.Store.GetBlockData(ctx, uint64(height)) //nolint:gosec
 		if err != nil {
 			return nil, err
 		}
@@ -475,7 +475,7 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	if height == nil {
 		h = c.node.Store.Height()
 	} else {
-		h = uint64(*height)
+		h = uint64(*height) //nolint:gosec
 	}
 	header, _, err := c.node.Store.GetBlockData(ctx, h)
 	if err != nil {
@@ -564,8 +564,8 @@ func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.R
 
 	var proof cmtypes.TxProof
 	if prove {
-		_, data, _ := c.node.Store.GetBlockData(ctx, uint64(height))
-		blockProof := data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
+		_, data, _ := c.node.Store.GetBlockData(ctx, uint64(height)) //nolint:gosec
+		blockProof := data.Txs.Proof(int(index))                     // XXX: overflow on 32-bit machines
 		proof = cmtypes.TxProof{
 			RootHash: blockProof.RootHash,
 			Data:     cmtypes.Tx(blockProof.Data),
@@ -693,7 +693,7 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 	// Fetch the blocks
 	blocks := make([]*ctypes.ResultBlock, 0, pageSize)
 	for i := skipCount; i < skipCount+pageSize; i++ {
-		header, data, err := c.node.Store.GetBlockData(ctx, uint64(results[i]))
+		header, data, err := c.node.Store.GetBlockData(ctx, uint64(results[i])) //nolint:gosec
 		if err != nil {
 			return nil, err
 		}
@@ -732,7 +732,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 		latestBlockTime = header.Time()
 	}
 
-	initialHeader, _, err := c.node.Store.GetBlockData(ctx, uint64(c.node.GetGenesis().InitialHeight))
+	initialHeader, _, err := c.node.Store.GetBlockData(ctx, uint64(c.node.GetGenesis().InitialHeight)) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
@@ -935,7 +935,7 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 	if height == nil {
 		heightValue = c.node.Store.Height()
 	} else {
-		heightValue = uint64(*height)
+		heightValue = uint64(*height) //nolint:gosec
 	}
 
 	return heightValue

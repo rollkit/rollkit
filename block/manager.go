@@ -250,7 +250,7 @@ func NewManager(
 	maxBlobSize -= blockProtocolOverhead
 
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
-	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) {
+	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
 		res, err := exec.InitChain(genesis)
 		if err != nil {
 			return nil, err
@@ -458,7 +458,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	initialHeight := uint64(m.genesis.InitialHeight)
+	initialHeight := uint64(m.genesis.InitialHeight) //nolint:gosec
 	height := m.store.Height()
 	var delay time.Duration
 
@@ -1002,7 +1002,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight == uint64(m.genesis.InitialHeight) {
+	if newHeight == uint64(m.genesis.InitialHeight) { //nolint:gosec
 		lastSignature = &types.Signature{}
 	} else {
 		lastSignature, err = m.store.GetSignature(ctx, height)
@@ -1210,12 +1210,12 @@ func (m *Manager) processVoteExtension(ctx context.Context, header *types.Signed
 
 func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
 	enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
-	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight
+	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
 }
 
 func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
 	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) {
+	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:gosec
 		return emptyExtendedCommit, nil
 	}
 	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
