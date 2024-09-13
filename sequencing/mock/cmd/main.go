@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+	"github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/go-sequencing/test"
 )
 
@@ -25,7 +25,7 @@ func main() {
 
 	dummySequencer := test.NewDummySequencer()
 
-	srv := seqGRPC.NewServer(dummySequencer, dummySequencer, dummySequencer)
+	srv := grpc.NewServer(dummySequencer, dummySequencer, dummySequencer)
 	log.Printf("Listening on: %s:%s", "localhost", "50051")
 	if err := srv.Serve(lis); err != nil {
 		log.Fatal("error while serving:", err)

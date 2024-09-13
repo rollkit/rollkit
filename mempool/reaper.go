@@ -8,7 +8,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/cometbft/cometbft/libs/log"
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+	"github.com/rollkit/go-sequencing/proxy/grpc"
 )
 
 // ReapInterval is the interval at which the reaper checks the mempool for transactions to reap.
@@ -22,7 +22,7 @@ const (
 type CListMempoolReaper struct {
 	mempool    Mempool
 	stopCh     chan struct{}
-	grpcClient *seqGRPC.Client
+	grpcClient *grpc.Client
 	ctx        context.Context
 	rollupId   []byte
 	submitted  map[cmtypes.TxKey]struct{}
@@ -30,8 +30,8 @@ type CListMempoolReaper struct {
 	logger     log.Logger
 }
 
-// NewCListMempool initializes the mempool and sets up the gRPC client.
-func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *seqGRPC.Client, logger log.Logger) *CListMempoolReaper {
+// NewCListMempoolReaper initializes the mempool and sets up the gRPC client.
+func NewCListMempoolReaper(mempool Mempool, rollupId []byte, seqClient *grpc.Client, logger log.Logger) *CListMempoolReaper {
 	return &CListMempoolReaper{
 		mempool:    mempool,
 		stopCh:     make(chan struct{}),
@@ -61,6 +61,7 @@ func (r *CListMempoolReaper) StartReaper() error {
 	return nil
 }
 
+// UpdateCommitedTxs removes the committed transactions from the submitted map.
 func (r *CListMempoolReaper) UpdateCommitedTxs(txs []cmtypes.Tx) {
 	r.mu.Lock() // Lock the mutex before modifying the map
 	defer r.mu.Unlock()

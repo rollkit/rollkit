@@ -28,7 +28,7 @@ import (
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
 	"github.com/rollkit/go-sequencing"
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+	"github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
@@ -161,7 +161,7 @@ type Manager struct {
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	// grpc client for sequencing middleware
-	seqClient     *seqGRPC.Client
+	seqClient     *grpc.Client
 	lastBatchHash []byte
 	bq            *BatchQueue
 }
@@ -199,7 +199,7 @@ func NewManager(
 	store store.Store,
 	mempool mempool.Mempool,
 	mempoolReaper *mempool.CListMempoolReaper,
-	seqClient *seqGRPC.Client,
+	seqClient *grpc.Client,
 	proxyApp proxy.AppConnConsensus,
 	dalc *da.DAClient,
 	eventBus *cmtypes.EventBus,
@@ -815,9 +815,6 @@ func (m *Manager) getHeadersFromHeaderStore(ctx context.Context, startHeight, en
 	if startHeight > endHeight {
 		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
 	}
-	if startHeight == 0 {
-		startHeight++
-	}
 	headers := make([]*types.SignedHeader, endHeight-startHeight+1)
 	for i := startHeight; i <= endHeight; i++ {
 		header, err := m.headerStore.GetByHeight(ctx, i)
@@ -832,9 +829,6 @@ func (m *Manager) getHeadersFromHeaderStore(ctx context.Context, startHeight, en
 func (m *Manager) getDataFromDataStore(ctx context.Context, startHeight, endHeight uint64) ([]*types.Data, error) {
 	if startHeight > endHeight {
 		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
-	}
-	if startHeight == 0 {
-		startHeight++
 	}
 	data := make([]*types.Data, endHeight-startHeight+1)
 	for i := startHeight; i <= endHeight; i++ {

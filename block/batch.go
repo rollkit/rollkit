@@ -4,27 +4,27 @@ import (
 	"sync"
 )
 
-// BatchQueue is a queue of transactions
+// BatchQueue is a queue of transaction batches with timestamps
 type BatchQueue struct {
 	queue []BatchWithTime
 	mu    sync.Mutex
 }
 
-// NewBatchQueue creates a new TransactionQueue
+// NewBatchQueue creates a new BatchQueue
 func NewBatchQueue() *BatchQueue {
 	return &BatchQueue{
 		queue: make([]BatchWithTime, 0),
 	}
 }
 
-// AddBatch adds a new transaction to the queue
+// AddBatch adds a new batch to the queue
 func (bq *BatchQueue) AddBatch(batch BatchWithTime) {
 	bq.mu.Lock()
 	defer bq.mu.Unlock()
 	bq.queue = append(bq.queue, batch)
 }
 
-// Next returns the next transaction in the queue
+// Next returns the next batch in the queue
 func (bq *BatchQueue) Next() *BatchWithTime {
 	bq.mu.Lock()
 	defer bq.mu.Unlock()

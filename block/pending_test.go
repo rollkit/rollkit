@@ -34,7 +34,7 @@ func TestPendingBlocks(t *testing.T) {
 		},
 		{
 			name: "mock successful DA submission of some blocks by manually setting last submitted height",
-			init: fillWithBlocks,
+			init: fillWithBlockData,
 			exec: func(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 				pb.lastSubmittedHeight.Store(testHeight)
 			},
@@ -43,7 +43,7 @@ func TestPendingBlocks(t *testing.T) {
 		},
 		{
 			name: "mock successful DA submission of all blocks by manually setting last submitted height",
-			init: fillWithBlocks,
+			init: fillWithBlockData,
 			exec: func(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 				pb.lastSubmittedHeight.Store(numBlocks)
 			},
@@ -52,7 +52,7 @@ func TestPendingBlocks(t *testing.T) {
 		},
 		{
 			name: "mock successful DA submission of all blocks by setting last submitted height using store",
-			init: fillWithBlocks,
+			init: fillWithBlockData,
 			exec: func(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 				pb.lastSubmittedHeight.Store(pb.store.Height())
 			},
@@ -85,7 +85,7 @@ func newPendingBlocks(t *testing.T) *PendingHeaders {
 	return pendingBlocks
 }
 
-func fillWithBlocks(ctx context.Context, t *testing.T, pb *PendingHeaders) {
+func fillWithBlockData(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 	for i := uint64(1); i <= numBlocks; i++ {
 		h, d := types.GetRandomBlock(i, 0)
 		require.NoError(t, pb.store.SaveBlockData(ctx, h, d, &types.Signature{}))
