@@ -127,7 +127,7 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 		if err != nil {
 			return err
 		}
-		if nHeight >= uint64(n) { //nolint:gosec
+		if nHeight >= uint64(n) {
 			return nil
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)

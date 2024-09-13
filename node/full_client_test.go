@@ -350,7 +350,7 @@ func TestGetCommit(t *testing.T) {
 	}
 	t.Run("Fetch all commits", func(t *testing.T) {
 		for _, header := range headers {
-			h := int64(header.Height()) //nolint:gosec
+			h := int64(header.Height())
 			commit, err := rpc.Commit(ctx, &h)
 			require.NoError(err)
 			require.NotNil(commit)
@@ -362,7 +362,7 @@ func TestGetCommit(t *testing.T) {
 		commit, err := rpc.Commit(ctx, nil)
 		require.NoError(err)
 		require.NotNil(commit)
-		assert.Equal(int64(headers[3].Height()), commit.Height) //nolint:gosec
+		assert.Equal(int64(headers[3].Height()), commit.Height)
 	})
 }
 
@@ -412,7 +412,7 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 
 		// for each block (except block 1), verify it's ABCI header with previous block's ABCI header as trusted header
 		for _, header := range headers {
-			h := int64(header.Height()) //nolint:gosec
+			h := int64(header.Height())
 			commit, err := rpc.Commit(context.Background(), &h)
 			require.NoError(err)
 			require.NotNil(commit)
@@ -510,7 +510,7 @@ func TestGetBlockByHash(t *testing.T) {
 	abciBlock, err := abciconv.ToABCIBlock(header, data)
 	require.NoError(err)
 
-	height := int64(header.Height()) //nolint:gosec
+	height := int64(header.Height())
 	retrievedBlock, err := rpc.Block(context.Background(), &height)
 	require.NoError(err)
 	require.NotNil(retrievedBlock)

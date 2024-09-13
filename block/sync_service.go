@@ -125,7 +125,7 @@ func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context,
 	if syncService.genesis.InitialHeight < 0 {
 		return fmt.Errorf("invalid initial height; cannot be negative")
 	}
-	isGenesis := headerOrData.Height() == uint64(syncService.genesis.InitialHeight) //nolint:gosec
+	isGenesis := headerOrData.Height() == uint64(syncService.genesis.InitialHeight)
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
 		if err := syncService.store.Init(ctx, headerOrData); err != nil {
@@ -261,7 +261,7 @@ func (syncService *SyncService[H]) setFirstAndStart(ctx context.Context, peerIDs
 		} else {
 			// Try fetching the genesis header/block if available, otherwise fallback to block
 			var err error
-			if trusted, err = syncService.ex.GetByHeight(ctx, uint64(syncService.genesis.InitialHeight)); err != nil { //nolint:gosec
+			if trusted, err = syncService.ex.GetByHeight(ctx, uint64(syncService.genesis.InitialHeight)); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis block
 				// proposing aggregator can init the store and start the syncer when the first block is published
 				return fmt.Errorf("failed to fetch the genesis: %w", err)

@@ -270,8 +270,7 @@ func TestPendingBlocks(t *testing.T) {
 		b := &types.SignedHeader{}
 		err := b.UnmarshalBinary(allBlobs[i])
 		require.NoError(t, err)
-		// '+1' because blocks start at genesis with height 1
-		require.Equal(t, uint64(i+1), b.Height()) //nolint:gosec
+		require.Equal(t, uint64(i+1), b.Height()) // '+1' because blocks start at genesis with height 1
 	}
 
 }

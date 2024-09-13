@@ -216,10 +216,10 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	for batch := uint64(0); batch < numBatches; batch++ {
 		headers := make([]*types.SignedHeader, numHeaders)
 		for i := range headers {
-			headers[i], _ = types.GetRandomBlock(batch*numBatches+uint64(i), rand.Int()%20) //nolint:gosec
+			headers[i], _ = types.GetRandomBlock(batch*numBatches+uint64(i), rand.Int()%20)
 		}
 		submitAndRecordHeaders(headers)
-		time.Sleep(time.Duration(rand.Int63() % MockDABlockTime.Milliseconds())) //nolint:gosec
+		time.Sleep(time.Duration(rand.Int63() % MockDABlockTime.Milliseconds()))
 	}
 
 	validateBlockRetrieval := func(height uint64, expectedCount int) {

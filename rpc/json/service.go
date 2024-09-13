@@ -193,7 +193,7 @@ func (s *service) Genesis(req *http.Request, args *genesisArgs) (*ctypes.ResultG
 }
 
 func (s *service) GenesisChunked(req *http.Request, args *genesisChunkedArgs) (*ctypes.ResultGenesisChunk, error) {
-	return s.client.GenesisChunked(req.Context(), uint(args.ID)) //nolint:gosec
+	return s.client.GenesisChunked(req.Context(), uint(args.ID))
 }
 
 func (s *service) Block(req *http.Request, args *blockArgs) (*ctypes.ResultBlock, error) {

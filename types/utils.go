@@ -108,7 +108,7 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcry
 		ChainID:      TestChainID,
 		Height:       signedHeader.Height(),
 		LastDataHash: nil,
-		Time:         uint64(signedHeader.Time().UnixNano()), //nolint:gosec
+		Time:         uint64(signedHeader.Time().UnixNano()),
 	}
 
 	return signedHeader, data, config.PrivKey
@@ -140,7 +140,7 @@ func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivK
 		ChainID:      TestChainID,
 		Height:       newSignedHeader.Height(),
 		LastDataHash: nil,
-		Time:         uint64(newSignedHeader.Time().UnixNano()), //nolint:gosec
+		Time:         uint64(newSignedHeader.Time().UnixNano()),
 	}
 	return newSignedHeader, nextData
 }
@@ -157,8 +157,8 @@ type HeaderConfig struct {
 func GetRandomHeader() Header {
 	return Header{
 		BaseHeader: BaseHeader{
-			Height:  uint64(rand.Int63()),          //nolint:gosec,
-			Time:    uint64(time.Now().UnixNano()), //nolint:gosec
+			Height:  uint64(rand.Int63()),
+			Time:    uint64(time.Now().UnixNano()),
 			ChainID: TestChainID,
 		},
 		Version: Version{
@@ -181,7 +181,7 @@ func GetRandomHeader() Header {
 func GetRandomNextHeader(header Header) Header {
 	nextHeader := GetRandomHeader()
 	nextHeader.BaseHeader.Height = header.Height() + 1
-	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano()) //nolint:gosec
+	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
 	nextHeader.ProposerAddress = header.ProposerAddress
 	nextHeader.ValidatorHash = header.ValidatorHash
@@ -219,7 +219,7 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
 	signedHeader.Header.DataHash = config.DataHash
 	signedHeader.Header.ProposerAddress = valSet.Proposer.Address
 	signedHeader.Header.ValidatorHash = valSet.Hash()
-	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10 //nolint:gosec
+	signedHeader.Header.BaseHeader.Time = uint64(time.Now().UnixNano()) + (config.Height)*10
 
 	signature, err := GetSignature(signedHeader.Header, config.PrivKey)
 	if err != nil {
@@ -275,8 +275,8 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
-			Height:  1,                             //nolint:gosec,
-			Time:    uint64(time.Now().UnixNano()), //nolint:gosec
+			Height:  1,
+			Time:    uint64(time.Now().UnixNano()),
 			ChainID: TestChainID,
 		},
 		Version: Version{
@@ -356,8 +356,8 @@ func PrivKeyToSigningKey(privKey cmcrypto.PrivKey) (crypto.PrivKey, error) {
 
 // GetRandomTx returns a tx with random data
 func GetRandomTx() Tx {
-	size := rand.Int()%100 + 100          //nolint:gosec
-	return Tx(GetRandomBytes(uint(size))) //nolint:gosec
+	size := rand.Int()%100 + 100
+	return Tx(GetRandomBytes(uint(size)))
 }
 
 // GetRandomBytes returns a byte slice of random bytes of length n.
