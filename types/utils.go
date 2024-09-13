@@ -108,7 +108,7 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcry
 		ChainID:      TestChainID,
 		Height:       signedHeader.Height(),
 		LastDataHash: nil,
-		Time:         uint64(signedHeader.Time().UnixNano()),
+		Time:         uint64(signedHeader.Time().UnixNano()), //nolint:gosec
 	}
 
 	return signedHeader, data, config.PrivKey
@@ -140,7 +140,7 @@ func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivK
 		ChainID:      TestChainID,
 		Height:       newSignedHeader.Height(),
 		LastDataHash: nil,
-		Time:         uint64(newSignedHeader.Time().UnixNano()),
+		Time:         uint64(newSignedHeader.Time().UnixNano()), //nolint:gosec
 	}
 	return newSignedHeader, nextData
 }
@@ -157,8 +157,8 @@ type HeaderConfig struct {
 func GetRandomHeader() Header {
 	return Header{
 		BaseHeader: BaseHeader{
-			Height:  uint64(rand.Int63()), //nolint:gosec,
-			Time:    uint64(time.Now().UnixNano()),
+			Height:  uint64(rand.Int63()),          //nolint:gosec,
+			Time:    uint64(time.Now().UnixNano()), //nolint:gosec
 			ChainID: TestChainID,
 		},
 		Version: Version{
