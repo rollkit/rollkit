@@ -19,7 +19,7 @@ func (h *Header) Hash() Hash {
 			Block: h.Version.Block,
 			App:   h.Version.App,
 		},
-		Height: int64(h.Height()),
+		Height: int64(h.Height()), //nolint:gosec
 		Time:   h.Time(),
 		LastBlockID: cmtypes.BlockID{
 			Hash: cmbytes.HexBytes(h.LastHeaderHash),
@@ -43,18 +43,12 @@ func (h *Header) Hash() Hash {
 	return Hash(abciHeader.Hash())
 }
 
-// Hash returns ABCI-compatible hash of a block.
-func (b *Block) Hash() Hash {
-	return b.SignedHeader.Hash()
-}
-
 // Hash returns hash of the Data
-func (d *Data) Hash() (Hash, error) {
-	dBytes, err := d.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+func (d *Data) Hash() Hash {
+	// Ignoring the marshal error for now to satify the go-header interface
+	// Later on the usage of Hash should be replaced with DA commitment
+	dBytes, _ := d.MarshalBinary()
 	return merkle.HashFromByteSlices([][]byte{
 		dBytes,
-	}), nil
+	})
 }

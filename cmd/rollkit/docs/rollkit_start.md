@@ -41,9 +41,9 @@ rollkit start [flags]
       --rollkit.da_start_height uint                    starting DA block height (for syncing)
       --rollkit.lazy_aggregator                         wait for transactions, don't build empty blocks
       --rollkit.lazy_block_time duration                block time (for lazy mode) (default 1m0s)
-      --rollkit.lazy_buffer_time duration               additional time to wait to accumulate transactions in lazy mode (default 1s)
       --rollkit.light                                   run light client
       --rollkit.max_pending_blocks uint                 limit of blocks pending DA submission (0 for no limit)
+      --rollkit.sequencer_address string                sequencer middleware address (host:port) (default "localhost:50051")
       --rollkit.trusted_hash string                     initial trusted hash to start the header exchange service
       --rpc.grpc_laddr string                           GRPC listen address (BroadcastTx only). Port required
       --rpc.laddr string                                RPC listen address. Port required (default "tcp://127.0.0.1:26657")

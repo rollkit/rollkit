@@ -24,6 +24,8 @@ import (
 
 	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
 	goDATest "github.com/rollkit/go-da/test"
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+	seqTest "github.com/rollkit/go-sequencing/test"
 )
 
 const (
@@ -35,6 +37,9 @@ const (
 
 	// MockDANamespace is a sample namespace used by the mock DA client
 	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
+
+	// MockSequencerAddress is a sample address used by the mock sequencer
+	MockSequencerAddress = "127.0.0.1:50051"
 )
 
 // TestMain does setup and teardown on the test package
@@ -44,10 +49,16 @@ func TestMain(m *testing.M) {
 	if srv == nil {
 		os.Exit(1)
 	}
+
+	grpcSrv := startMockSequencerServerGRPC(MockSequencerAddress)
+	if grpcSrv == nil {
+		os.Exit(1)
+	}
 	exitCode := m.Run()
 
 	// teardown servers
 	srv.GracefulStop()
+	grpcSrv.Stop()
 
 	os.Exit(exitCode)
 }
@@ -63,6 +74,20 @@ func startMockGRPCServ() *grpc.Server {
 		_ = srv.Serve(lis)
 	}()
 	return srv
+}
+
+// startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
+func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
+	dummySeq := seqTest.NewDummySequencer()
+	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
+	lis, err := net.Listen("tcp", listenAddress)
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		_ = server.Serve(lis)
+	}()
+	return server
 }
 
 type NodeType int

@@ -38,6 +38,18 @@ The communication format depends on the protocol used. For HTTP-based protocols,
 
 The RPC service assumes that the Rollkit node it interacts with is running and correctly configured. It also assumes that the client is authorized to perform the requested operations.
 
+The RPC provides an additional query for DA included blocks using the `height` parameter:
+
+```sh
+curl http://127.0.0.1:26657/block?height=1
+
+curl http://127.0.0.1:26657/block?height=included
+```
+
+### Parameters
+
+- height (integer or string): height of the requested block. If no height is specified the latest block will be used. If height is set to the string "included", the latest DA included block will be returned.
+
 ## Implementation
 
 The implementation of the Rollkit RPC service can be found in the [`rpc/json/service.go`] file in the Rollkit repository.

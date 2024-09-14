@@ -52,6 +52,7 @@ func TestViperAndCobra(t *testing.T) {
 	assert.NoError(cmd.Flags().Set(FlagDANamespace, "0102030405060708"))
 
 	nc := DefaultNodeConfig
+
 	assert.NoError(nc.GetViperConfig(v))
 
 	assert.Equal(true, nc.Aggregator)

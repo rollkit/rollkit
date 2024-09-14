@@ -21,21 +21,21 @@ const (
 func TestPendingBlocks(t *testing.T) {
 	cases := []struct {
 		name                    string
-		init                    func(context.Context, *testing.T, *PendingBlocks)
-		exec                    func(context.Context, *testing.T, *PendingBlocks)
+		init                    func(context.Context, *testing.T, *PendingHeaders)
+		exec                    func(context.Context, *testing.T, *PendingHeaders)
 		expectedBlocksAfterInit int
 		expectedBlocksAfterExec int
 	}{
 		{name: "empty store",
-			init:                    func(context.Context, *testing.T, *PendingBlocks) {},
-			exec:                    func(context.Context, *testing.T, *PendingBlocks) {},
+			init:                    func(context.Context, *testing.T, *PendingHeaders) {},
+			exec:                    func(context.Context, *testing.T, *PendingHeaders) {},
 			expectedBlocksAfterInit: 0,
 			expectedBlocksAfterExec: 0,
 		},
 		{
 			name: "mock successful DA submission of some blocks by manually setting last submitted height",
-			init: fillWithBlocks,
-			exec: func(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+			init: fillWithBlockData,
+			exec: func(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 				pb.lastSubmittedHeight.Store(testHeight)
 			},
 			expectedBlocksAfterInit: numBlocks,
@@ -43,8 +43,8 @@ func TestPendingBlocks(t *testing.T) {
 		},
 		{
 			name: "mock successful DA submission of all blocks by manually setting last submitted height",
-			init: fillWithBlocks,
-			exec: func(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+			init: fillWithBlockData,
+			exec: func(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 				pb.lastSubmittedHeight.Store(numBlocks)
 			},
 			expectedBlocksAfterInit: numBlocks,
@@ -52,8 +52,8 @@ func TestPendingBlocks(t *testing.T) {
 		},
 		{
 			name: "mock successful DA submission of all blocks by setting last submitted height using store",
-			init: fillWithBlocks,
-			exec: func(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+			init: fillWithBlockData,
+			exec: func(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 				pb.lastSubmittedHeight.Store(pb.store.Height())
 			},
 			expectedBlocksAfterInit: numBlocks,
@@ -77,27 +77,28 @@ func TestPendingBlocks(t *testing.T) {
 	}
 }
 
-func newPendingBlocks(t *testing.T) *PendingBlocks {
+func newPendingBlocks(t *testing.T) *PendingHeaders {
 	kv, err := store.NewDefaultInMemoryKVStore()
 	require.NoError(t, err)
-	pendingBlocks, err := NewPendingBlocks(store.New(kv), test.NewLogger(t))
+	pendingBlocks, err := NewPendingHeaders(store.New(kv), test.NewLogger(t))
 	require.NoError(t, err)
 	return pendingBlocks
 }
 
-func fillWithBlocks(ctx context.Context, t *testing.T, pb *PendingBlocks) {
+func fillWithBlockData(ctx context.Context, t *testing.T, pb *PendingHeaders) {
 	for i := uint64(1); i <= numBlocks; i++ {
-		require.NoError(t, pb.store.SaveBlock(ctx, types.GetRandomBlock(i, 0), &types.Signature{}))
+		h, d := types.GetRandomBlock(i, 0)
+		require.NoError(t, pb.store.SaveBlockData(ctx, h, d, &types.Signature{}))
 		pb.store.SetHeight(ctx, i)
 	}
 }
 
-func checkRequirements(ctx context.Context, t *testing.T, pb *PendingBlocks, nBlocks int) {
+func checkRequirements(ctx context.Context, t *testing.T, pb *PendingHeaders, nBlocks int) {
 	require.Equal(t, pb.isEmpty(), nBlocks == 0)
-	blocks, err := pb.getPendingBlocks(ctx)
+	blocks, err := pb.getPendingHeaders(ctx)
 	require.NoError(t, err)
 	require.Len(t, blocks, nBlocks)
-	require.Equal(t, uint64(len(blocks)), pb.numPendingBlocks())
+	require.Equal(t, uint64(len(blocks)), pb.numPendingHeaders())
 	require.True(t, sort.SliceIsSorted(blocks, func(i, j int) bool {
 		return blocks[i].Height() < blocks[j].Height()
 	}))

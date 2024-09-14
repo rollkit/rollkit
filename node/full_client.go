@@ -294,13 +294,13 @@ func (c *FullClient) GenesisChunked(context context.Context, id uint) (*ctypes.R
 		return nil, fmt.Errorf("service configuration error, there are no chunks")
 	}
 
-	if int(id) > chunkLen-1 {
+	if int(id) > chunkLen-1 { //nolint:gosec
 		return nil, fmt.Errorf("there are %d chunks, %d is invalid", chunkLen-1, id)
 	}
 
 	return &ctypes.ResultGenesisChunk{
 		TotalChunks: chunkLen,
-		ChunkNumber: int(id),
+		ChunkNumber: int(id), //nolint:gosec
 		Data:        genChunks[id],
 	}, nil
 }
@@ -312,7 +312,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	// Currently blocks are not pruned and are synced linearly so the base height is 0
 	minHeight, maxHeight, err := filterMinMax(
 		0,
-		int64(c.node.Store.Height()),
+		int64(c.node.Store.Height()), //nolint:gosec
 		minHeight,
 		maxHeight,
 		limit)
@@ -323,12 +323,12 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 
 	blocks := make([]*cmtypes.BlockMeta, 0, maxHeight-minHeight+1)
 	for height := maxHeight; height >= minHeight; height-- {
-		block, err := c.node.Store.GetBlock(ctx, uint64(height))
+		header, data, err := c.node.Store.GetBlockData(ctx, uint64(height))
 		if err != nil {
 			return nil, err
 		}
-		if block != nil {
-			cmblockmeta, err := abciconv.ToABCIBlockMeta(block)
+		if header != nil && data != nil {
+			cmblockmeta, err := abciconv.ToABCIBlockMeta(header, data)
 			if err != nil {
 				return nil, err
 			}
@@ -337,7 +337,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	}
 
 	return &ctypes.ResultBlockchainInfo{
-		LastHeight: int64(c.node.Store.Height()),
+		LastHeight: int64(c.node.Store.Height()), //nolint:gosec
 		BlockMetas: blocks,
 	}, nil
 
@@ -383,7 +383,7 @@ func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctype
 	}
 	params := state.ConsensusParams
 	return &ctypes.ResultConsensusParams{
-		BlockHeight: int64(c.normalizeHeight(height)),
+		BlockHeight: int64(c.normalizeHeight(height)), //nolint:gosec
 		ConsensusParams: cmtypes.ConsensusParams{
 			Block: cmtypes.BlockParams{
 				MaxBytes: params.Block.MaxBytes,
@@ -424,13 +424,13 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 	default:
 		heightValue = c.normalizeHeight(height)
 	}
-	block, err := c.node.Store.GetBlock(ctx, heightValue)
+	header, data, err := c.node.Store.GetBlockData(ctx, heightValue)
 	if err != nil {
 		return nil, err
 	}
 
-	hash := block.Hash()
-	abciBlock, err := abciconv.ToABCIBlock(block)
+	hash := header.Hash()
+	abciBlock, err := abciconv.ToABCIBlock(header, data)
 	if err != nil {
 		return nil, err
 	}
@@ -448,12 +448,12 @@ func (c *FullClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBl
 
 // BlockByHash returns BlockID and block itself for given hash.
 func (c *FullClient) BlockByHash(ctx context.Context, hash []byte) (*ctypes.ResultBlock, error) {
-	block, err := c.node.Store.GetBlockByHash(ctx, hash)
+	header, data, err := c.node.Store.GetBlockByHash(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
 
-	abciBlock, err := abciconv.ToABCIBlock(block)
+	abciBlock, err := abciconv.ToABCIBlock(header, data)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +477,7 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	} else {
 		h = uint64(*height)
 	}
-	block, err := c.node.Store.GetBlock(ctx, h)
+	header, _, err := c.node.Store.GetBlockData(ctx, h)
 	if err != nil {
 		return nil, err
 	}
@@ -487,32 +487,32 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	}
 
 	return &ctypes.ResultBlockResults{
-		Height:                int64(h),
+		Height:                int64(h), //nolint:gosec
 		TxsResults:            resp.TxResults,
 		FinalizeBlockEvents:   resp.Events,
 		ValidatorUpdates:      resp.ValidatorUpdates,
 		ConsensusParamUpdates: resp.ConsensusParamUpdates,
-		AppHash:               block.SignedHeader.Header.AppHash,
+		AppHash:               header.Header.AppHash,
 	}, nil
 }
 
 // Commit returns signed header (aka commit) at given height.
 func (c *FullClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	heightValue := c.normalizeHeight(height)
-	b, err := c.node.Store.GetBlock(ctx, heightValue)
+	header, data, err := c.node.Store.GetBlockData(ctx, heightValue)
 	if err != nil {
 		return nil, err
 	}
 
 	// we should have a single validator
-	if len(b.SignedHeader.Validators.Validators) == 0 {
+	if len(header.Validators.Validators) == 0 {
 		return nil, errors.New("empty validator set found in block")
 	}
 
-	val := b.SignedHeader.Validators.Validators[0].Address
-	commit := types.GetABCICommit(heightValue, b.Hash(), val, b.SignedHeader.Time(), b.SignedHeader.Signature)
+	val := header.Validators.Validators[0].Address
+	commit := types.GetABCICommit(heightValue, header.Hash(), val, header.Time(), header.Signature)
 
-	block, err := abciconv.ToABCIBlock(b)
+	block, err := abciconv.ToABCIBlock(header, data)
 	if err != nil {
 		return nil, err
 	}
@@ -539,7 +539,7 @@ func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, 
 	}
 
 	return &ctypes.ResultValidators{
-		BlockHeight: int64(height),
+		BlockHeight: int64(height), //nolint:gosec
 		Validators: []*cmtypes.Validator{
 			&validator,
 		},
@@ -564,8 +564,8 @@ func (c *FullClient) Tx(ctx context.Context, hash []byte, prove bool) (*ctypes.R
 
 	var proof cmtypes.TxProof
 	if prove {
-		block, _ := c.node.Store.GetBlock(ctx, uint64(height))
-		blockProof := block.Data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
+		_, data, _ := c.node.Store.GetBlockData(ctx, uint64(height))
+		blockProof := data.Txs.Proof(int(index)) // XXX: overflow on 32-bit machines
 		proof = cmtypes.TxProof{
 			RootHash: blockProof.RootHash,
 			Data:     cmtypes.Tx(blockProof.Data),
@@ -693,11 +693,11 @@ func (c *FullClient) BlockSearch(ctx context.Context, query string, page, perPag
 	// Fetch the blocks
 	blocks := make([]*ctypes.ResultBlock, 0, pageSize)
 	for i := skipCount; i < skipCount+pageSize; i++ {
-		b, err := c.node.Store.GetBlock(ctx, uint64(results[i]))
+		header, data, err := c.node.Store.GetBlockData(ctx, uint64(results[i]))
 		if err != nil {
 			return nil, err
 		}
-		block, err := abciconv.ToABCIBlock(b)
+		block, err := abciconv.ToABCIBlock(header, data)
 		if err != nil {
 			return nil, err
 		}
@@ -723,16 +723,16 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	)
 
 	if latestHeight != 0 {
-		latest, err := c.node.Store.GetBlock(ctx, latestHeight)
+		header, _, err := c.node.Store.GetBlockData(ctx, latestHeight)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find latest block: %w", err)
 		}
-		latestBlockHash = cmbytes.HexBytes(latest.SignedHeader.DataHash)
-		latestAppHash = cmbytes.HexBytes(latest.SignedHeader.AppHash)
-		latestBlockTime = latest.Time()
+		latestBlockHash = cmbytes.HexBytes(header.DataHash)
+		latestAppHash = cmbytes.HexBytes(header.AppHash)
+		latestBlockTime = header.Time()
 	}
 
-	initial, err := c.node.Store.GetBlock(ctx, uint64(c.node.GetGenesis().InitialHeight))
+	initialHeader, _, err := c.node.Store.GetBlockData(ctx, uint64(c.node.GetGenesis().InitialHeight))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find earliest block: %w", err)
 	}
@@ -785,10 +785,10 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 			LatestAppHash:       latestAppHash,
 			LatestBlockHeight:   int64(latestHeight),
 			LatestBlockTime:     latestBlockTime,
-			EarliestBlockHash:   cmbytes.HexBytes(initial.SignedHeader.DataHash),
-			EarliestAppHash:     cmbytes.HexBytes(initial.SignedHeader.AppHash),
-			EarliestBlockHeight: int64(initial.Height()),
-			EarliestBlockTime:   initial.Time(),
+			EarliestBlockHash:   cmbytes.HexBytes(initialHeader.DataHash),
+			EarliestAppHash:     cmbytes.HexBytes(initialHeader.AppHash),
+			EarliestBlockHeight: int64(initialHeader.Height()),
+			EarliestBlockTime:   initialHeader.Time(),
 			CatchingUp:          false, // hard-code this to "false" to pass Go IBC relayer's legacy encoding check
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
@@ -857,12 +857,12 @@ func (c *FullClient) HeaderByHash(ctx context.Context, hash cmbytes.HexBytes) (*
 	// decoding logic in the HTTP service will correctly translate from JSON.
 	// See https://github.com/cometbft/cometbft/issues/6802 for context.
 
-	block, err := c.node.Store.GetBlockByHash(ctx, types.Hash(hash))
+	header, data, err := c.node.Store.GetBlockByHash(ctx, types.Hash(hash))
 	if err != nil {
 		return nil, err
 	}
 
-	blockMeta, err := abciconv.ToABCIBlockMeta(block)
+	blockMeta, err := abciconv.ToABCIBlockMeta(header, data)
 	if err != nil {
 		return nil, err
 	}
@@ -921,7 +921,8 @@ func (c *FullClient) resubscribe(subscriber string, q cmpubsub.Query) cmtypes.Su
 		}
 
 		attempts++
-		time.Sleep((10 << uint(attempts)) * time.Millisecond) // 10ms -> 20ms -> 40ms
+		// 10ms -> 20ms -> 40ms
+		time.Sleep((10 << uint(attempts)) * time.Millisecond)
 	}
 }
 
@@ -941,11 +942,11 @@ func (c *FullClient) normalizeHeight(height *int64) uint64 {
 }
 
 func (rpc *FullClient) getBlockMeta(ctx context.Context, n uint64) *cmtypes.BlockMeta {
-	b, err := rpc.node.Store.GetBlock(ctx, n)
+	header, data, err := rpc.node.Store.GetBlockData(ctx, n)
 	if err != nil {
 		return nil
 	}
-	bmeta, err := abciconv.ToABCIBlockMeta(b)
+	bmeta, err := abciconv.ToABCIBlockMeta(header, data)
 	if err != nil {
 		return nil
 	}

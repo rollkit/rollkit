@@ -7,24 +7,20 @@ import (
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-// MarshalBinary encodes Block into binary form and returns it.
-func (b *Block) MarshalBinary() ([]byte, error) {
-	bp, err := b.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	return bp.Marshal()
+// MarshalBinary encodes Metadata into binary form and returns it.
+func (m *Metadata) MarshalBinary() ([]byte, error) {
+	return m.ToProto().Marshal()
 }
 
-// UnmarshalBinary decodes binary form of Block into object.
-func (b *Block) UnmarshalBinary(data []byte) error {
-	var pBlock pb.Block
-	err := pBlock.Unmarshal(data)
+// UnmarshalBinary decodes binary form of Metadata into object.
+func (m *Metadata) UnmarshalBinary(metadata []byte) error {
+	var pMetadata pb.Metadata
+	err := pMetadata.Unmarshal(metadata)
 	if err != nil {
 		return err
 	}
-	err = b.FromProto(&pBlock)
-	return err
+	m.FromProto(&pMetadata)
+	return nil
 }
 
 // MarshalBinary encodes Header into binary form and returns it.
@@ -157,44 +153,47 @@ func (h *Header) FromProto(other *pb.Header) error {
 	return nil
 }
 
-// ToProto converts Block into protobuf representation and returns it.
-func (b *Block) ToProto() (*pb.Block, error) {
-	sp, err := b.SignedHeader.ToProto()
-	if err != nil {
-		return nil, err
+// ToProto ...
+func (m *Metadata) ToProto() *pb.Metadata {
+	return &pb.Metadata{
+		ChainId:      m.ChainID,
+		Height:       m.Height,
+		Time:         m.Time,
+		LastDataHash: m.LastDataHash[:],
 	}
-	return &pb.Block{
-		SignedHeader: sp,
-		Data:         b.Data.ToProto(),
-	}, nil
+}
+
+// FromProto ...
+func (m *Metadata) FromProto(other *pb.Metadata) {
+	m.ChainID = other.ChainId
+	m.Height = other.Height
+	m.Time = other.Time
+	m.LastDataHash = other.LastDataHash
 }
 
 // ToProto converts Data into protobuf representation and returns it.
 func (d *Data) ToProto() *pb.Data {
+	var mProto *pb.Metadata
+	if d.Metadata != nil {
+		mProto = d.Metadata.ToProto()
+	}
 	return &pb.Data{
-		Txs: txsToByteSlices(d.Txs),
+		Metadata: mProto,
+		Txs:      txsToByteSlices(d.Txs),
 		// IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
 		// Note: Temporarily remove Evidence #896
 		// Evidence:               evidenceToProto(d.Evidence),
 	}
 }
 
-// FromProto fills Block with data from its protobuf representation.
-func (b *Block) FromProto(other *pb.Block) error {
-	err := b.SignedHeader.FromProto(other.SignedHeader)
-	if err != nil {
-		return err
-	}
-	err = b.Data.FromProto(other.Data)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // FromProto fills the Data with data from its protobuf representation
 func (d *Data) FromProto(other *pb.Data) error {
+	if other.Metadata != nil {
+		if d.Metadata == nil {
+			d.Metadata = &Metadata{}
+		}
+		d.Metadata.FromProto(other.Metadata)
+	}
 	d.Txs = byteSlicesToTxs(other.Txs)
 	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
 	// Note: Temporarily remove Evidence #896
