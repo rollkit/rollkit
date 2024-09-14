@@ -86,6 +86,32 @@ var (
 	ErrNotProposer = errors.New("not a proposer")
 )
 
+// SaveBlockError is used when failed to save block
+type SaveBlockError struct {
+	Err error
+}
+
+func (e SaveBlockError) Error() string {
+	return fmt.Sprintf("failed to save block: %v", e.Err)
+}
+
+func (e SaveBlockError) Unwrap() error {
+	return e.Err
+}
+
+// SaveBlockResponsesError is used when failed to save block responses
+type SaveBlockResponsesError struct {
+	Err error
+}
+
+func (e SaveBlockResponsesError) Error() string {
+	return fmt.Sprintf("failed to save block responses: %v", e.Err)
+}
+
+func (e SaveBlockResponsesError) Unwrap() error {
+	return e.Err
+}
+
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -705,7 +731,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		err = m.store.SaveBlockData(ctx, h, d, &h.Signature)
 		if err != nil {
-			return fmt.Errorf("failed to save block: %w", err)
+			return SaveBlockError{err}
 		}
 		_, _, err = m.executor.Commit(ctx, newState, h, d, responses)
 		if err != nil {
@@ -714,7 +740,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		err = m.store.SaveBlockResponses(ctx, hHeight, responses)
 		if err != nil {
-			return fmt.Errorf("failed to save block responses: %w", err)
+			return SaveBlockResponsesError{err}
 		}
 
 		// Height gets updated
