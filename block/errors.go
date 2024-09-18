@@ -14,7 +14,7 @@ var (
 	ErrNotProposer = errors.New("not a proposer")
 )
 
-// SaveBlockError is used when failed to save block
+// SaveBlockError is returned on failure to save block data
 type SaveBlockError struct {
 	Err error
 }
@@ -27,7 +27,7 @@ func (e SaveBlockError) Unwrap() error {
 	return e.Err
 }
 
-// SaveBlockResponsesError is used when failed to save block responses
+// SaveBlockResponsesError is returned on failure to save block responses
 type SaveBlockResponsesError struct {
 	Err error
 }

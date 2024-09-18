@@ -1053,7 +1053,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header.Signature = *signature
 		err = m.store.SaveBlockData(ctx, header, data, signature)
 		if err != nil {
-			return err
+			return SaveBlockError{err}
 		}
 	}
 
@@ -1100,7 +1100,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, signature)
 	if err != nil {
-		return err
+		return SaveBlockError{err}
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
@@ -1114,7 +1114,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
 	if err != nil {
-		return err
+		return SaveBlockResponsesError{err}
 	}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
