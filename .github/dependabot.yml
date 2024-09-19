@@ -7,17 +7,35 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
+    # Group all patch updates into a single PR
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: weekly
+      interval: daily
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
+    # Group all patch updates into a single PR
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
-      interval: weekly
+      interval: daily
     open-pull-requests-limit: 10
     labels:
       - T:dependencies
+    # Group all patch updates into a single PR
+    groups:
+      patch-updates:
+        applies-to: version-updates
+        update-types:
+          - "patch"
