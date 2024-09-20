@@ -61,7 +61,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, backend goDA.DA) *Manager {
 	logger := test.NewLogger(t)
 	return &Manager{
-		dalc:        da.NewDAClient(backend, -1, -1, nil, logger),
+		dalc:        da.NewDAClient(backend, -1, -1, nil, nil, logger),
 		headerCache: NewHeaderCache(),
 		logger:      logger,
 	}
