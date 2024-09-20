@@ -39,6 +39,7 @@ rollkit start [flags]
       --rollkit.da_mempool_ttl uint                     number of DA blocks until transaction is dropped from the mempool
       --rollkit.da_namespace string                     DA namespace to submit blob transactions
       --rollkit.da_start_height uint                    starting DA block height (for syncing)
+      --rollkit.da_submit_options string                DA submit options
       --rollkit.lazy_aggregator                         wait for transactions, don't build empty blocks
       --rollkit.lazy_block_time duration                block time (for lazy mode) (default 1m0s)
       --rollkit.light                                   run light client
