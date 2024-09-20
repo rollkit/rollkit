@@ -34,7 +34,6 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
@@ -227,7 +226,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &mockda.MockDA{}
+			mockDA := &mocks.DA{}
 			m := getManager(t, mockDA)
 			m.conf.DABlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
@@ -253,15 +252,15 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			// * wait for tx to drop from mempool exactly DABlockTime * DAMempoolTTL seconds
 			// * retry with a higher gas price
 			// * successfully submit
-			mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
+			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
 			mockDA.
-				On("Submit", blobs, tc.expectedGasPrices[0], []byte(nil)).
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil)).
 				Return([][]byte{}, da.ErrTxTimedout).Once()
 			mockDA.
-				On("Submit", blobs, tc.expectedGasPrices[1], []byte(nil)).
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil)).
 				Return([][]byte{}, da.ErrTxTimedout).Once()
 			mockDA.
-				On("Submit", blobs, tc.expectedGasPrices[2], []byte(nil)).
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil)).
 				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
 			m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
@@ -572,7 +571,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, &mockda.MockDA{})
+	m := getManager(t, &mocks.DA{})
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
