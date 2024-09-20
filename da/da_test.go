@@ -3,8 +3,6 @@ package da
 import (
 	"context"
 	"errors"
-	"github.com/rollkit/rollkit/test/mocks"
-	"github.com/stretchr/testify/mock"
 	"math/rand"
 	"net/url"
 	"os"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,6 +20,7 @@ import (
 	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
 	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
+	"github.com/rollkit/rollkit/test/mocks"
 	testServer "github.com/rollkit/rollkit/test/server"
 	"github.com/rollkit/rollkit/types"
 )
