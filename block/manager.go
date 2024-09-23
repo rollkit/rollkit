@@ -78,6 +78,8 @@ var initialBackoff = 100 * time.Millisecond
 // DAIncludedHeightKey is the key used for persisting the da included height in store.
 const DAIncludedHeightKey = "da included height"
 
+var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -590,6 +592,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
+			fmt.Println("getting header for height", headerHeight)
 			if headerHeight <= m.store.Height() || m.headerCache.isSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
@@ -598,6 +601,37 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToRetrieveCh()
+
+			// check if the dataHash is dataHashForEmptyTxs
+			// no need to wait for syncing Data, instead prepare now and set
+			// so that trySyncNextBlock can progress
+			if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
+				fmt.Println("empty case", headerHeight)
+				var lastDataHash types.Hash
+				var err error
+				var lastData *types.Data
+				if headerHeight > 1 {
+					_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
+					if lastData != nil {
+						lastDataHash = lastData.Hash()
+					}
+				}
+				// if err then we cannot populate data, hence just skip and wait for Data to be synced
+				if err == nil {
+					metadata := &types.Metadata{
+						ChainID:      header.ChainID(),
+						Height:       headerHeight,
+						Time:         header.BaseHeader.Time,
+						LastDataHash: lastDataHash,
+					}
+					d := &types.Data{
+						Metadata: metadata,
+					}
+					m.dataCache.setData(headerHeight, d)
+				}
+			} else {
+				fmt.Println("non empty case", header.DataHash, string(dataHashForEmptyTxs))
+			}
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
@@ -615,6 +649,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
+			fmt.Println("checking", m.store.Height(), dataHeight, m.dataCache.isSeen(dataHash))
 			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
@@ -682,6 +717,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		hHeight := h.Height()
+		fmt.Println("syncing", hHeight)
 		m.logger.Info("Syncing header and data", "height", hHeight)
 		// Validate the received block before applying
 		if err := m.executor.Validate(m.lastState, h, d); err != nil {

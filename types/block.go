@@ -131,7 +131,7 @@ func (d *Data) Verify(untrustedData *Data) error {
 	dataHash := d.Hash()
 	// Check if the data hash of the untrusted block matches the last data hash of the trusted block
 	if !bytes.Equal(dataHash[:], untrustedData.Metadata.LastDataHash[:]) {
-		return errors.New("dataHash from the header does not match with hash of the block's data")
+		return errors.New("data hash of the trusted data does not match with last data hash of the untrusted data")
 	}
 	return nil
 }
