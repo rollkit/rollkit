@@ -1169,10 +1169,7 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 			return nil, err
 		}
 		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
-		if err != nil {
-			return nil, err
-		}
+		sig = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
 		return sig[1:], nil
 	default:
 		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
