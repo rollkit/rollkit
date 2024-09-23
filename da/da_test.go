@@ -1,7 +1,6 @@
 package da
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"math/rand"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,7 +20,7 @@ import (
 	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
 	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
-	"github.com/rollkit/rollkit/da/mock"
+	"github.com/rollkit/rollkit/test/mocks"
 	testServer "github.com/rollkit/rollkit/test/server"
 	"github.com/rollkit/rollkit/types"
 )
@@ -37,6 +37,8 @@ const (
 
 	// MockDANamespace is the mock namespace
 	MockDANamespace = "00000000000000000000000000000000000000000000000000deadbeef"
+
+	submitTimeout = 50 * time.Millisecond
 )
 
 // TestMain starts the mock gRPC and JSONRPC DA services
@@ -67,8 +69,8 @@ func TestMain(m *testing.M) {
 
 func TestMockDAErrors(t *testing.T) {
 	t.Run("submit_timeout", func(t *testing.T) {
-		mockDA := &mock.MockDA{}
-		dalc := NewDAClient(mockDA, -1, -1, nil, log.TestingLogger())
+		mockDA := &mocks.DA{}
+		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
 		header, _ := types.GetRandomBlock(1, 0)
 		headers := []*types.SignedHeader{header}
 		var blobs []da.Blob
@@ -78,23 +80,23 @@ func TestMockDAErrors(t *testing.T) {
 			blobs = append(blobs, headerBytes)
 		}
 		// Set up the mock to throw context deadline exceeded
-		mockDA.On("MaxBlobSize").Return(uint64(1234), nil)
+		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
-			On("Submit", blobs, float64(-1), []byte(nil)).
-			After(100*time.Millisecond).
-			Return([]da.ID{bytes.Repeat([]byte{0x00}, 8)}, nil)
+			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
+			After(submitTimeout).
+			Return(nil, context.DeadlineExceeded)
 		doTestSubmitTimeout(t, dalc, headers)
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
-		mockDA := &mock.MockDA{}
-		dalc := NewDAClient(mockDA, -1, -1, nil, log.TestingLogger())
+		mockDA := &mocks.DA{}
+		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
 		// Set up the mock to return an error for MaxBlobSize
-		mockDA.On("MaxBlobSize").Return(uint64(0), errors.New("unable to get DA max blob size"))
+		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(0), errors.New("unable to get DA max blob size"))
 		doTestMaxBlockSizeError(t, dalc)
 	})
 	t.Run("tx_too_large", func(t *testing.T) {
-		mockDA := &mock.MockDA{}
-		dalc := NewDAClient(mockDA, -1, -1, nil, log.TestingLogger())
+		mockDA := &mocks.DA{}
+		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
 		header, _ := types.GetRandomBlock(1, 0)
 		headers := []*types.SignedHeader{header}
 		var blobs []da.Blob
@@ -104,9 +106,9 @@ func TestMockDAErrors(t *testing.T) {
 			blobs = append(blobs, headerBytes)
 		}
 		// Set up the mock to throw tx too large
-		mockDA.On("MaxBlobSize").Return(uint64(1234), nil)
+		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
-			On("Submit", blobs, float64(-1), []byte(nil)).
+			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
 			Return([]da.ID{}, errors.New("tx too large"))
 		doTestTxTooLargeError(t, dalc, headers)
 	})
@@ -115,7 +117,7 @@ func TestMockDAErrors(t *testing.T) {
 func TestSubmitRetrieve(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	dummyClient := NewDAClient(goDATest.NewDummyDA(), -1, -1, nil, log.TestingLogger())
+	dummyClient := NewDAClient(goDATest.NewDummyDA(), -1, -1, nil, nil, log.TestingLogger())
 	jsonrpcClient, err := startMockDAClientJSONRPC(ctx)
 	require.NoError(t, err)
 	grpcClient := startMockDAClientGRPC()
@@ -151,7 +153,7 @@ func startMockDAClientGRPC() *DAClient {
 	if err := client.Start(addr.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 		panic(err)
 	}
-	return NewDAClient(client, -1, -1, nil, log.TestingLogger())
+	return NewDAClient(client, -1, -1, nil, nil, log.TestingLogger())
 }
 
 func startMockDAClientJSONRPC(ctx context.Context) (*DAClient, error) {
@@ -159,7 +161,7 @@ func startMockDAClientJSONRPC(ctx context.Context) (*DAClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewDAClient(&client.DA, -1, -1, nil, log.TestingLogger()), nil
+	return NewDAClient(&client.DA, -1, -1, nil, nil, log.TestingLogger()), nil
 }
 
 func doTestSubmitTimeout(t *testing.T, dalc *DAClient, headers []*types.SignedHeader) {
@@ -170,7 +172,7 @@ func doTestSubmitTimeout(t *testing.T, dalc *DAClient, headers []*types.SignedHe
 	require.NoError(t, err)
 
 	assert := assert.New(t)
-	dalc.SubmitTimeout = 50 * time.Millisecond
+	dalc.SubmitTimeout = submitTimeout
 	resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, -1)
 	assert.Contains(resp.Message, "context deadline exceeded", "should return context timeout error")
 }
@@ -350,4 +352,32 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
 	// assert.Equal(StatusNotFound, result.Code)
 	// assert.Contains(result.Message, ErrBlobNotFound.Error())
 	assert.Equal(StatusError, result.Code)
+}
+
+func TestSubmitWithOptions(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	dummyClient := NewDAClient(goDATest.NewDummyDA(), -1, -1, nil, []byte("option=value"), log.TestingLogger())
+	jsonrpcClient, err := startMockDAClientJSONRPC(ctx)
+	require.NoError(t, err)
+	grpcClient := startMockDAClientGRPC()
+	require.NoError(t, err)
+	clients := map[string]*DAClient{
+		"dummy":   dummyClient,
+		"jsonrpc": jsonrpcClient,
+		"grpc":    grpcClient,
+	}
+	tests := []struct {
+		name string
+		f    func(t *testing.T, dalc *DAClient)
+	}{
+		{"submit_retrieve", doTestSubmitRetrieve},
+	}
+	for name, dalc := range clients {
+		for _, tc := range tests {
+			t.Run(name+"_"+tc.name, func(t *testing.T) {
+				tc.f(t, dalc)
+			})
+		}
+	}
 }
