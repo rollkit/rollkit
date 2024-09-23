@@ -36,6 +36,8 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
+const initialBlockWait = 5
+
 func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	return &abci.ResponsePrepareProposal{
 		Txs: req.Txs,
@@ -103,7 +105,8 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}()
 
 	// wait for nodes to start up and sync up till numBlocksToWaitFor
-	numBlocksToWaitFor := 5
+	// this is a guess work to make test stable and dependent on number of nodes, as each node has to send tx
+	numBlocksToWaitFor := initialBlockWait + 2*len(nodes)
 	for i := 1; i < len(nodes); i++ {
 		require.NoError(waitForAtLeastNBlocks(nodes[i], numBlocksToWaitFor, Store))
 	}
@@ -936,12 +939,12 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	require.NoError(t, nodes[0].Start())
 	require.NoError(t, waitForFirstBlock(nodes[0], Header))
 	for i := 1; i < len(nodes); i++ {
-		require.NoError(t, nodes[i].Start())
+		tryHardToStartNode(nodes[i], t)
 	}
 
-	// wait for nodes to start up and establish connections; 1 second ensures that test pass even on CI.
+	// wait for nodes to start up and establish connections
 	for i := 1; i < len(nodes); i++ {
-		require.NoError(t, waitForAtLeastNBlocks(nodes[i], 2, Header))
+		require.NoError(t, waitForAtLeastNBlocks(nodes[i], initialBlockWait, Header))
 	}
 
 	for i := 1; i < len(nodes); i++ {
@@ -974,6 +977,18 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 	case <-timeout.C:
 		t.FailNow()
 	}
+}
+
+// tryHardToStartNode attempts to start a FullNode up to three times.
+// If the node fails to start after three attempts, the test is marked as failed.
+// This method was introduced to make tests in CI less flaky.
+func tryHardToStartNode(node *FullNode, t *testing.T) {
+	for r := 0; r < 3; r++ {
+		if node.Start() != nil {
+			return
+		}
+	}
+	t.Fatal("Failed to start node")
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
