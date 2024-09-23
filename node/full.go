@@ -245,8 +245,12 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
 
+	var submitOpts []byte
+	if nodeConfig.DASubmitOptions != "" {
+		submitOpts = []byte(nodeConfig.DASubmitOptions)
+	}
 	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
-		namespace, logger.With("module", "da_client")), nil
+		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
 func initMempool(proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {

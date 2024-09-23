@@ -22,7 +22,7 @@ func getMockDA(t *testing.T) *da.DAClient {
 	namespace := make([]byte, len(MockDANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(MockDANamespace))
 	require.NoError(t, err)
-	return da.NewDAClient(goDATest.NewDummyDA(), -1, -1, namespace, log.TestingLogger())
+	return da.NewDAClient(goDATest.NewDummyDA(), -1, -1, namespace, nil, log.TestingLogger())
 }
 
 func TestMockTester(t *testing.T) {

@@ -679,7 +679,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(123456789), nil)
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
 
-	dalc := da.NewDAClient(mockDA, 1234, 5678, goDA.Namespace(MockDANamespace), log.NewNopLogger())
+	dalc := da.NewDAClient(mockDA, 1234, 5678, goDA.Namespace(MockDANamespace), nil, log.NewNopLogger())
 	require.NotNil(dalc)
 	seq.dalc = dalc
 	seq.blockManager.SetDALC(dalc)
