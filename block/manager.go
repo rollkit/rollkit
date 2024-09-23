@@ -592,7 +592,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			fmt.Println("getting header for height", headerHeight)
 			if headerHeight <= m.store.Height() || m.headerCache.isSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
@@ -606,7 +605,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			// no need to wait for syncing Data, instead prepare now and set
 			// so that trySyncNextBlock can progress
 			if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
-				fmt.Println("empty case", headerHeight)
 				var lastDataHash types.Hash
 				var err error
 				var lastData *types.Data
@@ -629,8 +627,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 					}
 					m.dataCache.setData(headerHeight, d)
 				}
-			} else {
-				fmt.Println("non empty case", header.DataHash, string(dataHashForEmptyTxs))
 			}
 
 			err := m.trySyncNextBlock(ctx, daHeight)
@@ -649,7 +645,6 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			fmt.Println("checking", m.store.Height(), dataHeight, m.dataCache.isSeen(dataHash))
 			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
@@ -717,7 +712,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 
 		hHeight := h.Height()
-		fmt.Println("syncing", hHeight)
 		m.logger.Info("Syncing header and data", "height", hHeight)
 		// Validate the received block before applying
 		if err := m.executor.Validate(m.lastState, h, d); err != nil {
