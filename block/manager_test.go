@@ -573,7 +573,7 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
 	m := getManager(t, &mocks.DA{})
 	m.isProposer = false
-	err := m.publishBlock(context.Background(), m.getTxsFromBatch())
+	err := m.publishBlock(context.Background(), nil)
 	require.ErrorIs(err, ErrNotProposer)
 }
 
