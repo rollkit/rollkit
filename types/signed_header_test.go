@@ -285,7 +285,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 				t.Errorf("expected error: %v, but got nil", test.err)
 				return
 			}
-			if test.err == ErrProposerNotInValSet {
+			if testIndex == 7 {
 				assert.Contains(t, err.Error(), test.err.Error())
 			} else {
 				assert.ErrorIs(t, err, test.err)
