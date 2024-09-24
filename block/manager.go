@@ -141,7 +141,6 @@ type Manager struct {
 
 	// For usage by Lazy Aggregator mode
 	buildingBlock bool
-	txsAvailable  <-chan struct{}
 
 	pendingHeaders *PendingHeaders
 
@@ -263,13 +262,6 @@ func NewManager(
 		return nil, err
 	}
 
-	var txsAvailableCh <-chan struct{}
-	if mempool != nil {
-		txsAvailableCh = mempool.TxsAvailable()
-	} else {
-		txsAvailableCh = nil
-	}
-
 	pendingHeaders, err := NewPendingHeaders(store, logger)
 	if err != nil {
 		return nil, err
@@ -298,7 +290,6 @@ func NewManager(
 		dataCache:      NewDataCache(),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
-		txsAvailable:   txsAvailableCh,
 		buildingBlock:  false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
@@ -502,7 +493,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		// the txsAvailable channel is signalled when Txns become available
 		// in the mempool, or after transactions remain in the mempool after
 		// building a block.
-		case _, ok := <-m.txsAvailable:
+		case _, ok := <-m.bq.notifyCh:
 			if ok && !m.buildingBlock {
 				// set the buildingBlock flag to prevent multiple calls to reset the time
 				m.buildingBlock = true
@@ -515,7 +506,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		}
 		// Define the start time for the block production period
 		start = time.Now()
-		if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+		if err := m.publishBlock(ctx, m.getTxsFromBatch()); err != nil && ctx.Err() == nil {
 			m.logger.Error("error while publishing block", "error", err)
 		}
 		// unset the buildingBlocks flag
@@ -535,7 +526,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		case <-blockTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
-			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
+			if err := m.publishBlock(ctx, m.getTxsFromBatch()); err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
 			// Reset the blockTimer to signal the next block production
@@ -999,7 +990,7 @@ func (m *Manager) getTxsFromBatch() cmtypes.Txs {
 	return txs
 }
 
-func (m *Manager) publishBlock(ctx context.Context) error {
+func (m *Manager) publishBlock(ctx context.Context, txs cmtypes.Txs) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -1059,7 +1050,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
 
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, m.getTxsFromBatch())
+		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs)
 		if err != nil {
 			return err
 		}

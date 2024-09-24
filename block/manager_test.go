@@ -573,7 +573,7 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
 	m := getManager(t, &mocks.DA{})
 	m.isProposer = false
-	err := m.publishBlock(context.Background())
+	err := m.publishBlock(context.Background(), m.getTxsFromBatch())
 	require.ErrorIs(err, ErrNotProposer)
 }
 
@@ -829,14 +829,13 @@ func TestAggregationLoop(t *testing.T) {
 func TestLazyAggregationLoop(t *testing.T) {
 	mockLogger := new(test.MockLogger)
 
-	txsAvailable := make(chan struct{}, 1)
 	m := &Manager{
-		logger:       mockLogger,
-		txsAvailable: txsAvailable,
+		logger: mockLogger,
 		conf: config.BlockManagerConfig{
 			BlockTime:      time.Second,
 			LazyAggregator: true,
 		},
+		bq: NewBatchQueue(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -846,7 +845,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
-	txsAvailable <- struct{}{}
+	m.bq.notifyCh <- struct{}{}
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()

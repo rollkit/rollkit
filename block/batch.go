@@ -6,14 +6,16 @@ import (
 
 // BatchQueue is a queue of transaction batches with timestamps
 type BatchQueue struct {
-	queue []BatchWithTime
-	mu    sync.Mutex
+	queue    []BatchWithTime
+	mu       sync.Mutex
+	notifyCh chan struct{}
 }
 
 // NewBatchQueue creates a new BatchQueue
 func NewBatchQueue() *BatchQueue {
 	return &BatchQueue{
-		queue: make([]BatchWithTime, 0),
+		queue:    make([]BatchWithTime, 0),
+		notifyCh: make(chan struct{}, 1), // Buffered channel to avoid blocking
 	}
 }
 
@@ -22,6 +24,11 @@ func (bq *BatchQueue) AddBatch(batch BatchWithTime) {
 	bq.mu.Lock()
 	defer bq.mu.Unlock()
 	bq.queue = append(bq.queue, batch)
+	select {
+	case bq.notifyCh <- struct{}{}: // Send notification if there's no pending notification
+	default:
+		// Do nothing if a notification is already pending
+	}
 }
 
 // Next returns the next batch in the queue
@@ -34,4 +41,9 @@ func (bq *BatchQueue) Next() *BatchWithTime {
 	batch := bq.queue[0]
 	bq.queue = bq.queue[1:]
 	return &batch
+}
+
+// NotifyCh returns the notification channel
+func (bq *BatchQueue) NotifyCh() <-chan struct{} {
+	return bq.notifyCh
 }
