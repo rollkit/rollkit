@@ -146,7 +146,6 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 	// Define the test data
 	headerHeight := 2
-	dataHashForEmptyTxs := []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 	header := &types.Header{
 		DataHash: dataHashForEmptyTxs,
 		BaseHeader: types.BaseHeader{

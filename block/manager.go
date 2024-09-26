@@ -491,9 +491,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		select {
 		case <-ctx.Done():
 			return
-		// the txsAvailable channel is signalled when Txns become available
-		// in the mempool, or after transactions remain in the mempool after
-		// building a block.
+		// the m.bq.notifyCh channel is signalled when batch becomes available in the batch queue
 		case _, ok := <-m.bq.notifyCh:
 			if ok && !m.buildingBlock {
 				// set the buildingBlock flag to prevent multiple calls to reset the time
@@ -581,6 +579,8 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 				Metadata: metadata,
 			}
 			m.dataCache.setData(headerHeight, d)
+		} else {
+			m.logger.Error("failed to get block data for", "height", headerHeight-1, "error", err)
 		}
 	}
 }
