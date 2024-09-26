@@ -78,6 +78,7 @@ var initialBackoff = 100 * time.Millisecond
 // DAIncludedHeightKey is the key used for persisting the da included height in store.
 const DAIncludedHeightKey = "da included height"
 
+// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
@@ -506,7 +507,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		}
 		// Define the start time for the block production period
 		start = time.Now()
-		if err := m.publishBlock(ctx, m.getTxsFromBatch()); err != nil && ctx.Err() == nil {
+		if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 			m.logger.Error("error while publishing block", "error", err)
 		}
 		// unset the buildingBlocks flag
@@ -526,7 +527,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 		case <-blockTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
-			if err := m.publishBlock(ctx, m.getTxsFromBatch()); err != nil && ctx.Err() == nil {
+			if err := m.publishBlock(ctx); err != nil && ctx.Err() == nil {
 				m.logger.Error("error while publishing block", "error", err)
 			}
 			// Reset the blockTimer to signal the next block production
@@ -990,7 +991,7 @@ func (m *Manager) getTxsFromBatch() cmtypes.Txs {
 	return txs
 }
 
-func (m *Manager) publishBlock(ctx context.Context, txs cmtypes.Txs) error {
+func (m *Manager) publishBlock(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -1050,7 +1051,7 @@ func (m *Manager) publishBlock(ctx context.Context, txs cmtypes.Txs) error {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
 
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs)
+		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, m.getTxsFromBatch())
 		if err != nil {
 			return err
 		}

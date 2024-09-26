@@ -573,7 +573,7 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
 	m := getManager(t, &mocks.DA{})
 	m.isProposer = false
-	err := m.publishBlock(context.Background(), nil)
+	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
 }
 
@@ -810,6 +810,7 @@ func TestAggregationLoop(t *testing.T) {
 			BlockTime:      time.Second,
 			LazyAggregator: false,
 		},
+		bq: NewBatchQueue(),
 	}
 
 	mockStore.On("Height").Return(uint64(0))

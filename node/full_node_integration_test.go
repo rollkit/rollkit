@@ -418,7 +418,7 @@ func TestChangeValSet(t *testing.T) {
 	require.NoError(waitForAtLeastNBlocks(node2, 10, Store))
 }
 
-// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block 		time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
+// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
 func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require := require.New(t)
 
@@ -470,10 +470,10 @@ func TestBlockExchange(t *testing.T) {
 	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
 		testSingleAggregatorSingleFullNode(t, Block)
 	})
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+	t.Run("SingleAggregatorTwoFullNode", func(t *testing.T) {
 		testSingleAggregatorTwoFullNode(t, Block)
 	})
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+	t.Run("SingleAggregatorSingleFullNodeTrustedHash", func(t *testing.T) {
 		testSingleAggregatorSingleFullNodeTrustedHash(t, Block)
 	})
 }
@@ -541,7 +541,7 @@ func TestTwoRollupsInOneNamespace(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			doTestTwoRollupsInOneNamespace(t, tc.chainID1, tc.chainID1)
+			doTestTwoRollupsInOneNamespace(t, tc.chainID1, tc.chainID2)
 		})
 	}
 }
@@ -633,7 +633,7 @@ func getLastSubmittedHeight(ctx context.Context, node *FullNode, t *testing.T) i
 
 	val, err := strconv.ParseUint(string(raw), 10, 64)
 	require.NoError(t, err)
-	return int(val) //nolint:gosec
+	return int(val)
 }
 
 func TestMaxPending(t *testing.T) {

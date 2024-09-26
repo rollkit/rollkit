@@ -15,7 +15,7 @@ type BatchQueue struct {
 func NewBatchQueue() *BatchQueue {
 	return &BatchQueue{
 		queue:    make([]BatchWithTime, 0),
-		notifyCh: make(chan struct{}, 1), // Buffered channel to avoid blocking
+		notifyCh: make(chan struct{}, 1),
 	}
 }
 
@@ -41,9 +41,4 @@ func (bq *BatchQueue) Next() *BatchWithTime {
 	batch := bq.queue[0]
 	bq.queue = bq.queue[1:]
 	return &batch
-}
-
-// NotifyCh returns the notification channel
-func (bq *BatchQueue) NotifyCh() <-chan struct{} {
-	return bq.notifyCh
 }
