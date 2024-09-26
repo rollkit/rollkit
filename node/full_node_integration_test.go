@@ -207,15 +207,15 @@ func TestLazyAggregator(t *testing.T) {
 
 	client := node.GetClient()
 
-	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
+	_, err = client.BroadcastTxAsync(context.Background(), []byte{0, 0, 0, 1})
 	assert.NoError(err)
 	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
 
-	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
+	_, err = client.BroadcastTxAsync(context.Background(), []byte{0, 0, 0, 2})
 	assert.NoError(err)
 	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
 
-	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
+	_, err = client.BroadcastTxAsync(context.Background(), []byte{0, 0, 0, 3})
 	assert.NoError(err)
 
 	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
