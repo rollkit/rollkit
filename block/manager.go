@@ -557,6 +557,34 @@ func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 	}
 }
 
+func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) {
+	headerHeight := header.Height()
+	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
+		var lastDataHash types.Hash
+		var err error
+		var lastData *types.Data
+		if headerHeight > 1 {
+			_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
+			if lastData != nil {
+				lastDataHash = lastData.Hash()
+			}
+		}
+		// if err then we cannot populate data, hence just skip and wait for Data to be synced
+		if err == nil {
+			metadata := &types.Metadata{
+				ChainID:      header.ChainID(),
+				Height:       headerHeight,
+				Time:         header.BaseHeader.Time,
+				LastDataHash: lastDataHash,
+			}
+			d := &types.Data{
+				Metadata: metadata,
+			}
+			m.dataCache.setData(headerHeight, d)
+		}
+	}
+}
+
 // SyncLoop is responsible for syncing blocks.
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
@@ -596,30 +624,7 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 			// check if the dataHash is dataHashForEmptyTxs
 			// no need to wait for syncing Data, instead prepare now and set
 			// so that trySyncNextBlock can progress
-			if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
-				var lastDataHash types.Hash
-				var err error
-				var lastData *types.Data
-				if headerHeight > 1 {
-					_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
-					if lastData != nil {
-						lastDataHash = lastData.Hash()
-					}
-				}
-				// if err then we cannot populate data, hence just skip and wait for Data to be synced
-				if err == nil {
-					metadata := &types.Metadata{
-						ChainID:      header.ChainID(),
-						Height:       headerHeight,
-						Time:         header.BaseHeader.Time,
-						LastDataHash: lastDataHash,
-					}
-					d := &types.Data{
-						Metadata: metadata,
-					}
-					m.dataCache.setData(headerHeight, d)
-				}
-			}
+			m.handleEmptyDataHash(ctx, &header.Header)
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
