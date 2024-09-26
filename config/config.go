@@ -28,6 +28,8 @@ const (
 	FlagDAStartHeight = "rollkit.da_start_height"
 	// FlagDANamespace is a flag for specifying the DA namespace ID
 	FlagDANamespace = "rollkit.da_namespace"
+	// FlagDASubmitOptions is a flag for data availability submit options
+	FlagDASubmitOptions = "rollkit.da_submit_options"
 	// FlagLight is a flag for running the node in light mode
 	FlagLight = "rollkit.light"
 	// FlagTrustedHash is a flag for specifying the trusted hash
@@ -61,6 +63,7 @@ type NodeConfig struct {
 	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
 	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
+	DASubmitOptions    string                       `mapstructure:"da_submit_options"`
 
 	// CLI flags
 	DANamespace      string `mapstructure:"da_namespace"`
@@ -131,6 +134,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DANamespace = v.GetString(FlagDANamespace)
 	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
 	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
+	nc.DASubmitOptions = v.GetString(FlagDASubmitOptions)
 	nc.BlockTime = v.GetDuration(FlagBlockTime)
 	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
 	nc.Light = v.GetBool(FlagLight)
@@ -159,6 +163,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Float64(FlagDAGasMultiplier, def.DAGasMultiplier, "DA gas price multiplier for retrying blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
+	cmd.Flags().String(FlagDASubmitOptions, def.DASubmitOptions, "DA submit options")
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")

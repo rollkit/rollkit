@@ -34,7 +34,6 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	mockda "github.com/rollkit/rollkit/da/mock"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
@@ -62,7 +61,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, backend goDA.DA) *Manager {
 	logger := test.NewLogger(t)
 	return &Manager{
-		dalc:        da.NewDAClient(backend, -1, -1, nil, logger),
+		dalc:        da.NewDAClient(backend, -1, -1, nil, nil, logger),
 		headerCache: NewHeaderCache(),
 		logger:      logger,
 	}
@@ -227,7 +226,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &mockda.MockDA{}
+			mockDA := &mocks.DA{}
 			m := getManager(t, mockDA)
 			m.conf.DABlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
@@ -253,15 +252,15 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			// * wait for tx to drop from mempool exactly DABlockTime * DAMempoolTTL seconds
 			// * retry with a higher gas price
 			// * successfully submit
-			mockDA.On("MaxBlobSize").Return(uint64(12345), nil)
+			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
 			mockDA.
-				On("Submit", blobs, tc.expectedGasPrices[0], []byte(nil)).
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil)).
 				Return([][]byte{}, da.ErrTxTimedout).Once()
 			mockDA.
-				On("Submit", blobs, tc.expectedGasPrices[1], []byte(nil)).
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil)).
 				Return([][]byte{}, da.ErrTxTimedout).Once()
 			mockDA.
-				On("Submit", blobs, tc.expectedGasPrices[2], []byte(nil)).
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil)).
 				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
 			m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
@@ -572,7 +571,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, &mockda.MockDA{})
+	m := getManager(t, &mocks.DA{})
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
@@ -690,11 +689,11 @@ func TestManager_publishBlock(t *testing.T) {
 
 		mockStore.On("GetBlockData", mock.Anything, uint64(1)).Return(header, data, nil).Once()
 		mockStore.On("SaveBlockData", mock.Anything, header, data, mock.Anything).Return(nil).Once()
-		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(errors.New("failed to save block responses")).Once()
+		mockStore.On("SaveBlockResponses", mock.Anything, uint64(0), mock.Anything).Return(SaveBlockResponsesError{}).Once()
 
 		ctx := context.Background()
 		err = m.publishBlock(ctx)
-		assert.ErrorContains(err, "failed to save block responses")
+		assert.ErrorAs(err, &SaveBlockResponsesError{})
 
 		mockStore.AssertExpectations(t)
 	})

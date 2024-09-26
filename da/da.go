@@ -102,18 +102,20 @@ type DAClient struct {
 	GasPrice        float64
 	GasMultiplier   float64
 	Namespace       goDA.Namespace
+	SubmitOptions   []byte
 	SubmitTimeout   time.Duration
 	RetrieveTimeout time.Duration
 	Logger          log.Logger
 }
 
 // NewDAClient returns a new DA client.
-func NewDAClient(da goDA.DA, gasPrice, gasMultiplier float64, ns goDA.Namespace, logger log.Logger) *DAClient {
+func NewDAClient(da goDA.DA, gasPrice, gasMultiplier float64, ns goDA.Namespace, options []byte, logger log.Logger) *DAClient {
 	return &DAClient{
 		DA:              da,
 		GasPrice:        gasPrice,
 		GasMultiplier:   gasMultiplier,
 		Namespace:       ns,
+		SubmitOptions:   options,
 		SubmitTimeout:   defaultSubmitTimeout,
 		RetrieveTimeout: defaultRetrieveTimeout,
 		Logger:          logger,
@@ -153,7 +155,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedH
 
 	ctx, cancel := context.WithTimeout(ctx, dac.SubmitTimeout)
 	defer cancel()
-	ids, err := dac.DA.Submit(ctx, blobs, gasPrice, dac.Namespace)
+	ids, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
 		status := StatusError
 		switch {
@@ -197,7 +199,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedH
 
 // RetrieveHeaders retrieves block headers from DA.
 func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64) ResultRetrieveHeaders {
-	ids, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
+	result, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
 	if err != nil {
 		return ResultRetrieveHeaders{
 			BaseResult: BaseResult{
@@ -209,7 +211,7 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 	}
 
 	// If no blocks are found, return a non-blocking error.
-	if len(ids) == 0 {
+	if len(result.IDs) == 0 {
 		return ResultRetrieveHeaders{
 			BaseResult: BaseResult{
 				Code:     StatusNotFound,
@@ -221,7 +223,7 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 
 	ctx, cancel := context.WithTimeout(ctx, dac.RetrieveTimeout)
 	defer cancel()
-	blobs, err := dac.DA.Get(ctx, ids, dac.Namespace)
+	blobs, err := dac.DA.Get(ctx, result.IDs, dac.Namespace)
 	if err != nil {
 		return ResultRetrieveHeaders{
 			BaseResult: BaseResult{
@@ -259,4 +261,11 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 		},
 		Headers: headers,
 	}
+}
+
+func (dac *DAClient) submit(ctx context.Context, blobs []goDA.Blob, gasPrice float64, namespace goDA.Namespace) ([]goDA.ID, error) {
+	if len(dac.SubmitOptions) == 0 {
+		return dac.DA.Submit(ctx, blobs, gasPrice, namespace)
+	}
+	return dac.DA.SubmitWithOptions(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
 }

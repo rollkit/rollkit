@@ -78,14 +78,6 @@ var initialBackoff = 100 * time.Millisecond
 // DAIncludedHeightKey is the key used for persisting the da included height in store.
 const DAIncludedHeightKey = "da included height"
 
-var (
-	// ErrNoValidatorsInState is used when no validators/proposers are found in state
-	ErrNoValidatorsInState = errors.New("no validators found in state")
-
-	// ErrNotProposer is used when the manager is not a proposer
-	ErrNotProposer = errors.New("not a proposer")
-)
-
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -705,7 +697,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		}
 		err = m.store.SaveBlockData(ctx, h, d, &h.Signature)
 		if err != nil {
-			return fmt.Errorf("failed to save block: %w", err)
+			return SaveBlockError{err}
 		}
 		_, _, err = m.executor.Commit(ctx, newState, h, d, responses)
 		if err != nil {
@@ -714,7 +706,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 
 		err = m.store.SaveBlockResponses(ctx, hHeight, responses)
 		if err != nil {
-			return fmt.Errorf("failed to save block responses: %w", err)
+			return SaveBlockResponsesError{err}
 		}
 
 		// Height gets updated
@@ -1061,7 +1053,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header.Signature = *signature
 		err = m.store.SaveBlockData(ctx, header, data, signature)
 		if err != nil {
-			return err
+			return SaveBlockError{err}
 		}
 	}
 
@@ -1108,7 +1100,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, signature)
 	if err != nil {
-		return err
+		return SaveBlockError{err}
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
@@ -1122,7 +1114,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// SaveBlockResponses commits the DB tx
 	err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
 	if err != nil {
-		return err
+		return SaveBlockResponsesError{err}
 	}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
@@ -1169,10 +1161,7 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 			return nil, err
 		}
 		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig, err = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
-		if err != nil {
-			return nil, err
-		}
+		sig = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
 		return sig[1:], nil
 	default:
 		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)

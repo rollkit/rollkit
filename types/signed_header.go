@@ -105,7 +105,7 @@ var (
 	ErrProposerAddressMismatch = errors.New("proposer address in SignedHeader does not match the proposer address in the validator set")
 
 	// ErrProposerNotInValSet is returned when the proposer address in the validator set is not in the validator set
-	ErrProposerNotInValSet = errors.New("proposer address in the validator set is not in the validator set")
+	ErrProposerNotInValSet = errors.New("proposer not in validator set")
 
 	// ErrSignatureEmpty is returned when signature is empty
 	ErrSignatureEmpty = errors.New("signature is empty")
