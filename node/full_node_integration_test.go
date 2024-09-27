@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	goDA "github.com/rollkit/go-da"
+	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	test "github.com/rollkit/rollkit/test/log"
@@ -160,156 +161,154 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
-// TODO: https://github.com/rollkit/rollkit/issues/1819
-// func TestLazyAggregator(t *testing.T) {
-// 	assert := assert.New(t)
-// 	require := require.New(t)
+func TestLazyAggregator(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
 
-// 	app := &mocks.Application{}
-// 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-// 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-// 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
-// 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-// 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-// 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
+	app := &mocks.Application{}
+	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
+	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
+	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
+	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
+	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
+	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
-// 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-// 	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
-// 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-// 	require.NoError(err)
-// 	blockManagerConfig := config.BlockManagerConfig{
-// 		// After the genesis header is published, the syncer is started
-// 		// which takes little longer (due to initialization) and the syncer
-// 		// tries to retrieve the genesis header and check that is it recent
-// 		// (genesis header time is not older than current minus 1.5x blocktime)
-// 		// to allow sufficient time for syncer initialization, we cannot set
-// 		// the blocktime too short. in future, we can add a configuration
-// 		// in go-header syncer initialization to not rely on blocktime, but the
-// 		// config variable
-// 		BlockTime:      1 * time.Second,
-// 		LazyAggregator: true,
-// 		LazyBlockTime:  5 * time.Second,
-// 	}
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-// 	node, err := NewNode(ctx, config.NodeConfig{
-// 		DAAddress:          MockDAAddress,
-// 		DANamespace:        MockDANamespace,
-// 		Aggregator:         true,
-// 		BlockManagerConfig: blockManagerConfig,
-// 		SequencerAddress:   MockSequencerAddress,
-// 	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
-// 	require.NoError(err)
-// 	assert.False(node.IsRunning())
+	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(err)
+	blockManagerConfig := config.BlockManagerConfig{
+		// After the genesis header is published, the syncer is started
+		// which takes little longer (due to initialization) and the syncer
+		// tries to retrieve the genesis header and check that is it recent
+		// (genesis header time is not older than current minus 1.5x blocktime)
+		// to allow sufficient time for syncer initialization, we cannot set
+		// the blocktime too short. in future, we can add a configuration
+		// in go-header syncer initialization to not rely on blocktime, but the
+		// config variable
+		BlockTime:      1 * time.Second,
+		LazyAggregator: true,
+		LazyBlockTime:  5 * time.Second,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, err := NewNode(ctx, config.NodeConfig{
+		DAAddress:          MockDAAddress,
+		DANamespace:        MockDANamespace,
+		Aggregator:         true,
+		BlockManagerConfig: blockManagerConfig,
+		SequencerAddress:   MockSequencerAddress,
+	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	require.NoError(err)
+	assert.False(node.IsRunning())
 
-// 	startNodeWithCleanup(t, node)
-// 	require.NoError(waitForFirstBlock(node.(*FullNode), Header))
+	startNodeWithCleanup(t, node)
+	require.NoError(waitForFirstBlock(node.(*FullNode), Header))
 
-// 	client := node.GetClient()
+	client := node.GetClient()
 
-// 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 1})
-// 	assert.NoError(err)
-// 	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
+	_, err = client.BroadcastTxAsync(context.Background(), []byte{0, 0, 0, 1})
+	assert.NoError(err)
+	require.NoError(waitForAtLeastNBlocks(node, 2, Header))
 
-// 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 2})
-// 	assert.NoError(err)
-// 	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
+	_, err = client.BroadcastTxAsync(context.Background(), []byte{0, 0, 0, 2})
+	assert.NoError(err)
+	require.NoError(waitForAtLeastNBlocks(node, 3, Header))
 
-// 	_, err = client.BroadcastTxCommit(context.Background(), []byte{0, 0, 0, 3})
-// 	assert.NoError(err)
+	_, err = client.BroadcastTxAsync(context.Background(), []byte{0, 0, 0, 3})
+	assert.NoError(err)
 
-// 	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
+	require.NoError(waitForAtLeastNBlocks(node, 4, Header))
 
-// 	// LazyBlockTime should trigger another block even without transactions
-// 	require.NoError(waitForAtLeastNBlocks(node, 5, Header))
-// }
+	// LazyBlockTime should trigger another block even without transactions
+	require.NoError(waitForAtLeastNBlocks(node, 5, Header))
+}
 
-// TODO: https://github.com/rollkit/rollkit/issues/1809
 // TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
-// func TestFastDASync(t *testing.T) {
-// 	// Test setup, create require and contexts for aggregator and client nodes
-// 	require := require.New(t)
-// 	aggCtx, aggCancel := context.WithCancel(context.Background())
-// 	defer aggCancel()
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
+func TestFastDASync(t *testing.T) {
+	// Test setup, create require and contexts for aggregator and client nodes
+	require := require.New(t)
+	aggCtx, aggCancel := context.WithCancel(context.Background())
+	defer aggCancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-// 	// Set test params
-// 	clientNodes := 2
-// 	bmConfig := getBMConfig()
-// 	// Set the DABlockTime to a large value to avoid test failures due to
-// 	// slow CI machines
-// 	bmConfig.DABlockTime = 1 * time.Second
-// 	// Set BlockTime to 2x DABlockTime to ensure that the aggregator node is
-// 	// producing DA blocks faster than rollup blocks. This is to force the
-// 	// block syncing to align with DA inclusions.
-// 	bmConfig.BlockTime = 2 * bmConfig.DABlockTime
-// 	const numberOfBlocksToSyncTill = 5
+	// Set test params
+	clientNodes := 2
+	bmConfig := getBMConfig()
+	// Set the DABlockTime to a large value to avoid test failures due to
+	// slow CI machines
+	bmConfig.DABlockTime = 1 * time.Second
+	// Set BlockTime to 2x DABlockTime to ensure that the aggregator node is
+	// producing DA blocks faster than rollup blocks. This is to force the
+	// block syncing to align with DA inclusions.
+	bmConfig.BlockTime = 2 * bmConfig.DABlockTime
+	const numberOfBlocksToSyncTill = 5
 
-// 	// Create the 2 nodes
-// 	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
+	// Create the 2 nodes
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
 
-// 	node1 := nodes[0]
-// 	node2 := nodes[1]
+	node1 := nodes[0]
+	node2 := nodes[1]
 
-// 	// Start node 1
-// 	startNodeWithCleanup(t, node1)
+	// Start node 1
+	startNodeWithCleanup(t, node1)
 
-// 	// Wait for node 1 to sync the first numberOfBlocksToSyncTill
-// 	require.NoError(waitForAtLeastNBlocks(node1, numberOfBlocksToSyncTill, Store))
+	// Wait for node 1 to sync the first numberOfBlocksToSyncTill
+	require.NoError(waitForAtLeastNBlocks(node1, numberOfBlocksToSyncTill, Store))
 
-// 	// Now that node 1 has already synced, start the second node
-// 	startNodeWithCleanup(t, node2)
+	// Now that node 1 has already synced, start the second node
+	startNodeWithCleanup(t, node2)
 
-// 	// Start and launch the timer in a go routine to ensure that the test
-// 	// fails if the nodes do not sync before the timer expires
-// 	ch := make(chan struct{})
-// 	defer safeClose(ch)
-// 	// After the first DA block time passes, the node should signal RetrieveLoop once, and it
-// 	// should catch up to the latest block height pretty soon after.
-// 	timer := time.NewTimer(1*bmConfig.DABlockTime + 250*time.Millisecond)
-// 	go func() {
-// 		select {
-// 		case <-ch:
-// 			// Channel closed before timer expired.
-// 			return
-// 		case <-timer.C:
-// 			// Timer expired before channel closed.
-// 			safeClose(ch)
-// 			require.FailNow("nodes did not sync before DA Block time")
-// 			return
-// 		}
-// 	}()
+	// Start and launch the timer in a go routine to ensure that the test
+	// fails if the nodes do not sync before the timer expires
+	ch := make(chan struct{})
+	defer safeClose(ch)
+	// After the first DA block time passes, the node should signal RetrieveLoop once, and it
+	// should catch up to the latest block height pretty soon after.
+	timer := time.NewTimer(1*bmConfig.DABlockTime + 500*time.Millisecond)
+	go func() {
+		select {
+		case <-ch:
+			// Channel closed before timer expired.
+			return
+		case <-timer.C:
+			// Timer expired before channel closed.
+			safeClose(ch)
+			require.FailNow("nodes did not sync before DA Block time")
+			return
+		}
+	}()
 
-// 	// Check that the nodes are synced in a loop. We don't use the helper
-// 	// function here so that we can catch if the channel is closed to exit
-// 	// the test quickly.
-// 	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
-// 		select {
-// 		case <-ch:
-// 			require.FailNow("channel closed")
-// 		default:
-// 		}
-// 		nHeight, err := getNodeHeight(node2, Store)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		if nHeight >= uint64(numberOfBlocksToSyncTill) {
-// 			return nil
-// 		}
-// 		return fmt.Errorf("expected height > %v, got %v", numberOfBlocksToSyncTill, nHeight)
-// 	}))
+	// Check that the nodes are synced in a loop. We don't use the helper
+	// function here so that we can catch if the channel is closed to exit
+	// the test quickly.
+	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		select {
+		case <-ch:
+			require.FailNow("channel closed")
+		default:
+		}
+		nHeight, err := getNodeHeight(node2, Store)
+		if err != nil {
+			return err
+		}
+		if nHeight >= uint64(numberOfBlocksToSyncTill) {
+			return nil
+		}
+		return fmt.Errorf("expected height > %v, got %v", numberOfBlocksToSyncTill, nHeight)
+	}))
 
-// 	// Verify the nodes are synced
-// 	require.NoError(verifyNodesSynced(node1, node2, Store))
+	// Verify the nodes are synced
+	require.NoError(verifyNodesSynced(node1, node2, Store))
 
-// 	// Verify that the block we synced to is DA included. This is to
-// 	// ensure that the test is passing due to the DA syncing, since the P2P
-// 	// block sync will sync quickly but the block won't be DA included.
-// 	header, _, err := node2.Store.GetBlockData(ctx, numberOfBlocksToSyncTill)
-// 	require.NoError(err)
-// 	require.True(node2.blockManager.IsDAIncluded(header.Hash()))
-// }
+	// Verify that the block we synced to is DA included. This is to
+	// ensure that the test is passing due to the DA syncing, since the P2P
+	// block sync will sync quickly but the block won't be DA included.
+	header, _, err := node2.Store.GetBlockData(ctx, numberOfBlocksToSyncTill)
+	require.NoError(err)
+	require.True(node2.blockManager.IsDAIncluded(header.Hash()))
+}
 
 // TestChangeValSet tests the scenario where the sequencer changes and the chain is able to provide blocks by new sequencer
 func TestChangeValSet(t *testing.T) {
@@ -419,7 +418,7 @@ func TestChangeValSet(t *testing.T) {
 	require.NoError(waitForAtLeastNBlocks(node2, 10, Store))
 }
 
-// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block 		time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
+// TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
 func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	require := require.New(t)
 
@@ -471,10 +470,10 @@ func TestBlockExchange(t *testing.T) {
 	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
 		testSingleAggregatorSingleFullNode(t, Block)
 	})
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+	t.Run("SingleAggregatorTwoFullNode", func(t *testing.T) {
 		testSingleAggregatorTwoFullNode(t, Block)
 	})
-	t.Run("SingleAggregatorSingleFullNode", func(t *testing.T) {
+	t.Run("SingleAggregatorSingleFullNodeTrustedHash", func(t *testing.T) {
 		testSingleAggregatorSingleFullNodeTrustedHash(t, Block)
 	})
 }
@@ -522,121 +521,120 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	}
 }
 
-// TODO: https://github.com/rollkit/rollkit/issues/1812
-// func TestTwoRollupsInOneNamespace(t *testing.T) {
-// 	cases := []struct {
-// 		name     string
-// 		chainID1 string
-// 		chainID2 string
-// 	}{
-// 		{
-// 			name:     "same chain ID",
-// 			chainID1: "test-1",
-// 			chainID2: "test-1",
-// 		},
-// 		{
-// 			name:     "different chain IDs",
-// 			chainID1: "foo-1",
-// 			chainID2: "bar-2",
-// 		},
-// 	}
+func TestTwoRollupsInOneNamespace(t *testing.T) {
+	cases := []struct {
+		name     string
+		chainID1 string
+		chainID2 string
+	}{
+		{
+			name:     "same chain ID",
+			chainID1: "test-1",
+			chainID2: "test-1",
+		},
+		{
+			name:     "different chain IDs",
+			chainID1: "foo-1",
+			chainID2: "bar-2",
+		},
+	}
 
-// 	for _, tc := range cases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			doTestTwoRollupsInOneNamespace(t, tc.chainID1, tc.chainID1)
-// 		})
-// 	}
-// }
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doTestTwoRollupsInOneNamespace(t, tc.chainID1, tc.chainID2)
+		})
+	}
+}
 
-// func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
-// 	require := require.New(t)
+func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
+	require := require.New(t)
 
-// 	const (
-// 		n             = 2
-// 		daStartHeight = 1
-// 		daMempoolTTL  = 5
-// 		blockTime1    = 100 * time.Millisecond
-// 		blockTime2    = 50 * time.Millisecond
-// 	)
+	const (
+		n             = 2
+		daStartHeight = 1
+		daMempoolTTL  = 5
+		blockTime1    = 100 * time.Millisecond
+		blockTime2    = 50 * time.Millisecond
+	)
 
-// 	mainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-// 	defer cancel()
+	mainCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-// 	agg1Ctx := context.WithoutCancel(mainCtx)
-// 	nodes1Ctx := context.WithoutCancel(mainCtx)
+	agg1Ctx := context.WithoutCancel(mainCtx)
+	nodes1Ctx := context.WithoutCancel(mainCtx)
 
-// 	rollupNetwork1, apps1 := createNodes(agg1Ctx, nodes1Ctx, n, config.BlockManagerConfig{
-// 		BlockTime:     blockTime1,
-// 		DABlockTime:   blockTime1,
-// 		DAStartHeight: daStartHeight,
-// 		DAMempoolTTL:  daMempoolTTL,
-// 	}, chainID1, true, t)
+	rollupNetwork1, apps1 := createNodes(agg1Ctx, nodes1Ctx, n, config.BlockManagerConfig{
+		BlockTime:     blockTime1,
+		DABlockTime:   blockTime1,
+		DAStartHeight: daStartHeight,
+		DAMempoolTTL:  daMempoolTTL,
+	}, chainID1, true, t)
 
-// 	require.Len(rollupNetwork1, n)
-// 	require.Len(apps1, n)
+	require.Len(rollupNetwork1, n)
+	require.Len(apps1, n)
 
-// 	agg2Ctx := context.WithoutCancel(mainCtx)
-// 	nodes2Ctx := context.WithoutCancel(mainCtx)
+	agg2Ctx := context.WithoutCancel(mainCtx)
+	nodes2Ctx := context.WithoutCancel(mainCtx)
 
-// 	rollupNetwork2, apps2 := createNodes(agg2Ctx, nodes2Ctx, n, config.BlockManagerConfig{
-// 		BlockTime:     blockTime2,
-// 		DABlockTime:   blockTime2,
-// 		DAStartHeight: daStartHeight,
-// 		DAMempoolTTL:  daMempoolTTL,
-// 	}, chainID2, true, t)
+	rollupNetwork2, apps2 := createNodes(agg2Ctx, nodes2Ctx, n, config.BlockManagerConfig{
+		BlockTime:     blockTime2,
+		DABlockTime:   blockTime2,
+		DAStartHeight: daStartHeight,
+		DAMempoolTTL:  daMempoolTTL,
+	}, chainID2, true, t)
 
-// 	require.Len(rollupNetwork2, n)
-// 	require.Len(apps2, n)
+	require.Len(rollupNetwork2, n)
+	require.Len(apps2, n)
 
-// 	// same mock DA has to be used by all nodes to simulate posting to/retrieving from same namespace
-// 	dalc := getMockDA(t)
-// 	for _, node := range append(rollupNetwork1, rollupNetwork2...) {
-// 		node.dalc = dalc
-// 		node.blockManager.SetDALC(dalc)
-// 	}
+	// same mock DA has to be used by all nodes to simulate posting to/retrieving from same namespace
+	dalc := getMockDA(t)
+	for _, node := range append(rollupNetwork1, rollupNetwork2...) {
+		node.dalc = dalc
+		node.blockManager.SetDALC(dalc)
+	}
 
-// 	agg1 := rollupNetwork1[0]
-// 	agg2 := rollupNetwork2[0]
+	agg1 := rollupNetwork1[0]
+	agg2 := rollupNetwork2[0]
 
-// 	node1 := rollupNetwork1[1]
-// 	node2 := rollupNetwork2[1]
+	node1 := rollupNetwork1[1]
+	node2 := rollupNetwork2[1]
 
-// 	// start both aggregators and wait for 10 blocks
-// 	require.NoError(agg1.Start())
-// 	require.NoError(agg2.Start())
+	// start both aggregators and wait for 10 blocks
+	require.NoError(agg1.Start())
+	require.NoError(agg2.Start())
 
-// 	require.NoError(waitForAtLeastNBlocks(agg1, 10, Store))
-// 	require.NoError(waitForAtLeastNBlocks(agg2, 10, Store))
+	require.NoError(waitForAtLeastNBlocks(agg1, 10, Store))
+	require.NoError(waitForAtLeastNBlocks(agg2, 10, Store))
 
-// 	// get the number of submitted blocks from aggregators before stopping (as it closes the store)
-// 	lastSubmittedHeight1 := getLastSubmittedHeight(agg1Ctx, agg1, t)
-// 	lastSubmittedHeight2 := getLastSubmittedHeight(agg2Ctx, agg2, t)
+	// get the number of submitted blocks from aggregators before stopping (as it closes the store)
+	lastSubmittedHeight1 := getLastSubmittedHeight(agg1Ctx, agg1, t)
+	lastSubmittedHeight2 := getLastSubmittedHeight(agg2Ctx, agg2, t)
 
-// 	// make sure that there are any blocks for syncing
-// 	require.Greater(lastSubmittedHeight1, 1)
-// 	require.Greater(lastSubmittedHeight2, 1)
+	// make sure that there are any blocks for syncing
+	require.Greater(lastSubmittedHeight1, 1)
+	require.Greater(lastSubmittedHeight2, 1)
 
-// 	// now stop the aggregators and run the full nodes to ensure sync from D
-// 	require.NoError(agg1.Stop())
-// 	require.NoError(agg2.Stop())
+	// now stop the aggregators and run the full nodes to ensure sync from D
+	require.NoError(agg1.Stop())
+	require.NoError(agg2.Stop())
 
-// 	startNodeWithCleanup(t, node1)
-// 	startNodeWithCleanup(t, node2)
+	startNodeWithCleanup(t, node1)
+	startNodeWithCleanup(t, node2)
 
-// 	// check that full nodes are able to sync blocks from DA
-// 	require.NoError(waitForAtLeastNBlocks(node1, lastSubmittedHeight1, Store))
-// 	require.NoError(waitForAtLeastNBlocks(node2, lastSubmittedHeight2, Store))
-// }
+	// check that full nodes are able to sync blocks from DA
+	require.NoError(waitForAtLeastNBlocks(node1, lastSubmittedHeight1, Store))
+	require.NoError(waitForAtLeastNBlocks(node2, lastSubmittedHeight2, Store))
+}
 
-// func getLastSubmittedHeight(ctx context.Context, node *FullNode, t *testing.T) int {
-// 	raw, err := node.Store.GetMetadata(ctx, block.LastSubmittedHeightKey)
-// 	require.NoError(t, err)
-// 	require.NotEmpty(t, raw)
+func getLastSubmittedHeight(ctx context.Context, node *FullNode, t *testing.T) int {
+	raw, err := node.Store.GetMetadata(ctx, block.LastSubmittedHeightKey)
+	require.NoError(t, err)
+	require.NotEmpty(t, raw)
 
-// 	val, err := strconv.ParseUint(string(raw), 10, 64)
-// 	require.NoError(t, err)
-// 	return int(val) //nolint:gosec
-// }
+	val, err := strconv.ParseUint(string(raw), 10, 64)
+	require.NoError(t, err)
+	return int(val)
+}
 
 func TestMaxPending(t *testing.T) {
 	cases := []struct {

@@ -78,6 +78,9 @@ var initialBackoff = 100 * time.Millisecond
 // DAIncludedHeightKey is the key used for persisting the da included height in store.
 const DAIncludedHeightKey = "da included height"
 
+// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
+var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -139,7 +142,6 @@ type Manager struct {
 
 	// For usage by Lazy Aggregator mode
 	buildingBlock bool
-	txsAvailable  <-chan struct{}
 
 	pendingHeaders *PendingHeaders
 
@@ -261,13 +263,6 @@ func NewManager(
 		return nil, err
 	}
 
-	var txsAvailableCh <-chan struct{}
-	if mempool != nil {
-		txsAvailableCh = mempool.TxsAvailable()
-	} else {
-		txsAvailableCh = nil
-	}
-
 	pendingHeaders, err := NewPendingHeaders(store, logger)
 	if err != nil {
 		return nil, err
@@ -296,7 +291,6 @@ func NewManager(
 		dataCache:      NewDataCache(),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
-		txsAvailable:   txsAvailableCh,
 		buildingBlock:  false,
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
@@ -497,10 +491,8 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		select {
 		case <-ctx.Done():
 			return
-		// the txsAvailable channel is signalled when Txns become available
-		// in the mempool, or after transactions remain in the mempool after
-		// building a block.
-		case _, ok := <-m.txsAvailable:
+		// the m.bq.notifyCh channel is signalled when batch becomes available in the batch queue
+		case _, ok := <-m.bq.notifyCh:
 			if ok && !m.buildingBlock {
 				// set the buildingBlock flag to prevent multiple calls to reset the time
 				m.buildingBlock = true
@@ -563,6 +555,36 @@ func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
 	}
 }
 
+func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header) {
+	headerHeight := header.Height()
+	if bytes.Equal(header.DataHash, dataHashForEmptyTxs) {
+		var lastDataHash types.Hash
+		var err error
+		var lastData *types.Data
+		if headerHeight > 1 {
+			_, lastData, err = m.store.GetBlockData(ctx, headerHeight-1)
+			if lastData != nil {
+				lastDataHash = lastData.Hash()
+			}
+		}
+		// if err then we cannot populate data, hence just skip and wait for Data to be synced
+		if err == nil {
+			metadata := &types.Metadata{
+				ChainID:      header.ChainID(),
+				Height:       headerHeight,
+				Time:         header.BaseHeader.Time,
+				LastDataHash: lastDataHash,
+			}
+			d := &types.Data{
+				Metadata: metadata,
+			}
+			m.dataCache.setData(headerHeight, d)
+		} else {
+			m.logger.Error("failed to get block data for", "height", headerHeight-1, "error", err)
+		}
+	}
+}
+
 // SyncLoop is responsible for syncing blocks.
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
@@ -598,6 +620,11 @@ func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
 
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToRetrieveCh()
+
+			// check if the dataHash is dataHashForEmptyTxs
+			// no need to wait for syncing Data, instead prepare now and set
+			// so that trySyncNextBlock can progress
+			m.handleEmptyDataHash(ctx, &header.Header)
 
 			err := m.trySyncNextBlock(ctx, daHeight)
 			if err != nil {
