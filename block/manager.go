@@ -3,7 +3,6 @@ package block
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -423,15 +422,17 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				batch := res.Batch
 				batchTime := res.Timestamp
 				// Add the batch to the batch queue
-				if batch != nil && batch.Transactions != nil {
+				if batch != nil {
 					m.bq.AddBatch(BatchWithTime{batch, batchTime})
-					// Calculate the hash of the batch and store it for the next batch retrieval
-					batchBytes, err := batch.Marshal()
-					if err != nil {
-						m.logger.Error("error while marshaling batch", "error", err)
+					// update lastBatchHash only if the batch has actual txs
+					if batch.Transactions != nil {
+						// Calculate the hash of the batch and store it for the next batch retrieval
+						h, err := batch.Hash()
+						if err != nil {
+							m.logger.Error("error while hashing batch", "error", err)
+						}
+						m.lastBatchHash = h
 					}
-					h := sha256.Sum256(batchBytes)
-					m.lastBatchHash = h[:]
 				}
 			}
 			// Reset the batchTimer to signal the next batch production
@@ -991,6 +992,8 @@ func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 func (m *Manager) getTxsFromBatch() (cmtypes.Txs, time.Time) {
 	batch := m.bq.Next()
 	if batch == nil {
+		// this excludes empty batches
+		// empty batches still gets the timestamp from the sequencer
 		return make(cmtypes.Txs, 0), time.Now()
 	}
 	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
