@@ -48,7 +48,7 @@ func StartMockDAServJSONRPC(ctx context.Context, listenAddress string) *jsonrpc.
 
 // StartMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func StartMockSequencerServerGRPC(listenAddress string) *grpc.Server {
-	dummySeq := seqTest.NewDummySequencer([]byte("rollupId"))
+	dummySeq := seqTest.NewDummySequencer([]byte("test"))
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	addr, _ := url.Parse(listenAddress)
 	lis, err := net.Listen("tcp", addr.Host)

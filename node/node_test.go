@@ -78,7 +78,7 @@ func startMockGRPCServ() *grpc.Server {
 
 // startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
-	dummySeq := seqTest.NewDummySequencer([]byte("rollupId"))
+	dummySeq := seqTest.NewDummySequencer([]byte("test"))
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
