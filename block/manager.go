@@ -419,18 +419,20 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			if err != nil && ctx.Err() == nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
-			batch := res.Batch
-			batchTime := res.Timestamp
-			// Add the batch to the batch queue
-			if batch != nil && batch.Transactions != nil {
-				m.bq.AddBatch(BatchWithTime{batch, batchTime})
-				// Calculate the hash of the batch and store it for the next batch retrieval
-				batchBytes, err := batch.Marshal()
-				if err != nil {
-					m.logger.Error("error while marshaling batch", "error", err)
+			if res != nil {
+				batch := res.Batch
+				batchTime := res.Timestamp
+				// Add the batch to the batch queue
+				if batch != nil && batch.Transactions != nil {
+					m.bq.AddBatch(BatchWithTime{batch, batchTime})
+					// Calculate the hash of the batch and store it for the next batch retrieval
+					batchBytes, err := batch.Marshal()
+					if err != nil {
+						m.logger.Error("error while marshaling batch", "error", err)
+					}
+					h := sha256.Sum256(batchBytes)
+					m.lastBatchHash = h[:]
 				}
-				h := sha256.Sum256(batchBytes)
-				m.lastBatchHash = h[:]
 			}
 			// Reset the batchTimer to signal the next batch production
 			// period based on the batch retrieval time.
