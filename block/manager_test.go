@@ -130,6 +130,52 @@ func TestInitialStateStored(t *testing.T) {
 	require.Equal(s.InitialHeight, uint64(1))
 }
 
+func TestHandleEmptyDataHash(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	// Mock store and data cache
+	store := mocks.NewStore(t)
+	dataCache := NewDataCache()
+
+	// Setup the manager with the mock and data cache
+	m := &Manager{
+		store:     store,
+		dataCache: dataCache,
+	}
+
+	// Define the test data
+	headerHeight := 2
+	header := &types.Header{
+		DataHash: dataHashForEmptyTxs,
+		BaseHeader: types.BaseHeader{
+			Height: 2,
+			Time:   uint64(time.Now().UnixNano()),
+		},
+	}
+
+	// Mock data for the previous block
+	lastData := &types.Data{}
+	lastDataHash := lastData.Hash()
+
+	// header.DataHash equals dataHashForEmptyTxs and no error occurs
+	store.On("GetBlockData", ctx, uint64(headerHeight-1)).Return(nil, lastData, nil)
+
+	// Execute the method under test
+	m.handleEmptyDataHash(ctx, header)
+
+	// Assertions
+	store.AssertExpectations(t)
+
+	// make sure that the store has the correct data
+	d := dataCache.getData(header.Height())
+	require.NotNil(d)
+	require.Equal(d.Metadata.LastDataHash, lastDataHash)
+	require.Equal(d.Metadata.ChainID, header.ChainID())
+	require.Equal(d.Metadata.Height, header.Height())
+	require.Equal(d.Metadata.Time, header.BaseHeader.Time)
+}
+
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
@@ -810,6 +856,7 @@ func TestAggregationLoop(t *testing.T) {
 			BlockTime:      time.Second,
 			LazyAggregator: false,
 		},
+		bq: NewBatchQueue(),
 	}
 
 	mockStore.On("Height").Return(uint64(0))
@@ -829,14 +876,13 @@ func TestAggregationLoop(t *testing.T) {
 func TestLazyAggregationLoop(t *testing.T) {
 	mockLogger := new(test.MockLogger)
 
-	txsAvailable := make(chan struct{}, 1)
 	m := &Manager{
-		logger:       mockLogger,
-		txsAvailable: txsAvailable,
+		logger: mockLogger,
 		conf: config.BlockManagerConfig{
 			BlockTime:      time.Second,
 			LazyAggregator: true,
 		},
+		bq: NewBatchQueue(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -846,7 +892,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
-	txsAvailable <- struct{}{}
+	m.bq.notifyCh <- struct{}{}
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()

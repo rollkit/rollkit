@@ -30,7 +30,7 @@ require (
 	github.com/tendermint/tendermint v0.35.9
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.29.0
-	google.golang.org/grpc v1.67.0
+	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.34.2
 )
 
@@ -40,7 +40,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.2
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/rollkit/go-sequencing v0.0.0-20240903052704-f7979984096b
+	github.com/rollkit/go-sequencing v0.1.0
 )
 
 require (
