@@ -986,16 +986,16 @@ func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 	return &signature, nil
 }
 
-func (m *Manager) getTxsFromBatch() cmtypes.Txs {
+func (m *Manager) getTxsFromBatch() (cmtypes.Txs, time.Time) {
 	batch := m.bq.Next()
 	if batch == nil {
-		return make(cmtypes.Txs, 0)
+		return make(cmtypes.Txs, 0), time.Now()
 	}
 	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
 	for _, tx := range batch.Transactions {
 		txs = append(txs, tx)
 	}
-	return txs
+	return txs, batch.Time
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1058,7 +1058,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
 
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, m.getTxsFromBatch())
+		txs, timestamp := m.getTxsFromBatch()
+		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, timestamp)
 		if err != nil {
 			return err
 		}
@@ -1399,10 +1400,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs)
+	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {

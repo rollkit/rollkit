@@ -719,7 +719,7 @@ func TestManager_publishBlock(t *testing.T) {
 	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
 		mockStore.On("Height").Return(uint64(0))
 		signature := types.Signature([]byte{1, 1, 1})
-		header, data, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState, cmtypes.Txs{})
+		header, data, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState, cmtypes.Txs{}, time.Now())
 		require.NoError(err)
 		require.NotNil(header)
 		require.NotNil(data)

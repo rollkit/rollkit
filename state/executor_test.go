@@ -77,7 +77,7 @@ func doTestCreateBlock(t *testing.T) {
 	state.Validators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
-	header, data, err := executor.CreateBlock(1, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{})
+	header, data, err := executor.CreateBlock(1, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Empty(data.Txs)
@@ -87,7 +87,7 @@ func doTestCreateBlock(t *testing.T) {
 	tx := []byte{1, 2, 3, 4}
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	header, data, err = executor.CreateBlock(2, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
+	header, data, err = executor.CreateBlock(2, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Equal(uint64(2), header.Height())
@@ -100,7 +100,7 @@ func doTestCreateBlock(t *testing.T) {
 	require.NoError(err)
 	err = mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	header, data, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx1, tx2})
+	header, data, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx1, tx2}, time.Now())
 	require.Error(err)
 	require.Nil(header)
 	require.Nil(data)
@@ -111,7 +111,7 @@ func doTestCreateBlock(t *testing.T) {
 	executor.maxBytes = 10
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	header, data, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
+	header, data, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx}, time.Now())
 	require.Error(err)
 	require.Nil(header)
 	require.Nil(data)
@@ -206,7 +206,7 @@ func doTestApplyBlock(t *testing.T) {
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	signature := types.Signature([]byte{1, 1, 1})
-	header, data, err := executor.CreateBlock(1, &signature, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
+	header, data, err := executor.CreateBlock(1, &signature, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Equal(uint64(1), header.Height())
@@ -236,7 +236,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(tx3, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	signature = types.Signature([]byte{1, 1, 1})
-	header, data, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState, cmtypes.Txs{tx1, tx2, tx3})
+	header, data, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState, cmtypes.Txs{tx1, tx2, tx3}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Equal(uint64(2), header.Height())
