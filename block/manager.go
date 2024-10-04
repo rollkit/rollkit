@@ -415,10 +415,12 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 		case <-batchTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
-			batch, batchTime, err := m.seqClient.GetNextBatch(ctx, m.lastBatchHash)
+			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{RollupId: []byte(m.genesis.ChainID), LastBatchHash: m.lastBatchHash})
 			if err != nil && ctx.Err() == nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
+			batch := res.Batch
+			batchTime := res.Timestamp
 			// Add the batch to the batch queue
 			if batch != nil && batch.Transactions != nil {
 				m.bq.AddBatch(BatchWithTime{batch, batchTime})
