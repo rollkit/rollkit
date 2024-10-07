@@ -28,6 +28,7 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 
 	goDA "github.com/rollkit/go-da"
+	damock "github.com/rollkit/go-da/mocks"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -198,7 +199,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 func TestPendingBlocks(t *testing.T) {
 	ctx := context.Background()
 
-	mockDA := new(mocks.DA)
+	mockDA := new(damock.MockDA)
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(10240), nil)
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
 

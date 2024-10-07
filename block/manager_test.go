@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	goDA "github.com/rollkit/go-da"
+	goDAMock "github.com/rollkit/go-da/mocks"
 	goDATest "github.com/rollkit/go-da/test"
 
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
@@ -272,7 +273,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &mocks.DA{}
+			mockDA := &goDAMock.MockDA{}
 			m := getManager(t, mockDA)
 			m.conf.DABlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
@@ -617,7 +618,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, &mocks.DA{})
+	m := getManager(t, &goDAMock.MockDA{})
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
