@@ -85,7 +85,7 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.
 			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
 			After(submitTimeout).
-			Return(nil, context.DeadlineExceeded)
+			Return(nil, &da.ErrContextDeadline{})
 		doTestSubmitTimeout(t, dalc, headers)
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
 			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
-			Return([]da.ID{}, errors.New("tx too large"))
+			Return([]da.ID{}, &da.ErrTxTooLarge{})
 		doTestTxTooLargeError(t, dalc, headers)
 	})
 }
@@ -175,7 +175,7 @@ func doTestSubmitTimeout(t *testing.T, dalc *DAClient, headers []*types.SignedHe
 	assert := assert.New(t)
 	dalc.SubmitTimeout = submitTimeout
 	resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, -1)
-	assert.Contains(resp.Message, "context deadline exceeded", "should return context timeout error")
+	assert.Contains(resp.Message, (&da.ErrContextDeadline{}).Error(), "should return context timeout error")
 }
 
 func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
@@ -254,7 +254,7 @@ func doTestTxTooLargeError(t *testing.T, dalc *DAClient, headers []*types.Signed
 
 	assert := assert.New(t)
 	resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, -1)
-	assert.Contains(resp.Message, "tx too large", "should return tx too large error")
+	assert.Contains(resp.Message, (&da.ErrTxTooLarge{}).Error(), "should return tx too large error")
 	assert.Equal(resp.Code, StatusTooBig)
 }
 
