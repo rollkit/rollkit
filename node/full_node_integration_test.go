@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	goDA "github.com/rollkit/go-da"
+	damock "github.com/rollkit/go-da/mocks"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -674,7 +675,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 		MaxPendingBlocks: maxPending,
 	}, types.TestChainID, false, t)
 	seq := nodes[0]
-	mockDA := &mocks.DA{}
+	mockDA := &damock.MockDA{}
 
 	// make sure mock DA is not accepting any submissions
 	mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(123456789), nil)

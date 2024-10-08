@@ -17,10 +17,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/rollkit/go-da"
+	damock "github.com/rollkit/go-da/mocks"
 	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
 	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
-	"github.com/rollkit/rollkit/test/mocks"
 	testServer "github.com/rollkit/rollkit/test/server"
 	"github.com/rollkit/rollkit/types"
 )
@@ -69,7 +69,7 @@ func TestMain(m *testing.M) {
 
 func TestMockDAErrors(t *testing.T) {
 	t.Run("submit_timeout", func(t *testing.T) {
-		mockDA := &mocks.DA{}
+		mockDA := &damock.MockDA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
 		header, _ := types.GetRandomBlock(1, 0)
 		headers := []*types.SignedHeader{header}
@@ -88,14 +88,14 @@ func TestMockDAErrors(t *testing.T) {
 		doTestSubmitTimeout(t, dalc, headers)
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
-		mockDA := &mocks.DA{}
+		mockDA := &damock.MockDA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
 		// Set up the mock to return an error for MaxBlobSize
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(0), errors.New("unable to get DA max blob size"))
 		doTestMaxBlockSizeError(t, dalc)
 	})
 	t.Run("tx_too_large", func(t *testing.T) {
-		mockDA := &mocks.DA{}
+		mockDA := &damock.MockDA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
 		header, _ := types.GetRandomBlock(1, 0)
 		headers := []*types.SignedHeader{header}
