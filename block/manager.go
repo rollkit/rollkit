@@ -80,6 +80,9 @@ const DAIncludedHeightKey = "da included height"
 // dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
+// ErrNoBatch indicate no batch is available for creating block
+var ErrNoBatch = errors.New("no batch to process")
+
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -989,18 +992,17 @@ func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 	return &signature, nil
 }
 
-func (m *Manager) getTxsFromBatch() (cmtypes.Txs, time.Time) {
+func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
 	batch := m.bq.Next()
 	if batch == nil {
-		// this excludes empty batches
-		// empty batches still gets the timestamp from the sequencer
-		return make(cmtypes.Txs, 0), time.Now()
+		// batch is nil when there is nothing to process
+		return nil, nil, ErrNoBatch
 	}
 	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
 	for _, tx := range batch.Transactions {
 		txs = append(txs, tx)
 	}
-	return txs, batch.Time
+	return txs, &batch.Time, nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1063,8 +1065,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
 
-		txs, timestamp := m.getTxsFromBatch()
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, timestamp)
+		txs, timestamp, err := m.getTxsFromBatch()
+		if err != nil {
+			return fmt.Errorf("failed to get transactions from batch: %w", err)
+		}
+		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
 		if err != nil {
 			return err
 		}
