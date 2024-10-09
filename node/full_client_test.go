@@ -821,6 +821,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9001",
 		},
 		BlockManagerConfig: getBMConfig(),
+		SequencerAddress:   MockSequencerAddress,
 	}, key1, signingKey1, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node1)
@@ -832,6 +833,7 @@ func TestMempool2Nodes(t *testing.T) {
 			ListenAddress: "/ip4/127.0.0.1/tcp/9002",
 			Seeds:         "/ip4/127.0.0.1/tcp/9001/p2p/" + id1.Loggable()["peerID"].(string),
 		},
+		SequencerAddress: MockSequencerAddress,
 	}, key2, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node2)
