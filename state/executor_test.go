@@ -165,7 +165,7 @@ func doTestApplyBlock(t *testing.T) {
 		MockSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
-	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(types.TestChainID), seqClient, logger)
 	ctx := context.Background()
 	require.NoError(mpoolReaper.StartReaper(ctx))
 	txQuery, err := query.New("tm.event='Tx'")

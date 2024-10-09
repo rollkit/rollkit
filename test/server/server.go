@@ -13,6 +13,7 @@ import (
 	"github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+	"github.com/rollkit/rollkit/types"
 )
 
 // StartMockDAServGRPC starts a mock gRPC server with the given listenAddress.
@@ -48,7 +49,7 @@ func StartMockDAServJSONRPC(ctx context.Context, listenAddress string) *jsonrpc.
 
 // StartMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func StartMockSequencerServerGRPC(listenAddress string) *grpc.Server {
-	dummySeq := seqTest.NewDummySequencer([]byte("test"))
+	dummySeq := seqTest.NewDummySequencer([]byte(types.TestChainID))
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	addr, _ := url.Parse(listenAddress)
 	lis, err := net.Listen("tcp", addr.Host)
