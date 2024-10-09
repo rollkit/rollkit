@@ -95,7 +95,7 @@ func (e *BlockExecutor) InitChain(genesis *cmtypes.GenesisDoc) (*abci.ResponseIn
 }
 
 // CreateBlock reaps transactions from mempool and builds a block.
-func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signature, lastExtendedCommit abci.ExtendedCommitInfo, lastHeaderHash types.Hash, state types.State, txs cmtypes.Txs) (*types.SignedHeader, *types.Data, error) {
+func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signature, lastExtendedCommit abci.ExtendedCommitInfo, lastHeaderHash types.Hash, state types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	emptyMaxBytes := maxBytes == -1
 	if emptyMaxBytes {
@@ -115,7 +115,7 @@ func (e *BlockExecutor) CreateBlock(height uint64, lastSignature *types.Signatur
 			BaseHeader: types.BaseHeader{
 				ChainID: e.chainID,
 				Height:  height,
-				Time:    uint64(time.Now().UnixNano()), //nolint:gosec
+				Time:    uint64(timestamp.UnixNano()), //nolint:gosec
 			},
 			DataHash:        make(types.Hash, 32),
 			ConsensusHash:   make(types.Hash, 32),

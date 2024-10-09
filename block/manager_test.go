@@ -31,6 +31,7 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDAMock "github.com/rollkit/go-da/mocks"
 	goDATest "github.com/rollkit/go-da/test"
+	"github.com/rollkit/go-sequencing"
 
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
@@ -720,7 +721,7 @@ func TestManager_publishBlock(t *testing.T) {
 	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
 		mockStore.On("Height").Return(uint64(0))
 		signature := types.Signature([]byte{1, 1, 1})
-		header, data, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState, cmtypes.Txs{})
+		header, data, err := executor.CreateBlock(0, &signature, abci.ExtendedCommitInfo{}, []byte{}, lastState, cmtypes.Txs{}, time.Now())
 		require.NoError(err)
 		require.NotNil(header)
 		require.NotNil(data)
@@ -920,4 +921,54 @@ func TestNormalAggregationLoop(t *testing.T) {
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
+}
+
+func TestGetTxsFromBatch_NoBatch(t *testing.T) {
+	// Mocking a manager with an empty batch queue
+	m := &Manager{
+		bq: &BatchQueue{queue: nil}, // No batch available
+	}
+
+	// Call the method and assert the results
+	txs, timestamp, err := m.getTxsFromBatch()
+
+	// Assertions
+	assert.Nil(t, txs, "Transactions should be nil when no batch exists")
+	assert.Nil(t, timestamp, "Timestamp should be nil when no batch exists")
+	assert.Equal(t, ErrNoBatch, err, "Expected ErrNoBatch error")
+}
+
+func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
+	// Mocking a manager with an empty batch
+	m := &Manager{
+		bq: &BatchQueue{queue: []BatchWithTime{
+			{Batch: &sequencing.Batch{Transactions: nil}, Time: time.Now()},
+		}},
+	}
+
+	// Call the method and assert the results
+	txs, timestamp, err := m.getTxsFromBatch()
+
+	// Assertions
+	require.NoError(t, err, "Expected no error for empty batch")
+	assert.Empty(t, txs, "Transactions should be empty when batch has no transactions")
+	assert.NotNil(t, timestamp, "Timestamp should not be nil for empty batch")
+}
+
+func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
+	// Mocking a manager with a valid batch
+	m := &Manager{
+		bq: &BatchQueue{queue: []BatchWithTime{
+			{Batch: &sequencing.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
+		}},
+	}
+
+	// Call the method and assert the results
+	txs, timestamp, err := m.getTxsFromBatch()
+
+	// Assertions
+	require.NoError(t, err, "Expected no error for valid batch")
+	assert.Len(t, txs, 2, "Expected 2 transactions")
+	assert.NotNil(t, timestamp, "Timestamp should not be nil for valid batch")
+	assert.Equal(t, cmtypes.Txs{cmtypes.Tx([]byte("tx1")), cmtypes.Tx([]byte("tx2"))}, txs, "Transactions do not match")
 }

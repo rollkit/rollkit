@@ -3,7 +3,6 @@ package block
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -80,6 +79,9 @@ const DAIncludedHeightKey = "da included height"
 
 // dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+
+// ErrNoBatch indicate no batch is available for creating block
+var ErrNoBatch = errors.New("no batch to process")
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -415,20 +417,26 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 		case <-batchTimer.C:
 			// Define the start time for the block production period
 			start := time.Now()
-			batch, batchTime, err := m.seqClient.GetNextBatch(ctx, m.lastBatchHash)
+			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{RollupId: []byte(m.genesis.ChainID), LastBatchHash: m.lastBatchHash})
 			if err != nil && ctx.Err() == nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
-			// Add the batch to the batch queue
-			if batch != nil && batch.Transactions != nil {
-				m.bq.AddBatch(BatchWithTime{batch, batchTime})
-				// Calculate the hash of the batch and store it for the next batch retrieval
-				batchBytes, err := batch.Marshal()
-				if err != nil {
-					m.logger.Error("error while marshaling batch", "error", err)
+			if res != nil {
+				batch := res.Batch
+				batchTime := res.Timestamp
+				// Add the batch to the batch queue
+				if batch != nil {
+					m.bq.AddBatch(BatchWithTime{batch, batchTime})
+					// update lastBatchHash only if the batch has actual txs
+					if batch.Transactions != nil {
+						// Calculate the hash of the batch and store it for the next batch retrieval
+						h, err := batch.Hash()
+						if err != nil {
+							m.logger.Error("error while hashing batch", "error", err)
+						}
+						m.lastBatchHash = h
+					}
 				}
-				h := sha256.Sum256(batchBytes)
-				m.lastBatchHash = h[:]
 			}
 			// Reset the batchTimer to signal the next batch production
 			// period based on the batch retrieval time.
@@ -984,16 +992,17 @@ func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 	return &signature, nil
 }
 
-func (m *Manager) getTxsFromBatch() cmtypes.Txs {
+func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
 	batch := m.bq.Next()
 	if batch == nil {
-		return make(cmtypes.Txs, 0)
+		// batch is nil when there is nothing to process
+		return nil, nil, ErrNoBatch
 	}
 	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
 	for _, tx := range batch.Transactions {
 		txs = append(txs, tx)
 	}
-	return txs
+	return txs, &batch.Time, nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1056,7 +1065,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
 
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, m.getTxsFromBatch())
+		txs, timestamp, err := m.getTxsFromBatch()
+		if err != nil {
+			return fmt.Errorf("failed to get transactions from batch: %w", err)
+		}
+		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
 		if err != nil {
 			return err
 		}
@@ -1397,10 +1410,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs)
+	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
