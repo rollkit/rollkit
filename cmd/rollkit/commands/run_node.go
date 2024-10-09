@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -130,7 +131,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
 				srv, err := startMockDAServJSONRPC(cmd.Context())
-				if err != nil && err != errMockDAServerAlreadyRunning {
+				if err != nil && !errors.Is(err, errMockDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
 				// nolint:errcheck,gosec
@@ -397,6 +398,7 @@ func isPortOccupied(host, port string) bool {
 	if err != nil {
 		return false
 	}
+	// nolint:errcheck
 	defer conn.Close()
 	return true
 }
