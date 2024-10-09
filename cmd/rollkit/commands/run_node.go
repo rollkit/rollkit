@@ -47,6 +47,8 @@ var (
 
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
+
+	errMockDAServerAlreadyRunning = fmt.Errorf("mock DA server already running")
 )
 
 // MockSequencerAddress is a sample address used by the mock sequencer
@@ -128,11 +130,15 @@ func NewRunNodeCmd() *cobra.Command {
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
 				srv, err := startMockDAServJSONRPC(cmd.Context())
-				if err != nil {
+				if err != nil && err != errMockDAServerAlreadyRunning {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
 				// nolint:errcheck,gosec
-				defer func() { srv.Stop(cmd.Context()) }()
+				defer func() {
+					if srv != nil {
+						srv.Stop(cmd.Context())
+					}
+				}()
 			}
 
 			// use mock grpc sequencer server by default
@@ -237,10 +243,17 @@ func addNodeFlags(cmd *cobra.Command) {
 
 // startMockDAServJSONRPC starts a mock JSONRPC server
 func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
-	addr, _ := url.Parse(nodeConfig.DAAddress)
-	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	err := srv.Start(ctx)
+	addr, err := url.Parse(nodeConfig.DAAddress)
 	if err != nil {
+		return nil, err
+	}
+	if isPortOccupied(addr.Hostname(), addr.Port()) {
+		logger.Info("Mock DA server is already running", "address", nodeConfig.DAAddress)
+		return nil, errMockDAServerAlreadyRunning
+	}
+	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
+	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
+	if err := srv.Start(ctx); err != nil {
 		return nil, err
 	}
 	return srv, nil
@@ -376,4 +389,14 @@ func parseFlags(cmd *cobra.Command) error {
 	}
 
 	return nil
+}
+
+func isPortOccupied(host, port string) bool {
+	address := net.JoinHostPort(host, port)
+	conn, err := net.DialTimeout("tcp", address, time.Second)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	return true
 }
