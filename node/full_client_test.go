@@ -69,8 +69,9 @@ func getRPC(t *testing.T) (*mocks.Application, *FullClient) {
 	node, err := newFullNode(
 		ctx,
 		config.NodeConfig{
-			DAAddress:   MockDAAddress,
-			DANamespace: MockDANamespace,
+			DAAddress:        MockDAAddress,
+			DANamespace:      MockDANamespace,
+			SequencerAddress: MockSequencerAddress,
 		},
 		key,
 		signingKey,
@@ -172,7 +173,7 @@ func TestGenesisChunked(t *testing.T) {
 	signingKey, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
+	n, _ := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace, SequencerAddress: MockSequencerAddress}, privKey, signingKey, proxy.NewLocalClientCreator(mockApp), genDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), test.NewFileLogger(t))
 
 	rpc := NewFullClient(n)
 
@@ -900,6 +901,7 @@ func TestStatus(t *testing.T) {
 			BlockManagerConfig: config.BlockManagerConfig{
 				BlockTime: 10 * time.Millisecond,
 			},
+			SequencerAddress: MockSequencerAddress,
 		},
 		key,
 		signingKey,
@@ -1038,7 +1040,9 @@ func TestFutureGenesisTime(t *testing.T) {
 		Aggregator:  true,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime: 200 * time.Millisecond,
-		}},
+		},
+		SequencerAddress: MockSequencerAddress,
+	},
 		key, signingKey,
 		proxy.NewLocalClientCreator(mockApp),
 		&cmtypes.GenesisDoc{
