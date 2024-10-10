@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"syscall"
 	"time"
 
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
@@ -249,6 +250,7 @@ func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
 		return nil, err
 	}
 	// Attempt to start the server and handle the error if the port is already in use.
+	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	if err := srv.Start(ctx); err != nil {
 		if errors.Is(err, syscall.EADDRINUSE) {
 			logger.Info("Mock DA server is already running", "address", nodeConfig.DAAddress)
@@ -257,7 +259,6 @@ func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
 		return nil, err
 	}
 	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
-	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	if err := srv.Start(ctx); err != nil {
 		return nil, err
 	}
@@ -394,15 +395,4 @@ func parseFlags(cmd *cobra.Command) error {
 	}
 
 	return nil
-}
-
-func isPortOccupied(host, port string) bool {
-	address := net.JoinHostPort(host, port)
-	conn, err := net.DialTimeout("tcp", address, time.Second)
-	if err != nil {
-		return false
-	}
-	// nolint:errcheck
-	defer conn.Close()
-	return true
 }
