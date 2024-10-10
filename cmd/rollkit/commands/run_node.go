@@ -26,6 +26,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/grpc"
 
+	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
@@ -131,7 +132,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				srv, err := startMockDAServJSONRPC(cmd.Context())
+				srv, err := startMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
 				if err != nil && !errors.Is(err, errMockDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
@@ -244,13 +245,17 @@ func addNodeFlags(cmd *cobra.Command) {
 }
 
 // startMockDAServJSONRPC starts a mock JSONRPC server
-func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
-	addr, err := url.Parse(nodeConfig.DAAddress)
+func startMockDAServJSONRPC(
+	ctx context.Context,
+	daAddress string,
+	newServer func(string, string, da.DA) *proxy.Server,
+) (*proxy.Server, error) {
+	addr, err := url.Parse(daAddress)
 	if err != nil {
 		return nil, err
 	}
-	// Attempt to start the server and handle the error if the port is already in use.
-	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
+
+	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	if err := srv.Start(ctx); err != nil {
 		if errors.Is(err, syscall.EADDRINUSE) {
 			logger.Info("Mock DA server is already running", "address", nodeConfig.DAAddress)
@@ -258,10 +263,9 @@ func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
 		}
 		return nil, err
 	}
+
 	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
-	if err := srv.Start(ctx); err != nil {
-		return nil, err
-	}
+
 	return srv, nil
 }
 
