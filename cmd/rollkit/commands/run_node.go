@@ -248,9 +248,13 @@ func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	if isPortOccupied(addr.Hostname(), addr.Port()) {
-		logger.Info("Mock DA server is already running", "address", nodeConfig.DAAddress)
-		return nil, errMockDAServerAlreadyRunning
+	// Attempt to start the server and handle the error if the port is already in use.
+	if err := srv.Start(ctx); err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			logger.Info("Mock DA server is already running", "address", nodeConfig.DAAddress)
+			return nil, errMockDAServerAlreadyRunning
+		}
+		return nil, err
 	}
 	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
 	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
