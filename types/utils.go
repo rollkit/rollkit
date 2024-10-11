@@ -17,9 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
-// TestChainID is a constant used for testing purposes. It represents a mock chain ID.
-const TestChainID = "test"
-
 // DefaultSigningKeyType is the key type used by the sequencer signing key
 const DefaultSigningKeyType = "ed25519"
 
@@ -69,19 +66,19 @@ type BlockConfig struct {
 
 // GetRandomBlock creates a block with a given height and number of transactions, intended for testing.
 // It's tailored for simplicity, primarily used in test setups where additional outputs are not needed.
-func GetRandomBlock(height uint64, nTxs int) (*SignedHeader, *Data) {
+func GetRandomBlock(height uint64, nTxs int, chainId string) (*SignedHeader, *Data) {
 	config := BlockConfig{
 		Height: height,
 		NTxs:   nTxs,
 	}
 	// Assuming GenerateBlock modifies the context directly with the generated block and other needed data.
-	header, data, _ := GenerateRandomBlockCustom(&config)
+	header, data, _ := GenerateRandomBlockCustom(&config, chainId)
 
 	return header, data
 }
 
 // GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
-func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcrypto.PrivKey) {
+func GenerateRandomBlockCustom(config *BlockConfig, chainId string) (*SignedHeader, *Data, cmcrypto.PrivKey) {
 	data := getBlockDataWith(config.NTxs)
 	dataHash := data.Hash()
 
@@ -95,7 +92,7 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcry
 		PrivKey:  config.PrivKey,
 	}
 
-	signedHeader, err := GetRandomSignedHeaderCustom(&headerConfig)
+	signedHeader, err := GetRandomSignedHeaderCustom(&headerConfig, chainId)
 	if err != nil {
 		panic(err)
 	}
@@ -105,7 +102,7 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcry
 	}
 
 	data.Metadata = &Metadata{
-		ChainID:      TestChainID,
+		ChainID:      chainId,
 		Height:       signedHeader.Height(),
 		LastDataHash: nil,
 		Time:         uint64(signedHeader.Time().UnixNano()),
@@ -115,13 +112,13 @@ func GenerateRandomBlockCustom(config *BlockConfig) (*SignedHeader, *Data, cmcry
 }
 
 // GetRandomNextBlock returns a block with random data and height of +1 from the provided block
-func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivKey, appHash header.Hash, nTxs int) (*SignedHeader, *Data) {
+func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivKey, appHash header.Hash, nTxs int, chainId string) (*SignedHeader, *Data) {
 	nextData := getBlockDataWith(nTxs)
 	dataHash := nextData.Hash()
 
 	valSet := header.Validators
 	newSignedHeader := &SignedHeader{
-		Header:     GetRandomNextHeader(header.Header),
+		Header:     GetRandomNextHeader(header.Header, chainId),
 		Validators: valSet,
 	}
 	newSignedHeader.ProposerAddress = header.Header.ProposerAddress
@@ -137,7 +134,7 @@ func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivK
 	}
 	newSignedHeader.Signature = *signature
 	nextData.Metadata = &Metadata{
-		ChainID:      TestChainID,
+		ChainID:      chainId,
 		Height:       newSignedHeader.Height(),
 		LastDataHash: nil,
 		Time:         uint64(newSignedHeader.Time().UnixNano()),
@@ -154,12 +151,12 @@ type HeaderConfig struct {
 }
 
 // GetRandomHeader returns a header with random fields and current time
-func GetRandomHeader() Header {
+func GetRandomHeader(chainId string) Header {
 	return Header{
 		BaseHeader: BaseHeader{
 			Height:  uint64(rand.Int63()), //nolint:gosec
 			Time:    uint64(time.Now().UnixNano()),
-			ChainID: TestChainID,
+			ChainID: chainId,
 		},
 		Version: Version{
 			Block: InitStateVersion.Consensus.Block,
@@ -178,8 +175,8 @@ func GetRandomHeader() Header {
 
 // GetRandomNextHeader returns a header with random data and height of +1 from
 // the provided Header
-func GetRandomNextHeader(header Header) Header {
-	nextHeader := GetRandomHeader()
+func GetRandomNextHeader(header Header, chainId string) Header {
+	nextHeader := GetRandomHeader(chainId)
 	nextHeader.BaseHeader.Height = header.Height() + 1
 	nextHeader.BaseHeader.Time = uint64(time.Now().Add(1 * time.Second).UnixNano())
 	nextHeader.LastHeaderHash = header.Hash()
@@ -189,7 +186,7 @@ func GetRandomNextHeader(header Header) Header {
 }
 
 // GetRandomSignedHeader generates a signed header with random data and returns it.
-func GetRandomSignedHeader() (*SignedHeader, cmcrypto.PrivKey, error) {
+func GetRandomSignedHeader(chainId string) (*SignedHeader, cmcrypto.PrivKey, error) {
 	config := HeaderConfig{
 		Height:      uint64(rand.Int63()), //nolint:gosec
 		DataHash:    GetRandomBytes(32),
@@ -197,7 +194,7 @@ func GetRandomSignedHeader() (*SignedHeader, cmcrypto.PrivKey, error) {
 		VotingPower: 1,
 	}
 
-	signedHeader, err := GetRandomSignedHeaderCustom(&config)
+	signedHeader, err := GetRandomSignedHeaderCustom(&config, chainId)
 	if err != nil {
 		return nil, ed25519.PrivKey{}, err
 	}
@@ -205,14 +202,14 @@ func GetRandomSignedHeader() (*SignedHeader, cmcrypto.PrivKey, error) {
 }
 
 // GetRandomSignedHeaderCustom creates a signed header based on the provided HeaderConfig.
-func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
+func GetRandomSignedHeaderCustom(config *HeaderConfig, chainId string) (*SignedHeader, error) {
 	valsetConfig := ValidatorConfig{
 		PrivKey:     config.PrivKey,
 		VotingPower: 1,
 	}
 	valSet := GetValidatorSetCustom(valsetConfig)
 	signedHeader := &SignedHeader{
-		Header:     GetRandomHeader(),
+		Header:     GetRandomHeader(chainId),
 		Validators: valSet,
 	}
 	signedHeader.Header.BaseHeader.Height = config.Height
@@ -231,10 +228,10 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig) (*SignedHeader, error) {
 
 // GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
 // the provided signed header
-func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.PrivKey) (*SignedHeader, error) {
+func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.PrivKey, chainId string) (*SignedHeader, error) {
 	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{
-		Header:     GetRandomNextHeader(signedHeader.Header),
+		Header:     GetRandomNextHeader(signedHeader.Header, chainId),
 		Validators: valSet,
 	}
 	newSignedHeader.LastCommitHash = signedHeader.Signature.GetCommitHash(
@@ -272,12 +269,12 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
-func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet) (*SignedHeader, error) {
+func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, chainId string) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
 			Height:  1,
 			Time:    uint64(time.Now().UnixNano()),
-			ChainID: TestChainID,
+			ChainID: chainId,
 		},
 		Version: Version{
 			Block: InitStateVersion.Consensus.Block,
@@ -321,7 +318,7 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 }
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(sigingKeyType string) (*cmtypes.GenesisDoc, cmcrypto.PrivKey) {
+func GetGenesisWithPrivkey(sigingKeyType string, chainId string) (*cmtypes.GenesisDoc, cmcrypto.PrivKey) {
 	var genesisValidatorKey cmcrypto.PrivKey
 	switch sigingKeyType {
 	case "secp256k1":
@@ -338,7 +335,7 @@ func GetGenesisWithPrivkey(sigingKeyType string) (*cmtypes.GenesisDoc, cmcrypto.
 		Name:    "sequencer",
 	}}
 	genDoc := &cmtypes.GenesisDoc{
-		ChainID:       TestChainID,
+		ChainID:       chainId,
 		InitialHeight: 0,
 		Validators:    genesisValidators,
 	}

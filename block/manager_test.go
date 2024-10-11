@@ -86,9 +86,9 @@ func getManager(t *testing.T, backend goDA.DA) *Manager {
 
 func TestInitialStateClean(t *testing.T) {
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateClean")
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "myChain",
+		ChainID:       "TestInitialStateClean",
 		InitialHeight: 1,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
@@ -103,16 +103,16 @@ func TestInitialStateClean(t *testing.T) {
 
 func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateStored")
 	valset := types.GetRandomValidatorSet()
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "myChain",
+		ChainID:       "TestInitialStateStored",
 		InitialHeight: 1,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
-		ChainID:         "myChain",
+		ChainID:         "TestInitialStateStored",
 		InitialHeight:   1,
 		LastBlockHeight: 100,
 		Validators:      valset,
@@ -180,16 +180,16 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "myChain",
+		ChainID:       "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight: 2,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
-		ChainID:         "myChain",
+		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
 		LastBlockHeight: 0,
 		Validators:      valset,
@@ -283,7 +283,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			m.store = store.New(kvStore)
 
 			var blobs [][]byte
-			header, data := types.GetRandomBlock(1, 5)
+			header, data := types.GetRandomBlock(1, 5, "TestSubmitBlocksToMockDA")
 			blob, err := header.MarshalBinary()
 			require.NoError(t, err)
 
@@ -458,15 +458,16 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 // Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
+	chainId := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	header1, data1 := types.GetRandomBlock(uint64(1), 5)
-	header2, data2 := types.GetRandomBlock(uint64(2), 5)
-	header3, data3 := types.GetRandomBlock(uint64(3), 5)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainId)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainId)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainId)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header1)
@@ -492,15 +493,16 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 // Test_submitBlocksToDA_BlockMarshalErrorCase2: A and B are fair blocks, but C has a marshalling error
 // - Block A and B get submitted to DA layer not block C
 func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
+	chainId := "Test_submitBlocksToDA_BlockMarshalErrorCase2"
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	header1, data1 := types.GetRandomBlock(uint64(1), 5)
-	header2, data2 := types.GetRandomBlock(uint64(2), 5)
-	header3, data3 := types.GetRandomBlock(uint64(3), 5)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainId)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainId)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainId)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header3)
@@ -553,7 +555,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
 				signingKey, err := types.PrivKeyToSigningKey(privKey)
@@ -569,7 +571,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key does not match genesis proposer public key",
 			args: func() args {
-				genesisData, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+				genesisData, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
 
@@ -587,7 +589,7 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "No validators found in genesis",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
 				genesisData.Validators = nil
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
@@ -685,14 +687,15 @@ func TestManager_publishBlock(t *testing.T) {
 	lastState.NextValidators = cmtypes.NewValidatorSet(validators)
 	lastState.LastValidators = cmtypes.NewValidatorSet(validators)
 
+	chainId := "TestManager_publishBlock"
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	seqClient := seqGRPC.NewClient()
 	require.NoError(seqClient.Start(
 		MockSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
-	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
-	executor := state.NewBlockExecutor(vKey.PubKey().Address(), "test", mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainId), seqClient, logger)
+	executor := state.NewBlockExecutor(vKey.PubKey().Address(), chainId, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
 
 	signingKey, err := types.PrivKeyToSigningKey(vKey)
 	require.NoError(err)
@@ -705,7 +708,7 @@ func TestManager_publishBlock(t *testing.T) {
 		store:        mockStore,
 		logger:       mockLogger,
 		genesis: &cmtypes.GenesisDoc{
-			ChainID:       "myChain",
+			ChainID:       chainId,
 			InitialHeight: 1,
 			AppHash:       []byte("app hash"),
 		},

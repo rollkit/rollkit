@@ -40,7 +40,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.2
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/rollkit/go-sequencing v0.2.0
+	github.com/rollkit/go-sequencing v0.2.1-0.20241010053131-3134457dc4e5
 )
 
 require (

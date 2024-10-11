@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	dummySequencer := test.NewDummySequencer([]byte("test"))
+	dummySequencer := test.NewMultiRollupSequencer()
 
 	srv := grpc.NewServer(dummySequencer, dummySequencer, dummySequencer)
 	log.Printf("Listening on: %s:%s", "localhost", "50051")

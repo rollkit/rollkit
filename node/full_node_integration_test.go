@@ -59,7 +59,7 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestAggregatorMode")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
@@ -98,7 +98,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	clientNodes := 4
 	aggCtx := context.Background()
 	ctx := context.Background()
-	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), types.TestChainID, false, t)
+	nodes, apps := createNodes(aggCtx, ctx, clientNodes+1, getBMConfig(), "TestTxGossipingAndAggregation", false, t)
 	startNodes(nodes, apps, t)
 	defer func() {
 		for _, n := range nodes {
@@ -175,7 +175,7 @@ func TestLazyAggregator(t *testing.T) {
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestLazyAggregator")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	blockManagerConfig := config.BlockManagerConfig{
@@ -247,7 +247,7 @@ func TestFastDASync(t *testing.T) {
 	const numberOfBlocksToSyncTill = 5
 
 	// Create the 2 nodes
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, "TestFastDASync", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -334,7 +334,7 @@ func TestChangeValSet(t *testing.T) {
 
 	// tmpubKey1
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestChangeValSet")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	tmPubKey1, err := cryptoenc.PubKeyToProto(genesisDoc.Validators[0].PubKey)
@@ -430,12 +430,12 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 	clientNodes := 3
 	bmConfig := getBMConfig()
 	bmConfig.BlockTime = 1 * time.Second
-	bmConfig.DABlockTime = 10 * time.Second
+	bmConfig.DABlockTime = 25 * time.Second // takes longer to sync due to communication with sequencer
 	const numberOfBlocksTSyncTill = 5
 
 	ch := make(chan struct{})
-	defer close(ch)
-	timer := time.NewTimer(bmConfig.DABlockTime - 1*time.Second)
+	defer safeClose(ch)
+	timer := time.NewTimer(bmConfig.DABlockTime)
 
 	go func() {
 		select {
@@ -448,7 +448,7 @@ func TestSingleAggregatorTwoFullNodesBlockSyncSpeed(t *testing.T) {
 			return
 		}
 	}()
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, types.TestChainID, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, bmConfig, "TestSingleAggregatorTwoFullNodesBlockSyncSpeed", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -501,7 +501,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	nodes, _ := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
 		DABlockTime: 20 * time.Millisecond,
 		BlockTime:   10 * time.Millisecond,
-	}, types.TestChainID, false, t)
+	}, "TestSubmitBlocksToDA", false, t)
 	seq := nodes[0]
 	startNodeWithCleanup(t, seq)
 
@@ -667,13 +667,13 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 	require := require.New(t)
 
 	clientNodes := 1
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	nodes, _ := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
 		DABlockTime:      20 * time.Millisecond,
 		BlockTime:        10 * time.Millisecond,
 		MaxPendingBlocks: maxPending,
-	}, types.TestChainID, false, t)
+	}, "TestMaxPending", false, t)
 	seq := nodes[0]
 	mockDA := &damock.MockDA{}
 
@@ -816,7 +816,7 @@ func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorSingleFullNode", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -838,7 +838,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 3
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorTwoFullNode", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -865,7 +865,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), types.TestChainID, false, t)
+	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorSingleFullNodeTrustedHash", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -898,11 +898,13 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	}
 	dalc := getMockDA(t)
 	bmConfig := getBMConfig()
-	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, keys, bmConfig, dalc, t)
-	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, types.TestChainID, false, t)
+	chainId := "testSingleAggregatorSingleFullNodeSingleLightNode"
+	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, chainId, keys, bmConfig, dalc, t)
+	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, chainId, keys, bmConfig, dalc, t)
+	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, chainId, false, t)
 
 	startNodeWithCleanup(t, sequencer)
+	require.NoError(waitForFirstBlock(sequencer, Header))
 	startNodeWithCleanup(t, fullNode)
 	startNodeWithCleanup(t, lightNode)
 
@@ -1091,9 +1093,9 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	return node, app
 }
 
-func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
+func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, chainId string, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
-	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, types.TestChainID, false, t)
+	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, chainId, false, t)
 	node.(*FullNode).dalc = dalc
 	node.(*FullNode).blockManager.SetDALC(dalc)
 

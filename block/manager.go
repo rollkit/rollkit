@@ -426,15 +426,17 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				batchTime := res.Timestamp
 				// Add the batch to the batch queue
 				if batch != nil {
-					m.bq.AddBatch(BatchWithTime{batch, batchTime})
-					// update lastBatchHash only if the batch has actual txs
-					if batch.Transactions != nil {
-						// Calculate the hash of the batch and store it for the next batch retrieval
-						h, err := batch.Hash()
-						if err != nil {
-							m.logger.Error("error while hashing batch", "error", err)
+					// Calculate the hash of the batch and store it for the next batch retrieval
+					h, err := batch.Hash()
+					if err == nil {
+						// add batch to the queue even if its empty (no txs)
+						m.bq.AddBatch(BatchWithTime{batch, batchTime})
+						// update lastBatchHash only if the batch has actual txs
+						if batch.Transactions != nil {
+							m.lastBatchHash = h
 						}
-						m.lastBatchHash = h
+					} else {
+						m.logger.Error("error while hashing batch", "error", err)
 					}
 				}
 			}
@@ -442,8 +444,8 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			// period based on the batch retrieval time.
 			remainingSleep := time.Duration(0)
 			elapsed := time.Since(start)
-			if elapsed < defaultBatchRetrievalInterval {
-				remainingSleep = defaultBatchRetrievalInterval - elapsed
+			if elapsed < m.conf.BlockTime {
+				remainingSleep = m.conf.BlockTime - elapsed
 			}
 			batchTimer.Reset(remainingSleep)
 		}
