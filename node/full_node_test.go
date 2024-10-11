@@ -287,17 +287,17 @@ func TestVoteExtension(t *testing.T) {
 	defer cancel()
 
 	testCases := []struct {
-		sigingKeyType string
+		signingKeyType string
 	}{
-		{sigingKeyType: "ed25519"},
-		{sigingKeyType: "secp256k1"},
+		{signingKeyType: "ed25519"},
+		{signingKeyType: "secp256k1"},
 	}
 
 	for _, tc := range testCases {
 		// TestPrepareProposalVoteExtChecker
 		t.Run("TestPrepareProposalVoteExtChecker", func(t *testing.T) {
 			chainId := "TestPrepareProposalVoteExtChecker"
-			app, node, pubKey := createNodeAndApp(ctx, chainId, voteExtensionEnableHeight, tc.sigingKeyType, t)
+			app, node, pubKey := createNodeAndApp(ctx, chainId, voteExtensionEnableHeight, tc.signingKeyType, t)
 
 			prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if req.Height <= voteExtensionEnableHeight {
@@ -399,12 +399,12 @@ func TestVoteExtension(t *testing.T) {
 }
 
 // Create & configure node with app. Get signing key for mock functions.
-func createNodeAndApp(ctx context.Context, chainId string, voteExtensionEnableHeight int64, sigingKeyType string, t *testing.T) (*mocks.Application, Node, cmcrypto.PubKey) {
+func createNodeAndApp(ctx context.Context, chainId string, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (*mocks.Application, Node, cmcrypto.PubKey) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	node, pubKey := createAggregatorWithApp(ctx, chainId, app, voteExtensionEnableHeight, sigingKeyType, t)
+	node, pubKey := createAggregatorWithApp(ctx, chainId, app, voteExtensionEnableHeight, signingKeyType, t)
 	require.NotNil(node)
 	require.NotNil(pubKey)
 	return app, node, pubKey
@@ -450,11 +450,11 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	return fullNode, app
 }
 
-func createAggregatorWithApp(ctx context.Context, chainId string, app abci.Application, voteExtensionEnableHeight int64, sigingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
+func createAggregatorWithApp(ctx context.Context, chainId string, app abci.Application, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(sigingKeyType, chainId)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(signingKeyType, chainId)
 	fmt.Println("genesis key type", genesis.Validators[0].PubKey.Type())
 	genesis.ConsensusParams = &cmtypes.ConsensusParams{
 		Block:     cmtypes.DefaultBlockParams(),
