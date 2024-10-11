@@ -85,10 +85,11 @@ func getManager(t *testing.T, backend goDA.DA) *Manager {
 // }
 
 func TestInitialStateClean(t *testing.T) {
+	const chainID = "TestInitialStateClean"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateClean")
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "TestInitialStateClean",
+		ChainID:       chainID,
 		InitialHeight: 1,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
@@ -458,16 +459,16 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 // Test_submitBlocksToDA_BlockMarshalErrorCase1: A itself has a marshalling error. So A, B and C never get submitted.
 func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
-	chainId := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
+	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase1"
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainId)
-	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainId)
-	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainId)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainID)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header1)
@@ -493,16 +494,16 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 // Test_submitBlocksToDA_BlockMarshalErrorCase2: A and B are fair blocks, but C has a marshalling error
 // - Block A and B get submitted to DA layer not block C
 func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
-	chainId := "Test_submitBlocksToDA_BlockMarshalErrorCase2"
+	chainID := "Test_submitBlocksToDA_BlockMarshalErrorCase2"
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
 
 	m := getManager(t, goDATest.NewDummyDA())
 
-	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainId)
-	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainId)
-	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainId)
+	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
+	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
+	header3, data3 := types.GetRandomBlock(uint64(3), 5, chainID)
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header3)
@@ -687,15 +688,15 @@ func TestManager_publishBlock(t *testing.T) {
 	lastState.NextValidators = cmtypes.NewValidatorSet(validators)
 	lastState.LastValidators = cmtypes.NewValidatorSet(validators)
 
-	chainId := "TestManager_publishBlock"
+	chainID := "TestManager_publishBlock"
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	seqClient := seqGRPC.NewClient()
 	require.NoError(seqClient.Start(
 		MockSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
-	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainId), seqClient, logger)
-	executor := state.NewBlockExecutor(vKey.PubKey().Address(), chainId, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainID), seqClient, logger)
+	executor := state.NewBlockExecutor(vKey.PubKey().Address(), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, state.NopMetrics())
 
 	signingKey, err := types.PrivKeyToSigningKey(vKey)
 	require.NoError(err)
@@ -708,7 +709,7 @@ func TestManager_publishBlock(t *testing.T) {
 		store:        mockStore,
 		logger:       mockLogger,
 		genesis: &cmtypes.GenesisDoc{
-			ChainID:       chainId,
+			ChainID:       chainID,
 			InitialHeight: 1,
 			AppHash:       []byte("app hash"),
 		},

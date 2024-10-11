@@ -131,7 +131,7 @@ func doTestApplyBlock(t *testing.T) {
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
 
-	chainId := "doTestApplyBlock"
+	chainID := "doTestApplyBlock"
 
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
@@ -167,7 +167,7 @@ func doTestApplyBlock(t *testing.T) {
 		MockSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
-	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainId), seqClient, logger)
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainID), seqClient, logger)
 	ctx := context.Background()
 	require.NoError(mpoolReaper.StartReaper(ctx))
 	txQuery, err := query.New("tm.event='Tx'")
@@ -202,7 +202,7 @@ func doTestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
 
-	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainId, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
+	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
 	tx := []byte{1, 2, 3, 4}
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
@@ -299,7 +299,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
-	chainId := "TestUpdateStateConsensusParams"
+	chainID := "TestUpdateStateConsensusParams"
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	seqClient := seqGRPC.NewClient()
@@ -307,11 +307,11 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 		MockSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
-	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainId), seqClient, logger)
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainID), seqClient, logger)
 	require.NoError(t, mpoolReaper.StartReaper(context.Background()))
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(t, eventBus.Start())
-	executor := NewBlockExecutor([]byte("test address"), chainId, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
+	executor := NewBlockExecutor([]byte("test address"), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
 	state := types.State{
 		ConsensusParams: cmproto.ConsensusParams{
@@ -331,7 +331,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 		NextValidators: cmtypes.NewValidatorSet([]*cmtypes.Validator{{Address: []byte("test"), PubKey: nil, VotingPower: 100, ProposerPriority: 1}}),
 	}
 
-	header, data := types.GetRandomBlock(1234, 2, chainId)
+	header, data := types.GetRandomBlock(1234, 2, chainID)
 
 	txResults := make([]*abci.ExecTxResult, len(data.Txs))
 	for idx := range data.Txs {

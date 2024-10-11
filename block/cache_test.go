@@ -9,7 +9,7 @@ import (
 )
 
 func TestBlockCache(t *testing.T) {
-	chainId := "TestBlockCache"
+	chainID := "TestBlockCache"
 	require := require.New(t)
 	// Create new HeaderCache and DataCache and verify not nil
 	hc := NewHeaderCache()
@@ -20,7 +20,7 @@ func TestBlockCache(t *testing.T) {
 
 	// Test setBlock and getBlock
 	height, nTxs := uint64(1), 2
-	header, data := types.GetRandomBlock(height, nTxs, chainId)
+	header, data := types.GetRandomBlock(height, nTxs, chainID)
 	hc.setHeader(height, header)
 	gotHeader := hc.getHeader(height)
 	require.NotNil(gotHeader, "getHeader should return non-nil after setHeader")
@@ -31,7 +31,7 @@ func TestBlockCache(t *testing.T) {
 	require.Equal(data, gotData)
 
 	// Test overwriting a block
-	header1, data1 := types.GetRandomBlock(height, nTxs, chainId)
+	header1, data1 := types.GetRandomBlock(height, nTxs, chainID)
 	hc.setHeader(height, header1)
 	gotHeader1 := hc.getHeader(height)
 	require.NotNil(gotHeader1, "getHeader should return non-nil after overwriting a header")

@@ -85,9 +85,9 @@ func newPendingBlocks(t *testing.T) *PendingHeaders {
 	return pendingBlocks
 }
 
-func fillWithBlockData(ctx context.Context, t *testing.T, pb *PendingHeaders, chainId string) {
+func fillWithBlockData(ctx context.Context, t *testing.T, pb *PendingHeaders, chainID string) {
 	for i := uint64(1); i <= numBlocks; i++ {
-		h, d := types.GetRandomBlock(i, 0, chainId)
+		h, d := types.GetRandomBlock(i, 0, chainID)
 		require.NoError(t, pb.store.SaveBlockData(ctx, h, d, &types.Signature{}))
 		pb.store.SetHeight(ctx, i)
 	}

@@ -68,11 +68,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestMockDAErrors(t *testing.T) {
-	chainId := "TestMockDAErrors"
+	chainID := "TestMockDAErrors"
 	t.Run("submit_timeout", func(t *testing.T) {
 		mockDA := &damock.MockDA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
-		header, _ := types.GetRandomBlock(1, 0, chainId)
+		header, _ := types.GetRandomBlock(1, 0, chainID)
 		headers := []*types.SignedHeader{header}
 		var blobs []da.Blob
 		for _, header := range headers {
@@ -98,7 +98,7 @@ func TestMockDAErrors(t *testing.T) {
 	t.Run("tx_too_large", func(t *testing.T) {
 		mockDA := &damock.MockDA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
-		header, _ := types.GetRandomBlock(1, 0, chainId)
+		header, _ := types.GetRandomBlock(1, 0, chainID)
 		headers := []*types.SignedHeader{header}
 		var blobs []da.Blob
 		for _, header := range headers {
@@ -267,9 +267,9 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
 
 	assert := assert.New(t)
 
-	chainId := "doTestSubmitEmptyBlocks"
-	header1, _ := types.GetRandomBlock(1, 0, chainId)
-	header2, _ := types.GetRandomBlock(1, 0, chainId)
+	chainID := "doTestSubmitEmptyBlocks"
+	header1, _ := types.GetRandomBlock(1, 0, chainID)
+	header2, _ := types.GetRandomBlock(1, 0, chainID)
 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, maxBlobSize, -1)
 	assert.Equal(StatusSuccess, resp.Code, "empty blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "empty blocks should batch")
@@ -299,9 +299,9 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 
 	assert := assert.New(t)
 
-	chainId := "doTestSubmitSmallBlocksBatch"
-	header1, _ := types.GetRandomBlock(1, 1, chainId)
-	header2, _ := types.GetRandomBlock(1, 2, chainId)
+	chainID := "doTestSubmitSmallBlocksBatch"
+	header1, _ := types.GetRandomBlock(1, 1, chainID)
+	header2, _ := types.GetRandomBlock(1, 2, chainID)
 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, maxBlobSize, -1)
 	assert.Equal(StatusSuccess, resp.Code, "small blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "small blocks should batch")

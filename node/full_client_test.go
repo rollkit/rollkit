@@ -56,14 +56,14 @@ func getBlockMeta(rpc *FullClient, n int64) *cmtypes.BlockMeta {
 	return bmeta
 }
 
-func getRPC(t *testing.T, chainId string) (*mocks.Application, *FullClient) {
+func getRPC(t *testing.T, chainID string) (*mocks.Application, *FullClient) {
 	t.Helper()
 	require := require.New(t)
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
 	ctx := context.Background()
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainId)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	node, err := newFullNode(
@@ -308,15 +308,15 @@ func TestGetBlock(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	chainId := "TestGetBlock"
-	mockApp, rpc := getRPC(t, chainId)
+	chainID := "TestGetBlock"
+	mockApp, rpc := getRPC(t, chainID)
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
-	header, data := types.GetRandomBlock(1, 10, chainId)
+	header, data := types.GetRandomBlock(1, 10, chainID)
 	err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
 	rpc.node.Store.SetHeight(ctx, header.Height())
 	require.NoError(err)
@@ -329,17 +329,17 @@ func TestGetBlock(t *testing.T) {
 }
 
 func TestGetCommit(t *testing.T) {
-	chainId := "TestGetCommit"
+	chainID := "TestGetCommit"
 	require := require.New(t)
 	assert := assert.New(t)
-	mockApp, rpc := getRPC(t, chainId)
+	mockApp, rpc := getRPC(t, chainID)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
-	header1, data1 := types.GetRandomBlock(1, 5, chainId)
-	header2, data2 := types.GetRandomBlock(2, 6, chainId)
-	header3, data3 := types.GetRandomBlock(3, 8, chainId)
-	header4, data4 := types.GetRandomBlock(4, 10, chainId)
+	header1, data1 := types.GetRandomBlock(1, 5, chainID)
+	header2, data2 := types.GetRandomBlock(2, 6, chainID)
+	header3, data3 := types.GetRandomBlock(3, 8, chainID)
+	header4, data4 := types.GetRandomBlock(4, 10, chainID)
 	headers := []*types.SignedHeader{header1, header2, header3, header4}
 	data := []*types.Data{data1, data2, data3, data4}
 
@@ -370,10 +370,10 @@ func TestGetCommit(t *testing.T) {
 }
 
 func TestCometBFTLightClientCompability(t *testing.T) {
-	chainId := "TestCometBFTLightClientCompability"
+	chainID := "TestCometBFTLightClientCompability"
 	require := require.New(t)
 	assert := assert.New(t)
-	mockApp, rpc := getRPC(t, chainId)
+	mockApp, rpc := getRPC(t, chainID)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
@@ -382,9 +382,9 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 		Height: 1,
 		NTxs:   1,
 	}
-	header1, data1, privKey := types.GenerateRandomBlockCustom(&config, chainId)
-	header2, data2 := types.GetRandomNextBlock(header1, data1, privKey, []byte{}, 2, chainId)
-	header3, data3 := types.GetRandomNextBlock(header2, data2, privKey, []byte{}, 3, chainId)
+	header1, data1, privKey := types.GenerateRandomBlockCustom(&config, chainID)
+	header2, data2 := types.GetRandomNextBlock(header1, data1, privKey, []byte{}, 2, chainID)
+	header3, data3 := types.GetRandomNextBlock(header2, data2, privKey, []byte{}, 3, chainID)
 
 	headers := []*types.SignedHeader{header1, header2, header3}
 	data := []*types.Data{data1, data2, data3}
@@ -440,17 +440,17 @@ func TestCometBFTLightClientCompability(t *testing.T) {
 }
 
 func TestBlockSearch(t *testing.T) {
-	chainId := "TestBlockSearch"
+	chainID := "TestBlockSearch"
 	require := require.New(t)
 	assert := assert.New(t)
-	mockApp, rpc := getRPC(t, chainId)
+	mockApp, rpc := getRPC(t, chainID)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	ctx := context.Background()
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		header, data := types.GetRandomBlock(uint64(h), 5, chainId)
+		header, data := types.GetRandomBlock(uint64(h), 5, chainID)
 		err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
 		require.NoError(err)
 	}
@@ -499,18 +499,18 @@ func TestBlockSearch(t *testing.T) {
 }
 
 func TestGetBlockByHash(t *testing.T) {
-	chainId := "TestGetBlockByHash"
+	chainID := "TestGetBlockByHash"
 	assert := assert.New(t)
 	require := require.New(t)
 
-	mockApp, rpc := getRPC(t, chainId)
+	mockApp, rpc := getRPC(t, chainID)
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
 	startNodeWithCleanup(t, rpc.node)
 	ctx := context.Background()
-	header, data := types.GetRandomBlock(1, 10, chainId)
+	header, data := types.GetRandomBlock(1, 10, chainID)
 	err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
 	require.NoError(err)
 	abciBlock, err := abciconv.ToABCIBlock(header, data)
@@ -702,17 +702,17 @@ func TestConsensusState(t *testing.T) {
 }
 
 func TestBlockchainInfo(t *testing.T) {
-	chainId := "TestBlockchainInfo"
+	chainID := "TestBlockchainInfo"
 	require := require.New(t)
 	assert := assert.New(t)
-	mockApp, rpc := getRPC(t, chainId)
+	mockApp, rpc := getRPC(t, chainID)
 	mockApp.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	ctx := context.Background()
 
 	heights := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, h := range heights {
-		header, data := types.GetRandomBlock(uint64(h), 5, chainId)
+		header, data := types.GetRandomBlock(uint64(h), 5, chainID)
 		err := rpc.node.Store.SaveBlockData(ctx, header, data, &types.Signature{})
 		rpc.node.Store.SetHeight(ctx, header.Height())
 		require.NoError(err)
@@ -881,7 +881,7 @@ func TestMempool2Nodes(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
-	chainId := "TestStatus"
+	chainID := "TestStatus"
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -890,7 +890,7 @@ func TestStatus(t *testing.T) {
 	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
 	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainId)
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 	pubKey := genesisDoc.Validators[0].PubKey
@@ -938,7 +938,7 @@ func TestStatus(t *testing.T) {
 		NTxs:         1,
 		ProposerAddr: pubKey.Bytes(),
 	}
-	earliestHeader, earliestData, _ := types.GenerateRandomBlockCustom(&config, chainId)
+	earliestHeader, earliestData, _ := types.GenerateRandomBlockCustom(&config, chainID)
 	err = rpc.node.Store.SaveBlockData(ctx, earliestHeader, earliestData, &types.Signature{})
 	rpc.node.Store.SetHeight(ctx, earliestHeader.Height())
 	require.NoError(err)
@@ -948,7 +948,7 @@ func TestStatus(t *testing.T) {
 		NTxs:         1,
 		ProposerAddr: pubKey.Bytes(),
 	}
-	latestHeader, latestData, _ := types.GenerateRandomBlockCustom(&config, chainId)
+	latestHeader, latestData, _ := types.GenerateRandomBlockCustom(&config, chainID)
 	err = rpc.node.Store.SaveBlockData(ctx, latestHeader, latestData, &types.Signature{})
 	rpc.node.Store.SetHeight(ctx, latestHeader.Height())
 	require.NoError(err)
@@ -1035,8 +1035,8 @@ func TestFutureGenesisTime(t *testing.T) {
 	mockApp.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 	mockApp.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
 	key, _, _ := crypto.GenerateEd25519Key(crand.Reader)
-	chainId := "TestFutureGenesisTime"
-	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainId)
+	chainID := "TestFutureGenesisTime"
+	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 
@@ -1057,7 +1057,7 @@ func TestFutureGenesisTime(t *testing.T) {
 		key, signingKey,
 		proxy.NewLocalClientCreator(mockApp),
 		&cmtypes.GenesisDoc{
-			ChainID:       chainId,
+			ChainID:       chainID,
 			InitialHeight: 1,
 			GenesisTime:   genesisTime,
 			Validators:    genesisDoc.Validators,

@@ -898,10 +898,10 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	}
 	dalc := getMockDA(t)
 	bmConfig := getBMConfig()
-	chainId := "testSingleAggregatorSingleFullNodeSingleLightNode"
-	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, chainId, keys, bmConfig, dalc, t)
-	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, chainId, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, chainId, false, t)
+	chainID := "testSingleAggregatorSingleFullNodeSingleLightNode"
+	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, chainID, keys, bmConfig, dalc, t)
+	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, chainID, keys, bmConfig, dalc, t)
+	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, chainID, false, t)
 
 	startNodeWithCleanup(t, sequencer)
 	require.NoError(waitForFirstBlock(sequencer, Header))
@@ -1093,9 +1093,9 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	return node, app
 }
 
-func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, chainId string, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
+func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, chainID string, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
 	t.Helper()
-	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, chainId, false, t)
+	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, chainID, false, t)
 	node.(*FullNode).dalc = dalc
 	node.(*FullNode).blockManager.SetDALC(dalc)
 

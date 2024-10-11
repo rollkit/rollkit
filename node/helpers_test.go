@@ -43,9 +43,9 @@ func TestGetNodeHeight(t *testing.T) {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
 	bmConfig := getBMConfig()
-	chainId := "TestGetNodeHeight"
-	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, chainId, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 1, false, true, keys, bmConfig, chainId, false, t)
+	chainID := "TestGetNodeHeight"
+	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, chainID, keys, bmConfig, dalc, t)
+	lightNode, _ := createNode(ctx, 1, false, true, keys, bmConfig, chainID, false, t)
 
 	startNodeWithCleanup(t, fullNode)
 	require.NoError(waitForFirstBlock(fullNode, Store))
