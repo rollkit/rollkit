@@ -103,17 +103,18 @@ func TestInitialStateClean(t *testing.T) {
 }
 
 func TestInitialStateStored(t *testing.T) {
+	chainID := "TestInitialStateStored"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateStored")
+	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	valset := types.GetRandomValidatorSet()
 	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "TestInitialStateStored",
+		ChainID:       chainID,
 		InitialHeight: 1,
 		Validators:    genesisDoc.Validators,
 		AppHash:       []byte("app hash"),
 	}
 	sampleState := types.State{
-		ChainID:         "TestInitialStateStored",
+		ChainID:         chainID,
 		InitialHeight:   1,
 		LastBlockHeight: 100,
 		Validators:      valset,
