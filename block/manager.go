@@ -51,9 +51,6 @@ const defaultBlockTime = 1 * time.Second
 // defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
 const defaultLazyBlockTime = 60 * time.Second
 
-// defaultBatchRetrievalInterval is the interval at which the sequencer retrieves batches
-const defaultBatchRetrievalInterval = 1 * time.Second
-
 // defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 const defaultMempoolTTL = 25
 

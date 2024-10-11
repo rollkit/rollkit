@@ -14,6 +14,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
+	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
@@ -26,7 +27,6 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	goDA "github.com/rollkit/go-da"
 	damock "github.com/rollkit/go-da/mocks"
 	"github.com/rollkit/rollkit/block"
