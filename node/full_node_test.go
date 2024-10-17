@@ -41,14 +41,14 @@ import (
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
 	ctx := context.Background()
-	node := initAndStartNodeWithCleanup(ctx, t, Full)
+	node := initAndStartNodeWithCleanup(ctx, t, Full, "TestStartup")
 	require.IsType(t, new(FullNode), node)
 }
 
 func TestMempoolDirectly(t *testing.T) {
 	ctx := context.Background()
 
-	fn := initAndStartNodeWithCleanup(ctx, t, Full)
+	fn := initAndStartNodeWithCleanup(ctx, t, Full, "TestMempoolDirectly")
 	require.IsType(t, new(FullNode), fn)
 
 	node := fn.(*FullNode)
@@ -59,9 +59,10 @@ func TestMempoolDirectly(t *testing.T) {
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
 func TestTrySyncNextBlockMultiple(t *testing.T) {
+	chainID := "TestTrySyncNextBlockMultiple"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, Full)
+	node, signingKey := setupTestNode(ctx, t, Full, chainID)
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 
@@ -73,8 +74,8 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 		NTxs:    0,
 		PrivKey: signingKey,
 	}
-	h1, d1, _ := types.GenerateRandomBlockCustom(&config)
-	h2, d2 := types.GetRandomNextBlock(h1, d1, signingKey, []byte{1, 2, 3, 4}, 0)
+	h1, d1, _ := types.GenerateRandomBlockCustom(&config, chainID)
+	h2, d2 := types.GetRandomNextBlock(h1, d1, signingKey, []byte{1, 2, 3, 4}, 0, chainID)
 	h2.AppHash = []byte{1, 2, 3, 4}
 
 	// Update state with hashes generated from block
@@ -119,9 +120,10 @@ func TestTrySyncNextBlockMultiple(t *testing.T) {
 
 // Tests that the node ignores invalid blocks posted to the DA layer
 func TestInvalidBlocksIgnored(t *testing.T) {
+	chainID := "TestInvalidBlocksIgnored"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, Full)
+	node, signingKey := setupTestNode(ctx, t, Full, chainID)
 	fullNode, ok := node.(*FullNode)
 	require.True(t, ok)
 	store := fullNode.Store
@@ -135,7 +137,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 		PrivKey: signingKey,
 	}
 
-	h1, _, _ := types.GenerateRandomBlockCustom(&config)
+	h1, _, _ := types.GenerateRandomBlockCustom(&config, chainID)
 
 	// Update state with hashes generated from block
 	state, err := store.GetState(ctx)
@@ -210,7 +212,7 @@ func TestPendingBlocks(t *testing.T) {
 		_ = os.RemoveAll(dbPath)
 	}()
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestPendingBlocks")
 
 	node, _ := createAggregatorWithPersistence(ctx, dbPath, dac, genesis, genesisValidatorKey, t)
 	err = node.Start()
@@ -281,20 +283,21 @@ func TestVoteExtension(t *testing.T) {
 	const voteExtensionEnableHeight = 5
 	const expectedExtension = "vote extension from height %d"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) // just need little more time after the sequencer integration
 	defer cancel()
 
 	testCases := []struct {
-		sigingKeyType string
+		signingKeyType string
 	}{
-		{sigingKeyType: "ed25519"},
-		{sigingKeyType: "secp256k1"},
+		{signingKeyType: "ed25519"},
+		{signingKeyType: "secp256k1"},
 	}
 
 	for _, tc := range testCases {
 		// TestPrepareProposalVoteExtChecker
 		t.Run("TestPrepareProposalVoteExtChecker", func(t *testing.T) {
-			app, node, pubKey := createNodeAndApp(ctx, voteExtensionEnableHeight, tc.sigingKeyType, t)
+			chainID := "TestPrepareProposalVoteExtChecker"
+			app, node, pubKey := createNodeAndApp(ctx, chainID, voteExtensionEnableHeight, tc.signingKeyType, t)
 
 			prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if req.Height <= voteExtensionEnableHeight {
@@ -314,7 +317,7 @@ func TestVoteExtension(t *testing.T) {
 						Round:     0,
 						Extension: extendedCommit.VoteExtension,
 					}
-					extSignBytes := cmtypes.VoteExtensionSignBytes(types.TestChainID, vote)
+					extSignBytes := cmtypes.VoteExtensionSignBytes(chainID, vote)
 					fmt.Println("failing block height", req.Height)
 					ok := pubKey.VerifySignature(extSignBytes, extendedCommit.ExtensionSignature)
 					require.True(ok)
@@ -343,7 +346,7 @@ func TestVoteExtension(t *testing.T) {
 	}
 	// TestExtendVoteFailure
 	t.Run("TestExtendVoteFailure", func(t *testing.T) {
-		app, node, _ := createNodeAndApp(ctx, voteExtensionEnableHeight, types.DefaultSigningKeyType, t)
+		app, node, _ := createNodeAndApp(ctx, "TestExtendVoteFailure", voteExtensionEnableHeight, types.DefaultSigningKeyType, t)
 		require.NotNil(node)
 
 		// Create a channel to signal from extendVoteFailure
@@ -396,12 +399,12 @@ func TestVoteExtension(t *testing.T) {
 }
 
 // Create & configure node with app. Get signing key for mock functions.
-func createNodeAndApp(ctx context.Context, voteExtensionEnableHeight int64, sigingKeyType string, t *testing.T) (*mocks.Application, Node, cmcrypto.PubKey) {
+func createNodeAndApp(ctx context.Context, chainID string, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (*mocks.Application, Node, cmcrypto.PubKey) {
 	require := require.New(t)
 
 	app := &mocks.Application{}
 	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	node, pubKey := createAggregatorWithApp(ctx, app, voteExtensionEnableHeight, sigingKeyType, t)
+	node, pubKey := createAggregatorWithApp(ctx, chainID, app, voteExtensionEnableHeight, signingKeyType, t)
 	require.NotNil(node)
 	require.NotNil(pubKey)
 	return app, node, pubKey
@@ -447,11 +450,11 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	return fullNode, app
 }
 
-func createAggregatorWithApp(ctx context.Context, app abci.Application, voteExtensionEnableHeight int64, sigingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
+func createAggregatorWithApp(ctx context.Context, chainID string, app abci.Application, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(sigingKeyType)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(signingKeyType, chainID)
 	fmt.Println("genesis key type", genesis.Validators[0].PubKey.Type())
 	genesis.ConsensusParams = &cmtypes.ConsensusParams{
 		Block:     cmtypes.DefaultBlockParams(),

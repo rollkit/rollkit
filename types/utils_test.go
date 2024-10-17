@@ -55,7 +55,7 @@ func TestGetRandomHeader(t *testing.T) {
 	// Generate 100 random headers and check that they are all unique
 	headerSet := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		header := GetRandomHeader()
+		header := GetRandomHeader("TestGetRandomHeader")
 		headerHash := header.Hash().String()
 		if _, ok := headerSet[headerHash]; ok {
 			t.Errorf("Duplicate header generated: %v", header)

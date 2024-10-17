@@ -17,7 +17,7 @@ import (
 func TestLightClient_Panics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ln := initAndStartNodeWithCleanup(ctx, t, Light)
+	ln := initAndStartNodeWithCleanup(ctx, t, Light, "TestLightClient_Panics")
 	require.IsType(t, new(LightNode), ln)
 
 	tests := []struct {

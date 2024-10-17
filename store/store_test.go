@@ -18,15 +18,16 @@ import (
 
 func TestStoreHeight(t *testing.T) {
 	t.Parallel()
-	header1, data1 := types.GetRandomBlock(1, 0)
-	header2, data2 := types.GetRandomBlock(1, 0)
-	header3, data3 := types.GetRandomBlock(2, 0)
-	header4, data4 := types.GetRandomBlock(2, 0)
-	header5, data5 := types.GetRandomBlock(3, 0)
-	header6, data6 := types.GetRandomBlock(1, 0)
-	header7, data7 := types.GetRandomBlock(1, 0)
-	header8, data8 := types.GetRandomBlock(9, 0)
-	header9, data9 := types.GetRandomBlock(10, 0)
+	chainID := "TestStoreHeight"
+	header1, data1 := types.GetRandomBlock(1, 0, chainID)
+	header2, data2 := types.GetRandomBlock(1, 0, chainID)
+	header3, data3 := types.GetRandomBlock(2, 0, chainID)
+	header4, data4 := types.GetRandomBlock(2, 0, chainID)
+	header5, data5 := types.GetRandomBlock(3, 0, chainID)
+	header6, data6 := types.GetRandomBlock(1, 0, chainID)
+	header7, data7 := types.GetRandomBlock(1, 0, chainID)
+	header8, data8 := types.GetRandomBlock(9, 0, chainID)
+	header9, data9 := types.GetRandomBlock(10, 0, chainID)
 	cases := []struct {
 		name     string
 		headers  []*types.SignedHeader
@@ -61,9 +62,10 @@ func TestStoreHeight(t *testing.T) {
 
 func TestStoreLoad(t *testing.T) {
 	t.Parallel()
-	header1, data1 := types.GetRandomBlock(1, 10)
-	header2, data2 := types.GetRandomBlock(1, 10)
-	header3, data3 := types.GetRandomBlock(2, 20)
+	chainID := "TestStoreLoad"
+	header1, data1 := types.GetRandomBlock(1, 10, chainID)
+	header2, data2 := types.GetRandomBlock(1, 10, chainID)
+	header3, data3 := types.GetRandomBlock(2, 20, chainID)
 	cases := []struct {
 		name    string
 		headers []*types.SignedHeader

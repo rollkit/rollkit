@@ -68,10 +68,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestMockDAErrors(t *testing.T) {
+	chainID := "TestMockDAErrors"
 	t.Run("submit_timeout", func(t *testing.T) {
 		mockDA := &damock.MockDA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
-		header, _ := types.GetRandomBlock(1, 0)
+		header, _ := types.GetRandomBlock(1, 0, chainID)
 		headers := []*types.SignedHeader{header}
 		var blobs []da.Blob
 		for _, header := range headers {
@@ -97,7 +98,7 @@ func TestMockDAErrors(t *testing.T) {
 	t.Run("tx_too_large", func(t *testing.T) {
 		mockDA := &damock.MockDA{}
 		dalc := NewDAClient(mockDA, -1, -1, nil, nil, log.TestingLogger())
-		header, _ := types.GetRandomBlock(1, 0)
+		header, _ := types.GetRandomBlock(1, 0, chainID)
 		headers := []*types.SignedHeader{header}
 		var blobs []da.Blob
 		for _, header := range headers {
@@ -218,7 +219,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	for batch := uint64(0); batch < numBatches; batch++ {
 		headers := make([]*types.SignedHeader, numHeaders)
 		for i := range headers {
-			headers[i], _ = types.GetRandomBlock(batch*numBatches+uint64(i), rand.Int()%20) //nolint:gosec
+			headers[i], _ = types.GetRandomBlock(batch*numBatches+uint64(i), rand.Int()%20, "doTestSubmitRetrieve") //nolint:gosec
 		}
 		submitAndRecordHeaders(headers)
 		time.Sleep(time.Duration(rand.Int63() % MockDABlockTime.Milliseconds())) //nolint:gosec
@@ -266,8 +267,9 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
 
 	assert := assert.New(t)
 
-	header1, _ := types.GetRandomBlock(1, 0)
-	header2, _ := types.GetRandomBlock(1, 0)
+	chainID := "doTestSubmitEmptyBlocks"
+	header1, _ := types.GetRandomBlock(1, 0, chainID)
+	header2, _ := types.GetRandomBlock(1, 0, chainID)
 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, maxBlobSize, -1)
 	assert.Equal(StatusSuccess, resp.Code, "empty blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "empty blocks should batch")
@@ -297,8 +299,9 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 
 	assert := assert.New(t)
 
-	header1, _ := types.GetRandomBlock(1, 1)
-	header2, _ := types.GetRandomBlock(1, 2)
+	chainID := "doTestSubmitSmallBlocksBatch"
+	header1, _ := types.GetRandomBlock(1, 1, chainID)
+	header2, _ := types.GetRandomBlock(1, 2, chainID)
 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, maxBlobSize, -1)
 	assert.Equal(StatusSuccess, resp.Code, "small blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "small blocks should batch")

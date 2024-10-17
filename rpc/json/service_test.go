@@ -31,7 +31,7 @@ func TestHandlerMapping(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestHandlerMapping")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
@@ -82,7 +82,7 @@ func TestREST(t *testing.T) {
 		{"invalid/hex param", "/check_tx?tx=QWERTY", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'tx'"},
 	}
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestREST")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
@@ -113,7 +113,7 @@ func TestEmptyRequest(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestEmptyRequest")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
@@ -128,7 +128,7 @@ func TestStringyRequest(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestStringyRequest")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
@@ -182,7 +182,7 @@ func TestSubscription(t *testing.T) {
 	require.NoError(err)
 	require.NotEmpty(unsubscribeAllReq)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestSubscription")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 

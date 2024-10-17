@@ -16,7 +16,7 @@ import (
 )
 
 func TestToABCIHeaderPB(t *testing.T) {
-	header := types.GetRandomHeader()
+	header := types.GetRandomHeader("TestToABCIHeaderPB")
 	expected := cmproto.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -52,7 +52,7 @@ func TestToABCIHeaderPB(t *testing.T) {
 }
 
 func TestToABCIHeader(t *testing.T) {
-	header := types.GetRandomHeader()
+	header := types.GetRandomHeader("TestToABCIHeader")
 	expected := cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: header.Version.Block,
@@ -89,7 +89,7 @@ func TestToABCIHeader(t *testing.T) {
 
 func TestToABCIBlock(t *testing.T) {
 	blockHeight, nTxs := uint64(1), 2
-	header, data := types.GetRandomBlock(blockHeight, nTxs)
+	header, data := types.GetRandomBlock(blockHeight, nTxs, "TestToABCIBlock")
 	abciHeader, err := ToABCIHeader(&header.Header)
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +127,7 @@ func TestToABCIBlock(t *testing.T) {
 
 func TestToABCIBlockMeta(t *testing.T) {
 	blockHeight, nTxs := uint64(1), 2
-	header, data := types.GetRandomBlock(blockHeight, nTxs)
+	header, data := types.GetRandomBlock(blockHeight, nTxs, "TestToABCIBlockMeta")
 	cmblock, err := ToABCIBlock(header, data)
 	if err != nil {
 		t.Fatal(err)

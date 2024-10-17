@@ -15,7 +15,6 @@ import (
 
 	goDATest "github.com/rollkit/go-da/test"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/types"
 )
 
 func getMockDA(t *testing.T) *da.DAClient {
@@ -44,10 +43,12 @@ func TestGetNodeHeight(t *testing.T) {
 		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
 	}
 	bmConfig := getBMConfig()
-	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 1, false, true, keys, bmConfig, types.TestChainID, false, t)
+	chainID := "TestGetNodeHeight"
+	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, chainID, keys, bmConfig, dalc, t)
+	lightNode, _ := createNode(ctx, 1, false, true, keys, bmConfig, chainID, false, t)
 
 	startNodeWithCleanup(t, fullNode)
+	require.NoError(waitForFirstBlock(fullNode, Store))
 	startNodeWithCleanup(t, lightNode)
 
 	cases := []struct {
