@@ -404,45 +404,53 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 
 // BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
 func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
-	// batchTimer is used to signal when to retrieve batch from the sequencer
+	// Initialize batchTimer to fire immediately on start
 	batchTimer := time.NewTimer(0)
 	defer batchTimer.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-batchTimer.C:
-			// Define the start time for the block production period
 			start := time.Now()
-			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{RollupId: []byte(m.genesis.ChainID), LastBatchHash: m.lastBatchHash})
-			if err != nil && ctx.Err() == nil {
+
+			// Skip batch retrieval if context is already done
+			if ctx.Err() != nil {
+				return
+			}
+
+			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{
+				RollupId:      []byte(m.genesis.ChainID),
+				LastBatchHash: m.lastBatchHash,
+			})
+
+			if err != nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
-			if res != nil {
+
+			if res != nil && res.Batch != nil {
 				batch := res.Batch
 				batchTime := res.Timestamp
-				// Add the batch to the batch queue
-				if batch != nil {
-					// Calculate the hash of the batch and store it for the next batch retrieval
-					h, err := batch.Hash()
-					if err == nil {
-						// add batch to the queue even if its empty (no txs)
-						m.bq.AddBatch(BatchWithTime{batch, batchTime})
-						// update lastBatchHash only if the batch has actual txs
-						if batch.Transactions != nil {
-							m.lastBatchHash = h
-						}
-					} else {
-						m.logger.Error("error while hashing batch", "error", err)
+
+				// Calculate and store batch hash only if hashing succeeds
+				if h, err := batch.Hash(); err == nil {
+					m.bq.AddBatch(BatchWithTime{Batch: batch, Time: batchTime})
+
+					// Update lastBatchHash only if the batch contains transactions
+					if batch.Transactions != nil {
+						m.lastBatchHash = h
 					}
+				} else {
+					m.logger.Error("error while hashing batch", "error", err)
 				}
 			}
-			// Reset the batchTimer to signal the next batch production
-			// period based on the batch retrieval time.
-			remainingSleep := time.Duration(0)
+
+			// Determine remaining time for the next batch and reset timer
 			elapsed := time.Since(start)
-			if elapsed < m.conf.BlockTime {
-				remainingSleep = m.conf.BlockTime - elapsed
+			remainingSleep := m.conf.BlockTime - elapsed
+			if remainingSleep < 0 {
+				remainingSleep = 0
 			}
 			batchTimer.Reset(remainingSleep)
 		}
@@ -1024,6 +1032,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastSignature  *types.Signature
 		lastHeaderHash types.Hash
 		lastDataHash   types.Hash
+		lastHeaderTime time.Time
 		err            error
 	)
 	height := m.store.Height()
@@ -1042,6 +1051,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		lastHeaderHash = lastHeader.Hash()
 		lastDataHash = lastData.Hash()
+		lastHeaderTime = lastHeader.Time()
 	}
 
 	var (
@@ -1067,6 +1077,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		txs, timestamp, err := m.getTxsFromBatch()
 		if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
+		}
+		// sanity check timestamp for monotonically increasing
+		if timestamp.Before(lastHeaderTime) {
+			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
 		}
 		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
 		if err != nil {
