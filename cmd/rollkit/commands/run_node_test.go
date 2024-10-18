@@ -187,7 +187,7 @@ func TestStartMockDAServJSONRPC(t *testing.T) {
 			name:          "Server Already Running",
 			daAddress:     "http://localhost:26657",
 			mockServerErr: syscall.EADDRINUSE,
-			expectedErr:   errMockDAServerAlreadyRunning,
+			expectedErr:   errDAServerAlreadyRunning,
 		},
 		{
 			name:          "Other Server Error",
