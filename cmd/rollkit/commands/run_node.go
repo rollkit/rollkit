@@ -51,7 +51,7 @@ var (
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
 
-	errMockDAServerAlreadyRunning = errors.New("mock DA server already running")
+	errDAServerAlreadyRunning = errors.New("DA server already running")
 )
 
 // MockSequencerAddress is a sample address used by the mock sequencer
