@@ -133,7 +133,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
 				srv, err := startMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
-				if err != nil && !errors.Is(err, errMockDAServerAlreadyRunning) {
+				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
 				// nolint:errcheck,gosec
