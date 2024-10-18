@@ -78,7 +78,7 @@ func startMockGRPCServ() *grpc.Server {
 
 // startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
-	dummySeq := seqTest.NewDummySequencer()
+	dummySeq := seqTest.NewMultiRollupSequencer()
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
@@ -114,16 +114,16 @@ func cleanUpNode(node Node, t *testing.T) {
 }
 
 // initAndStartNodeWithCleanup initializes and starts a node of the specified type.
-func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType NodeType) Node {
-	node, _ := setupTestNode(ctx, t, nodeType)
+func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) Node {
+	node, _ := setupTestNode(ctx, t, nodeType, chainID)
 	startNodeWithCleanup(t, node)
 
 	return node
 }
 
 // setupTestNode sets up a test node based on the NodeType.
-func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, cmcrypto.PrivKey) {
-	node, privKey, err := newTestNode(ctx, t, nodeType)
+func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey) {
+	node, privKey, err := newTestNode(ctx, t, nodeType, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, node)
 
@@ -131,7 +131,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, 
 }
 
 // newTestNode creates a new test node based on the NodeType.
-func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, cmcrypto.PrivKey, error) {
+func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
 	config := config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}
 	switch nodeType {
 	case Light:
@@ -142,7 +142,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, cm
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
 	app := setupMockApplication()
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	if err != nil {
 		return nil, nil, err
@@ -157,9 +157,9 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType) (Node, cm
 
 func TestNewNode(t *testing.T) {
 	ctx := context.Background()
-
-	ln := initAndStartNodeWithCleanup(ctx, t, Light)
+	chainID := "TestNewNode"
+	ln := initAndStartNodeWithCleanup(ctx, t, Light, chainID)
 	require.IsType(t, new(LightNode), ln)
-	fn := initAndStartNodeWithCleanup(ctx, t, Full)
+	fn := initAndStartNodeWithCleanup(ctx, t, Full, chainID)
 	require.IsType(t, new(FullNode), fn)
 }

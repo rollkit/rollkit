@@ -3,7 +3,6 @@ package block
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -52,9 +51,6 @@ const defaultBlockTime = 1 * time.Second
 // defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
 const defaultLazyBlockTime = 60 * time.Second
 
-// defaultBatchRetrievalInterval is the interval at which the sequencer retrieves batches
-const defaultBatchRetrievalInterval = 1 * time.Second
-
 // defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
 const defaultMempoolTTL = 25
 
@@ -80,6 +76,9 @@ const DAIncludedHeightKey = "da included height"
 
 // dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+
+// ErrNoBatch indicate no batch is available for creating block
+var ErrNoBatch = errors.New("no batch to process")
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -405,37 +404,53 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 
 // BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
 func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
-	// batchTimer is used to signal when to retrieve batch from the sequencer
+	// Initialize batchTimer to fire immediately on start
 	batchTimer := time.NewTimer(0)
 	defer batchTimer.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-batchTimer.C:
-			// Define the start time for the block production period
 			start := time.Now()
-			batch, batchTime, err := m.seqClient.GetNextBatch(ctx, m.lastBatchHash)
-			if err != nil && ctx.Err() == nil {
+
+			// Skip batch retrieval if context is already done
+			if ctx.Err() != nil {
+				return
+			}
+
+			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{
+				RollupId:      []byte(m.genesis.ChainID),
+				LastBatchHash: m.lastBatchHash,
+			})
+
+			if err != nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 			}
-			// Add the batch to the batch queue
-			if batch != nil && batch.Transactions != nil {
-				m.bq.AddBatch(BatchWithTime{batch, batchTime})
-				// Calculate the hash of the batch and store it for the next batch retrieval
-				batchBytes, err := batch.Marshal()
-				if err != nil {
-					m.logger.Error("error while marshaling batch", "error", err)
+
+			if res != nil && res.Batch != nil {
+				batch := res.Batch
+				batchTime := res.Timestamp
+
+				// Calculate and store batch hash only if hashing succeeds
+				if h, err := batch.Hash(); err == nil {
+					m.bq.AddBatch(BatchWithTime{Batch: batch, Time: batchTime})
+
+					// Update lastBatchHash only if the batch contains transactions
+					if batch.Transactions != nil {
+						m.lastBatchHash = h
+					}
+				} else {
+					m.logger.Error("error while hashing batch", "error", err)
 				}
-				h := sha256.Sum256(batchBytes)
-				m.lastBatchHash = h[:]
 			}
-			// Reset the batchTimer to signal the next batch production
-			// period based on the batch retrieval time.
-			remainingSleep := time.Duration(0)
+
+			// Determine remaining time for the next batch and reset timer
 			elapsed := time.Since(start)
-			if elapsed < defaultBatchRetrievalInterval {
-				remainingSleep = defaultBatchRetrievalInterval - elapsed
+			remainingSleep := m.conf.BlockTime - elapsed
+			if remainingSleep < 0 {
+				remainingSleep = 0
 			}
 			batchTimer.Reset(remainingSleep)
 		}
@@ -984,16 +999,17 @@ func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
 	return &signature, nil
 }
 
-func (m *Manager) getTxsFromBatch() cmtypes.Txs {
+func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
 	batch := m.bq.Next()
 	if batch == nil {
-		return make(cmtypes.Txs, 0)
+		// batch is nil when there is nothing to process
+		return nil, nil, ErrNoBatch
 	}
 	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
 	for _, tx := range batch.Transactions {
 		txs = append(txs, tx)
 	}
-	return txs
+	return txs, &batch.Time, nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1016,6 +1032,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastSignature  *types.Signature
 		lastHeaderHash types.Hash
 		lastDataHash   types.Hash
+		lastHeaderTime time.Time
 		err            error
 	)
 	height := m.store.Height()
@@ -1034,6 +1051,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		lastHeaderHash = lastHeader.Hash()
 		lastDataHash = lastData.Hash()
+		lastHeaderTime = lastHeader.Time()
 	}
 
 	var (
@@ -1056,7 +1074,15 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
 
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, m.getTxsFromBatch())
+		txs, timestamp, err := m.getTxsFromBatch()
+		if err != nil {
+			return fmt.Errorf("failed to get transactions from batch: %w", err)
+		}
+		// sanity check timestamp for monotonically increasing
+		if timestamp.Before(lastHeaderTime) {
+			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
+		}
+		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
 		if err != nil {
 			return err
 		}
@@ -1397,10 +1423,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs)
+	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {

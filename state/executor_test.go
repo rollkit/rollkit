@@ -56,7 +56,7 @@ func doTestCreateBlock(t *testing.T) {
 	fmt.Println("Made NID")
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	fmt.Println("Made a NewTxMempool")
-	executor := NewBlockExecutor([]byte("test address"), "test", mpool, nil, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, NopMetrics())
+	executor := NewBlockExecutor([]byte("test address"), "doTestCreateBlock", mpool, nil, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), nil, 100, logger, NopMetrics())
 	fmt.Println("Made a New Block Executor")
 
 	state := types.State{}
@@ -77,7 +77,7 @@ func doTestCreateBlock(t *testing.T) {
 	state.Validators = cmtypes.NewValidatorSet(validators)
 
 	// empty block
-	header, data, err := executor.CreateBlock(1, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{})
+	header, data, err := executor.CreateBlock(1, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Empty(data.Txs)
@@ -87,7 +87,7 @@ func doTestCreateBlock(t *testing.T) {
 	tx := []byte{1, 2, 3, 4}
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	header, data, err = executor.CreateBlock(2, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
+	header, data, err = executor.CreateBlock(2, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Equal(uint64(2), header.Height())
@@ -100,7 +100,7 @@ func doTestCreateBlock(t *testing.T) {
 	require.NoError(err)
 	err = mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	header, data, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx1, tx2})
+	header, data, err = executor.CreateBlock(3, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx1, tx2}, time.Now())
 	require.Error(err)
 	require.Nil(header)
 	require.Nil(data)
@@ -111,7 +111,7 @@ func doTestCreateBlock(t *testing.T) {
 	executor.maxBytes = 10
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
-	header, data, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
+	header, data, err = executor.CreateBlock(4, &types.Signature{}, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx}, time.Now())
 	require.Error(err)
 	require.Nil(header)
 	require.Nil(data)
@@ -130,6 +130,8 @@ func doTestApplyBlock(t *testing.T) {
 	var mockAppHash []byte
 	_, err := rand.Read(mockAppHash[:])
 	require.NoError(err)
+
+	chainID := "doTestApplyBlock"
 
 	app := &mocks.Application{}
 	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
@@ -165,7 +167,7 @@ func doTestApplyBlock(t *testing.T) {
 		MockSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
-	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainID), seqClient, logger)
 	ctx := context.Background()
 	require.NoError(mpoolReaper.StartReaper(ctx))
 	txQuery, err := query.New("tm.event='Tx'")
@@ -199,14 +201,14 @@ func doTestApplyBlock(t *testing.T) {
 	state.ConsensusParams.Block = &cmproto.BlockParams{}
 	state.ConsensusParams.Block.MaxBytes = 100
 	state.ConsensusParams.Block.MaxGas = 100000
-	chainID := "test"
+
 	executor := NewBlockExecutor(vKey.PubKey().Address().Bytes(), chainID, mpool, mpoolReaper, proxy.NewAppConnConsensus(client, proxy.NopMetrics()), eventBus, 100, logger, NopMetrics())
 
 	tx := []byte{1, 2, 3, 4}
 	err = mpool.CheckTx(tx, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{})
 	require.NoError(err)
 	signature := types.Signature([]byte{1, 1, 1})
-	header, data, err := executor.CreateBlock(1, &signature, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx})
+	header, data, err := executor.CreateBlock(1, &signature, abci.ExtendedCommitInfo{}, []byte{}, state, cmtypes.Txs{tx}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Equal(uint64(1), header.Height())
@@ -236,7 +238,7 @@ func doTestApplyBlock(t *testing.T) {
 	require.NoError(mpool.CheckTx(tx2, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	require.NoError(mpool.CheckTx(tx3, func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{}))
 	signature = types.Signature([]byte{1, 1, 1})
-	header, data, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState, cmtypes.Txs{tx1, tx2, tx3})
+	header, data, err = executor.CreateBlock(2, &signature, abci.ExtendedCommitInfo{}, []byte{}, newState, cmtypes.Txs{tx1, tx2, tx3}, time.Now())
 	require.NoError(err)
 	require.NotNil(header)
 	assert.Equal(uint64(2), header.Height())
@@ -297,7 +299,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
-	chainID := "test"
+	chainID := "TestUpdateStateConsensusParams"
 
 	mpool := mempool.NewCListMempool(cfg.DefaultMempoolConfig(), proxy.NewAppConnMempool(client, proxy.NopMetrics()), 0)
 	seqClient := seqGRPC.NewClient()
@@ -305,7 +307,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 		MockSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	))
-	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte("test"), seqClient, logger)
+	mpoolReaper := mempool.NewCListMempoolReaper(mpool, []byte(chainID), seqClient, logger)
 	require.NoError(t, mpoolReaper.StartReaper(context.Background()))
 	eventBus := cmtypes.NewEventBus()
 	require.NoError(t, eventBus.Start())
@@ -329,7 +331,7 @@ func TestUpdateStateConsensusParams(t *testing.T) {
 		NextValidators: cmtypes.NewValidatorSet([]*cmtypes.Validator{{Address: []byte("test"), PubKey: nil, VotingPower: 100, ProposerPriority: 1}}),
 	}
 
-	header, data := types.GetRandomBlock(1234, 2)
+	header, data := types.GetRandomBlock(1234, 2, chainID)
 
 	txResults := make([]*abci.ExecTxResult, len(data.Txs))
 	for idx := range data.Txs {

@@ -13,11 +13,12 @@ import (
 )
 
 func TestSignedHeader(t *testing.T) {
+	chainID := "TestSignedHeader"
 	// Generate a random signed header
-	trusted, privKey, err := GetRandomSignedHeader()
+	trusted, privKey, err := GetRandomSignedHeader(chainID)
 	require.NoError(t, err)
 	// Get the next random header
-	untrustedAdj, err := GetRandomNextSignedHeader(trusted, privKey)
+	untrustedAdj, err := GetRandomNextSignedHeader(trusted, privKey, chainID)
 	require.NoError(t, err)
 	t.Run("Test Verify", func(t *testing.T) {
 		testVerify(t, trusted, untrustedAdj, privKey)

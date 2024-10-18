@@ -21,13 +21,13 @@ const (
 func TestPendingBlocks(t *testing.T) {
 	cases := []struct {
 		name                    string
-		init                    func(context.Context, *testing.T, *PendingHeaders)
+		init                    func(context.Context, *testing.T, *PendingHeaders, string)
 		exec                    func(context.Context, *testing.T, *PendingHeaders)
 		expectedBlocksAfterInit int
 		expectedBlocksAfterExec int
 	}{
 		{name: "empty store",
-			init:                    func(context.Context, *testing.T, *PendingHeaders) {},
+			init:                    func(context.Context, *testing.T, *PendingHeaders, string) {},
 			exec:                    func(context.Context, *testing.T, *PendingHeaders) {},
 			expectedBlocksAfterInit: 0,
 			expectedBlocksAfterExec: 0,
@@ -68,7 +68,7 @@ func TestPendingBlocks(t *testing.T) {
 			defer cancel()
 			pb := newPendingBlocks(t)
 
-			tc.init(ctx, t, pb)
+			tc.init(ctx, t, pb, "TestPendingBlocks")
 			checkRequirements(ctx, t, pb, tc.expectedBlocksAfterInit)
 
 			tc.exec(ctx, t, pb)
@@ -85,9 +85,9 @@ func newPendingBlocks(t *testing.T) *PendingHeaders {
 	return pendingBlocks
 }
 
-func fillWithBlockData(ctx context.Context, t *testing.T, pb *PendingHeaders) {
+func fillWithBlockData(ctx context.Context, t *testing.T, pb *PendingHeaders, chainID string) {
 	for i := uint64(1); i <= numBlocks; i++ {
-		h, d := types.GetRandomBlock(i, 0)
+		h, d := types.GetRandomBlock(i, 0, chainID)
 		require.NoError(t, pb.store.SaveBlockData(ctx, h, d, &types.Signature{}))
 		pb.store.SetHeight(ctx, i)
 	}

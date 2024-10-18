@@ -137,7 +137,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// use mock grpc sequencer server by default
 			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
-				srv, err := startMockSequencerServerGRPC(MockSequencerAddress)
+				srv, err := startMockSequencerServerGRPC(MockSequencerAddress, genDoc.ChainID)
 				if err != nil {
 					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
@@ -247,8 +247,8 @@ func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
 }
 
 // startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
-func startMockSequencerServerGRPC(listenAddress string) (*grpc.Server, error) {
-	dummySeq := seqTest.NewDummySequencer()
+func startMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
+	dummySeq := seqTest.NewDummySequencer([]byte(rollupId))
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {

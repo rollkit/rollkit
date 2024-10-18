@@ -8,6 +8,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/cometbft/cometbft/libs/log"
+	"github.com/rollkit/go-sequencing"
 	"github.com/rollkit/go-sequencing/proxy/grpc"
 )
 
@@ -101,7 +102,8 @@ func (r *CListMempoolReaper) reap(ctx context.Context) {
 func (reaper *CListMempoolReaper) retrySubmitTransaction(ctx context.Context, tx cmtypes.Tx, maxRetries int, delay time.Duration) error {
 	var err error
 	for i := 0; i < maxRetries; i++ {
-		err = reaper.grpcClient.SubmitRollupTransaction(ctx, reaper.rollupId, tx)
+		// ignore the response for now as nothing is in there
+		_, err = reaper.grpcClient.SubmitRollupTransaction(ctx, sequencing.SubmitRollupTransactionRequest{RollupId: reaper.rollupId, Tx: tx})
 		if err == nil {
 			return nil
 		}
