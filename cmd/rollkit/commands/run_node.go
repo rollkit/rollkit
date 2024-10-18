@@ -258,8 +258,8 @@ func startMockDAServJSONRPC(
 	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	if err := srv.Start(ctx); err != nil {
 		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("Mock DA server is already running", "address", nodeConfig.DAAddress)
-			return nil, errMockDAServerAlreadyRunning
+			logger.Info("DA server is already running", "address", nodeConfig.DAAddress)
+			return nil, errDAServerAlreadyRunning
 		}
 		return nil, err
 	}
