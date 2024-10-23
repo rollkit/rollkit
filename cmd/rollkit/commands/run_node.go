@@ -2,11 +2,13 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"net/url"
 	"os"
+	"syscall"
 	"time"
 
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
@@ -24,6 +26,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/grpc"
 
+	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
@@ -47,6 +50,8 @@ var (
 
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
+
+	errDAServerAlreadyRunning = errors.New("DA server already running")
 )
 
 // MockSequencerAddress is a sample address used by the mock sequencer
@@ -127,12 +132,16 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// use mock jsonrpc da server by default
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				srv, err := startMockDAServJSONRPC(cmd.Context())
-				if err != nil {
+				srv, err := startMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
+				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
 				// nolint:errcheck,gosec
-				defer func() { srv.Stop(cmd.Context()) }()
+				defer func() {
+					if srv != nil {
+						srv.Stop(cmd.Context())
+					}
+				}()
 			}
 
 			// use mock grpc sequencer server by default
@@ -236,13 +245,27 @@ func addNodeFlags(cmd *cobra.Command) {
 }
 
 // startMockDAServJSONRPC starts a mock JSONRPC server
-func startMockDAServJSONRPC(ctx context.Context) (*proxy.Server, error) {
-	addr, _ := url.Parse(nodeConfig.DAAddress)
-	srv := proxy.NewServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	err := srv.Start(ctx)
+func startMockDAServJSONRPC(
+	ctx context.Context,
+	daAddress string,
+	newServer func(string, string, da.DA) *proxy.Server,
+) (*proxy.Server, error) {
+	addr, err := url.Parse(daAddress)
 	if err != nil {
 		return nil, err
 	}
+
+	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
+	if err := srv.Start(ctx); err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			logger.Info("DA server is already running", "address", nodeConfig.DAAddress)
+			return nil, errDAServerAlreadyRunning
+		}
+		return nil, err
+	}
+
+	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
+
 	return srv, nil
 }
 
