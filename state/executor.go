@@ -14,6 +14,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	abciconv "github.com/rollkit/rollkit/types/abci"
@@ -39,10 +40,13 @@ type BlockExecutor struct {
 	logger log.Logger
 
 	metrics *Metrics
+
+	store   store.Store // Add this field
+	genesis *cmtypes.GenesisDoc
 }
 
 // NewBlockExecutor creates new instance of BlockExecutor.
-func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, mempoolReaper *mempool.CListMempoolReaper, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, maxBytes uint64, logger log.Logger, metrics *Metrics) *BlockExecutor {
+func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Mempool, mempoolReaper *mempool.CListMempoolReaper, proxyApp proxy.AppConnConsensus, eventBus *cmtypes.EventBus, maxBytes uint64, logger log.Logger, metrics *Metrics, store store.Store, genesis *cmtypes.GenesisDoc) *BlockExecutor {
 	return &BlockExecutor{
 		proposerAddress: proposerAddress,
 		chainID:         chainID,
@@ -53,6 +57,8 @@ func NewBlockExecutor(proposerAddress []byte, chainID string, mempool mempool.Me
 		maxBytes:        maxBytes,
 		logger:          logger,
 		metrics:         metrics,
+		store:           store,
+		genesis:         genesis,
 	}
 }
 
@@ -548,4 +554,9 @@ func fromRollkitTxs(rollkitTxs types.Txs) cmtypes.Txs {
 		txs[i] = []byte(rollkitTxs[i])
 	}
 	return txs
+}
+
+// GetState retrieves the current state from the store
+func (e *BlockExecutor) GetState(ctx context.Context) (types.State, error) {
+	return e.store.GetState(ctx)
 }

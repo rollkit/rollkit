@@ -157,6 +157,7 @@ type Manager struct {
 	seqClient     *grpc.Client
 	lastBatchHash []byte
 	bq            *BatchQueue
+	execClient    *state.ABCIExecutionClient
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -242,16 +243,19 @@ func NewManager(
 	// allow buffer for the block header and protocol encoding
 	maxBlobSize -= blockProtocolOverhead
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics, store, genesis)
+	execClient := state.NewABCIExecutionClient(exec)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
-		res, err := exec.InitChain(genesis)
+		stateRoot, _, err := execClient.InitChain(genesis.GenesisTime, uint(genesis.InitialHeight), genesis.ChainID)
 		if err != nil {
 			return nil, err
 		}
-		if err := updateState(&s, res); err != nil {
+		s.AppHash = stateRoot
+
+		// TO-DO updateState needs to be decoupled from ABCI
+		if err := updateState(&s, stateRoot); err != nil {
 			return nil, err
 		}
-
 		if err := store.UpdateState(context.Background(), s); err != nil {
 			return nil, err
 		}
@@ -296,6 +300,7 @@ func NewManager(
 		isProposer:     isProposer,
 		seqClient:      seqClient,
 		bq:             NewBatchQueue(),
+		execClient:     execClient,
 	}
 	agg.init(context.Background())
 	return agg, nil
@@ -1435,16 +1440,38 @@ func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, da
 	return m.executor.ApplyBlock(ctx, m.lastState, header, data)
 }
 
-func updateState(s *types.State, res *abci.ResponseInitChain) error {
+func updateState(s *types.State, stateRoot []byte) error {
+	initChainResponse := &abci.ResponseInitChain{
+		AppHash: stateRoot,
+		ConsensusParams: &cmproto.ConsensusParams{
+			Block: &cmproto.BlockParams{
+				MaxBytes: s.ConsensusParams.Block.MaxBytes,
+				MaxGas:   s.ConsensusParams.Block.MaxGas,
+			},
+			Evidence: &cmproto.EvidenceParams{
+				MaxAgeNumBlocks: s.ConsensusParams.Evidence.MaxAgeNumBlocks,
+				MaxAgeDuration:  s.ConsensusParams.Evidence.MaxAgeDuration,
+				MaxBytes:        s.ConsensusParams.Evidence.MaxBytes,
+			},
+			Validator: &cmproto.ValidatorParams{
+				PubKeyTypes: s.ConsensusParams.Validator.PubKeyTypes,
+			},
+			Version: &cmproto.VersionParams{
+				App: s.ConsensusParams.Version.App,
+			},
+		},
+		Validators: cmtypes.TM2PB.ValidatorUpdates(s.Validators),
+	}
+
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
 	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.
-	if len(res.AppHash) > 0 {
-		s.AppHash = res.AppHash
+	if len(initChainResponse.AppHash) > 0 {
+		s.AppHash = initChainResponse.AppHash
 	}
 
-	if res.ConsensusParams != nil {
-		params := res.ConsensusParams
+	if initChainResponse.ConsensusParams != nil {
+		params := initChainResponse.ConsensusParams
 		if params.Block != nil {
 			s.ConsensusParams.Block.MaxBytes = params.Block.MaxBytes
 			s.ConsensusParams.Block.MaxGas = params.Block.MaxGas
@@ -1467,7 +1494,7 @@ func updateState(s *types.State, res *abci.ResponseInitChain) error {
 	// We update the last results hash with the empty hash, to conform with RFC-6962.
 	s.LastResultsHash = merkle.HashFromByteSlices(nil)
 
-	vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
+	vals, err := cmtypes.PB2TM.ValidatorUpdates(initChainResponse.Validators)
 	if err != nil {
 		return err
 	}
