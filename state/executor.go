@@ -555,8 +555,3 @@ func fromRollkitTxs(rollkitTxs types.Txs) cmtypes.Txs {
 	}
 	return txs
 }
-
-// GetState retrieves the current state from the store
-func (e *BlockExecutor) GetState(ctx context.Context) (types.State, error) {
-	return e.store.GetState(ctx)
-}

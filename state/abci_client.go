@@ -56,7 +56,7 @@ func (c *ABCIExecutionClient) InitChain(
 
 // GetTxs retrieves all available transactions from the mempool.
 func (c *ABCIExecutionClient) GetTxs() ([]types.Tx, error) {
-	state, err := c.blockExecutor.GetState(context.Background())
+	state, err := c.blockExecutor.store.GetState(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current state: %w", err)
 	}
@@ -89,7 +89,7 @@ func (c *ABCIExecutionClient) ExecuteTxs(
 ) (types.Hash, uint64, error) {
 	ctx := context.Background()
 
-	state, err := c.blockExecutor.GetState(ctx)
+	state, err := c.blockExecutor.store.GetState(ctx)
 	if err != nil {
 		return types.Hash{}, 0, fmt.Errorf("failed to get current state: %w", err)
 	}
@@ -168,7 +168,7 @@ func (c *ABCIExecutionClient) SetFinal(blockHeight uint64) error {
 		return fmt.Errorf("failed to get block data for height %d: %w", blockHeight, err)
 	}
 
-	state, err := c.blockExecutor.GetState(ctx)
+	state, err := c.blockExecutor.store.GetState(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current state: %w", err)
 	}
