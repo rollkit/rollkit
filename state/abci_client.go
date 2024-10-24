@@ -32,9 +32,9 @@ var _ execution.Execute = (*ABCIExecutionClient)(nil)
 // InitChain initializes the blockchain with genesis information.
 func (c *ABCIExecutionClient) InitChain(
 	genesisTime time.Time,
-	initialHeight uint,
+	initialHeight uint64,
 	chainID string,
-) (types.Hash, uint, error) {
+) (types.Hash, uint64, error) {
 	genesis := &cmtypes.GenesisDoc{
 		GenesisTime:     genesisTime,
 		ChainID:         chainID,
@@ -51,7 +51,7 @@ func (c *ABCIExecutionClient) InitChain(
 
 	stateRoot := types.Hash(response.AppHash)
 	maxBytes := response.ConsensusParams.Block.MaxBytes
-	return stateRoot, uint(maxBytes), nil
+	return stateRoot, uint64(maxBytes), nil
 }
 
 // GetTxs retrieves all available transactions from the mempool.

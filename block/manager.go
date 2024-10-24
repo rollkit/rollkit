@@ -246,7 +246,7 @@ func NewManager(
 	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics, store, genesis)
 	execClient := state.NewABCIExecutionClient(exec)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
-		stateRoot, _, err := execClient.InitChain(genesis.GenesisTime, uint(genesis.InitialHeight), genesis.ChainID)
+		stateRoot, _, err := execClient.InitChain(genesis.GenesisTime, uint64(genesis.InitialHeight), genesis.ChainID)
 		if err != nil {
 			return nil, err
 		}

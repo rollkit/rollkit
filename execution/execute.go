@@ -17,11 +17,11 @@ type Execute interface {
 	// InitChain initializes the blockchain with genesis information.
 	InitChain(
 		genesisTime time.Time,
-		initialHeight uint,
+		initialHeight uint64,
 		chainID string,
 	) (
 		stateRoot types.Hash,
-		maxBytes uint,
+		maxBytes uint64,
 		err error,
 	)
 
