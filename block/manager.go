@@ -26,6 +26,7 @@ import (
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
+	execution "github.com/LastL2/go-execution-abci"
 	"github.com/rollkit/go-sequencing"
 	"github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
@@ -155,7 +156,7 @@ type Manager struct {
 	seqClient     *grpc.Client
 	lastBatchHash []byte
 	bq            *BatchQueue
-	execClient    *state.ABCIExecutionClient
+	execClient    *execution.ABCIExecutionClient
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
@@ -241,7 +242,7 @@ func NewManager(
 	// allow buffer for the block header and protocol encoding
 	maxBlobSize -= blockProtocolOverhead
 
-	execClient := state.NewABCIExecutionClient(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics, store, genesis, &s)
+	execClient := execution.NewABCIExecutionClient(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics, store, genesis, &s)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
 		stateRoot, _, err := execClient.InitChain(genesis.GenesisTime, uint64(genesis.InitialHeight), genesis.ChainID)
 		if err != nil {
