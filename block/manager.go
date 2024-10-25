@@ -110,8 +110,6 @@ type Manager struct {
 
 	proposerKey crypto.PrivKey
 
-	executor *state.BlockExecutor
-
 	dalc *da.DAClient
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
@@ -243,15 +241,12 @@ func NewManager(
 	// allow buffer for the block header and protocol encoding
 	maxBlobSize -= blockProtocolOverhead
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics, store, genesis)
-	execClient := state.NewABCIExecutionClient(exec)
+	execClient := state.NewABCIExecutionClient(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics, store, genesis, &s)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
 		stateRoot, _, err := execClient.InitChain(genesis.GenesisTime, uint64(genesis.InitialHeight), genesis.ChainID)
 		if err != nil {
 			return nil, err
 		}
-		s.AppHash = stateRoot
-
 		// TO-DO updateState needs to be decoupled from ABCI
 		if err := updateState(&s, stateRoot); err != nil {
 			return nil, err
@@ -277,7 +272,6 @@ func NewManager(
 		genesis:     genesis,
 		lastState:   s,
 		store:       store,
-		executor:    exec,
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
@@ -731,7 +725,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		hHeight := h.Height()
 		m.logger.Info("Syncing header and data", "height", hHeight)
 		// Validate the received block before applying
-		if err := m.executor.Validate(m.lastState, h, d); err != nil {
+		if err := m.execClient.Validate(m.lastState, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 		newState, responses, err := m.applyBlock(ctx, h, d)
@@ -746,7 +740,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return SaveBlockError{err}
 		}
-		_, _, err = m.executor.Commit(ctx, newState, h, d, responses)
+		_, _, err = m.execClient.Commit(ctx, newState, h, d, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
@@ -1146,7 +1140,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
-	if err := m.executor.Validate(m.lastState, header, data); err != nil {
+	if err := m.execClient.Validate(m.lastState, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
@@ -1162,7 +1156,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	appHash, _, err := m.executor.Commit(ctx, newState, header, data, responses)
+	appHash, _, err := m.execClient.Commit(ctx, newState, header, data, responses)
 	if err != nil {
 		return err
 	}
@@ -1231,7 +1225,7 @@ func (m *Manager) processVoteExtension(ctx context.Context, header *types.Signed
 		return nil
 	}
 
-	extension, err := m.executor.ExtendVote(ctx, header, data)
+	extension, err := m.execClient.ExtendVote(ctx, header, data)
 	if err != nil {
 		return fmt.Errorf("error returned by ExtendVote: %w", err)
 	}
@@ -1431,13 +1425,13 @@ func (m *Manager) getLastBlockTime() time.Time {
 func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execClient.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.ApplyBlock(ctx, m.lastState, header, data)
+	return m.execClient.ApplyBlock(ctx, m.lastState, header, data)
 }
 
 func updateState(s *types.State, stateRoot []byte) error {
