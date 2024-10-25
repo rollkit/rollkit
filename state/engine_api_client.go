@@ -7,11 +7,11 @@ import (
 	"math/big"
 	"time"
 
+	execution "github.com/LastL2/go-execution"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/rollkit/rollkit/execution"
 	rollkitTypes "github.com/rollkit/rollkit/types"
 )
 

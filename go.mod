@@ -6,6 +6,10 @@ toolchain go1.22.2
 
 retract v0.12.0 // Published by accident
 
+replace (
+	github.com/LastL2/go-execution => github.com/LastL2/go-execution v0.0.0-20241025044830-6028e95ddb3a
+)
+
 require (
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.12
@@ -36,6 +40,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.4.0
+	github.com/LastL2/go-execution v0.0.0-00010101000000-000000000000
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/celestiaorg/go-header v0.6.2
 	github.com/ethereum/go-ethereum v1.14.11

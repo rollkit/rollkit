@@ -94,6 +94,8 @@ github.com/GaijinEntertainment/go-exhaustruct/v2 v2.2.0/go.mod h1:n/vLeA7V+QY84i
 github.com/HdrHistogram/hdrhistogram-go v1.1.0/go.mod h1:yDgFjdqOqDEKOvasDdhWNXYg9BVp4O+o5f6V/ehm6Oo=
 github.com/HdrHistogram/hdrhistogram-go v1.1.2/go.mod h1:yDgFjdqOqDEKOvasDdhWNXYg9BVp4O+o5f6V/ehm6Oo=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
+github.com/LastL2/go-execution v0.0.0-20241025044830-6028e95ddb3a h1:l3EnFurDODyP+abpbtfb6v/F7TQmkMIYKRVu6xygO9c=
+github.com/LastL2/go-execution v0.0.0-20241025044830-6028e95ddb3a/go.mod h1:PM6JVuwMV/RZa3SYq6vznGpzcfKFy6KYaDauAPQ13qc=
 github.com/Masterminds/goutils v1.1.0/go.mod h1:8cTjp+g8YejhMuvIA5y2vz3BpJxksy863GQaJW2MFNU=
 github.com/Masterminds/semver v1.4.2/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/Masterminds/semver v1.5.0/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
