@@ -2,9 +2,11 @@ package json
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +33,7 @@ func TestHandlerMapping(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestHandlerMapping")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
@@ -64,10 +66,10 @@ func TestREST(t *testing.T) {
 		bodyContains string
 	}{
 
-		{"valid/malformed request", "/block?so{}wrong!", http.StatusOK, int(json2.E_INTERNAL), ``},
+		{"valid/malformed request", "/block?so{}wrong!", http.StatusOK, -1, `"result":{"block_id":`},
 		// to keep test simple, allow returning application error in following case
 		{"invalid/missing required param", "/tx", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'hash'`},
-		{"valid/missing optional param", "/block", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
+		{"valid/missing optional param", "/block", http.StatusOK, -1, `"result":{"block_id":`},
 		{"valid/included block tag param", "/block?height=included", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
 		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
 		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
@@ -82,9 +84,22 @@ func TestREST(t *testing.T) {
 		{"invalid/hex param", "/check_tx?tx=QWERTY", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'tx'"},
 	}
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestREST")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
+
+	// wait for blocks
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	for {
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.FailNow()
+		}
+		resp, err := local.Header(ctx, nil)
+		if err == nil && resp.Header.Height > 1 {
+			break
+		}
+	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -113,7 +128,7 @@ func TestEmptyRequest(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestEmptyRequest")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
@@ -128,7 +143,7 @@ func TestStringyRequest(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestStringyRequest")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
@@ -182,7 +197,7 @@ func TestSubscription(t *testing.T) {
 	require.NoError(err)
 	require.NotEmpty(unsubscribeAllReq)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestSubscription")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 

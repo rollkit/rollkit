@@ -24,11 +24,12 @@ func TestWebSockets(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	_, local := getRPC(t)
+	_, local := getRPC(t, "TestWebSockets")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
 	require.NoError(err)
 
 	srv := httptest.NewServer(handler)
+	defer srv.Close()
 
 	conn, resp, err := websocket.DefaultDialer.Dial(strings.Replace(srv.URL, "http://", "ws://", 1)+"/websocket", nil)
 	require.NoError(err)
@@ -42,12 +43,12 @@ func TestWebSockets(t *testing.T) {
 
 	err = conn.WriteMessage(websocket.TextMessage, []byte(`
 {
-    "jsonrpc": "2.0",
-    "method": "subscribe",
-    "id": 7,
-    "params": {
-        "query": "tm.event='NewBlock'"
-    }
+"jsonrpc": "2.0",
+"method": "subscribe",
+"id": 7,
+"params": {
+"query": "tm.event='NewBlock'"
+}
 }
 `))
 	require.NoError(err)
