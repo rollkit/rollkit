@@ -1075,6 +1075,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		txs, timestamp, err := m.getTxsFromBatch()
+		if errors.Is(err, ErrNoBatch) {
+			m.logger.Info(err.Error())
+			return nil
+		}
 		if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
