@@ -1068,7 +1068,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		m.logger.Info("Creating and publishing block", "height", newHeight)
 		extendedCommit, err := m.getExtendedCommit(ctx, height)
 		if err != nil {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
@@ -1076,12 +1075,14 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		txs, timestamp, err := m.getTxsFromBatch()
 		if err != nil {
-			return fmt.Errorf("failed to get transactions from batch: %w", err)
+			m.logger.Debug("waiting for transactions to include in block or empty batch", "height", newHeight, "details", err)
+			return nil
 		}
 		// sanity check timestamp for monotonically increasing
 		if timestamp.Before(lastHeaderTime) {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
 		}
+		m.logger.Info("Creating and publishing block", "height", newHeight)
 		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
 		if err != nil {
 			return err
