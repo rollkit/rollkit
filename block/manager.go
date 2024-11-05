@@ -1079,8 +1079,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return nil
 		}
 		if err != nil {
-			m.logger.Debug("waiting for transactions to include in block or empty batch", "height", newHeight, "details", err)
-			return nil
+			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
 		// sanity check timestamp for monotonically increasing
 		if timestamp.Before(lastHeaderTime) {
