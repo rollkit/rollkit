@@ -12,6 +12,8 @@ const (
 	// Version is the current rollkit version
 	// Please keep updated with each new release
 	Version = "0.38.5"
+	// DefaultSequencerAddress
+	DefaultSequencerAddress = "localhost:50051"
 )
 
 // DefaultNodeConfig keeps default values of NodeConfig
@@ -34,6 +36,7 @@ var DefaultNodeConfig = NodeConfig{
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
-	Instrumentation:  config.DefaultInstrumentationConfig(),
-	SequencerAddress: "localhost:50051",
+	Instrumentation:   config.DefaultInstrumentationConfig(),
+	SequencerAddress:  DefaultSequencerAddress,
+	SequencerRollupID: "mock-rollup",
 }

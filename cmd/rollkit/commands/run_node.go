@@ -51,11 +51,9 @@ var (
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
 
-	errDAServerAlreadyRunning = errors.New("DA server already running")
+	errDAServerAlreadyRunning  = errors.New("DA server already running")
+	errSequencerAlreadyRunning = errors.New("sequencer already running")
 )
-
-// MockSequencerAddress is a sample address used by the mock sequencer
-const MockSequencerAddress = "localhost:50051"
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
 func NewRunNodeCmd() *cobra.Command {
@@ -146,8 +144,10 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// use mock grpc sequencer server by default
 			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
-				srv, err := startMockSequencerServerGRPC(MockSequencerAddress, genDoc.ChainID)
-				if err != nil {
+				// If we are using defaults, then we also will override the default chainID from the genesis doc with the default from the node config
+				genDoc.ChainID = nodeConfig.SequencerRollupID
+				srv, err := startMockSequencerServerGRPC(nodeConfig.SequencerAddress, nodeConfig.SequencerRollupID)
+				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
 				// nolint:errcheck,gosec
@@ -275,6 +275,10 @@ func startMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			logger.Info(errSequencerAlreadyRunning.Error(), "address", nodeConfig.SequencerAddress)
+			return nil, errSequencerAlreadyRunning
+		}
 		return nil, err
 	}
 	go func() {

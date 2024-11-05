@@ -44,6 +44,8 @@ const (
 	FlagLazyBlockTime = "rollkit.lazy_block_time"
 	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
 	FlagSequencerAddress = "rollkit.sequencer_address"
+	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
+	FlagSequencerRollupID = "rollkit.sequencer_rollup_id"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -66,8 +68,9 @@ type NodeConfig struct {
 	DASubmitOptions    string                       `mapstructure:"da_submit_options"`
 
 	// CLI flags
-	DANamespace      string `mapstructure:"da_namespace"`
-	SequencerAddress string `mapstructure:"sequencer_address"`
+	DANamespace       string `mapstructure:"da_namespace"`
+	SequencerAddress  string `mapstructure:"sequencer_address"`
+	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -143,6 +146,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
 	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
 	nc.SequencerAddress = v.GetString(FlagSequencerAddress)
+	nc.SequencerRollupID = v.GetString(FlagSequencerRollupID)
 
 	return nil
 }
@@ -170,4 +174,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DAMempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
+	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 }
