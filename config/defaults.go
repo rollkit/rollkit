@@ -12,7 +12,7 @@ const (
 	// Version is the current rollkit version
 	// Please keep updated with each new release
 	Version = "0.38.5"
-	// DefaultSequencerAddress
+	// DefaultSequencerAddress is the default address for the sequencer middleware
 	DefaultSequencerAddress = "localhost:50051"
 )
 

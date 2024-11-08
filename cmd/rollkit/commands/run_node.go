@@ -143,10 +143,12 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// use mock grpc sequencer server by default
-			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
-				// If we are using defaults, then we also will override the default chainID from the genesis doc with the default from the node config
+			if !cmd.Flags().Lookup("rollkit.sequencer_rollup_id").Changed {
 				genDoc.ChainID = nodeConfig.SequencerRollupID
-				srv, err := startMockSequencerServerGRPC(nodeConfig.SequencerAddress, nodeConfig.SequencerRollupID)
+			}
+			sequecnerRollupID := genDoc.ChainID
+			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
+				srv, err := startMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequecnerRollupID)
 				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
