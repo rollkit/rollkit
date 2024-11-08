@@ -143,7 +143,7 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// use mock grpc sequencer server by default
-			if !cmd.Flags().Lookup("rollkit.sequencer_rollup_id").Changed {
+			if cmd.Flags().Lookup("rollkit.sequencer_rollup_id").Changed {
 				genDoc.ChainID = nodeConfig.SequencerRollupID
 			}
 			sequecnerRollupID := genDoc.ChainID
@@ -286,6 +286,7 @@ func startMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.
 	go func() {
 		_ = server.Serve(lis)
 	}()
+	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
 	return server, nil
 }
 
