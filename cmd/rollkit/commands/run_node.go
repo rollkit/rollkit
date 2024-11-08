@@ -147,14 +147,18 @@ func NewRunNodeCmd() *cobra.Command {
 				genDoc.ChainID = nodeConfig.SequencerRollupID
 			}
 			sequecnerRollupID := genDoc.ChainID
-			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
-				srv, err := startMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequecnerRollupID)
-				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() { srv.Stop() }()
+			// if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
+			srv, err := tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequecnerRollupID)
+			if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
+				return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 			}
+			// nolint:errcheck,gosec
+			defer func() {
+				if srv != nil {
+					srv.Stop()
+				}
+			}()
+			// }
 
 			// use noop proxy app by default
 			if !cmd.Flags().Lookup("proxy_app").Changed {
@@ -260,25 +264,26 @@ func startMockDAServJSONRPC(
 	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	if err := srv.Start(ctx); err != nil {
 		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("DA server is already running", "address", nodeConfig.DAAddress)
+			logger.Info("DA server is already running", "address", daAddress)
 			return nil, errDAServerAlreadyRunning
 		}
 		return nil, err
 	}
 
-	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
+	logger.Info("Starting mock DA server", "address", daAddress)
 
 	return srv, nil
 }
 
-// startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
-func startMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
+// tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.
+func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
 	dummySeq := seqTest.NewDummySequencer([]byte(rollupId))
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info(errSequencerAlreadyRunning.Error(), "address", nodeConfig.SequencerAddress)
+			logger.Info(errSequencerAlreadyRunning.Error(), "address", listenAddress)
+			logger.Info("make sure your rollupID matches your sequencer", "rollupID", rollupId)
 			return nil, errSequencerAlreadyRunning
 		}
 		return nil, err
@@ -286,7 +291,7 @@ func startMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.
 	go func() {
 		_ = server.Serve(lis)
 	}()
-	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
+	logger.Info("Starting mock sequencer", "address", listenAddress, "rollupID", rollupId)
 	return server, nil
 }
 
