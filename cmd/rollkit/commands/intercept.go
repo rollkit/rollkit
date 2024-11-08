@@ -69,7 +69,11 @@ readTOML:
 	}
 
 	// Try and launch mock services or connect to default addresses
-	daSrv, err := startMockDAServJSONRPC(rollkitCommand.Context(), viper.GetString(rollconf.FlagDAAddress), proxy.NewServer)
+	daAddress := parseFlag(flags, rollconf.FlagDAAddress)
+	if daAddress == "" {
+		daAddress = rollconf.DefaultDAAddress
+	}
+	daSrv, err := startMockDAServJSONRPC(rollkitCommand.Context(), daAddress, proxy.NewServer)
 	if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 		return shouldExecute, fmt.Errorf("failed to launch mock da server: %w", err)
 	}
@@ -79,11 +83,15 @@ readTOML:
 			daSrv.Stop(rollkitCommand.Context())
 		}
 	}()
-	rollupID := viper.GetString(rollconf.FlagSequencerRollupID)
+	sequencerAddress := parseFlag(flags, rollconf.FlagSequencerAddress)
+	if sequencerAddress == "" {
+		sequencerAddress = rollconf.DefaultSequencerAddress
+	}
+	rollupID := parseFlag(flags, rollconf.FlagSequencerRollupID)
 	if rollupID == "" {
 		rollupID = rollconf.DefaultSequencerRollupID
 	}
-	seqSrv, err := tryStartMockSequencerServerGRPC(viper.GetString(rollconf.FlagSequencerAddress), rollupID)
+	seqSrv, err := tryStartMockSequencerServerGRPC(viper.GetString(sequencerAddress), rollupID)
 	if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 		return shouldExecute, fmt.Errorf("failed to launch mock sequencing server: %w", err)
 	}
@@ -155,4 +163,15 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 	}
 
 	return nil
+}
+
+func parseFlag(args []string, flag string) string {
+	for i, arg := range args {
+		if arg == fmt.Sprintf("--%s", flag) {
+			if len(args) > i+1 {
+				return args[i+1]
+			}
+		}
+	}
+	return ""
 }
