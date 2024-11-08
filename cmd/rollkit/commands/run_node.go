@@ -128,37 +128,36 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
-			// use mock jsonrpc da server by default
-			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				srv, err := startMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
-				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock da server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if srv != nil {
-						srv.Stop(cmd.Context())
-					}
-				}()
+			// Try and launch a mock JSON RPC DA server if there is no DA server running.
+			// NOTE: if the user supplied an address for a running DA server, and the address doesn't match, this will launch a mock DA server. This is ok because the logs will tell the user that a mock DA server is being used.
+			daSrv, err := startMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
+			if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
+				return fmt.Errorf("failed to launch mock da server: %w", err)
 			}
+			// nolint:errcheck,gosec
+			defer func() {
+				if daSrv != nil {
+					daSrv.Stop(cmd.Context())
+				}
+			}()
 
-			// use mock grpc sequencer server by default
-			if cmd.Flags().Lookup("rollkit.sequencer_rollup_id").Changed {
+			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
+			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 				genDoc.ChainID = nodeConfig.SequencerRollupID
 			}
 			sequecnerRollupID := genDoc.ChainID
-			// if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
-			srv, err := tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequecnerRollupID)
+			// Try and launch a mock gRPC sequencer if there is no sequencer running.
+			// NOTE: if the user supplied an address for a running sequencer, and the address doesn't match, this will launch a mock sequencer. This is ok because the logs will tell the user that a mock sequencer is being used.
+			seqSrv, err := tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequecnerRollupID)
 			if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 				return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 			}
 			// nolint:errcheck,gosec
 			defer func() {
-				if srv != nil {
-					srv.Stop()
+				if seqSrv != nil {
+					seqSrv.Stop()
 				}
 			}()
-			// }
 
 			// use noop proxy app by default
 			if !cmd.Flags().Lookup("proxy_app").Changed {

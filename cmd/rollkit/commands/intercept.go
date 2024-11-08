@@ -9,6 +9,7 @@ import (
 
 	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	rollconf "github.com/rollkit/rollkit/config"
@@ -65,7 +66,8 @@ readTOML:
 	}
 
 	// Try and launch mock services or connect to default addresses
-	if !rollkitCommand.Flags().Lookup("rollkit.da_address").Changed {
+	checkDefaultDA := viper.GetString(rollconf.FlagDAAddress) == rollconf.DefaultDAAddress
+	if checkDefaultDA {
 		srv, err := startMockDAServJSONRPC(rollkitCommand.Context(), rollconf.DefaultDAAddress, proxy.NewServer)
 		if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 			return false, fmt.Errorf("failed to launch mock da server: %w", err)
@@ -77,8 +79,13 @@ readTOML:
 			}
 		}()
 	}
-	if !rollkitCommand.Flags().Lookup("rollkit.sequencer_address").Changed {
-		srv, err := startMockSequencerServerGRPC(rollconf.DefaultSequencerAddress, nodeConfig.SequencerRollupID)
+	checkDefaultSequencer := viper.GetString(rollconf.FlagSequencerAddress) == rollconf.DefaultSequencerAddress
+	if checkDefaultSequencer {
+		rollupID := viper.GetString(rollconf.FlagSequencerRollupID)
+		if rollupID == "" {
+			rollupID = rollconf.DefaultSequencerRollupID
+		}
+		srv, err := tryStartMockSequencerServerGRPC(rollconf.DefaultSequencerAddress, rollupID)
 		if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 			return false, fmt.Errorf("failed to launch mock sequencing server: %w", err)
 		}
