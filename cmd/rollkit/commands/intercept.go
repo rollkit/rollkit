@@ -72,7 +72,7 @@ readTOML:
 	if daAddress == "" {
 		daAddress = rollconf.DefaultDAAddress
 	}
-	daSrv, err := startMockDAServJSONRPC(rollkitCommand.Context(), daAddress, proxy.NewServer)
+	daSrv, err := tryStartMockDAServJSONRPC(rollkitCommand.Context(), daAddress, proxy.NewServer)
 	if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 		return shouldExecute, fmt.Errorf("failed to launch mock da server: %w", err)
 	}

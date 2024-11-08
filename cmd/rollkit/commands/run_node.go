@@ -130,7 +130,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
 			// NOTE: if the user supplied an address for a running DA server, and the address doesn't match, this will launch a mock DA server. This is ok because the logs will tell the user that a mock DA server is being used.
-			daSrv, err := startMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
+			daSrv, err := tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
 			if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 				return fmt.Errorf("failed to launch mock da server: %w", err)
 			}
@@ -249,8 +249,8 @@ func addNodeFlags(cmd *cobra.Command) {
 	rollconf.AddFlags(cmd)
 }
 
-// startMockDAServJSONRPC starts a mock JSONRPC server
-func startMockDAServJSONRPC(
+// tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
+func tryStartMockDAServJSONRPC(
 	ctx context.Context,
 	daAddress string,
 	newServer func(string, string, da.DA) *proxy.Server,
