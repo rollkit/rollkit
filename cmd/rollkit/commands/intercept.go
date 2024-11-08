@@ -9,7 +9,6 @@ import (
 
 	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	rollconf "github.com/rollkit/rollkit/config"
@@ -91,7 +90,7 @@ readTOML:
 	if rollupID == "" {
 		rollupID = rollconf.DefaultSequencerRollupID
 	}
-	seqSrv, err := tryStartMockSequencerServerGRPC(viper.GetString(sequencerAddress), rollupID)
+	seqSrv, err := tryStartMockSequencerServerGRPC(sequencerAddress, rollupID)
 	if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 		return shouldExecute, fmt.Errorf("failed to launch mock sequencing server: %w", err)
 	}
