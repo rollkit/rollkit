@@ -25,7 +25,7 @@ func InterceptCommand(
 	rollkitCommand *cobra.Command,
 	readToml func() (rollconf.TomlConfig, error),
 	runEntrypoint func(*rollconf.TomlConfig, []string) error,
-) (bool, error) {
+) (shouldExecute bool, err error) {
 	// Grab flags and verify command
 	flags := []string{}
 	if len(os.Args) >= 2 {
@@ -35,7 +35,7 @@ func InterceptCommand(
 		switch os.Args[1] {
 		case "help", "--help", "h", "-h",
 			"version", "--version", "v", "-v":
-			return false, nil
+			return
 		case "start":
 			goto readTOML
 		}
@@ -43,56 +43,57 @@ func InterceptCommand(
 		// Check if user attempted to run a rollkit command
 		for _, cmd := range rollkitCommand.Commands() {
 			if os.Args[1] == cmd.Use {
-				return false, nil
+				return
 			}
 		}
 	}
 
 readTOML:
-	var err error
 	rollkitConfig, err = readToml()
 	if err != nil {
-		return false, err
+		return
 	}
 
 	// To avoid recursive calls, we check if the root directory is the rollkit repository itself
 	if filepath.Base(rollkitConfig.RootDir) == "rollkit" {
-		return false, nil
+		return
 	}
+
+	// At this point we expect to execute the command against the entrypoint
+	shouldExecute = true
 
 	// After successfully reading the TOML file, we expect to be able to use the entrypoint
 	if rollkitConfig.Entrypoint == "" {
-		return true, fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
+		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
+		return
 	}
 
 	// Try and launch mock services or connect to default addresses
-	checkDefaultDA := viper.GetString(rollconf.FlagDAAddress) == rollconf.DefaultDAAddress
-	if checkDefaultDA {
-		srv, err := startMockDAServJSONRPC(rollkitCommand.Context(), rollconf.DefaultDAAddress, proxy.NewServer)
-		if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-			return false, fmt.Errorf("failed to launch mock da server: %w", err)
-		}
-		// nolint:errcheck,gosec
-		defer func() {
-			if srv != nil {
-				srv.Stop(rollkitCommand.Context())
-			}
-		}()
+	daSrv, err := startMockDAServJSONRPC(rollkitCommand.Context(), viper.GetString(rollconf.FlagDAAddress), proxy.NewServer)
+	if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
+		return shouldExecute, fmt.Errorf("failed to launch mock da server: %w", err)
 	}
-	checkDefaultSequencer := viper.GetString(rollconf.FlagSequencerAddress) == rollconf.DefaultSequencerAddress
-	if checkDefaultSequencer {
-		rollupID := viper.GetString(rollconf.FlagSequencerRollupID)
-		if rollupID == "" {
-			rollupID = rollconf.DefaultSequencerRollupID
+	// nolint:errcheck,gosec
+	defer func() {
+		if daSrv != nil {
+			daSrv.Stop(rollkitCommand.Context())
 		}
-		srv, err := tryStartMockSequencerServerGRPC(rollconf.DefaultSequencerAddress, rollupID)
-		if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-			return false, fmt.Errorf("failed to launch mock sequencing server: %w", err)
-		}
-		// nolint:errcheck,gosec
-		defer func() { srv.Stop() }()
+	}()
+	rollupID := viper.GetString(rollconf.FlagSequencerRollupID)
+	if rollupID == "" {
+		rollupID = rollconf.DefaultSequencerRollupID
 	}
-	return true, runEntrypoint(&rollkitConfig, flags)
+	seqSrv, err := tryStartMockSequencerServerGRPC(viper.GetString(rollconf.FlagSequencerAddress), rollupID)
+	if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
+		return shouldExecute, fmt.Errorf("failed to launch mock sequencing server: %w", err)
+	}
+	// nolint:errcheck,gosec
+	defer func() {
+		if seqSrv != nil {
+			seqSrv.Stop()
+		}
+	}()
+	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
 }
 
 func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (string, error) {
