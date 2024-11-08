@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
 
+	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	rollconf "github.com/rollkit/rollkit/config"
 )
 
@@ -62,6 +64,27 @@ readTOML:
 		return true, fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
 	}
 
+	// Try and launch mock services or connect to default addresses
+	if !rollkitCommand.Flags().Lookup("rollkit.da_address").Changed {
+		srv, err := startMockDAServJSONRPC(rollkitCommand.Context(), rollconf.DefaultDAAddress, proxy.NewServer)
+		if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
+			return false, fmt.Errorf("failed to launch mock da server: %w", err)
+		}
+		// nolint:errcheck,gosec
+		defer func() {
+			if srv != nil {
+				srv.Stop(rollkitCommand.Context())
+			}
+		}()
+	}
+	if !rollkitCommand.Flags().Lookup("rollkit.sequencer_address").Changed {
+		srv, err := startMockSequencerServerGRPC(rollconf.DefaultSequencerAddress, nodeConfig.SequencerRollupID)
+		if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
+			return false, fmt.Errorf("failed to launch mock sequencing server: %w", err)
+		}
+		// nolint:errcheck,gosec
+		defer func() { srv.Stop() }()
+	}
 	return true, runEntrypoint(&rollkitConfig, flags)
 }
 
