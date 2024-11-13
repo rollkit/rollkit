@@ -145,10 +145,10 @@ func NewRunNodeCmd() *cobra.Command {
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 				genDoc.ChainID = nodeConfig.SequencerRollupID
 			}
-			sequecnerRollupID := genDoc.ChainID
+			sequencerRollupID := genDoc.ChainID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// NOTE: if the user supplied an address for a running sequencer, and the address doesn't match, this will launch a mock sequencer. This is ok because the logs will tell the user that a mock sequencer is being used.
-			seqSrv, err := tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequecnerRollupID)
+			seqSrv, err := tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
 			if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 				return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 			}
