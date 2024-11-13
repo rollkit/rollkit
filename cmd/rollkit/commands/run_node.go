@@ -51,11 +51,9 @@ var (
 	// initialize the logger with the cometBFT defaults
 	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
 
-	errDAServerAlreadyRunning = errors.New("DA server already running")
+	errDAServerAlreadyRunning  = errors.New("DA server already running")
+	errSequencerAlreadyRunning = errors.New("sequencer already running")
 )
-
-// MockSequencerAddress is a sample address used by the mock sequencer
-const MockSequencerAddress = "localhost:50051"
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
 func NewRunNodeCmd() *cobra.Command {
@@ -130,29 +128,36 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
-			// use mock jsonrpc da server by default
-			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				srv, err := startMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
-				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock da server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if srv != nil {
-						srv.Stop(cmd.Context())
-					}
-				}()
+			// Try and launch a mock JSON RPC DA server if there is no DA server running.
+			// NOTE: if the user supplied an address for a running DA server, and the address doesn't match, this will launch a mock DA server. This is ok because the logs will tell the user that a mock DA server is being used.
+			daSrv, err := tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
+			if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
+				return fmt.Errorf("failed to launch mock da server: %w", err)
 			}
+			// nolint:errcheck,gosec
+			defer func() {
+				if daSrv != nil {
+					daSrv.Stop(cmd.Context())
+				}
+			}()
 
-			// use mock grpc sequencer server by default
-			if !cmd.Flags().Lookup("rollkit.sequencer_address").Changed {
-				srv, err := startMockSequencerServerGRPC(MockSequencerAddress, genDoc.ChainID)
-				if err != nil {
-					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() { srv.Stop() }()
+			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
+			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
+				genDoc.ChainID = nodeConfig.SequencerRollupID
 			}
+			sequencerRollupID := genDoc.ChainID
+			// Try and launch a mock gRPC sequencer if there is no sequencer running.
+			// NOTE: if the user supplied an address for a running sequencer, and the address doesn't match, this will launch a mock sequencer. This is ok because the logs will tell the user that a mock sequencer is being used.
+			seqSrv, err := tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
+			if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
+				return fmt.Errorf("failed to launch mock sequencing server: %w", err)
+			}
+			// nolint:errcheck,gosec
+			defer func() {
+				if seqSrv != nil {
+					seqSrv.Stop()
+				}
+			}()
 
 			// use noop proxy app by default
 			if !cmd.Flags().Lookup("proxy_app").Changed {
@@ -244,8 +249,8 @@ func addNodeFlags(cmd *cobra.Command) {
 	rollconf.AddFlags(cmd)
 }
 
-// startMockDAServJSONRPC starts a mock JSONRPC server
-func startMockDAServJSONRPC(
+// tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
+func tryStartMockDAServJSONRPC(
 	ctx context.Context,
 	daAddress string,
 	newServer func(string, string, da.DA) *proxy.Server,
@@ -258,28 +263,34 @@ func startMockDAServJSONRPC(
 	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
 	if err := srv.Start(ctx); err != nil {
 		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("DA server is already running", "address", nodeConfig.DAAddress)
+			logger.Info("DA server is already running", "address", daAddress)
 			return nil, errDAServerAlreadyRunning
 		}
 		return nil, err
 	}
 
-	logger.Info("Starting mock DA server", "address", nodeConfig.DAAddress)
+	logger.Info("Starting mock DA server", "address", daAddress)
 
 	return srv, nil
 }
 
-// startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
-func startMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
+// tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.
+func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
 	dummySeq := seqTest.NewDummySequencer([]byte(rollupId))
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			logger.Info(errSequencerAlreadyRunning.Error(), "address", listenAddress)
+			logger.Info("make sure your rollupID matches your sequencer", "rollupID", rollupId)
+			return nil, errSequencerAlreadyRunning
+		}
 		return nil, err
 	}
 	go func() {
 		_ = server.Serve(lis)
 	}()
+	logger.Info("Starting mock sequencer", "address", listenAddress, "rollupID", rollupId)
 	return server, nil
 }
 
