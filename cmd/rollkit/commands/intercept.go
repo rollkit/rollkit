@@ -38,18 +38,16 @@ func InterceptCommand(
 			return
 		case "start":
 			isStartCommand = true
-			goto readTOML
-		}
-
-		// Check if user attempted to run a rollkit command
-		for _, cmd := range rollkitCommand.Commands() {
-			if os.Args[1] == cmd.Use {
-				return
+		default:
+			// Check if user attempted to run a rollkit command
+			for _, cmd := range rollkitCommand.Commands() {
+				if os.Args[1] == cmd.Use {
+					return
+				}
 			}
 		}
 	}
 
-readTOML:
 	rollkitConfig, err = readToml()
 	if err != nil {
 		return
