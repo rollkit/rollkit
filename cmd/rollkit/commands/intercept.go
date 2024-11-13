@@ -27,6 +27,7 @@ func InterceptCommand(
 ) (shouldExecute bool, err error) {
 	// Grab flags and verify command
 	flags := []string{}
+	isStartCommand := false
 	if len(os.Args) >= 2 {
 		flags = os.Args[1:]
 
@@ -36,6 +37,7 @@ func InterceptCommand(
 			"version", "--version", "v", "-v":
 			return
 		case "start":
+			isStartCommand = true
 			goto readTOML
 		}
 
@@ -67,39 +69,41 @@ readTOML:
 		return
 	}
 
-	// Try and launch mock services or connect to default addresses
-	daAddress := parseFlag(flags, rollconf.FlagDAAddress)
-	if daAddress == "" {
-		daAddress = rollconf.DefaultDAAddress
-	}
-	daSrv, err := tryStartMockDAServJSONRPC(rollkitCommand.Context(), daAddress, proxy.NewServer)
-	if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-		return shouldExecute, fmt.Errorf("failed to launch mock da server: %w", err)
-	}
-	// nolint:errcheck,gosec
-	defer func() {
-		if daSrv != nil {
-			daSrv.Stop(rollkitCommand.Context())
+	if isStartCommand {
+		// Try and launch mock services or connect to default addresses
+		daAddress := parseFlag(flags, rollconf.FlagDAAddress)
+		if daAddress == "" {
+			daAddress = rollconf.DefaultDAAddress
 		}
-	}()
-	sequencerAddress := parseFlag(flags, rollconf.FlagSequencerAddress)
-	if sequencerAddress == "" {
-		sequencerAddress = rollconf.DefaultSequencerAddress
-	}
-	rollupID := parseFlag(flags, rollconf.FlagSequencerRollupID)
-	if rollupID == "" {
-		rollupID = rollconf.DefaultSequencerRollupID
-	}
-	seqSrv, err := tryStartMockSequencerServerGRPC(sequencerAddress, rollupID)
-	if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-		return shouldExecute, fmt.Errorf("failed to launch mock sequencing server: %w", err)
-	}
-	// nolint:errcheck,gosec
-	defer func() {
-		if seqSrv != nil {
-			seqSrv.Stop()
+		daSrv, err := tryStartMockDAServJSONRPC(rollkitCommand.Context(), daAddress, proxy.NewServer)
+		if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
+			return shouldExecute, fmt.Errorf("failed to launch mock da server: %w", err)
 		}
-	}()
+		// nolint:errcheck,gosec
+		defer func() {
+			if daSrv != nil {
+				daSrv.Stop(rollkitCommand.Context())
+			}
+		}()
+		sequencerAddress := parseFlag(flags, rollconf.FlagSequencerAddress)
+		if sequencerAddress == "" {
+			sequencerAddress = rollconf.DefaultSequencerAddress
+		}
+		rollupID := parseFlag(flags, rollconf.FlagSequencerRollupID)
+		if rollupID == "" {
+			rollupID = rollconf.DefaultSequencerRollupID
+		}
+		seqSrv, err := tryStartMockSequencerServerGRPC(sequencerAddress, rollupID)
+		if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
+			return shouldExecute, fmt.Errorf("failed to launch mock sequencing server: %w", err)
+		}
+		// nolint:errcheck,gosec
+		defer func() {
+			if seqSrv != nil {
+				seqSrv.Stop()
+			}
+		}()
+	}
 	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
 }
 
