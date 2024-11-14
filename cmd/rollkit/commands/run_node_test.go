@@ -209,7 +209,7 @@ func TestStartMockDAServJSONRPC(t *testing.T) {
 				return mockServer.Server
 			}
 
-			srv, err := startMockDAServJSONRPC(context.Background(), tt.daAddress, newServerFunc)
+			srv, err := tryStartMockDAServJSONRPC(context.Background(), tt.daAddress, newServerFunc)
 
 			if tt.expectedErr != nil {
 				assert.Error(t, err)

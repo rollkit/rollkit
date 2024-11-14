@@ -45,6 +45,7 @@ rollkit start [flags]
       --rollkit.light                                   run light client
       --rollkit.max_pending_blocks uint                 limit of blocks pending DA submission (0 for no limit)
       --rollkit.sequencer_address string                sequencer middleware address (host:port) (default "localhost:50051")
+      --rollkit.sequencer_rollup_id string              sequencer middleware rollup ID (default: mock-rollup) (default "mock-rollup")
       --rollkit.trusted_hash string                     initial trusted hash to start the header exchange service
       --rpc.grpc_laddr string                           GRPC listen address (BroadcastTx only). Port required
       --rpc.laddr string                                RPC listen address. Port required (default "tcp://127.0.0.1:26657")
