@@ -197,7 +197,7 @@ func (dac *DAClient) SubmitBlocks(ctx context.Context, blocks []*types.Block, ma
 
 // RetrieveBlocks retrieves blocks from DA.
 func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBlocks {
-	ids, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
+	result, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
 	if err != nil {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
@@ -209,7 +209,7 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 	}
 
 	// If no blocks are found, return a non-blocking error.
-	if len(ids) == 0 {
+	if len(result.IDs) == 0 {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
 				Code:     StatusNotFound,
@@ -221,7 +221,7 @@ func (dac *DAClient) RetrieveBlocks(ctx context.Context, dataLayerHeight uint64)
 
 	ctx, cancel := context.WithTimeout(ctx, dac.RetrieveTimeout)
 	defer cancel()
-	blobs, err := dac.DA.Get(ctx, ids, dac.Namespace)
+	blobs, err := dac.DA.Get(ctx, result.IDs, dac.Namespace)
 	if err != nil {
 		return ResultRetrieveBlocks{
 			BaseResult: BaseResult{
