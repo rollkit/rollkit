@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	execproxy "github.com/rollkit/go-execution/proxy/grpc"
 	"net/http"
 
 	ds "github.com/ipfs/go-datastore"
@@ -27,8 +28,9 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	proxyda "github.com/rollkit/go-da/proxy"
-
+	"github.com/rollkit/go-execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
@@ -280,11 +282,32 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 }
 
 func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, mempoolReaper *mempool.CListMempoolReaper, seqClient *seqGRPC.Client, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
-	blockManager, err := block.NewManager(signingKey, nodeConfig.BlockManagerConfig, genesis, store, mempool, mempoolReaper, seqClient, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
+	exec, err := initExecutor(nodeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error while initializing executor: %w", err)
+	}
+
+	rollGen := &block.RollkitGenesis{
+		GenesisTime:     genesis.GenesisTime,
+		InitialHeight:   uint64(genesis.InitialHeight),
+		ChainID:         genesis.ChainID,
+		ProposerAddress: genesis.Validators[0].Address.Bytes(),
+	}
+	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, mempool, mempoolReaper, seqClient, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
 	return blockManager, nil
+}
+
+func initExecutor(cfg config.NodeConfig) (execution.Executor, error) {
+	client := execproxy.NewClient()
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+
+	err := client.Start(cfg.ExectorAddress, opts...)
+	return client, err
 }
 
 // initGenesisChunks creates a chunked format of the genesis document to make it easier to

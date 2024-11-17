@@ -31,9 +31,10 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDAMock "github.com/rollkit/go-da/mocks"
 	goDATest "github.com/rollkit/go-da/test"
+	execTest "github.com/rollkit/go-execution/test"
 	"github.com/rollkit/go-sequencing"
-
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
@@ -88,15 +89,14 @@ func TestInitialStateClean(t *testing.T) {
 	const chainID = "TestInitialStateClean"
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
-	genesis := &cmtypes.GenesisDoc{
-		ChainID:       chainID,
-		InitialHeight: 1,
-		Validators:    genesisDoc.Validators,
-		AppHash:       []byte("app hash"),
+	genesis := &RollkitGenesis{
+		ChainID:         chainID,
+		InitialHeight:   1,
+		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
 	}
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(emptyStore, genesis)
+	s, err := getInitialState(context.TODO(), genesis, emptyStore, execTest.NewDummyExecutor())
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(genesis.InitialHeight-1))
 	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
@@ -107,11 +107,10 @@ func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	valset := types.GetRandomValidatorSet()
-	genesis := &cmtypes.GenesisDoc{
-		ChainID:       chainID,
-		InitialHeight: 1,
-		Validators:    genesisDoc.Validators,
-		AppHash:       []byte("app hash"),
+	genesis := &RollkitGenesis{
+		ChainID:         chainID,
+		InitialHeight:   1,
+		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
 	}
 	sampleState := types.State{
 		ChainID:         chainID,
@@ -128,7 +127,7 @@ func TestInitialStateStored(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	s, err := getInitialState(store, genesis)
+	s, err := getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor())
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -184,11 +183,10 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
-	genesis := &cmtypes.GenesisDoc{
-		ChainID:       "TestInitialStateUnexpectedHigherGenesis",
-		InitialHeight: 2,
-		Validators:    genesisDoc.Validators,
-		AppHash:       []byte("app hash"),
+	genesis := &RollkitGenesis{
+		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
+		InitialHeight:   2,
+		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
 	}
 	sampleState := types.State{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
@@ -204,7 +202,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(store, genesis)
+	_, err = getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor())
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
@@ -706,13 +704,12 @@ func TestManager_publishBlock(t *testing.T) {
 		lastStateMtx: new(sync.RWMutex),
 		headerCache:  NewHeaderCache(),
 		dataCache:    NewDataCache(),
-		executor:     executor,
-		store:        mockStore,
-		logger:       mockLogger,
-		genesis: &cmtypes.GenesisDoc{
+		//executor:     executor,
+		store:  mockStore,
+		logger: mockLogger,
+		genesis: &RollkitGenesis{
 			ChainID:       chainID,
 			InitialHeight: 1,
-			AppHash:       []byte("app hash"),
 		},
 		conf: config.BlockManagerConfig{
 			BlockTime:      time.Second,
@@ -721,6 +718,7 @@ func TestManager_publishBlock(t *testing.T) {
 		isProposer:  true,
 		proposerKey: signingKey,
 		metrics:     NopMetrics(),
+		exec:        execTest.NewDummyExecutor(),
 	}
 
 	t.Run("height should not be updated if saving block responses fails", func(t *testing.T) {
@@ -854,10 +852,9 @@ func TestAggregationLoop(t *testing.T) {
 	m := &Manager{
 		store:  mockStore,
 		logger: mockLogger,
-		genesis: &cmtypes.GenesisDoc{
+		genesis: &RollkitGenesis{
 			ChainID:       "myChain",
 			InitialHeight: 1,
-			AppHash:       []byte("app hash"),
 		},
 		conf: config.BlockManagerConfig{
 			BlockTime:      time.Second,

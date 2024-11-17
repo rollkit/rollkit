@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,7 +17,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/merkle"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -26,6 +27,8 @@ import (
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
+	"github.com/rollkit/go-execution"
+	execTypes "github.com/rollkit/go-execution/types"
 	"github.com/rollkit/go-sequencing"
 	"github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
@@ -106,11 +109,9 @@ type Manager struct {
 	store        store.Store
 
 	conf    config.BlockManagerConfig
-	genesis *cmtypes.GenesisDoc
+	genesis *RollkitGenesis
 
 	proposerKey crypto.PrivKey
-
-	executor *state.BlockExecutor
 
 	dalc *da.DAClient
 	// daHeight is the height of the latest processed DA block
@@ -150,6 +151,8 @@ type Manager struct {
 	// true if the manager is a proposer
 	isProposer bool
 
+	exec execution.Executor
+
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
@@ -159,17 +162,45 @@ type Manager struct {
 	bq            *BatchQueue
 }
 
+type RollkitGenesis struct {
+	GenesisTime     time.Time
+	InitialHeight   uint64
+	ChainID         string
+	ProposerAddress []byte
+}
+
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.State, error) {
+func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec execution.Executor) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(context.Background())
 
 	if errors.Is(err, ds.ErrNotFound) {
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
-		s, err = types.NewFromGenesisDoc(genesis)
+		// TODO(tzdybal): handle max bytes
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisTime, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			return types.State{}, err
 		}
+
+		s := types.State{
+			ChainID:         genesis.ChainID,
+			InitialHeight:   genesis.InitialHeight,
+			LastBlockHeight: genesis.InitialHeight - 1,
+			LastBlockID:     cmtypes.BlockID{},
+			LastBlockTime:   genesis.GenesisTime,
+			AppHash:         stateRoot,
+			DAHeight:        0,
+			// TODO(tzdybal): we don't need fields below
+			Version:                          cmstate.Version{},
+			ConsensusParams:                  cmproto.ConsensusParams{},
+			LastHeightConsensusParamsChanged: 0,
+			LastResultsHash:                  nil,
+			Validators:                       nil,
+			NextValidators:                   nil,
+			LastValidators:                   nil,
+			LastHeightValidatorsChanged:      0,
+		}
+		return s, nil
 	} else if err != nil {
 		return types.State{}, err
 	} else {
@@ -186,10 +217,12 @@ func getInitialState(store store.Store, genesis *cmtypes.GenesisDoc) (types.Stat
 
 // NewManager creates new block Manager.
 func NewManager(
+	ctx context.Context,
 	proposerKey crypto.PrivKey,
 	conf config.BlockManagerConfig,
-	genesis *cmtypes.GenesisDoc,
+	genesis *RollkitGenesis,
 	store store.Store,
+	exec execution.Executor,
 	mempool mempool.Mempool,
 	mempoolReaper *mempool.CListMempoolReaper,
 	seqClient *grpc.Client,
@@ -202,7 +235,7 @@ func NewManager(
 	seqMetrics *Metrics,
 	execMetrics *state.Metrics,
 ) (*Manager, error) {
-	s, err := getInitialState(store, genesis)
+	s, err := getInitialState(ctx, genesis, store, exec)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +266,7 @@ func NewManager(
 		conf.DAMempoolTTL = defaultMempoolTTL
 	}
 
-	proposerAddress := s.Validators.Proposer.Address.Bytes()
+	//proposerAddress := s.Validators.Proposer.Address.Bytes()
 
 	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
 	if err != nil {
@@ -241,21 +274,6 @@ func NewManager(
 	}
 	// allow buffer for the block header and protocol encoding
 	maxBlobSize -= blockProtocolOverhead
-
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
-	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
-		res, err := exec.InitChain(genesis)
-		if err != nil {
-			return nil, err
-		}
-		if err := updateState(&s, res); err != nil {
-			return nil, err
-		}
-
-		if err := store.UpdateState(context.Background(), s); err != nil {
-			return nil, err
-		}
-	}
 
 	isProposer, err := isProposer(proposerKey, s)
 	if err != nil {
@@ -273,7 +291,6 @@ func NewManager(
 		genesis:     genesis,
 		lastState:   s,
 		store:       store,
-		executor:    exec,
 		dalc:        dalc,
 		daHeight:    s.DAHeight,
 		// channels are buffered to avoid blocking on input/output operations, buffer sizes are arbitrary
@@ -296,6 +313,7 @@ func NewManager(
 		isProposer:     isProposer,
 		seqClient:      seqClient,
 		bq:             NewBatchQueue(),
+		exec:           exec,
 	}
 	agg.init(context.Background())
 	return agg, nil
@@ -336,6 +354,7 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 
 // isProposer returns whether or not the manager is a proposer
 func isProposer(signerPrivKey crypto.PrivKey, s types.State) (bool, error) {
+	return true, nil
 	if len(s.Validators.Validators) == 0 {
 		return false, ErrNoValidatorsInState
 	}
@@ -726,7 +745,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		hHeight := h.Height()
 		m.logger.Info("Syncing header and data", "height", hHeight)
 		// Validate the received block before applying
-		if err := m.executor.Validate(m.lastState, h, d); err != nil {
+		if err := m.execValidate(m.lastState, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
 		newState, responses, err := m.applyBlock(ctx, h, d)
@@ -741,7 +760,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return SaveBlockError{err}
 		}
-		_, _, err = m.executor.Commit(ctx, newState, h, d, responses)
+		_, err = m.execCommit(ctx, newState, h, d, responses)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
@@ -976,7 +995,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 }
 
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
-	return bytes.Equal(header.ProposerAddress, m.genesis.Validators[0].Address.Bytes()) && header.ValidateBasic() == nil
+	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
@@ -988,15 +1007,12 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultR
 	return headerRes, err
 }
 
-func (m *Manager) getSignature(header types.Header) (*types.Signature, error) {
-	// note: for compatibility with tendermint light client
-	consensusVote := header.MakeCometBFTVote()
-	sign, err := m.sign(consensusVote)
+func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
+	b, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	signature := types.Signature(sign)
-	return &signature, nil
+	return m.proposerKey.Sign(b)
 }
 
 func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
@@ -1057,7 +1073,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	var (
 		header    *types.SignedHeader
 		data      *types.Data
-		signature *types.Signature
+		signature types.Signature
 	)
 
 	// Check if there's an already stored block at a newer height
@@ -1073,6 +1089,20 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
 		}
 
+		execTxs, err := m.exec.GetTxs(ctx)
+		if err != nil {
+			m.logger.Error("failed to get txs from executor", "err", err)
+		}
+		for _, tx := range execTxs {
+			_, err := m.seqClient.SubmitRollupTransaction(ctx, sequencing.SubmitRollupTransactionRequest{
+				RollupId: sequencing.RollupId(m.genesis.ChainID),
+				Tx:       tx,
+			})
+			if err != nil {
+				m.logger.Error("failed to submit rollup transaction to sequencer", "err", err)
+			}
+		}
+
 		txs, timestamp, err := m.getTxsFromBatch()
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Info(err.Error())
@@ -1086,7 +1116,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
 		if err != nil {
 			return err
 		}
@@ -1098,8 +1128,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
 		header.DataHash = data.Hash()
-		header.Validators = m.getLastStateValidators()
-		header.ValidatorHash = header.Validators.Hash()
+		//header.Validators = m.getLastStateValidators()
+		//header.ValidatorHash = header.Validators.Hash()
 
 		signature, err = m.getSignature(header.Header)
 		if err != nil {
@@ -1107,8 +1137,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		// set the signature to current block's signed header
-		header.Signature = *signature
-		err = m.store.SaveBlockData(ctx, header, data, signature)
+		header.Signature = signature
+		err = m.store.SaveBlockData(ctx, header, data, &signature)
 		if err != nil {
 			return SaveBlockError{err}
 		}
@@ -1135,7 +1165,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// set the signature to current block's signed header
-	header.Signature = *signature
+	header.Signature = signature
 
 	// append metadata to Data before validating and saving
 	data.Metadata = &types.Metadata{
@@ -1145,7 +1175,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		LastDataHash: lastDataHash,
 	}
 	// Validate the created block before storing
-	if err := m.executor.Validate(m.lastState, header, data); err != nil {
+	if err := m.execValidate(m.lastState, header, data); err != nil {
 		return fmt.Errorf("failed to validate block: %w", err)
 	}
 
@@ -1155,13 +1185,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	m.headerCache.setSeen(headerHash)
 
 	// SaveBlock commits the DB tx
-	err = m.store.SaveBlockData(ctx, header, data, signature)
+	err = m.store.SaveBlockData(ctx, header, data, &signature)
 	if err != nil {
 		return SaveBlockError{err}
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	appHash, _, err := m.executor.Commit(ctx, newState, header, data, responses)
+	appHash, err := m.execCommit(ctx, newState, header, data, responses)
 	if err != nil {
 		return err
 	}
@@ -1169,10 +1199,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.AppHash = appHash
 
 	// SaveBlockResponses commits the DB tx
-	err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
-	if err != nil {
-		return SaveBlockResponsesError{err}
-	}
+	//err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
+	//if err != nil {
+	//	return SaveBlockResponsesError{err}
+	//}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
 	m.store.SetHeight(ctx, headerHeight)
@@ -1226,35 +1256,40 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 }
 
 func (m *Manager) processVoteExtension(ctx context.Context, header *types.SignedHeader, data *types.Data, newHeight uint64) error {
-	if !m.voteExtensionEnabled(newHeight) {
+	// TODO(tzdybal): remove this function completely
+	return nil // noop
+	/*
+		if !m.voteExtensionEnabled(newHeight) {
+			return nil
+		}
+
+		extension, err := m.executor.ExtendVote(ctx, header, data)
+		if err != nil {
+			return fmt.Errorf("error returned by ExtendVote: %w", err)
+		}
+
+		vote := &cmproto.Vote{
+			Height:    int64(newHeight), //nolint:gosec
+			Round:     0,
+			Extension: extension,
+		}
+		extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
+
+		sign, err := m.sign(extSignBytes)
+		if err != nil {
+			return fmt.Errorf("failed to sign vote extension: %w", err)
+		}
+		extendedCommit := buildExtendedCommit(header, extension, sign)
+		err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
+		if err != nil {
+			return fmt.Errorf("failed to save extended commit: %w", err)
+		}
 		return nil
-	}
-
-	extension, err := m.executor.ExtendVote(ctx, header, data)
-	if err != nil {
-		return fmt.Errorf("error returned by ExtendVote: %w", err)
-	}
-
-	vote := &cmproto.Vote{
-		Height:    int64(newHeight), //nolint:gosec
-		Round:     0,
-		Extension: extension,
-	}
-	extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
-
-	sign, err := m.sign(extSignBytes)
-	if err != nil {
-		return fmt.Errorf("failed to sign vote extension: %w", err)
-	}
-	extendedCommit := buildExtendedCommit(header, extension, sign)
-	err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
-	if err != nil {
-		return fmt.Errorf("failed to save extended commit: %w", err)
-	}
-	return nil
+	*/
 }
 
 func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
+	return false
 	enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
 	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
 }
@@ -1427,18 +1462,108 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.CreateBlock(height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.executor.ApplyBlock(ctx, m.lastState, header, data)
+	return m.execApplyBlock(ctx, m.lastState, header, data)
 }
 
+func (m *Manager) execValidate(lastState types.State, h *types.SignedHeader, d *types.Data) error {
+	// TODO(tzdybal): implement
+	return nil
+}
+
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, d *types.Data, responses *abci.ResponseFinalizeBlock) ([]byte, error) {
+	err := m.exec.SetFinal(ctx, h.Height())
+	return newState.AppHash, err
+}
+
+func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, commit abci.ExtendedCommitInfo, hash types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+	// TODO(tzdybal): get rid of cmtypes.Tx, probable we should have common-shared-dep with basic types
+	rawTxs := make([]execTypes.Tx, len(txs))
+	for i := range txs {
+		rawTxs[i] = execTypes.Tx(txs[i])
+	}
+
+	header := &types.SignedHeader{
+		Header: types.Header{
+			Version: types.Version{
+				Block: lastState.Version.Consensus.Block,
+				App:   lastState.Version.Consensus.App,
+			},
+			BaseHeader: types.BaseHeader{
+				ChainID: lastState.ChainID,
+				Height:  height,
+				Time:    uint64(timestamp.UnixNano()), //nolint:gosec
+			},
+			DataHash:        make(types.Hash, 32),
+			ConsensusHash:   make(types.Hash, 32),
+			AppHash:         lastState.AppHash,
+			ProposerAddress: m.genesis.ProposerAddress,
+		},
+		Signature: *lastSignature,
+	}
+
+	data := &types.Data{
+		Txs: make(types.Txs, len(txs)),
+		// IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
+		// Note: Temporarily remove Evidence #896
+		// Evidence:               types.EvidenceData{Evidence: nil},
+	}
+	for i := range txs {
+		data.Txs[i] = types.Tx(txs[i])
+	}
+
+	return header, data, nil
+}
+
+func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
+	rawTxs := make([]execTypes.Tx, len(data.Txs))
+	for i := range data.Txs {
+		rawTxs[i] = execTypes.Tx(data.Txs[i])
+	}
+	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
+	if err != nil {
+		return types.State{}, nil, err
+	}
+
+	s, err := m.nextState(lastState, header, newStateRoot)
+	if err != nil {
+		return types.State{}, nil, err
+	}
+
+	return s, nil, nil
+}
+
+func (m *Manager) nextState(state types.State, header *types.SignedHeader, stateRoot []byte) (types.State, error) {
+	height := header.Height()
+
+	s := types.State{
+		Version:         state.Version,
+		ChainID:         state.ChainID,
+		InitialHeight:   state.InitialHeight,
+		LastBlockHeight: height,
+		LastBlockTime:   header.Time(),
+		LastBlockID: cmtypes.BlockID{
+			Hash: cmbytes.HexBytes(header.Hash()),
+			// for now, we don't care about part set headers
+		},
+		//ConsensusParams:                  state.ConsensusParams,
+		//LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
+		AppHash: stateRoot,
+		//Validators:                       state.NextValidators.Copy(),
+		//LastValidators:                   state.Validators.Copy(),
+	}
+	return s, nil
+}
+
+/*
 func updateState(s *types.State, res *abci.ResponseInitChain) error {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
@@ -1492,3 +1617,4 @@ func updateState(s *types.State, res *abci.ResponseInitChain) error {
 
 	return nil
 }
+*/
