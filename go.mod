@@ -37,7 +37,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
-	github.com/celestiaorg/go-header v0.6.2
+	github.com/celestiaorg/go-header v0.6.3
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/rollkit/go-sequencing v0.2.1-0.20241010053131-3134457dc4e5
@@ -181,6 +181,7 @@ require (
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rollkit/go-execution v0.2.1-0.20241118103724-f65906014a51 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect

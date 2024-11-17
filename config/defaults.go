@@ -18,6 +18,8 @@ const (
 	DefaultSequencerAddress = "localhost:50051"
 	// DefaultSequencerRollupID is the default rollup ID for the sequencer middleware
 	DefaultSequencerRollupID = "mock-rollup"
+	// DefaultExecutorAddress is the default address for the executor middleware
+	DefaultExecutorAddress = "localhost:40041"
 )
 
 // DefaultNodeConfig keeps default values of NodeConfig
@@ -43,4 +45,5 @@ var DefaultNodeConfig = NodeConfig{
 	Instrumentation:   config.DefaultInstrumentationConfig(),
 	SequencerAddress:  DefaultSequencerAddress,
 	SequencerRollupID: DefaultSequencerRollupID,
+	ExectorAddress:    DefaultExecutorAddress,
 }

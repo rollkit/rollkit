@@ -198,6 +198,8 @@ github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
 github.com/celestiaorg/go-header v0.6.2 h1:qgWyJQg+/x6k4QAfN1rPt2HXHZjQOmCqD0ct4dFBIZY=
 github.com/celestiaorg/go-header v0.6.2/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
+github.com/celestiaorg/go-header v0.6.3 h1:VI+fsNxFLeUS7cNn0LgHP6Db66uslnKp/fgMg5nxqHg=
+github.com/celestiaorg/go-header v0.6.3/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0/go.mod h1:s9PIhMi7ApOauIsfBcQwbr7m+HBzmVfDIS+QLdgzDSo=
 github.com/celestiaorg/utils v0.1.0 h1:WsP3O8jF7jKRgLNFmlDCwdThwOFMFxg0MnqhkLFVxPo=
@@ -1445,6 +1447,10 @@ github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDN
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/rollkit/go-da v0.8.0 h1:oJKojC421eRC4mNqbujf40GzLFNp7HapgeB7Z/r0tyc=
 github.com/rollkit/go-da v0.8.0/go.mod h1:3eHWK5gkv8lhwq6bjOZOi82WwHyS2B9rQOlUrE1GGws=
+github.com/rollkit/go-execution v0.2.1-0.20241112135712-c59fcaf65aca h1:KP/ox8NAwFX1Wm+dDAg7nYbaOCeRfbTYM56H6a10dsU=
+github.com/rollkit/go-execution v0.2.1-0.20241112135712-c59fcaf65aca/go.mod h1:JYUo1RXqdVQjuOFhU8oO6g7pKOk29ZFsdizMXkHwVdA=
+github.com/rollkit/go-execution v0.2.1-0.20241118103724-f65906014a51 h1:Pei0j8vKDyEXYpSTxPvCPGapjUZYq1AXi6gui5myXNs=
+github.com/rollkit/go-execution v0.2.1-0.20241118103724-f65906014a51/go.mod h1:JYUo1RXqdVQjuOFhU8oO6g7pKOk29ZFsdizMXkHwVdA=
 github.com/rollkit/go-sequencing v0.2.1-0.20241010053131-3134457dc4e5 h1:4qHTCZsG81CE2QvvDeu2xCSIG1fkDyYbNgGwrBx98XA=
 github.com/rollkit/go-sequencing v0.2.1-0.20241010053131-3134457dc4e5/go.mod h1:P/cQXTw3rWpPqhqnCwKzlkS39XM8ugmyf2u63twBgG8=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=

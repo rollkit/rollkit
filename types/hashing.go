@@ -1,6 +1,7 @@
 package types
 
 import (
+	"crypto/sha256"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -14,6 +15,13 @@ var (
 
 // Hash returns ABCI-compatible hash of a header.
 func (h *Header) Hash() Hash {
+	bytes, err := h.MarshalBinary()
+	if err != nil {
+		return nil
+	}
+	hash := sha256.Sum256(bytes)
+	return hash[:]
+
 	abciHeader := cmtypes.Header{
 		Version: cmversion.Consensus{
 			Block: h.Version.Block,
