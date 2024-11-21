@@ -17,21 +17,17 @@ jobs:
         run: make install
       - name: Download JavaScript commands file
         run: curl -o commands.js https://raw.githubusercontent.com/rollkit/rollkit/refs/heads/tutorial-test-mvp/.github/workflows/assets/commands.js
-
-      # Install Node.js to interpret JavaScript
+      - name: Create ES module script
+        run: |
+          echo "import commands from './commands.js';" > executeCommands.mjs
+          echo "import { execSync } from 'child_process';" >> executeCommands.mjs
+          echo "for (const cmd of commands) {" >> executeCommands.mjs
+          echo "  console.log('Executing:', cmd.name);" >> executeCommands.mjs
+          echo "  execSync(cmd.command, { stdio: 'inherit' });" >> executeCommands.mjs
+          echo "}" >> executeCommands.mjs
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
-      # Run Rollkit using the command from commands.js
-      - name: Run Rollkit Command
-        run: |
-          node -e "
-          import { promises as fs } from 'fs';
-          import { execSync } from 'child_process';
-          const { default: commands } = await import('./commands.js');
-          const command = commands.rollkitStart; // Access predefined command
-          console.log('Executing:', command);
-          execSync(command, { stdio: 'inherit' });
-          "
+      - name: Execute Commands
+        run: node executeCommands.mjs
