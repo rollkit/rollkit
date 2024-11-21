@@ -1,7 +1,7 @@
 const commands = Object.freeze([
     {
       name: "Install Ignite",
-      command: "curl https://get.ignite.com/cli@v28.5.3! | bash -- --no",
+      command: "no | curl https://get.ignite.com/cli@v28.5.3! | bash",
     },
     {
       name: "Scaffold Chain",
