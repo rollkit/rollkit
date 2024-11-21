@@ -33,7 +33,7 @@ const commands = Object.freeze([
     },
     {
       name: "Rollkit Start",
-      command: "rollkit start --rollkit.aggregator --rollkit.sequencer_rollup_id gm --ci",
+      command: "rollkit start --rollkit.aggregator --rollkit.sequencer_rollup_id gm --halt-height 10",
     },
   ]);
   export default commands;
