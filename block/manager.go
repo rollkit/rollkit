@@ -7,18 +7,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 
 	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -33,7 +33,6 @@ import (
 	"github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
@@ -223,10 +222,7 @@ func NewManager(
 	genesis *RollkitGenesis,
 	store store.Store,
 	exec execution.Executor,
-	mempool mempool.Mempool,
-	mempoolReaper *mempool.CListMempoolReaper,
 	seqClient *grpc.Client,
-	proxyApp proxy.AppConnConsensus,
 	dalc *da.DAClient,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,

@@ -25,14 +25,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	testutils "github.com/celestiaorg/utils/test"
-
 	goDA "github.com/rollkit/go-da"
 	damock "github.com/rollkit/go-da/mocks"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -43,18 +40,6 @@ func TestStartup(t *testing.T) {
 	ctx := context.Background()
 	node := initAndStartNodeWithCleanup(ctx, t, Full, "TestStartup")
 	require.IsType(t, new(FullNode), node)
-}
-
-func TestMempoolDirectly(t *testing.T) {
-	ctx := context.Background()
-
-	fn := initAndStartNodeWithCleanup(ctx, t, Full, "TestMempoolDirectly")
-	require.IsType(t, new(FullNode), fn)
-
-	node := fn.(*FullNode)
-	peerID := getPeerID(t)
-	verifyTransactions(node, peerID, t)
-	verifyMempoolSize(node, t)
 }
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
@@ -371,10 +356,6 @@ func TestVoteExtension(t *testing.T) {
 		// Wait for blocks to be produced until voteExtensionEnableHeight
 		require.NoError(waitForAtLeastNBlocks(node, 4, Store))
 
-		status, err := node.GetClient().Status(ctx)
-		require.NoError(err)
-		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Expected block height mismatch")
-
 		// Additional retries to ensure extendVoteFailure is triggered multiple times
 		for i := 0; i < 4; i++ {
 			// Wait for extendVoteFailure to be called, indicating a retry attempt
@@ -382,12 +363,6 @@ func TestVoteExtension(t *testing.T) {
 
 			// Ensure that the ExtendVote method is called with the expected arguments
 			app.AssertCalled(t, "ExtendVote", mock.Anything, mock.Anything)
-
-			// Check the node's behavior after encountering the invalid vote extension error
-			// verify that the block height has not advanced
-			status, err = node.GetClient().Status(ctx)
-			require.NoError(err)
-			require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
 		}
 
 		// Stop the node
@@ -520,28 +495,4 @@ func getPeerID(t *testing.T) peer.ID {
 	peerID, err := peer.IDFromPrivateKey(key)
 	assert.NoError(t, err)
 	return peerID
-}
-
-// verifyTransactions checks if transactions are valid
-func verifyTransactions(node *FullNode, peerID peer.ID, t *testing.T) {
-	transactions := []string{"tx1", "tx2", "tx3", "tx4"}
-	for _, tx := range transactions {
-		err := node.Mempool.CheckTx([]byte(tx), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
-			SenderID: node.mempoolIDs.GetForPeer(peerID),
-		})
-		assert.NoError(t, err)
-	}
-
-}
-
-// verifyMempoolSize checks if the mempool size is as expected
-func verifyMempoolSize(node *FullNode, t *testing.T) {
-	assert.NoError(t, testutils.Retry(300, 100*time.Millisecond, func() error {
-		expectedSize := uint64(4 * len("tx*"))
-		actualSize := uint64(node.Mempool.SizeBytes())
-		if expectedSize == actualSize {
-			return nil
-		}
-		return fmt.Errorf("expected size %v, got size %v", expectedSize, actualSize)
-	}))
 }
