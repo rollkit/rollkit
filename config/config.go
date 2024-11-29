@@ -36,6 +36,8 @@ const (
 	FlagLazyAggregator = "rollkit.lazy_aggregator"
 	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
 	FlagMaxPendingBlocks = "rollkit.max_pending_blocks"
+	// FlagReplay is a flag for replaying blocks
+	FlagReplay = "rollkit.replay"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -82,6 +84,8 @@ type BlockManagerConfig struct {
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
+	// Replay defines whether to replay blocks
+	Replay bool `mapstructure:"replay"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
@@ -129,6 +133,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	nc.TrustedHash = v.GetString(FlagTrustedHash)
 	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
+	nc.Replay = v.GetBool(FlagReplay)
 	return nil
 }
 
@@ -150,4 +155,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
+	cmd.Flags().Bool(FlagReplay, def.Replay, "replay blocks")
 }
