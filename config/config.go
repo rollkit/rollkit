@@ -46,6 +46,8 @@ const (
 	FlagSequencerAddress = "rollkit.sequencer_address"
 	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
 	FlagSequencerRollupID = "rollkit.sequencer_rollup_id"
+	// FlagReplay is a flag for replaying blocks
+	FlagReplay = "rollkit.replay"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -96,6 +98,8 @@ type BlockManagerConfig struct {
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
+	// Replay defines whether to replay blocks
+	Replay bool `mapstructure:"replay"`
 }
 
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
@@ -147,6 +151,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
 	nc.SequencerAddress = v.GetString(FlagSequencerAddress)
 	nc.SequencerRollupID = v.GetString(FlagSequencerRollupID)
+	nc.Replay = v.GetBool(FlagReplay)
 
 	return nil
 }
@@ -175,4 +180,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
+	cmd.Flags().Bool(FlagReplay, def.Replay, "replay blocks")
 }

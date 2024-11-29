@@ -14,6 +14,7 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/mempool"
+	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	abciconv "github.com/rollkit/rollkit/types/abci"
@@ -287,6 +288,64 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, header *t
 	e.publishEvents(resp, header, data, state)
 
 	return appHash, retainHeight, nil
+}
+
+// ----------------------------------------------------------------------------------------------------
+// Execute block without state. TODO: eliminate
+
+// ExecCommitBlock executes and commits a block on the proxyApp without validating or mutating the state.
+// It returns the application root hash (result of abci.Commit).
+func (e *BlockExecutor) ExecCommitBlock(
+	appConnConsensus proxy.AppConnConsensus,
+	header *types.SignedHeader,
+	data *types.Data,
+	logger log.Logger,
+	state types.State,
+	store store.Store,
+) ([]byte, error) {
+	abciHeader, err := abciconv.ToABCIHeaderPB(&header.Header)
+	if err != nil {
+		return nil, err
+	}
+	abciHeader.ChainID = e.chainID
+	abciBlock, err := abciconv.ToABCIBlock(header, data)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := e.proxyApp.FinalizeBlock(context.TODO(), &abci.RequestFinalizeBlock{
+		Hash:               header.Hash(),
+		NextValidatorsHash: state.Validators.Hash(),
+		ProposerAddress:    abciHeader.ProposerAddress,
+		Height:             abciHeader.Height,
+		Time:               abciHeader.Time,
+		DecidedLastCommit: abci.CommitInfo{
+			Round: 0,
+			Votes: nil,
+		},
+		Misbehavior: abciBlock.Evidence.Evidence.ToABCI(),
+		Txs:         abciBlock.Txs.ToSliceOfBytes(),
+	})
+	if err != nil {
+		logger.Error("Error in proxyAppConn.FinalizeBlock", "err", err)
+		return nil, err
+	}
+
+	// Assert that the application correctly returned tx results for each of the transactions provided in the block
+	if len(data.Txs) != len(resp.TxResults) {
+		return nil, fmt.Errorf("expected tx results length to match size of transactions in block. Expected %d, got %d", len(data.Txs), len(resp.TxResults))
+	}
+
+	logger.Info("Executed block", "height", header.Height, "app_hash", fmt.Sprintf("%X", resp.AppHash))
+
+	// Commit block
+	_, err = e.proxyApp.Commit(context.TODO())
+	if err != nil {
+		logger.Error("Client error during proxyAppConn.Commit", "err", err)
+		return nil, err
+	}
+
+	// ResponseCommit has no error or log
+	return resp.AppHash, nil
 }
 
 // updateConsensusParams updates the consensus parameters based on the provided updates.
