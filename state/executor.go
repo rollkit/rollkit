@@ -551,7 +551,7 @@ func (e *BlockExecutor) ExecCommitBlock(
 		return nil, fmt.Errorf("expected tx results length to match size of transactions in block. Expected %d, got %d", len(block.Data.Txs), len(resp.TxResults))
 	}
 
-	logger.Info("Executed block", "height", block.Height, "app_hash", fmt.Sprintf("%X", resp.AppHash))
+	logger.Info("Executed block", "height", block.Height(), "app_hash", fmt.Sprintf("%X", resp.AppHash))
 
 	// Commit block
 	_, err = e.proxyApp.Commit(context.TODO())

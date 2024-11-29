@@ -1263,13 +1263,13 @@ func (m *Manager) replayBlocks(
 		if err != nil {
 			return nil, fmt.Errorf("failed to get block data for height %d: %w", i, err)
 		}
-		appHash, err = m.executor.ExecCommitBlock(proxyApp.Consensus(), block, m.logger, state, m.store)
-		if err != nil {
-			return nil, err
-		}
 		// Extra check to ensure the app was not changed in a way it shouldn't have.
 		if len(appHash) > 0 {
 			assertAppHashEqualsOneFromBlock(appHash, block)
+		}
+		appHash, err = m.executor.ExecCommitBlock(proxyApp.Consensus(), block, m.logger, state, m.store)
+		if err != nil {
+			return nil, err
 		}
 	}
 
