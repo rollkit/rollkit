@@ -14,7 +14,7 @@ There are known issues related to Tendermint RPC communication.
 ## Replacing Tendermint `Node`
 
 Tendermint `Node` is a struct. It's used directly in cosmos-sdk (not via interface).
-We don't need to introduce common interface `Node`s, because the plan is to use scafolding tool in the feature, so we can make any required changes in cosmos-sdk.
+We don't need to introduce common interface `Node`s, because the plan is to use scaffolding tool in the feature, so we can make any required changes in cosmos-sdk.
 
 ### Interface required by cosmos-sdk
 
