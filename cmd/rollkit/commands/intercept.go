@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
 
+	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	rollconf "github.com/rollkit/rollkit/config"
 )
 
@@ -22,9 +24,10 @@ func InterceptCommand(
 	rollkitCommand *cobra.Command,
 	readToml func() (rollconf.TomlConfig, error),
 	runEntrypoint func(*rollconf.TomlConfig, []string) error,
-) (bool, error) {
+) (shouldExecute bool, err error) {
 	// Grab flags and verify command
 	flags := []string{}
+	isStartCommand := false
 	if len(os.Args) >= 2 {
 		flags = os.Args[1:]
 
@@ -32,37 +35,74 @@ func InterceptCommand(
 		switch os.Args[1] {
 		case "help", "--help", "h", "-h",
 			"version", "--version", "v", "-v":
-			return false, nil
+			return
 		case "start":
-			goto readTOML
-		}
-
-		// Check if user attempted to run a rollkit command
-		for _, cmd := range rollkitCommand.Commands() {
-			if os.Args[1] == cmd.Use {
-				return false, nil
+			isStartCommand = true
+		default:
+			// Check if user attempted to run a rollkit command
+			for _, cmd := range rollkitCommand.Commands() {
+				if os.Args[1] == cmd.Use {
+					return
+				}
 			}
 		}
 	}
 
-readTOML:
-	var err error
 	rollkitConfig, err = readToml()
 	if err != nil {
-		return false, err
+		return
 	}
 
 	// To avoid recursive calls, we check if the root directory is the rollkit repository itself
 	if filepath.Base(rollkitConfig.RootDir) == "rollkit" {
-		return false, nil
+		return
 	}
+
+	// At this point we expect to execute the command against the entrypoint
+	shouldExecute = true
 
 	// After successfully reading the TOML file, we expect to be able to use the entrypoint
 	if rollkitConfig.Entrypoint == "" {
-		return true, fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
+		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
+		return
 	}
 
-	return true, runEntrypoint(&rollkitConfig, flags)
+	if isStartCommand {
+		// Try and launch mock services or connect to default addresses
+		daAddress := parseFlag(flags, rollconf.FlagDAAddress)
+		if daAddress == "" {
+			daAddress = rollconf.DefaultDAAddress
+		}
+		daSrv, err := tryStartMockDAServJSONRPC(rollkitCommand.Context(), daAddress, proxy.NewServer)
+		if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
+			return shouldExecute, fmt.Errorf("failed to launch mock da server: %w", err)
+		}
+		// nolint:errcheck,gosec
+		defer func() {
+			if daSrv != nil {
+				daSrv.Stop(rollkitCommand.Context())
+			}
+		}()
+		sequencerAddress := parseFlag(flags, rollconf.FlagSequencerAddress)
+		if sequencerAddress == "" {
+			sequencerAddress = rollconf.DefaultSequencerAddress
+		}
+		rollupID := parseFlag(flags, rollconf.FlagSequencerRollupID)
+		if rollupID == "" {
+			rollupID = rollconf.DefaultSequencerRollupID
+		}
+		seqSrv, err := tryStartMockSequencerServerGRPC(sequencerAddress, rollupID)
+		if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
+			return shouldExecute, fmt.Errorf("failed to launch mock sequencing server: %w", err)
+		}
+		// nolint:errcheck,gosec
+		defer func() {
+			if seqSrv != nil {
+				seqSrv.Stop()
+			}
+		}()
+	}
+	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
 }
 
 func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (string, error) {
@@ -124,4 +164,15 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 	}
 
 	return nil
+}
+
+func parseFlag(args []string, flag string) string {
+	for i, arg := range args {
+		if arg == fmt.Sprintf("--%s", flag) {
+			if len(args) > i+1 {
+				return args[i+1]
+			}
+		}
+	}
+	return ""
 }
