@@ -33,7 +33,7 @@ type Server struct {
 func NewServer(node node.Node, config *config.RPCConfig, logger log.Logger) *Server {
 	srv := &Server{
 		config: config,
-		client: node.GetClient(),
+		client: nil, // TODO: add client
 	}
 	srv.BaseService = service.NewBaseService(logger, "RPC", srv)
 	return srv
