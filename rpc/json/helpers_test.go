@@ -113,8 +113,5 @@ func getRPC(t *testing.T, chainID string) (*mocks.Application, rpcclient.Client)
 	err = n.Start()
 	require.NoError(err)
 
-	local := n.GetClient()
-	require.NotNil(local)
-
-	return app, local
+	return app, nil
 }

@@ -263,6 +263,19 @@ func TestPendingBlocks(t *testing.T) {
 
 }
 
+func finalizeBlockResponse(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	txResults := make([]*abci.ExecTxResult, len(req.Txs))
+	for idx := range req.Txs {
+		txResults[idx] = &abci.ExecTxResult{
+			Code: abci.CodeTypeOK,
+		}
+	}
+
+	return &abci.ResponseFinalizeBlock{
+		TxResults: txResults,
+	}, nil
+}
+
 func TestVoteExtension(t *testing.T) {
 	require := require.New(t)
 	const voteExtensionEnableHeight = 5
