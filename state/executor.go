@@ -14,7 +14,6 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/mempool"
-	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	abciconv "github.com/rollkit/rollkit/types/abci"
@@ -296,12 +295,10 @@ func (e *BlockExecutor) Commit(ctx context.Context, state types.State, header *t
 // ExecCommitBlock executes and commits a block on the proxyApp without validating or mutating the state.
 // It returns the application root hash (result of abci.Commit).
 func (e *BlockExecutor) ExecCommitBlock(
-	appConnConsensus proxy.AppConnConsensus,
 	header *types.SignedHeader,
 	data *types.Data,
 	logger log.Logger,
 	state types.State,
-	store store.Store,
 ) ([]byte, error) {
 	abciHeader, err := abciconv.ToABCIHeaderPB(&header.Header)
 	if err != nil {

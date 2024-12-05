@@ -1506,7 +1506,7 @@ func (m *Manager) Handshake(ctx context.Context, proxyApp proxy.AppConns) error 
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().Info(ctx, proxy.RequestInfo)
 	if err != nil {
-		return fmt.Errorf("error calling Info: %v", err)
+		return fmt.Errorf("error calling Info: %w", err)
 	}
 
 	blockHeight := res.LastBlockHeight
@@ -1523,9 +1523,9 @@ func (m *Manager) Handshake(ctx context.Context, proxyApp proxy.AppConns) error 
 	)
 
 	// Replay blocks up to the latest in the blockstore.
-	appHash, err = m.ReplayBlocks(ctx, appHash, blockHeight, proxyApp)
+	appHash, err = m.ReplayBlocks(ctx, appHash, blockHeight)
 	if err != nil {
-		return fmt.Errorf("error on replay: %v", err)
+		return fmt.Errorf("error on replay: %w", err)
 	}
 
 	m.logger.Info("Completed ABCI Handshake - CometBFT and App are synced",
@@ -1541,7 +1541,6 @@ func (m *Manager) ReplayBlocks(
 	ctx context.Context,
 	appHash []byte,
 	appBlockHeight int64,
-	proxyApp proxy.AppConns,
 ) ([]byte, error) {
 	state := m.lastState
 	stateBlockHeight := m.lastState.LastBlockHeight
@@ -1554,20 +1553,19 @@ func (m *Manager) ReplayBlocks(
 
 	if appBlockHeight < int64(stateBlockHeight) {
 		// the app is behind, so replay blocks
-		return m.replayBlocks(ctx, state, proxyApp, uint64(appBlockHeight), stateBlockHeight)
+		return m.replayBlocks(ctx, state, uint64(appBlockHeight), stateBlockHeight)
 	} else if appBlockHeight == int64(stateBlockHeight) {
 		// We're good!
 		assertAppHashEqualsOneFromState(appHash, state)
 		return appHash, nil
 	}
 
-	panic(fmt.Sprintf("uncovered case! app height higher than state height, possibly need app rollback; appHeight: %d, stateHeight: %d", appBlockHeight, stateBlockHeight))
+	return nil, fmt.Errorf("app height (%d) higher than state height (%d), possible app rollback needed", appBlockHeight, stateBlockHeight)
 }
 
 func (m *Manager) replayBlocks(
 	ctx context.Context,
 	state types.State,
-	proxyApp proxy.AppConns,
 	appBlockHeight,
 	stateBlockHeight uint64,
 ) ([]byte, error) {
@@ -1593,7 +1591,7 @@ func (m *Manager) replayBlocks(
 		if len(appHash) > 0 {
 			assertAppHashEqualsOneFromBlock(appHash, header)
 		}
-		appHash, err = m.executor.ExecCommitBlock(proxyApp.Consensus(), header, data, m.logger, state, m.store)
+		appHash, err = m.executor.ExecCommitBlock(header, data, m.logger, state)
 		if err != nil {
 			return nil, err
 		}

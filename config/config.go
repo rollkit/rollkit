@@ -180,5 +180,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
-	cmd.Flags().Bool(FlagReplay, def.Replay, "replay blocks")
+	cmd.Flags().Bool(FlagReplay, def.Replay, "enable block replay to synchronize application and rollup states")
 }
