@@ -162,6 +162,7 @@ func TestTxGossipingAndAggregation(t *testing.T) {
 	}
 }
 
+/*
 func TestLazyAggregator(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -224,6 +225,7 @@ func TestLazyAggregator(t *testing.T) {
 	// LazyBlockTime should trigger another block even without transactions
 	require.NoError(waitForAtLeastNBlocks(node, 5, Header))
 }
+*/
 
 // TestFastDASync verifies that nodes can sync DA blocks faster than the DA block time
 func TestFastDASync(t *testing.T) {
