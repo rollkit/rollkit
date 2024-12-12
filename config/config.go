@@ -56,7 +56,6 @@ type NodeConfig struct {
 	RootDir string
 	DBPath  string
 	P2P     P2PConfig
-	RPC     RPCConfig
 	// parameters below are Rollkit specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
@@ -113,15 +112,6 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 		if cmConf.P2P != nil {
 			nodeConf.P2P.ListenAddress = cmConf.P2P.ListenAddress
 			nodeConf.P2P.Seeds = cmConf.P2P.Seeds
-		}
-		if cmConf.RPC != nil {
-			nodeConf.RPC.ListenAddress = cmConf.RPC.ListenAddress
-			nodeConf.RPC.CORSAllowedOrigins = cmConf.RPC.CORSAllowedOrigins
-			nodeConf.RPC.CORSAllowedMethods = cmConf.RPC.CORSAllowedMethods
-			nodeConf.RPC.CORSAllowedHeaders = cmConf.RPC.CORSAllowedHeaders
-			nodeConf.RPC.MaxOpenConnections = cmConf.RPC.MaxOpenConnections
-			nodeConf.RPC.TLSCertFile = cmConf.RPC.TLSCertFile
-			nodeConf.RPC.TLSKeyFile = cmConf.RPC.TLSKeyFile
 		}
 		if cmConf.Instrumentation != nil {
 			nodeConf.Instrumentation = cmConf.Instrumentation

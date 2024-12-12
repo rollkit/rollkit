@@ -36,7 +36,6 @@ import (
 
 	rollconf "github.com/rollkit/rollkit/config"
 	rollnode "github.com/rollkit/rollkit/node"
-	rollrpc "github.com/rollkit/rollkit/rpc"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
@@ -176,13 +175,6 @@ func NewRunNodeCmd() *cobra.Command {
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
-			}
-
-			// Launch the RPC server
-			server := rollrpc.NewServer(rollnode, config.RPC, logger)
-			err = server.Start()
-			if err != nil {
-				return fmt.Errorf("failed to launch RPC server: %w", err)
 			}
 
 			// Start the node
