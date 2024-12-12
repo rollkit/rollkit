@@ -161,6 +161,7 @@ type Manager struct {
 	bq            *BatchQueue
 }
 
+// RollkitGenesis is the genesis state of the rollup
 type RollkitGenesis struct {
 	GenesisTime     time.Time
 	InitialHeight   uint64
@@ -206,7 +207,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
 		// if they meant to hard-fork, they should have cleared the stored State
-		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:gosec
+		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:unconvert
 			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 		}
 	}
@@ -1050,7 +1051,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight == uint64(m.genesis.InitialHeight) { //nolint:gosec
+	if newHeight == uint64(m.genesis.InitialHeight) { //nolint:unconvert
 		lastSignature = &types.Signature{}
 	} else {
 		lastSignature, err = m.store.GetSignature(ctx, height)
@@ -1292,7 +1293,7 @@ func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
 
 func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
 	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:gosec
+	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:unconvert
 		return emptyExtendedCommit, nil
 	}
 	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
@@ -1302,28 +1303,6 @@ func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.Ex
 	return *extendedCommit, nil
 }
 
-func buildExtendedCommit(header *types.SignedHeader, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
-	extendedCommit := &abci.ExtendedCommitInfo{
-		Round: 0,
-		Votes: []abci.ExtendedVoteInfo{{
-			Validator: abci.Validator{
-				Address: header.Validators.GetProposer().Address,
-				Power:   header.Validators.GetProposer().VotingPower,
-			},
-			VoteExtension:      extension,
-			ExtensionSignature: sign,
-			BlockIdFlag:        cmproto.BlockIDFlagCommit,
-		}},
-	}
-	return extendedCommit
-}
-
-func (m *Manager) recordMetrics(data *types.Data) {
-	m.metrics.NumTxs.Set(float64(len(data.Txs)))
-	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
-	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
-	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
-}
 func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	submittedAllHeaders := false
 	var backoff time.Duration

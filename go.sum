@@ -196,8 +196,6 @@ github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7
 github.com/butuzov/ireturn v0.1.1/go.mod h1:Wh6Zl3IMtTpaIKbmwzqi6olnM9ptYQxxVacMsOEFPoc=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
-github.com/celestiaorg/go-header v0.6.2 h1:qgWyJQg+/x6k4QAfN1rPt2HXHZjQOmCqD0ct4dFBIZY=
-github.com/celestiaorg/go-header v0.6.2/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
 github.com/celestiaorg/go-header v0.6.3 h1:VI+fsNxFLeUS7cNn0LgHP6Db66uslnKp/fgMg5nxqHg=
 github.com/celestiaorg/go-header v0.6.3/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
@@ -619,8 +617,6 @@ github.com/gorilla/context v1.1.1/go.mod h1:kBGZzfjB9CEq2AlWe17Uuf7NDRt0dE0s8S51
 github.com/gorilla/mux v1.6.2/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=
 github.com/gorilla/mux v1.7.3/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=
 github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
-github.com/gorilla/rpc v1.2.1 h1:yC+LMV5esttgpVvNORL/xX4jvTTEUE30UZhZ5JF7K9k=
-github.com/gorilla/rpc v1.2.1/go.mod h1:uNpOihAlF5xRFLuTYhfR0yfCTm0WTQSQttkMSptRfGk=
 github.com/gorilla/websocket v0.0.0-20170926233335-4201258b820c/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 github.com/gorilla/websocket v1.4.1/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
@@ -1447,8 +1443,6 @@ github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDN
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/rollkit/go-da v0.8.0 h1:oJKojC421eRC4mNqbujf40GzLFNp7HapgeB7Z/r0tyc=
 github.com/rollkit/go-da v0.8.0/go.mod h1:3eHWK5gkv8lhwq6bjOZOi82WwHyS2B9rQOlUrE1GGws=
-github.com/rollkit/go-execution v0.2.1-0.20241112135712-c59fcaf65aca h1:KP/ox8NAwFX1Wm+dDAg7nYbaOCeRfbTYM56H6a10dsU=
-github.com/rollkit/go-execution v0.2.1-0.20241112135712-c59fcaf65aca/go.mod h1:JYUo1RXqdVQjuOFhU8oO6g7pKOk29ZFsdizMXkHwVdA=
 github.com/rollkit/go-execution v0.2.1-0.20241118103724-f65906014a51 h1:Pei0j8vKDyEXYpSTxPvCPGapjUZYq1AXi6gui5myXNs=
 github.com/rollkit/go-execution v0.2.1-0.20241118103724-f65906014a51/go.mod h1:JYUo1RXqdVQjuOFhU8oO6g7pKOk29ZFsdizMXkHwVdA=
 github.com/rollkit/go-sequencing v0.2.1-0.20241010053131-3134457dc4e5 h1:4qHTCZsG81CE2QvvDeu2xCSIG1fkDyYbNgGwrBx98XA=
