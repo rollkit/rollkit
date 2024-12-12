@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"syscall"
+	"time"
 
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
@@ -202,6 +203,12 @@ func NewRunNodeCmd() *cobra.Command {
 			if !inCI {
 				// Block forever to force user to stop node
 				select {}
+			}
+
+			// CI mode. Wait for 5s and then verify the node is running before calling stop node.
+			time.Sleep(5 * time.Second)
+			if !rollnode.IsRunning() {
+				return fmt.Errorf("node is not running")
 			}
 
 			return rollnode.Stop()
