@@ -352,16 +352,16 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 // isProposer returns whether or not the manager is a proposer
 func isProposer(signerPrivKey crypto.PrivKey, s types.State) (bool, error) {
 	return true, nil
-	if len(s.Validators.Validators) == 0 {
-		return false, ErrNoValidatorsInState
-	}
+	//if len(s.Validators.Validators) == 0 {
+	//	return false, ErrNoValidatorsInState
+	//}
 
-	signerPubBytes, err := signerPrivKey.GetPublic().Raw()
-	if err != nil {
-		return false, err
-	}
+	//signerPubBytes, err := signerPrivKey.GetPublic().Raw()
+	//if err != nil {
+	//	return false, err
+	//}
 
-	return bytes.Equal(s.Validators.Validators[0].PubKey.Bytes(), signerPubBytes), nil
+	//return bytes.Equal(s.Validators.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 // SetLastState is used to set lastState used by Manager.
@@ -1287,8 +1287,8 @@ func (m *Manager) processVoteExtension(ctx context.Context, header *types.Signed
 
 func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
 	return false
-	enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
-	return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
+	//enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
+	//return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
 }
 
 func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
@@ -1303,6 +1303,28 @@ func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.Ex
 	return *extendedCommit, nil
 }
 
+func buildExtendedCommit(header *types.SignedHeader, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
+	extendedCommit := &abci.ExtendedCommitInfo{
+		Round: 0,
+		Votes: []abci.ExtendedVoteInfo{{
+			Validator: abci.Validator{
+				Address: header.Validators.GetProposer().Address,
+				Power:   header.Validators.GetProposer().VotingPower,
+			},
+			VoteExtension:      extension,
+			ExtensionSignature: sign,
+			BlockIdFlag:        cmproto.BlockIDFlagCommit,
+		}},
+	}
+	return extendedCommit
+}
+
+func (m *Manager) recordMetrics(data *types.Data) {
+	m.metrics.NumTxs.Set(float64(len(data.Txs)))
+	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
+	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
+	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
+}
 func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	submittedAllHeaders := false
 	var backoff time.Duration
