@@ -40,6 +40,7 @@ rollkit start [flags]
       --rollkit.da_namespace string                     DA namespace to submit blob transactions
       --rollkit.da_start_height uint                    starting DA block height (for syncing)
       --rollkit.da_submit_options string                DA submit options
+      --rollkit.executor_address string                 executor middleware address (host:port) (default "localhost:40041")
       --rollkit.lazy_aggregator                         wait for transactions, don't build empty blocks
       --rollkit.lazy_block_time duration                block time (for lazy mode) (default 1m0s)
       --rollkit.light                                   run light client
