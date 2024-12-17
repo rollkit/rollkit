@@ -501,7 +501,7 @@ func generateSingleKey() crypto.PrivKey {
 	return key
 }
 
-// getPeerID generates a peer ID
+//nolint:unused
 func getPeerID(t *testing.T) peer.ID {
 	key := generateSingleKey()
 

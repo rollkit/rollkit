@@ -269,7 +269,7 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
-	// allow buffer for the block header and protocol encoding
+	//nolint:ineffassign // This assignment is needed
 	maxBlobSize -= blockProtocolOverhead
 
 	isProposer, err := isProposer(proposerKey, s)
@@ -475,7 +475,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	initialHeight := uint64(m.genesis.InitialHeight) //nolint:gosec
+	initialHeight := m.genesis.InitialHeight //nolint:gosec
 	height := m.store.Height()
 	var delay time.Duration
 
@@ -1285,7 +1285,7 @@ func (m *Manager) processVoteExtension(ctx context.Context, header *types.Signed
 	*/
 }
 
-func (m *Manager) voteExtensionEnabled(newHeight uint64) bool {
+func (m *Manager) voteExtensionEnabled(_ uint64) bool {
 	return false
 	//enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
 	//return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
@@ -1301,22 +1301,6 @@ func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.Ex
 		return emptyExtendedCommit, err
 	}
 	return *extendedCommit, nil
-}
-
-func buildExtendedCommit(header *types.SignedHeader, extension []byte, sign []byte) *abci.ExtendedCommitInfo {
-	extendedCommit := &abci.ExtendedCommitInfo{
-		Round: 0,
-		Votes: []abci.ExtendedVoteInfo{{
-			Validator: abci.Validator{
-				Address: header.Validators.GetProposer().Address,
-				Power:   header.Validators.GetProposer().VotingPower,
-			},
-			VoteExtension:      extension,
-			ExtensionSignature: sign,
-			BlockIdFlag:        cmproto.BlockIDFlagCommit,
-		}},
-	}
-	return extendedCommit
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {
@@ -1434,6 +1418,7 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
+//nolint:unused // This function is kept for future validator set management
 func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
@@ -1471,7 +1456,7 @@ func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, da
 	return m.execApplyBlock(ctx, m.lastState, header, data)
 }
 
-func (m *Manager) execValidate(lastState types.State, h *types.SignedHeader, d *types.Data) error {
+func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Data) error {
 	// TODO(tzdybal): implement
 	return nil
 }

@@ -98,8 +98,8 @@ func TestInitialStateClean(t *testing.T) {
 	emptyStore := store.New(es)
 	s, err := getInitialState(context.TODO(), genesis, emptyStore, execTest.NewDummyExecutor())
 	require.NoError(err)
-	require.Equal(s.LastBlockHeight, uint64(genesis.InitialHeight-1))
-	require.Equal(uint64(genesis.InitialHeight), s.InitialHeight)
+	require.Equal(s.LastBlockHeight, genesis.InitialHeight-1)
+	require.Equal(genesis.InitialHeight, s.InitialHeight)
 }
 
 func TestInitialStateStored(t *testing.T) {

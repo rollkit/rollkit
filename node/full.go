@@ -188,6 +188,7 @@ func newFullNode(
 	return node, nil
 }
 
+//nolint:unused
 func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger, metrics *proxy.Metrics) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(clientCreator, metrics)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
@@ -239,12 +240,14 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
+//nolint:unused
 func initMempool(memplMetrics *mempool.Metrics) *mempool.CListMempool {
 	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), nil, 0, mempool.WithMetrics(memplMetrics))
 	mempool.EnableTxsAvailable()
 	return mempool
 }
 
+//nolint:unused
 func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client, logger log.Logger) *mempool.CListMempoolReaper {
 	return mempool.NewCListMempoolReaper(m, rollupID, seqClient, logger)
 }
