@@ -51,7 +51,11 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
-	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1, VotingPower: 1}
+	validator1 := &Validator{
+		Address:     pubKey1.Address(),
+		PubKey:      pubKey1,
+		VotingPower: 1,
+	}
 
 	cases := []struct {
 		name   string
@@ -62,8 +66,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		{"full", &SignedHeader{
 			Header:    h1,
 			Signature: Signature([]byte{1, 1, 1}),
-			Validators: cmtypes.NewValidatorSet(
-				[]*cmtypes.Validator{
+			Validators: NewValidatorSet(
+				[]*Validator{
 					validator1,
 				}),
 		}, &Data{
@@ -111,9 +115,16 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			"with max bytes",
 			State{
-				LastValidators: valSet,
-				Validators:     valSet,
-				NextValidators: valSet,
+				Version: cmstate.Version{
+					Consensus: cmversion.Consensus{
+						Block: 123,
+						App:   456,
+					},
+					Software: "rollkit",
+				},
+				ChainID:         "testchain",
+				InitialHeight:   987,
+				LastBlockHeight: 987654321,
 				ConsensusParams: cmproto.ConsensusParams{
 					Block: &cmproto.BlockParams{
 						MaxBytes: 123,

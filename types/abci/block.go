@@ -85,26 +85,26 @@ func ToABCIBlock(header *types.SignedHeader, data *types.Data) (*cmtypes.Block, 
 	}
 
 	val := header.Validators.Validators[0].Address
-	abciCommit := types.GetABCICommit(header.Height(), header.Hash(), val, header.Time(), header.Signature)
+	abciCommit := types.GetCommit(header.Height(), header.Hash(), val, header.Time(), header.Signature)
 
 	// This assumes that we have only one signature
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = header.ProposerAddress
 	}
-	abciBlock := cmtypes.Block{
+	block := types.Block{
 		Header: abciHeader,
-		Evidence: cmtypes.EvidenceData{
+		Evidence: types.EvidenceData{
 			Evidence: nil,
 		},
 		LastCommit: abciCommit,
 	}
-	abciBlock.Data.Txs = make([]cmtypes.Tx, len(data.Txs))
+	block.Data.Txs = make([]cmtypes.Tx, len(data.Txs))
 	for i := range data.Txs {
-		abciBlock.Data.Txs[i] = cmtypes.Tx(data.Txs[i])
+		block.Data.Txs[i] = cmtypes.Tx(data.Txs[i])
 	}
-	abciBlock.Header.DataHash = cmbytes.HexBytes(header.DataHash)
+	block.Header.DataHash = cmbytes.HexBytes(header.DataHash)
 
-	return &abciBlock, nil
+	return &block, nil
 }
 
 // ToABCIBlockMeta converts Rollkit block into BlockMeta format defined by ABCI

@@ -7,7 +7,6 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	proxy "github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/config"
@@ -16,7 +15,6 @@ import (
 // Node is the interface for a rollup node
 type Node interface {
 	Start() error
-	GetClient() rpcclient.Client
 	Stop() error
 	IsRunning() bool
 	Cancel()
@@ -44,15 +42,14 @@ func NewNode(
 			metricsProvider,
 			logger,
 		)
-	} else {
-		return newLightNode(
-			ctx,
-			conf,
-			p2pKey,
-			appClient,
-			genesis,
-			metricsProvider,
-			logger,
-		)
 	}
+	return newLightNode(
+		ctx,
+		conf,
+		p2pKey,
+		appClient,
+		genesis,
+		metricsProvider,
+		logger,
+	)
 }

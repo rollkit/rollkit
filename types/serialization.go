@@ -237,33 +237,41 @@ func (s *State) ToProto() (*pb.State, error) {
 
 // FromProto fills State with data from its protobuf representation.
 func (s *State) FromProto(other *pb.State) error {
-	//var err error
+	var err error
 	s.Version = *other.Version
 	s.ChainID = other.ChainId
 	s.InitialHeight = other.InitialHeight
 	s.LastBlockHeight = other.LastBlockHeight
-	//lastBlockID, err := types.BlockIDFromProto(&other.LastBlockID)
-	//if err != nil {
-	//	return err
-	//}
-	//s.LastBlockID = *lastBlockID
+
+	lastBlockID, err := types.BlockIDFromProto(&other.LastBlockID)
+	if err != nil {
+		return err
+	}
+	s.LastBlockID = *lastBlockID
 	s.LastBlockTime = other.LastBlockTime
 	s.DAHeight = other.DAHeight
 
-	//s.NextValidators, err = types.ValidatorSetFromProto(other.NextValidators)
-	//if err != nil {
-	//	return err
-	//}
-	//s.Validators, err = types.ValidatorSetFromProto(other.Validators)
-	//if err != nil {
-	//	return err
-	//}
-	//s.LastValidators, err = types.ValidatorSetFromProto(other.LastValidators)
-	//if err != nil {
-	//	return err
-	//}
-	//s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
+	// Unmarshal validator sets
+	if other.NextValidators != nil {
+		s.NextValidators, err = types.ValidatorSetFromProto(other.NextValidators)
+		if err != nil {
+			return err
+		}
+	}
+	if other.Validators != nil {
+		s.Validators, err = types.ValidatorSetFromProto(other.Validators)
+		if err != nil {
+			return err
+		}
+	}
+	if other.LastValidators != nil {
+		s.LastValidators, err = types.ValidatorSetFromProto(other.LastValidators)
+		if err != nil {
+			return err
+		}
+	}
 
+	s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
 	s.ConsensusParams = other.ConsensusParams
 	s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
 	s.LastResultsHash = other.LastResultsHash

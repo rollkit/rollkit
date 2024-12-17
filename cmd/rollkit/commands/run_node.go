@@ -37,7 +37,6 @@ import (
 
 	rollconf "github.com/rollkit/rollkit/config"
 	rollnode "github.com/rollkit/rollkit/node"
-	rollrpc "github.com/rollkit/rollkit/rpc"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
@@ -179,13 +178,6 @@ func NewRunNodeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
 			}
 
-			// Launch the RPC server
-			server := rollrpc.NewServer(rollnode, config.RPC, logger)
-			err = server.Start()
-			if err != nil {
-				return fmt.Errorf("failed to launch RPC server: %w", err)
-			}
-
 			// Start the node
 			if err := rollnode.Start(); err != nil {
 				return fmt.Errorf("failed to start node: %w", err)
@@ -215,16 +207,8 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// CI mode. Wait for 5s and then verify the node is running before calling stop node.
 			time.Sleep(5 * time.Second)
-			res, err := rollnode.GetClient().Block(context.Background(), nil)
-			if err != nil {
-				return err
-			}
-			if res.Block.Height == 0 {
-				return fmt.Errorf("node hasn't produced any blocks")
-			}
 			if !rollnode.IsRunning() {
 				return fmt.Errorf("node is not running")
-
 			}
 
 			return rollnode.Stop()

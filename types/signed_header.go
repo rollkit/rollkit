@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
-	cmtypes "github.com/cometbft/cometbft/types"
 )
 
 // SignedHeader combines Header and its signature.
@@ -16,7 +15,7 @@ type SignedHeader struct {
 	Header
 	// Note: This is backwards compatible as ABCI exported types are not affected.
 	Signature  Signature
-	Validators *cmtypes.ValidatorSet
+	Validators *ValidatorSet
 }
 
 // New creates a new SignedHeader.
@@ -112,17 +111,15 @@ var (
 )
 
 // validatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
-func validatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
+func validatorsEqual(val1 *Validator, val2 *Validator) bool {
 	if val1 == val2 {
 		// happy case is if they are pointers to the same struct.
 		return true
 	}
-	// if not, do a field-by-field comparison
-	return val1.PubKey.Equals(val2.PubKey) &&
-		bytes.Equal(val1.Address.Bytes(), val2.Address.Bytes()) &&
-		val1.VotingPower == val2.VotingPower &&
-		val1.ProposerPriority == val2.ProposerPriority
 
+	return bytes.Equal(val1.Address, val2.Address) &&
+		val1.VotingPower == val2.VotingPower &&
+		val1.PubKey.Equals(val2.PubKey)
 }
 
 // ValidateBasic performs basic validation of a signed header.
@@ -145,7 +142,8 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	// Check that the proposer address in the signed header matches the proposer address in the validator set
-	if !bytes.Equal(sh.ProposerAddress, sh.Validators.Proposer.Address.Bytes()) {
+	proposerAddress := sh.Validators.Proposer.Address
+	if !bytes.Equal(sh.ProposerAddress, proposerAddress) {
 		return ErrProposerAddressMismatch
 	}
 
@@ -157,7 +155,11 @@ func (sh *SignedHeader) ValidateBasic() error {
 	signature := sh.Signature
 
 	vote := sh.Header.MakeCometBFTVote()
-	if !sh.Validators.Validators[0].PubKey.VerifySignature(vote, signature) {
+	ok, err := sh.Validators.Validators[0].PubKey.Verify(vote, signature)
+	if err != nil {
+		return err
+	}
+	if !ok {
 		return ErrSignatureVerificationFailed
 	}
 	return nil

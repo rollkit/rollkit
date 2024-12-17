@@ -114,20 +114,12 @@ func cleanUpNode(node Node, t *testing.T) {
 }
 
 // initAndStartNodeWithCleanup initializes and starts a node of the specified type.
-func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) Node {
-	node, _ := setupTestNode(ctx, t, nodeType, chainID)
+func initAndStartNodeWithCleanup(t *testing.T, nodeType NodeType, chainID string) Node {
+	node, _, err := newTestNode(context.Background(), t, nodeType, chainID)
+	require.NoError(t, err)
 	startNodeWithCleanup(t, node)
 
 	return node
-}
-
-// setupTestNode sets up a test node based on the NodeType.
-func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey) {
-	node, privKey, err := newTestNode(ctx, t, nodeType, chainID)
-	require.NoError(t, err)
-	require.NotNil(t, node)
-
-	return node, privKey
 }
 
 // newTestNode creates a new test node based on the NodeType.
@@ -141,25 +133,22 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	default:
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
-	app := setupMockApplication()
+	app := getMockApplication()
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	key := generateSingleKey()
-
 	logger := test.NewFileLogger(t)
-	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
+	node, err := NewNode(ctx, config, signingKey, signingKey, proxy.NewLocalClientCreator(app), genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
 	return node, genesisValidatorKey, err
 }
 
 func TestNewNode(t *testing.T) {
-	ctx := context.Background()
 	chainID := "TestNewNode"
-	ln := initAndStartNodeWithCleanup(ctx, t, Light, chainID)
+	ln := initAndStartNodeWithCleanup(t, Light, chainID)
 	require.IsType(t, new(LightNode), ln)
-	fn := initAndStartNodeWithCleanup(ctx, t, Full, chainID)
+	fn := initAndStartNodeWithCleanup(t, Full, chainID)
 	require.IsType(t, new(FullNode), fn)
 }

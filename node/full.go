@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	execproxy "github.com/rollkit/go-execution/proxy/grpc"
 	"net/http"
+
+	execproxy "github.com/rollkit/go-execution/proxy/grpc"
 
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
@@ -24,7 +25,6 @@ import (
 	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
 	proxy "github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	proxyda "github.com/rollkit/go-da/proxy"
@@ -70,7 +70,6 @@ type FullNode struct {
 
 	nodeConfig config.NodeConfig
 
-	proxyApp     proxy.AppConns
 	eventBus     *cmtypes.EventBus
 	dalc         *da.DAClient
 	p2pClient    *p2p.Client
@@ -81,7 +80,6 @@ type FullNode struct {
 	mempoolIDs   *mempoolIDs
 	Store        store.Store
 	blockManager *block.Manager
-	client       rpcclient.Client
 
 	// Preserves cometBFT compatibility
 	TxIndexer      txindex.TxIndexer
@@ -95,7 +93,6 @@ type FullNode struct {
 	cancel        context.CancelFunc
 	threadManager *types.ThreadManager
 	seqClient     *seqGRPC.Client
-	mempoolReaper *mempool.CListMempoolReaper
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -119,12 +116,7 @@ func newFullNode(
 		}
 	}()
 
-	seqMetrics, p2pMetrics, memplMetrics, smMetrics, abciMetrics := metricsProvider(genesis.ChainID)
-
-	proxyApp, err := initProxyApp(clientCreator, logger, abciMetrics)
-	if err != nil {
-		return nil, err
-	}
+	seqMetrics, p2pMetrics, smMetrics := metricsProvider(genesis.ChainID)
 
 	eventBus, err := initEventBus(logger)
 	if err != nil {
@@ -157,35 +149,28 @@ func newFullNode(
 		return nil, err
 	}
 
-	mempool := initMempool(proxyApp, memplMetrics)
-
 	seqClient := seqGRPC.NewClient()
-	mempoolReaper := initMempoolReaper(mempool, []byte(genesis.ChainID), seqClient, logger.With("module", "reaper"))
 
 	store := store.New(mainKV)
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, mempool, mempoolReaper, seqClient, proxyApp, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
 	if err != nil {
 		return nil, err
 	}
 
 	indexerKV := newPrefixKV(baseKV, indexerPrefix)
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, nodeConfig, indexerKV, eventBus, logger)
+	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, indexerKV, eventBus, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	node := &FullNode{
-		proxyApp:       proxyApp,
 		eventBus:       eventBus,
 		genesis:        genesis,
 		nodeConfig:     nodeConfig,
 		p2pClient:      p2pClient,
 		blockManager:   blockManager,
 		dalc:           dalc,
-		Mempool:        mempool,
 		seqClient:      seqClient,
-		mempoolReaper:  mempoolReaper,
-		mempoolIDs:     newMempoolIDs(),
 		Store:          store,
 		TxIndexer:      txIndexer,
 		IndexerService: indexerService,
@@ -199,11 +184,11 @@ func newFullNode(
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 	node.p2pClient.SetTxValidator(node.newTxValidator(p2pMetrics))
-	node.client = NewFullClient(node)
 
 	return node, nil
 }
 
+//nolint:unused
 func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger, metrics *proxy.Metrics) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(clientCreator, metrics)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
@@ -255,12 +240,14 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
-func initMempool(proxyApp proxy.AppConns, memplMetrics *mempool.Metrics) *mempool.CListMempool {
-	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), proxyApp.Mempool(), 0, mempool.WithMetrics(memplMetrics))
+//nolint:unused
+func initMempool(memplMetrics *mempool.Metrics) *mempool.CListMempool {
+	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), nil, 0, mempool.WithMetrics(memplMetrics))
 	mempool.EnableTxsAvailable()
 	return mempool
 }
 
+//nolint:unused
 func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client, logger log.Logger) *mempool.CListMempoolReaper {
 	return mempool.NewCListMempoolReaper(m, rollupID, seqClient, logger)
 }
@@ -281,7 +268,7 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, mempool mempool.Mempool, mempoolReaper *mempool.CListMempoolReaper, seqClient *seqGRPC.Client, proxyApp proxy.AppConns, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
 	exec, err := initExecutor(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing executor: %w", err)
@@ -293,7 +280,7 @@ func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, g
 		ChainID:         genesis.ChainID,
 		ProposerAddress: genesis.Validators[0].Address.Bytes(),
 	}
-	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, mempool, mempoolReaper, seqClient, proxyApp.Consensus(), dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
+	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, seqClient, dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
@@ -371,11 +358,6 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	}
 }
 
-// GetClient returns the RPC client for the full node.
-func (n *FullNode) GetClient() rpcclient.Client {
-	return n.client
-}
-
 // Cancel calls the underlying context's cancel function.
 func (n *FullNode) Cancel() {
 	n.cancel()
@@ -432,10 +414,7 @@ func (n *FullNode) OnStart() error {
 
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
-		// reaper is started only in aggregator mode
-		if err = n.mempoolReaper.StartReaper(n.ctx); err != nil {
-			return fmt.Errorf("error while starting mempool reaper: %w", err)
-		}
+
 		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
 		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(n.ctx) })
@@ -482,9 +461,7 @@ func (n *FullNode) OnStop() {
 	if n.prometheusSrv != nil {
 		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
 	}
-	if n.mempoolReaper != nil {
-		n.mempoolReaper.StopReaper()
-	}
+
 	n.cancel()
 	n.threadManager.Wait()
 	err = errors.Join(err, n.Store.Close())
@@ -509,11 +486,6 @@ func (n *FullNode) GetLogger() log.Logger {
 // EventBus gives access to Node's event bus.
 func (n *FullNode) EventBus() *cmtypes.EventBus {
 	return n.eventBus
-}
-
-// AppClient returns ABCI proxy connections to communicate with application.
-func (n *FullNode) AppClient() proxy.AppConns {
-	return n.proxyApp
 }
 
 // newTxValidator creates a pubsub validator that uses the node's mempool to check the
@@ -562,7 +534,6 @@ func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
 
 func createAndStartIndexerService(
 	ctx context.Context,
-	conf config.NodeConfig,
 	kvStore ds.TxnDatastore,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
@@ -583,4 +554,19 @@ func createAndStartIndexerService(
 	}
 
 	return indexerService, txIndexer, blockIndexer, nil
+}
+
+// Start implements NodeLifecycle
+func (fn *FullNode) Start() error {
+	return fn.BaseService.Start()
+}
+
+// Stop implements NodeLifecycle
+func (fn *FullNode) Stop() error {
+	return fn.BaseService.Stop()
+}
+
+// IsRunning implements NodeLifecycle
+func (fn *FullNode) IsRunning() bool {
+	return fn.BaseService.IsRunning()
 }

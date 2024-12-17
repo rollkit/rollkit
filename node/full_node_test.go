@@ -25,14 +25,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	testutils "github.com/celestiaorg/utils/test"
-
 	goDA "github.com/rollkit/go-da"
 	damock "github.com/rollkit/go-da/mocks"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
 	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -40,33 +37,16 @@ import (
 
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
-	ctx := context.Background()
-	node := initAndStartNodeWithCleanup(ctx, t, Full, "TestStartup")
+	node := setupTestNode(t, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace})
 	require.IsType(t, new(FullNode), node)
-}
-
-func TestMempoolDirectly(t *testing.T) {
-	ctx := context.Background()
-
-	fn := initAndStartNodeWithCleanup(ctx, t, Full, "TestMempoolDirectly")
-	require.IsType(t, new(FullNode), fn)
-
-	node := fn.(*FullNode)
-	peerID := getPeerID(t)
-	verifyTransactions(node, peerID, t)
-	verifyMempoolSize(node, t)
 }
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
 func TestTrySyncNextBlockMultiple(t *testing.T) {
 	chainID := "TestTrySyncNextBlockMultiple"
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, Full, chainID)
-	fullNode, ok := node.(*FullNode)
-	require.True(t, ok)
+	node, signingKey := setupTestNode(t, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace})
 
-	store := fullNode.Store
+	store := node.Store
 	height := store.Height()
 
 	config := types.BlockConfig{
@@ -123,12 +103,10 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	chainID := "TestInvalidBlocksIgnored"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, Full, chainID)
-	fullNode, ok := node.(*FullNode)
-	require.True(t, ok)
-	store := fullNode.Store
+	node := setupTestNode(t, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace})
+	store := node.Store
 
-	manager := fullNode.blockManager
+	manager := node.blockManager
 	height := store.Height()
 
 	config := types.BlockConfig{
@@ -148,7 +126,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 
 	// Set up mock DA
 	dalc := getMockDA(t)
-	fullNode.dalc = dalc
+	node.dalc = dalc
 	manager.SetDALC(dalc)
 
 	require.NoError(t, h1.ValidateBasic())
@@ -173,12 +151,12 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 
 	startNodeWithCleanup(t, node)
 
-	maxBlobSize, err := fullNode.dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := node.dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
 	// Submit invalid block headers to the mock DA
 	// Invalid block headers should be ignored by the node
-	submitResp := fullNode.dalc.SubmitHeaders(ctx, []*types.SignedHeader{&junkProposerHeader, &junkCommitHeader, h1}, maxBlobSize, -1)
+	submitResp := node.dalc.SubmitHeaders(ctx, []*types.SignedHeader{&junkProposerHeader, &junkCommitHeader, h1}, maxBlobSize, -1)
 	require.Equal(t, submitResp.Code, da.StatusSuccess)
 
 	// Only the valid block gets synced
@@ -278,6 +256,19 @@ func TestPendingBlocks(t *testing.T) {
 
 }
 
+func finalizeBlockResponse(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	txResults := make([]*abci.ExecTxResult, len(req.Txs))
+	for idx := range req.Txs {
+		txResults[idx] = &abci.ExecTxResult{
+			Code: abci.CodeTypeOK,
+		}
+	}
+
+	return &abci.ResponseFinalizeBlock{
+		TxResults: txResults,
+	}, nil
+}
+
 func TestVoteExtension(t *testing.T) {
 	require := require.New(t)
 	const voteExtensionEnableHeight = 5
@@ -371,10 +362,6 @@ func TestVoteExtension(t *testing.T) {
 		// Wait for blocks to be produced until voteExtensionEnableHeight
 		require.NoError(waitForAtLeastNBlocks(node, 4, Store))
 
-		status, err := node.GetClient().Status(ctx)
-		require.NoError(err)
-		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Expected block height mismatch")
-
 		// Additional retries to ensure extendVoteFailure is triggered multiple times
 		for i := 0; i < 4; i++ {
 			// Wait for extendVoteFailure to be called, indicating a retry attempt
@@ -382,12 +369,6 @@ func TestVoteExtension(t *testing.T) {
 
 			// Ensure that the ExtendVote method is called with the expected arguments
 			app.AssertCalled(t, "ExtendVote", mock.Anything, mock.Anything)
-
-			// Check the node's behavior after encountering the invalid vote extension error
-			// verify that the block height has not advanced
-			status, err = node.GetClient().Status(ctx)
-			require.NoError(err)
-			require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
 		}
 
 		// Stop the node
@@ -513,35 +494,11 @@ func generateSingleKey() crypto.PrivKey {
 	return key
 }
 
-// getPeerID generates a peer ID
+//nolint:unused
 func getPeerID(t *testing.T) peer.ID {
 	key := generateSingleKey()
 
 	peerID, err := peer.IDFromPrivateKey(key)
 	assert.NoError(t, err)
 	return peerID
-}
-
-// verifyTransactions checks if transactions are valid
-func verifyTransactions(node *FullNode, peerID peer.ID, t *testing.T) {
-	transactions := []string{"tx1", "tx2", "tx3", "tx4"}
-	for _, tx := range transactions {
-		err := node.Mempool.CheckTx([]byte(tx), func(r *abci.ResponseCheckTx) {}, mempool.TxInfo{
-			SenderID: node.mempoolIDs.GetForPeer(peerID),
-		})
-		assert.NoError(t, err)
-	}
-
-}
-
-// verifyMempoolSize checks if the mempool size is as expected
-func verifyMempoolSize(node *FullNode, t *testing.T) {
-	assert.NoError(t, testutils.Retry(300, 100*time.Millisecond, func() error {
-		expectedSize := uint64(4 * len("tx*"))
-		actualSize := uint64(node.Mempool.SizeBytes())
-		if expectedSize == actualSize {
-			return nil
-		}
-		return fmt.Errorf("expected size %v, got size %v", expectedSize, actualSize)
-	}))
 }
