@@ -99,7 +99,7 @@ func TestToABCIBlock(t *testing.T) {
 	assert.Equal(t, 1, len(header.Validators.Validators))
 	val := header.Validators.Validators[0].Address
 
-	abciCommit := types.GetABCICommit(header.Height(), header.Hash(), val, header.Time(), header.Signature)
+	abciCommit := types.GetCommit(header.Height(), header.Hash(), val, header.Time(), header.Signature)
 
 	if len(abciCommit.Signatures) == 1 {
 		abciCommit.Signatures[0].ValidatorAddress = header.ProposerAddress

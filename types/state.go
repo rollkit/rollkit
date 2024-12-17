@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"time"
 
 	// TODO(tzdybal): copy to local project?
@@ -53,30 +52,29 @@ type State struct {
 	AppHash Hash
 
 	// In the MVP implementation, there will be only one Validator
-	Validators                  *types.ValidatorSet
-	NextValidators              *types.ValidatorSet
-	LastValidators              *types.ValidatorSet
+	Validators                  *ValidatorSet
+	NextValidators              *ValidatorSet
+	LastValidators              *ValidatorSet
 	LastHeightValidatorsChanged int64
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
-	err := genDoc.ValidateAndComplete()
-	if err != nil {
-		return State{}, fmt.Errorf("error in genesis doc: %w", err)
-	}
-
-	var validatorSet, nextValidatorSet *types.ValidatorSet
+func NewFromGenesisDoc(genDoc *GenesisDoc) (State, error) {
+	var validatorSet, nextValidatorSet *ValidatorSet
 	if genDoc.Validators == nil {
-		validatorSet = types.NewValidatorSet(nil)
-		nextValidatorSet = types.NewValidatorSet(nil)
+		validatorSet = NewValidatorSet(nil)
+		nextValidatorSet = NewValidatorSet(nil)
 	} else {
-		validators := make([]*types.Validator, len(genDoc.Validators))
+		validators := make([]*Validator, len(genDoc.Validators))
 		for i, val := range genDoc.Validators {
-			validators[i] = types.NewValidator(val.PubKey, val.Power)
+			validators[i] = &Validator{
+				Address:     val.Address,
+				PubKey:      val.PubKey,
+				VotingPower: val.Power,
+			}
 		}
-		validatorSet = types.NewValidatorSet(validators)
-		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
+		validatorSet = NewValidatorSet(validators)
+		nextValidatorSet = validatorSet.CopyIncrementProposerPriority(1)
 	}
 
 	s := State{
@@ -120,4 +118,34 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 	s.AppHash = genDoc.AppHash.Bytes()
 
 	return s, nil
+}
+
+// CopyIncrementProposerPriority creates a copy of the validator set and increments the
+// proposer priority n times.
+func (valSet *ValidatorSet) CopyIncrementProposerPriority(n int) *ValidatorSet {
+	// Create a copy of the validator set
+	validators := make([]*Validator, len(valSet.Validators))
+	for i, val := range valSet.Validators {
+		validators[i] = &Validator{
+			Address:     val.Address,
+			PubKey:      val.PubKey,
+			VotingPower: val.VotingPower,
+		}
+	}
+
+	newValSet := NewValidatorSet(validators)
+
+	// Increment the proposer priority n times
+	for i := 0; i < n; i++ {
+		newValSet.IncrementProposerPriority()
+	}
+
+	return newValSet
+}
+
+// IncrementProposerPriority increments the proposer priority for the validator set.
+// In the MVP with a single validator, this is a no-op.
+func (valSet *ValidatorSet) IncrementProposerPriority() {
+	// For MVP with single validator, this is a no-op
+	// TODO: Implement proper proposer selection algorithm when multiple validators are supported
 }

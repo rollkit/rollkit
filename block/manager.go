@@ -350,18 +350,22 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(signerPrivKey crypto.PrivKey, s types.State) (bool, error) {
-	return true, nil
-	//if len(s.Validators.Validators) == 0 {
-	//	return false, ErrNoValidatorsInState
-	//}
+func isProposer(signerPrivKey crypto.PrivKey, state types.State) (bool, error) {
+	// First check if there are any validators
+	if state.Validators == nil || len(state.Validators.Validators) == 0 {
+		return false, ErrNoValidatorsInState
+	}
 
-	//signerPubBytes, err := signerPrivKey.GetPublic().Raw()
-	//if err != nil {
-	//	return false, err
-	//}
+	// Get the proposer's public key from the validator set
+	proposerPubKey := state.Validators.Proposer.PubKey
 
-	//return bytes.Equal(s.Validators.Validators[0].PubKey.Bytes(), signerPubBytes), nil
+	// Convert the signer's private key to a public key for comparison
+	signerPubKey, err := signerPrivKey.GetPublic().Raw()
+	if err != nil {
+		return false, fmt.Errorf("failed to get public key from private key: %w", err)
+	}
+
+	return bytes.Equal(proposerPubKey.Bytes(), signerPubKey), nil
 }
 
 // SetLastState is used to set lastState used by Manager.
@@ -1081,11 +1085,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		extendedCommit, err := m.getExtendedCommit(ctx, height)
-		if err != nil {
-			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
-		}
-
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
@@ -1113,7 +1112,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, txs, *timestamp)
 		if err != nil {
 			return err
 		}
@@ -1154,10 +1153,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 	signature, err = m.getSignature(header.Header)
 	if err != nil {
-		return err
-	}
-
-	if err := m.processVoteExtension(ctx, header, data, newHeight); err != nil {
 		return err
 	}
 
@@ -1252,63 +1247,13 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	}
 }
 
-func (m *Manager) processVoteExtension(ctx context.Context, header *types.SignedHeader, data *types.Data, newHeight uint64) error {
-	// TODO(tzdybal): remove this function completely
-	return nil // noop
-	/*
-		if !m.voteExtensionEnabled(newHeight) {
-			return nil
-		}
-
-		extension, err := m.executor.ExtendVote(ctx, header, data)
-		if err != nil {
-			return fmt.Errorf("error returned by ExtendVote: %w", err)
-		}
-
-		vote := &cmproto.Vote{
-			Height:    int64(newHeight), //nolint:gosec
-			Round:     0,
-			Extension: extension,
-		}
-		extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
-
-		sign, err := m.sign(extSignBytes)
-		if err != nil {
-			return fmt.Errorf("failed to sign vote extension: %w", err)
-		}
-		extendedCommit := buildExtendedCommit(header, extension, sign)
-		err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
-		if err != nil {
-			return fmt.Errorf("failed to save extended commit: %w", err)
-		}
-		return nil
-	*/
-}
-
-func (m *Manager) voteExtensionEnabled(_ uint64) bool {
-	return false
-	//enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
-	//return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
-}
-
-func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
-	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:unconvert
-		return emptyExtendedCommit, nil
-	}
-	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
-	if err != nil {
-		return emptyExtendedCommit, err
-	}
-	return *extendedCommit, nil
-}
-
 func (m *Manager) recordMetrics(data *types.Data) {
 	m.metrics.NumTxs.Set(float64(len(data.Txs)))
 	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
 	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
 	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
 }
+
 func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	submittedAllHeaders := false
 	var backoff time.Duration
@@ -1444,10 +1389,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
@@ -1461,12 +1406,12 @@ func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Da
 	return nil
 }
 
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, d *types.Data, responses *abci.ResponseFinalizeBlock) ([]byte, error) {
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data, _ *abci.ResponseFinalizeBlock) ([]byte, error) {
 	err := m.exec.SetFinal(ctx, h.Height())
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, commit abci.ExtendedCommitInfo, hash types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	// TODO(tzdybal): get rid of cmtypes.Tx, probable we should have common-shared-dep with basic types
 	rawTxs := make([]execTypes.Tx, len(txs))
 	for i := range txs {

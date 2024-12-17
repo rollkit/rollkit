@@ -9,11 +9,7 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/crypto/secp256k1"
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/p2p"
-	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
@@ -25,48 +21,171 @@ var (
 	errUnsupportedKeyType = errors.New("unsupported key type")
 )
 
+// ValidatorSet represents a set of validators at a given height.
+// The proposer is the validator that may propose a block at the given height.
+// The proposer is chosen by a deterministic round-robin selection process.
+type ValidatorSet struct {
+	// List of validators
+	Validators []*Validator
+	// The current proposer
+	Proposer *Validator
+	// Total voting power of the set
+	totalVotingPower int64
+}
+
+
+// ValidateBasic performs basic validation of the validator set
+func (vs *ValidatorSet) ValidateBasic() error {
+	if len(vs.Validators) == 0 {
+		return errors.New("validator set is empty")
+	}
+
+	if vs.Proposer == nil {
+		return errors.New("proposer cannot be nil")
+	}
+
+	// Check that all validators are valid
+	for _, val := range vs.Validators {
+		if val == nil {
+			return errors.New("validator cannot be nil")
+		}
+		if val.Address == nil {
+			return errors.New("validator address cannot be nil")
+		}
+		if val.PubKey == nil {
+			return errors.New("validator public key cannot be nil")
+		}
+		if val.VotingPower <= 0 {
+			return errors.New("validator voting power must be positive")
+		}
+	}
+
+	// Verify total voting power matches sum of validators
+	sum := int64(0)
+	for _, val := range vs.Validators {
+		sum += val.VotingPower
+	}
+	if vs.totalVotingPower != sum {
+		return fmt.Errorf("total voting power mismatch: expected %d, got %d", sum, vs.totalVotingPower)
+	}
+
+	return nil
+}
+
+// NewValidatorSet creates a new validator set with the given validators
+func NewValidatorSet(validators []*Validator) *ValidatorSet {
+	vs := &ValidatorSet{
+		Validators: validators,
+	}
+	vs.updateTotalVotingPower()
+	if len(validators) > 0 {
+		vs.Proposer = validators[0]
+	}
+	return vs
+}
+
+// Hash returns a hash of the validator set
+func (vs *ValidatorSet) Hash() header.Hash {
+	if len(vs.Validators) == 0 {
+		return header.Hash{}
+	}
+
+	// For now, with a single validator, just use their address as the hash
+	if len(vs.Validators) == 1 {
+		return header.Hash(vs.Validators[0].Address)
+	}
+
+	// TODO: Implement proper hashing for multiple validators
+	// This should match CometBFT's ValidatorSet.Hash() implementation
+	// For multiple validators, we'd need to:
+	// 1. Sort validators by address
+	// 2. Hash each validator's data
+	// 3. Merkle root of all validator hashes
+	return header.Hash{}
+}
+
+// GetProposer returns the current proposer validator
+func (vs *ValidatorSet) GetProposer() *Validator {
+	if vs.Proposer == nil && len(vs.Validators) > 0 {
+		// For now, with single validator setup, always return the first validator
+		vs.Proposer = vs.Validators[0]
+	}
+	return vs.Proposer
+}
+
+// TotalVotingPower returns the total voting power of the validator set
+func (vs *ValidatorSet) TotalVotingPower() int64 {
+	return vs.totalVotingPower
+}
+
+// updateTotalVotingPower updates the total voting power from all validators
+func (vs *ValidatorSet) updateTotalVotingPower() {
+	sum := int64(0)
+	for _, val := range vs.Validators {
+		sum += val.VotingPower
+	}
+	vs.totalVotingPower = sum
+}
+
 // ValidatorConfig carries all necessary state for generating a Validator
 type ValidatorConfig struct {
-	PrivKey     cmcrypto.PrivKey
+	crypto.PrivKey
+	VotingPower int64
+}
+
+// New types to replace CometBFT types
+type Validator struct {
+	Address     []byte
+	PubKey      crypto.PubKey
 	VotingPower int64
 }
 
 // GetRandomValidatorSet creates a validatorConfig with a randomly generated privateKey and votingPower set to 1,
 // then calls GetValidatorSetCustom to return a new validator set along with the validatorConfig.
-func GetRandomValidatorSet() *cmtypes.ValidatorSet {
+func GetRandomValidatorSet() *ValidatorSet {
+	privKey, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
+	if err != nil {
+		panic(err)
+	}
 	config := ValidatorConfig{
-		PrivKey:     ed25519.GenPrivKey(),
+		PrivKey:     privKey,
 		VotingPower: 1,
 	}
-	valset := GetValidatorSetCustom(config)
-	return valset
+	return GetValidatorSetCustom(config)
 }
 
 // GetValidatorSetCustom returns a validator set based on the provided validatorConfig.
-func GetValidatorSetCustom(config ValidatorConfig) *cmtypes.ValidatorSet {
+func GetValidatorSetCustom(config ValidatorConfig) *ValidatorSet {
 	if config.PrivKey == nil {
 		panic(errors.New("private key is nil"))
 	}
-	pubKey := config.PrivKey.PubKey()
-	valset := cmtypes.NewValidatorSet(
-		[]*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: config.VotingPower},
-		},
-	)
-	return valset
+	pubKey := config.PrivKey.GetPublic()
+	address, err := pubKey.Raw()
+	if err != nil {
+		panic(err)
+	}
+	validator := &Validator{
+		PubKey:      pubKey,
+		Address:     address,
+		VotingPower: config.VotingPower,
+	}
+	return &ValidatorSet{
+		Validators: []*Validator{validator},
+		Proposer:   validator,
+	}
 }
 
 // BlockConfig carries all necessary state for block generation
 type BlockConfig struct {
 	Height       uint64
 	NTxs         int
-	PrivKey      cmcrypto.PrivKey // Input and Output option
-	ProposerAddr []byte           // Input option
+	PrivKey      crypto.PrivKey // Input and Output option
+	ProposerAddr []byte         // Input option
 }
 
-// GetRandomBlock creates a block with a given height and number of transactions, intended for testing.
-// It's tailored for simplicity, primarily used in test setups where additional outputs are not needed.
-func GetRandomBlock(height uint64, nTxs int, chainID string) (*SignedHeader, *Data) {
+// GetRandomBlock creates a bmbanswith a given heighns, intended for testing.
+// It's tailored for simplicity, primarily used in test setups where additiodel ourp ts a   not needed.	Signature *Signature
+}func GetRandomBlock(height uint64, nTxs int, chainID string) (SignedHeader, *Datar) {
 	config := BlockConfig{
 		Height: height,
 		NTxs:   nTxs,
@@ -78,12 +197,16 @@ func GetRandomBlock(height uint64, nTxs int, chainID string) (*SignedHeader, *Da
 }
 
 // GenerateRandomBlockCustom returns a block with random data and the given height, transactions, privateKey and proposer address.
-func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHeader, *Data, cmcrypto.PrivKey) {
+func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHeader, *Data, crypto.PrivKey) {
 	data := getBlockDataWith(config.NTxs)
 	dataHash := data.Hash()
 
 	if config.PrivKey == nil {
-		config.PrivKey = ed25519.GenPrivKey()
+		privKey, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
+		if err != nil {
+			panic(err)
+		}
+		config.PrivKey = privKey
 	}
 
 	headerConfig := HeaderConfig{
@@ -112,7 +235,7 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 }
 
 // GetRandomNextBlock returns a block with random data and height of +1 from the provided block
-func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivKey, appHash header.Hash, nTxs int, chainID string) (*SignedHeader, *Data) {
+func GetRandomNextBlock(header *SignedHeader, data *Data, privKey crypto.PrivKey, appHash header.Hash, nTxs int, chainID string) (*SignedHeader, *Data) {
 	nextData := getBlockDataWith(nTxs)
 	dataHash := nextData.Hash()
 
@@ -146,7 +269,7 @@ func GetRandomNextBlock(header *SignedHeader, data *Data, privKey cmcrypto.PrivK
 type HeaderConfig struct {
 	Height      uint64
 	DataHash    header.Hash
-	PrivKey     cmcrypto.PrivKey
+	PrivKey     crypto.PrivKey
 	VotingPower int64
 }
 
@@ -186,17 +309,21 @@ func GetRandomNextHeader(header Header, chainID string) Header {
 }
 
 // GetRandomSignedHeader generates a signed header with random data and returns it.
-func GetRandomSignedHeader(chainID string) (*SignedHeader, cmcrypto.PrivKey, error) {
+func GetRandomSignedHeader(chainID string) (*SignedHeader, crypto.PrivKey, error) {
+	privKey, _, err := crypto.GenerateEd25519Key(cryptoRand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
 	config := HeaderConfig{
 		Height:      uint64(rand.Int63()), //nolint:gosec
 		DataHash:    GetRandomBytes(32),
-		PrivKey:     ed25519.GenPrivKey(),
+		PrivKey:     privKey,
 		VotingPower: 1,
 	}
 
 	signedHeader, err := GetRandomSignedHeaderCustom(&config, chainID)
 	if err != nil {
-		return nil, ed25519.PrivKey{}, err
+		return nil, nil, err
 	}
 	return signedHeader, config.PrivKey, nil
 }
@@ -228,7 +355,7 @@ func GetRandomSignedHeaderCustom(config *HeaderConfig, chainID string) (*SignedH
 
 // GetRandomNextSignedHeader returns a signed header with random data and height of +1 from
 // the provided signed header
-func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.PrivKey, chainID string) (*SignedHeader, error) {
+func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey crypto.PrivKey, chainID string) (*SignedHeader, error) {
 	valSet := signedHeader.Validators
 	newSignedHeader := &SignedHeader{
 		Header:     GetRandomNextHeader(signedHeader.Header, chainID),
@@ -269,7 +396,7 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
-func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, chainID string) (*SignedHeader, error) {
+func GetFirstSignedHeader(privKey crypto.PrivKey, valSet *ValidatorSet, chainID string) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
 			Height:  1,
@@ -287,13 +414,13 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet,
 		AppHash:         make([]byte, 32),
 		LastResultsHash: GetRandomBytes(32),
 		ValidatorHash:   valSet.Hash(),
-		ProposerAddress: valSet.Proposer.Address.Bytes(),
+		ProposerAddress: valSet.Proposer.Address,
 	}
 	signedHeader := SignedHeader{
 		Header:     header,
 		Validators: valSet,
 	}
-	signature, err := GetSignature(header, privkey)
+	signature, err := GetSignature(header, privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -301,45 +428,96 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet,
 	return &signedHeader, nil
 }
 
-// GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
-func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
-	vals := []*cmtypes.Validator{
-		{
-			Address:          g.Validators[0].Address,
-			PubKey:           g.Validators[0].PubKey,
-			VotingPower:      int64(1),
-			ProposerPriority: int64(1),
-		},
-	}
-	return cmtypes.ValidatorSet{
-		Validators: vals,
-		Proposer:   vals[0],
-	}
+// New types to replace more CometBFT types
+type GenesisDoc struct {
+	ChainID       string
+	InitialHeight uint64
+	Validators    []GenesisValidator
+
 }
 
-// GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*cmtypes.GenesisDoc, cmcrypto.PrivKey) {
-	var genesisValidatorKey cmcrypto.PrivKey
+type GenesisValidator struct {
+	Address []byte
+	PubKey  crypto.PubKey
+	Power   int64
+	Name    string
+}
+
+type Commit struct {
+	Height     uint64
+	Hash       Hash
+	Signatures []CommitSig
+}
+
+type CommitSig struct {
+	ValidatorAddress []byte
+	Signature        []byte
+	Timestamp        time.Time
+}
+
+// Refactored functions
+func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*GenesisDoc, crypto.PrivKey) {
+	var privKey crypto.PrivKey
+	var err error
+
 	switch signingKeyType {
 	case "secp256k1":
-		genesisValidatorKey = secp256k1.GenPrivKey()
+		privKey, _, err = crypto.GenerateSecp256k1Key(cryptoRand.Reader)
 	default:
-		genesisValidatorKey = ed25519.GenPrivKey()
+		privKey, _, err = crypto.GenerateEd25519Key(cryptoRand.Reader)
 	}
-	pubKey := genesisValidatorKey.PubKey()
+	if err != nil {
+		panic(err)
+	}
 
-	genesisValidators := []cmtypes.GenesisValidator{{
-		Address: pubKey.Address(),
+	pubKey := privKey.GetPublic()
+	address, err := pubKey.Raw()
+	if err != nil {
+		panic(err)
+	}
+
+	genesisValidators := []GenesisValidator{{
+		Address: address,
 		PubKey:  pubKey,
-		Power:   int64(1),
+		Power:   1,
 		Name:    "sequencer",
 	}}
-	genDoc := &cmtypes.GenesisDoc{
+
+	genDoc := &GenesisDoc{
 		ChainID:       chainID,
 		InitialHeight: 0,
 		Validators:    genesisValidators,
 	}
-	return genDoc, genesisValidatorKey
+	return genDoc, privKey
+}
+
+func GetValidatorSetFromGenesis(g *GenesisDoc) *ValidatorSet {
+	if len(g.Validators) == 0 {
+		return nil
+	}
+
+	validator := &Validator{
+		Address:     g.Validators[0].Address,
+		PubKey:      g.Validators[0].PubKey,
+		VotingPower: g.Validators[0].Power,
+	}
+
+	return &ValidatorSet{
+		Validators: []*Validator{validator},
+		Proposer:   validator,
+	}
+}
+
+func GetCommit(height uint64, hash Hash, validatorAddr []byte, time time.Time, signature []byte) *Commit {
+	return &Commit{
+		Height: height,
+		Hash:   hash,
+		Signatures: []CommitSig{{
+			ValidatorAddress: validatorAddr,
+			Signature:        signature,
+			Timestamp:        time,
+		}},
+	}
 }
 
 // PrivKeyToSigningKey converts a privKey to a signing key
@@ -368,7 +546,7 @@ func GetRandomBytes(n uint) []byte {
 }
 
 // GetSignature returns a signature from the given private key over the given header
-func GetSignature(header Header, privKey cmcrypto.PrivKey) (*Signature, error) {
+func GetSignature(header Header, privKey crypto.PrivKey) (*Signature, error) {
 	consensusVote := header.MakeCometBFTVote()
 	sign, err := privKey.Sign(consensusVote)
 	if err != nil {
@@ -397,27 +575,4 @@ func getBlockDataWith(nTxs int) *Data {
 		// block.Data.IntermediateStateRoots.RawRootsList = nil
 	}
 	return data
-}
-
-// GetABCICommit returns a commit format defined by ABCI.
-// Other fields (especially ValidatorAddress and Timestamp of Signature) have to be filled by caller.
-func GetABCICommit(height uint64, hash Hash, val cmtypes.Address, time time.Time, signature Signature) *cmtypes.Commit {
-	tmCommit := cmtypes.Commit{
-		Height: int64(height), //nolint:gosec
-		Round:  0,
-		BlockID: cmtypes.BlockID{
-			Hash:          cmbytes.HexBytes(hash),
-			PartSetHeader: cmtypes.PartSetHeader{},
-		},
-		Signatures: make([]cmtypes.CommitSig, 1),
-	}
-	commitSig := cmtypes.CommitSig{
-		BlockIDFlag:      cmtypes.BlockIDFlagCommit,
-		Signature:        signature,
-		ValidatorAddress: val,
-		Timestamp:        time,
-	}
-	tmCommit.Signatures[0] = commitSig
-
-	return &tmCommit
 }

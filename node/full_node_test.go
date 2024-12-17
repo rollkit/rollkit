@@ -37,21 +37,16 @@ import (
 
 // simply check that node is starting and stopping without panicking
 func TestStartup(t *testing.T) {
-	ctx := context.Background()
-	node := initAndStartNodeWithCleanup(ctx, t, Full, "TestStartup")
+	node := setupTestNode(t, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace})
 	require.IsType(t, new(FullNode), node)
 }
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
 func TestTrySyncNextBlockMultiple(t *testing.T) {
 	chainID := "TestTrySyncNextBlockMultiple"
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, Full, chainID)
-	fullNode, ok := node.(*FullNode)
-	require.True(t, ok)
+	node, signingKey := setupTestNode(t, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace})
 
-	store := fullNode.Store
+	store := node.Store
 	height := store.Height()
 
 	config := types.BlockConfig{
@@ -108,12 +103,10 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 	chainID := "TestInvalidBlocksIgnored"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, signingKey := setupTestNode(ctx, t, Full, chainID)
-	fullNode, ok := node.(*FullNode)
-	require.True(t, ok)
-	store := fullNode.Store
+	node := setupTestNode(t, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace})
+	store := node.Store
 
-	manager := fullNode.blockManager
+	manager := node.blockManager
 	height := store.Height()
 
 	config := types.BlockConfig{
@@ -133,7 +126,7 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 
 	// Set up mock DA
 	dalc := getMockDA(t)
-	fullNode.dalc = dalc
+	node.dalc = dalc
 	manager.SetDALC(dalc)
 
 	require.NoError(t, h1.ValidateBasic())
@@ -158,12 +151,12 @@ func TestInvalidBlocksIgnored(t *testing.T) {
 
 	startNodeWithCleanup(t, node)
 
-	maxBlobSize, err := fullNode.dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := node.dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
 	// Submit invalid block headers to the mock DA
 	// Invalid block headers should be ignored by the node
-	submitResp := fullNode.dalc.SubmitHeaders(ctx, []*types.SignedHeader{&junkProposerHeader, &junkCommitHeader, h1}, maxBlobSize, -1)
+	submitResp := node.dalc.SubmitHeaders(ctx, []*types.SignedHeader{&junkProposerHeader, &junkCommitHeader, h1}, maxBlobSize, -1)
 	require.Equal(t, submitResp.Code, da.StatusSuccess)
 
 	// Only the valid block gets synced

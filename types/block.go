@@ -2,26 +2,26 @@ package types
 
 import (
 	"bytes"
-	"encoding"
 	"errors"
 	"time"
-
-	cmtypes "github.com/cometbft/cometbft/types"
 )
 
 // Version captures the consensus rules for processing a block in the blockchain,
 // including all blockchain data structures and the rules of the application's
 // state transition machine.
-// This is equivalent to the tmversion.Consensus type in Tendermint.
 type Version struct {
 	Block uint64
 	App   uint64
 }
 
-var _ encoding.BinaryMarshaler = &Data{}
-var _ encoding.BinaryUnmarshaler = &Data{}
+// Block represents a complete block in the blockchain
+type Block struct {
+	Header    Header
+	Data      *Data
+	Signature *Signature
+}
 
-// Metadata defines metadata for Data struct to help with p2p gossiping.
+// Metadata defines metadata for Data struct to help with p2p gossiping
 type Metadata struct {
 	ChainID      string
 	Height       uint64
@@ -29,119 +29,137 @@ type Metadata struct {
 	LastDataHash Hash
 }
 
-// Data defines Rollkit block data.
+// Data defines block data
 type Data struct {
 	*Metadata
 	Txs Txs
-	// IntermediateStateRoots IntermediateStateRoots
-	// Note: Temporarily remove Evidence #896
-	// Evidence               EvidenceData
 }
 
-// EvidenceData defines how evidence is stored in block.
-type EvidenceData struct {
-	Evidence []cmtypes.Evidence
-}
-
-// Signature represents signature of block creator.
+// Signature represents signature of block creator
 type Signature []byte
 
-// IntermediateStateRoots describes the state between transactions.
-// They are required for fraud proofs.
-type IntermediateStateRoots struct {
-	RawRootsList [][]byte
-}
-
-// GetCommitHash returns an ABCI commit equivalent hash associated to a signature.
+// GetCommitHash returns a commit hash associated with a signature
 func (signature *Signature) GetCommitHash(header *Header, proposerAddress []byte) []byte {
-	abciCommit := GetABCICommit(header.Height(), header.Hash(), proposerAddress, header.Time(), *signature)
-	abciCommit.Signatures[0].ValidatorAddress = proposerAddress
-	abciCommit.Signatures[0].Timestamp = header.Time()
-	return abciCommit.Hash()
+	commit := GetCommit(header.Height(), header.Hash(), proposerAddress, header.Time(), *signature)
+	return commit.Hash
 }
 
-// ValidateBasic performs basic validation of block data.
-// Actually it's a placeholder, because nothing is checked.
+// ValidateBasic performs basic validation of block data
 func (d *Data) ValidateBasic() error {
+	if d == nil {
+		return errors.New("data cannot be nil")
+	}
+	if d.Metadata != nil {
+		if d.ChainID() == "" {
+			return errors.New("chain ID cannot be empty")
+		}
+		if d.Height() == 0 {
+			return errors.New("height cannot be zero")
+		}
+		if d.Time().IsZero() {
+			return errors.New("time cannot be zero")
+		}
+	}
 	return nil
 }
 
-// ValidateBasic performs basic validation of a signature.
+// ValidateBasic performs basic validation of a signature
 func (signature *Signature) ValidateBasic() error {
 	if len(*signature) == 0 {
-		return ErrSignatureEmpty
+		return errors.New("signature cannot be empty")
 	}
 	return nil
 }
 
 // Validate performs validation of data with respect to its header
-func Validate(header *SignedHeader, data *Data) error {
-	// Validate Metadata only when available
-	if data.Metadata != nil {
-		if header.ChainID() != data.ChainID() ||
-			header.Height() != data.Height() ||
-			header.Time() != data.Time() { // skipping LastDataHash comparison as it needs access to previous header
-			return errors.New("header and data do not match")
+func (b *Block) Validate() error {
+	// Validate basic structure
+	if b.Header.IsZero() {
+		return errors.New("header cannot be empty")
+	}
+	if b.Data == nil {
+		return errors.New("data cannot be nil")
+	}
+	if err := b.Signature.ValidateBasic(); err != nil {
+		return err
+	}
+
+	// Validate metadata matches header
+	if b.Data.Metadata != nil {
+		if b.Header.ChainID() != b.Data.ChainID() ||
+			b.Header.Height() != b.Data.Height() ||
+			b.Header.Time().UnixNano() != b.Data.Time().UnixNano() {
+			return errors.New("header and data metadata do not match")
 		}
 	}
-	// exclude Metadata while computing the data hash for comparison
-	d := Data{Txs: data.Txs}
-	dataHash := d.Hash()
-	if !bytes.Equal(dataHash[:], header.DataHash[:]) {
-		return errors.New("dataHash from the header does not match with hash of the block's data")
+
+	// Validate data hash
+	dataHash := b.Data.Hash()
+	if !bytes.Equal(dataHash[:], b.Header.DataHash[:]) {
+		return errors.New("data hash mismatch")
 	}
+
 	return nil
 }
 
-// New returns a new Block.
-func (d *Data) New() *Data {
-	return new(Data)
+// Verify verifies a new, untrusted block against a trusted block
+func (b *Block) Verify(untrustedBlock *Block) error {
+	if untrustedBlock == nil {
+		return errors.New("untrusted block cannot be nil")
+	}
+
+	// Verify heights are consecutive
+	if b.Header.Height()+1 != untrustedBlock.Header.Height() {
+		return errors.New("blocks are not consecutive")
+	}
+
+	// Verify chain IDs match
+	if b.Header.ChainID() != untrustedBlock.Header.ChainID() {
+		return errors.New("chain ID mismatch")
+	}
+
+	// Verify header hash links
+	if !bytes.Equal(b.Header.Hash(), untrustedBlock.Header.LastHeaderHash) {
+		return errors.New("header hash link mismatch")
+	}
+
+	// Verify timestamps are monotonic
+	if !untrustedBlock.Header.Time().After(b.Header.Time()) {
+		return errors.New("time must be monotonically increasing")
+	}
+
+	return nil
 }
 
-// IsZero returns true if the block is nil.
-func (d *Data) IsZero() bool {
-	return d == nil
-}
-
-// ChainID returns chain ID of the block.
+// Helper methods for Data
 func (d *Data) ChainID() string {
+	if d.Metadata == nil {
+		return ""
+	}
 	return d.Metadata.ChainID
 }
 
-// Height returns height of the block.
 func (d *Data) Height() uint64 {
+	if d.Metadata == nil {
+		return 0
+	}
 	return d.Metadata.Height
 }
 
-// LastHeader returns last header hash of the block.
-func (d *Data) LastHeader() Hash {
-	return d.Metadata.LastDataHash
-}
-
-// Time returns time of the block.
 func (d *Data) Time() time.Time {
+	if d.Metadata == nil {
+		return time.Time{}
+	}
 	return time.Unix(0, int64(d.Metadata.Time))
 }
 
-// Verify Verifies a new, untrusted block against a trusted block.
-func (d *Data) Verify(untrustedData *Data) error {
-	if untrustedData == nil {
-		return errors.New("untrusted block cannot be nil")
+func (d *Data) LastHeader() Hash {
+	if d.Metadata == nil {
+		return Hash{}
 	}
-	dataHash := d.Hash()
-	// Check if the data hash of the untrusted block matches the last data hash of the trusted block
-	if !bytes.Equal(dataHash[:], untrustedData.Metadata.LastDataHash[:]) {
-		return errors.New("data hash of the trusted data does not match with last data hash of the untrusted data")
-	}
-	return nil
+	return d.Metadata.LastDataHash
 }
 
-// Validate performs basic validation of a block.
-func (d *Data) Validate() error {
-	return d.ValidateBasic()
-}
-
-// Size returns size of the block in bytes.
-func (d *Data) Size() int {
-	return d.ToProto().Size()
+func (d *Data) IsZero() bool {
+	return d == nil
 }
