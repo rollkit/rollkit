@@ -7,7 +7,7 @@
 - 22.01.2023: Rename rollmint to Rollkit
 
 Replacing on the `Node` level gives much flexibility. Still, significant amount of code can be reused, and there is no need to refactor lazyledger-core.
-Cosmos SDK is tigtly coupled with Tendermint with regards to node creation, RPC, app initialization, etc. De-coupling requires big refactoring of cosmos-sdk.
+Cosmos SDK is tightly coupled with Tendermint with regards to node creation, RPC, app initialization, etc. De-coupling requires big refactoring of cosmos-sdk.
 
 There are known issues related to Tendermint RPC communication.
 
