@@ -10,7 +10,6 @@ import (
 
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
-	proxy "github.com/cometbft/cometbft/proxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -141,7 +140,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	default:
 		panic(fmt.Sprintf("invalid node type: %v", nodeType))
 	}
-	app := setupMockApplication()
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	if err != nil {
@@ -151,7 +149,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	key := generateSingleKey()
 
 	logger := test.NewFileLogger(t)
-	node, err := NewNode(ctx, config, key, signingKey, proxy.NewLocalClientCreator(app), genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
+	node, err := NewNode(ctx, config, key, signingKey, genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
 	return node, genesisValidatorKey, err
 }
 

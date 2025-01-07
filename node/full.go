@@ -101,7 +101,6 @@ func newFullNode(
 	nodeConfig config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,

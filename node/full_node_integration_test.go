@@ -21,7 +21,6 @@ import (
 	testutils "github.com/celestiaorg/utils/test"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -67,7 +66,7 @@ func TestAggregatorMode(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace, Aggregator: true, BlockManagerConfig: blockManagerConfig, SequencerAddress: MockSequencerAddress}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace, Aggregator: true, BlockManagerConfig: blockManagerConfig, SequencerAddress: MockSequencerAddress}, key, signingKey, genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
 
@@ -363,9 +362,8 @@ func TestChangeValSet(t *testing.T) {
 			}, nil
 		}
 		return finalizeBlockResponse(ctx, req)
-
 	})
-	require.NoError(err)
+
 	blockManagerConfig := config.BlockManagerConfig{
 		// After the genesis header is published, the syncer is started
 		// which takes little longer (due to initialization) and the syncer
@@ -381,44 +379,57 @@ func TestChangeValSet(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	node1, err := NewNode(ctx, config.NodeConfig{
+	nodeConfig := config.NodeConfig{
 		DAAddress:          MockDAAddress,
 		DANamespace:        MockDANamespace,
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		RootDir:            "valset_change",
 		SequencerAddress:   MockSequencerAddress,
-	}, key, signingKey, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
-	assert.False(node1.IsRunning())
-	assert.NoError(err)
+	}
+
+	// Create mock DA client
+	dalc := getMockDA(t)
+
+	node1, err := NewNode(ctx, nodeConfig, key, signingKey, genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	require.NoError(err)
+
+	fullNode1, ok := node1.(*FullNode)
+	require.True(ok, "Expected node1 to be *FullNode")
+
+	// Set the mock DA client
+	fullNode1.dalc = dalc
+	fullNode1.blockManager.SetDALC(dalc)
+
+	assert.False(fullNode1.IsRunning())
 
 	// start node 1
-	require.NoError(node1.Start())
+	require.NoError(fullNode1.Start())
 	// node will be stopped at block 10 because of the change in valset
-	require.NoError(waitForAtLeastNBlocks(node1, 10, Store))
+	require.NoError(waitForAtLeastNBlocks(fullNode1, 10, Store))
 
 	// stop node 1
-	require.NoError(node1.Stop())
+	require.NoError(fullNode1.Stop())
 
 	signingKey2, err := types.PrivKeyToSigningKey(key2)
 	assert.NoError(err)
-	node2, err := NewNode(ctx, config.NodeConfig{
-		DAAddress:          MockDAAddress,
-		DANamespace:        MockDANamespace,
-		Aggregator:         true,
-		BlockManagerConfig: blockManagerConfig,
-		RootDir:            "valset_change",
-		SequencerAddress:   MockSequencerAddress,
-	},
-		key, signingKey2, proxy.NewLocalClientCreator(app), genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	node2, err := NewNode(ctx, nodeConfig, key, signingKey2, genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+	require.NoError(err)
 
-	assert.False(node2.IsRunning())
-	assert.NoError(err)
+	fullNode2, ok := node2.(*FullNode)
+	require.True(ok, "Expected node2 to be *FullNode")
+
+	// Set the mock DA client for node2
+	fullNode2.dalc = dalc
+	fullNode2.blockManager.SetDALC(dalc)
+
+	assert.False(fullNode2.IsRunning())
+
 	// start node normally
-	require.NoError(node2.Start())
+	require.NoError(fullNode2.Start())
 
 	// run 10 block with the new sequencer
-	require.NoError(waitForAtLeastNBlocks(node2, 10, Store))
+	require.NoError(waitForAtLeastNBlocks(fullNode2, 10, Store))
 }
 
 // TestSingleAggregatorTwoFullNodesBlockSyncSpeed tests the scenario where the chain's block time is much faster than the DA's block time. In this case, the full nodes should be able to use block sync to sync blocks much faster than syncing from the DA layer, and the test should conclude within block time
@@ -1085,7 +1096,6 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		},
 		keys[n],
 		keys[n],
-		proxy.NewLocalClientCreator(app),
 		genesis,
 		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))

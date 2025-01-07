@@ -350,7 +350,7 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 }
 
 // isProposer returns whether or not the manager is a proposer
-func isProposer(signerPrivKey crypto.PrivKey, s types.State) (bool, error) {
+func isProposer(_ crypto.PrivKey, _ types.State) (bool, error) {
 	return true, nil
 	//if len(s.Validators.Validators) == 0 {
 	//	return false, ErrNoValidatorsInState

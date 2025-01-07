@@ -7,7 +7,6 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
-	proxy "github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -36,7 +35,6 @@ func newLightNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
-	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,

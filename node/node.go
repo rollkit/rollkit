@@ -6,7 +6,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/cometbft/cometbft/libs/log"
-	proxy "github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/config"
@@ -26,7 +25,6 @@ func NewNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	appClient proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
@@ -37,7 +35,6 @@ func NewNode(
 			conf,
 			p2pKey,
 			signingKey,
-			appClient,
 			genesis,
 			metricsProvider,
 			logger,
@@ -47,7 +44,6 @@ func NewNode(
 		ctx,
 		conf,
 		p2pKey,
-		appClient,
 		genesis,
 		metricsProvider,
 		logger,

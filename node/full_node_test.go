@@ -15,7 +15,6 @@ import (
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/stretchr/testify/assert"
@@ -423,7 +422,6 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 		},
 		key,
 		signingKey,
-		proxy.NewLocalClientCreator(app),
 		genesis,
 		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, "")),
@@ -469,7 +467,6 @@ func createAggregatorWithApp(ctx context.Context, chainID string, app abci.Appli
 		},
 		key,
 		signingKey,
-		proxy.NewLocalClientCreator(app),
 		genesis,
 		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
 		test.NewFileLoggerCustom(t, test.TempLogFileName(t, "")),
