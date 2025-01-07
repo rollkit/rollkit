@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/peer"
 
 	goDA "github.com/rollkit/go-da"
 	damock "github.com/rollkit/go-da/mocks"
@@ -436,7 +435,7 @@ func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *d
 	return fullNode, app
 }
 
-func createAggregatorWithApp(ctx context.Context, chainID string, app abci.Application, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
+func createAggregatorWithApp(ctx context.Context, chainID string, _ abci.Application, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -477,18 +476,6 @@ func createAggregatorWithApp(ctx context.Context, chainID string, app abci.Appli
 	return node, genesis.Validators[0].PubKey
 }
 
-// setupMockApplication initializes a mock application
-func setupMockApplication() *mocks.Application {
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(&abci.ResponseFinalizeBlock{AppHash: []byte{1, 2, 3, 4}}, nil)
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-	return app
-}
-
 // generateSingleKey generates a single private key
 func generateSingleKey() crypto.PrivKey {
 	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
@@ -496,13 +483,4 @@ func generateSingleKey() crypto.PrivKey {
 		panic(err)
 	}
 	return key
-}
-
-//nolint:unused
-func getPeerID(t *testing.T) peer.ID {
-	key := generateSingleKey()
-
-	peerID, err := peer.IDFromPrivateKey(key)
-	assert.NoError(t, err)
-	return peerID
 }

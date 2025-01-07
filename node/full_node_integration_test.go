@@ -32,7 +32,7 @@ import (
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	test "github.com/rollkit/rollkit/test/log"
+	testlog "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -57,6 +57,9 @@ func TestAggregatorMode(t *testing.T) {
 	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
 
+	// Create and configure mock DA client
+	dalc := getMockDA(t)
+
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	genesisDoc, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestAggregatorMode")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
@@ -66,9 +69,20 @@ func TestAggregatorMode(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	node, err := newFullNode(ctx, config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace, Aggregator: true, BlockManagerConfig: blockManagerConfig, SequencerAddress: MockSequencerAddress}, key, signingKey, genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
+
+	node, err := newFullNode(ctx, config.NodeConfig{
+		DAAddress:          MockDAAddress,
+		DANamespace:        MockDANamespace,
+		Aggregator:         true,
+		BlockManagerConfig: blockManagerConfig,
+		SequencerAddress:   MockSequencerAddress,
+	}, key, signingKey, genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)
+
+	// Set the mock DA client
+	node.dalc = dalc
+	node.blockManager.SetDALC(dalc)
 
 	assert.False(node.IsRunning())
 
@@ -1098,7 +1112,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		keys[n],
 		genesis,
 		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
-		test.NewFileLoggerCustom(t, test.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
+		testlog.NewFileLoggerCustom(t, testlog.TempLogFileName(t, fmt.Sprintf("node%v", n))).With("node", n))
 	require.NoError(err)
 	require.NotNil(node)
 

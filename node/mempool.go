@@ -73,12 +73,3 @@ func (ids *mempoolIDs) GetForPeer(peer peer.ID) uint16 {
 
 	return id
 }
-
-//nolint:unused
-func newMempoolIDs() *mempoolIDs {
-	return &mempoolIDs{
-		peerMap:   make(map[peer.ID]uint16),
-		activeIDs: map[uint16]struct{}{0: {}},
-		nextID:    1, // reserve unknownPeerID(0) for mempoolReactor.BroadcastTx
-	}
-}

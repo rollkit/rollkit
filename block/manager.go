@@ -1252,7 +1252,7 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	}
 }
 
-func (m *Manager) processVoteExtension(ctx context.Context, header *types.SignedHeader, data *types.Data, newHeight uint64) error {
+func (m *Manager) processVoteExtension(_ context.Context, _ *types.SignedHeader, _ *types.Data, _ uint64) error {
 	// TODO(tzdybal): remove this function completely
 	return nil // noop
 	/*
@@ -1418,13 +1418,6 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	return backoff
 }
 
-//nolint:unused // This function is kept for future validator set management
-func (m *Manager) getLastStateValidators() *cmtypes.ValidatorSet {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.lastState.Validators
-}
-
 // Updates the state stored in manager's store along the manager's lastState
 func (m *Manager) updateState(ctx context.Context, s types.State) error {
 	m.lastStateMtx.Lock()
@@ -1461,12 +1454,12 @@ func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Da
 	return nil
 }
 
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, d *types.Data, responses *abci.ResponseFinalizeBlock) ([]byte, error) {
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data, _ *abci.ResponseFinalizeBlock) ([]byte, error) {
 	err := m.exec.SetFinal(ctx, h.Height())
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(ctx context.Context, height uint64, lastSignature *types.Signature, commit abci.ExtendedCommitInfo, hash types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ abci.ExtendedCommitInfo, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	// TODO(tzdybal): get rid of cmtypes.Tx, probable we should have common-shared-dep with basic types
 	rawTxs := make([]execTypes.Tx, len(txs))
 	for i := range txs {

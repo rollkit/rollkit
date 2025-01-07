@@ -301,7 +301,7 @@ func (e *BlockExecutor) updateConsensusParams(height uint64, params cmtypes.Cons
 	return nextParams.ToProto(), nextParams.Version.App, nil
 }
 
-func (e *BlockExecutor) updateState(state types.State, header *types.SignedHeader, data *types.Data, finalizeBlockResponse *abci.ResponseFinalizeBlock, validatorUpdates []*cmtypes.Validator) (types.State, error) {
+func (e *BlockExecutor) updateState(state types.State, header *types.SignedHeader, _ *types.Data, finalizeBlockResponse *abci.ResponseFinalizeBlock, validatorUpdates []*cmtypes.Validator) (types.State, error) {
 	height := header.Height()
 	if finalizeBlockResponse.ConsensusParamUpdates != nil {
 		nextParamsProto, appVersion, err := e.updateConsensusParams(height, types.ConsensusParamsFromProto(state.ConsensusParams), finalizeBlockResponse.ConsensusParamUpdates)
@@ -428,7 +428,6 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, header *
 	if err != nil {
 		return nil, err
 	}
-	abciHeader.ChainID = e.chainID
 	abciBlock, err := abciconv.ToABCIBlock(header, data)
 	if err != nil {
 		return nil, err
@@ -473,7 +472,7 @@ func (e *BlockExecutor) execute(ctx context.Context, state types.State, header *
 	return finalizeBlockResponse, nil
 }
 
-func (e *BlockExecutor) publishEvents(resp *abci.ResponseFinalizeBlock, header *types.SignedHeader, data *types.Data, state types.State) {
+func (e *BlockExecutor) publishEvents(resp *abci.ResponseFinalizeBlock, header *types.SignedHeader, data *types.Data, _ types.State) {
 	if e.eventBus == nil {
 		return
 	}

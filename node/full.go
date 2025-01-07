@@ -20,11 +20,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	llcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
-	proxy "github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	proxyda "github.com/rollkit/go-da/proxy"
@@ -187,16 +185,6 @@ func newFullNode(
 	return node, nil
 }
 
-//nolint:unused
-func initProxyApp(clientCreator proxy.ClientCreator, logger log.Logger, metrics *proxy.Metrics) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(clientCreator, metrics)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error while starting proxy app connections: %w", err)
-	}
-	return proxyApp, nil
-}
-
 func initEventBus(logger log.Logger) (*cmtypes.EventBus, error) {
 	eventBus := cmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
@@ -237,18 +225,6 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 	}
 	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
 		namespace, submitOpts, logger.With("module", "da_client")), nil
-}
-
-//nolint:unused
-func initMempool(memplMetrics *mempool.Metrics) *mempool.CListMempool {
-	mempool := mempool.NewCListMempool(llcfg.DefaultMempoolConfig(), nil, 0, mempool.WithMetrics(memplMetrics))
-	mempool.EnableTxsAvailable()
-	return mempool
-}
-
-//nolint:unused
-func initMempoolReaper(m mempool.Mempool, rollupID []byte, seqClient *seqGRPC.Client, logger log.Logger) *mempool.CListMempoolReaper {
-	return mempool.NewCListMempoolReaper(m, rollupID, seqClient, logger)
 }
 
 func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
