@@ -463,6 +463,7 @@ func createAggregatorWithApp(ctx context.Context, chainID string, _ abci.Applica
 			},
 			Light:            false,
 			SequencerAddress: MockSequencerAddress,
+			ExecutorAddress:  MockExecutorAddress,
 		},
 		key,
 		signingKey,

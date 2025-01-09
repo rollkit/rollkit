@@ -76,6 +76,7 @@ func TestAggregatorMode(t *testing.T) {
 		Aggregator:         true,
 		BlockManagerConfig: blockManagerConfig,
 		SequencerAddress:   MockSequencerAddress,
+		ExecutorAddress:    MockExecutorAddress,
 	}, key, signingKey, genesisDoc, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), log.TestingLogger())
 	require.NoError(err)
 	require.NotNil(node)

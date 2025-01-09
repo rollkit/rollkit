@@ -160,7 +160,12 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
-	config := config.NodeConfig{DAAddress: MockDAAddress, DANamespace: MockDANamespace}
+	config := config.NodeConfig{
+		DAAddress:        MockDAAddress,
+		DANamespace:      MockDANamespace,
+		ExecutorAddress:  MockExecutorAddress,
+		SequencerAddress: MockSequencerAddress,
+	}
 	switch nodeType {
 	case Light:
 		config.Light = true
