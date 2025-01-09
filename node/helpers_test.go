@@ -39,8 +39,10 @@ func TestGetNodeHeight(t *testing.T) {
 	dalc := getMockDA(t)
 	num := 2
 	keys := make([]crypto.PrivKey, num)
+	var err error
 	for i := 0; i < num; i++ {
-		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
+		keys[i], _, err = crypto.GenerateEd25519Key(rand.Reader)
+		require.NoError(err)
 	}
 	bmConfig := getBMConfig()
 	chainID := "TestGetNodeHeight"

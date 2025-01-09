@@ -23,6 +23,9 @@ import (
 
 	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
 	goDATest "github.com/rollkit/go-da/test"
+	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
+	execTest "github.com/rollkit/go-execution/test"
+	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 )
@@ -39,6 +42,9 @@ const (
 
 	// MockSequencerAddress is a sample address used by the mock sequencer
 	MockSequencerAddress = "127.0.0.1:50051"
+
+	// MockExecutorAddress is a sample address used by the mock executor
+	MockExecutorAddress = "127.0.0.1:40041"
 )
 
 // TestMain does setup and teardown on the test package
@@ -53,11 +59,18 @@ func TestMain(m *testing.M) {
 	if grpcSrv == nil {
 		os.Exit(1)
 	}
+
+	execSrv := startMockExecutorServerGRPC(MockExecutorAddress)
+	if execSrv == nil {
+		os.Exit(1)
+	}
+
 	exitCode := m.Run()
 
 	// teardown servers
 	srv.GracefulStop()
 	grpcSrv.Stop()
+	execSrv.Stop()
 
 	os.Exit(exitCode)
 }
@@ -79,6 +92,22 @@ func startMockGRPCServ() *grpc.Server {
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
 	dummySeq := seqTest.NewMultiRollupSequencer()
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
+	lis, err := net.Listen("tcp", listenAddress)
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		_ = server.Serve(lis)
+	}()
+	return server
+}
+
+// startMockExecutorServerGRPC starts a mock gRPC server with the given listenAddress.
+func startMockExecutorServerGRPC(listenAddress string) *grpc.Server {
+	dummyExec := execTest.NewDummyExecutor()
+	execServer := execGRPC.NewServer(dummyExec, nil)
+	server := grpc.NewServer()
+	pb.RegisterExecutionServiceServer(server, execServer)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		panic(err)

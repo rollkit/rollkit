@@ -42,5 +42,5 @@ var DefaultNodeConfig = NodeConfig{
 	},
 	SequencerAddress:  DefaultSequencerAddress,
 	SequencerRollupID: DefaultSequencerRollupID,
-	ExectorAddress:    DefaultExecutorAddress,
+	ExecutorAddress:   DefaultExecutorAddress,
 }

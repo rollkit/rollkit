@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	deflog "log"
 	"net/http"
 
 	execproxy "github.com/rollkit/go-execution/proxy/grpc"
@@ -268,7 +269,9 @@ func initExecutor(cfg config.NodeConfig) (execution.Executor, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	err := client.Start(cfg.ExectorAddress, opts...)
+	deflog.Printf("ExecutorAddress: %s", cfg.ExecutorAddress)
+
+	err := client.Start(cfg.ExecutorAddress, opts...)
 	return client, err
 }
 

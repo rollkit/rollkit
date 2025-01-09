@@ -73,7 +73,7 @@ type NodeConfig struct {
 	SequencerAddress  string `mapstructure:"sequencer_address"`
 	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
 
-	ExectorAddress string `mapstructure:"exector_address"`
+	ExecutorAddress string `mapstructure:"executor_address"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -141,7 +141,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
 	nc.SequencerAddress = v.GetString(FlagSequencerAddress)
 	nc.SequencerRollupID = v.GetString(FlagSequencerRollupID)
-	nc.ExectorAddress = v.GetString(FlagExecutorAddress)
+	nc.ExecutorAddress = v.GetString(FlagExecutorAddress)
 
 	return nil
 }
@@ -170,5 +170,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
-	cmd.Flags().String(FlagExecutorAddress, def.ExectorAddress, "executor middleware address (host:port)")
+	cmd.Flags().String(FlagExecutorAddress, def.ExecutorAddress, "executor middleware address (host:port)")
 }

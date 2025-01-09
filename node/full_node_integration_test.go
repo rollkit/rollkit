@@ -1107,6 +1107,7 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 			BlockManagerConfig: bmConfig,
 			Light:              isLight,
 			SequencerAddress:   MockSequencerAddress,
+			ExecutorAddress:    config.DefaultExecutorAddress,
 		},
 		keys[n],
 		keys[n],
