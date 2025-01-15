@@ -73,19 +73,113 @@ type Executor interface {
 }
 ```
 
-### API Methods
+### API Methods specification
 
 #### `InitChain`
 
+##### Description
+
+Initializes the blockchain's state based on genesis information. This method is invoked at the beginning of the blockchain's lifecycle to prepare the execution environment for subsequent operations.
+
+##### Inputs
+
+- `ctx` (`context.Context`): Context for managing request timeouts and cancellations.
+- `genesisTime` (`time.Time`): The initial timestamp of the rollup.
+- `initialHeight` (`uint64`): The starting height of the rollup.
+- `chainID` (`string`): A unique identifier of the rollup network.
+
+##### Outputs
+
+- `stateRoot` (`types.Hash`): The resulting state root after initializing the chain.
+- `maxBytes` (`uint64`): Maximum block size in bytes, as defined by the genesis configuration.
+- `err` (`error`): An error, if the initialization process fails.
+
+##### Expected Behavior
+
+- Initialize rollup according to the genesis.
+- Generate an initial `stateRoot` representing the genesis state of the rollup.
+- Return the maximum allowable block size (`maxBytes`).
+
 #### `GetTxs`
+
+##### Description
+
+Fetches all pending transactions from the execution client's mempool.
+Transactions returned by execution client will be passed by rollkit to sequencer.
+
+##### Inputs
+
+- `ctx` (`context.Context`): Context for managing request timeouts and cancellations.
+
+##### Outputs
+
+- `txs` (`[]types.Tx`): Slice of transactions retrieved from the execution client's mempool; ordering doesn't matter.
+- `err` (`error`): An error, if any, while retrieving transactions.
+
+##### Expected Behavior
+
+- Access the mempool and retrieve all available transactions.
+- If no transactions are available, return an empty slice without error.
+- Do not remove ("reap") transactions from mempool.
 
 #### `ExecuteTxs`
 
+##### Description
+
+Executes a given set of transactions, updating the blockchain state.
+
+##### Inputs
+
+- `ctx` (`context.Context`): Context for managing request timeouts and cancellations.
+- `txs` (`[]types.Tx`): A slice of transactions to be executed.
+- `blockHeight` (`uint64`): The height of the block these transactions belong to.
+- `timestamp` (`time.Time`): The block's timestamp.
+- `prevStateRoot` (`types.Hash`): The state root of the rollup before applying the transactions.
+
+##### Outputs
+
+- `updatedStateRoot` (`types.Hash`): The resulting state root after applying the transactions.
+- `maxBytes` (`uint64`): Maximum block size in bytes, as allowed for the block being produced.
+- `err` (`error`): An error, if any, during the execution process.
+
+##### Expected Behavior
+
+- Validate and apply the provided transactions to the current blockchain state.
+- Generate an updated `stateRoot` reflecting changes introduced by the transactions.
+- Enforce block size and validity limits, returning errors if constraints are violated.
+- Respect the ordering of transactions.
+- Update the mempool to remove all executed transactions.
+
 #### `SetFinal`
 
-### Sequence Diagrams 
+##### Description
+
+Marks a block at the specified height as final, guaranteeing immutability for consensus purposes.
+
+##### Inputs
+
+- `ctx` (`context.Context`): Context for managing request timeouts and cancellations.
+- `blockHeight` (`uint64`): The height of the block to be finalized.
+
+##### Outputs
+
+- `err` (`error`): An error, if any, during the finalization process.
+
+##### Expected Behavior
+
+- Update the execution client's internal state to reflect that the specified block is final and immutable.
+- Ensure additional guarantees like cleaning up unnecessary resources associated with blocks deemed final.
+
+#### General Notes
+
+1. **Thread-Safety**: All methods are not expected to be thread-safe, concurrent calls are not planned.
+2. **Error Handling**: All methods should follow robust error handling practices, ensuring meaningful errors are returned when issues occur.
+3. **Context Usage**: Methods should respect context-based deadlines and cancellations for long-running operations.
+
+### Sequence Diagrams
 
 #### Block production
+
 ```mermaid
 sequenceDiagram
     participant D as DA layer
@@ -112,6 +206,7 @@ sequenceDiagram
 ```
 
 #### Block sync from P2P network or DA
+
 ```mermaid
 sequenceDiagram
     participant P as P2P network / DA
@@ -146,7 +241,7 @@ Accepted
 ### Negative
 
 1. More difficult deployment (another binary is needed).
-2. Need to reimplement ABCI execution environment. 
+2. Need to reimplement ABCI execution environment.
 
 ### Neutral
 
@@ -154,4 +249,4 @@ Accepted
 
 ## References
 
-- https://github.com/rollkit/rollkit/issues/1802
+- [Rollkit EPIC for Execution API](https://github.com/rollkit/rollkit/issues/1802)
