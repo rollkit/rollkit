@@ -226,6 +226,37 @@ sequenceDiagram
     end
 ```
 
+### Changes in Rollkit
+
+Because of improved separation of concerns, logic related to actual execution can be removed from rollkit.
+Rollkit will turn from fully-fledged ABCI client to kind of orchestrator, gluing together multiple modules.
+The role of Rollkit is coordination of Sequencer and Execution Environment and recording results in Data Availability layer.
+
+Currently, Rollkit exposes ABCI and CometBFT compatible RPCs, manages genesis processing and mempool.
+This logic belongs to Execution Environment, and will be moved to Execution API implementations.
+
+Removal of this logic from Rollkit enables further refactoring, for example removing all CometBFT dependencies.
+
+#### Main changes in Rollkit packages
+
+##### `block`
+
+1. New processing in `Manager` - move from ABCI to Execution API oriented processing.
+
+##### `node`
+
+1. Simplification of `Node` interface.
+2. Removal of `LightClient` and `FullClient`.
+3. Cleanup/simplification of `FullNode` and `LightNode`.
+
+##### `rpc`
+
+1. Removal of ABCI and CometBFT methods.
+2. Introduction of Rollkit specific methods.
+
+##### Other packages
+Probably all the packages will be affected by cleanup and refactoring.
+
 ## Status
 
 Accepted
