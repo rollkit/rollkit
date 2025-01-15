@@ -22,36 +22,6 @@ It was designed to accommodate ABCI, Engine API, and any other VM / execution en
 
 ## Detailed Design
 
-> This section does not need to be filled in at the start of the ADR, but must be completed prior to the merging of the implementation.
->
-> Here are some common questions that get answered as part of the detailed design:
->
-> - What are the user requirements?
->
-> - What systems will be affected?
->
-> - What new data structures are needed, what data structures will be changed?
->
-> - What new APIs will be needed, what APIs will be changed?
->
-> - What are the efficiency considerations (time/space)?
->
-> - What are the expected access patterns (load/throughput)?
->
-> - Are there any logging, monitoring or observability needs?
->
-> - Are there any security considerations?
->
-> - Are there any privacy considerations?
->
-> - How will the changes be tested?
->
-> - If the change is large, how will the changes be broken up for ease of review?
->
-> - Will these changes require a breaking (major) release?
->
-> - Does this change require coordination with the LazyLedger fork of the SDK or lazyledger-app?
-
 ### API
 
 Execution API consist of 4 methods defined in [go-execution](https://github.com/rollkit/go-execution) repository.
@@ -255,7 +225,19 @@ Removal of this logic from Rollkit enables further refactoring, for example remo
 2. Introduction of Rollkit specific methods.
 
 ##### Other packages
+
 Probably all the packages will be affected by cleanup and refactoring.
+
+### Testing
+
+As there is a lot of logic to be removed, corresponding tests can also be removed.
+Some of the other test are very ABCI-oriented and should be fixed or re-created.
+
+Integration tests should be introduced to ensure that entire flow (from `InitChain` to `SetFinal`) works correctly.
+
+### User documentation
+
+All the tutorials needs to be updated to accommodate introduction of new binary (Execution API implementation).
 
 ## Status
 
