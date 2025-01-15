@@ -12,7 +12,7 @@ var (
 	EmptyEvidenceHash = new(cmtypes.EvidenceData).Hash()
 )
 
-// Hash returns ABCI-compatible hash of a header.
+// Hash returns hash of the header
 func (h *Header) Hash() Hash {
 	bytes, err := h.MarshalBinary()
 	if err != nil {

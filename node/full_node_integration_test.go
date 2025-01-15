@@ -31,10 +31,10 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	testlog "github.com/rollkit/rollkit/test/log"
-	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
+//nolint:unused
 const initialBlockWait = 5
 
 func prepareProposalResponse(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
@@ -47,15 +47,6 @@ func TestAggregatorMode(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-
-	// Create and configure mock DA client
 	dalc := getMockDA(t)
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
@@ -525,7 +516,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 	clientNodes := 1
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	nodes, _ := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
+	nodes := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
 		DABlockTime: 20 * time.Millisecond,
 		BlockTime:   10 * time.Millisecond,
 	}, "TestSubmitBlocksToDA", false, t)
@@ -574,6 +565,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 //	}
 //}
 
+//nolint:unused
 func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	require := require.New(t)
 
@@ -591,7 +583,7 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	agg1Ctx := context.WithoutCancel(mainCtx)
 	nodes1Ctx := context.WithoutCancel(mainCtx)
 
-	rollupNetwork1, apps1 := createNodes(agg1Ctx, nodes1Ctx, n, config.BlockManagerConfig{
+	rollupNetwork1 := createNodes(agg1Ctx, nodes1Ctx, n, config.BlockManagerConfig{
 		BlockTime:     blockTime1,
 		DABlockTime:   blockTime1,
 		DAStartHeight: daStartHeight,
@@ -599,12 +591,11 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	}, chainID1, true, t)
 
 	require.Len(rollupNetwork1, n)
-	require.Len(apps1, n)
 
 	agg2Ctx := context.WithoutCancel(mainCtx)
 	nodes2Ctx := context.WithoutCancel(mainCtx)
 
-	rollupNetwork2, apps2 := createNodes(agg2Ctx, nodes2Ctx, n, config.BlockManagerConfig{
+	rollupNetwork2 := createNodes(agg2Ctx, nodes2Ctx, n, config.BlockManagerConfig{
 		BlockTime:     blockTime2,
 		DABlockTime:   blockTime2,
 		DAStartHeight: daStartHeight,
@@ -612,7 +603,6 @@ func doTestTwoRollupsInOneNamespace(t *testing.T, chainID1, chainID2 string) {
 	}, chainID2, true, t)
 
 	require.Len(rollupNetwork2, n)
-	require.Len(apps2, n)
 
 	// same mock DA has to be used by all nodes to simulate posting to/retrieving from same namespace
 	dalc := getMockDA(t)
@@ -696,7 +686,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 	clientNodes := 1
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	nodes, _ := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
+	nodes := createNodes(ctx, context.Background(), clientNodes, config.BlockManagerConfig{
 		DABlockTime:      20 * time.Millisecond,
 		BlockTime:        10 * time.Millisecond,
 		MaxPendingBlocks: maxPending,
@@ -843,7 +833,7 @@ func testSingleAggregatorSingleFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorSingleFullNode", false, t)
+	nodes := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorSingleFullNode", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -865,7 +855,7 @@ func testSingleAggregatorTwoFullNode(t *testing.T, source Source) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 3
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorTwoFullNode", false, t)
+	nodes := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorTwoFullNode", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -892,7 +882,7 @@ func testSingleAggregatorSingleFullNodeTrustedHash(t *testing.T, source Source) 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clientNodes := 2
-	nodes, _ := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorSingleFullNodeTrustedHash", false, t)
+	nodes := createNodes(aggCtx, ctx, clientNodes, getBMConfig(), "testSingleAggregatorSingleFullNodeTrustedHash", false, t)
 
 	node1 := nodes[0]
 	node2 := nodes[1]
@@ -926,9 +916,9 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	dalc := getMockDA(t)
 	bmConfig := getBMConfig()
 	chainID := "testSingleAggregatorSingleFullNodeSingleLightNode"
-	sequencer, _ := createAndConfigureNode(aggCtx, 0, true, false, chainID, keys, bmConfig, dalc, t)
-	fullNode, _ := createAndConfigureNode(ctx, 1, false, false, chainID, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 2, false, true, keys, bmConfig, chainID, false, t)
+	sequencer := createAndConfigureNode(aggCtx, 0, true, false, chainID, keys, bmConfig, dalc, t)
+	fullNode := createAndConfigureNode(ctx, 1, false, false, chainID, keys, bmConfig, dalc, t)
+	lightNode := createNode(ctx, 2, false, true, keys, bmConfig, chainID, false, t)
 
 	startNodeWithCleanup(t, sequencer)
 	require.NoError(waitForFirstBlock(sequencer, Header))
@@ -940,20 +930,9 @@ func testSingleAggregatorSingleFullNodeSingleLightNode(t *testing.T) {
 	require.NoError(verifyNodesSynced(fullNode, lightNode, Header))
 }
 
-func getMockApplication() *mocks.Application {
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	app.On("CheckTx", mock.Anything, mock.Anything).Return(&abci.ResponseCheckTx{}, nil)
-	app.On("Commit", mock.Anything, mock.Anything).Return(&abci.ResponseCommit{}, nil)
-	app.On("PrepareProposal", mock.Anything, mock.Anything).Return(prepareProposalResponse).Maybe()
-	app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
-	app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-	return app
-}
-
 // Starts the given nodes using the given wait group to synchronize them
 // and wait for them to gossip transactions
-func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
+func startNodes(nodes []*FullNode, t *testing.T) {
 	// stop the nodes in case of a failure during start procedure
 	defer func() {
 		if t.Failed() {
@@ -982,24 +961,6 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 
 	timeout := time.NewTimer(time.Second * 30)
 	doneChan := make(chan struct{})
-	go func() {
-		defer close(doneChan)
-		// create a MockTester, to catch the Failed asserts from the Mock package
-		m := MockTester{t: t}
-		// We don't need to check any specific arguments to FinalizeBlock
-		// so just use a function that returns "true" for matching the args
-		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
-		err := testutils.Retry(300, 100*time.Millisecond, func() error {
-			for i := 0; i < len(apps); i++ {
-				if !apps[i].AssertCalled(m, "FinalizeBlock", matcher, matcher) {
-					return errors.New("FinalizeBlock hasn't been called yet")
-				}
-			}
-			return nil
-		})
-		assert := assert.New(t)
-		assert.NoError(err)
-	}()
 	select {
 	case <-doneChan:
 	case <-timeout.C:
@@ -1010,6 +971,8 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 // tryHardToStartNode attempts to start a FullNode up to three times.
 // If the node fails to start after three attempts, the test is marked as failed.
 // This method was introduced to make tests in CI less flaky.
+//
+//nolint:unused
 func tryHardToStartNode(node *FullNode, t *testing.T) {
 	for r := 0; r < 3; r++ {
 		if node.Start() != nil {
@@ -1020,7 +983,7 @@ func tryHardToStartNode(node *FullNode, t *testing.T) {
 }
 
 // Creates the given number of nodes the given nodes using the given wait group to synchornize them
-func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, chainID string, skipPeers bool, t *testing.T) ([]*FullNode, []*mocks.Application) {
+func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockManagerConfig, chainID string, skipPeers bool, t *testing.T) []*FullNode {
 	t.Helper()
 
 	if aggCtx == nil {
@@ -1037,26 +1000,24 @@ func createNodes(aggCtx, ctx context.Context, num int, bmConfig config.BlockMana
 	}
 
 	nodes := make([]*FullNode, num)
-	apps := make([]*mocks.Application, num)
 	dalc := getMockDA(t)
 
-	node, app := createNode(aggCtx, 0, true, false, keys, bmConfig, chainID, skipPeers, t)
-	apps[0] = app
+	node := createNode(aggCtx, 0, true, false, keys, bmConfig, chainID, skipPeers, t)
 	nodes[0] = node.(*FullNode)
 	// use same, common DALC, so nodes can share data
 	nodes[0].dalc = dalc
 	nodes[0].blockManager.SetDALC(dalc)
 	for i := 1; i < num; i++ {
-		node, apps[i] = createNode(ctx, i, false, false, keys, bmConfig, chainID, skipPeers, t)
+		node = createNode(ctx, i, false, false, keys, bmConfig, chainID, skipPeers, t)
 		nodes[i] = node.(*FullNode)
 		nodes[i].dalc = dalc
 		nodes[i].blockManager.SetDALC(dalc)
 	}
 
-	return nodes, apps
+	return nodes
 }
 
-func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, chainID string, skipPeers bool, t *testing.T) (Node, *mocks.Application) {
+func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, chainID string, skipPeers bool, t *testing.T) Node {
 	t.Helper()
 	require := require.New(t)
 	// nodes will listen on consecutive ports on local interface
@@ -1075,8 +1036,6 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 		p2pConfig.Seeds += "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+r) + "/p2p/" + id.Loggable()["peerID"].(string) + ","
 	}
 	p2pConfig.Seeds = strings.TrimSuffix(p2pConfig.Seeds, ",")
-
-	app := getMockApplication()
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -1117,14 +1076,14 @@ func createNode(ctx context.Context, n int, aggregator bool, isLight bool, keys 
 	require.NoError(err)
 	require.NotNil(node)
 
-	return node, app
+	return node
 }
 
-func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, chainID string, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) (Node, *mocks.Application) {
+func createAndConfigureNode(ctx context.Context, n int, aggregator bool, isLight bool, chainID string, keys []crypto.PrivKey, bmConfig config.BlockManagerConfig, dalc *da.DAClient, t *testing.T) Node {
 	t.Helper()
-	node, app := createNode(ctx, n, aggregator, isLight, keys, bmConfig, chainID, false, t)
+	node := createNode(ctx, n, aggregator, isLight, keys, bmConfig, chainID, false, t)
 	node.(*FullNode).dalc = dalc
 	node.(*FullNode).blockManager.SetDALC(dalc)
 
-	return node, app
+	return node
 }

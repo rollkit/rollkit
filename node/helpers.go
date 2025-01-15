@@ -64,6 +64,7 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 	}
 }
 
+//nolint:unused
 func isBlockHashSeen(node Node, blockHash string) bool {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.blockManager.IsBlockHashSeen(blockHash)
@@ -95,7 +96,7 @@ func getNodeHeightFromStore(node Node) (uint64, error) {
 	return 0, errors.New("not a full node")
 }
 
-// safeClose closes the channel if it's not closed already
+//nolint:unused
 func safeClose(ch chan struct{}) {
 	select {
 	case <-ch:
@@ -134,6 +135,7 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 	})
 }
 
+//nolint:unused
 func waitUntilBlockHashSeen(node Node, blockHash string) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
 		if isBlockHashSeen(node, blockHash) {

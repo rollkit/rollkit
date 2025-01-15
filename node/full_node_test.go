@@ -12,15 +12,12 @@ import (
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmtypes "github.com/cometbft/cometbft/types"
 
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
 	test "github.com/rollkit/rollkit/test/log"
-	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -32,65 +29,65 @@ func TestStartup(t *testing.T) {
 }
 
 // Tests that the node is able to sync multiple blocks even if blocks arrive out of order
-//func TestTrySyncNextBlockMultiple(t *testing.T) {
-//	chainID := "TestTrySyncNextBlockMultiple"
-//	ctx, cancel := context.WithCancel(context.Background())
-//	defer cancel()
-//	node, signingKey := setupTestNode(ctx, t, Full, chainID)
-//	fullNode, ok := node.(*FullNode)
-//	require.True(t, ok)
-//
-//	store := fullNode.Store
-//	height := store.Height()
-//
-//	config := types.BlockConfig{
-//		Height:  height + 1,
-//		NTxs:    0,
-//		PrivKey: signingKey,
-//	}
-//	h1, d1, _ := types.GenerateRandomBlockCustom(&config, chainID)
-//	h2, d2 := types.GetRandomNextBlock(h1, d1, signingKey, []byte{1, 2, 3, 4}, 0, chainID)
-//	h2.AppHash = []byte{1, 2, 3, 4}
-//
-//	// Update state with hashes generated from block
-//	state, err := store.GetState(ctx)
-//	require.NoError(t, err)
-//	state.AppHash = h1.AppHash
-//	state.LastResultsHash = h1.LastResultsHash
-//	manager := fullNode.blockManager
-//	manager.SetLastState(state)
-//
-//	// Add second block to blockInCh
-//	// This should not trigger a sync since b1 hasn't been seen yet
-//	headerInCh := manager.GetHeaderInCh()
-//	headerInCh <- block.NewHeaderEvent{
-//		Header:   h2,
-//		DAHeight: state.DAHeight,
-//	}
-//	dataInCh := manager.GetDataInCh()
-//	dataInCh <- block.NewDataEvent{
-//		Data:     d2,
-//		DAHeight: state.DAHeight,
-//	}
-//
-//	startNodeWithCleanup(t, node)
-//	require.NoError(t, waitUntilBlockHashSeen(node, h2.Hash().String()))
-//
-//	newHeight := store.Height()
-//	require.Equal(t, height, newHeight)
-//
-//	// Adding first block to blockInCh should sync both blocks
-//	headerInCh <- block.NewHeaderEvent{
-//		Header:   h1,
-//		DAHeight: state.DAHeight,
-//	}
-//	dataInCh <- block.NewDataEvent{
-//		Data:     d1,
-//		DAHeight: state.DAHeight,
-//	}
-//
-//	require.NoError(t, waitForAtLeastNBlocks(node, 2, Store))
-//}
+func TestTrySyncNextBlockMultiple(t *testing.T) {
+	chainID := "TestTrySyncNextBlockMultiple"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	node, signingKey := setupTestNode(ctx, t, Full, chainID)
+	fullNode, ok := node.(*FullNode)
+	require.True(t, ok)
+
+	store := fullNode.Store
+	height := store.Height()
+
+	config := types.BlockConfig{
+		Height:  height + 1,
+		NTxs:    0,
+		PrivKey: signingKey,
+	}
+	h1, d1, _ := types.GenerateRandomBlockCustom(&config, chainID)
+	h2, d2 := types.GetRandomNextBlock(h1, d1, signingKey, []byte{1, 2, 3, 4}, 0, chainID)
+	h2.AppHash = []byte{1, 2, 3, 4}
+
+	// Update state with hashes generated from block
+	state, err := store.GetState(ctx)
+	require.NoError(t, err)
+	state.AppHash = h1.AppHash
+	state.LastResultsHash = h1.LastResultsHash
+	manager := fullNode.blockManager
+	manager.SetLastState(state)
+
+	// Add second block to blockInCh
+	// This should not trigger a sync since b1 hasn't been seen yet
+	headerInCh := manager.GetHeaderInCh()
+	headerInCh <- block.NewHeaderEvent{
+		Header:   h2,
+		DAHeight: state.DAHeight,
+	}
+	dataInCh := manager.GetDataInCh()
+	dataInCh <- block.NewDataEvent{
+		Data:     d2,
+		DAHeight: state.DAHeight,
+	}
+
+	startNodeWithCleanup(t, node)
+	require.NoError(t, waitUntilBlockHashSeen(node, h2.Hash().String()))
+
+	newHeight := store.Height()
+	require.Equal(t, height, newHeight)
+
+	// Adding first block to blockInCh should sync both blocks
+	headerInCh <- block.NewHeaderEvent{
+		Header:   h1,
+		DAHeight: state.DAHeight,
+	}
+	dataInCh <- block.NewDataEvent{
+		Data:     d1,
+		DAHeight: state.DAHeight,
+	}
+
+	require.NoError(t, waitForAtLeastNBlocks(node, 2, Store))
+}
 
 // Tests that the node ignores invalid blocks posted to the DA layer
 //func TestInvalidBlocksIgnored(t *testing.T) {
@@ -252,6 +249,7 @@ func TestStartup(t *testing.T) {
 //
 //}
 
+//nolint:unused
 func finalizeBlockResponse(_ context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	txResults := make([]*abci.ExecTxResult, len(req.Txs))
 	for idx := range req.Txs {
@@ -375,58 +373,20 @@ func finalizeBlockResponse(_ context.Context, req *abci.RequestFinalizeBlock) (*
 //	})
 //}
 
-// Create & configure node with app. Get signing key for mock functions.
-func createNodeAndApp(ctx context.Context, chainID string, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (*mocks.Application, Node, cmcrypto.PubKey) {
+// Add nolint directives for test helper functions
+//
+//nolint:unused
+func createNodeAndApp(ctx context.Context, chainID string, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
 	require := require.New(t)
 
-	app := &mocks.Application{}
-	app.On("InitChain", mock.Anything, mock.Anything).Return(&abci.ResponseInitChain{}, nil)
-	node, pubKey := createAggregatorWithApp(ctx, chainID, app, voteExtensionEnableHeight, signingKeyType, t)
+	node, pubKey := createAggregatorWithApp(ctx, chainID, voteExtensionEnableHeight, signingKeyType, t)
 	require.NotNil(node)
 	require.NotNil(pubKey)
-	return app, node, pubKey
+	return node, pubKey
 }
 
-func createAggregatorWithPersistence(ctx context.Context, dbPath string, dalc *da.DAClient, genesis *cmtypes.GenesisDoc, genesisValidatorKey cmcrypto.PrivKey, t *testing.T) (Node, *mocks.Application) {
-	t.Helper()
-
-	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(t, err)
-
-	app := getMockApplication()
-
-	node, err := NewNode(
-		ctx,
-		config.NodeConfig{
-			DBPath:      dbPath,
-			DAAddress:   MockDAAddress,
-			DANamespace: MockDANamespace,
-			Aggregator:  true,
-			BlockManagerConfig: config.BlockManagerConfig{
-				BlockTime:   100 * time.Millisecond,
-				DABlockTime: 300 * time.Millisecond,
-			},
-			Light:            false,
-			SequencerAddress: MockSequencerAddress,
-		},
-		key,
-		signingKey,
-		genesis,
-		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
-		test.NewFileLoggerCustom(t, test.TempLogFileName(t, "")),
-	)
-	require.NoError(t, err)
-	require.NotNil(t, node)
-
-	fullNode := node.(*FullNode)
-	fullNode.dalc = dalc
-	fullNode.blockManager.SetDALC(dalc)
-
-	return fullNode, app
-}
-
-func createAggregatorWithApp(ctx context.Context, chainID string, _ abci.Application, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
+//nolint:unused
+func createAggregatorWithApp(ctx context.Context, chainID string, voteExtensionEnableHeight int64, signingKeyType string, t *testing.T) (Node, cmcrypto.PubKey) {
 	t.Helper()
 
 	key, _, _ := crypto.GenerateEd25519Key(rand.Reader)
