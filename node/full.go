@@ -149,6 +149,7 @@ func newFullNode(
 	seqClient := seqGRPC.NewClient()
 
 	store := store.New(mainKV)
+
 	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
 	if err != nil {
 		return nil, err

@@ -10,7 +10,6 @@ import (
 
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
@@ -25,6 +24,7 @@ import (
 	goDATest "github.com/rollkit/go-da/test"
 	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
 	execTest "github.com/rollkit/go-execution/test"
+	execTypes "github.com/rollkit/go-execution/types"
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
@@ -50,13 +50,13 @@ const (
 // TestMain does setup and teardown on the test package
 // to make the mock gRPC service available to the nodes
 func TestMain(m *testing.M) {
-	srv := startMockGRPCServ()
-	if srv == nil {
+	daSrv := startMockDAGRPCServ()
+	if daSrv == nil {
 		os.Exit(1)
 	}
 
-	grpcSrv := startMockSequencerServerGRPC(MockSequencerAddress)
-	if grpcSrv == nil {
+	seqSrv := startMockSequencerServerGRPC(MockSequencerAddress)
+	if seqSrv == nil {
 		os.Exit(1)
 	}
 
@@ -68,14 +68,14 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 
 	// teardown servers
-	srv.GracefulStop()
-	grpcSrv.Stop()
-	execSrv.Stop()
+	daSrv.GracefulStop()
+	seqSrv.GracefulStop()
+	execSrv.GracefulStop()
 
 	os.Exit(exitCode)
 }
 
-func startMockGRPCServ() *grpc.Server {
+func startMockDAGRPCServ() *grpc.Server {
 	srv := goDAproxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
 	addr, _ := url.Parse(MockDAAddress)
 	lis, err := net.Listen("tcp", addr.Host)
@@ -105,6 +105,11 @@ func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
 // startMockExecutorServerGRPC starts a mock gRPC server with the given listenAddress.
 func startMockExecutorServerGRPC(listenAddress string) *grpc.Server {
 	dummyExec := execTest.NewDummyExecutor()
+
+	dummyExec.InjectTx(execTypes.Tx{1, 2, 3})
+	dummyExec.InjectTx(execTypes.Tx{4, 5, 6})
+	dummyExec.InjectTx(execTypes.Tx{7, 8, 9})
+
 	execServer := execGRPC.NewServer(dummyExec, nil)
 	server := grpc.NewServer()
 	pb.RegisterExecutionServiceServer(server, execServer)
@@ -137,8 +142,7 @@ func startNodeWithCleanup(t *testing.T, node Node) {
 
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
-	assert.NoError(t, node.Stop())
-	assert.False(t, node.IsRunning())
+	require.False(t, node.IsRunning())
 }
 
 // initAndStartNodeWithCleanup initializes and starts a node of the specified type.

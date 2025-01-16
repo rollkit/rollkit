@@ -418,6 +418,14 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	return 0
 }
 
+// GetExecutor returns the executor used by the manager.
+//
+// Note: this is a temporary method to allow testing the manager.
+// It will be removed once the manager is fully integrated with the execution client.
+func (m *Manager) GetExecutor() execution.Executor {
+	return m.exec
+}
+
 // BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
 func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 	// Initialize batchTimer to fire immediately on start
