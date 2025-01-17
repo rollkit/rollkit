@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 
@@ -170,15 +171,18 @@ type RollkitGenesis struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec execution.Executor) (types.State, error) {
+func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec execution.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(context.Background())
 
 	if errors.Is(err, ds.ErrNotFound) {
+		logger.Info("No state found in store, initializing new state")
+
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		// TODO(tzdybal): handle max bytes
 		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisTime, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
+			logger.Error("error while initializing chain", "error", err)
 			return types.State{}, err
 		}
 
@@ -202,6 +206,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 		}
 		return s, nil
 	} else if err != nil {
+		logger.Error("error while getting state", "error", err)
 		return types.State{}, err
 	} else {
 		// Perform a sanity-check to stop the user from
@@ -232,8 +237,9 @@ func NewManager(
 	seqMetrics *Metrics,
 	execMetrics *state.Metrics,
 ) (*Manager, error) {
-	s, err := getInitialState(ctx, genesis, store, exec)
+	s, err := getInitialState(ctx, genesis, store, exec, logger)
 	if err != nil {
+		logger.Error("error while getting initial state", "error", err)
 		return nil, err
 	}
 	//set block height in store
@@ -274,6 +280,7 @@ func NewManager(
 
 	isProposer, err := isProposer(proposerKey, s)
 	if err != nil {
+		logger.Error("error while checking if proposer", "error", err)
 		return nil, err
 	}
 
@@ -1068,7 +1075,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last block: %w", err)
+			return fmt.Errorf("error while loading last block at height %d: %w", height, err)
 		}
 		lastHeaderHash = lastHeader.Hash()
 		lastDataHash = lastData.Hash()
@@ -1165,9 +1172,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	if err := m.processVoteExtension(ctx, header, data, newHeight); err != nil {
-		return err
-	}
+	//if err := m.processVoteExtension(ctx, header, data, newHeight); err != nil {
+	//	return err
+	//}
 
 	// set the signature to current block's signed header
 	header.Signature = signature
@@ -1215,6 +1222,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	newState.DAHeight = atomic.LoadUint64(&m.daHeight)
 	// After this call m.lastState is the NEW state returned from ApplyBlock
 	// updateState also commits the DB tx
+	m.logger.Debug("updating state", "newState", newState)
 	err = m.updateState(ctx, newState)
 	if err != nil {
 		return err
@@ -1428,6 +1436,7 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 
 // Updates the state stored in manager's store along the manager's lastState
 func (m *Manager) updateState(ctx context.Context, s types.State) error {
+	m.logger.Debug("updating state", "newState", s)
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
 	err := m.store.UpdateState(ctx, s)
@@ -1546,7 +1555,6 @@ func (m *Manager) nextState(state types.State, header *types.SignedHeader, state
 	return s, nil
 }
 
-/*
 func updateState(s *types.State, res *abci.ResponseInitChain) error {
 	// If the app did not return an app hash, we keep the one set from the genesis doc in
 	// the state. We don't set appHash since we don't want the genesis doc app hash
@@ -1600,4 +1608,3 @@ func updateState(s *types.State, res *abci.ResponseInitChain) error {
 
 	return nil
 }
-*/

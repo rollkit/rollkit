@@ -40,6 +40,7 @@ import (
 
 	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
 	execTest "github.com/rollkit/go-execution/test"
+	execTypes "github.com/rollkit/go-execution/types"
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 )
 
@@ -296,6 +297,12 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 // tryStartMockExecutorServerGRPC will try and start a mock gRPC executor server
 func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) {
 	dummyExec := execTest.NewDummyExecutor()
+
+	dummyExec.InjectTx(execTypes.Tx{1, 2, 3})
+	dummyExec.InjectTx(execTypes.Tx{4, 5, 6})
+	dummyExec.InjectTx(execTypes.Tx{7, 8, 9})
+	dummyExec.InjectTx(execTypes.Tx{10, 11, 12})
+
 	execServer := execGRPC.NewServer(dummyExec, nil)
 	server := grpc.NewServer()
 	pb.RegisterExecutionServiceServer(server, execServer)

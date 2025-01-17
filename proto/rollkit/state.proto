@@ -32,14 +32,14 @@ message State {
   // Note that if s.LastBlockHeight causes a valset change,
   // we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1 + 1
   // Extra +1 due to nextValSet delay.
-  tendermint.types.ValidatorSet next_validators = 7;
-  tendermint.types.ValidatorSet validators = 8;
-  tendermint.types.ValidatorSet last_validators = 9;
-  int64 last_height_validators_changed = 10;
+  //tendermint.types.ValidatorSet next_validators = 7;
+  //tendermint.types.ValidatorSet validators = 8;
+  //tendermint.types.ValidatorSet last_validators = 9;
+  //int64 last_height_validators_changed = 10;
   uint64 da_height = 11 [(gogoproto.customname) = "DAHeight"];
 
   tendermint.types.ConsensusParams consensus_params = 12 [(gogoproto.nullable) = false];
-  uint64 last_height_consensus_params_changed = 13;
+  //uint64 last_height_consensus_params_changed = 13;
 
   bytes last_results_hash = 14;
 

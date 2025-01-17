@@ -82,9 +82,10 @@ func TestInitialStateClean(t *testing.T) {
 		InitialHeight:   1,
 		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
 	}
+	logger := test.NewLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesis, emptyStore, execTest.NewDummyExecutor())
+	s, err := getInitialState(context.TODO(), genesis, emptyStore, execTest.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, genesis.InitialHeight-1)
 	require.Equal(genesis.InitialHeight, s.InitialHeight)
@@ -115,7 +116,8 @@ func TestInitialStateStored(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	s, err := getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor())
+	logger := test.NewLogger(t)
+	s, err := getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -169,6 +171,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
+	logger := test.NewLogger(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
@@ -190,7 +193,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor())
+	_, err = getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor(), logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 

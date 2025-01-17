@@ -250,6 +250,8 @@ func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, g
 		return nil, fmt.Errorf("error while initializing executor: %w", err)
 	}
 
+	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
+
 	rollGen := &block.RollkitGenesis{
 		GenesisTime:     genesis.GenesisTime,
 		InitialHeight:   uint64(genesis.InitialHeight),
