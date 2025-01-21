@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cometbft/cometbft/crypto/merkle"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 
@@ -275,6 +274,7 @@ func NewManager(
 	if err != nil {
 		return nil, err
 	}
+	// allow buffer for the block header and protocol encoding
 	//nolint:ineffassign // This assignment is needed
 	maxBlobSize -= blockProtocolOverhead
 
@@ -359,16 +359,6 @@ func (m *Manager) SetDALC(dalc *da.DAClient) {
 // isProposer returns whether or not the manager is a proposer
 func isProposer(_ crypto.PrivKey, _ types.State) (bool, error) {
 	return true, nil
-	//if len(s.Validators.Validators) == 0 {
-	//	return false, ErrNoValidatorsInState
-	//}
-
-	//signerPubBytes, err := signerPrivKey.GetPublic().Raw()
-	//if err != nil {
-	//	return false, err
-	//}
-
-	//return bytes.Equal(s.Validators.Validators[0].PubKey.Bytes(), signerPubBytes), nil
 }
 
 // SetLastState is used to set lastState used by Manager.
@@ -1172,10 +1162,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return err
 	}
 
-	//if err := m.processVoteExtension(ctx, header, data, newHeight); err != nil {
-	//	return err
-	//}
-
 	// set the signature to current block's signed header
 	header.Signature = signature
 
@@ -1268,48 +1254,9 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	}
 }
 
-func (m *Manager) processVoteExtension(_ context.Context, _ *types.SignedHeader, _ *types.Data, _ uint64) error {
-	// TODO(tzdybal): remove this function completely
-	return nil // noop
-	/*
-		if !m.voteExtensionEnabled(newHeight) {
-			return nil
-		}
-
-		extension, err := m.executor.ExtendVote(ctx, header, data)
-		if err != nil {
-			return fmt.Errorf("error returned by ExtendVote: %w", err)
-		}
-
-		vote := &cmproto.Vote{
-			Height:    int64(newHeight), //nolint:gosec
-			Round:     0,
-			Extension: extension,
-		}
-		extSignBytes := cmtypes.VoteExtensionSignBytes(m.genesis.ChainID, vote)
-
-		sign, err := m.sign(extSignBytes)
-		if err != nil {
-			return fmt.Errorf("failed to sign vote extension: %w", err)
-		}
-		extendedCommit := buildExtendedCommit(header, extension, sign)
-		err = m.store.SaveExtendedCommit(ctx, newHeight, extendedCommit)
-		if err != nil {
-			return fmt.Errorf("failed to save extended commit: %w", err)
-		}
-		return nil
-	*/
-}
-
-func (m *Manager) voteExtensionEnabled(_ uint64) bool {
-	return false
-	//enableHeight := m.lastState.ConsensusParams.Abci.VoteExtensionsEnableHeight
-	//return m.lastState.ConsensusParams.Abci != nil && enableHeight != 0 && uint64(enableHeight) <= newHeight //nolint:gosec
-}
-
 func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
 	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:unconvert
+	if height <= uint64(m.genesis.InitialHeight) { //nolint:unconvert
 		return emptyExtendedCommit, nil
 	}
 	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
@@ -1553,58 +1500,4 @@ func (m *Manager) nextState(state types.State, header *types.SignedHeader, state
 		//LastValidators:                   state.Validators.Copy(),
 	}
 	return s, nil
-}
-
-func updateState(s *types.State, res *abci.ResponseInitChain) error {
-	// If the app did not return an app hash, we keep the one set from the genesis doc in
-	// the state. We don't set appHash since we don't want the genesis doc app hash
-	// recorded in the genesis block. We should probably just remove GenesisDoc.AppHash.
-	if len(res.AppHash) > 0 {
-		s.AppHash = res.AppHash
-	}
-
-	if res.ConsensusParams != nil {
-		params := res.ConsensusParams
-		if params.Block != nil {
-			s.ConsensusParams.Block.MaxBytes = params.Block.MaxBytes
-			s.ConsensusParams.Block.MaxGas = params.Block.MaxGas
-		}
-		if params.Evidence != nil {
-			s.ConsensusParams.Evidence.MaxAgeNumBlocks = params.Evidence.MaxAgeNumBlocks
-			s.ConsensusParams.Evidence.MaxAgeDuration = params.Evidence.MaxAgeDuration
-			s.ConsensusParams.Evidence.MaxBytes = params.Evidence.MaxBytes
-		}
-		if params.Validator != nil {
-			// Copy params.Validator.PubkeyTypes, and set result's value to the copy.
-			// This avoids having to initialize the slice to 0 values, and then write to it again.
-			s.ConsensusParams.Validator.PubKeyTypes = append([]string{}, params.Validator.PubKeyTypes...)
-		}
-		if params.Version != nil {
-			s.ConsensusParams.Version.App = params.Version.App
-		}
-		s.Version.Consensus.App = s.ConsensusParams.Version.App
-	}
-	// We update the last results hash with the empty hash, to conform with RFC-6962.
-	s.LastResultsHash = merkle.HashFromByteSlices(nil)
-
-	vals, err := cmtypes.PB2TM.ValidatorUpdates(res.Validators)
-	if err != nil {
-		return err
-	}
-
-	// apply initchain valset change
-	nValSet := s.Validators.Copy()
-	err = nValSet.UpdateWithChangeSet(vals)
-	if err != nil {
-		return err
-	}
-	if len(nValSet.Validators) != 1 {
-		return fmt.Errorf("expected exactly one validator")
-	}
-
-	s.Validators = cmtypes.NewValidatorSet(nValSet.Validators)
-	s.NextValidators = cmtypes.NewValidatorSet(nValSet.Validators).CopyIncrementProposerPriority(1)
-	s.LastValidators = cmtypes.NewValidatorSet(nValSet.Validators)
-
-	return nil
 }

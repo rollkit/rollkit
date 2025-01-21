@@ -7,8 +7,9 @@ import (
 
 	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/log"
-	"github.com/rollkit/rollkit/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestSubmitBlocksToDA(t *testing.T) {
@@ -64,5 +65,5 @@ func TestMaxPending(t *testing.T) {
 	// Verify that number of pending blocks doesn't exceed max
 	height, err := getNodeHeight(fn, Header)
 	require.NoError(err)
-	require.LessOrEqual(height, uint64(config.BlockManagerConfig.MaxPendingBlocks))
+	require.LessOrEqual(height, config.BlockManagerConfig.MaxPendingBlocks)
 }

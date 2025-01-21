@@ -3,12 +3,9 @@ package node
 import (
 	"errors"
 	"fmt"
-	"testing"
 	"time"
 
 	testutils "github.com/celestiaorg/utils/test"
-
-	"github.com/rollkit/rollkit/config"
 )
 
 // Source is an enum representing different sources of height
@@ -25,7 +22,6 @@ const (
 
 // MockTester is a mock testing.T
 type MockTester struct {
-	t *testing.T
 }
 
 // Fail is used to fail the test
@@ -42,13 +38,6 @@ func (m MockTester) Errorf(format string, args ...interface{}) {}
 
 func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
-}
-
-func getBMConfig() config.BlockManagerConfig {
-	return config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-	}
 }
 
 func getNodeHeight(node Node, source Source) (uint64, error) {
@@ -103,23 +92,6 @@ func safeClose(ch chan struct{}) {
 	default:
 		close(ch)
 	}
-}
-
-func verifyNodesSynced(node1, node2 Node, source Source) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1, source)
-		if err != nil {
-			return err
-		}
-		n2Height, err := getNodeHeight(node2, source)
-		if err != nil {
-			return err
-		}
-		if n1Height == n2Height {
-			return nil
-		}
-		return fmt.Errorf("nodes not synced: node1 at height %v, node2 at height %v", n1Height, n2Height)
-	})
 }
 
 func waitForAtLeastNBlocks(node Node, n int, source Source) error {
