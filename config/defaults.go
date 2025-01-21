@@ -2,8 +2,6 @@ package config
 
 import (
 	"time"
-
-	"github.com/cometbft/cometbft/config"
 )
 
 const (
@@ -42,8 +40,7 @@ var DefaultNodeConfig = NodeConfig{
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
-	Instrumentation:   config.DefaultInstrumentationConfig(),
 	SequencerAddress:  DefaultSequencerAddress,
 	SequencerRollupID: DefaultSequencerRollupID,
-	ExectorAddress:    DefaultExecutorAddress,
+	ExecutorAddress:   DefaultExecutorAddress,
 }

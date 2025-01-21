@@ -20,7 +20,6 @@ import (
 	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
-	cometproxy "github.com/cometbft/cometbft/proxy"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
 	"github.com/mitchellh/mapstructure"
@@ -37,8 +36,12 @@ import (
 
 	rollconf "github.com/rollkit/rollkit/config"
 	rollnode "github.com/rollkit/rollkit/node"
-	rollrpc "github.com/rollkit/rollkit/rpc"
 	rolltypes "github.com/rollkit/rollkit/types"
+
+	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
+	execTest "github.com/rollkit/go-execution/test"
+	execTypes "github.com/rollkit/go-execution/types"
+	pb "github.com/rollkit/go-execution/types/pb/execution"
 )
 
 var (
@@ -53,6 +56,7 @@ var (
 
 	errDAServerAlreadyRunning  = errors.New("DA server already running")
 	errSequencerAlreadyRunning = errors.New("sequencer already running")
+	errExecutorAlreadyRunning  = errors.New("executor already running")
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -159,6 +163,18 @@ func NewRunNodeCmd() *cobra.Command {
 				}
 			}()
 
+			// Try and launch a mock gRPC executor if there is no executor running
+			execSrv, err := tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
+			if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
+				return fmt.Errorf("failed to launch mock executor server: %w", err)
+			}
+			// nolint:errcheck,gosec
+			defer func() {
+				if execSrv != nil {
+					execSrv.Stop()
+				}
+			}()
+
 			// use noop proxy app by default
 			if !cmd.Flags().Lookup("proxy_app").Changed {
 				config.ProxyApp = "noop"
@@ -170,20 +186,12 @@ func NewRunNodeCmd() *cobra.Command {
 				nodeConfig,
 				p2pKey,
 				signingKey,
-				cometproxy.DefaultClientCreator(config.ProxyApp, config.ABCI, nodeConfig.DBPath),
 				genDoc,
 				metrics,
 				logger,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
-			}
-
-			// Launch the RPC server
-			server := rollrpc.NewServer(rollnode, config.RPC, logger)
-			err = server.Start()
-			if err != nil {
-				return fmt.Errorf("failed to launch RPC server: %w", err)
 			}
 
 			// Start the node
@@ -215,16 +223,8 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// CI mode. Wait for 5s and then verify the node is running before calling stop node.
 			time.Sleep(5 * time.Second)
-			res, err := rollnode.GetClient().Block(context.Background(), nil)
-			if err != nil {
-				return err
-			}
-			if res.Block.Height == 0 {
-				return fmt.Errorf("node hasn't produced any blocks")
-			}
 			if !rollnode.IsRunning() {
 				return fmt.Errorf("node is not running")
-
 			}
 
 			return rollnode.Stop()
@@ -291,6 +291,33 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 		_ = server.Serve(lis)
 	}()
 	logger.Info("Starting mock sequencer", "address", listenAddress, "rollupID", rollupId)
+	return server, nil
+}
+
+// tryStartMockExecutorServerGRPC will try and start a mock gRPC executor server
+func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) {
+	dummyExec := execTest.NewDummyExecutor()
+
+	dummyExec.InjectTx(execTypes.Tx{1, 2, 3})
+	dummyExec.InjectTx(execTypes.Tx{4, 5, 6})
+	dummyExec.InjectTx(execTypes.Tx{7, 8, 9})
+	dummyExec.InjectTx(execTypes.Tx{10, 11, 12})
+
+	execServer := execGRPC.NewServer(dummyExec, nil)
+	server := grpc.NewServer()
+	pb.RegisterExecutionServiceServer(server, execServer)
+	lis, err := net.Listen("tcp", listenAddress)
+	if err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			logger.Info("Executor server already running", "address", listenAddress)
+			return nil, errExecutorAlreadyRunning
+		}
+		return nil, err
+	}
+	go func() {
+		_ = server.Serve(lis)
+	}()
+	logger.Info("Starting mock executor", "address", listenAddress)
 	return server, nil
 }
 

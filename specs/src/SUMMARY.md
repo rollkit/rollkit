@@ -13,7 +13,6 @@
 - [Indexer Service](./specs/indexer-service.md)
 - [Mempool](./specs/mempool.md)
 - [P2P](./specs/p2p.md)
-- [RPC Equivalency](./specs/rpc-equivalency-coverage.md)
 - [State](./specs/state.md)
 - [Store](./specs/store.md)
 - [Validators](./specs/validators.md)

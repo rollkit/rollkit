@@ -56,7 +56,6 @@ type NodeConfig struct {
 	RootDir string
 	DBPath  string
 	P2P     P2PConfig
-	RPC     RPCConfig
 	// parameters below are Rollkit specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
@@ -74,7 +73,7 @@ type NodeConfig struct {
 	SequencerAddress  string `mapstructure:"sequencer_address"`
 	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
 
-	ExectorAddress string `mapstructure:"exector_address"`
+	ExecutorAddress string `mapstructure:"executor_address"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -114,15 +113,6 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 			nodeConf.P2P.ListenAddress = cmConf.P2P.ListenAddress
 			nodeConf.P2P.Seeds = cmConf.P2P.Seeds
 		}
-		if cmConf.RPC != nil {
-			nodeConf.RPC.ListenAddress = cmConf.RPC.ListenAddress
-			nodeConf.RPC.CORSAllowedOrigins = cmConf.RPC.CORSAllowedOrigins
-			nodeConf.RPC.CORSAllowedMethods = cmConf.RPC.CORSAllowedMethods
-			nodeConf.RPC.CORSAllowedHeaders = cmConf.RPC.CORSAllowedHeaders
-			nodeConf.RPC.MaxOpenConnections = cmConf.RPC.MaxOpenConnections
-			nodeConf.RPC.TLSCertFile = cmConf.RPC.TLSCertFile
-			nodeConf.RPC.TLSKeyFile = cmConf.RPC.TLSKeyFile
-		}
 		if cmConf.Instrumentation != nil {
 			nodeConf.Instrumentation = cmConf.Instrumentation
 		}
@@ -151,7 +141,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
 	nc.SequencerAddress = v.GetString(FlagSequencerAddress)
 	nc.SequencerRollupID = v.GetString(FlagSequencerRollupID)
-	nc.ExectorAddress = v.GetString(FlagExecutorAddress)
+	nc.ExecutorAddress = v.GetString(FlagExecutorAddress)
 
 	return nil
 }
@@ -180,5 +170,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
-	cmd.Flags().String(FlagExecutorAddress, def.ExectorAddress, "executor middleware address (host:port)")
+	cmd.Flags().String(FlagExecutorAddress, def.ExecutorAddress, "executor middleware address (host:port)")
 }

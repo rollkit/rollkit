@@ -211,7 +211,7 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 	}
 
 	// If no blocks are found, return a non-blocking error.
-	if len(result.IDs) == 0 {
+	if result == nil || len(result.IDs) == 0 {
 		return ResultRetrieveHeaders{
 			BaseResult: BaseResult{
 				Code:     StatusNotFound,

@@ -3,12 +3,9 @@ package node
 import (
 	"errors"
 	"fmt"
-	"testing"
 	"time"
 
 	testutils "github.com/celestiaorg/utils/test"
-
-	"github.com/rollkit/rollkit/config"
 )
 
 // Source is an enum representing different sources of height
@@ -25,7 +22,6 @@ const (
 
 // MockTester is a mock testing.T
 type MockTester struct {
-	t *testing.T
 }
 
 // Fail is used to fail the test
@@ -44,13 +40,6 @@ func waitForFirstBlock(node Node, source Source) error {
 	return waitForAtLeastNBlocks(node, 1, source)
 }
 
-func getBMConfig() config.BlockManagerConfig {
-	return config.BlockManagerConfig{
-		DABlockTime: 100 * time.Millisecond,
-		BlockTime:   1 * time.Second, // blocks must be at least 1 sec apart for adjacent headers to get verified correctly
-	}
-}
-
 func getNodeHeight(node Node, source Source) (uint64, error) {
 	switch source {
 	case Header:
@@ -64,6 +53,7 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 	}
 }
 
+//nolint:unused
 func isBlockHashSeen(node Node, blockHash string) bool {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.blockManager.IsBlockHashSeen(blockHash)
@@ -95,30 +85,13 @@ func getNodeHeightFromStore(node Node) (uint64, error) {
 	return 0, errors.New("not a full node")
 }
 
-// safeClose closes the channel if it's not closed already
+//nolint:unused
 func safeClose(ch chan struct{}) {
 	select {
 	case <-ch:
 	default:
 		close(ch)
 	}
-}
-
-func verifyNodesSynced(node1, node2 Node, source Source) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1, source)
-		if err != nil {
-			return err
-		}
-		n2Height, err := getNodeHeight(node2, source)
-		if err != nil {
-			return err
-		}
-		if n1Height == n2Height {
-			return nil
-		}
-		return fmt.Errorf("nodes not synced: node1 at height %v, node2 at height %v", n1Height, n2Height)
-	})
 }
 
 func waitForAtLeastNBlocks(node Node, n int, source Source) error {
@@ -134,6 +107,7 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 	})
 }
 
+//nolint:unused
 func waitUntilBlockHashSeen(node Node, blockHash string) error {
 	return testutils.Retry(300, 100*time.Millisecond, func() error {
 		if isBlockHashSeen(node, blockHash) {
