@@ -857,15 +857,15 @@ func TestMempool2Nodes(t *testing.T) {
 	local := NewFullClient(node1)
 	require.NotNil(local)
 
-	// broadcast the bad Tx, this should not be propogated or added to the local mempool
+	// broadcast the bad Tx, this should not be propagated or added to the local mempool
 	resp, err := local.BroadcastTxSync(timeoutCtx, []byte("bad"))
 	assert.NoError(err)
 	assert.NotNil(resp)
-	// broadcast the good Tx, this should be propogated and added to the local mempool
+	// broadcast the good Tx, this should be propagated and added to the local mempool
 	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
 	assert.NoError(err)
 	assert.NotNil(resp)
-	// broadcast the good Tx again in the same block, this should not be propogated and
+	// broadcast the good Tx again in the same block, this should not be propagated and
 	// added to the local mempool
 	resp, err = local.BroadcastTxSync(timeoutCtx, []byte("good"))
 	assert.Error(err)
