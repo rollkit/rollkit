@@ -586,7 +586,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 				lastDataHash = lastData.Hash()
 			}
 		}
-		// if err no error then populate data, otherwise just skip and wait for Data to be synced
+		// if no error then populate data, otherwise just skip and wait for Data to be synced
 		if err == nil {
 			metadata := &types.Metadata{
 				ChainID:      header.ChainID(),
