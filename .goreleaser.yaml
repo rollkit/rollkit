@@ -33,7 +33,7 @@ builds:
       - -X "{{ .Env.VersioningPath }}.Version={{ .Version }}"
 dist: ./build/goreleaser
 archives:
-  - formats: [ 'tar.gz' ]
+  - formats: ['tar.gz']
     # this name template makes the OS and Arch compatible with the results of
     # uname.
     name_template: >-
