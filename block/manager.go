@@ -81,6 +81,7 @@ var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165,
 // ErrNoBatch indicate no batch is available for creating block
 var ErrNoBatch = errors.New("no batch to process")
 
+// ErrHeightFromFutureStr is the error message for height from future returned by da
 var ErrHeightFromFutureStr = "given height is from the future"
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
