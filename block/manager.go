@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -79,6 +80,8 @@ var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165,
 
 // ErrNoBatch indicate no batch is available for creating block
 var ErrNoBatch = errors.New("no batch to process")
+
+var ErrHeightFromFutureStr = "given height is from the future"
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -582,7 +585,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 				lastDataHash = lastData.Hash()
 			}
 		}
-		// if err then we cannot populate data, hence just skip and wait for Data to be synced
+		// if err no error then populate data, otherwise just skip and wait for Data to be synced
 		if err == nil {
 			metadata := &types.Metadata{
 				ChainID:      header.ChainID(),
@@ -594,8 +597,6 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 				Metadata: metadata,
 			}
 			m.dataCache.setData(headerHeight, d)
-		} else {
-			m.logger.Error("failed to get block data for", "height", headerHeight-1, "error", err)
 		}
 	}
 }
@@ -892,10 +893,13 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		daHeight := atomic.LoadUint64(&m.daHeight)
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
-			m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
+			if !strings.Contains(err.Error(), ErrHeightFromFutureStr) {
+				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+			}
 			continue
 		}
-		// Signal the blockFoundCh to try and retrieve the next block
+		// Signal the headerFoundCh to try and retrieve the next block
 		select {
 		case headerFoundCh <- struct{}{}:
 		default:
