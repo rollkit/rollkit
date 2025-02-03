@@ -148,7 +148,11 @@ func (s *DefaultStore) getHeightByHash(ctx context.Context, hash types.Hash) (ui
 	if err != nil {
 		return 0, fmt.Errorf("failed to get height for hash %v: %w", hash, err)
 	}
-	return decodeHeight(heightBytes), nil
+	height, err := decodeHeight(heightBytes)
+	if err != nil {
+		return 0, fmt.Errorf("failed to decode height: %w", err)
+	}
+	return height, nil
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
@@ -176,7 +180,7 @@ func (s *DefaultStore) GetBlockResponses(ctx context.Context, height uint64) (*a
 
 // GetSignatureByHash returns signature for a block at given height, or error if it's not found in Store.
 func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
-	height, err := s.loadHeightFromIndex(ctx, hash)
+	height, err := s.getHeightByHash(ctx, hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
@@ -267,16 +271,6 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 	return data, nil
 }
 
-// loadHashFromIndex returns the hash of a block given its height
-func (s *DefaultStore) loadHeightFromIndex(ctx context.Context, hash types.Hash) (uint64, error) {
-	heightBytes, err := s.db.Get(ctx, ds.NewKey(getIndexKey(hash)))
-	if err != nil {
-		return 0, fmt.Errorf("failed to get height for hash %v: %w", hash, err)
-	}
-	return decodeHeight(heightBytes), nil
-
-}
-
 func getHeaderKey(height uint64) string {
 	return GenerateKey([]string{headerPrefix, strconv.FormatUint(height, 10)})
 }
@@ -309,12 +303,17 @@ func getIndexKey(hash types.Hash) string {
 	return GenerateKey([]string{indexPrefix, hash.String()})
 }
 
+const heightLength = 8
+
 func encodeHeight(height uint64) []byte {
-	heightBytes := make([]byte, 8)
+	heightBytes := make([]byte, heightLength)
 	binary.BigEndian.PutUint64(heightBytes, height)
 	return heightBytes
 }
 
-func decodeHeight(heightBytes []byte) uint64 {
-	return binary.BigEndian.Uint64(heightBytes)
+func decodeHeight(heightBytes []byte) (uint64, error) {
+	if len(heightBytes) != heightLength {
+		return 0, fmt.Errorf("invalid height length: %d (expected %d)", len(heightBytes), heightLength)
+	}
+	return binary.BigEndian.Uint64(heightBytes), nil
 }
