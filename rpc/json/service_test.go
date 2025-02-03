@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -48,9 +47,6 @@ func TestHandlerMapping(t *testing.T) {
 }
 
 func TestREST(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
 	txSearchParams := url.Values{}
 	txSearchParams.Set("query", "message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'")
 	txSearchParams.Set("prove", "true")
@@ -86,7 +82,7 @@ func TestREST(t *testing.T) {
 
 	_, local := getRPC(t, "TestREST")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// wait for blocks
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -107,18 +103,16 @@ func TestREST(t *testing.T) {
 			resp := httptest.NewRecorder()
 			handler.ServeHTTP(resp, req)
 
-			assert.Equal(c.httpCode, resp.Code)
+			assert.Equal(t, c.httpCode, resp.Code)
 			s := resp.Body.String()
-			assert.NotEmpty(s)
-			fmt.Print(s)
-			assert.Contains(s, c.bodyContains)
+			assert.NotEmpty(t, s)
+			assert.Contains(t, s, c.bodyContains)
 			var jsonResp response
-			assert.NoError(json.Unmarshal([]byte(s), &jsonResp))
+			assert.NoError(t, json.Unmarshal([]byte(s), &jsonResp))
 			if c.jsonrpcCode != -1 {
-				require.NotNil(jsonResp.Error)
-				assert.EqualValues(c.jsonrpcCode, jsonResp.Error.Code)
+				require.NotNil(t, jsonResp.Error)
+				assert.EqualValues(t, c.jsonrpcCode, jsonResp.Error.Code)
 			}
-			t.Log(s)
 		})
 	}
 
