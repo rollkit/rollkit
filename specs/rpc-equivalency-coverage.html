@@ -167,6 +167,15 @@
 <p>The communication format depends on the protocol used. For HTTP-based protocols, the request and response are typically structured as JSON objects. For web socket-based protocols, the messages are sent as JSONRPC requests and responses.</p>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
 <p>The RPC service assumes that the Rollkit node it interacts with is running and correctly configured. It also assumes that the client is authorized to perform the requested operations.</p>
+<p>The RPC provides an additional query for DA included blocks using the <code>height</code> parameter:</p>
+<pre><code class="language-sh">curl http://127.0.0.1:26657/block?height=1
+
+curl http://127.0.0.1:26657/block?height=included
+</code></pre>
+<h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
+<ul>
+<li>height (integer or string): height of the requested block. If no height is specified the latest block will be used. If height is set to the string &quot;included&quot;, the latest DA included block will be returned.</li>
+</ul>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>The implementation of the Rollkit RPC service can be found in the <a href="https://github.com/rollkit/rollkit/blob/main/rpc/json/service.go"><code>rpc/json/service.go</code></a> file in the Rollkit repository.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>

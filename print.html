@@ -343,20 +343,20 @@ This block is marked as soft confirmed by the validating full node until the sam
 <li>The sequencer can produce empty blocks.</li>
 <li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.toml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
 <li>The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.</li>
-<li>The block sync store is created by prefixing <code>blockSync</code> on the main data store.</li>
+<li>The data sync store is created by prefixing <code>dataSync</code> on the main data store.</li>
 <li>The genesis <code>ChainID</code> is used to create the <code>PubSubTopID</code> in go-header with the string <code>-block</code> appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.</li>
 <li>Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via <code>P2PConfig.Seeds</code> configuration parameter when starting the full node.</li>
 <li>Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
 </ul>
 <h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block-manager</a></p>
-<p>See <a href="https://rollkit.dev/guides/full-and-sequencer-node">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
+<p>See <a href="https://rollkit.dev/guides/full-node">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
 <h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <p>[1] <a href="https://github.com/celestiaorg/go-header">Go Header</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[5] <a href="https://rollkit.dev/guides/full-and-sequencer-node">Tutorial</a></p>
+<p>[5] <a href="https://rollkit.dev/guides/full-node">Tutorial</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="block-executor"><a class="header" href="#block-executor">Block Executor</a></h1>
 <h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
 <p>The <code>BlockExecutor</code> is a component responsible for creating, applying, and maintaining blocks and state in the system. It interacts with the mempool and the application via the <a href="https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md">ABCI interface</a>.</p>
@@ -880,6 +880,15 @@ func (ln *LightNode) falseValidator() p2p.GossipValidator {
 <p>The communication format depends on the protocol used. For HTTP-based protocols, the request and response are typically structured as JSON objects. For web socket-based protocols, the messages are sent as JSONRPC requests and responses.</p>
 <h2 id="assumptions-and-considerations-5"><a class="header" href="#assumptions-and-considerations-5">Assumptions and Considerations</a></h2>
 <p>The RPC service assumes that the Rollkit node it interacts with is running and correctly configured. It also assumes that the client is authorized to perform the requested operations.</p>
+<p>The RPC provides an additional query for DA included blocks using the <code>height</code> parameter:</p>
+<pre><code class="language-sh">curl http://127.0.0.1:26657/block?height=1
+
+curl http://127.0.0.1:26657/block?height=included
+</code></pre>
+<h3 id="parameters"><a class="header" href="#parameters">Parameters</a></h3>
+<ul>
+<li>height (integer or string): height of the requested block. If no height is specified the latest block will be used. If height is set to the string &quot;included&quot;, the latest DA included block will be returned.</li>
+</ul>
 <h2 id="implementation-7"><a class="header" href="#implementation-7">Implementation</a></h2>
 <p>The implementation of the Rollkit RPC service can be found in the <a href="https://github.com/rollkit/rollkit/blob/main/rpc/json/service.go"><code>rpc/json/service.go</code></a> file in the Rollkit repository.</p>
 <h2 id="references-8"><a class="header" href="#references-8">References</a></h2>

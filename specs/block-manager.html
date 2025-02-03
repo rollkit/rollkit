@@ -263,20 +263,20 @@ This block is marked as soft confirmed by the validating full node until the sam
 <li>The sequencer can produce empty blocks.</li>
 <li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.toml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
 <li>The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.</li>
-<li>The block sync store is created by prefixing <code>blockSync</code> on the main data store.</li>
+<li>The data sync store is created by prefixing <code>dataSync</code> on the main data store.</li>
 <li>The genesis <code>ChainID</code> is used to create the <code>PubSubTopID</code> in go-header with the string <code>-block</code> appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.</li>
 <li>Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via <code>P2PConfig.Seeds</code> configuration parameter when starting the full node.</li>
 <li>Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).</li>
 </ul>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">block-manager</a></p>
-<p>See <a href="https://rollkit.dev/guides/full-and-sequencer-node">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
+<p>See <a href="https://rollkit.dev/guides/full-node">tutorial</a> for running a multi-node network with both sequencer and non-sequencer full nodes.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <p>[1] <a href="https://github.com/celestiaorg/go-header">Go Header</a></p>
 <p>[2] <a href="https://github.com/rollkit/rollkit/blob/main/block/sync_service.go">Block Sync</a></p>
 <p>[3] <a href="https://github.com/rollkit/rollkit/blob/main/node/full.go">Full Node</a></p>
 <p>[4] <a href="https://github.com/rollkit/rollkit/blob/main/block/manager.go">Block Manager</a></p>
-<p>[5] <a href="https://rollkit.dev/guides/full-and-sequencer-node">Tutorial</a></p>
+<p>[5] <a href="https://rollkit.dev/guides/full-node">Tutorial</a></p>
 
                     </main>
 
