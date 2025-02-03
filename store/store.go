@@ -96,7 +96,7 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getIndexKey(hash)), hash[:])
+	err = bb.Put(ctx, ds.NewKey(getIndexKey(hash)), encodeHeight(height))
 	if err != nil {
 		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
 	}
