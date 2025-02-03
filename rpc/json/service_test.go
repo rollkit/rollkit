@@ -66,9 +66,9 @@ func TestREST(t *testing.T) {
 		// to keep test simple, allow returning application error in following case
 		{"invalid/missing required param", "/tx", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'hash'`},
 		{"valid/missing optional param", "/block", http.StatusOK, -1, `"result":{"block_id":`},
-		{"valid/included block tag param", "/block?height=included", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
+		{"valid/included block tag param", "/block?height=included", http.StatusOK, int(json2.E_INTERNAL), "failed to load block header"},
 		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
-		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
+		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load block header"},
 		{"invalid/int param", "/block?height=foo", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'height'"},
 		{"valid/bool int string params",
 			"/tx_search?" + txSearchParams.Encode(),
