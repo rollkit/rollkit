@@ -146,6 +146,15 @@ Marks a block at the specified height as final, guaranteeing immutability for co
 2. **Error Handling**: All methods should follow robust error handling practices, ensuring meaningful errors are returned when issues occur.
 3. **Context Usage**: Methods should respect context-based deadlines and cancellations for long-running operations.
 
+### Types
+
+The Execution API was designed to be highly generic. As a result, the types introduced in the API are intentionally abstract to ensure compatibility across various virtual machines and execution environments.
+
+1. `types.Hash` represents a cryptographic hash. To maintain generality, it is implemented as an alias for `[]byte`.
+2. `types.Tx` represents a transaction in the most basic form. It is also defined as an alias for `[]byte`.
+
+This design choice ensures maximum flexibility and allows the API to remain independent of specific implementations or formats. It facilitates interoperability across different execution environments while keeping the API lightweight and adaptable.
+
 ### Sequence Diagrams
 
 #### Block production
