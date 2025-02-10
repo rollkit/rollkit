@@ -105,7 +105,6 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	s.SetHeight(ctx, height)
 	return nil
 }
 
