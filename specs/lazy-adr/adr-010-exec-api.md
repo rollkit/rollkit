@@ -61,7 +61,7 @@ Initializes the blockchain's state based on genesis information. This method is 
 ##### Outputs
 
 - `stateRoot` (`types.Hash`): The resulting state root after initializing the chain.
-- `maxBytes` (`uint64`): Maximum block size in bytes, as defined by the genesis configuration.
+- `maxBytes` (`uint64`): Maximum block size in bytes, as defined by the execution client's genesis configuration.
 - `err` (`error`): An error, if the initialization process fails.
 
 ##### Expected Behavior
