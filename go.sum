@@ -914,8 +914,8 @@ github.com/libp2p/go-libp2p-noise v0.4.0/go.mod h1:BzzY5pyzCYSyJbQy9oD8z5oP2idsa
 github.com/libp2p/go-libp2p-peerstore v0.4.0/go.mod h1:rDJUFyzEWPpXpEwywkcTYYzDHlwza8riYMaUzaN6hX0=
 github.com/libp2p/go-libp2p-peerstore v0.6.0/go.mod h1:DGEmKdXrcYpK9Jha3sS7MhqYdInxJy84bIPtSu65bKc=
 github.com/libp2p/go-libp2p-pnet v0.2.0/go.mod h1:Qqvq6JH/oMZGwqs3N1Fqhv8NVhrdYcO0BW4wssv21LA=
-github.com/libp2p/go-libp2p-pubsub v0.12.0 h1:PENNZjSfk8KYxANRlpipdS7+BfLmOl3L2E/6vSNjbdI=
-github.com/libp2p/go-libp2p-pubsub v0.12.0/go.mod h1:Oi0zw9aw8/Y5GC99zt+Ef2gYAl+0nZlwdJonDyOz/sE=
+github.com/libp2p/go-libp2p-pubsub v0.13.0 h1:RmFQ2XAy3zQtbt2iNPy7Tt0/3fwTnHpCQSSnmGnt1Ps=
+github.com/libp2p/go-libp2p-pubsub v0.13.0/go.mod h1:m0gpUOyrXKXdE7c8FNQ9/HLfWbxaEw7xku45w+PaqZo=
 github.com/libp2p/go-libp2p-quic-transport v0.13.0/go.mod h1:39/ZWJ1TW/jx1iFkKzzUg00W6tDJh73FC0xYudjr7Hc=
 github.com/libp2p/go-libp2p-quic-transport v0.16.0/go.mod h1:1BXjVMzr+w7EkPfiHkKnwsWjPjtfaNT0q8RS3tGDvEQ=
 github.com/libp2p/go-libp2p-quic-transport v0.17.0/go.mod h1:x4pw61P3/GRCcSLypcQJE/Q2+E9f4X+5aRcZLXf20LM=
