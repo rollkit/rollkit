@@ -32,6 +32,7 @@ var DefaultNodeConfig = NodeConfig{
 		DABlockTime:    15 * time.Second,
 		LazyAggregator: false,
 		LazyBlockTime:  60 * time.Second,
+		Replay:         false,
 	},
 	DAAddress:       DefaultDAAddress,
 	DAGasPrice:      -1,
