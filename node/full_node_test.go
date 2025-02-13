@@ -279,7 +279,6 @@ func TestPendingBlocks(t *testing.T) {
 }
 
 func TestVoteExtension(t *testing.T) {
-	require := require.New(t)
 	const voteExtensionEnableHeight = 5
 	const expectedExtension = "vote extension from height %d"
 
@@ -301,17 +300,17 @@ func TestVoteExtension(t *testing.T) {
 
 			prepareProposalVoteExtChecker := func(_ context.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if req.Height <= voteExtensionEnableHeight {
-					require.Empty(req.LocalLastCommit.Votes)
+					require.Empty(t, req.LocalLastCommit.Votes)
 				} else {
-					require.Len(req.LocalLastCommit.Votes, 1)
+					require.Len(t, req.LocalLastCommit.Votes, 1)
 					extendedCommit := req.LocalLastCommit.Votes[0]
-					require.NotNil(extendedCommit)
-					require.Equal(extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
+					require.NotNil(t, extendedCommit)
+					require.Equal(t, extendedCommit.BlockIdFlag, cmproto.BlockIDFlagCommit)
 					// during PrepareProposal at height h, vote extensions from previous block (h-1) is available
-					require.Equal([]byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
-					require.NotNil(extendedCommit.Validator)
-					require.NotNil(extendedCommit.Validator.Address)
-					require.NotEmpty(extendedCommit.ExtensionSignature)
+					require.Equal(t, []byte(fmt.Sprintf(expectedExtension, req.Height-1)), extendedCommit.VoteExtension)
+					require.NotNil(t, extendedCommit.Validator)
+					require.NotNil(t, extendedCommit.Validator.Address)
+					require.NotEmpty(t, extendedCommit.ExtensionSignature)
 					vote := &cmproto.Vote{
 						Height:    req.Height - 1,
 						Round:     0,
@@ -320,7 +319,7 @@ func TestVoteExtension(t *testing.T) {
 					extSignBytes := cmtypes.VoteExtensionSignBytes(chainID, vote)
 					fmt.Println("failing block height", req.Height)
 					ok := pubKey.VerifySignature(extSignBytes, extendedCommit.ExtensionSignature)
-					require.True(ok)
+					require.True(t, ok)
 				}
 				return &abci.ResponsePrepareProposal{
 					Txs: req.Txs,
@@ -336,18 +335,18 @@ func TestVoteExtension(t *testing.T) {
 			app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 			app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
 			app.On("ExtendVote", mock.Anything, mock.Anything).Return(voteExtension)
-			require.NotNil(app)
+			require.NotNil(t, app)
 
-			require.NoError(node.Start())
-			require.NoError(waitForAtLeastNBlocks(node, 10, Store))
-			require.NoError(node.Stop())
+			require.NoError(t, node.Start())
+			require.NoError(t, waitForAtLeastNBlocks(node, 10, Store))
+			require.NoError(t, node.Stop())
 			app.AssertExpectations(t)
 		})
 	}
 	// TestExtendVoteFailure
 	t.Run("TestExtendVoteFailure", func(t *testing.T) {
 		app, node, _ := createNodeAndApp(ctx, "TestExtendVoteFailure", voteExtensionEnableHeight, types.DefaultSigningKeyType, t)
-		require.NotNil(node)
+		require.NotNil(t, node)
 
 		// Create a channel to signal from extendVoteFailure
 		extendVoteFailureChan := make(chan struct{})
@@ -363,17 +362,17 @@ func TestVoteExtension(t *testing.T) {
 		app.On("PrepareProposal", mock.Anything, mock.Anything).Return(&abci.ResponsePrepareProposal{Txs: nil}, nil)
 		app.On("ProcessProposal", mock.Anything, mock.Anything).Return(&abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil)
 		app.On("FinalizeBlock", mock.Anything, mock.Anything).Return(finalizeBlockResponse)
-		require.NotNil(app)
+		require.NotNil(t, app)
 
 		// Start the node
-		require.NoError(node.Start())
+		require.NoError(t, node.Start())
 
 		// Wait for blocks to be produced until voteExtensionEnableHeight
-		require.NoError(waitForAtLeastNBlocks(node, 4, Store))
+		require.NoError(t, waitForAtLeastNBlocks(node, 4, Store))
 
 		status, err := node.GetClient().Status(ctx)
-		require.NoError(err)
-		require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Expected block height mismatch")
+		require.NoError(t, err)
+		require.EqualValues(t, voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Expected block height mismatch")
 
 		// Additional retries to ensure extendVoteFailure is triggered multiple times
 		for i := 0; i < 4; i++ {
@@ -386,12 +385,12 @@ func TestVoteExtension(t *testing.T) {
 			// Check the node's behavior after encountering the invalid vote extension error
 			// verify that the block height has not advanced
 			status, err = node.GetClient().Status(ctx)
-			require.NoError(err)
-			require.EqualValues(voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
+			require.NoError(t, err)
+			require.EqualValues(t, voteExtensionEnableHeight-1, status.SyncInfo.LatestBlockHeight, "Block height should not advance after vote extension failure")
 		}
 
 		// Stop the node
-		require.NoError(node.Stop())
+		require.NoError(t, node.Stop())
 
 		// Ensure expectations are met
 		app.AssertExpectations(t)

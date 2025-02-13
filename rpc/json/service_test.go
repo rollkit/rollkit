@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -48,9 +47,6 @@ func TestHandlerMapping(t *testing.T) {
 }
 
 func TestREST(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
-
 	txSearchParams := url.Values{}
 	txSearchParams.Set("query", "message.sender='cosmos1njr26e02fjcq3schxstv458a3w5szp678h23dh'")
 	txSearchParams.Set("prove", "true")
@@ -70,9 +66,9 @@ func TestREST(t *testing.T) {
 		// to keep test simple, allow returning application error in following case
 		{"invalid/missing required param", "/tx", http.StatusOK, int(json2.E_INVALID_REQ), `missing param 'hash'`},
 		{"valid/missing optional param", "/block", http.StatusOK, -1, `"result":{"block_id":`},
-		{"valid/included block tag param", "/block?height=included", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
+		{"valid/included block tag param", "/block?height=included", http.StatusOK, int(json2.E_INTERNAL), "failed to load block header"},
 		{"valid/no params", "/abci_info", http.StatusOK, -1, `"last_block_height":"345"`},
-		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load hash from index"},
+		{"valid/int param", "/block?height=321", http.StatusOK, int(json2.E_INTERNAL), "failed to load block header"},
 		{"invalid/int param", "/block?height=foo", http.StatusOK, int(json2.E_PARSE), "failed to parse param 'height'"},
 		{"valid/bool int string params",
 			"/tx_search?" + txSearchParams.Encode(),
@@ -86,7 +82,7 @@ func TestREST(t *testing.T) {
 
 	_, local := getRPC(t, "TestREST")
 	handler, err := GetHTTPHandler(local, log.TestingLogger())
-	require.NoError(err)
+	require.NoError(t, err)
 
 	// wait for blocks
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -107,18 +103,16 @@ func TestREST(t *testing.T) {
 			resp := httptest.NewRecorder()
 			handler.ServeHTTP(resp, req)
 
-			assert.Equal(c.httpCode, resp.Code)
+			assert.Equal(t, c.httpCode, resp.Code)
 			s := resp.Body.String()
-			assert.NotEmpty(s)
-			fmt.Print(s)
-			assert.Contains(s, c.bodyContains)
+			assert.NotEmpty(t, s)
+			assert.Contains(t, s, c.bodyContains)
 			var jsonResp response
-			assert.NoError(json.Unmarshal([]byte(s), &jsonResp))
+			assert.NoError(t, json.Unmarshal([]byte(s), &jsonResp))
 			if c.jsonrpcCode != -1 {
-				require.NotNil(jsonResp.Error)
-				assert.EqualValues(c.jsonrpcCode, jsonResp.Error.Code)
+				require.NotNil(t, jsonResp.Error)
+				assert.EqualValues(t, c.jsonrpcCode, jsonResp.Error.Code)
 			}
-			t.Log(s)
 		})
 	}
 
