@@ -1086,10 +1086,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		extendedCommit, err := m.getExtendedCommit(ctx, height)
-		if err != nil {
-			return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
-		}
+		//extendedCommit, err := m.getExtendedCommit(ctx, height)
+		extendedCommit := abci.ExtendedCommitInfo{}
+		// if err != nil {
+		// 	return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
+		// }
 
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
