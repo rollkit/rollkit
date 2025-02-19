@@ -17,7 +17,6 @@ import (
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
@@ -163,7 +162,7 @@ func TestGenesisChunked(t *testing.T) {
 		InitialHeight: int64(1),
 		AppHash:       []byte("test hash"),
 		Validators: []cmtypes.GenesisValidator{
-			{Address: bytes.HexBytes{}, Name: "test", Power: 1, PubKey: ed25519.GenPrivKey().PubKey()},
+			{Address: []byte{}, Name: "test", Power: 1, PubKey: ed25519.GenPrivKey().PubKey()},
 		},
 	}
 
@@ -240,7 +239,7 @@ func TestBroadcastTxSync(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(res)
 	assert.Equal(expectedResponse.Code, res.Code)
-	assert.Equal(bytes.HexBytes(expectedResponse.Data), res.Data)
+	assert.Equal(expectedResponse.Data, res.Data.Bytes())
 	assert.Equal(expectedResponse.Log, res.Log)
 	assert.Equal(expectedResponse.Codespace, res.Codespace)
 	assert.NotEmpty(res.Hash)
