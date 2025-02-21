@@ -336,7 +336,7 @@ func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*cmtypes.Gene
 	}}
 	genDoc := &cmtypes.GenesisDoc{
 		ChainID:       chainID,
-		InitialHeight: 0,
+		InitialHeight: 1,
 		Validators:    genesisValidators,
 	}
 	return genDoc, genesisValidatorKey
