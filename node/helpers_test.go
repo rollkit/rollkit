@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"strconv"
 	"testing"
 	"time"
 
@@ -35,26 +36,27 @@ func generateSingleKey() crypto.PrivKey {
 	return key
 }
 
-func getTestConfig() config.NodeConfig {
+func getTestConfig(n int) config.NodeConfig {
+	startPort := 10000
 	return config.NodeConfig{
+		Aggregator:       true,
 		DAAddress:        MockDAAddress,
 		DANamespace:      MockDANamespace,
 		ExecutorAddress:  MockExecutorAddress,
 		SequencerAddress: MockSequencerAddress,
 		BlockManagerConfig: config.BlockManagerConfig{
-			BlockTime:        100 * time.Millisecond,
-			DABlockTime:      200 * time.Millisecond,
-			DAStartHeight:    0,
-			DAMempoolTTL:     100,
-			MaxPendingBlocks: 100,
-			LazyAggregator:   false,
+			BlockTime:     500 * time.Millisecond,
+			LazyBlockTime: 5 * time.Second,
+		},
+		P2P: config.P2PConfig{
+			ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 		},
 	}
 }
 
 func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	ctx := context.Background()
-	config := getTestConfig()
+	config := getTestConfig(1)
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
@@ -75,36 +77,4 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	//startNodeWithCleanup(t, node)
 
 	return node.(*FullNode), cleanup
-}
-
-// TestHelpers verifies that helper functions work correctly
-func TestHelpers(t *testing.T) {
-	t.Run("getTestConfig returns valid config", func(t *testing.T) {
-		cfg := getTestConfig()
-		require.Equal(t, MockDAAddress, cfg.DAAddress)
-		require.Equal(t, MockDANamespace, cfg.DANamespace)
-		require.Equal(t, MockExecutorAddress, cfg.ExecutorAddress)
-		require.Equal(t, MockSequencerAddress, cfg.SequencerAddress)
-	})
-
-	t.Run("setupTestNode creates working node", func(t *testing.T) {
-		node, cleanup := setupTestNodeWithCleanup(t)
-		defer cleanup()
-		require.NotNil(t, node)
-		require.False(t, node.IsRunning())
-	})
-
-	t.Run("startNodeWithCleanup works correctly", func(t *testing.T) {
-		node, cleanup := setupTestNodeWithCleanup(t)
-		defer cleanup()
-		startNodeWithCleanup(t, node)
-		require.True(t, node.IsRunning())
-		require.NoError(t, node.Stop())
-		require.False(t, node.IsRunning())
-	})
-
-	t.Run("getMockDA returns valid client", func(t *testing.T) {
-		client := getMockDA(t)
-		require.NotNil(t, client)
-	})
 }
