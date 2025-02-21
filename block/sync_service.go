@@ -131,7 +131,11 @@ func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context,
 		if err := syncService.store.Init(ctx, headerOrData); err != nil {
 			return fmt.Errorf("failed to initialize the store")
 		}
+	}
 
+	firstStart := false
+	if !syncService.syncerStatus.started.Load() {
+		firstStart = true
 		if err := syncService.StartSyncer(ctx); err != nil {
 			return fmt.Errorf("failed to start syncer after initializing the store")
 		}
@@ -139,10 +143,14 @@ func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context,
 
 	// Broadcast for subscribers
 	if err := syncService.sub.Broadcast(ctx, headerOrData); err != nil {
-		// for the genesis header, broadcast error is expected as we have already initialized the store
-		// for starting the syncer. Hence, we ignore the error.
-		// exact reason: validation failed, err header verification failed: known header: '1' <= current '1'
-		if isGenesis && errors.Is(err, pubsub.ValidationError{Reason: pubsub.RejectValidationFailed}) {
+		// for the first block when starting the app, broadcast error is expected
+		// as we have already initialized the store for starting the syncer.
+		// Hence, we ignore the error. Exact reason: validation ignored
+		if (firstStart && errors.Is(err, pubsub.ValidationError{Reason: pubsub.RejectValidationIgnored})) ||
+			// for the genesis header, broadcast error is expected as we have already initialized the store
+			// for starting the syncer. Hence, we ignore the error.
+			// exact reason: validation failed, err header verification failed: known header: '1' <= current '1'
+			(isGenesis && errors.Is(err, pubsub.ValidationError{Reason: pubsub.RejectValidationFailed})) {
 			return nil
 		}
 		return fmt.Errorf("failed to broadcast: %w", err)
