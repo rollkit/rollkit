@@ -498,7 +498,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 				if h, err := res.Batch.Hash(); err == nil {
 					m.bq.AddBatch(BatchWithTime{Batch: res.Batch, Time: res.Timestamp})
-					if res.Batch.Transactions != nil {
+					if len(res.Batch.Transactions) != 0 {
 						if err := m.store.SetMetadata(ctx, LastBatchHashKey, h); err != nil {
 							m.logger.Error("error while setting last batch hash", "error", err)
 						}
