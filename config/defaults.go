@@ -43,4 +43,5 @@ var DefaultNodeConfig = NodeConfig{
 	SequencerAddress:  DefaultSequencerAddress,
 	SequencerRollupID: DefaultSequencerRollupID,
 	ExecutorAddress:   DefaultExecutorAddress,
+	MaxMsgSize:        4 * 1024 * 1024,
 }

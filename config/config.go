@@ -48,6 +48,8 @@ const (
 	FlagSequencerRollupID = "rollkit.sequencer_rollup_id"
 	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
 	FlagExecutorAddress = "rollkit.executor_address"
+	// FlagMaxMsgSize is a flag for specifying the maximum gRPC message size (in bytes)
+	FlagMaxMsgSize = "rollkit.max_msg_size"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -74,6 +76,8 @@ type NodeConfig struct {
 	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
 
 	ExecutorAddress string `mapstructure:"executor_address"`
+
+	MaxMsgSize int `mapstructure:"max_msg_size"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
@@ -171,4 +175,5 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 	cmd.Flags().String(FlagExecutorAddress, def.ExecutorAddress, "executor middleware address (host:port)")
+	cmd.Flags().Int(FlagMaxMsgSize, def.MaxMsgSize, "maximum gRPC message size (in bytes)")
 }
