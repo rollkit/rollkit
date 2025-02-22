@@ -49,6 +49,7 @@ func getTestConfig() config.NodeConfig {
 			MaxPendingBlocks: 100,
 			LazyAggregator:   false,
 		},
+		MaxMsgSize: 4 * 1024 * 1024,
 	}
 }
 

@@ -169,6 +169,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		DANamespace:      MockDANamespace,
 		ExecutorAddress:  MockExecutorAddress,
 		SequencerAddress: MockSequencerAddress,
+		MaxMsgSize:       4 * 1024 * 1024,
 	}
 	switch nodeType {
 	case Light:
