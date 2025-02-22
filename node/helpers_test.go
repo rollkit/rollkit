@@ -51,6 +51,7 @@ func getTestConfig(n int) config.NodeConfig {
 		P2P: config.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 		},
+		MaxMsgSize: 4 * 1024 * 1024,
 	}
 }
 
