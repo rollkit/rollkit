@@ -167,3 +167,47 @@ func TestInterceptCommand(t *testing.T) {
 	}
 
 }
+
+// TestParseFlagWithEquals tests the parseFlag function with different flag formats.
+func TestParseFlagWithEquals(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		flag     string
+		expected string
+	}{
+		{
+			name:     "Equals style simple",
+			args:     []string{"--rollkit.myflag=value"},
+			flag:     "rollkit.myflag",
+			expected: "value",
+		},
+		{
+			name:     "Equals style complex",
+			args:     []string{"--rollkit.myflag=some=complex=value"},
+			flag:     "rollkit.myflag",
+			expected: "some=complex=value",
+		},
+		{
+			name:     "Space separated",
+			args:     []string{"--rollkit.myflag", "value"},
+			flag:     "rollkit.myflag",
+			expected: "value",
+		},
+		{
+			name:     "Flag not present",
+			args:     []string{"--rollkit.otherflag=123"},
+			flag:     "rollkit.myflag",
+			expected: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseFlag(tc.args, tc.flag)
+			if got != tc.expected {
+				t.Errorf("parseFlag(%v, %q) = %q; expected %q", tc.args, tc.flag, got, tc.expected)
+			}
+		})
+	}
+}
