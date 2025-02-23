@@ -176,6 +176,8 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) erro
 }
 
 func parseFlag(args []string, flag string) string {
+	// Loop through all arguments to find the specified flag.
+	// Supports both "--flag=value" and "--flag value" formats.
 	for i, arg := range args {
 		prefixEqual := fmt.Sprintf("--%s=", flag)
 		prefix := fmt.Sprintf("--%s", flag)
