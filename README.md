@@ -1,6 +1,6 @@
 # Rollkit
 
-Rollkit is the first soveriegn rollup framework. For more in-depth information about Rollkit, please visit our [website][docs].
+Rollkit is the first sovereign rollup framework. For more in-depth information about Rollkit, please visit our [website][docs].
 
 <!-- markdownlint-disable MD013 -->
 [![build-and-test](https://github.com/rollkit/rollkit/actions/workflows/test.yml/badge.svg)](https://github.com/rollkit/rollkit/actions/workflows/test.yml)
