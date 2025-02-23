@@ -133,17 +133,20 @@ func NewRunNodeCmd() *cobra.Command {
 			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
-			// NOTE: if the user supplied an address for a running DA server, and the address doesn't match, this will launch a mock DA server. This is ok because the logs will tell the user that a mock DA server is being used.
-			daSrv, err := tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
-			if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-				return fmt.Errorf("failed to launch mock da server: %w", err)
-			}
-			// nolint:errcheck,gosec
-			defer func() {
-				if daSrv != nil {
-					daSrv.Stop(cmd.Context())
+			// Only start mock DA server if the user did not provide --rollkit.da_address
+			var daSrv *proxy.Server = nil
+			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
+				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
+				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
+					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
-			}()
+				// nolint:errcheck,gosec
+				defer func() {
+					if daSrv != nil {
+						daSrv.Stop(cmd.Context())
+					}
+				}()
+			}
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
@@ -151,17 +154,20 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 			sequencerRollupID := genDoc.ChainID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
-			// NOTE: if the user supplied an address for a running sequencer, and the address doesn't match, this will launch a mock sequencer. This is ok because the logs will tell the user that a mock sequencer is being used.
-			seqSrv, err := tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
-			if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-				return fmt.Errorf("failed to launch mock sequencing server: %w", err)
-			}
-			// nolint:errcheck,gosec
-			defer func() {
-				if seqSrv != nil {
-					seqSrv.Stop()
+			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
+			var seqSrv *grpc.Server = nil
+			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
+				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
+				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
+					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
-			}()
+				// nolint:errcheck,gosec
+				defer func() {
+					if seqSrv != nil {
+						seqSrv.Stop()
+					}
+				}()
+			}
 
 			// Try and launch a mock gRPC executor if there is no executor running
 			// execSrv, err := tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
