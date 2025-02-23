@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"errors"
+	"net"
 	"net/url"
 	"reflect"
 	"syscall"
@@ -243,6 +244,50 @@ func TestStartMockDAServJSONRPC(t *testing.T) {
 			}
 
 			srv, err := tryStartMockDAServJSONRPC(context.Background(), tt.daAddress, newServerFunc)
+
+			if tt.expectedErr != nil {
+				assert.Error(t, err)
+				assert.IsType(t, tt.expectedErr, err)
+				assert.Nil(t, srv)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, srv)
+			}
+		})
+	}
+}
+
+func TestStartMockSequencerServer(t *testing.T) {
+	tests := []struct {
+		name        string
+		seqAddress  string
+		expectedErr error
+	}{
+		{
+			name:        "Success",
+			seqAddress:  "localhost:50051",
+			expectedErr: nil,
+		},
+		{
+			name:        "Invalid URL",
+			seqAddress:  "://invalid",
+			expectedErr: &net.OpError{},
+		},
+		{
+			name:        "Server Already Running",
+			seqAddress:  "localhost:50051",
+			expectedErr: errSequencerAlreadyRunning,
+		},
+		{
+			name:        "Other Server Error",
+			seqAddress:  "localhost:50051",
+			expectedErr: errors.New("other error"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := tryStartMockSequencerServerGRPC(tt.seqAddress, "test-rollup-id")
 
 			if tt.expectedErr != nil {
 				assert.Error(t, err)

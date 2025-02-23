@@ -290,7 +290,7 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
+		if errors.Is(err, syscall.EADDRINUSE) || errors.Is(err, syscall.EADDRNOTAVAIL) {
 			logger.Info(errSequencerAlreadyRunning.Error(), "address", listenAddress)
 			logger.Info("make sure your rollupID matches your sequencer", "rollupID", rollupId)
 			return nil, errSequencerAlreadyRunning
