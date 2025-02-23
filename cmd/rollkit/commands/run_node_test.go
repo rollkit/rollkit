@@ -13,6 +13,7 @@ import (
 
 	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
+	rollconf "github.com/rollkit/rollkit/config"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -140,6 +141,38 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 		if nodeConfig.Aggregator != validValues[i] {
 			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Aggregator)
 		}
+	}
+}
+
+// TestCentralizedAddresses verifies that when centralized service flags are provided,
+// the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
+func TestCentralizedAddresses(t *testing.T) {
+	args := []string{
+		"start",
+		"--rollkit.da_address=http://central-da:26657",
+		"--rollkit.sequencer_address=central-seq:26659",
+		"--rollkit.sequencer_rollup_id=centralrollup",
+	}
+
+	cmd := NewRunNodeCmd()
+	if err := cmd.ParseFlags(args); err != nil {
+		t.Fatalf("ParseFlags error: %v", err)
+	}
+	if err := parseFlags(cmd); err != nil {
+		t.Fatalf("parseFlags error: %v", err)
+	}
+
+	if nodeConfig.DAAddress != "http://central-da:26657" {
+		t.Errorf("Expected nodeConfig.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DAAddress)
+	}
+
+	if nodeConfig.SequencerAddress != "central-seq:26659" {
+		t.Errorf("Expected nodeConfig.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.SequencerAddress)
+	}
+
+	// Also confirm that the sequencer rollup id flag is marked as changed
+	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
+		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
 	}
 }
 
