@@ -169,17 +169,21 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
-			// Try and launch a mock gRPC executor if there is no executor running
-			// execSrv, err := tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
-			// if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
-			// 	return fmt.Errorf("failed to launch mock executor server: %w", err)
-			// }
-			// // nolint:errcheck,gosec
-			// defer func() {
-			// 	if execSrv != nil {
-			// 		execSrv.Stop()
-			// 	}
-			// }()
+			// Try and launch a mock gRPC executor if there is no executor running.
+			// Only start mock Executor if the user did not provide --rollkit.executor_address
+			var execSrv *grpc.Server = nil
+			if !cmd.Flags().Lookup("rollkit.executor_address").Changed {
+				execSrv, err = tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
+				if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
+					return fmt.Errorf("failed to launch mock executor server: %w", err)
+				}
+				// nolint:errcheck,gosec
+				defer func() {
+					if execSrv != nil {
+						execSrv.Stop()
+					}
+				}()
+			}
 
 			// use noop proxy app by default
 			if !cmd.Flags().Lookup("proxy_app").Changed {
