@@ -185,6 +185,8 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
+			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
+
 			// use noop proxy app by default
 			if !cmd.Flags().Lookup("proxy_app").Changed {
 				config.ProxyApp = "noop"
@@ -308,10 +310,15 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) {
 	dummyExec := execTest.NewDummyExecutor()
 
-	dummyExec.InjectTx(execTypes.Tx{1, 2, 3})
-	dummyExec.InjectTx(execTypes.Tx{4, 5, 6})
-	dummyExec.InjectTx(execTypes.Tx{7, 8, 9})
-	dummyExec.InjectTx(execTypes.Tx{10, 11, 12})
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		i := 0
+		for range ticker.C {
+			dummyExec.InjectTx(execTypes.Tx{byte(3*i + 1), byte(3*i + 2), byte(3*i + 3)})
+			i++
+		}
+	}()
 
 	execServer := execGRPC.NewServer(dummyExec, nil)
 	server := grpc.NewServer()
