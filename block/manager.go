@@ -82,6 +82,9 @@ var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165,
 // ErrNoBatch indicate no batch is available for creating block
 var ErrNoBatch = errors.New("no batch to process")
 
+// LastBatchHashKey is the key used for persisting the last batch hash in store.
+const LastBatchHashKey = "last batch hash"
+
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
 	Header   *types.SignedHeader
@@ -176,6 +179,20 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
+
+		// Initialize genesis block explicitly
+		err = store.SaveBlockData(ctx,
+			&types.SignedHeader{Header: types.Header{
+				BaseHeader: types.BaseHeader{
+					Height: genesis.InitialHeight,
+					Time:   uint64(genesis.GenesisTime.UnixNano()),
+				}}},
+			&types.Data{},
+			&types.Signature{},
+		)
+		if err != nil {
+			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
+		}
 
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		// TODO(tzdybal): handle max bytes
@@ -323,6 +340,22 @@ func NewManager(
 	return agg, nil
 }
 
+func (m *Manager) DALCInitialized() bool {
+	return m.dalc != nil
+}
+
+func (m *Manager) PendingHeaders() *PendingHeaders {
+	return m.pendingHeaders
+}
+
+func (m *Manager) IsProposer() bool {
+	return m.isProposer
+}
+
+func (m *Manager) SeqClient() *grpc.Client {
+	return m.seqClient
+}
+
 func (m *Manager) init(ctx context.Context) {
 	// initialize da included height
 	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
@@ -366,6 +399,12 @@ func (m *Manager) SetLastState(state types.State) {
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
 	m.lastState = state
+}
+
+func (m *Manager) GetLastState() types.State {
+	m.lastStateMtx.RLock()
+	defer m.lastStateMtx.RUnlock()
+	return m.lastState
 }
 
 // GetStoreHeight returns the manager's store height
@@ -425,7 +464,7 @@ func (m *Manager) GetExecutor() execution.Executor {
 
 // BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
 func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
-	// Initialize batchTimer to fire immediately on start
+	m.logger.Info("Starting BatchRetrieveLoop")
 	batchTimer := time.NewTimer(0)
 	defer batchTimer.Stop()
 
@@ -435,39 +474,42 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			return
 		case <-batchTimer.C:
 			start := time.Now()
+			m.logger.Debug("Attempting to retrieve next batch",
+				"chainID", m.genesis.ChainID,
+				"lastBatchHash", hex.EncodeToString(m.lastBatchHash))
 
-			// Skip batch retrieval if context is already done
-			if ctx.Err() != nil {
-				return
-			}
-
-			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{
+			req := sequencing.GetNextBatchRequest{
 				RollupId:      []byte(m.genesis.ChainID),
 				LastBatchHash: m.lastBatchHash,
-			})
+			}
 
+			res, err := m.seqClient.GetNextBatch(ctx, req)
 			if err != nil {
 				m.logger.Error("error while retrieving batch", "error", err)
+				// Always reset timer on error
+				batchTimer.Reset(m.conf.BlockTime)
+				continue
 			}
 
 			if res != nil && res.Batch != nil {
-				batch := res.Batch
-				batchTime := res.Timestamp
+				m.logger.Debug("Retrieved batch",
+					"txCount", len(res.Batch.Transactions),
+					"timestamp", res.Timestamp)
 
-				// Calculate and store batch hash only if hashing succeeds
-				if h, err := batch.Hash(); err == nil {
-					m.bq.AddBatch(BatchWithTime{Batch: batch, Time: batchTime})
-
-					// Update lastBatchHash only if the batch contains transactions
-					if batch.Transactions != nil {
+				if h, err := res.Batch.Hash(); err == nil {
+					m.bq.AddBatch(BatchWithTime{Batch: res.Batch, Time: res.Timestamp})
+					if len(res.Batch.Transactions) != 0 {
+						if err := m.store.SetMetadata(ctx, LastBatchHashKey, h); err != nil {
+							m.logger.Error("error while setting last batch hash", "error", err)
+						}
 						m.lastBatchHash = h
 					}
-				} else {
-					m.logger.Error("error while hashing batch", "error", err)
 				}
+			} else {
+				m.logger.Debug("No batch available")
 			}
 
-			// Determine remaining time for the next batch and reset timer
+			// Always reset timer
 			elapsed := time.Since(start)
 			remainingSleep := m.conf.BlockTime - elapsed
 			if remainingSleep < 0 {
@@ -1056,7 +1098,8 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight == uint64(m.genesis.InitialHeight) { //nolint:unconvert
+	if newHeight <= m.genesis.InitialHeight {
+		// Special handling for genesis block
 		lastSignature = &types.Signature{}
 	} else {
 		lastSignature, err = m.store.GetSignature(ctx, height)
@@ -1065,7 +1108,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 		lastHeader, lastData, err := m.store.GetBlockData(ctx, height)
 		if err != nil {
-			return fmt.Errorf("error while loading last block at height %d: %w", height, err)
+			return fmt.Errorf("error while loading last block: %w", err)
 		}
 		lastHeaderHash = lastHeader.Hash()
 		lastDataHash = lastData.Hash()
@@ -1095,23 +1138,38 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
+			// Continue but log the state
+			m.logger.Info("Current state",
+				"height", height,
+				"isProposer", m.isProposer,
+				"pendingHeaders", m.pendingHeaders.numPendingHeaders())
 		}
+
 		for _, tx := range execTxs {
+			m.logger.Debug("Submitting transaction to sequencer",
+				"txSize", len(tx))
 			_, err := m.seqClient.SubmitRollupTransaction(ctx, sequencing.SubmitRollupTransactionRequest{
 				RollupId: sequencing.RollupId(m.genesis.ChainID),
 				Tx:       tx,
 			})
 			if err != nil {
-				m.logger.Error("failed to submit rollup transaction to sequencer", "err", err)
+				m.logger.Error("failed to submit rollup transaction to sequencer",
+					"err", err,
+					"chainID", m.genesis.ChainID)
+				// Add retry logic or proper error handling
+				continue
 			}
+			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
 
 		txs, timestamp, err := m.getTxsFromBatch()
 		if errors.Is(err, ErrNoBatch) {
-			m.logger.Info(err.Error())
-			return nil
-		}
-		if err != nil {
+			m.logger.Debug("No batch available, creating empty block")
+			// Create an empty block instead of returning
+			txs = cmtypes.Txs{}
+			timestamp = &time.Time{}
+			*timestamp = time.Now()
+		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
 		// sanity check timestamp for monotonically increasing
@@ -1257,14 +1315,14 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 
 func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
 	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if height <= uint64(m.genesis.InitialHeight) { //nolint:unconvert
-		return emptyExtendedCommit, nil
-	}
-	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
-	if err != nil {
-		return emptyExtendedCommit, err
-	}
-	return *extendedCommit, nil
+	//if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:gosec
+	return emptyExtendedCommit, nil
+	//}
+	//extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
+	//if err != nil {
+	//	return emptyExtendedCommit, err
+	//}
+	//return *extendedCommit, nil
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {
