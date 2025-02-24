@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/celestiaorg/utils/test"
-
 	"github.com/rollkit/rollkit/config"
 )
 
@@ -105,7 +103,7 @@ func safeClose(ch chan struct{}) {
 }
 
 func verifyNodesSynced(node1, node2 Node, source Source) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
+	return Retry(300, 100*time.Millisecond, func() error {
 		n1Height, err := getNodeHeight(node1, source)
 		if err != nil {
 			return err
@@ -122,7 +120,7 @@ func verifyNodesSynced(node1, node2 Node, source Source) error {
 }
 
 func waitForAtLeastNBlocks(node Node, n int, source Source) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
+	return Retry(300, 100*time.Millisecond, func() error {
 		nHeight, err := getNodeHeight(node, source)
 		if err != nil {
 			return err
@@ -135,10 +133,21 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 }
 
 func waitUntilBlockHashSeen(node Node, blockHash string) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
+	return Retry(300, 100*time.Millisecond, func() error {
 		if isBlockHashSeen(node, blockHash) {
 			return nil
 		}
 		return fmt.Errorf("block hash %v not seen", blockHash)
 	})
+}
+
+func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (err error) {
+	for i := 1; i < tries; i++ {
+		err = fn()
+		if err == nil {
+			return nil
+		}
+		time.Sleep(durationBetweenAttempts)
+	}
+	return fn()
 }

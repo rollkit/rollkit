@@ -25,8 +25,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	testutils "github.com/celestiaorg/utils/test"
-
 	goDA "github.com/rollkit/go-da"
 	damock "github.com/rollkit/go-da/mocks"
 	"github.com/rollkit/rollkit/block"
@@ -535,7 +533,7 @@ func verifyTransactions(node *FullNode, peerID peer.ID, t *testing.T) {
 
 // verifyMempoolSize checks if the mempool size is as expected
 func verifyMempoolSize(node *FullNode, t *testing.T) {
-	assert.NoError(t, testutils.Retry(300, 100*time.Millisecond, func() error {
+	assert.NoError(t, Retry(300, 100*time.Millisecond, func() error {
 		expectedSize := uint64(4 * len("tx*"))
 		actualSize := uint64(node.Mempool.SizeBytes())
 		if expectedSize == actualSize {
