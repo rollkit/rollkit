@@ -39,6 +39,33 @@ func TestInterceptCommand(t *testing.T) {
 			wantExecuted: true,
 		},
 		{
+			name:            "Intercept with centralized service flags",
+			rollkitCommands: []string{"docs-gen", "toml"},
+			mockReadToml: func() (rollconf.TomlConfig, error) {
+				return rollconf.TomlConfig{
+					Entrypoint: "centralized-entrypoint",
+					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/central/config"},
+					RootDir:    "/central/root",
+				}, nil
+			},
+			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
+				// Assert that the flags include the centralized addresses
+				if parseFlag(flags, rollconf.FlagDAAddress) != "http://centralized-da:26657" {
+					return errors.New("centralized DA address not passed")
+				}
+				if parseFlag(flags, rollconf.FlagSequencerAddress) != "centralized-seq:26659" {
+					return errors.New("centralized Sequencer address not passed")
+				}
+				if parseFlag(flags, rollconf.FlagSequencerRollupID) != "centralizedrollup" {
+					return errors.New("centralized rollup id not passed")
+				}
+				return nil
+			},
+			args:         []string{"rollkit", "start", "--rollkit.da_address=http://centralized-da:26657", "--rollkit.sequencer_address=centralized-seq:26659", "--rollkit.sequencer_rollup_id=centralizedrollup"},
+			wantErr:      false,
+			wantExecuted: true,
+		},
+		{
 			name:            "Configuration read error",
 			rollkitCommands: []string{"docs-gen", "toml"},
 			mockReadToml: func() (rollconf.TomlConfig, error) {
@@ -139,4 +166,48 @@ func TestInterceptCommand(t *testing.T) {
 		})
 	}
 
+}
+
+// TestParseFlagWithEquals tests the parseFlag function with different flag formats.
+func TestParseFlagWithEquals(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		flag     string
+		expected string
+	}{
+		{
+			name:     "Equals style simple",
+			args:     []string{"--rollkit.myflag=value"},
+			flag:     "rollkit.myflag",
+			expected: "value",
+		},
+		{
+			name:     "Equals style complex",
+			args:     []string{"--rollkit.myflag=some=complex=value"},
+			flag:     "rollkit.myflag",
+			expected: "some=complex=value",
+		},
+		{
+			name:     "Space separated",
+			args:     []string{"--rollkit.myflag", "value"},
+			flag:     "rollkit.myflag",
+			expected: "value",
+		},
+		{
+			name:     "Flag not present",
+			args:     []string{"--rollkit.otherflag=123"},
+			flag:     "rollkit.myflag",
+			expected: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseFlag(tc.args, tc.flag)
+			if got != tc.expected {
+				t.Errorf("parseFlag(%v, %q) = %q; expected %q", tc.args, tc.flag, got, tc.expected)
+			}
+		})
+	}
 }

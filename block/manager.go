@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -81,6 +82,9 @@ var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165,
 
 // ErrNoBatch indicate no batch is available for creating block
 var ErrNoBatch = errors.New("no batch to process")
+
+// ErrHeightFromFutureStr is the error message for height from future returned by da
+var ErrHeightFromFutureStr = "given height is from the future"
 
 // LastBatchHashKey is the key used for persisting the last batch hash in store.
 const LastBatchHashKey = "last batch hash"
@@ -340,20 +344,29 @@ func NewManager(
 	return agg, nil
 }
 
+// DALCInitialized returns true if DALC is initialized.
 func (m *Manager) DALCInitialized() bool {
 	return m.dalc != nil
 }
 
+// PendingHeaders returns the pending headers.
 func (m *Manager) PendingHeaders() *PendingHeaders {
 	return m.pendingHeaders
 }
 
+// IsProposer returns true if the manager is acting as proposer.
 func (m *Manager) IsProposer() bool {
 	return m.isProposer
 }
 
+// SeqClient returns the grpc sequencing client.
 func (m *Manager) SeqClient() *grpc.Client {
 	return m.seqClient
+}
+
+// GetLastState returns the last recorded state.
+func (m *Manager) GetLastState() types.State {
+	return m.lastState
 }
 
 func (m *Manager) init(ctx context.Context) {
@@ -399,12 +412,6 @@ func (m *Manager) SetLastState(state types.State) {
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
 	m.lastState = state
-}
-
-func (m *Manager) GetLastState() types.State {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.lastState
 }
 
 // GetStoreHeight returns the manager's store height
@@ -645,7 +652,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 				lastDataHash = lastData.Hash()
 			}
 		}
-		// if err then we cannot populate data, hence just skip and wait for Data to be synced
+		// if no error then populate data, otherwise just skip and wait for Data to be synced
 		if err == nil {
 			metadata := &types.Metadata{
 				ChainID:      header.ChainID(),
@@ -657,8 +664,6 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 				Metadata: metadata,
 			}
 			m.dataCache.setData(headerHeight, d)
-		} else {
-			m.logger.Error("failed to get block data for", "height", headerHeight-1, "error", err)
 		}
 	}
 }
@@ -955,10 +960,13 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		daHeight := atomic.LoadUint64(&m.daHeight)
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
-			m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
+			if !strings.Contains(err.Error(), ErrHeightFromFutureStr) {
+				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
+			}
 			continue
 		}
-		// Signal the blockFoundCh to try and retrieve the next block
+		// Signal the headerFoundCh to try and retrieve the next block
 		select {
 		case headerFoundCh <- struct{}{}:
 		default:
@@ -1311,18 +1319,6 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
 	}
-}
-
-func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
-	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	//if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:gosec
-	return emptyExtendedCommit, nil
-	//}
-	//extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
-	//if err != nil {
-	//	return emptyExtendedCommit, err
-	//}
-	//return *extendedCommit, nil
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {

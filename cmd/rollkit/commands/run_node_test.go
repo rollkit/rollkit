@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"errors"
+	"net"
 	"net/url"
 	"reflect"
 	"syscall"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
+	rollconf "github.com/rollkit/rollkit/config"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -143,6 +145,38 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	}
 }
 
+// TestCentralizedAddresses verifies that when centralized service flags are provided,
+// the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
+func TestCentralizedAddresses(t *testing.T) {
+	args := []string{
+		"start",
+		"--rollkit.da_address=http://central-da:26657",
+		"--rollkit.sequencer_address=central-seq:26659",
+		"--rollkit.sequencer_rollup_id=centralrollup",
+	}
+
+	cmd := NewRunNodeCmd()
+	if err := cmd.ParseFlags(args); err != nil {
+		t.Fatalf("ParseFlags error: %v", err)
+	}
+	if err := parseFlags(cmd); err != nil {
+		t.Fatalf("parseFlags error: %v", err)
+	}
+
+	if nodeConfig.DAAddress != "http://central-da:26657" {
+		t.Errorf("Expected nodeConfig.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DAAddress)
+	}
+
+	if nodeConfig.SequencerAddress != "central-seq:26659" {
+		t.Errorf("Expected nodeConfig.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.SequencerAddress)
+	}
+
+	// Also confirm that the sequencer rollup id flag is marked as changed
+	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
+		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
+	}
+}
+
 // MockServer wraps proxy.Server to allow us to control its behavior in tests
 type MockServer struct {
 	*proxy.Server
@@ -210,6 +244,50 @@ func TestStartMockDAServJSONRPC(t *testing.T) {
 			}
 
 			srv, err := tryStartMockDAServJSONRPC(context.Background(), tt.daAddress, newServerFunc)
+
+			if tt.expectedErr != nil {
+				assert.Error(t, err)
+				assert.IsType(t, tt.expectedErr, err)
+				assert.Nil(t, srv)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, srv)
+			}
+		})
+	}
+}
+
+func TestStartMockSequencerServer(t *testing.T) {
+	tests := []struct {
+		name        string
+		seqAddress  string
+		expectedErr error
+	}{
+		{
+			name:        "Success",
+			seqAddress:  "localhost:50051",
+			expectedErr: nil,
+		},
+		{
+			name:        "Invalid URL",
+			seqAddress:  "://invalid",
+			expectedErr: &net.OpError{},
+		},
+		{
+			name:        "Server Already Running",
+			seqAddress:  "localhost:50051",
+			expectedErr: errSequencerAlreadyRunning,
+		},
+		{
+			name:        "Other Server Error",
+			seqAddress:  "localhost:50051",
+			expectedErr: errors.New("other error"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := tryStartMockSequencerServerGRPC(tt.seqAddress, "test-rollup-id")
 
 			if tt.expectedErr != nil {
 				assert.Error(t, err)

@@ -52,7 +52,7 @@ func (h *Header) Hash() Hash {
 
 // Hash returns hash of the Data
 func (d *Data) Hash() Hash {
-	// Ignoring the marshal error for now to satify the go-header interface
+	// Ignoring the marshal error for now to satisfy the go-header interface
 	// Later on the usage of Hash should be replaced with DA commitment
 	dBytes, _ := d.MarshalBinary()
 	return merkle.HashFromByteSlices([][]byte{

@@ -14,7 +14,7 @@ Rollkit requires data availability layer. Different implementations are expected
 
 ## Alternative Approaches
 
-> This section contains information around alternative options that are considered before making a decision. It should contain a explanation on why the alternative approach(es) were not chosen.
+> This section contains information around alternative options that are considered before making a decision. It should contain an explanation on why the alternative approach(es) were not chosen.
 
 ## Decision
 
