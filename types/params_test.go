@@ -116,9 +116,9 @@ func TestConsensusParamsValidateBasic(t *testing.T) {
 			},
 			err: ErrPubKeyTypesEmpty,
 		},
-		// 8. Test PubKeyType unknown
+		// 8. Test PubKeyTypes unknown
 		{
-			name: "PubKeyType unknown",
+			name: "PubKeyTypes unknown",
 			prepare: func() cmtypes.ConsensusParams {
 				return cmtypes.ConsensusParams{
 					Block: cmtypes.BlockParams{
