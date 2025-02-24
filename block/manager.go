@@ -344,20 +344,29 @@ func NewManager(
 	return agg, nil
 }
 
+// DALCInitialized returns true if DALC is initialized.
 func (m *Manager) DALCInitialized() bool {
 	return m.dalc != nil
 }
 
+// PendingHeaders returns the pending headers.
 func (m *Manager) PendingHeaders() *PendingHeaders {
 	return m.pendingHeaders
 }
 
+// IsProposer returns true if the manager is acting as proposer.
 func (m *Manager) IsProposer() bool {
 	return m.isProposer
 }
 
+// SeqClient returns the grpc sequencing client.
 func (m *Manager) SeqClient() *grpc.Client {
 	return m.seqClient
+}
+
+// GetLastState returns the last recorded state.
+func (m *Manager) GetLastState() types.State {
+	return m.lastState
 }
 
 func (m *Manager) init(ctx context.Context) {
@@ -403,12 +412,6 @@ func (m *Manager) SetLastState(state types.State) {
 	m.lastStateMtx.Lock()
 	defer m.lastStateMtx.Unlock()
 	m.lastState = state
-}
-
-func (m *Manager) GetLastState() types.State {
-	m.lastStateMtx.RLock()
-	defer m.lastStateMtx.RUnlock()
-	return m.lastState
 }
 
 // GetStoreHeight returns the manager's store height
@@ -1316,18 +1319,6 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
 	}
-}
-
-func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
-	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	//if !m.voteExtensionEnabled(height) || height <= uint64(m.genesis.InitialHeight) { //nolint:gosec
-	return emptyExtendedCommit, nil
-	//}
-	//extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
-	//if err != nil {
-	//	return emptyExtendedCommit, err
-	//}
-	//return *extendedCommit, nil
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {
