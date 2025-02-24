@@ -141,8 +141,19 @@ func waitUntilBlockHashSeen(node Node, blockHash string) error {
 	})
 }
 
+// Retry attempts to execute the provided function up to the specified number of tries,
+// with a delay between attempts. It returns nil if the function succeeds, or the last
+// error encountered if all attempts fail.
+//
+// Parameters:
+//   - tries: The maximum number of attempts to make
+//   - durationBetweenAttempts: The duration to wait between attempts
+//   - fn: The function to retry, which returns an error on failure
+//
+// Returns:
+//   - error: nil if the function succeeds, or the last error encountered
 func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (err error) {
-	for i := 1; i < tries; i++ {
+	for i := 1; i <= tries-1; i++ {
 		err = fn()
 		if err == nil {
 			return nil
