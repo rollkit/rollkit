@@ -2,16 +2,13 @@ package store
 
 import (
 	"context"
-	"encoding/hex"
-	"errors"
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"sync/atomic"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	ds "github.com/ipfs/go-datastore"
-
-	"github.com/celestiaorg/go-header"
 
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
@@ -69,6 +66,7 @@ func (s *DefaultStore) Height() uint64 {
 // Stored height is updated if block height is greater than stored value.
 func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHeader, data *types.Data, signature *types.Signature) error {
 	hash := header.Hash()
+	height := header.Height()
 	signatureHash := *signature
 	headerBlob, err := header.MarshalBinary()
 	if err != nil {
@@ -85,19 +83,19 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 	}
 	defer bb.Discard(ctx)
 
-	err = bb.Put(ctx, ds.NewKey(getHeaderKey(hash)), headerBlob)
+	err = bb.Put(ctx, ds.NewKey(getHeaderKey(height)), headerBlob)
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Header Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getDataKey(hash)), dataBlob)
+	err = bb.Put(ctx, ds.NewKey(getDataKey(height)), dataBlob)
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Data Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getSignatureKey(hash)), signatureHash[:])
+	err = bb.Put(ctx, ds.NewKey(getSignatureKey(height)), signatureHash[:])
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getIndexKey(header.Height())), hash[:])
+	err = bb.Put(ctx, ds.NewKey(getIndexKey(hash)), encodeHeight(height))
 	if err != nil {
 		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
 	}
@@ -110,20 +108,8 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 }
 
 // GetBlockData returns block header and data at given height, or error if it's not found in Store.
-// TODO(tzdybal): what is more common access pattern? by height or by hash?
-// currently, we're indexing height->hash, and store blocks by hash, but we might as well store by height
-// and index hash->height
 func (s *DefaultStore) GetBlockData(ctx context.Context, height uint64) (*types.SignedHeader, *types.Data, error) {
-	h, err := s.loadHashFromIndex(ctx, height)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load hash from index: %w", err)
-	}
-	return s.GetBlockByHash(ctx, h)
-}
-
-// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*types.SignedHeader, *types.Data, error) {
-	headerBlob, err := s.db.Get(ctx, ds.NewKey(getHeaderKey(hash)))
+	headerBlob, err := s.db.Get(ctx, ds.NewKey(getHeaderKey(height)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load block header: %w", err)
 	}
@@ -133,7 +119,7 @@ func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*ty
 		return nil, nil, fmt.Errorf("failed to unmarshal block header: %w", err)
 	}
 
-	dataBlob, err := s.db.Get(ctx, ds.NewKey(getDataKey(hash)))
+	dataBlob, err := s.db.Get(ctx, ds.NewKey(getDataKey(height)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load block data: %w", err)
 	}
@@ -143,6 +129,28 @@ func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*ty
 		return nil, nil, fmt.Errorf("failed to unmarshal block data: %w", err)
 	}
 	return header, data, nil
+}
+
+// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
+func (s *DefaultStore) GetBlockByHash(ctx context.Context, hash types.Hash) (*types.SignedHeader, *types.Data, error) {
+	height, err := s.getHeightByHash(ctx, hash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load height from index %w", err)
+	}
+	return s.GetBlockData(ctx, height)
+}
+
+// getHeightByHash returns height for a block with given block header hash.
+func (s *DefaultStore) getHeightByHash(ctx context.Context, hash types.Hash) (uint64, error) {
+	heightBytes, err := s.db.Get(ctx, ds.NewKey(getIndexKey(hash)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to get height for hash %v: %w", hash, err)
+	}
+	height, err := decodeHeight(heightBytes)
+	if err != nil {
+		return 0, fmt.Errorf("failed to decode height: %w", err)
+	}
+	return height, nil
 }
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
@@ -168,20 +176,20 @@ func (s *DefaultStore) GetBlockResponses(ctx context.Context, height uint64) (*a
 	return &responses, nil
 }
 
-// GetSignature returns signature for a block at given height, or error if it's not found in Store.
-func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
-	hash, err := s.loadHashFromIndex(ctx, height)
+// GetSignatureByHash returns signature for a block at given height, or error if it's not found in Store.
+func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
+	height, err := s.getHeightByHash(ctx, hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load hash from index: %w", err)
 	}
-	return s.GetSignatureByHash(ctx, hash)
+	return s.GetSignature(ctx, height)
 }
 
-// GetSignatureByHash returns signature for a block with given block header hash, or error if it's not found in Store.
-func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
-	signatureData, err := s.db.Get(ctx, ds.NewKey(getSignatureKey(hash)))
+// GetSignature returns signature for a block with given block header hash, or error if it's not found in Store.
+func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.Signature, error) {
+	signatureData, err := s.db.Get(ctx, ds.NewKey(getSignatureKey(height)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve signature from hash %v: %w", hash, err)
+		return nil, fmt.Errorf("failed to retrieve signature from height %v: %w", height, err)
 	}
 	signature := types.Signature(signatureData)
 	return &signature, nil
@@ -238,33 +246,25 @@ func (s *DefaultStore) GetMetadata(ctx context.Context, key string) ([]byte, err
 	return data, nil
 }
 
-// loadHashFromIndex returns the hash of a block given its height
-func (s *DefaultStore) loadHashFromIndex(ctx context.Context, height uint64) (header.Hash, error) {
-	blob, err := s.db.Get(ctx, ds.NewKey(getIndexKey(height)))
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to load block hash for height %v: %w", height, err)
-	}
-	if len(blob) != 32 {
-		return nil, errors.New("invalid hash length")
-	}
-	return blob, nil
+func getHeaderKey(height uint64) string {
+	return GenerateKey([]string{headerPrefix, strconv.FormatUint(height, 10)})
 }
 
-func getHeaderKey(hash types.Hash) string {
-	return GenerateKey([]string{headerPrefix, hex.EncodeToString(hash[:])})
+func getDataKey(height uint64) string {
+	return GenerateKey([]string{dataPrefix, strconv.FormatUint(height, 10)})
 }
 
-func getDataKey(hash types.Hash) string {
-	return GenerateKey([]string{dataPrefix, hex.EncodeToString(hash[:])})
+func getSignatureKey(height uint64) string {
+	return GenerateKey([]string{signaturePrefix, strconv.FormatUint(height, 10)})
 }
 
-func getSignatureKey(hash types.Hash) string {
-	return GenerateKey([]string{signaturePrefix, hex.EncodeToString(hash[:])})
-}
 
 func getIndexKey(height uint64) string {
 	return GenerateKey([]string{indexPrefix, strconv.FormatUint(height, 10)})
+}
+
+func getExtendedCommitKey(height uint64) string {
+	return GenerateKey([]string{extendedCommitPrefix, strconv.FormatUint(height, 10)})
 }
 
 func getStateKey() string {
@@ -277,4 +277,23 @@ func getResponsesKey(height uint64) string {
 
 func getMetaKey(key string) string {
 	return GenerateKey([]string{metaPrefix, key})
+}
+
+func getIndexKey(hash types.Hash) string {
+	return GenerateKey([]string{indexPrefix, hash.String()})
+}
+
+const heightLength = 8
+
+func encodeHeight(height uint64) []byte {
+	heightBytes := make([]byte, heightLength)
+	binary.BigEndian.PutUint64(heightBytes, height)
+	return heightBytes
+}
+
+func decodeHeight(heightBytes []byte) (uint64, error) {
+	if len(heightBytes) != heightLength {
+		return 0, fmt.Errorf("invalid height length: %d (expected %d)", len(heightBytes), heightLength)
+	}
+	return binary.BigEndian.Uint64(heightBytes), nil
 }

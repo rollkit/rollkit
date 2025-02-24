@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	testutils "github.com/celestiaorg/utils/test"
-
 	cmcfg "github.com/cometbft/cometbft/config"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/types"
 )
@@ -91,7 +91,7 @@ func (s *NodeIntegrationTestSuite) TearDownTest() {
 		s.cancel()
 	}
 	if s.node != nil {
-		s.node.Stop()
+		_ = s.node.Stop()
 	}
 }
 
@@ -148,6 +148,7 @@ func (s *NodeIntegrationTestSuite) TestBlockProduction() {
 	s.NotEmpty(data.Txs, "Expected block to contain transactions")
 }
 
+// nolint:unused
 func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) Node {
 	genesis, signingKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	key, err := types.PrivKeyToSigningKey(signingKey)

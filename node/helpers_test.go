@@ -19,7 +19,7 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// getMockDA creates a mock DA client for testing
+// nolint:unused
 func getMockDA(t *testing.T) *da.DAClient {
 	namespace := make([]byte, len(MockDANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(MockDANamespace))
