@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
+	cometos "github.com/cometbft/cometbft/libs/os"
 
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	rollconf "github.com/rollkit/rollkit/config"
-	"google.golang.org/grpc"
 )
 
 const rollupBinEntrypoint = "entrypoint"

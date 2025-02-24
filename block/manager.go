@@ -327,6 +327,31 @@ func NewManager(
 	return agg, nil
 }
 
+// DALCInitialized returns true if DALC is initialized.
+func (m *Manager) DALCInitialized() bool {
+	return m.dalc != nil
+}
+
+// PendingHeaders returns the pending headers.
+func (m *Manager) PendingHeaders() *PendingHeaders {
+	return m.pendingHeaders
+}
+
+// IsProposer returns true if the manager is acting as proposer.
+func (m *Manager) IsProposer() bool {
+	return m.isProposer
+}
+
+// SeqClient returns the grpc sequencing client.
+func (m *Manager) SeqClient() *grpc.Client {
+	return m.seqClient
+}
+
+// GetLastState returns the last recorded state.
+func (m *Manager) GetLastState() types.State {
+	return m.lastState
+}
+
 func (m *Manager) init(ctx context.Context) {
 	// initialize da included height
 	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
@@ -1260,24 +1285,13 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	}
 }
 
-func (m *Manager) getExtendedCommit(ctx context.Context, height uint64) (abci.ExtendedCommitInfo, error) {
-	emptyExtendedCommit := abci.ExtendedCommitInfo{}
-	if height <= uint64(m.genesis.InitialHeight) { //nolint:unconvert
-		return emptyExtendedCommit, nil
-	}
-	extendedCommit, err := m.store.GetExtendedCommit(ctx, height)
-	if err != nil {
-		return emptyExtendedCommit, err
-	}
-	return *extendedCommit, nil
-}
-
 func (m *Manager) recordMetrics(data *types.Data) {
 	m.metrics.NumTxs.Set(float64(len(data.Txs)))
 	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
 	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
 	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
 }
+
 func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	submittedAllHeaders := false
 	var backoff time.Duration

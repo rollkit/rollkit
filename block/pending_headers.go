@@ -49,6 +49,16 @@ func NewPendingHeaders(store store.Store, logger log.Logger) (*PendingHeaders, e
 	return pb, nil
 }
 
+// GetPendingHeaders returns a sorted slice of pending headers.
+func (pb *PendingHeaders) GetPendingHeaders() ([]*types.SignedHeader, error) {
+	return pb.getPendingHeaders(context.Background())
+}
+
+// GetLastSubmittedHeight returns the height of the last successfully submitted header.
+func (pb *PendingHeaders) GetLastSubmittedHeight() uint64 {
+	return pb.lastSubmittedHeight.Load()
+}
+
 // getPendingHeaders returns a sorted slice of pending headers
 // that need to be published to DA layer in order of header height
 func (pb *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.SignedHeader, error) {
