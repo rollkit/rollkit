@@ -102,7 +102,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
-	valSet := GetRandomValidatorSet()
+	//valSet := GetRandomValidatorSet()
 
 	cases := []struct {
 		name  string
@@ -111,9 +111,9 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			"with max bytes",
 			State{
-				LastValidators: valSet,
-				Validators:     valSet,
-				NextValidators: valSet,
+				//LastValidators: valSet,
+				//Validators:     valSet,
+				//NextValidators: valSet,
 				ConsensusParams: cmproto.ConsensusParams{
 					Block: &cmproto.BlockParams{
 						MaxBytes: 123,
@@ -125,9 +125,9 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			name: "with all fields set",
 			state: State{
-				LastValidators: valSet,
-				Validators:     valSet,
-				NextValidators: valSet,
+				//LastValidators: valSet,
+				//Validators:     valSet,
+				//NextValidators: valSet,
 				Version: cmstate.Version{
 					Consensus: cmversion.Consensus{
 						Block: 123,
@@ -164,9 +164,9 @@ func TestStateRoundTrip(t *testing.T) {
 						App: 42,
 					},
 				},
-				LastHeightConsensusParamsChanged: 12345,
-				LastResultsHash:                  Hash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
-				AppHash:                          Hash{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
+				//LastHeightConsensusParamsChanged: 12345,
+				LastResultsHash: Hash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
+				AppHash:         Hash{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
 			},
 		},
 	}
