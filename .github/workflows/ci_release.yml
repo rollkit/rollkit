@@ -30,6 +30,10 @@ jobs:
     uses: ./.github/workflows/test.yml
     secrets: inherit
 
+  tutorial-tests:
+    uses: ./.github/workflows/tutorial-tests.yml
+    secrets: inherit
+
   proto:
     uses: ./.github/workflows/proto.yml
 
