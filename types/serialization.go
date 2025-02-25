@@ -77,7 +77,7 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	sh.Signature = other.Signature
 
 	if other.Validators != nil && other.Validators.GetProposer() != nil {
-		validators, err := types.ValidatorSetFromProto(other.Validators)
+		validators, err := ValidatorSetFromProto(other.Validators)
 		if err != nil {
 			return err
 		}

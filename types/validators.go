@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
+
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
@@ -13,6 +14,7 @@ import (
 // Validator
 //----------------------------------------
 
+// Validator is a type for a validator.
 // Volatile state for each Validator
 // NOTE: The ProposerPriority is not included in Validator.Hash();
 // make sure to update that method if changes are made here.
@@ -111,6 +113,7 @@ func ValidatorFromProto(vp *pb.Validator) (*Validator, error) {
 // ErrProposerNotInVals is returned if the proposer is not in the validator set.
 var ErrProposerNotInVals = errors.New("proposer not in validator set")
 
+// ValidatorSet is a set of validators.
 type ValidatorSet struct {
 	// NOTE: persisted via reflect, must be exported.
 	Validators []*Validator `json:"validators"`
@@ -169,8 +172,9 @@ func (vals *ValidatorSet) ToProto() (*pb.ValidatorSet, error) {
 	return vp, nil
 }
 
+// ValidateBasic performs basic validation on the validator set.
 func (vals *ValidatorSet) ValidateBasic() error {
-	if  vals == nil || len(vals.Validators) == 0 {
+	if vals == nil || len(vals.Validators) == 0 {
 		return errors.New("validator set is nil or empty")
 	}
 
