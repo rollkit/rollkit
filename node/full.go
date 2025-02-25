@@ -269,6 +269,10 @@ func initExecutor(cfg config.NodeConfig) (execution.Executor, error) {
 	client := execproxy.NewClient()
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(cfg.MaxMsgSize),
+			grpc.MaxCallSendMsgSize(cfg.MaxMsgSize),
+		),
 	}
 
 	err := client.Start(cfg.ExecutorAddress, opts...)
@@ -386,6 +390,10 @@ func (n *FullNode) OnStart() error {
 	if err := n.seqClient.Start(
 		n.nodeConfig.SequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(n.nodeConfig.MaxMsgSize),
+			grpc.MaxCallSendMsgSize(n.nodeConfig.MaxMsgSize),
+		),
 	); err != nil {
 		return err
 	}

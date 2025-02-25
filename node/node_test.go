@@ -190,6 +190,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		ExecutorAddress:  MockExecutorAddress,
 		SequencerAddress: MockSequencerAddress,
 		Light:            nodeType == Light,
+		MaxMsgSize:       4 * 1024 * 1024,
 	}
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
