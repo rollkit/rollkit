@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/celestiaorg/utils/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
@@ -64,7 +63,7 @@ func TestGetNodeHeight(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
+			require.NoError(Retry(1000, 100*time.Millisecond, func() error {
 				num, err := getNodeHeight(tc.node, tc.source)
 				if err != nil {
 					return err

@@ -18,7 +18,6 @@ import (
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/stretchr/testify/assert"
 
-	testutils "github.com/celestiaorg/utils/test"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/proxy"
@@ -284,7 +283,7 @@ func TestFastDASync(t *testing.T) {
 	// Check that the nodes are synced in a loop. We don't use the helper
 	// function here so that we can catch if the channel is closed to exit
 	// the test quickly.
-	require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+	require.NoError(Retry(300, 100*time.Millisecond, func() error {
 		select {
 		case <-ch:
 			require.FailNow("channel closed")
@@ -509,7 +508,7 @@ func TestSubmitBlocksToDA(t *testing.T) {
 
 	//Make sure all produced blocks made it to DA
 	for i := uint64(1); i <= numberOfBlocksToSyncTill; i++ {
-		require.NoError(testutils.Retry(300, 100*time.Millisecond, func() error {
+		require.NoError(Retry(300, 100*time.Millisecond, func() error {
 			header, _, err := seq.Store.GetBlockData(ctx, i)
 			if err != nil {
 				return err
@@ -962,7 +961,7 @@ func startNodes(nodes []*FullNode, apps []*mocks.Application, t *testing.T) {
 		// We don't need to check any specific arguments to FinalizeBlock
 		// so just use a function that returns "true" for matching the args
 		matcher := mock.MatchedBy(func(i interface{}) bool { return true })
-		err := testutils.Retry(300, 100*time.Millisecond, func() error {
+		err := Retry(300, 100*time.Millisecond, func() error {
 			for i := 0; i < len(apps); i++ {
 				if !apps[i].AssertCalled(m, "FinalizeBlock", matcher, matcher) {
 					return errors.New("FinalizeBlock hasn't been called yet")

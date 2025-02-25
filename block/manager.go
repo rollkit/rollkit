@@ -23,7 +23,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
-	pkgErrors "github.com/pkg/errors"
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
@@ -959,7 +958,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 					// are satisfied.
 					select {
 					case <-ctx.Done():
-						return pkgErrors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+						return fmt.Errorf("unable to send block to blockInCh, context done: %w", ctx.Err())
 					default:
 					}
 					m.headerInCh <- NewHeaderEvent{header, daHeight}
@@ -1196,7 +1195,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// statement when multiple cases are satisfied.
 	select {
 	case <-ctx.Done():
-		return pkgErrors.WithMessage(ctx.Err(), "unable to send header and block, context done")
+		return fmt.Errorf("unable to send header and block, context done: %w", ctx.Err())
 	default:
 	}
 
