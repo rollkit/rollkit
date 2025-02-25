@@ -10,8 +10,7 @@ require (
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
-	github.com/gorilla/rpc v1.2.1
-	github.com/gorilla/websocket v1.5.3
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/ipfs/go-datastore v0.7.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.40.0
@@ -21,13 +20,13 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.0
 	github.com/rollkit/go-da v0.9.0
-	github.com/rs/cors v1.11.1
+	github.com/rs/cors v1.11.1 // indirect
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tendermint/tendermint v0.35.9
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.35.0
+	golang.org/x/net v0.35.0 // indirect
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 )
@@ -38,6 +37,7 @@ require (
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/rollkit/go-execution v0.2.3
 	github.com/rollkit/go-sequencing v0.4.1
 )
 

@@ -7,8 +7,6 @@ import (
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
-	proxy "github.com/cometbft/cometbft/proxy"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -27,26 +25,16 @@ type LightNode struct {
 
 	P2P *p2p.Client
 
-	proxyApp proxy.AppConns
-
 	hSyncService *block.HeaderSyncService
-
-	client rpcclient.Client
 
 	ctx    context.Context
 	cancel context.CancelFunc
-}
-
-// GetClient returns a new rpcclient for the light node
-func (ln *LightNode) GetClient() rpcclient.Client {
-	return ln.client
 }
 
 func newLightNode(
 	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
-	clientCreator proxy.ClientCreator,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
@@ -61,14 +49,7 @@ func newLightNode(
 		}
 	}()
 
-	_, p2pMetrics, _, _, abciMetrics := metricsProvider(genesis.ChainID)
-
-	// Create the proxyApp and establish connections to the ABCI app (consensus, mempool, query).
-	proxyApp := proxy.NewAppConns(clientCreator, abciMetrics)
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return nil, fmt.Errorf("error while starting proxy app connections: %w", err)
-	}
+	_, p2pMetrics, _ := metricsProvider(genesis.ChainID)
 
 	datastore, err := openDatastore(conf, logger)
 	if err != nil {
@@ -86,7 +67,6 @@ func newLightNode(
 
 	node := &LightNode{
 		P2P:          client,
-		proxyApp:     proxyApp,
 		hSyncService: headerSyncService,
 		cancel:       cancel,
 		ctx:          ctx,
@@ -95,8 +75,6 @@ func newLightNode(
 	node.P2P.SetTxValidator(node.falseValidator())
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
-
-	node.client = NewLightClient(node)
 
 	return node, nil
 }

@@ -4,19 +4,22 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
+	"strconv"
 	"testing"
 	"time"
 
-	testutils "github.com/celestiaorg/utils/test"
+	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
 	goDATest "github.com/rollkit/go-da/test"
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/types"
 )
 
+// nolint:unused
 func getMockDA(t *testing.T) *da.DAClient {
 	namespace := make([]byte, len(MockDANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(MockDANamespace))
@@ -24,56 +27,54 @@ func getMockDA(t *testing.T) *da.DAClient {
 	return da.NewDAClient(goDATest.NewDummyDA(), -1, -1, namespace, nil, log.TestingLogger())
 }
 
-func TestMockTester(t *testing.T) {
-	m := MockTester{t}
-	m.Fail()
-	m.FailNow()
-	m.Logf("hello")
-	m.Errorf("goodbye")
+// generateSingleKey generates a single Ed25519 key for testing
+func generateSingleKey() crypto.PrivKey {
+	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
-func TestGetNodeHeight(t *testing.T) {
-	require := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	dalc := getMockDA(t)
-	num := 2
-	keys := make([]crypto.PrivKey, num)
-	for i := 0; i < num; i++ {
-		keys[i], _, _ = crypto.GenerateEd25519Key(rand.Reader)
+func getTestConfig(n int) config.NodeConfig {
+	startPort := 10000
+	return config.NodeConfig{
+		Aggregator:       true,
+		DAAddress:        MockDAAddress,
+		DANamespace:      MockDANamespace,
+		ExecutorAddress:  MockExecutorAddress,
+		SequencerAddress: MockSequencerAddress,
+		BlockManagerConfig: config.BlockManagerConfig{
+			BlockTime:     500 * time.Millisecond,
+			LazyBlockTime: 5 * time.Second,
+		},
+		P2P: config.P2PConfig{
+			ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
+		},
 	}
-	bmConfig := getBMConfig()
-	chainID := "TestGetNodeHeight"
-	fullNode, _ := createAndConfigureNode(ctx, 0, true, false, chainID, keys, bmConfig, dalc, t)
-	lightNode, _ := createNode(ctx, 1, false, true, keys, bmConfig, chainID, false, t)
+}
 
-	startNodeWithCleanup(t, fullNode)
-	require.NoError(waitForFirstBlock(fullNode, Store))
-	startNodeWithCleanup(t, lightNode)
+func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
+	ctx := context.Background()
+	config := getTestConfig(1)
 
-	cases := []struct {
-		desc   string
-		node   Node
-		source Source
-	}{
-		{"fullNode height from Header", fullNode, Header},
-		{"fullNode height from Block", fullNode, Block},
-		{"fullNode height from Store", fullNode, Store},
-		{"lightNode height from Header", lightNode, Header},
+	// Generate genesis and keys
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
+	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
+	require.NoError(t, err)
+
+	p2pKey := generateSingleKey()
+
+	node, err := NewNode(ctx, config, p2pKey, signingKey, genesis, DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()), log.TestingLogger())
+	require.NoError(t, err)
+
+	cleanup := func() {
+		if fn, ok := node.(*FullNode); ok {
+			_ = fn.Stop()
+		}
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			require.NoError(testutils.Retry(1000, 100*time.Millisecond, func() error {
-				num, err := getNodeHeight(tc.node, tc.source)
-				if err != nil {
-					return err
-				}
-				if num > 0 {
-					return nil
-				}
-				return errors.New("expected height > 0")
-			}))
-		})
-	}
+	//startNodeWithCleanup(t, node)
+
+	return node.(*FullNode), cleanup
 }

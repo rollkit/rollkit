@@ -69,6 +69,9 @@ jobs:
     permissions: "write-all"
     steps:
       - uses: actions/checkout@v4
+      - name: Remove existing files
+        run: |
+          rm -rf /opt/homebrew/bin/gtar
       - name: Version Release
         uses: rollkit/.github/.github/actions/version-release@v0.5.0
         with:
