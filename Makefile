@@ -80,8 +80,7 @@ test: vet
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
 	@echo "--> Generating Protobuf files"
-	./proto/get_deps.sh
-	./proto/gen.sh
+	./proto/protoc.sh
 .PHONY: proto-gen
 
 ## mock-gen: generate mocks of external (commetbft) types

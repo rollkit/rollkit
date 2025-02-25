@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/go-header"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -215,21 +214,27 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
 				v1Key, v2Key := ed25519.GenPrivKey(), ed25519.GenPrivKey()
-				validators := []*cmtypes.Validator{
+				validators := []*Validator{
 					{
-						Address:          v1Key.PubKey().Address(),
-						PubKey:           v1Key.PubKey(),
+						Address: v1Key.PubKey().Address(),
+						PubKey: PubKey{
+							Bytes: v1Key.PubKey().Bytes(),
+							Type:  v1Key.PubKey().Type(),
+						},
 						VotingPower:      int64(50),
 						ProposerPriority: int64(1),
 					},
 					{
-						Address:          v2Key.PubKey().Address(),
-						PubKey:           v2Key.PubKey(),
+						Address: v2Key.PubKey().Address(),
+						PubKey: PubKey{
+							Bytes: v2Key.PubKey().Bytes(),
+							Type:  v2Key.PubKey().Type(),
+						},
 						VotingPower:      int64(50),
 						ProposerPriority: int64(1),
 					},
 				}
-				untrusted.Validators = cmtypes.NewValidatorSet(validators)
+				untrusted.Validators = NewValidatorSet(validators)
 				return &untrusted, true
 			},
 			err: ErrInvalidValidatorSetLengthMismatch,
@@ -242,9 +247,12 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 				untrusted := *untrustedAdj
 				vKey := ed25519.GenPrivKey()
 				untrusted.ProposerAddress = vKey.PubKey().Address().Bytes()
-				untrusted.Validators.Proposer = &cmtypes.Validator{
-					Address:          vKey.PubKey().Address(),
-					PubKey:           vKey.PubKey(),
+				untrusted.Validators.Proposer = &Validator{
+					Address: vKey.PubKey().Address(),
+					PubKey: PubKey{
+						Bytes: vKey.PubKey().Bytes(),
+						Type:  vKey.PubKey().Type(),
+					},
 					VotingPower:      int64(100),
 					ProposerPriority: int64(1),
 				}

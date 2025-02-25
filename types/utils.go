@@ -33,7 +33,7 @@ type ValidatorConfig struct {
 
 // GetRandomValidatorSet creates a validatorConfig with a randomly generated privateKey and votingPower set to 1,
 // then calls GetValidatorSetCustom to return a new validator set along with the validatorConfig.
-func GetRandomValidatorSet() *cmtypes.ValidatorSet {
+func GetRandomValidatorSet() *ValidatorSet {
 	config := ValidatorConfig{
 		PrivKey:     ed25519.GenPrivKey(),
 		VotingPower: 1,
@@ -43,14 +43,14 @@ func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 }
 
 // GetValidatorSetCustom returns a validator set based on the provided validatorConfig.
-func GetValidatorSetCustom(config ValidatorConfig) *cmtypes.ValidatorSet {
+func GetValidatorSetCustom(config ValidatorConfig) *ValidatorSet {
 	if config.PrivKey == nil {
 		panic(errors.New("private key is nil"))
 	}
 	pubKey := config.PrivKey.PubKey()
-	valset := cmtypes.NewValidatorSet(
-		[]*cmtypes.Validator{
-			{PubKey: pubKey, Address: pubKey.Address(), VotingPower: config.VotingPower},
+	valset := NewValidatorSet(
+		[]*Validator{
+			{PubKey: PubKey{Bytes: pubKey.Bytes(), Type: pubKey.Type()}, Address: pubKey.Address(), VotingPower: config.VotingPower},
 		},
 	)
 	return valset
@@ -269,7 +269,7 @@ func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
-func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, chainID string) (*SignedHeader, error) {
+func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *ValidatorSet, chainID string) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
 			Height:  1,
@@ -287,7 +287,7 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet,
 		AppHash:         make([]byte, 32),
 		LastResultsHash: GetRandomBytes(32),
 		ValidatorHash:   valSet.Hash(),
-		ProposerAddress: valSet.Proposer.Address.Bytes(),
+		ProposerAddress: valSet.Proposer.Address,
 	}
 	signedHeader := SignedHeader{
 		Header:     header,

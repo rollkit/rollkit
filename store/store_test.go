@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	abcitypes "github.com/cometbft/cometbft/abci/types"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/stretchr/testify/assert"
@@ -131,7 +130,6 @@ func TestStoreLoad(t *testing.T) {
 
 func TestRestart(t *testing.T) {
 	t.Parallel()
-	validatorSet := types.GetRandomValidatorSet()
 
 	assert := assert.New(t)
 	require := require.New(t)
@@ -152,9 +150,6 @@ func TestRestart(t *testing.T) {
 	expectedHeight := uint64(10)
 	err = s1.UpdateState(ctx, types.State{
 		LastBlockHeight: expectedHeight,
-		NextValidators:  validatorSet,
-		Validators:      validatorSet,
-		LastValidators:  validatorSet,
 	})
 	assert.NoError(err)
 
@@ -174,47 +169,6 @@ func TestRestart(t *testing.T) {
 	assert.NoError(err)
 
 	assert.Equal(expectedHeight, state2.LastBlockHeight)
-}
-
-func TestBlockResponses(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	kv, _ := NewDefaultInMemoryKVStore()
-	s := New(kv)
-
-	expected := &abcitypes.ResponseFinalizeBlock{
-		Events: []abcitypes.Event{{
-			Type: "test",
-			Attributes: []abcitypes.EventAttribute{{
-				Key:   string("foo"),
-				Value: string("bar"),
-				Index: false,
-			}},
-		}},
-		TxResults:        nil,
-		ValidatorUpdates: nil,
-		ConsensusParamUpdates: &cmproto.ConsensusParams{
-			Block: &cmproto.BlockParams{
-				MaxBytes: 12345,
-				MaxGas:   678909876,
-			},
-		},
-	}
-
-	err := s.SaveBlockResponses(ctx, 1, expected)
-	assert.NoError(err)
-
-	resp, err := s.GetBlockResponses(ctx, 123)
-	assert.Error(err)
-	assert.Nil(resp)
-
-	resp, err = s.GetBlockResponses(ctx, 1)
-	assert.NoError(err)
-	assert.NotNil(resp)
-	assert.Equal(expected, resp)
 }
 
 func TestMetadata(t *testing.T) {

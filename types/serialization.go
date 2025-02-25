@@ -204,78 +204,21 @@ func (d *Data) FromProto(other *pb.Data) error {
 
 // ToProto converts State into protobuf representation and returns it.
 func (s *State) ToProto() (*pb.State, error) {
-	// nextValidators, err := s.NextValidators.ToProto()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// validators, err := s.Validators.ToProto()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// lastValidators, err := s.LastValidators.ToProto()
-	// if err != nil {
-	// 	return nil, err
-	// }
 	return &pb.State{
-		Version:         &s.Version,
 		ChainId:         s.ChainID,
 		InitialHeight:   s.InitialHeight,
 		LastBlockHeight: s.LastBlockHeight,
-		LastBlockID:     s.LastBlockID.ToProto(),
-		LastBlockTime:   s.LastBlockTime,
-		DAHeight:        s.DAHeight,
-		ConsensusParams: s.ConsensusParams,
-		//LastHeightConsensusParamsChanged: s.LastHeightConsensusParamsChanged,
-		LastResultsHash: s.LastResultsHash[:],
-		AppHash:         s.AppHash[:],
-		//NextValidators:                   nextValidators,
-		//Validators:                       validators,
-		//LastValidators:                   lastValidators,
-		//LastHeightValidatorsChanged:      s.LastHeightValidatorsChanged,
+		DaHeight:        s.DAHeight,
 	}, nil
 }
 
 // FromProto fills State with data from its protobuf representation.
 func (s *State) FromProto(other *pb.State) error {
-	var err error
-	s.Version = *other.Version
+
 	s.ChainID = other.ChainId
 	s.InitialHeight = other.InitialHeight
 	s.LastBlockHeight = other.LastBlockHeight
-
-	lastBlockID, err := types.BlockIDFromProto(&other.LastBlockID)
-	if err != nil {
-		return err
-	}
-	s.LastBlockID = *lastBlockID
-	s.LastBlockTime = other.LastBlockTime
-	s.DAHeight = other.DAHeight
-
-	// Unmarshal validator sets
-	// if other.NextValidators != nil {
-	// 	s.NextValidators, err = types.ValidatorSetFromProto(other.NextValidators)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// if other.Validators != nil {
-	// 	s.Validators, err = types.ValidatorSetFromProto(other.Validators)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// if other.LastValidators != nil {
-	// 	s.LastValidators, err = types.ValidatorSetFromProto(other.LastValidators)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-
-	// s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
-	s.ConsensusParams = other.ConsensusParams
-	// s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
-	s.LastResultsHash = other.LastResultsHash
-	s.AppHash = other.AppHash
+	s.DAHeight = other.DaHeight
 
 	return nil
 }

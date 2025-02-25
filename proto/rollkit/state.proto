@@ -1,47 +1,13 @@
 syntax = "proto3";
 package rollkit;
 
-import "gogoproto/gogo.proto";
-import "google/protobuf/timestamp.proto";
-import "tendermint/state/types.proto";
-import "tendermint/types/params.proto";
-import "tendermint/types/types.proto";
-import "tendermint/types/validator.proto";
-
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
 
 message State {
-  tendermint.state.Version version = 1;
-
   string chain_id = 2;
   uint64 initial_height = 3;
 
   uint64 last_block_height = 4;
 
-  tendermint.types.BlockID last_block_id = 5 [
-    (gogoproto.nullable) = false,
-    (gogoproto.customname) = "LastBlockID"
-  ];
-  google.protobuf.Timestamp last_block_time = 6 [
-    (gogoproto.nullable) = false,
-    (gogoproto.stdtime) = true
-  ];
-  // LastValidators is used to validate block.LastCommit.
-  // Validators are persisted to the database separately every time they change,
-  // so we can query for historical validator sets.
-  // Note that if s.LastBlockHeight causes a valset change,
-  // we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1 + 1
-  // Extra +1 due to nextValSet delay.
-  //tendermint.types.ValidatorSet next_validators = 7;
-  //tendermint.types.ValidatorSet validators = 8;
-  //tendermint.types.ValidatorSet last_validators = 9;
-  //int64 last_height_validators_changed = 10;
-  uint64 da_height = 11 [(gogoproto.customname) = "DAHeight"];
-
-  tendermint.types.ConsensusParams consensus_params = 12 [(gogoproto.nullable) = false];
-  //uint64 last_height_consensus_params_changed = 13;
-
-  bytes last_results_hash = 14;
-
-  bytes app_hash = 15;
+  uint64 da_height = 5 ;
 }
