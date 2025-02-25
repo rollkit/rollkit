@@ -49,4 +49,3 @@ jobs:
         uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: ./specs/book
-
