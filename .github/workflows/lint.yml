@@ -60,7 +60,6 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - run: make proto-gen
       - run: make proto-lint
 
   cli-docs-lint:
