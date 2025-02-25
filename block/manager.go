@@ -274,6 +274,12 @@ func NewManager(
 		return nil, err
 	}
 
+	// If lastBatchHash is not set, retrieve the last batch hash from store
+	lastBatchHash, err := store.GetMetadata(context.Background(), LastBatchHashKey)
+	if err != nil {
+		logger.Error("error while retrieving last batch hash", "error", err)
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -293,6 +299,7 @@ func NewManager(
 		headerStore:    headerStore,
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
+		lastBatchHash:  lastBatchHash,
 		headerCache:    NewHeaderCache(),
 		dataCache:      NewDataCache(),
 		retrieveCh:     make(chan struct{}, 1),
@@ -425,15 +432,6 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			// Skip batch retrieval if context is already done
 			if ctx.Err() != nil {
 				return
-			}
-
-			// If lastBatchHash is not set, retrieve the last batch hash from store
-			if m.lastBatchHash == nil {
-				lastBatchHash, err := m.store.GetMetadata(ctx, LastBatchHashKey)
-				if err != nil {
-					m.logger.Error("error while retrieving last batch hash", "error", err)
-				}
-				m.lastBatchHash = lastBatchHash
 			}
 
 			res, err := m.seqClient.GetNextBatch(ctx, sequencing.GetNextBatchRequest{
