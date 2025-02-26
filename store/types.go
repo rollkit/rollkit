@@ -35,12 +35,6 @@ type Store interface {
 	// GetSignatureByHash returns signature for a block with given block header hash, or error if it's not found in Store.
 	GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error)
 
-	// SaveExtendedCommit saves extended commit information in Store.
-	SaveExtendedCommit(ctx context.Context, height uint64, commit *abci.ExtendedCommitInfo) error
-
-	// GetExtendedCommit returns extended commit (commit with vote extensions) for a block at given height.
-	GetExtendedCommit(ctx context.Context, height uint64) (*abci.ExtendedCommitInfo, error)
-
 	// UpdateState updates state saved in Store. Only one State is stored.
 	// If there is no State in Store, state will be saved.
 	UpdateState(ctx context.Context, state types.State) error

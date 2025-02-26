@@ -15,14 +15,13 @@ import (
 )
 
 var (
-	headerPrefix         = "h"
-	dataPrefix           = "d"
-	indexPrefix          = "i"
-	signaturePrefix      = "c"
-	extendedCommitPrefix = "ec"
-	statePrefix          = "s"
-	responsesPrefix      = "r"
-	metaPrefix           = "m"
+	headerPrefix    = "h"
+	dataPrefix      = "d"
+	indexPrefix     = "i"
+	signaturePrefix = "c"
+	statePrefix     = "s"
+	responsesPrefix = "r"
+	metaPrefix      = "m"
 )
 
 // DefaultStore is a default store implmementation.
@@ -196,29 +195,6 @@ func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.
 	return &signature, nil
 }
 
-// SaveExtendedCommit saves extended commit information in Store.
-func (s *DefaultStore) SaveExtendedCommit(ctx context.Context, height uint64, commit *abci.ExtendedCommitInfo) error {
-	bytes, err := commit.Marshal()
-	if err != nil {
-		return fmt.Errorf("failed to marshal Extended Commit: %w", err)
-	}
-	return s.db.Put(ctx, ds.NewKey(getExtendedCommitKey(height)), bytes)
-}
-
-// GetExtendedCommit returns extended commit (commit with vote extensions) for a block at given height.
-func (s *DefaultStore) GetExtendedCommit(ctx context.Context, height uint64) (*abci.ExtendedCommitInfo, error) {
-	bytes, err := s.db.Get(ctx, ds.NewKey(getExtendedCommitKey(height)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load extended commit data: %w", err)
-	}
-	extendedCommit := new(abci.ExtendedCommitInfo)
-	err = extendedCommit.Unmarshal(bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal extended commit: %w", err)
-	}
-	return extendedCommit, nil
-}
-
 // UpdateState updates state saved in Store. Only one State is stored.
 // If there is no State in Store, state will be saved.
 func (s *DefaultStore) UpdateState(ctx context.Context, state types.State) error {
@@ -280,6 +256,11 @@ func getDataKey(height uint64) string {
 
 func getSignatureKey(height uint64) string {
 	return GenerateKey([]string{signaturePrefix, strconv.FormatUint(height, 10)})
+}
+
+
+func getIndexKey(height uint64) string {
+	return GenerateKey([]string{indexPrefix, strconv.FormatUint(height, 10)})
 }
 
 func getExtendedCommitKey(height uint64) string {
