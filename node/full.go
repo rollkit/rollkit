@@ -34,11 +34,6 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/state"
-	"github.com/rollkit/rollkit/state/indexer"
-	blockidxkv "github.com/rollkit/rollkit/state/indexer/block/kv"
-	"github.com/rollkit/rollkit/state/txindex"
-	"github.com/rollkit/rollkit/state/txindex/kv"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
@@ -80,10 +75,7 @@ type FullNode struct {
 	blockManager *block.Manager
 
 	// Preserves cometBFT compatibility
-	TxIndexer      txindex.TxIndexer
-	BlockIndexer   indexer.BlockIndexer
-	IndexerService *txindex.IndexerService
-	prometheusSrv  *http.Server
+	prometheusSrv *http.Server
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
@@ -113,7 +105,7 @@ func newFullNode(
 		}
 	}()
 
-	seqMetrics, p2pMetrics, smMetrics := metricsProvider(genesis.ChainID)
+	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	eventBus, err := initEventBus(logger)
 	if err != nil {
@@ -150,34 +142,25 @@ func newFullNode(
 
 	store := store.New(mainKV)
 
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics, smMetrics)
-	if err != nil {
-		return nil, err
-	}
-
-	indexerKV := newPrefixKV(baseKV, indexerPrefix)
-	indexerService, txIndexer, blockIndexer, err := createAndStartIndexerService(ctx, indexerKV, eventBus, logger)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics)
 	if err != nil {
 		return nil, err
 	}
 
 	node := &FullNode{
-		eventBus:       eventBus,
-		genesis:        genesis,
-		nodeConfig:     nodeConfig,
-		p2pClient:      p2pClient,
-		blockManager:   blockManager,
-		dalc:           dalc,
-		seqClient:      seqClient,
-		Store:          store,
-		TxIndexer:      txIndexer,
-		IndexerService: indexerService,
-		BlockIndexer:   blockIndexer,
-		hSyncService:   headerSyncService,
-		dSyncService:   dataSyncService,
-		ctx:            ctx,
-		cancel:         cancel,
-		threadManager:  types.NewThreadManager(),
+		eventBus:      eventBus,
+		genesis:       genesis,
+		nodeConfig:    nodeConfig,
+		p2pClient:     p2pClient,
+		blockManager:  blockManager,
+		dalc:          dalc,
+		seqClient:     seqClient,
+		Store:         store,
+		hSyncService:  headerSyncService,
+		dSyncService:  dataSyncService,
+		ctx:           ctx,
+		cancel:        cancel,
+		threadManager: types.NewThreadManager(),
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -244,7 +227,7 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics, execMetrics *state.Metrics) (*block.Manager, error) {
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
 	exec, err := initExecutor(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing executor: %w", err)
@@ -258,7 +241,7 @@ func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, g
 		ChainID:         genesis.ChainID,
 		ProposerAddress: genesis.Validators[0].Address.Bytes(),
 	}
-	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, seqClient, dalc, eventBus, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics, execMetrics)
+	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, seqClient, dalc, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
@@ -434,7 +417,6 @@ func (n *FullNode) OnStop() {
 		n.hSyncService.Stop(n.ctx),
 		n.dSyncService.Stop(n.ctx),
 		n.seqClient.Stop(),
-		n.IndexerService.Stop(),
 	)
 	if n.prometheusSrv != nil {
 		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
@@ -508,30 +490,6 @@ func (n *FullNode) newTxValidator(metrics *p2p.Metrics) p2p.GossipValidator {
 
 func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
 	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
-}
-
-func createAndStartIndexerService(
-	ctx context.Context,
-	kvStore ds.TxnDatastore,
-	eventBus *cmtypes.EventBus,
-	logger log.Logger,
-) (*txindex.IndexerService, txindex.TxIndexer, indexer.BlockIndexer, error) {
-	var (
-		txIndexer    txindex.TxIndexer
-		blockIndexer indexer.BlockIndexer
-	)
-
-	txIndexer = kv.NewTxIndex(ctx, kvStore)
-	blockIndexer = blockidxkv.New(ctx, newPrefixKV(kvStore, "block_events"))
-
-	indexerService := txindex.NewIndexerService(ctx, txIndexer, blockIndexer, eventBus, false)
-	indexerService.SetLogger(logger.With("module", "txindex"))
-
-	if err := indexerService.Start(); err != nil {
-		return nil, nil, nil, err
-	}
-
-	return indexerService, txIndexer, blockIndexer, nil
 }
 
 // Start implements NodeLifecycle
