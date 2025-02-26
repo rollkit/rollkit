@@ -72,7 +72,10 @@ const headerInChLength = 10000
 var initialBackoff = 100 * time.Millisecond
 
 // DAIncludedHeightKey is the key used for persisting the da included height in store.
-const DAIncludedHeightKey = "da included height"
+const DAIncludedHeightKey = "d"
+
+// LastBatchHashKey is the key used for persisting the last batch hash in store.
+const LastBatchHashKey = "l"
 
 // dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
@@ -270,6 +273,12 @@ func NewManager(
 		return nil, err
 	}
 
+	// If lastBatchHash is not set, retrieve the last batch hash from store
+	lastBatchHash, err := store.GetMetadata(context.Background(), LastBatchHashKey)
+	if err != nil {
+		logger.Error("error while retrieving last batch hash", "error", err)
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -289,6 +298,7 @@ func NewManager(
 		headerStore:    headerStore,
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
+		lastBatchHash:  lastBatchHash,
 		headerCache:    NewHeaderCache(),
 		dataCache:      NewDataCache(),
 		retrieveCh:     make(chan struct{}, 1),
@@ -442,6 +452,11 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 					// Update lastBatchHash only if the batch contains transactions
 					if batch.Transactions != nil {
+						err := m.store.SetMetadata(ctx, LastBatchHashKey, h)
+						if err != nil {
+							m.logger.Error("error while setting last batch hash", "error", err)
+						}
+
 						m.lastBatchHash = h
 					}
 				} else {
