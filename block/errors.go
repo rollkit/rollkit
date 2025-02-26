@@ -26,16 +26,3 @@ func (e SaveBlockError) Error() string {
 func (e SaveBlockError) Unwrap() error {
 	return e.Err
 }
-
-// SaveBlockResponsesError is returned on failure to save block responses
-type SaveBlockResponsesError struct {
-	Err error
-}
-
-func (e SaveBlockResponsesError) Error() string {
-	return fmt.Sprintf("failed to save block responses: %v", e.Err)
-}
-
-func (e SaveBlockResponsesError) Unwrap() error {
-	return e.Err
-}
