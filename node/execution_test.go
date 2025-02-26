@@ -87,10 +87,10 @@ func TestExecutionWithDASync(t *testing.T) {
 		require.NotNil(seqSrv)
 
 		// Start node
-		err := node.Start()
+		err := node.Start(ctx)
 		require.NoError(err)
 		defer func() {
-			err := node.Stop()
+			err := node.Stop(ctx)
 			require.NoError(err)
 			seqSrv.GracefulStop()
 		}()

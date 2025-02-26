@@ -207,7 +207,7 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// Start the node
-			if err := rollnode.Start(); err != nil {
+			if err := rollnode.Start(context.Background()); err != nil {
 				return fmt.Errorf("failed to start node: %w", err)
 			}
 
@@ -217,7 +217,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// Stop upon receiving SIGTERM or CTRL-C.
 			cometos.TrapSignal(logger, func() {
 				if rollnode.IsRunning() {
-					if err := rollnode.Stop(); err != nil {
+					if err := rollnode.Stop(context.Background()); err != nil {
 						logger.Error("unable to stop the node", "error", err)
 					}
 				}
@@ -239,7 +239,7 @@ func NewRunNodeCmd() *cobra.Command {
 				return fmt.Errorf("node is not running")
 			}
 
-			return rollnode.Stop()
+			return rollnode.Stop(context.Background())
 		},
 	}
 

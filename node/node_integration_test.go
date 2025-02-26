@@ -61,7 +61,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	fn, ok := node.(*FullNode)
 	require.True(s.T(), ok)
 
-	err = fn.Start()
+	err = fn.Start(s.ctx)
 	require.NoError(s.T(), err)
 
 	s.node = fn
@@ -96,7 +96,7 @@ func (s *NodeIntegrationTestSuite) TearDownTest() {
 		s.cancel()
 	}
 	if s.node != nil {
-		_ = s.node.Stop()
+		_ = s.node.Stop(s.ctx)
 	}
 	if s.seqSrv != nil {
 		s.seqSrv.GracefulStop()
@@ -175,7 +175,7 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 	)
 	require.NoError(s.T(), err)
 
-	err = node.Start()
+	err = node.Start(s.ctx)
 	require.NoError(s.T(), err)
 
 	return node

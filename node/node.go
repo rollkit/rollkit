@@ -13,8 +13,8 @@ import (
 
 // Node is the interface for a rollup node
 type Node interface {
-	Start() error
-	Stop() error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 	IsRunning() bool
 	Cancel()
 }

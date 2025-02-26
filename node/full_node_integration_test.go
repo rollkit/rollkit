@@ -60,7 +60,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	fn, ok := node.(*FullNode)
 	require.True(s.T(), ok)
 
-	err = fn.Start()
+	err = fn.Start(s.ctx)
 	require.NoError(s.T(), err)
 
 	s.node = fn
@@ -124,7 +124,7 @@ func (s *FullNodeTestSuite) TearDownTest() {
 		s.cancel()
 	}
 	if s.node != nil {
-		err := s.node.Stop()
+		err := s.node.Stop(s.ctx)
 		if err != nil {
 			s.T().Logf("Error stopping node in teardown: %v", err)
 		}
@@ -308,7 +308,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	require := require.New(s.T())
 
 	// Reconfigure node with low max pending
-	err := s.node.Stop()
+	err := s.node.Stop(s.ctx)
 	require.NoError(err)
 
 	config := getTestConfig(1)
@@ -335,7 +335,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	fn, ok := node.(*FullNode)
 	require.True(ok)
 
-	err = fn.Start()
+	err = fn.Start(s.ctx)
 	require.NoError(err)
 	s.node = fn
 
@@ -368,8 +368,8 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	time.Sleep(2 * s.node.nodeConfig.BlockTime)
 
 	// Restart node, we don't need to check for errors
-	_ = s.node.Stop()
-	_ = s.node.Start()
+	_ = s.node.Stop(s.ctx)
+	_ = s.node.Start(s.ctx)
 
 	// Wait a bit after restart
 	time.Sleep(s.node.nodeConfig.BlockTime)

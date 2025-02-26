@@ -21,7 +21,6 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/libs/service"
 	corep2p "github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 
@@ -32,6 +31,7 @@ import (
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	"github.com/rollkit/rollkit/libs/service"
 	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/state"
@@ -115,7 +115,7 @@ func newFullNode(
 
 	seqMetrics, p2pMetrics, smMetrics := metricsProvider(genesis.ChainID)
 
-	eventBus, err := initEventBus(logger)
+	eventBus, err := initEventBus(ctx, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func newFullNode(
 	return node, nil
 }
 
-func initEventBus(logger log.Logger) (*cmtypes.EventBus, error) {
+func initEventBus(ctx context.Context, logger log.Logger) (*cmtypes.EventBus, error) {
 	eventBus := cmtypes.NewEventBus()
 	eventBus.SetLogger(logger.With("module", "events"))
 	if err := eventBus.Start(); err != nil {
@@ -364,7 +364,7 @@ func (n *FullNode) startPrometheusServer() *http.Server {
 }
 
 // OnStart is a part of Service interface.
-func (n *FullNode) OnStart() error {
+func (n *FullNode) OnStart(ctx context.Context) error {
 	// begin prometheus metrics gathering if it is enabled
 	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
 		n.prometheusSrv = n.startPrometheusServer()
@@ -426,7 +426,7 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 // p2pClient and sync services stop first, ceasing network activities. Then rest of services are halted.
 // Context is cancelled to signal goroutines managed by thread manager to stop.
 // Store is closed last because it's used by other services/goroutines.
-func (n *FullNode) OnStop() {
+func (n *FullNode) OnStop(ctx context.Context) {
 	n.Logger.Info("halting full node...")
 	n.Logger.Info("shutting down full node sub services...")
 	err := errors.Join(
@@ -447,7 +447,7 @@ func (n *FullNode) OnStop() {
 }
 
 // OnReset is a part of Service interface.
-func (n *FullNode) OnReset() error {
+func (n *FullNode) OnReset(ctx context.Context) error {
 	panic("OnReset - not implemented!")
 }
 
@@ -535,13 +535,13 @@ func createAndStartIndexerService(
 }
 
 // Start implements NodeLifecycle
-func (fn *FullNode) Start() error {
-	return fn.BaseService.Start()
+func (fn *FullNode) Start(ctx context.Context) error {
+	return fn.BaseService.Start(ctx)
 }
 
 // Stop implements NodeLifecycle
-func (fn *FullNode) Stop() error {
-	return fn.BaseService.Stop()
+func (fn *FullNode) Stop(ctx context.Context) error {
+	return fn.BaseService.Stop(ctx)
 }
 
 // IsRunning implements NodeLifecycle

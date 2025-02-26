@@ -70,7 +70,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	cleanup := func() {
 		if fn, ok := node.(*FullNode); ok {
-			_ = fn.Stop()
+			_ = fn.Stop(ctx)
 		}
 	}
 

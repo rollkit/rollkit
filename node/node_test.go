@@ -143,7 +143,7 @@ const (
 // startNode starts the full node and stops it when the test is done
 func startNodeWithCleanup(t *testing.T, node Node) {
 	require.False(t, node.IsRunning())
-	require.NoError(t, node.Start())
+	require.NoError(t, node.Start(context.Background()))
 	require.True(t, node.IsRunning())
 	t.Cleanup(func() {
 		cleanUpNode(node, t)
@@ -153,7 +153,7 @@ func startNodeWithCleanup(t *testing.T, node Node) {
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
 	// Attempt to stop the node
-	err := node.Stop()
+	err := node.Stop(context.Background())
 	require.NoError(t, err)
 	// Now verify that the node is no longer running
 	require.False(t, node.IsRunning())

@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/libs/service"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/libs/service"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/store"
 )
@@ -93,7 +93,7 @@ func (n *LightNode) Cancel() {
 }
 
 // OnStart starts the P2P and HeaderSync services
-func (ln *LightNode) OnStart() error {
+func (ln *LightNode) OnStart(ctx context.Context) error {
 	if err := ln.P2P.Start(ln.ctx); err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (ln *LightNode) OnStart() error {
 }
 
 // OnStop stops the light node
-func (ln *LightNode) OnStop() {
+func (ln *LightNode) OnStop(ctx context.Context) {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()
 	err := ln.P2P.Close()
