@@ -4,12 +4,6 @@ import (
 	"crypto/sha256"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
-	cmtypes "github.com/cometbft/cometbft/types"
-)
-
-var (
-	// EmptyEvidenceHash is the hash of an empty EvidenceData
-	EmptyEvidenceHash = new(cmtypes.EvidenceData).Hash()
 )
 
 // Hash returns hash of the header
