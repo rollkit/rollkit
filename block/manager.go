@@ -12,13 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-
+	"cosmossdk.io/log"
 	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -36,40 +36,35 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 )
 
-// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
-// in lazy mode.
-// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
-const defaultLazySleepPercent = 10
-
-// defaultDABlockTime is used only if DABlockTime is not configured for manager
-const defaultDABlockTime = 15 * time.Second
-
-// defaultBlockTime is used only if BlockTime is not configured for manager
-const defaultBlockTime = 1 * time.Second
-
-// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
-const defaultLazyBlockTime = 60 * time.Second
-
-// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
-const defaultMempoolTTL = 25
-
-// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
-// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-const blockProtocolOverhead = 1 << 16
-
-// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
-// This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 30
-
-// Applies to most channels, 100 is a large enough buffer to avoid blocking
-const channelLength = 100
-
-// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
-const headerInChLength = 10000
+const (
+	// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
+	// in lazy mode.
+	// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
+	defaultLazySleepPercent = 10
+	// defaultDABlockTime is used only if DABlockTime is not configured for manager
+	defaultDABlockTime = 15 * time.Second
+	// defaultBlockTime is used only if BlockTime is not configured for manager
+	defaultBlockTime = 1 * time.Second
+	// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
+	defaultLazyBlockTime = 60 * time.Second
+	// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
+	defaultMempoolTTL = 25
+	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
+	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
+	blockProtocolOverhead = 1 << 16
+	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
+	// This is temporary solution. It will be removed in future versions.
+	maxSubmitAttempts = 30
+	// Applies to most channels, 100 is a large enough buffer to avoid blocking
+	channelLength = 100
+	// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
+	headerInChLength = 10000
+	// LastBatchHashKey is the key used for persisting the last batch hash in store.
+	LastBatchHashKey = "last batch hash"
+)
 
 // initialBackoff defines initial value for block submission backoff
 var initialBackoff = 100 * time.Millisecond
@@ -85,9 +80,6 @@ var ErrNoBatch = errors.New("no batch to process")
 
 // ErrHeightFromFutureStr is the error message for height from future returned by da
 var ErrHeightFromFutureStr = "given height is from the future"
-
-// LastBatchHashKey is the key used for persisting the last batch hash in store.
-const LastBatchHashKey = "last batch hash"
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -250,7 +242,6 @@ func NewManager(
 	exec execution.Executor,
 	seqClient *grpc.Client,
 	dalc *da.DAClient,
-	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
 	dataStore *goheaderstore.Store[*types.Data],

@@ -8,17 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/rollkit/rollkit/config"
-	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
-
-	"google.golang.org/grpc"
-
-	"google.golang.org/grpc/credentials/insecure"
 
 	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
 	goDATest "github.com/rollkit/go-da/test"
@@ -194,7 +192,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	key := generateSingleKey()
 
-	logger := test.NewFileLogger(t)
+	logger := log.NewTestLogger(t)
 	node, err := NewNode(ctx, config, key, signingKey, genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
 	return node, genesisValidatorKey, err
 }

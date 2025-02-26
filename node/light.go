@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -94,11 +94,11 @@ func (n *LightNode) Cancel() {
 
 // OnStart starts the P2P and HeaderSync services
 func (ln *LightNode) OnStart(ctx context.Context) error {
-	if err := ln.P2P.Start(ln.ctx); err != nil {
+	if err := ln.P2P.Start(ctx); err != nil {
 		return err
 	}
 
-	if err := ln.hSyncService.Start(ln.ctx); err != nil {
+	if err := ln.hSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
@@ -110,7 +110,7 @@ func (ln *LightNode) OnStop(ctx context.Context) {
 	ln.Logger.Info("halting light node...")
 	ln.cancel()
 	err := ln.P2P.Close()
-	err = errors.Join(err, ln.hSyncService.Stop(ln.ctx))
+	err = errors.Join(err, ln.hSyncService.Stop(ctx))
 	ln.Logger.Error("errors while stopping node:", "errors", err)
 }
 

@@ -11,11 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
-	cometflags "github.com/cometbft/cometbft/libs/cli/flags"
-	cometlog "github.com/cometbft/cometbft/libs/log"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
@@ -23,6 +22,7 @@ import (
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
 	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 
 	"github.com/rollkit/go-da"
@@ -52,7 +52,7 @@ var (
 	nodeConfig = rollconf.DefaultNodeConfig
 
 	// initialize the logger with the cometBFT defaults
-	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
+	logger = log.NewCustomLogger(zerolog.New(os.Stdout))
 
 	errDAServerAlreadyRunning  = errors.New("DA server already running")
 	errSequencerAlreadyRunning = errors.New("sequencer already running")
@@ -79,18 +79,24 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Update log format if the flag is set
 			if config.LogFormat == cometconf.LogFormatJSON {
-				logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
+				output := zerolog.ConsoleWriter{
+					Out:        os.Stdout,
+					NoColor:    true,
+					TimeFormat: time.RFC3339,
+				}
+				logger = log.NewLogger(output, log.TraceOption(true))
 			}
 
 			// Parse the log level
-			logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
-			if err != nil {
-				return err
-			}
+			//TODO: fix this
+			// logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
+			// if err != nil {
+			// 	return err
+			// }
 
 			// Add tracing to the logger if the flag is set
 			if viper.GetBool(cometcli.TraceFlag) {
-				logger = cometlog.NewTracingLogger(logger)
+				logger = log.NewLogger(os.Stdout, log.TraceOption(true))
 			}
 
 			logger = logger.With("module", "main")

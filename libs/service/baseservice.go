@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 )
 
 /*

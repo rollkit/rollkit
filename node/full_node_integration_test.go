@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
 	cmcfg "github.com/cometbft/cometbft/config"
-	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -52,7 +52,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
-		log.TestingLogger(),
+		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), node)
@@ -327,7 +327,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
-		log.TestingLogger(),
+		log.NewTestLogger(s.T()),
 	)
 	require.NoError(err)
 	require.NotNil(node)
@@ -401,7 +401,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
-		log.TestingLogger(),
+		log.NewTestLogger(s.T()),
 	)
 
 	// Verify that node creation fails with appropriate error

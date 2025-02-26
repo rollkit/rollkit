@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
@@ -53,7 +53,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
-		log.TestingLogger(),
+		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), node)
@@ -171,7 +171,7 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 		key,
 		genesis,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
-		log.TestingLogger(),
+		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)
 

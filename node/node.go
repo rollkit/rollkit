@@ -5,7 +5,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/config"

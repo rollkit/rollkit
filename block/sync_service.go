@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
