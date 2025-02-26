@@ -12,7 +12,6 @@ import (
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -24,6 +23,7 @@ import (
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/types"
 )

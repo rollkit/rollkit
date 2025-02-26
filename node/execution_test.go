@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/go-execution"
-	"github.com/rollkit/rollkit/types"
-
 	execTest "github.com/rollkit/go-execution/test"
 	execTypes "github.com/rollkit/go-execution/types"
+
+	"github.com/rollkit/rollkit/types"
 )
 
 func TestBasicExecutionFlow(t *testing.T) {

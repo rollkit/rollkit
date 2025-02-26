@@ -12,25 +12,24 @@ import (
 	"sync/atomic"
 	"time"
 
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-
 	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
 
-	goheaderstore "github.com/celestiaorg/go-header/store"
-
 	"github.com/rollkit/go-execution"
 	execTypes "github.com/rollkit/go-execution/types"
 	"github.com/rollkit/go-sequencing"
 	"github.com/rollkit/go-sequencing/proxy/grpc"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"

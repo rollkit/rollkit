@@ -59,10 +59,10 @@ lint: vet
 
 ## fmt: Run fixes for linters.
 lint-fix:
-	@echo "--> Formatting markdownlint"
-	@markdownlint --config .markdownlint.yaml --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
 	@echo "--> Formatting go"
 	@golangci-lint run --fix
+	@echo "--> Formatting markdownlint"
+	@markdownlint --config .markdownlint.yaml --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
 .PHONY: fmt
 
 ## vet: Run go vet

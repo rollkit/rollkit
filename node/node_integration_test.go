@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	testutils "github.com/celestiaorg/utils/test"
+	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
-
-	testutils "github.com/celestiaorg/utils/test"
-	cmcfg "github.com/cometbft/cometbft/config"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/types"

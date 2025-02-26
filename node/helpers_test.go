@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	goDATest "github.com/rollkit/go-da/test"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/types"

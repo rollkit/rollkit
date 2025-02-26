@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"net/http"
 
-	execproxy "github.com/rollkit/go-execution/proxy/grpc"
-
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -23,6 +21,7 @@ import (
 
 	proxyda "github.com/rollkit/go-da/proxy"
 	"github.com/rollkit/go-execution"
+	execproxy "github.com/rollkit/go-execution/proxy/grpc"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 
 	"github.com/rollkit/rollkit/block"

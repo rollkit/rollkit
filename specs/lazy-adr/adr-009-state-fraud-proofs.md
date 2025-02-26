@@ -163,7 +163,7 @@ message StateWitness {
   repeated WitnessData witness_data = 3;
 }
 
-// Witness data containing operation, a key/value pair, and Merkle 
+// Witness data containing operation, a key/value pair, and Merkle
 // inclusion proofs needed for corresponding operation for key/value pair
 message WitnessData {
   Operation operation = 1;

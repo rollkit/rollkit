@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	rollconf "github.com/rollkit/rollkit/config"
-
 	"github.com/spf13/cobra"
+
+	rollconf "github.com/rollkit/rollkit/config"
 )
 
 // NewTomlCmd creates a new cobra command group for TOML file operations.

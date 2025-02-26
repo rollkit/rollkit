@@ -9,7 +9,6 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
-
 	badger4 "github.com/ipfs/go-ds-badger4"
 )
 

@@ -22,25 +22,23 @@ import (
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
 	"github.com/mitchellh/mapstructure"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
 	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
-	seqTest "github.com/rollkit/go-sequencing/test"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
-	rollconf "github.com/rollkit/rollkit/config"
-	rollnode "github.com/rollkit/rollkit/node"
-	rolltypes "github.com/rollkit/rollkit/types"
-
 	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
 	execTest "github.com/rollkit/go-execution/test"
 	execTypes "github.com/rollkit/go-execution/types"
 	pb "github.com/rollkit/go-execution/types/pb/execution"
+	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
+	seqTest "github.com/rollkit/go-sequencing/test"
+
+	rollconf "github.com/rollkit/rollkit/config"
+	rollnode "github.com/rollkit/rollkit/node"
+	rolltypes "github.com/rollkit/rollkit/types"
 )
 
 var (

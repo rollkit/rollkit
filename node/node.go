@@ -3,10 +3,9 @@ package node
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p/core/crypto"
-
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
 )
