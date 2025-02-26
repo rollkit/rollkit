@@ -14,7 +14,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/rpc v1.2.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/ipfs/go-datastore v0.7.0
+	github.com/ipfs/go-datastore v0.8.0
 	github.com/ipfs/go-ds-badger4 v0.1.5
 	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.40.0
