@@ -10,21 +10,21 @@ on:
   pull_request:
 
 jobs:
+  git_diff:
+    uses: technote-space/get-diff-action@v6.1.2
+    with:
+      PATTERNS: |
+        **/**.go
+        go.mod
+        go.sum
+
   rollkit-docker:
+    name: rollkit-docker
+    if: env.GIT_DIFF
     permissions:
       contents: write
       packages: write
-    uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.5.0 # yamllint disable-line rule:line-length
+    uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.5.0
     with:
       dockerfile: Dockerfile
-    secrets: inherit
-
-  # mock-server-docker:
-  #   permissions:
-  #     contents: write
-  #     packages: write
-  #   uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.5.0 # yamllint disable-line rule:line-length
-  #   with:
-  #     dockerfile: test/docker/mockserv.Dockerfile
-  #     packageName: mockserv
-  #   secrets: inherit
+      secrets: inherit
