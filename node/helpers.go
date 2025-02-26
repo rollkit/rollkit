@@ -92,23 +92,6 @@ func safeClose(ch chan struct{}) {
 	}
 }
 
-func verifyNodesSynced(node1, node2 Node, source Source) error {
-	return Retry(300, 100*time.Millisecond, func() error {
-		n1Height, err := getNodeHeight(node1, source)
-		if err != nil {
-			return err
-		}
-		n2Height, err := getNodeHeight(node2, source)
-		if err != nil {
-			return err
-		}
-		if n1Height == n2Height {
-			return nil
-		}
-		return fmt.Errorf("nodes not synced: node1 at height %v, node2 at height %v", n1Height, n2Height)
-	})
-}
-
 func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 	return Retry(300, 100*time.Millisecond, func() error {
 		nHeight, err := getNodeHeight(node, source)
