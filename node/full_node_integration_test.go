@@ -8,6 +8,7 @@ import (
 
 	testutils "github.com/celestiaorg/utils/test"
 	cmcfg "github.com/cometbft/cometbft/config"
+
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

@@ -24,7 +24,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
-	pkgErrors "github.com/pkg/errors"
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
@@ -74,7 +73,10 @@ const headerInChLength = 10000
 var initialBackoff = 100 * time.Millisecond
 
 // DAIncludedHeightKey is the key used for persisting the da included height in store.
-const DAIncludedHeightKey = "da included height"
+const DAIncludedHeightKey = "d"
+
+// LastBatchHashKey is the key used for persisting the last batch hash in store.
+const LastBatchHashKey = "l"
 
 // dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
@@ -84,9 +86,6 @@ var ErrNoBatch = errors.New("no batch to process")
 
 // ErrHeightFromFutureStr is the error message for height from future returned by da
 var ErrHeightFromFutureStr = "given height is from the future"
-
-// LastBatchHashKey is the key used for persisting the last batch hash in store.
-const LastBatchHashKey = "last batch hash"
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -307,6 +306,12 @@ func NewManager(
 		return nil, err
 	}
 
+	// If lastBatchHash is not set, retrieve the last batch hash from store
+	lastBatchHash, err := store.GetMetadata(context.Background(), LastBatchHashKey)
+	if err != nil {
+		logger.Error("error while retrieving last batch hash", "error", err)
+	}
+
 	agg := &Manager{
 		proposerKey: proposerKey,
 		conf:        conf,
@@ -325,6 +330,7 @@ func NewManager(
 		headerStore:    headerStore,
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
+		lastBatchHash:  lastBatchHash,
 		headerCache:    NewHeaderCache(),
 		dataCache:      NewDataCache(),
 		retrieveCh:     make(chan struct{}, 1),
@@ -1022,7 +1028,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 					// are satisfied.
 					select {
 					case <-ctx.Done():
-						return pkgErrors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+						return fmt.Errorf("unable to send block to blockInCh, context done: %w", ctx.Err())
 					default:
 					}
 					m.headerInCh <- NewHeaderEvent{header, daHeight}
@@ -1284,7 +1290,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// statement when multiple cases are satisfied.
 	select {
 	case <-ctx.Done():
-		return pkgErrors.WithMessage(ctx.Err(), "unable to send header and block, context done")
+		return fmt.Errorf("unable to send header and block, context done: %w", ctx.Err())
 	default:
 	}
 
