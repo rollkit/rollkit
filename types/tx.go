@@ -80,8 +80,9 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]p
 // TxsWithISRsToShares converts a slice of TxWithISRs to a slice of shares.
 func TxsWithISRsToShares(txsWithISRs []pb.TxWithISRs) (txShares []shares.Share, err error) {
 	byteSlices := make([][]byte, len(txsWithISRs))
-	for i, txWithISR := range txsWithISRs {
-		byteSlices[i], err = proto.Marshal(&txWithISR)
+
+	for i := 0; i < len(txsWithISRs); i++ {
+		byteSlices[i], err = proto.Marshal(&txsWithISRs[i])
 		if err != nil {
 			return nil, err
 		}

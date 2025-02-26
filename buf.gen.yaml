@@ -3,7 +3,7 @@ clean: true
 plugins:
   - remote: buf.build/protocolbuffers/go:v1.36.5
     out: types/pb
-    opt: 
+    opt:
       - paths=source_relative
       - default_api_level=API_OPAQUE
   - remote: buf.build/grpc/go:v1.5.1
