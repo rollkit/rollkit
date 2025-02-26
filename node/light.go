@@ -49,7 +49,7 @@ func newLightNode(
 		}
 	}()
 
-	_, p2pMetrics, _ := metricsProvider(genesis.ChainID)
+	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	datastore, err := openDatastore(conf, logger)
 	if err != nil {
@@ -71,8 +71,6 @@ func newLightNode(
 		cancel:       cancel,
 		ctx:          ctx,
 	}
-
-	node.P2P.SetTxValidator(node.falseValidator())
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
 
@@ -112,11 +110,4 @@ func (ln *LightNode) OnStop() {
 	err := ln.P2P.Close()
 	err = errors.Join(err, ln.hSyncService.Stop(ln.ctx))
 	ln.Logger.Error("errors while stopping node:", "errors", err)
-}
-
-// Dummy validator that always returns a callback function with boolean `false`
-func (ln *LightNode) falseValidator() p2p.GossipValidator {
-	return func(*p2p.GossipMessage) bool {
-		return false
-	}
 }
