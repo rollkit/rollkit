@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -24,8 +25,6 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
-
-	tmcrypto "github.com/tendermint/tendermint/crypto"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/third_party/log"
@@ -180,7 +179,7 @@ func (c *Client) Info() (p2p.ID, string, string, error) {
 	if err != nil {
 		return "", "", "", err
 	}
-	return p2p.ID(hex.EncodeToString(tmcrypto.AddressHash(rawKey))), c.conf.ListenAddress, c.chainID, nil
+	return p2p.ID(hex.EncodeToString(sumTruncated(rawKey))), c.conf.ListenAddress, c.chainID, nil
 }
 
 // PeerConnection describe basic information about P2P connection.
@@ -372,4 +371,10 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
+}
+
+// -------
+func sumTruncated(bz []byte) []byte {
+	hash := sha256.Sum256(bz)
+	return hash[:20]
 }
