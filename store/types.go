@@ -3,8 +3,6 @@ package store
 import (
 	"context"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -24,22 +22,10 @@ type Store interface {
 	// GetBlockByHash returns block with given block header hash, or error if it's not found in Store.
 	GetBlockByHash(ctx context.Context, hash types.Hash) (*types.SignedHeader, *types.Data, error)
 
-	// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
-	SaveBlockResponses(ctx context.Context, height uint64, responses *abci.ResponseFinalizeBlock) error
-
-	// GetBlockResponses returns block results at given height, or error if it's not found in Store.
-	GetBlockResponses(ctx context.Context, height uint64) (*abci.ResponseFinalizeBlock, error)
-
 	// GetSignature returns signature for a block at given height, or error if it's not found in Store.
 	GetSignature(ctx context.Context, height uint64) (*types.Signature, error)
 	// GetSignatureByHash returns signature for a block with given block header hash, or error if it's not found in Store.
 	GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error)
-
-	// SaveExtendedCommit saves extended commit information in Store.
-	SaveExtendedCommit(ctx context.Context, height uint64, commit *abci.ExtendedCommitInfo) error
-
-	// GetExtendedCommit returns extended commit (commit with vote extensions) for a block at given height.
-	GetExtendedCommit(ctx context.Context, height uint64) (*abci.ExtendedCommitInfo, error)
 
 	// UpdateState updates state saved in Store. Only one State is stored.
 	// If there is no State in Store, state will be saved.

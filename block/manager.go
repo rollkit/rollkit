@@ -15,7 +15,6 @@ import (
 	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	goheaderstore "github.com/celestiaorg/go-header/store"
-	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
@@ -809,7 +808,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err := m.execValidate(m.lastState, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
-		newState, responses, err := m.applyBlock(ctx, h, d)
+		newState, err := m.applyBlock(ctx, h, d)
 		if err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -821,14 +820,9 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return SaveBlockError{err}
 		}
-		_, err = m.execCommit(ctx, newState, h, d, responses)
+		_, err = m.execCommit(ctx, newState, h, d)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
-		}
-
-		err = m.store.SaveBlockResponses(ctx, hHeight, responses)
-		if err != nil {
-			return SaveBlockResponsesError{err}
 		}
 
 		// Height gets updated
@@ -1164,12 +1158,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		//extendedCommit, err := m.getExtendedCommit(ctx, height)
-		extendedCommit := abci.ExtendedCommitInfo{}
-		// if err != nil {
-		// 	return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
-		// }
-
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
@@ -1210,7 +1198,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, txs, *timestamp)
 		if err != nil {
 			return err
 		}
@@ -1238,7 +1226,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 	}
 
-	newState, responses, err := m.applyBlock(ctx, header, data)
+	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
 		if ctx.Err() != nil {
 			return err
@@ -1281,18 +1269,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	appHash, err := m.execCommit(ctx, newState, header, data, responses)
+	appHash, err := m.execCommit(ctx, newState, header, data)
 	if err != nil {
 		return err
 	}
 	// Update app hash in state
 	newState.AppHash = appHash
-
-	// SaveBlockResponses commits the DB tx
-	//err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
-	//if err != nil {
-	//	return SaveBlockResponsesError{err}
-	//}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
 	m.store.SetHeight(ctx, headerHeight)
@@ -1497,13 +1479,13 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.execApplyBlock(ctx, m.lastState, header, data)
@@ -1514,12 +1496,12 @@ func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Da
 	return nil
 }
 
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data, _ *abci.ResponseFinalizeBlock) ([]byte, error) {
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
 	err := m.exec.SetFinal(ctx, h.Height())
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ abci.ExtendedCommitInfo, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	// TODO(tzdybal): get rid of cmtypes.Tx, probable we should have common-shared-dep with basic types
 	rawTxs := make([]execTypes.Tx, len(txs))
 	for i := range txs {
@@ -1558,22 +1540,22 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	return header, data, nil
 }
 
-func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
-	rawTxs := make([][]byte, len(data.Txs))
+func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
+	rawTxs := make([]execTypes.Tx, len(data.Txs))
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
-		return types.State{}, nil, err
+		return types.State{}, err
 	}
 
 	s, err := m.nextState(lastState, header, newStateRoot)
 	if err != nil {
-		return types.State{}, nil, err
+		return types.State{}, err
 	}
 
-	return s, nil, nil
+	return s, nil
 }
 
 func (m *Manager) nextState(state types.State, header *types.SignedHeader, stateRoot []byte) (types.State, error) {

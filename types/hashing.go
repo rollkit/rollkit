@@ -20,34 +20,6 @@ func (h *Header) Hash() Hash {
 	}
 	hash := sha256.Sum256(bytes)
 	return hash[:]
-
-	//abciHeader := cmtypes.Header{
-	//	Version: cmversion.Consensus{
-	//		Block: h.Version.Block,
-	//		App:   h.Version.App,
-	//	},
-	//	Height: int64(h.Height()), //nolint:gosec
-	//	Time:   h.Time(),
-	//	LastBlockID: cmtypes.BlockID{
-	//		Hash: cmbytes.HexBytes(h.LastHeaderHash),
-	//		PartSetHeader: cmtypes.PartSetHeader{
-	//			Total: 0,
-	//			Hash:  nil,
-	//		},
-	//	},
-	//	LastCommitHash:  cmbytes.HexBytes(h.LastCommitHash),
-	//	DataHash:        cmbytes.HexBytes(h.DataHash),
-	//	ConsensusHash:   cmbytes.HexBytes(h.ConsensusHash),
-	//	AppHash:         cmbytes.HexBytes(h.AppHash),
-	//	LastResultsHash: cmbytes.HexBytes(h.LastResultsHash),
-	//	EvidenceHash:    EmptyEvidenceHash,
-	//	ProposerAddress: h.ProposerAddress,
-	//	// Backward compatibility
-	//	ValidatorsHash:     cmbytes.HexBytes(h.ValidatorHash),
-	//	NextValidatorsHash: cmbytes.HexBytes(h.ValidatorHash),
-	//	ChainID:            h.ChainID(),
-	//}
-	//return Hash(abciHeader.Hash())
 }
 
 // Hash returns hash of the Data
