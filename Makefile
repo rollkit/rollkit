@@ -77,6 +77,12 @@ test: vet
 	@go test -v -race -covermode=atomic -coverprofile=coverage.txt $(pkgs) -run $(run) -count=$(count)
 .PHONY: test
 
+## test-e2e: Running e2e tests
+test-e2e: build
+	@echo "--> Running e2e tests"
+	@go test -mod=readonly -failfast -timeout=15m -tags='e2e' ./test/e2e/... --binary=$(CURDIR)/build/rollkit
+.PHONY: test-e2e
+
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
 	@echo "--> Generating Protobuf files"
@@ -105,6 +111,14 @@ GITSHA := $(shell git rev-parse --short HEAD)
 LDFLAGS := \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.Version=$(VERSION) \
 	-X github.com/rollkit/rollkit/cmd/rollkit/commands.GitSHA=$(GITSHA)
+
+## build: create rollkit CLI binary
+build:
+	@echo "--> Building Rollkit CLI"
+	@mkdir -p ./build
+	@go build -ldflags "$(LDFLAGS)" -o ./build ./cmd/rollkit
+	@echo "--> Rollkit CLI built!"
+.PHONY: build
 
 ## install: Install rollkit CLI
 install:
