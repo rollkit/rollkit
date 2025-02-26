@@ -83,6 +83,9 @@ func TestExecutionWithDASync(t *testing.T) {
 		node, cleanup := setupTestNodeWithCleanup(t)
 		defer cleanup()
 
+		seqSrv := startMockSequencerServerGRPC(MockSequencerAddress)
+		require.NotNil(seqSrv)
+
 		// Start node
 		err := node.Start()
 		require.NoError(err)

@@ -74,7 +74,5 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		}
 	}
 
-	//startNodeWithCleanup(t, node)
-
 	return node.(*FullNode), cleanup
 }

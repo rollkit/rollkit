@@ -55,11 +55,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	seqSrv := startMockSequencerServerGRPC(MockSequencerAddress)
-	if seqSrv == nil {
-		os.Exit(1)
-	}
-
 	execSrv := startMockExecutorServerGRPC(MockExecutorAddress)
 	if execSrv == nil {
 		os.Exit(1)
@@ -69,7 +64,6 @@ func TestMain(m *testing.M) {
 
 	// teardown servers
 	daSrv.GracefulStop()
-	seqSrv.GracefulStop()
 	execSrv.GracefulStop()
 
 	os.Exit(exitCode)

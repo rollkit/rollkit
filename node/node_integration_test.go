@@ -9,6 +9,7 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc"
 
 	testutils "github.com/celestiaorg/utils/test"
 	cmcfg "github.com/cometbft/cometbft/config"
@@ -23,6 +24,7 @@ type NodeIntegrationTestSuite struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	node   Node
+	seqSrv *grpc.Server
 }
 
 // SetupTest is called before each test
@@ -38,6 +40,9 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(s.T(), err)
+
+	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
+	require.NotNil(s.T(), s.seqSrv)
 
 	p2pKey := generateSingleKey()
 
@@ -92,6 +97,9 @@ func (s *NodeIntegrationTestSuite) TearDownTest() {
 	}
 	if s.node != nil {
 		_ = s.node.Stop()
+	}
+	if s.seqSrv != nil {
+		s.seqSrv.Stop()
 	}
 }
 
