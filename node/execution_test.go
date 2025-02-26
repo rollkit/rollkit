@@ -92,6 +92,7 @@ func TestExecutionWithDASync(t *testing.T) {
 		defer func() {
 			err := node.Stop()
 			require.NoError(err)
+			seqSrv.GracefulStop()
 		}()
 
 		// Give node time to initialize and submit blocks to DA

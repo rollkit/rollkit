@@ -99,7 +99,7 @@ func (s *NodeIntegrationTestSuite) TearDownTest() {
 		_ = s.node.Stop()
 	}
 	if s.seqSrv != nil {
-		s.seqSrv.Stop()
+		s.seqSrv.GracefulStop()
 	}
 }
 
