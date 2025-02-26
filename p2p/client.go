@@ -59,9 +59,6 @@ type Client struct {
 	gater *conngater.BasicConnectionGater
 	ps    *pubsub.PubSub
 
-	txGossiper  *Gossiper
-	txValidator GossipValidator
-
 	// cancel is used to cancel context passed to libp2p functions
 	// it's required because of discovery.Advertise call
 	cancel context.CancelFunc
@@ -109,7 +106,7 @@ func (c *Client) Start(ctx context.Context) error {
 	// create new, cancelable context
 	ctx, c.cancel = context.WithCancel(ctx)
 	c.logger.Debug("starting P2P client")
-	host, err := c.listen(ctx)
+	host, err := c.listen()
 	if err != nil {
 		return err
 	}
@@ -155,21 +152,9 @@ func (c *Client) Close() error {
 	c.cancel()
 
 	return errors.Join(
-		c.txGossiper.Close(),
 		c.dht.Close(),
 		c.host.Close(),
 	)
-}
-
-// GossipTx sends the transaction to the P2P network.
-func (c *Client) GossipTx(ctx context.Context, tx []byte) error {
-	c.logger.Debug("Gossiping TX", "len", len(tx))
-	return c.txGossiper.Publish(ctx, tx)
-}
-
-// SetTxValidator sets the callback function, that will be invoked during message gossiping.
-func (c *Client) SetTxValidator(val GossipValidator) {
-	c.txValidator = val
 }
 
 // Addrs returns listen addresses of Client.
@@ -243,7 +228,7 @@ func (c *Client) Peers() []PeerConnection {
 	return res
 }
 
-func (c *Client) listen(ctx context.Context) (host.Host, error) {
+func (c *Client) listen() (host.Host, error) {
 	maddr, err := multiaddr.NewMultiaddr(c.conf.ListenAddress)
 	if err != nil {
 		return nil, err
@@ -358,13 +343,6 @@ func (c *Client) setupGossiping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	c.txGossiper, err = NewGossiper(c.host, c.ps, c.getTxTopic(), c.logger, WithValidator(c.txValidator))
-	if err != nil {
-		return err
-	}
-	go c.txGossiper.ProcessMessages(ctx)
-
 	return nil
 }
 
