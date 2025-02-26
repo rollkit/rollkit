@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"strconv"
 	"testing"
 	"time"
@@ -13,20 +12,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
-	goDATest "github.com/rollkit/go-da/test"
-
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/types"
 )
-
-// nolint:unused
-func getMockDA(t *testing.T) *da.DAClient {
-	namespace := make([]byte, len(MockDANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(MockDANamespace))
-	require.NoError(t, err)
-	return da.NewDAClient(goDATest.NewDummyDA(), -1, -1, namespace, nil, log.NewTestLogger(t))
-}
 
 // generateSingleKey generates a single Ed25519 key for testing
 func generateSingleKey() crypto.PrivKey {
