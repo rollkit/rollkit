@@ -38,9 +38,6 @@ const (
 
 	// peerLimit defines limit of number of peers returned during active peer discovery.
 	peerLimit = 60
-
-	// txTopicSuffix is added after namespace to create pubsub topic for TX gossiping.
-	txTopicSuffix = "-tx"
 )
 
 // Client is a P2P client, implemented with libp2p.
@@ -375,8 +372,4 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
-}
-
-func (c *Client) getTxTopic() string {
-	return c.getNamespace() + txTopicSuffix
 }

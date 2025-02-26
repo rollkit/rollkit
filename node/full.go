@@ -73,7 +73,6 @@ type FullNode struct {
 	dSyncService *block.DataSyncService
 	// TODO(tzdybal): consider extracting "mempool reactor"
 	Mempool      mempool.Mempool
-	mempoolIDs   *mempoolIDs
 	Store        store.Store
 	blockManager *block.Manager
 
