@@ -176,7 +176,7 @@ type RollkitGenesis struct {
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec execution.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
-	s, err := store.GetState(context.Background())
+	s, err := store.GetState(ctx)
 
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
@@ -258,7 +258,7 @@ func NewManager(
 		return nil, err
 	}
 	//set block height in store
-	store.SetHeight(context.Background(), s.LastBlockHeight)
+	store.SetHeight(ctx, s.LastBlockHeight)
 
 	if s.DAHeight < conf.DAStartHeight {
 		s.DAHeight = conf.DAStartHeight
@@ -286,7 +286,7 @@ func NewManager(
 
 	//proposerAddress := s.Validators.Proposer.Address.Bytes()
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
+	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +306,7 @@ func NewManager(
 	}
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchHash, err := store.GetMetadata(context.Background(), LastBatchHashKey)
+	lastBatchHash, err := store.GetMetadata(ctx, LastBatchHashKey)
 	if err != nil {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
@@ -342,7 +342,7 @@ func NewManager(
 		bq:             NewBatchQueue(),
 		exec:           exec,
 	}
-	agg.init(context.Background())
+	agg.init(ctx)
 	return agg, nil
 }
 
