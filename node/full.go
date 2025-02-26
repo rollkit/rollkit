@@ -19,10 +19,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
-	corep2p "github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	proxyda "github.com/rollkit/go-da/proxy"
@@ -32,7 +30,6 @@ import (
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/mempool"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/state/indexer"
@@ -73,9 +70,6 @@ type FullNode struct {
 	p2pClient    *p2p.Client
 	hSyncService *block.HeaderSyncService
 	dSyncService *block.DataSyncService
-	// TODO(tzdybal): consider extracting "mempool reactor"
-	Mempool      mempool.Mempool
-	mempoolIDs   *mempoolIDs
 	Store        store.Store
 	blockManager *block.Manager
 
@@ -181,7 +175,6 @@ func newFullNode(
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
-	node.p2pClient.SetTxValidator(node.newTxValidator(p2pMetrics))
 
 	return node, nil
 }
@@ -464,46 +457,6 @@ func (n *FullNode) GetLogger() log.Logger {
 // EventBus gives access to Node's event bus.
 func (n *FullNode) EventBus() *cmtypes.EventBus {
 	return n.eventBus
-}
-
-// newTxValidator creates a pubsub validator that uses the node's mempool to check the
-// transaction. If the transaction is valid, then it is added to the mempool
-func (n *FullNode) newTxValidator(metrics *p2p.Metrics) p2p.GossipValidator {
-	return func(m *p2p.GossipMessage) bool {
-		n.Logger.Debug("transaction received", "bytes", len(m.Data))
-		msgBytes := m.Data
-		labels := []string{
-			"peer_id", m.From.String(),
-			"chID", n.genesis.ChainID,
-		}
-		metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		metrics.MessageReceiveBytesTotal.With("message_type", "tx").Add(float64(len(msgBytes)))
-		checkTxResCh := make(chan *abci.ResponseCheckTx, 1)
-		err := n.Mempool.CheckTx(m.Data, func(resp *abci.ResponseCheckTx) {
-			select {
-			case <-n.ctx.Done():
-				return
-			case checkTxResCh <- resp:
-			}
-		}, mempool.TxInfo{
-			SenderID:    n.mempoolIDs.GetForPeer(m.From),
-			SenderP2PID: corep2p.ID(m.From),
-		})
-		switch {
-		case errors.Is(err, mempool.ErrTxInCache):
-			return true
-		case errors.Is(err, mempool.ErrMempoolIsFull{}):
-			return true
-		case errors.Is(err, mempool.ErrTxTooLarge{}):
-			return false
-		case errors.Is(err, mempool.ErrPreCheck{}):
-			return false
-		default:
-		}
-		checkTxResp := <-checkTxResCh
-
-		return checkTxResp.Code == abci.CodeTypeOK
-	}
 }
 
 func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
