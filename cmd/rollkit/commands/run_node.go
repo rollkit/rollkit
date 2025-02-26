@@ -11,11 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
-	cometflags "github.com/cometbft/cometbft/libs/cli/flags"
-	cometlog "github.com/cometbft/cometbft/libs/log"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
@@ -52,7 +51,7 @@ var (
 	nodeConfig = rollconf.DefaultNodeConfig
 
 	// initialize the logger with the cometBFT defaults
-	logger = cometlog.NewTMLogger(cometlog.NewSyncWriter(os.Stdout))
+	logger = log.NewLogger(os.Stdout)
 
 	errDAServerAlreadyRunning  = errors.New("DA server already running")
 	errSequencerAlreadyRunning = errors.New("sequencer already running")
@@ -78,20 +77,20 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// Update log format if the flag is set
-			if config.LogFormat == cometconf.LogFormatJSON {
-				logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
-			}
+			// if config.LogFormat == cometconf.LogFormatJSON {
+			// 	logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
+			// }
 
-			// Parse the log level
-			logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
-			if err != nil {
-				return err
-			}
+			// // Parse the log level
+			// logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
+			// if err != nil {
+			// 	return err
+			// }
 
-			// Add tracing to the logger if the flag is set
-			if viper.GetBool(cometcli.TraceFlag) {
-				logger = cometlog.NewTracingLogger(logger)
-			}
+			// // Add tracing to the logger if the flag is set
+			// if viper.GetBool(cometcli.TraceFlag) {
+			// 	logger = cometlog.NewTracingLogger(logger)
+			// }
 
 			logger = logger.With("module", "main")
 
@@ -192,9 +191,12 @@ func NewRunNodeCmd() *cobra.Command {
 				config.ProxyApp = "noop"
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			// create the rollkit node
 			rollnode, err := rollnode.NewNode(
-				context.Background(),
+				ctx,
 				nodeConfig,
 				p2pKey,
 				signingKey,
@@ -207,7 +209,7 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// Start the node
-			if err := rollnode.Start(); err != nil {
+			if err := rollnode.Start(ctx); err != nil {
 				return fmt.Errorf("failed to start node: %w", err)
 			}
 
@@ -217,7 +219,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// Stop upon receiving SIGTERM or CTRL-C.
 			cometos.TrapSignal(logger, func() {
 				if rollnode.IsRunning() {
-					if err := rollnode.Stop(); err != nil {
+					if err := rollnode.Stop(ctx); err != nil {
 						logger.Error("unable to stop the node", "error", err)
 					}
 				}
@@ -239,7 +241,7 @@ func NewRunNodeCmd() *cobra.Command {
 				return fmt.Errorf("node is not running")
 			}
 
-			return rollnode.Stop()
+			return rollnode.Stop(ctx)
 		},
 	}
 

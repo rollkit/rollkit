@@ -58,7 +58,7 @@ lint: vet
 .PHONY: lint
 
 ## fmt: Run fixes for linters.
-fmt:
+lint-fix:
 	@echo "--> Formatting markdownlint"
 	@markdownlint --config .markdownlint.yaml --ignore './cmd/rollkit/docs/*.md' '**/*.md' -f
 	@echo "--> Formatting go"

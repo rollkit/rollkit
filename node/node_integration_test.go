@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
@@ -53,7 +53,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
-		log.TestingLogger(),
+		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), node)
@@ -61,7 +61,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	fn, ok := node.(*FullNode)
 	require.True(s.T(), ok)
 
-	err = fn.Start()
+	err = fn.Start(s.ctx)
 	require.NoError(s.T(), err)
 
 	s.node = fn
@@ -96,7 +96,7 @@ func (s *NodeIntegrationTestSuite) TearDownTest() {
 		s.cancel()
 	}
 	if s.node != nil {
-		_ = s.node.Stop()
+		_ = s.node.Stop(s.ctx)
 	}
 	if s.seqSrv != nil {
 		s.seqSrv.GracefulStop()
@@ -171,11 +171,11 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 		key,
 		genesis,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
-		log.TestingLogger(),
+		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)
 
-	err = node.Start()
+	err = node.Start(s.ctx)
 	require.NoError(s.T(), err)
 
 	return node

@@ -53,14 +53,6 @@ func getNodeHeight(node Node, source Source) (uint64, error) {
 	}
 }
 
-//nolint:unused
-func isBlockHashSeen(node Node, blockHash string) bool {
-	if fn, ok := node.(*FullNode); ok {
-		return fn.blockManager.IsBlockHashSeen(blockHash)
-	}
-	return false
-}
-
 func getNodeHeightFromHeader(node Node) (uint64, error) {
 	if fn, ok := node.(*FullNode); ok {
 		return fn.hSyncService.Store().Height(), nil
@@ -104,15 +96,5 @@ func waitForAtLeastNBlocks(node Node, n int, source Source) error {
 			return nil
 		}
 		return fmt.Errorf("expected height > %v, got %v", n, nHeight)
-	})
-}
-
-//nolint:unused
-func waitUntilBlockHashSeen(node Node, blockHash string) error {
-	return testutils.Retry(300, 100*time.Millisecond, func() error {
-		if isBlockHashSeen(node, blockHash) {
-			return nil
-		}
-		return fmt.Errorf("block hash %v not seen", blockHash)
 	})
 }

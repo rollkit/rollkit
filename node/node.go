@@ -5,7 +5,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 
 	"github.com/rollkit/rollkit/config"
@@ -13,10 +13,9 @@ import (
 
 // Node is the interface for a rollup node
 type Node interface {
-	Start() error
-	Stop() error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 	IsRunning() bool
-	Cancel()
 }
 
 // NewNode returns a new Full or Light Node based on the config

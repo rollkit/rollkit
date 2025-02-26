@@ -8,16 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
-	test "github.com/rollkit/rollkit/test/log"
-	"github.com/rollkit/rollkit/types"
-
 	"google.golang.org/grpc"
-
 	"google.golang.org/grpc/credentials/insecure"
 
 	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
@@ -28,6 +24,8 @@ import (
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/types"
 )
 
 const (
@@ -143,7 +141,7 @@ const (
 // startNode starts the full node and stops it when the test is done
 func startNodeWithCleanup(t *testing.T, node Node) {
 	require.False(t, node.IsRunning())
-	require.NoError(t, node.Start())
+	require.NoError(t, node.Start(t.Context()))
 	require.True(t, node.IsRunning())
 	t.Cleanup(func() {
 		cleanUpNode(node, t)
@@ -153,7 +151,7 @@ func startNodeWithCleanup(t *testing.T, node Node) {
 // cleanUpNode stops the node and checks if it is running
 func cleanUpNode(node Node, t *testing.T) {
 	// Attempt to stop the node
-	err := node.Stop()
+	err := node.Stop(t.Context())
 	require.NoError(t, err)
 	// Now verify that the node is no longer running
 	require.False(t, node.IsRunning())
@@ -194,7 +192,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	key := generateSingleKey()
 
-	logger := test.NewFileLogger(t)
+	logger := log.NewTestLogger(t)
 	node, err := NewNode(ctx, config, key, signingKey, genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
 	return node, genesisValidatorKey, err
 }
