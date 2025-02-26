@@ -14,6 +14,7 @@ import (
 
 	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
+
 	rollconf "github.com/rollkit/rollkit/config"
 )
 

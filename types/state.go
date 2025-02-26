@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	// TODO(tzdybal): copy to local project?
-
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"

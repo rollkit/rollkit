@@ -12,26 +12,24 @@ import (
 	"sync/atomic"
 	"time"
 
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-
 	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
-	pkgErrors "github.com/pkg/errors"
-
-	goheaderstore "github.com/celestiaorg/go-header/store"
 
 	"github.com/rollkit/go-execution"
 	execTypes "github.com/rollkit/go-execution/types"
 	"github.com/rollkit/go-sequencing"
 	"github.com/rollkit/go-sequencing/proxy/grpc"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
@@ -669,7 +667,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
 // block data is retrieved from DA layer.
-func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
+func (m *Manager) SyncLoop(ctx context.Context) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.conf.BlockTime)
@@ -1022,7 +1020,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 					// are satisfied.
 					select {
 					case <-ctx.Done():
-						return pkgErrors.WithMessage(ctx.Err(), "unable to send block to blockInCh, context done")
+						return fmt.Errorf("unable to send block to blockInCh, context done: %w", ctx.Err())
 					default:
 					}
 					m.headerInCh <- NewHeaderEvent{header, daHeight}
@@ -1284,7 +1282,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// statement when multiple cases are satisfied.
 	select {
 	case <-ctx.Done():
-		return pkgErrors.WithMessage(ctx.Err(), "unable to send header and block, context done")
+		return fmt.Errorf("unable to send header and block, context done: %w", ctx.Err())
 	default:
 	}
 

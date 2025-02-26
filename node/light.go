@@ -5,8 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/libs/service"
+	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -14,6 +13,7 @@ import (
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
 )
 
@@ -26,9 +26,6 @@ type LightNode struct {
 	P2P *p2p.Client
 
 	hSyncService *block.HeaderSyncService
-
-	ctx    context.Context
-	cancel context.CancelFunc
 }
 
 func newLightNode(
@@ -39,15 +36,6 @@ func newLightNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
-	// Create context with cancel so that all services using the context can
-	// catch the cancel signal when the node shutdowns
-	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		// If there is an error, cancel the context
-		if err != nil {
-			cancel()
-		}
-	}()
 
 	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
@@ -68,8 +56,6 @@ func newLightNode(
 	node := &LightNode{
 		P2P:          client,
 		hSyncService: headerSyncService,
-		cancel:       cancel,
-		ctx:          ctx,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
@@ -85,18 +71,13 @@ func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, 
 	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }
 
-// Cancel calls the underlying context's cancel function.
-func (n *LightNode) Cancel() {
-	n.cancel()
-}
-
 // OnStart starts the P2P and HeaderSync services
-func (ln *LightNode) OnStart() error {
-	if err := ln.P2P.Start(ln.ctx); err != nil {
+func (ln *LightNode) OnStart(ctx context.Context) error {
+	if err := ln.P2P.Start(ctx); err != nil {
 		return err
 	}
 
-	if err := ln.hSyncService.Start(ln.ctx); err != nil {
+	if err := ln.hSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
@@ -104,10 +85,9 @@ func (ln *LightNode) OnStart() error {
 }
 
 // OnStop stops the light node
-func (ln *LightNode) OnStop() {
+func (ln *LightNode) OnStop(ctx context.Context) {
 	ln.Logger.Info("halting light node...")
-	ln.cancel()
 	err := ln.P2P.Close()
-	err = errors.Join(err, ln.hSyncService.Stop(ln.ctx))
+	err = errors.Join(err, ln.hSyncService.Stop(ctx))
 	ln.Logger.Error("errors while stopping node:", "errors", err)
 }

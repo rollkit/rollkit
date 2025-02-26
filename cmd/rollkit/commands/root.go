@@ -1,9 +1,8 @@
 package commands
 
 import (
-	"github.com/spf13/cobra"
-
 	cometconfig "github.com/cometbft/cometbft/config"
+	"github.com/spf13/cobra"
 )
 
 func init() {

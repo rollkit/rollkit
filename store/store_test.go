@@ -9,7 +9,6 @@ import (
 	abcitypes "github.com/cometbft/cometbft/abci/types"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	ds "github.com/ipfs/go-datastore"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

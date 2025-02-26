@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
+	"github.com/celestiaorg/go-header"
+	goheaderp2p "github.com/celestiaorg/go-header/p2p"
+	goheaderstore "github.com/celestiaorg/go-header/store"
+	goheadersync "github.com/celestiaorg/go-header/sync"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -15,11 +19,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
-
-	"github.com/celestiaorg/go-header"
-	goheaderp2p "github.com/celestiaorg/go-header/p2p"
-	goheaderstore "github.com/celestiaorg/go-header/store"
-	goheadersync "github.com/celestiaorg/go-header/sync"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"

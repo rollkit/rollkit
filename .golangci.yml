@@ -7,7 +7,7 @@ linters:
     - errorlint
     - errcheck
     - gofmt
-    - goimports
+    - gci
     - gosec
     - gosimple
     - govet
@@ -44,6 +44,10 @@ linters-settings:
       - name: exported
         arguments:
           - disableStutteringCheck
-
-  goimports:
-    local-prefixes: github.com/rollkit
+  gci:
+    custom-order: true
+    sections:
+      - standard # Standard section: captures all standard packages.
+      - default # Default section: contains all imports that could not be matched to another section type.
+      - prefix(github.com/rollkit)
+      - prefix(github.com/rollkit/rollkit)

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	cmcfg "github.com/cometbft/cometbft/config"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"

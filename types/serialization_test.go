@@ -5,14 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
