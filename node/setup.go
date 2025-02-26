@@ -20,7 +20,7 @@ func DefaultMetricsProvider(config *cmcfg.InstrumentationConfig) MetricsProvider
 	return func(chainID string) (*block.Metrics, *p2p.Metrics) {
 		if config.Prometheus {
 			return block.PrometheusMetrics(config.Namespace, "chain_id", chainID),
-				p2p.PrometheusMetrics(config.Namespace, "chain_id", chainID),
+				p2p.PrometheusMetrics(config.Namespace, "chain_id", chainID)
 		}
 		return block.NopMetrics(), p2p.NopMetrics()
 	}

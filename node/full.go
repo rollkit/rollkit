@@ -105,7 +105,7 @@ func newFullNode(
 		}
 	}()
 
-	seqMetrics, p2pMetrics, _ := metricsProvider(genesis.ChainID)
+	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	eventBus, err := initEventBus(logger)
 	if err != nil {

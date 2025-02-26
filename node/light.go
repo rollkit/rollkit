@@ -49,7 +49,7 @@ func newLightNode(
 		}
 	}()
 
-	_, p2pMetrics, _ := metricsProvider(genesis.ChainID)
+	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	datastore, err := openDatastore(conf, logger)
 	if err != nil {
