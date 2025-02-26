@@ -65,13 +65,13 @@ Block.Verify()
 	  if untrustH.Height == h.Height + 1, then apply the following check:
 	    untrstH.AggregatorsHash[:], h.NextAggregatorsHash[:]
 	if untrustH.Height > h.Height + 1:
-	  soft verification failure	
+	  soft verification failure
 	// We should know they're adjacent now,
 	// verify the link to previous.
 	untrustH.LastHeaderHash == h.Header.Hash()
 	// Verify LastCommit hash
 	untrustH.LastCommitHash == sh.Signature.GetCommitHash(...)
-	
+
 ```
 
 ## [Block](https://github.com/rollkit/rollkit/blob/main/types/block.go#L26)

@@ -8,6 +8,8 @@ on:
     tags:
       - "v*"
   pull_request:
+    paths:
+      - "Dockerfile"  # Only run if the Dockerfile was changed
 
 jobs:
   rollkit-docker:
@@ -18,13 +20,3 @@ jobs:
     with:
       dockerfile: Dockerfile
     secrets: inherit
-
-  # mock-server-docker:
-  #   permissions:
-  #     contents: write
-  #     packages: write
-  #   uses: rollkit/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.5.0 # yamllint disable-line rule:line-length
-  #   with:
-  #     dockerfile: test/docker/mockserv.Dockerfile
-  #     packageName: mockserv
-  #   secrets: inherit

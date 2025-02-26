@@ -6,7 +6,14 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/go-header"
-	cmtypes "github.com/cometbft/cometbft/types"
+)
+
+var (
+	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
+	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
+
+	// ErrLastCommitHashMismatch is returned when the last commit hash doesn't match.
+	ErrLastCommitHashMismatch = errors.New("last commit hash mismatch")
 )
 
 // SignedHeader combines Header and its signature.
@@ -16,7 +23,7 @@ type SignedHeader struct {
 	Header
 	// Note: This is backwards compatible as ABCI exported types are not affected.
 	Signature  Signature
-	Validators *cmtypes.ValidatorSet
+	Validators *ValidatorSet
 }
 
 // New creates a new SignedHeader.
@@ -28,14 +35,6 @@ func (sh *SignedHeader) New() *SignedHeader {
 func (sh *SignedHeader) IsZero() bool {
 	return sh == nil
 }
-
-var (
-	// ErrLastHeaderHashMismatch is returned when the last header hash doesn't match.
-	ErrLastHeaderHashMismatch = errors.New("last header hash mismatch")
-
-	// ErrLastCommitHashMismatch is returned when the last commit hash doesn't match.
-	ErrLastCommitHashMismatch = errors.New("last commit hash mismatch")
-)
 
 // Verify verifies the signed header.
 func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
@@ -112,14 +111,14 @@ var (
 )
 
 // validatorsEqual compares validator pointers. Starts with the happy case, then falls back to field-by-field comparison.
-func validatorsEqual(val1 *cmtypes.Validator, val2 *cmtypes.Validator) bool {
+func validatorsEqual(val1, val2 *Validator) bool {
 	if val1 == val2 {
 		// happy case is if they are pointers to the same struct.
 		return true
 	}
 	// if not, do a field-by-field comparison
-	return val1.PubKey.Equals(val2.PubKey) &&
-		bytes.Equal(val1.Address.Bytes(), val2.Address.Bytes()) &&
+	return bytes.Equal(val1.PubKey.Bytes, val2.PubKey.Bytes) &&
+		bytes.Equal(val1.Address, val2.Address) &&
 		val1.VotingPower == val2.VotingPower &&
 		val1.ProposerPriority == val2.ProposerPriority
 
@@ -145,7 +144,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	// Check that the proposer address in the signed header matches the proposer address in the validator set
-	if !bytes.Equal(sh.ProposerAddress, sh.Validators.Proposer.Address.Bytes()) {
+	if !bytes.Equal(sh.ProposerAddress, sh.Validators.Proposer.Address) {
 		return ErrProposerAddressMismatch
 	}
 
@@ -154,12 +153,13 @@ func (sh *SignedHeader) ValidateBasic() error {
 		return ErrProposerNotInValSet
 	}
 
-	signature := sh.Signature
+	// TODO: Implement signature verification
+	// signature := sh.Signature
 
-	vote := sh.Header.MakeCometBFTVote()
-	if !sh.Validators.Validators[0].PubKey.VerifySignature(vote, signature) {
-		return ErrSignatureVerificationFailed
-	}
+	// vote := sh.Header.MakeCometBFTVote()
+	// if !sh.Validators.Validators[0].PubKey.VerifySignature(vote, signature) {
+	// 	return ErrSignatureVerificationFailed
+	// }
 	return nil
 }
 

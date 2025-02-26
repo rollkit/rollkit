@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
@@ -51,7 +52,7 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 	}
 
 	pubKey1 := ed25519.GenPrivKey().PubKey()
-	validator1 := &cmtypes.Validator{Address: pubKey1.Address(), PubKey: pubKey1, VotingPower: 1}
+	validator1 := &Validator{Address: pubKey1.Address(), PubKey: PubKey{Bytes: pubKey1.Bytes(), Type: pubKey1.Type()}, VotingPower: 1}
 
 	cases := []struct {
 		name   string
@@ -62,8 +63,8 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 		{"full", &SignedHeader{
 			Header:    h1,
 			Signature: Signature([]byte{1, 1, 1}),
-			Validators: cmtypes.NewValidatorSet(
-				[]*cmtypes.Validator{
+			Validators: NewValidatorSet(
+				[]*Validator{
 					validator1,
 				}),
 		}, &Data{
@@ -179,13 +180,13 @@ func TestStateRoundTrip(t *testing.T) {
 			require.NoError(err)
 			require.NotNil(pState)
 
-			bytes, err := pState.Marshal()
+			bytes, err := proto.Marshal(pState)
 			require.NoError(err)
 			require.NotEmpty(bytes)
 
 			var newProtoState pb.State
 			var newState State
-			err = newProtoState.Unmarshal(bytes)
+			err = proto.Unmarshal(bytes, &newProtoState)
 			require.NoError(err)
 
 			err = newState.FromProto(&newProtoState)

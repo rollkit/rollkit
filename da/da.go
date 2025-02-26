@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	goDA "github.com/rollkit/go-da"
 	"github.com/rollkit/rollkit/third_party/log"

@@ -95,7 +95,6 @@ func TestInitialStateStored(t *testing.T) {
 	chainID := "TestInitialStateStored"
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
@@ -105,9 +104,6 @@ func TestInitialStateStored(t *testing.T) {
 		ChainID:         chainID,
 		InitialHeight:   1,
 		LastBlockHeight: 100,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -173,7 +169,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := test.NewLogger(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   2,
@@ -183,9 +178,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
 		LastBlockHeight: 0,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -521,9 +513,9 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 // invalidateBlockHeader results in a block header that produces a marshalling error
 func invalidateBlockHeader(header *types.SignedHeader) {
 	for i := range header.Validators.Validators {
-		header.Validators.Validators[i] = &cmtypes.Validator{
+		header.Validators.Validators[i] = &types.Validator{
 			Address:          []byte(""),
-			PubKey:           nil,
+			PubKey:           types.PubKey{},
 			VotingPower:      -1,
 			ProposerPriority: 0,
 		}
