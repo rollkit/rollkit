@@ -6,6 +6,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
 	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
@@ -68,11 +69,10 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]p
 	}
 	txsWithISRs := make([]pb.TxWithISRs, len(txs))
 	for i, tx := range txs {
-		txsWithISRs[i] = pb.TxWithISRs{
-			PreIsr:  intermediateStateRoots.RawRootsList[i],
-			Tx:      tx,
-			PostIsr: intermediateStateRoots.RawRootsList[i+1],
-		}
+		txsWithISRs[i] = pb.TxWithISRs{}
+		txsWithISRs[i].SetPreIsr(intermediateStateRoots.RawRootsList[i])
+		txsWithISRs[i].SetTx(tx)
+		txsWithISRs[i].SetPostIsr(intermediateStateRoots.RawRootsList[i+1])
 	}
 	return txsWithISRs, nil
 }
@@ -81,7 +81,7 @@ func (txs Txs) ToTxsWithISRs(intermediateStateRoots IntermediateStateRoots) ([]p
 func TxsWithISRsToShares(txsWithISRs []pb.TxWithISRs) (txShares []shares.Share, err error) {
 	byteSlices := make([][]byte, len(txsWithISRs))
 	for i, txWithISR := range txsWithISRs {
-		byteSlices[i], err = txWithISR.Marshal()
+		byteSlices[i], err = proto.Marshal(&txWithISR)
 		if err != nil {
 			return nil, err
 		}
@@ -117,15 +117,15 @@ func PostableBytesToShares(postableData []byte) (txShares []shares.Share, err er
 }
 
 // SharesToTxsWithISRs converts a slice of shares to a slice of TxWithISRs.
-func SharesToTxsWithISRs(txShares []shares.Share) (txsWithISRs []pb.TxWithISRs, err error) {
+func SharesToTxsWithISRs(txShares []shares.Share) (txsWithISRs []*pb.TxWithISRs, err error) {
 	byteSlices, err := shares.ParseCompactShares(txShares)
 	if err != nil {
 		return nil, err
 	}
-	txsWithISRs = make([]pb.TxWithISRs, len(byteSlices))
+	txsWithISRs = make([]*pb.TxWithISRs, len(byteSlices))
 	for i, byteSlice := range byteSlices {
-		var txWithISR pb.TxWithISRs
-		err = txWithISR.Unmarshal(byteSlice)
+		txWithISR := new(pb.TxWithISRs)
+		err = proto.Unmarshal(byteSlice, txWithISR)
 		if err != nil {
 			return nil, err
 		}

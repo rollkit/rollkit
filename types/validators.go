@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -36,15 +37,14 @@ func (v *Validator) ToProto() (*pb.Validator, error) {
 		return nil, errors.New("nil pubkey")
 	}
 
-	vp := pb.Validator{
-		Address:          v.Address,
-		PubKeyType:       v.PubKey.Type,
-		PubKeyBytes:      v.PubKey.Bytes,
-		VotingPower:      v.VotingPower,
-		ProposerPriority: v.ProposerPriority,
-	}
+	vb := pb.Validator{}
+	vb.SetAddress(v.Address)
+	vb.SetPubKeyType(v.PubKey.Type)
+	vb.SetPubKeyBytes(v.PubKey.Bytes)
+	vb.SetVotingPower(v.VotingPower)
+	vb.SetProposerPriority(v.ProposerPriority)
 
-	return &vp, nil
+	return &vb, nil
 }
 
 // ValidateBasic performs basic validation.
@@ -73,14 +73,14 @@ func (v *Validator) ValidateBasic() error {
 // as its redundant with the pubkey. This also excludes ProposerPriority
 // which changes every round.
 func (v *Validator) Bytes() []byte {
-	pbv := pb.Validator{
-		PubKeyType:       v.PubKey.Type,
-		PubKeyBytes:      v.PubKey.Bytes,
-		VotingPower:      v.VotingPower,
-		ProposerPriority: v.ProposerPriority,
-	}
+	pbv := pb.Validator{}
+	pbv.SetAddress(v.Address)
+	pbv.SetPubKeyType(v.PubKey.Type)
+	pbv.SetPubKeyBytes(v.PubKey.Bytes)
+	pbv.SetVotingPower(v.VotingPower)
+	pbv.SetProposerPriority(v.ProposerPriority)
 
-	bz, err := pbv.Marshal()
+	bz, err := proto.Marshal(&pbv)
 	if err != nil {
 		panic(err)
 	}
@@ -157,17 +157,17 @@ func (vals *ValidatorSet) ToProto() (*pb.ValidatorSet, error) {
 		}
 		valsProto[i] = valp
 	}
-	vp.Validators = valsProto
+	vp.SetValidators(valsProto)
 
 	valProposer, err := vals.Proposer.ToProto()
 	if err != nil {
 		return nil, fmt.Errorf("toProto: validatorSet proposer error: %w", err)
 	}
-	vp.Proposer = valProposer
+	vp.SetProposer(valProposer)
 
 	// NOTE: Sometimes we use the bytes of the proto form as a hash. This means that we need to
 	// be consistent with cached data
-	vp.TotalVotingPower = 0
+	vp.SetTotalVotingPower(0)
 
 	return vp, nil
 }
@@ -206,9 +206,9 @@ func ValidatorSetFromProto(vp *pb.ValidatorSet) (*ValidatorSet, error) {
 	}
 	vals := new(ValidatorSet)
 
-	valsProto := make([]*Validator, len(vp.Validators))
-	for i := 0; i < len(vp.Validators); i++ {
-		v, err := ValidatorFromProto(vp.Validators[i])
+	valsProto := make([]*Validator, len(vp.GetValidators()))
+	for i := 0; i < len(vp.GetValidators()); i++ {
+		v, err := ValidatorFromProto(vp.GetValidators()[i])
 		if err != nil {
 			return nil, err
 		}

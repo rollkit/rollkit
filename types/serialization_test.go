@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
@@ -179,13 +180,13 @@ func TestStateRoundTrip(t *testing.T) {
 			require.NoError(err)
 			require.NotNil(pState)
 
-			bytes, err := pState.Marshal()
+			bytes, err := proto.Marshal(pState)
 			require.NoError(err)
 			require.NotEmpty(bytes)
 
 			var newProtoState pb.State
 			var newState State
-			err = newProtoState.Unmarshal(bytes)
+			err = proto.Unmarshal(bytes, &newProtoState)
 			require.NoError(err)
 
 			err = newState.FromProto(&newProtoState)

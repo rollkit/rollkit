@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -91,15 +92,15 @@ func TestTxWithISRSerializationOutOfContextRoundtrip(t *testing.T) {
 }
 
 // Returns whether subTxList is a subarray of txList
-func checkSubArray(txList []rollkit.TxWithISRs, subTxList []rollkit.TxWithISRs) (bool, error) {
+func checkSubArray(txList []rollkit.TxWithISRs, subTxList []*rollkit.TxWithISRs) (bool, error) {
 	for i := 0; i <= len(txList)-len(subTxList); i++ {
 		j := 0
 		for j = 0; j < len(subTxList); j++ {
-			tx, err := txList[i+j].Marshal()
+			tx, err := proto.Marshal(&txList[i+j])
 			if err != nil {
 				return false, err
 			}
-			subTx, err := subTxList[j].Marshal()
+			subTx, err := proto.Marshal(subTxList[j])
 			if err != nil {
 				return false, err
 			}

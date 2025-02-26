@@ -80,7 +80,7 @@ test: vet
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
 	@echo "--> Generating Protobuf files"
-	./proto/protoc.sh
+	@$(DOCKER_BUF) generate --path="./proto/rollkit" --template="buf.gen.yaml" --config="buf.yaml"
 .PHONY: proto-gen
 
 ## mock-gen: generate mocks of external (commetbft) types

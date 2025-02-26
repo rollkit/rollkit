@@ -1,10 +1,12 @@
-version: v1beta1
-
-# The plugins to run.
+version: v2
+clean: true
 plugins:
-  # The name of the plugin.
-  - name: gogofaster
-     # The relative output directory.
+  - remote: buf.build/protocolbuffers/go:v1.36.5
     out: types/pb
-    # Any options to provide to the plugin.
-    opt: plugins=grpc,paths=source_relative
+    opt: 
+      - paths=source_relative
+      - default_api_level=API_OPAQUE
+  - remote: buf.build/grpc/go:v1.5.1
+    out: types/pb
+    opt:
+      - paths=source_relative

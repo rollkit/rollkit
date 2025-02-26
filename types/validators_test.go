@@ -26,11 +26,11 @@ func TestValidatorToProto(t *testing.T) {
 	// Test successful conversion
 	proto, err := validator.ToProto()
 	require.NoError(t, err)
-	assert.Equal(t, validator.Address, proto.Address)
-	assert.Equal(t, validator.PubKey.Type, proto.PubKeyType)
-	assert.Equal(t, validator.PubKey.Bytes, proto.PubKeyBytes)
-	assert.Equal(t, validator.VotingPower, proto.VotingPower)
-	assert.Equal(t, validator.ProposerPriority, proto.ProposerPriority)
+	assert.Equal(t, validator.Address, proto.GetAddress())
+	assert.Equal(t, validator.PubKey.Type, proto.GetPubKeyType())
+	assert.Equal(t, validator.PubKey.Bytes, proto.GetPubKeyBytes())
+	assert.Equal(t, validator.VotingPower, proto.GetVotingPower())
+	assert.Equal(t, validator.ProposerPriority, proto.GetProposerPriority())
 
 	// Test nil validator
 	var nilValidator *Validator
@@ -162,20 +162,20 @@ func TestValidatorSetToProto(t *testing.T) {
 	// Test successful conversion
 	proto, err := valSet.ToProto()
 	require.NoError(t, err)
-	assert.Len(t, proto.Validators, 1)
-	assert.NotNil(t, proto.Proposer)
+	assert.Len(t, proto.GetValidators(), 1)
+	assert.NotNil(t, proto.GetProposer())
 
 	// Test empty validator set
 	emptyValSet := &ValidatorSet{}
 	proto, err = emptyValSet.ToProto()
 	require.NoError(t, err)
-	assert.Empty(t, proto.Validators)
+	assert.Empty(t, proto.GetValidators())
 
 	// Test nil validator set
 	var nilValSet *ValidatorSet
 	proto, err = nilValSet.ToProto()
 	require.NoError(t, err)
-	assert.Empty(t, proto.Validators)
+	assert.Empty(t, proto.GetValidators())
 }
 
 // TestValidatorSetValidateBasic tests the ValidateBasic method of the ValidatorSet struct
