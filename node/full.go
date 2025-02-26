@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"net/http"
 
-	execproxy "github.com/rollkit/go-execution/proxy/grpc"
-
+	"cosmossdk.io/log"
+	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -19,18 +19,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/libs/service"
-	cmtypes "github.com/cometbft/cometbft/types"
-
 	proxyda "github.com/rollkit/go-da/proxy"
 	"github.com/rollkit/go-execution"
+	execproxy "github.com/rollkit/go-execution/proxy/grpc"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
 )
@@ -72,8 +70,6 @@ type FullNode struct {
 
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
-	ctx           context.Context
-	cancel        context.CancelFunc
 	threadManager *types.ThreadManager
 	seqClient     *seqGRPC.Client
 }
@@ -88,22 +84,7 @@ func newFullNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
-	// Create context with cancel so that all services using the context can
-	// catch the cancel signal when the node shutdowns
-	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		// If there is an error, cancel the context
-		if err != nil {
-			cancel()
-		}
-	}()
-
 	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
-
-	eventBus, err := initEventBus(logger)
-	if err != nil {
-		return nil, err
-	}
 
 	baseKV, err := initBaseKV(nodeConfig, logger)
 	if err != nil {
@@ -135,13 +116,12 @@ func newFullNode(
 
 	store := store.New(mainKV)
 
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, logger, headerSyncService, dataSyncService, seqMetrics)
 	if err != nil {
 		return nil, err
 	}
 
 	node := &FullNode{
-		eventBus:      eventBus,
 		genesis:       genesis,
 		nodeConfig:    nodeConfig,
 		p2pClient:     p2pClient,
@@ -151,23 +131,12 @@ func newFullNode(
 		Store:         store,
 		hSyncService:  headerSyncService,
 		dSyncService:  dataSyncService,
-		ctx:           ctx,
-		cancel:        cancel,
 		threadManager: types.NewThreadManager(),
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
 	return node, nil
-}
-
-func initEventBus(logger log.Logger) (*cmtypes.EventBus, error) {
-	eventBus := cmtypes.NewEventBus()
-	eventBus.SetLogger(logger.With("module", "events"))
-	if err := eventBus.Start(); err != nil {
-		return nil, err
-	}
-	return eventBus, nil
 }
 
 // initBaseKV initializes the base key-value store.
@@ -219,7 +188,7 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
 	exec, err := initExecutor(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing executor: %w", err)
@@ -311,11 +280,6 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	}
 }
 
-// Cancel calls the underlying context's cancel function.
-func (n *FullNode) Cancel() {
-	n.cancel()
-}
-
 // startPrometheusServer starts a Prometheus HTTP server, listening for metrics
 // collectors on addr.
 func (n *FullNode) startPrometheusServer() *http.Server {
@@ -339,22 +303,22 @@ func (n *FullNode) startPrometheusServer() *http.Server {
 }
 
 // OnStart is a part of Service interface.
-func (n *FullNode) OnStart() error {
+func (n *FullNode) OnStart(ctx context.Context) error {
 	// begin prometheus metrics gathering if it is enabled
 	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
 		n.prometheusSrv = n.startPrometheusServer()
 	}
 	n.Logger.Info("starting P2P client")
-	err := n.p2pClient.Start(n.ctx)
+	err := n.p2pClient.Start(ctx)
 	if err != nil {
 		return fmt.Errorf("error while starting P2P client: %w", err)
 	}
 
-	if err = n.hSyncService.Start(n.ctx); err != nil {
+	if err = n.hSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting header sync service: %w", err)
 	}
 
-	if err = n.dSyncService.Start(n.ctx); err != nil {
+	if err = n.dSyncService.Start(ctx); err != nil {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
@@ -368,17 +332,17 @@ func (n *FullNode) OnStart() error {
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
 
-		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(n.ctx) })
-		n.threadManager.Go(func() { n.blockManager.AggregationLoop(n.ctx) })
-		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(n.ctx) })
-		n.threadManager.Go(func() { n.headerPublishLoop(n.ctx) })
-		n.threadManager.Go(func() { n.dataPublishLoop(n.ctx) })
+		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(ctx) })
+		n.threadManager.Go(func() { n.blockManager.AggregationLoop(ctx) })
+		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(ctx) })
+		n.threadManager.Go(func() { n.headerPublishLoop(ctx) })
+		n.threadManager.Go(func() { n.dataPublishLoop(ctx) })
 		return nil
 	}
-	n.threadManager.Go(func() { n.blockManager.RetrieveLoop(n.ctx) })
-	n.threadManager.Go(func() { n.blockManager.HeaderStoreRetrieveLoop(n.ctx) })
-	n.threadManager.Go(func() { n.blockManager.DataStoreRetrieveLoop(n.ctx) })
-	n.threadManager.Go(func() { n.blockManager.SyncLoop(n.ctx, n.cancel) })
+	n.threadManager.Go(func() { n.blockManager.RetrieveLoop(ctx) })
+	n.threadManager.Go(func() { n.blockManager.HeaderStoreRetrieveLoop(ctx) })
+	n.threadManager.Go(func() { n.blockManager.DataStoreRetrieveLoop(ctx) })
+	n.threadManager.Go(func() { n.blockManager.SyncLoop(ctx) })
 	return nil
 }
 
@@ -401,27 +365,26 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 // p2pClient and sync services stop first, ceasing network activities. Then rest of services are halted.
 // Context is cancelled to signal goroutines managed by thread manager to stop.
 // Store is closed last because it's used by other services/goroutines.
-func (n *FullNode) OnStop() {
+func (n *FullNode) OnStop(ctx context.Context) {
 	n.Logger.Info("halting full node...")
 	n.Logger.Info("shutting down full node sub services...")
 	err := errors.Join(
 		n.p2pClient.Close(),
-		n.hSyncService.Stop(n.ctx),
-		n.dSyncService.Stop(n.ctx),
+		n.hSyncService.Stop(ctx),
+		n.dSyncService.Stop(ctx),
 		n.seqClient.Stop(),
 	)
 	if n.prometheusSrv != nil {
-		err = errors.Join(err, n.prometheusSrv.Shutdown(n.ctx))
+		err = errors.Join(err, n.prometheusSrv.Shutdown(ctx))
 	}
 
-	n.cancel()
 	n.threadManager.Wait()
 	err = errors.Join(err, n.Store.Close())
 	n.Logger.Error("errors while stopping node:", "errors", err)
 }
 
 // OnReset is a part of Service interface.
-func (n *FullNode) OnReset() error {
+func (n *FullNode) OnReset(ctx context.Context) error {
 	panic("OnReset - not implemented!")
 }
 
@@ -445,13 +408,13 @@ func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
 }
 
 // Start implements NodeLifecycle
-func (fn *FullNode) Start() error {
-	return fn.BaseService.Start()
+func (fn *FullNode) Start(ctx context.Context) error {
+	return fn.BaseService.Start(ctx)
 }
 
 // Stop implements NodeLifecycle
-func (fn *FullNode) Stop() error {
-	return fn.BaseService.Stop()
+func (fn *FullNode) Stop(ctx context.Context) error {
+	return fn.BaseService.Stop(ctx)
 }
 
 // IsRunning implements NodeLifecycle

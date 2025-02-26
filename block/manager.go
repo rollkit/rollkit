@@ -12,25 +12,24 @@ import (
 	"sync/atomic"
 	"time"
 
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-
 	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
 
-	goheaderstore "github.com/celestiaorg/go-header/store"
-
 	"github.com/rollkit/go-execution"
 	execTypes "github.com/rollkit/go-execution/types"
 	"github.com/rollkit/go-sequencing"
 	"github.com/rollkit/go-sequencing/proxy/grpc"
+
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
@@ -177,7 +176,7 @@ type RollkitGenesis struct {
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
 func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec execution.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
-	s, err := store.GetState(context.Background())
+	s, err := store.GetState(ctx)
 
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
@@ -259,7 +258,7 @@ func NewManager(
 		return nil, err
 	}
 	//set block height in store
-	store.SetHeight(context.Background(), s.LastBlockHeight)
+	store.SetHeight(ctx, s.LastBlockHeight)
 
 	if s.DAHeight < conf.DAStartHeight {
 		s.DAHeight = conf.DAStartHeight
@@ -287,7 +286,7 @@ func NewManager(
 
 	//proposerAddress := s.Validators.Proposer.Address.Bytes()
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(context.Background())
+	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +306,7 @@ func NewManager(
 	}
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchHash, err := store.GetMetadata(context.Background(), LastBatchHashKey)
+	lastBatchHash, err := store.GetMetadata(ctx, LastBatchHashKey)
 	if err != nil {
 		logger.Error("error while retrieving last batch hash", "error", err)
 	}
@@ -343,7 +342,7 @@ func NewManager(
 		bq:             NewBatchQueue(),
 		exec:           exec,
 	}
-	agg.init(context.Background())
+	agg.init(ctx)
 	return agg, nil
 }
 
@@ -675,7 +674,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 //
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
 // block data is retrieved from DA layer.
-func (m *Manager) SyncLoop(ctx context.Context, cancel context.CancelFunc) {
+func (m *Manager) SyncLoop(ctx context.Context) {
 	daTicker := time.NewTicker(m.conf.DABlockTime)
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.conf.BlockTime)

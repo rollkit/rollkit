@@ -21,6 +21,7 @@ import (
 	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
 	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
+
 	testServer "github.com/rollkit/rollkit/test/server"
 	"github.com/rollkit/rollkit/types"
 )

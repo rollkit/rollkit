@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	rollconf "github.com/rollkit/rollkit/config"
-
 	"github.com/spf13/cobra"
+
+	rollconf "github.com/rollkit/rollkit/config"
 )
 
 func TestInterceptCommand(t *testing.T) {
