@@ -5,9 +5,9 @@ import (
 
 	cmcfg "github.com/cometbft/cometbft/config"
 
+	"github.com/cometbft/cometbft/state"
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/p2p"
-	"github.com/rollkit/rollkit/state"
 )
 
 const readHeaderTimeout = 10 * time.Second

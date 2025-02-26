@@ -34,7 +34,6 @@ import (
 	"github.com/rollkit/go-sequencing/proxy/grpc"
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
-	"github.com/rollkit/rollkit/state"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
@@ -250,12 +249,10 @@ func NewManager(
 	exec execution.Executor,
 	seqClient *grpc.Client,
 	dalc *da.DAClient,
-	eventBus *cmtypes.EventBus,
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
 	dataStore *goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
-	execMetrics *state.Metrics,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, store, exec, logger)
 	if err != nil {
