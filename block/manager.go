@@ -1088,13 +1088,13 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	return m.proposerKey.Sign(b)
 }
 
-func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
+func (m *Manager) getTxsFromBatch() ([][]byte, *time.Time, error) {
 	batch := m.bq.Next()
 	if batch == nil {
 		// batch is nil when there is nothing to process
 		return nil, nil, ErrNoBatch
 	}
-	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
+	txs := make([][]byte, 0, len(batch.Transactions))
 	for _, tx := range batch.Transactions {
 		txs = append(txs, tx)
 	}
@@ -1187,7 +1187,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Debug("No batch available, creating empty block")
 			// Create an empty block instead of returning
-			txs = cmtypes.Txs{}
+			txs = [][]byte{}
 			timestamp = &time.Time{}
 			*timestamp = time.Now()
 		} else if err != nil {
@@ -1479,7 +1479,7 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, txs, timestamp)
@@ -1501,8 +1501,7 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
-	// TODO(tzdybal): get rid of cmtypes.Tx, probable we should have common-shared-dep with basic types
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	rawTxs := make([]execTypes.Tx, len(txs))
 	for i := range txs {
 		rawTxs[i] = execTypes.Tx(txs[i])
