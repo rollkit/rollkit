@@ -1,7 +1,6 @@
 package node
 
 import (
-	"github.com/cometbft/cometbft/state"
 	"time"
 
 	cmcfg "github.com/cometbft/cometbft/config"
