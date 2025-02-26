@@ -285,9 +285,16 @@ func TestStartMockSequencerServer(t *testing.T) {
 		},
 	}
 
+	stopFns := []func(){}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srv, err := tryStartMockSequencerServerGRPC(tt.seqAddress, "test-rollup-id")
+			if srv != nil {
+				stopFns = append(stopFns, func() {
+					srv.Stop()
+				})
+			}
 
 			if tt.expectedErr != nil {
 				assert.Error(t, err)
@@ -298,5 +305,9 @@ func TestStartMockSequencerServer(t *testing.T) {
 				assert.NotNil(t, srv)
 			}
 		})
+	}
+
+	for _, fn := range stopFns {
+		fn()
 	}
 }
