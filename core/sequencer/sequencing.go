@@ -1,4 +1,4 @@
-package sequencing
+package sequencer
 
 import (
 	"context"

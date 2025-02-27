@@ -7,6 +7,9 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+
 	"github.com/rollkit/rollkit/config"
 )
 
@@ -18,9 +21,13 @@ type Node interface {
 }
 
 // NewNode returns a new Full or Light Node based on the config
+// This is the entry point for composing a node, when compiling a node, you need to provide an executor
+// Example executors can be found: TODO: add link
 func NewNode(
 	ctx context.Context,
 	conf config.NodeConfig,
+	exec coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
@@ -44,6 +51,8 @@ func NewNode(
 		p2pKey,
 		signingKey,
 		genesis,
+		exec,
+		sequencer,
 		metricsProvider,
 		logger,
 	)

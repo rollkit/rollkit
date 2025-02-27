@@ -1,6 +1,6 @@
 module github.com/rollkit/rollkit
 
-go 1.24
+go 1.24.0
 
 retract v0.12.0 // Published by accident
 
@@ -25,12 +25,15 @@ require (
 	github.com/rollkit/go-da v0.9.0
 	github.com/rollkit/go-execution v0.2.3
 	github.com/rollkit/go-sequencing v0.4.1
+	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 )
+
+replace github.com/rollkit/rollkit/core => ./core
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect

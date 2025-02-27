@@ -25,12 +25,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
 
-	"github.com/rollkit/go-execution"
 	execTypes "github.com/rollkit/go-execution/types"
 	"github.com/rollkit/go-sequencing"
-	"github.com/rollkit/go-sequencing/proxy/grpc"
-
 	"github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
@@ -154,13 +153,13 @@ type Manager struct {
 	// true if the manager is a proposer
 	isProposer bool
 
-	exec execution.Executor
+	exec coreexecutor.Executor
 
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
 	// grpc client for sequencing middleware
-	seqClient     *grpc.Client
+	sequencer     coresequencer.Sequencer
 	lastBatchHash []byte
 	bq            *BatchQueue
 }
@@ -174,7 +173,7 @@ type RollkitGenesis struct {
 }
 
 // getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
-func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec execution.Executor, logger log.Logger) (types.State, error) {
+func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)
 
@@ -244,8 +243,8 @@ func NewManager(
 	conf config.BlockManagerConfig,
 	genesis *RollkitGenesis,
 	store store.Store,
-	exec execution.Executor,
-	seqClient *grpc.Client,
+	exec coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
 	dalc *da.DAClient,
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
@@ -338,7 +337,7 @@ func NewManager(
 		pendingHeaders: pendingHeaders,
 		metrics:        seqMetrics,
 		isProposer:     isProposer,
-		seqClient:      seqClient,
+		sequencer:      sequencer,
 		bq:             NewBatchQueue(),
 		exec:           exec,
 	}
@@ -362,8 +361,8 @@ func (m *Manager) IsProposer() bool {
 }
 
 // SeqClient returns the grpc sequencing client.
-func (m *Manager) SeqClient() *grpc.Client {
-	return m.seqClient
+func (m *Manager) SeqClient() coresequencer.Sequencer {
+	return m.sequencer
 }
 
 // GetLastState returns the last recorded state.
@@ -467,7 +466,7 @@ func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 //
 // Note: this is a temporary method to allow testing the manager.
 // It will be removed once the manager is fully integrated with the execution client.
-func (m *Manager) GetExecutor() execution.Executor {
+func (m *Manager) GetExecutor() coreexecutor.Executor {
 	return m.exec
 }
 
@@ -492,7 +491,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				LastBatchHash: m.lastBatchHash,
 			}
 
-			res, err := m.seqClient.GetNextBatch(ctx, req)
+			res, err := m.sequencer.GetNextBatch(ctx, req)
 			if err != nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 				// Always reset timer on error
@@ -1155,20 +1154,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 				"pendingHeaders", m.pendingHeaders.numPendingHeaders())
 		}
 
-		for _, tx := range execTxs {
-			m.logger.Debug("Submitting transaction to sequencer",
-				"txSize", len(tx))
-			_, err := m.seqClient.SubmitRollupTransaction(ctx, sequencing.SubmitRollupTransactionRequest{
-				RollupId: sequencing.RollupId(m.genesis.ChainID),
-				Tx:       tx,
-			})
-			if err != nil {
-				m.logger.Error("failed to submit rollup transaction to sequencer",
-					"err", err,
-					"chainID", m.genesis.ChainID)
-				// Add retry logic or proper error handling
-				continue
-			}
+		m.logger.Debug("Submitting transaction to sequencer",
+			"txCount", len(execTxs))
+		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
+			RollupId: sequencing.RollupId(m.genesis.ChainID),
+			Batch:    &coresequencer.Batch{Transactions: execTxs},
+		})
+		if err != nil {
+			m.logger.Error("failed to submit rollup transaction to sequencer",
+				"err", err,
+				"chainID", m.genesis.ChainID)
+			// Add retry logic or proper error handling
+
 			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
 
@@ -1520,9 +1517,9 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
-	rawTxs := make([]execTypes.Tx, len(data.Txs))
+	rawTxs := make([][]byte, len(data.Txs))
 	for i := range data.Txs {
-		rawTxs[i] = execTypes.Tx(data.Txs[i])
+		rawTxs[i] = data.Txs[i]
 	}
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
