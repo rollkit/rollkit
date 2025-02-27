@@ -136,7 +136,7 @@ func newFullNode(
 
 	store := store.New(mainKV)
 
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, eventBus, logger, headerSyncService, dataSyncService, seqMetrics)
+	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, logger, headerSyncService, dataSyncService, seqMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, eventBus *cmtypes.EventBus, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
 	exec, err := initExecutor(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing executor: %w", err)
