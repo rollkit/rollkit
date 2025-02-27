@@ -31,14 +31,11 @@ See [da implementation]
 
 [1] [go-da][go-da]
 
-[2] [celestia-da][celestia-da]
+[2] [proxy/grpc][proxy/grpc]
 
-[3] [proxy/grpc][proxy/grpc]
-
-[4] [proxy/jsonrpc][proxy/jsonrpc]
+[3] [proxy/jsonrpc][proxy/jsonrpc]
 
 [da implementation]: https://github.com/rollkit/rollkit/blob/main/da/da.go
 [go-da]: https://github.com/rollkit/go-da
-[celestia-da]: https://github.com/rollkit/celestia-da
 [proxy/grpc]: https://github.com/rollkit/go-da/tree/main/proxy/grpc
 [proxy/jsonrpc]: https://github.com/rollkit/go-da/tree/main/proxy/jsonrpc
