@@ -2,6 +2,8 @@ package sequencer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"time"
 )
 
@@ -43,6 +45,36 @@ type BatchVerifier interface {
 // Batch is a collection of transactions
 type Batch struct {
 	Transactions [][]byte
+}
+
+// Hash returns the cryptographic hash of the batch
+func (batch *Batch) Hash() ([]byte, error) {
+	// Create a new hash instance
+	hasher := sha256.New()
+
+	// If batch is nil or has no transactions, hash an empty slice
+	if batch == nil || len(batch.Transactions) == 0 {
+		hasher.Write([]byte{})
+		return hasher.Sum(nil), nil
+	}
+
+	// Write the number of transactions as a fixed-size value
+	txCount := make([]byte, 8) // 8 bytes for uint64
+	binary.BigEndian.PutUint64(txCount, uint64(len(batch.Transactions)))
+	hasher.Write(txCount)
+
+	// Hash each transaction and write to the hasher
+	for _, tx := range batch.Transactions {
+		// Write transaction length as fixed-size value
+		txLen := make([]byte, 8) // 8 bytes for uint64
+		binary.BigEndian.PutUint64(txLen, uint64(len(tx)))
+		hasher.Write(txLen)
+
+		// Write the transaction bytes
+		hasher.Write(tx)
+	}
+
+	return hasher.Sum(nil), nil
 }
 
 // SubmitRollupBatchTxsRequest is a request to submit a batch of transactions from rollup to sequencer

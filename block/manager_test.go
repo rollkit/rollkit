@@ -22,10 +22,9 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDAMock "github.com/rollkit/go-da/mocks"
 	goDATest "github.com/rollkit/go-da/test"
-	execTest "github.com/rollkit/go-execution/test"
-	"github.com/rollkit/go-sequencing"
 
 	"github.com/rollkit/rollkit/config"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
 	test "github.com/rollkit/rollkit/test/log"
@@ -85,7 +84,7 @@ func TestInitialStateClean(t *testing.T) {
 	logger := test.NewLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesis, emptyStore, execTest.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesis, emptyStore, NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, genesis.InitialHeight-1)
 	require.Equal(genesis.InitialHeight, s.InitialHeight)
@@ -117,7 +116,7 @@ func TestInitialStateStored(t *testing.T) {
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := test.NewLogger(t)
-	s, err := getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesis, store, NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -193,7 +192,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor(), logger)
+	_, err = getInitialState(context.TODO(), genesis, store, NewDummyExecutor(), logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
@@ -937,7 +936,7 @@ func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
 	// Mocking a manager with an empty batch
 	m := &Manager{
 		bq: &BatchQueue{queue: []BatchWithTime{
-			{Batch: &sequencing.Batch{Transactions: nil}, Time: time.Now()},
+			{Batch: &coresequencer.Batch{Transactions: nil}, Time: time.Now()},
 		}},
 	}
 
@@ -954,7 +953,7 @@ func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
 	// Mocking a manager with a valid batch
 	m := &Manager{
 		bq: &BatchQueue{queue: []BatchWithTime{
-			{Batch: &sequencing.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
+			{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
 		}},
 	}
 

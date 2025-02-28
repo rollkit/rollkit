@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	proxyda "github.com/rollkit/go-da/proxy"
+
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"

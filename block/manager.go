@@ -27,6 +27,7 @@ import (
 
 	execTypes "github.com/rollkit/go-execution/types"
 	"github.com/rollkit/go-sequencing"
+
 	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -99,7 +100,7 @@ type NewDataEvent struct {
 
 // BatchWithTime is used to pass batch and time to BatchQueue
 type BatchWithTime struct {
-	*sequencing.Batch
+	*coresequencer.Batch
 	time.Time
 }
 
@@ -486,7 +487,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				"chainID", m.genesis.ChainID,
 				"lastBatchHash", hex.EncodeToString(m.lastBatchHash))
 
-			req := sequencing.GetNextBatchRequest{
+			req := coresequencer.GetNextBatchRequest{
 				RollupId:      []byte(m.genesis.ChainID),
 				LastBatchHash: m.lastBatchHash,
 			}

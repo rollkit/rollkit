@@ -6,18 +6,18 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/go-sequencing"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
 
 var (
-	batch1 = BatchWithTime{&sequencing.Batch{
-		Transactions: []sequencing.Tx{
-			sequencing.Tx("batch1"),
+	batch1 = BatchWithTime{&coresequencer.Batch{
+		Transactions: [][]byte{
+			[]byte("batch1"),
 		},
 	}, time.Time{}}
-	batch2 = BatchWithTime{&sequencing.Batch{
-		Transactions: []sequencing.Tx{
-			sequencing.Tx("batch2"),
+	batch2 = BatchWithTime{&coresequencer.Batch{
+		Transactions: [][]byte{
+			[]byte("batch2"),
 		},
 	}, time.Time{}}
 )
