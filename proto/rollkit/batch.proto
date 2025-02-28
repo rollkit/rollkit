@@ -1,0 +1,8 @@
+syntax = "proto3";
+package rollkit;
+
+option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
+
+message Batch {
+  repeated bytes txs = 2;
+}

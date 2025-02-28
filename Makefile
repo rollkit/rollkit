@@ -36,9 +36,13 @@ cover:
 deps:
 	@echo "--> Installing dependencies"
 	@go mod download
-	@make proto-gen
 	@go mod tidy
+	@./scripts/go-mod-tidy-all.sh
 .PHONY: deps
+
+tidy-all:
+	@./scripts/go-mod-tidy-all.sh
+.PHONY: tidy-all
 
 ## lint: Run linters golangci-lint and markdownlint.
 lint: vet
