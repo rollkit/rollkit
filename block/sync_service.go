@@ -120,9 +120,6 @@ func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, 
 // WriteToStoreAndBroadcast initializes store if needed and broadcasts  provided header or block.
 // Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
 func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrData H) error {
-	if syncService.genesis.GetInitialHeight() < 0 {
-		return fmt.Errorf("invalid initial height; cannot be negative")
-	}
 	isGenesis := headerOrData.Height() == syncService.genesis.GetInitialHeight()
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
@@ -228,7 +225,7 @@ func (syncService *SyncService[H]) setupP2P(ctx context.Context) ([]peer.ID, err
 // Returns error if initialization or starting of syncer fails.
 func (syncService *SyncService[H]) prepareSyncer(ctx context.Context) error {
 	var err error
-	if syncService.syncer, err = newSyncer[H](
+	if syncService.syncer, err = newSyncer(
 		syncService.ex,
 		syncService.store,
 		syncService.sub,
@@ -306,7 +303,7 @@ func newP2PServer[H header.Header[H]](
 		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
 		goheaderp2p.WithMetrics[goheaderp2p.ServerParameters](),
 	)
-	return goheaderp2p.NewExchangeServer[H](host, store, opts...)
+	return goheaderp2p.NewExchangeServer(host, store, opts...)
 }
 
 func newP2PExchange[H header.Header[H]](
@@ -334,7 +331,7 @@ func newSyncer[H header.Header[H]](
 	opts = append(opts,
 		goheadersync.WithMetrics(),
 	)
-	return goheadersync.NewSyncer[H](ex, store, sub, opts...)
+	return goheadersync.NewSyncer(ex, store, sub, opts...)
 }
 
 // StartSyncer starts the SyncService's syncer

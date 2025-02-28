@@ -13,7 +13,6 @@ import (
 
 	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	cometp2p "github.com/cometbft/cometbft/p2p"
@@ -41,8 +40,8 @@ import (
 )
 
 var (
-	// initialize the config with the cometBFT defaults
-	config = cometconf.DefaultConfig()
+	// initialize the config with the rollkit defaults
+	config = rollconf.DefaultConfig()
 
 	// initialize the rollkit node configuration
 	nodeConfig = rollconf.DefaultNodeConfig
@@ -394,7 +393,7 @@ func parseConfig(cmd *cobra.Command) error {
 	config.RootDir = home
 
 	// Validate the root directory
-	cometconf.EnsureRoot(config.RootDir)
+	rollconf.EnsureRoot(config.RootDir)
 
 	// Validate the config
 	if err := config.ValidateBasic(); err != nil {

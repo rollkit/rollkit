@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -174,4 +176,75 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 	cmd.Flags().String(FlagExecutorAddress, def.ExecutorAddress, "executor middleware address (host:port)")
+}
+
+// Config defines the configuration that replaces cometbft/config
+type Config struct {
+	// RootDir is the root directory for configuration files
+	RootDir string `mapstructure:"home"`
+	// ABCI specifies the ABCI connection type (socket | grpc)
+	ABCI string `mapstructure:"abci"`
+	// ProxyApp specifies the proxy application
+	ProxyApp string `mapstructure:"proxy_app"`
+	// P2P contains P2P configuration
+	P2P P2PConfig `mapstructure:"p2p"`
+}
+
+// DefaultConfig returns the default configuration
+func DefaultConfig() *Config {
+	return &Config{
+		RootDir:  defaultHomeDir(),
+		ABCI:     "socket",
+		ProxyApp: "noop",
+		P2P: P2PConfig{
+			ListenAddress: DefaultListenAddress,
+		},
+	}
+}
+
+// defaultHomeDir returns the default home directory
+func defaultHomeDir() string {
+	home := os.Getenv("HOME")
+	if home == "" {
+		home = os.Getenv("USERPROFILE")
+	}
+	return filepath.Join(home, ".rollkit")
+}
+
+// ValidateBasic validates the basic configuration
+func (cfg *Config) ValidateBasic() error {
+	if cfg.RootDir == "" {
+		return fmt.Errorf("root directory cannot be empty")
+	}
+	return nil
+}
+
+// GenesisFile returns the path to the genesis file
+func (cfg *Config) GenesisFile() string {
+	return filepath.Join(cfg.RootDir, "config", "genesis.json")
+}
+
+// NodeKeyFile returns the path to the node key file
+func (cfg *Config) NodeKeyFile() string {
+	return filepath.Join(cfg.RootDir, "config", "node_key.json")
+}
+
+// PrivValidatorKeyFile returns the path to the private validator key file
+func (cfg *Config) PrivValidatorKeyFile() string {
+	return filepath.Join(cfg.RootDir, "config", "priv_validator_key.json")
+}
+
+// PrivValidatorStateFile returns the path to the private validator state file
+func (cfg *Config) PrivValidatorStateFile() string {
+	return filepath.Join(cfg.RootDir, "data", "priv_validator_state.json")
+}
+
+// EnsureRoot ensures that the root directory exists
+func EnsureRoot(rootDir string) {
+	if err := os.MkdirAll(filepath.Join(rootDir, "config"), 0755); err != nil {
+		panic(err)
+	}
+	if err := os.MkdirAll(filepath.Join(rootDir, "data"), 0755); err != nil {
+		panic(err)
+	}
 }

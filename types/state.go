@@ -3,6 +3,7 @@ package types
 import (
 	"time"
 
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
@@ -60,7 +61,8 @@ func NewFromGenesisDoc(genDoc config.GenesisDoc) (State, error) {
 	} else {
 		validators := make([]*types.Validator, 1)
 
-		validators[0] = types.NewValidator(genDoc.GetProposerAddress(), 1)
+		pubKey := ed25519.PubKey(genDoc.GetProposerAddress())
+		validators[0] = types.NewValidator(pubKey, 1)
 
 		validatorSet = types.NewValidatorSet(validators)
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)

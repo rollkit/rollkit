@@ -73,19 +73,8 @@ func TestParseFlags(t *testing.T) {
 		expected interface{}
 	}{
 		{"ABCI", config.ABCI, "grpc"},
-		{"CreateEmptyBlocks", config.Consensus.CreateEmptyBlocks, true},
-		{"CreateEmptyBlocksInterval", config.Consensus.CreateEmptyBlocksInterval, 10 * time.Second},
-		{"DoubleSignCheckHeight", config.Consensus.DoubleSignCheckHeight, int64(10)},
-		{"DBBackend", config.DBBackend, "cleverdb"},
-		{"DBDir", config.DBDir(), "data2"},
-		{"Moniker", config.Moniker, "yarik-playground2"},
 		{"ExternalAddress", config.P2P.ExternalAddress, "127.0.0.0:26000"},
 		{"ListenAddress", config.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
-		{"PexReactor", config.P2P.PexReactor, true},
-		{"PrivatePeerIDs", config.P2P.PrivatePeerIDs, "1,2,3"},
-		{"SeedMode", config.P2P.SeedMode, true},
-		{"UnconditionalPeerIDs", config.P2P.UnconditionalPeerIDs, "4,5,6"},
-		{"PrivValidatorListenAddr", config.PrivValidatorListenAddr, "tcp://127.0.0.1:27003"},
 		{"ProxyApp", config.ProxyApp, "tcp://127.0.0.1:27004"},
 		{"Aggregator", nodeConfig.Aggregator, false},
 		{"BlockTime", nodeConfig.BlockTime, 2 * time.Second},
@@ -101,10 +90,6 @@ func TestParseFlags(t *testing.T) {
 		{"LazyBlockTime", nodeConfig.LazyBlockTime, 2 * time.Minute},
 		{"Light", nodeConfig.Light, true},
 		{"MaxPendingBlocks", nodeConfig.MaxPendingBlocks, uint64(100)},
-		{"GRPCListenAddress", config.RPC.GRPCListenAddress, "tcp://127.0.0.1:27006"},
-		{"ListenAddress", config.RPC.ListenAddress, "tcp://127.0.0.1:27007"},
-		{"PprofListenAddress", config.RPC.PprofListenAddress, "tcp://127.0.0.1:27008"},
-		{"Unsafe", config.RPC.Unsafe, true},
 	}
 
 	for _, tc := range testCases {
@@ -237,9 +222,6 @@ func TestStartMockDAServJSONRPC(t *testing.T) {
 			newServerFunc := func(hostname, port string, da da.DA) *proxy.Server {
 				mockServer := &MockServer{
 					Server: proxy.NewServer(hostname, port, da),
-					StartFunc: func(ctx context.Context) error {
-						return tt.mockServerErr
-					},
 				}
 				return mockServer.Server
 			}
