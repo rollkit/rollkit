@@ -16,7 +16,6 @@ import (
 	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
-	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
@@ -74,33 +73,17 @@ func NewRunNodeCmd() *cobra.Command {
 				nodeConfig.Aggregator = true
 			}
 
-			// Update log format if the flag is set
-			// if config.LogFormat == cometconf.LogFormatJSON {
-			// 	logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
-			// }
-
-			// // Parse the log level
-			// logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
-			// if err != nil {
-			// 	return err
-			// }
-
-			// // Add tracing to the logger if the flag is set
-			// if viper.GetBool(cometcli.TraceFlag) {
-			// 	logger = cometlog.NewTracingLogger(logger)
-			// }
-
 			logger = logger.With("module", "main")
 
 			// Initialize the config files
 			return initFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			genDocProvider := cometnode.DefaultGenesisDocProviderFunc(config)
-			genDoc, err := genDocProvider()
+			genDoc, err := rollconf.LoadGenesisDoc(config.GenesisFile())
 			if err != nil {
 				return err
 			}
+
 			nodeKey, err := cometp2p.LoadOrGenNodeKey(config.NodeKeyFile())
 			if err != nil {
 				return err
@@ -146,10 +129,11 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
-			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-				genDoc.ChainID = nodeConfig.SequencerRollupID
-			}
-			sequencerRollupID := genDoc.ChainID
+			// if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
+			// 	genDoc.ChainID = nodeConfig.SequencerRollupID
+			// }
+
+			sequencerRollupID := genDoc.GetChainID()
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
 			var seqSrv *grpc.Server = nil

@@ -12,7 +12,6 @@ import (
 	goheaderp2p "github.com/celestiaorg/go-header/p2p"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	goheadersync "github.com/celestiaorg/go-header/sync"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -37,7 +36,7 @@ const (
 // Uses the go-header library for handling all P2P logic.
 type SyncService[H header.Header[H]] struct {
 	conf      config.NodeConfig
-	genesis   *cmtypes.GenesisDoc
+	genesis   config.GenesisDoc
 	p2p       *p2p.Client
 	ex        *goheaderp2p.Exchange[H]
 	sub       *goheaderp2p.Subscriber[H]
@@ -58,16 +57,16 @@ type DataSyncService = SyncService[*types.Data]
 type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewDataSyncService returns a new DataSyncService.
-func NewDataSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
+func NewDataSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis config.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
 	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.
-func NewHeaderSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
+func NewHeaderSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis config.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
 	return newSyncService[*types.SignedHeader](store, headerSync, conf, genesis, p2p, logger)
 }
 
-func newSyncService[H header.Header[H]](store ds.TxnDatastore, syncType syncType, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
+func newSyncService[H header.Header[H]](store ds.TxnDatastore, syncType syncType, conf config.NodeConfig, genesis config.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
 	}
@@ -121,10 +120,10 @@ func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, 
 // WriteToStoreAndBroadcast initializes store if needed and broadcasts  provided header or block.
 // Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
 func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrData H) error {
-	if syncService.genesis.InitialHeight < 0 {
+	if syncService.genesis.GetInitialHeight() < 0 {
 		return fmt.Errorf("invalid initial height; cannot be negative")
 	}
-	isGenesis := headerOrData.Height() == uint64(syncService.genesis.InitialHeight)
+	isGenesis := headerOrData.Height() == syncService.genesis.GetInitialHeight()
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
 		if err := syncService.store.Init(ctx, headerOrData); err != nil {
@@ -214,7 +213,7 @@ func (syncService *SyncService[H]) setupP2P(ctx context.Context) ([]peer.ID, err
 	}
 
 	peerIDs := syncService.getPeerIDs()
-	if syncService.ex, err = newP2PExchange[H](syncService.p2p.Host(), peerIDs, networkID, syncService.genesis.ChainID, syncService.p2p.ConnectionGater()); err != nil {
+	if syncService.ex, err = newP2PExchange[H](syncService.p2p.Host(), peerIDs, networkID, syncService.genesis.GetChainID(), syncService.p2p.ConnectionGater()); err != nil {
 		return nil, fmt.Errorf("error while creating exchange: %w", err)
 	}
 	if err := syncService.ex.Start(ctx); err != nil {
@@ -268,7 +267,7 @@ func (syncService *SyncService[H]) setFirstAndStart(ctx context.Context, peerIDs
 		} else {
 			// Try fetching the genesis header/block if available, otherwise fallback to block
 			var err error
-			if trusted, err = syncService.ex.GetByHeight(ctx, uint64(syncService.genesis.InitialHeight)); err != nil {
+			if trusted, err = syncService.ex.GetByHeight(ctx, syncService.genesis.GetInitialHeight()); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis block
 				// proposing aggregator can init the store and start the syncer when the first block is published
 				return fmt.Errorf("failed to fetch the genesis: %w", err)
@@ -356,7 +355,7 @@ func (syncService *SyncService[H]) getNetworkID(network string) string {
 }
 
 func (syncService *SyncService[H]) getChainID() string {
-	return syncService.genesis.ChainID + "-" + string(syncService.syncType)
+	return syncService.genesis.GetChainID() + "-" + string(syncService.syncType)
 }
 
 func (syncService *SyncService[H]) getPeerIDs() []peer.ID {

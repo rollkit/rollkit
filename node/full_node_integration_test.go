@@ -39,7 +39,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Create genesis with current time
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	genesis.GenesisTime = time.Now() // Set genesis time to now
+	// genesis.GenesisTime = time.Now() // Set genesis time to now
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(s.T(), err)
 
@@ -354,8 +354,8 @@ func (s *FullNodeTestSuite) TestGenesisInitialization() {
 
 	// Verify genesis state
 	state := s.node.blockManager.GetLastState()
-	require.Equal(s.node.genesis.InitialHeight, int64(state.InitialHeight))
-	require.Equal(s.node.genesis.ChainID, state.ChainID)
+	require.Equal(s.node.genesis.GetInitialHeight(), int64(state.InitialHeight))
+	require.Equal(s.node.genesis.GetChainID(), state.ChainID)
 }
 
 func (s *FullNodeTestSuite) TestStateRecovery() {

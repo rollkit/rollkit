@@ -9,6 +9,7 @@ import (
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
+	"github.com/rollkit/rollkit/config"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
@@ -58,7 +59,7 @@ type State struct {
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
+func NewFromGenesisDoc(genDoc config.GenesisDoc) (State, error) {
 	err := genDoc.ValidateAndComplete()
 	if err != nil {
 		return State{}, fmt.Errorf("error in genesis doc: %w", err)
@@ -79,19 +80,19 @@ func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
 
 	s := State{
 		Version:       InitStateVersion,
-		ChainID:       genDoc.ChainID,
-		InitialHeight: uint64(genDoc.InitialHeight),
+		ChainID:       genDoc.GetChainID(),
+		InitialHeight: uint64(genDoc.GetInitialHeight()),
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
+		LastBlockHeight: uint64(genDoc.GetInitialHeight()) - 1,
 		LastBlockID:     types.BlockID{},
-		LastBlockTime:   genDoc.GenesisTime,
+		LastBlockTime:   genDoc.GetGenesisTime(),
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: genDoc.InitialHeight,
+		LastHeightValidatorsChanged: genDoc.GetInitialHeight(),
 
 		ConsensusParams: cmproto.ConsensusParams{
 			Block: &cmproto.BlockParams{

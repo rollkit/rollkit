@@ -15,6 +15,7 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/rollkit/rollkit/config"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -318,7 +319,7 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 }
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*cmtypes.GenesisDoc, cmcrypto.PrivKey) {
+func GetGenesisWithPrivkey(signingKeyType string, chainID string) (config.GenesisDoc, cmcrypto.PrivKey) {
 	var genesisValidatorKey cmcrypto.PrivKey
 	switch signingKeyType {
 	case "secp256k1":
@@ -334,11 +335,13 @@ func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*cmtypes.Gene
 		Power:   int64(1),
 		Name:    "sequencer",
 	}}
+
 	genDoc := &cmtypes.GenesisDoc{
 		ChainID:       chainID,
 		InitialHeight: 1,
 		Validators:    genesisValidators,
 	}
+
 	return genDoc, genesisValidatorKey
 }
 

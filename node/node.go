@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
@@ -23,7 +22,7 @@ func NewNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	genesis *cmtypes.GenesisDoc,
+	genesis config.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
