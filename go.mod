@@ -4,6 +4,8 @@ go 1.24.0
 
 retract v0.12.0 // Published by accident
 
+replace github.com/rollkit/rollkit/core => ./core
+
 require (
 	cosmossdk.io/log v1.5.0
 	github.com/BurntSushi/toml v1.4.0
@@ -33,8 +35,6 @@ require (
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 )
-
-replace github.com/rollkit/rollkit/core => ./core
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
