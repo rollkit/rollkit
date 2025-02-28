@@ -32,9 +32,6 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-// MockSequencerAddress is a sample address used by the mock sequencer
-const MockSequencerAddress = "localhost:50051"
-
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
 	diff := expected - actual
