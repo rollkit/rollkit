@@ -58,30 +58,24 @@ type DataSyncService = SyncService[*types.Data]
 type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewDataSyncService returns a new DataSyncService.
-func NewDataSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
+func NewDataSyncService(store ds.Batching, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
 	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.
-func NewHeaderSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
+func NewHeaderSyncService(store ds.Batching, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
 	return newSyncService[*types.SignedHeader](store, headerSync, conf, genesis, p2p, logger)
 }
 
-func newSyncService[H header.Header[H]](store ds.TxnDatastore, syncType syncType, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
+func newSyncService[H header.Header[H]](store ds.Batching, syncType syncType, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
 	}
 	if p2p == nil {
 		return nil, errors.New("p2p client cannot be nil")
 	}
-	// store is TxnDatastore, but we require Batching, hence the type assertion
-	// note, the badger datastore impl that is used in the background implements both
-	storeBatch, ok := store.(ds.Batching)
-	if !ok {
-		return nil, errors.New("failed to access the datastore")
-	}
 	ss, err := goheaderstore.NewStore[H](
-		storeBatch,
+		store,
 		goheaderstore.WithStorePrefix(string(syncType)),
 		goheaderstore.WithMetrics(),
 	)

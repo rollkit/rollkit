@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,15 +21,18 @@ import (
 // NodeIntegrationTestSuite is a test suite for node integration tests
 type NodeIntegrationTestSuite struct {
 	suite.Suite
-	ctx    context.Context
-	cancel context.CancelFunc
-	node   Node
-	seqSrv *grpc.Server
+	ctx       context.Context
+	cancel    context.CancelFunc
+	node      Node
+	seqSrv    *grpc.Server
+	errCh     chan error
+	runningWg sync.WaitGroup
 }
 
 // SetupTest is called before each test
 func (s *NodeIntegrationTestSuite) SetupTest() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+	s.errCh = make(chan error, 1)
 
 	// Setup node with proper configuration
 	config := getTestConfig(1)
@@ -60,10 +64,19 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	fn, ok := node.(*FullNode)
 	require.True(s.T(), ok)
 
-	err = fn.Start(s.ctx)
-	require.NoError(s.T(), err)
-
 	s.node = fn
+
+	// Start the node in a goroutine using Run instead of Start
+	s.runningWg.Add(1)
+	go func() {
+		defer s.runningWg.Done()
+		err := s.node.Run(s.ctx)
+		select {
+		case s.errCh <- err:
+		default:
+			s.T().Logf("Error channel full, discarding error: %v", err)
+		}
+	}()
 
 	// Wait for node initialization with retry
 	err = testutils.Retry(60, 100*time.Millisecond, func() error {
@@ -92,11 +105,33 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 // TearDownTest is called after each test
 func (s *NodeIntegrationTestSuite) TearDownTest() {
 	if s.cancel != nil {
-		s.cancel()
+		s.cancel() // Cancel context to stop the node
+
+		// Wait for the node to stop with a timeout
+		waitCh := make(chan struct{})
+		go func() {
+			s.runningWg.Wait()
+			close(waitCh)
+		}()
+
+		select {
+		case <-waitCh:
+			// Node stopped successfully
+		case <-time.After(5 * time.Second):
+			s.T().Log("Warning: Node did not stop gracefully within timeout")
+		}
+
+		// Check for any errors
+		select {
+		case err := <-s.errCh:
+			if err != nil && err != context.Canceled {
+				s.T().Logf("Error stopping node in teardown: %v", err)
+			}
+		default:
+			// No error
+		}
 	}
-	if s.node != nil {
-		_ = s.node.Stop(s.ctx)
-	}
+
 	if s.seqSrv != nil {
 		s.seqSrv.GracefulStop()
 	}
@@ -163,8 +198,16 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 
 	p2pKey := generateSingleKey()
 
+	// Create a new context for this node
+	nodeCtx, nodeCancel := context.WithCancel(s.ctx)
+
+	// Register cleanup to cancel the context when the test ends
+	s.T().Cleanup(func() {
+		nodeCancel()
+	})
+
 	node, err := NewNode(
-		s.ctx,
+		nodeCtx,
 		conf,
 		p2pKey,
 		key,
@@ -174,8 +217,31 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 	)
 	require.NoError(s.T(), err)
 
-	err = node.Start(s.ctx)
-	require.NoError(s.T(), err)
+	// Start the node in a goroutine
+	var wg sync.WaitGroup
+	errCh := make(chan error, 1)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := node.Run(nodeCtx)
+		select {
+		case errCh <- err:
+		default:
+			s.T().Logf("Error channel full, discarding error: %v", err)
+		}
+	}()
+
+	// Allow time for the node to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Check if the node started properly
+	select {
+	case err := <-errCh:
+		require.NoError(s.T(), err, "Node failed to start")
+	default:
+		// This is expected - node is still running
+	}
 
 	return node
 }

@@ -189,8 +189,9 @@ func NewRunNodeCmd() *cobra.Command {
 				config.ProxyApp = "noop"
 			}
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			// Create a cancellable context for the node
+			ctx, cancel := context.WithCancel(cmd.Context())
+			defer cancel() // Ensure context is cancelled when command exits
 
 			// create the rollkit node
 			rollnode, err := rollnode.NewNode(
@@ -206,40 +207,91 @@ func NewRunNodeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
 			}
 
-			// Start the node
-			if err := rollnode.Start(ctx); err != nil {
+			// Create error channel and signal channel
+			errCh := make(chan error, 1)
+			shutdownCh := make(chan struct{})
+
+			// Start the node in a goroutine
+			go func() {
+				err := rollnode.Run(ctx)
+				select {
+				case errCh <- err:
+				default:
+					logger.Error("Error channel full", "error", err)
+				}
+			}()
+
+			// Wait a moment to check for immediate startup errors
+			time.Sleep(100 * time.Millisecond)
+
+			// Check if the node stopped immediately
+			select {
+			case err := <-errCh:
 				return fmt.Errorf("failed to start node: %w", err)
+			default:
+				// This is expected - node is running
+				logger.Info("Started node")
 			}
 
-			// TODO: Do rollkit nodes not have information about them? CometBFT has node.switch.NodeInfo()
-			logger.Info("Started node")
-
 			// Stop upon receiving SIGTERM or CTRL-C.
-			cometos.TrapSignal(logger, func() {
-				if rollnode.IsRunning() {
-					if err := rollnode.Stop(ctx); err != nil {
-						logger.Error("unable to stop the node", "error", err)
-					}
-				}
-			})
+			go func() {
+				cometos.TrapSignal(logger, func() {
+					logger.Info("Received shutdown signal")
+					cancel() // Cancel context to stop the node
+					close(shutdownCh)
+				})
+			}()
 
 			// Check if we are running in CI mode
 			inCI, err := cmd.Flags().GetBool("ci")
 			if err != nil {
 				return err
 			}
+
 			if !inCI {
-				// Block forever to force user to stop node
-				select {}
+				// Block until either the node exits with an error or a shutdown signal is received
+				select {
+				case err := <-errCh:
+					return fmt.Errorf("node exited with error: %w", err)
+				case <-shutdownCh:
+					// Wait for the node to clean up
+					select {
+					case <-time.After(5 * time.Second):
+						logger.Info("Node shutdown timed out")
+					case err := <-errCh:
+						if err != nil && err != context.Canceled {
+							logger.Error("Error during shutdown", "error", err)
+						}
+					}
+					return nil
+				}
 			}
 
-			// CI mode. Wait for 5s and then verify the node is running before calling stop node.
+			// CI mode. Wait for 5s and then verify the node is running before cancelling context
 			time.Sleep(5 * time.Second)
-			if !rollnode.IsRunning() {
-				return fmt.Errorf("node is not running")
+
+			// Check if the node is still running
+			select {
+			case err := <-errCh:
+				return fmt.Errorf("node stopped unexpectedly in CI mode: %w", err)
+			default:
+				// Node is still running, which is what we want
+				logger.Info("Node running successfully in CI mode, shutting down")
 			}
 
-			return rollnode.Stop(ctx)
+			// Cancel the context to stop the node
+			cancel()
+
+			// Wait for the node to exit with a timeout
+			select {
+			case <-time.After(5 * time.Second):
+				return fmt.Errorf("node shutdown timed out in CI mode")
+			case err := <-errCh:
+				if err != nil && err != context.Canceled {
+					return fmt.Errorf("error during node shutdown in CI mode: %w", err)
+				}
+				return nil
+			}
 		},
 	}
 

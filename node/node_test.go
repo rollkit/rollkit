@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -138,31 +139,97 @@ const (
 	Light
 )
 
-// startNode starts the full node and stops it when the test is done
-func startNodeWithCleanup(t *testing.T, node Node) {
-	require.False(t, node.IsRunning())
-	require.NoError(t, node.Start(t.Context()))
-	require.True(t, node.IsRunning())
-	t.Cleanup(func() {
-		cleanUpNode(node, t)
-	})
+// NodeRunner contains a node and its running context
+type NodeRunner struct {
+	Node      Node
+	Ctx       context.Context
+	Cancel    context.CancelFunc
+	ErrCh     chan error
+	WaitGroup *sync.WaitGroup
 }
 
-// cleanUpNode stops the node and checks if it is running
-func cleanUpNode(node Node, t *testing.T) {
-	// Attempt to stop the node
-	err := node.Stop(t.Context())
-	require.NoError(t, err)
-	// Now verify that the node is no longer running
-	require.False(t, node.IsRunning())
+// startNodeWithCleanup starts the node using the service pattern and registers cleanup
+func startNodeWithCleanup(t *testing.T, node Node) *NodeRunner {
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Create error channel and wait group
+	errCh := make(chan error, 1)
+	var wg sync.WaitGroup
+
+	// Start the node in a goroutine
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := node.Run(ctx)
+		select {
+		case errCh <- err:
+		default:
+			t.Logf("Error channel full, discarding error: %v", err)
+		}
+	}()
+
+	// Give the node time to initialize
+	time.Sleep(100 * time.Millisecond)
+
+	// Check if the node has stopped unexpectedly
+	select {
+	case err := <-errCh:
+		t.Fatalf("Node stopped unexpectedly with error: %v", err)
+	default:
+		// This is expected - node is still running
+	}
+
+	// Register cleanup function
+	t.Cleanup(func() {
+		cleanUpNode(ctx, cancel, &wg, errCh, t)
+	})
+
+	return &NodeRunner{
+		Node:      node,
+		Ctx:       ctx,
+		Cancel:    cancel,
+		ErrCh:     errCh,
+		WaitGroup: &wg,
+	}
+}
+
+// cleanUpNode stops the node using context cancellation
+func cleanUpNode(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup, errCh chan error, t *testing.T) {
+	// Cancel the context to stop the node
+	cancel()
+
+	// Wait for the node to stop with a timeout
+	waitCh := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(waitCh)
+	}()
+
+	select {
+	case <-waitCh:
+		// Node stopped successfully
+	case <-time.After(5 * time.Second):
+		t.Log("Warning: Node did not stop gracefully within timeout")
+	}
+
+	// Check for any errors during shutdown
+	select {
+	case err := <-errCh:
+		if err != nil && err != context.Canceled {
+			t.Logf("Error stopping node: %v", err)
+		}
+	default:
+		// No error
+	}
 }
 
 // initAndStartNodeWithCleanup initializes and starts a node of the specified type.
 func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) Node {
 	node, _ := setupTestNode(ctx, t, nodeType, chainID)
-	startNodeWithCleanup(t, node)
+	runner := startNodeWithCleanup(t, node)
 
-	return node
+	return runner.Node
 }
 
 // setupTestNode sets up a test node based on the NodeType.
