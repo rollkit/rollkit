@@ -77,7 +77,7 @@ func TestInitialStateClean(t *testing.T) {
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
+		ProposerAddress: genesisDoc.GetProposerAddress(),
 	}
 	logger := test.NewLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
@@ -96,7 +96,7 @@ func TestInitialStateStored(t *testing.T) {
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
+		ProposerAddress: genesisDoc.GetProposerAddress(),
 	}
 	sampleState := types.State{
 		ChainID:         chainID,
@@ -174,7 +174,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	genesis := &RollkitGenesis{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   2,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
+		ProposerAddress: genesisDoc.GetProposerAddress(),
 	}
 	sampleState := types.State{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",

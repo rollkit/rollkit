@@ -19,7 +19,6 @@ import (
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -212,14 +211,12 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 			AppHash:         stateRoot,
 			DAHeight:        0,
 			// TODO(tzdybal): we don't need fields below
-			Version:                          cmstate.Version{},
-			ConsensusParams:                  cmproto.ConsensusParams{},
-			LastHeightConsensusParamsChanged: 0,
-			LastResultsHash:                  nil,
-			Validators:                       nil,
-			NextValidators:                   nil,
-			LastValidators:                   nil,
-			LastHeightValidatorsChanged:      0,
+			Version:                     cmstate.Version{},
+			LastResultsHash:             nil,
+			Validators:                  nil,
+			NextValidators:              nil,
+			LastValidators:              nil,
+			LastHeightValidatorsChanged: 0,
 		}
 		return s, nil
 	} else if err != nil {

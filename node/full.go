@@ -194,13 +194,13 @@ func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, g
 		return nil, fmt.Errorf("error while initializing executor: %w", err)
 	}
 
-	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
+	logger.Debug("Proposer address", "address", genesis.GetProposerAddress())
 
 	rollGen := &block.RollkitGenesis{
 		GenesisTime:     genesis.GetGenesisTime(),
 		InitialHeight:   genesis.GetInitialHeight(),
 		ChainID:         genesis.GetChainID(),
-		ProposerAddress: genesis.Validators[0].Address.Bytes(),
+		ProposerAddress: genesis.GetProposerAddress(),
 	}
 	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, seqClient, dalc, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics)
 	if err != nil {

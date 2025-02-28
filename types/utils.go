@@ -329,18 +329,7 @@ func GetGenesisWithPrivkey(signingKeyType string, chainID string) (config.Genesi
 	}
 	pubKey := genesisValidatorKey.PubKey()
 
-	genesisValidators := []cmtypes.GenesisValidator{{
-		Address: pubKey.Address(),
-		PubKey:  pubKey,
-		Power:   int64(1),
-		Name:    "sequencer",
-	}}
-
-	genDoc := &cmtypes.GenesisDoc{
-		ChainID:       chainID,
-		InitialHeight: 1,
-		Validators:    genesisValidators,
-	}
+	genDoc := config.NewGenesisDoc(chainID, 1, time.Now(), pubKey.Address())
 
 	return genDoc, genesisValidatorKey
 }

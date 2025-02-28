@@ -11,12 +11,23 @@ type GenesisDoc interface {
 	GetChainID() string
 	GetInitialHeight() uint64
 	GetGenesisTime() time.Time
+	GetProposerAddress() []byte
+}
+
+func NewGenesisDoc(chainID string, initialHeight uint64, genesisTime time.Time, proposerAddress []byte) GenesisDoc {
+	return &genesisDoc{
+		ChainID:         chainID,
+		InitialHeight:   initialHeight,
+		GenesisTime:     genesisTime,
+		ProposerAddress: proposerAddress,
+	}
 }
 
 type genesisDoc struct {
-	ChainID       string    `json:"chain_id"`
-	InitialHeight uint64    `json:"initial_height"`
-	GenesisTime   time.Time `json:"genesis_time"`
+	ChainID         string    `json:"chain_id"`
+	InitialHeight   uint64    `json:"initial_height"`
+	GenesisTime     time.Time `json:"genesis_time"`
+	ProposerAddress []byte    `json:"proposer_address"`
 }
 
 func (g *genesisDoc) GetChainID() string {
@@ -29,6 +40,10 @@ func (g *genesisDoc) GetInitialHeight() uint64 {
 
 func (g *genesisDoc) GetGenesisTime() time.Time {
 	return g.GenesisTime
+}
+
+func (g *genesisDoc) GetProposerAddress() []byte {
+	return g.ProposerAddress
 }
 
 // LoadGenesisDoc carga un documento génesis desde un archivo JSON
