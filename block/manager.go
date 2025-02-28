@@ -12,17 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/crypto/pb"
 
 	"github.com/rollkit/go-execution"
 	execTypes "github.com/rollkit/go-execution/types"
@@ -1058,12 +1054,9 @@ func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultR
 	return headerRes, err
 }
 
-func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
-	b, err := header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return m.proposerKey.Sign(b)
+func (m *Manager) sign(payload []byte) ([]byte, error) {
+	// Usar directamente el método Sign de la interfaz PrivKey
+	return m.proposerKey.Sign(payload)
 }
 
 func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
@@ -1199,7 +1192,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		//header.Validators = m.getLastStateValidators()
 		//header.ValidatorHash = header.Validators.Hash()
 
-		signature, err = m.getSignature(header.Header)
+		headerBytes, err := header.Header.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		signature, err = m.sign(headerBytes)
 		if err != nil {
 			return err
 		}
@@ -1223,7 +1220,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	// Before taking the hash, we need updated ISRs, hence after ApplyBlock
 	header.Header.DataHash = data.Hash()
 
-	signature, err = m.getSignature(header.Header)
+	headerBytes, err := header.Header.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	signature, err = m.sign(headerBytes)
 	if err != nil {
 		return err
 	}
@@ -1301,31 +1302,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) sign(payload []byte) ([]byte, error) {
-	var sig []byte
-	switch m.proposerKey.Type() {
-	case pb.KeyType_Ed25519:
-		return m.proposerKey.Sign(payload)
-	case pb.KeyType_Secp256k1:
-		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
-		rawBytes, err := k.Raw()
-		if err != nil {
-			return nil, err
-		}
-		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
-		return sig[1:], nil
-	default:
-		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
-	}
-}
-
 func (m *Manager) recordMetrics(data *types.Data) {
 	m.metrics.NumTxs.Set(float64(len(data.Txs)))
 	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
 	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
 	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
 }
+
 func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	submittedAllHeaders := false
 	var backoff time.Duration

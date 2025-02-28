@@ -431,6 +431,10 @@ func parseFlags(cmd *cobra.Command) error {
 		config.P2P.ExternalAddress = viper.GetString("p2p.external-address")
 	}
 
+	if cmd.Flags().Lookup("p2p.laddr").Changed {
+		config.P2P.ListenAddress = viper.GetString("p2p.laddr")
+	}
+
 	// handle rollkit node configuration
 	if err := nodeConfig.GetViperConfig(v); err != nil {
 		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)

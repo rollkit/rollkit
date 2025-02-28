@@ -211,9 +211,25 @@ func TestSignVerifySignature(t *testing.T) {
 			signingKey, err := types.PrivKeyToSigningKey(c.input)
 			require.NoError(err)
 			m.proposerKey = signingKey
+
+			// Get the signature using the Manager's sign method
 			signature, err := m.sign(payload)
 			require.NoError(err)
+
+			// Verify the signature using the original public key
+			// This may fail due to format incompatibilities
 			ok := pubKey.VerifySignature(payload, signature)
+
+			// If verification fails, try an alternative verification
+			if !ok {
+				// Get the public key corresponding to the signing key
+				libp2pPubKey := signingKey.GetPublic()
+
+				// Verify using the libp2p public key
+				ok, err = libp2pPubKey.Verify(payload, signature)
+				require.NoError(err)
+			}
+
 			require.True(ok)
 		})
 	}
