@@ -10,11 +10,13 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	ds "github.com/ipfs/go-datastore"
 
+	"github.com/rollkit/rollkit/pkg/prefix"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-var (
+const (
+	storePrefix          = "s"
 	headerPrefix         = "h"
 	dataPrefix           = "d"
 	indexPrefix          = "i"
@@ -35,8 +37,10 @@ var _ Store = &DefaultStore{}
 
 // New returns new, default store.
 func New(ds ds.Batching) Store {
+	// prefix the store with the main prefix to prevent key collisions
+	prefixStore := prefix.NewPrefixKV(ds, storePrefix)
 	return &DefaultStore{
-		db: ds,
+		db: prefixStore,
 	}
 }
 

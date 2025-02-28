@@ -22,6 +22,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/prefix"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -59,12 +60,16 @@ type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewDataSyncService returns a new DataSyncService.
 func NewDataSyncService(store ds.Batching, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
-	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
+	// prefix the store with the sync type to prevent key collisions
+	prefixStore := prefix.NewPrefixKV(store, string(dataSync))
+	return newSyncService[*types.Data](prefixStore, dataSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.
 func NewHeaderSyncService(store ds.Batching, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
-	return newSyncService[*types.SignedHeader](store, headerSync, conf, genesis, p2p, logger)
+	// prefix the store with the sync type to prevent key collisions
+	prefixStore := prefix.NewPrefixKV(store, string(headerSync))
+	return newSyncService[*types.SignedHeader](prefixStore, headerSync, conf, genesis, p2p, logger)
 }
 
 func newSyncService[H header.Header[H]](store ds.Batching, syncType syncType, conf config.NodeConfig, genesis *cmtypes.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {

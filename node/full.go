@@ -12,7 +12,6 @@ import (
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
-	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -94,18 +93,17 @@ func newFullNode(
 		return nil, err
 	}
 
-	mainKV := newPrefixKV(database, mainPrefix)
-	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
+	headerSyncService, err := initHeaderSyncService(database, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	dataSyncService, err := initDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
+	dataSyncService, err := initDataSyncService(database, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	store := store.New(mainKV)
+	store := store.New(database)
 
 	blockManager, err := initBlockManager(
 		ctx,
@@ -167,13 +165,13 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 }
 
 func initHeaderSyncService(
-	mainKV ds.Batching,
+	database ds.Batching,
 	nodeConfig config.NodeConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.HeaderSyncService, error) {
-	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(database, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -415,10 +413,6 @@ func (n *FullNode) SetLogger(logger log.Logger) {
 // GetLogger returns logger.
 func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
-}
-
-func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
-	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.Batching)
 }
 
 // Start implements NodeLifecycle
