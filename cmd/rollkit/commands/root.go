@@ -1,8 +1,11 @@
 package commands
 
 import (
-	cometconfig "github.com/cometbft/cometbft/config"
 	"github.com/spf13/cobra"
+)
+
+const (
+	DefaultLogLevel = "info"
 )
 
 func init() {
@@ -11,7 +14,7 @@ func init() {
 
 // registerFlagsRootCmd registers the flags for the root command
 func registerFlagsRootCmd(cmd *cobra.Command) {
-	cmd.PersistentFlags().String("log_level", cometconfig.DefaultLogLevel, "set the log level; default is info. other options include debug, info, error, none")
+	cmd.PersistentFlags().String("log_level", DefaultLogLevel, "set the log level; default is info. other options include debug, info, error, none")
 }
 
 // RootCmd is the root command for Rollkit
