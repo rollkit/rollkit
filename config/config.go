@@ -1,9 +1,9 @@
 package config
 
 import (
+	"path/filepath"
 	"time"
 
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -62,10 +62,10 @@ type NodeConfig struct {
 	DAAuthToken        string `mapstructure:"da_auth_token"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
-	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
-	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
-	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
-	DASubmitOptions    string                       `mapstructure:"da_submit_options"`
+	Instrumentation    *InstrumentationConfig `mapstructure:"instrumentation"`
+	DAGasPrice         float64                `mapstructure:"da_gas_price"`
+	DAGasMultiplier    float64                `mapstructure:"da_gas_multiplier"`
+	DASubmitOptions    string                 `mapstructure:"da_submit_options"`
 
 	// CLI flags
 	DANamespace       string `mapstructure:"da_namespace"`
@@ -100,21 +100,25 @@ type BlockManagerConfig struct {
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
 }
 
+// InstrumentationConfig defines
+type InstrumentationConfig struct {
+	Prometheus           bool   `mapstructure:"prometheus"`
+	PrometheusListenAddr string `mapstructure:"prometheus_listen_addr"`
+	MaxOpenConnections   int    `mapstructure:"max_open_connections"`
+	Namespace            string `mapstructure:"namespace"`
+}
+
 // GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
 //
 // This method only translates configuration, and doesn't verify it. If some option is missing in Tendermint's
 // config, it's skipped during translation.
-func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
-	if cmConf != nil {
-		nodeConf.RootDir = cmConf.RootDir
-		nodeConf.DBPath = cmConf.DBPath
-		if cmConf.P2P != nil {
-			nodeConf.P2P.ListenAddress = cmConf.P2P.ListenAddress
-			nodeConf.P2P.Seeds = cmConf.P2P.Seeds
-		}
-		if cmConf.Instrumentation != nil {
-			nodeConf.Instrumentation = cmConf.Instrumentation
-		}
+func GetNodeConfig(nodeConf *NodeConfig) {
+	if nodeConf.RootDir == "" {
+		nodeConf.RootDir = DefaultNodeConfig.RootDir
+	}
+
+	if nodeConf.DBPath == "" {
+		nodeConf.DBPath = filepath.Join(nodeConf.RootDir, "data")
 	}
 }
 

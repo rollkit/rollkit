@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -24,7 +23,7 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
-	"github.com/rollkit/rollkit/config"
+	rollkitconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -176,7 +175,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
-	config := config.NodeConfig{
+	config := rollkitconf.NodeConfig{
 		DAAddress:        MockDAAddress,
 		DANamespace:      MockDANamespace,
 		ExecutorAddress:  MockExecutorAddress,
@@ -193,7 +192,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	key := generateSingleKey()
 
 	logger := log.NewTestLogger(t)
-	node, err := NewNode(ctx, config, key, signingKey, genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
+	node, err := NewNode(ctx, config, key, signingKey, genesis, DefaultMetricsProvider(rollkitconf.DefaultInstrumentationConfig()), logger)
 	return node, genesisValidatorKey, err
 }
 

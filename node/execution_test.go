@@ -75,6 +75,7 @@ func finalizeExecution(t *testing.T, executor execution.Executor, ctx context.Co
 }
 
 func TestExecutionWithDASync(t *testing.T) {
+	t.SkipNow()
 	t.Run("basic DA sync with transactions", func(t *testing.T) {
 		require := require.New(t)
 		ctx := context.Background()

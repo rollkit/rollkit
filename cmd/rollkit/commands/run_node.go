@@ -121,13 +121,13 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// get the node configuration
-			rollconf.GetNodeConfig(&nodeConfig, config)
+			rollconf.GetNodeConfig(&nodeConfig)
 			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
 				return err
 			}
 
 			// initialize the metrics
-			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
+			metrics := rollnode.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
 			// Only start mock DA server if the user did not provide --rollkit.da_address

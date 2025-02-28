@@ -1,8 +1,6 @@
 package config
 
-import (
-	"time"
-)
+import "time"
 
 const (
 	// DefaultListenAddress is a default listen address for P2P client.
@@ -22,6 +20,7 @@ const (
 
 // DefaultNodeConfig keeps default values of NodeConfig
 var DefaultNodeConfig = NodeConfig{
+	RootDir: "~/.rollkit",
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",

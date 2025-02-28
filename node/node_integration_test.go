@@ -8,12 +8,11 @@ import (
 
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
-	"github.com/rollkit/rollkit/config"
+	rollkitconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -51,7 +50,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconf.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)
@@ -156,7 +155,7 @@ func (s *NodeIntegrationTestSuite) TestBlockProduction() {
 }
 
 // nolint:unused
-func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) Node {
+func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf rollkitconf.NodeConfig) Node {
 	genesis, signingKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	key, err := types.PrivKeyToSigningKey(signingKey)
 	require.NoError(s.T(), err)
@@ -169,7 +168,7 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 		p2pKey,
 		key,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconf.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)

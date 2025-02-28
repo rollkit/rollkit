@@ -18,17 +18,16 @@ func TestGetNodeConfig(t *testing.T) {
 		input    *cmcfg.Config
 		expected NodeConfig
 	}{
-		{"empty", nil, NodeConfig{}},
-		{"Seeds", &cmcfg.Config{P2P: &cmcfg.P2PConfig{Seeds: "seeds"}}, NodeConfig{P2P: P2PConfig{Seeds: "seeds"}}},
-		{"ListenAddress", &cmcfg.Config{P2P: &cmcfg.P2PConfig{ListenAddress: "127.0.0.1:7676"}}, NodeConfig{P2P: P2PConfig{ListenAddress: "127.0.0.1:7676"}}},
-		{"RootDir", &cmcfg.Config{BaseConfig: cmcfg.BaseConfig{RootDir: "~/root"}}, NodeConfig{RootDir: "~/root"}},
-		{"DBPath", &cmcfg.Config{BaseConfig: cmcfg.BaseConfig{DBPath: "./database"}}, NodeConfig{DBPath: "./database"}},
+		{"empty", nil, NodeConfig{
+			RootDir: "~/.rollkit",
+			DBPath:  "~/.rollkit/data",
+		}}, // With defaults
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			var actual NodeConfig
-			GetNodeConfig(&actual, c.input)
+			GetNodeConfig(&actual)
 			assert.Equal(t, c.expected, actual)
 		})
 	}
