@@ -9,9 +9,9 @@ import (
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
 	cmcfg "github.com/cometbft/cometbft/config"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/grpc"
 
 	"github.com/rollkit/rollkit/types"
 )
@@ -22,7 +22,6 @@ type NodeIntegrationTestSuite struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	node   Node
-	seqSrv *grpc.Server
 }
 
 // SetupTest is called before each test
@@ -39,13 +38,11 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(s.T(), err)
 
-	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
-	require.NotNil(s.T(), s.seqSrv)
-
 	p2pKey := generateSingleKey()
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
+	database := ds.NewMapDatastore()
 
 	node, err := NewNode(
 		s.ctx,
@@ -55,6 +52,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		p2pKey,
 		signingKey,
 		genesis,
+		database,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
@@ -91,19 +89,6 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		return nil
 	})
 	require.NoError(s.T(), err, "Failed to get DA inclusion")
-}
-
-// TearDownTest is called after each test
-func (s *NodeIntegrationTestSuite) TearDownTest() {
-	if s.cancel != nil {
-		s.cancel()
-	}
-	if s.node != nil {
-		_ = s.node.Stop(s.ctx)
-	}
-	if s.seqSrv != nil {
-		s.seqSrv.GracefulStop()
-	}
 }
 
 // TestNodeIntegrationTestSuite runs the test suite

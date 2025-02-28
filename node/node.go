@@ -5,6 +5,7 @@ import (
 
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
@@ -30,6 +31,7 @@ func NewNode(
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
+	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
@@ -39,6 +41,7 @@ func NewNode(
 			conf,
 			p2pKey,
 			genesis,
+			database,
 			metricsProvider,
 			logger,
 		)
@@ -52,6 +55,7 @@ func NewNode(
 		genesis,
 		exec,
 		sequencer,
+		database,
 		metricsProvider,
 		logger,
 	)

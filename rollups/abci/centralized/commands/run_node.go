@@ -5,10 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"net"
-	"net/url"
 	"os"
-	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
@@ -21,24 +18,13 @@ import (
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	ds "github.com/ipfs/go-datastore"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"google.golang.org/grpc"
-
-	"github.com/rollkit/go-da"
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-	goDATest "github.com/rollkit/go-da/test"
-	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
-	execTest "github.com/rollkit/go-execution/test"
-	execTypes "github.com/rollkit/go-execution/types"
-	pb "github.com/rollkit/go-execution/types/pb/execution"
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
-	seqTest "github.com/rollkit/go-sequencing/test"
 
 	rollconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
+	cnode "github.com/rollkit/rollkit/sequencers/centralized"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
@@ -116,11 +102,6 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// default to socket connections for remote clients
-			if len(config.ABCI) == 0 {
-				config.ABCI = "socket"
-			}
-
 			// get the node configuration
 			rollconf.GetNodeConfig(&nodeConfig, config)
 			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
@@ -130,57 +111,9 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
-			// Try and launch a mock JSON RPC DA server if there is no DA server running.
-			// Only start mock DA server if the user did not provide --rollkit.da_address
-			var daSrv *proxy.Server = nil
-			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
-				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock da server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if daSrv != nil {
-						daSrv.Stop(cmd.Context())
-					}
-				}()
-			}
-
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 				genDoc.ChainID = nodeConfig.SequencerRollupID
-			}
-			sequencerRollupID := genDoc.ChainID
-			// Try and launch a mock gRPC sequencer if there is no sequencer running.
-			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
-			var seqSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
-				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if seqSrv != nil {
-						seqSrv.Stop()
-					}
-				}()
-			}
-
-			// Try and launch a mock gRPC executor if there is no executor running.
-			// Only start mock Executor if the user did not provide --rollkit.executor_address
-			var execSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup("rollkit.executor_address").Changed {
-				execSrv, err = tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
-				if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock executor server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if execSrv != nil {
-						execSrv.Stop()
-					}
-				}()
 			}
 
 			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
@@ -194,19 +127,18 @@ func NewRunNodeCmd() *cobra.Command {
 			defer cancel()
 
 			dummyExecutor := node.NewDummyExecutor()
-			dummySequencer := node.NewDummySequencer()
-			database := ds.NewMapDatastore()
+
+			centralisedSequencer := cnode.NewSequencer()
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
 				nodeConfig,
 				// THIS IS FOR TESTING ONLY
 				dummyExecutor,
-				dummySequencer,
+				centralisedSequencer,
 				p2pKey,
 				signingKey,
 				genDoc,
-				database,
 				metrics,
 				logger,
 			)
@@ -267,83 +199,6 @@ func addNodeFlags(cmd *cobra.Command) {
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
-}
-
-// tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
-func tryStartMockDAServJSONRPC(
-	ctx context.Context,
-	daAddress string,
-	newServer func(string, string, da.DA) *proxy.Server,
-) (*proxy.Server, error) {
-	addr, err := url.Parse(daAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	if err := srv.Start(ctx); err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("DA server is already running", "address", daAddress)
-			return nil, errDAServerAlreadyRunning
-		}
-		return nil, err
-	}
-
-	logger.Info("Starting mock DA server", "address", daAddress)
-
-	return srv, nil
-}
-
-// tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.
-func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
-	dummySeq := seqTest.NewDummySequencer([]byte(rollupId))
-	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) || errors.Is(err, syscall.EADDRNOTAVAIL) {
-			logger.Info(errSequencerAlreadyRunning.Error(), "address", listenAddress)
-			logger.Info("make sure your rollupID matches your sequencer", "rollupID", rollupId)
-			return nil, errSequencerAlreadyRunning
-		}
-		return nil, err
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	logger.Info("Starting mock sequencer", "address", listenAddress, "rollupID", rollupId)
-	return server, nil
-}
-
-// tryStartMockExecutorServerGRPC will try and start a mock gRPC executor server
-func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) {
-	dummyExec := execTest.NewDummyExecutor()
-
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		i := 0
-		for range ticker.C {
-			dummyExec.InjectTx(execTypes.Tx{byte(3*i + 1), byte(3*i + 2), byte(3*i + 3)})
-			i++
-		}
-	}()
-
-	execServer := execGRPC.NewServer(dummyExec, nil)
-	server := grpc.NewServer()
-	pb.RegisterExecutionServiceServer(server, execServer)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("Executor server already running", "address", listenAddress)
-			return nil, errExecutorAlreadyRunning
-		}
-		return nil, err
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	logger.Info("Starting mock executor", "address", listenAddress)
-	return server, nil
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default

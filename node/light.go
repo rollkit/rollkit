@@ -14,7 +14,6 @@ import (
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
-	"github.com/rollkit/rollkit/store"
 )
 
 var _ Node = &LightNode{}
@@ -33,22 +32,19 @@ func newLightNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
+	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
 
 	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
-	datastore, err := openDatastore(conf, logger)
-	if err != nil {
-		return nil, err
-	}
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, database, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
 
-	headerSyncService, err := block.NewHeaderSyncService(datastore, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(database, conf, genesis, client, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -61,14 +57,6 @@ func newLightNode(
 	node.BaseService = *service.NewBaseService(logger, "LightNode", node)
 
 	return node, nil
-}
-
-func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
-	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
-		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
-	}
-	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }
 
 // OnStart starts the P2P and HeaderSync services

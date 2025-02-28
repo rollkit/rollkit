@@ -78,27 +78,23 @@ func newFullNode(
 	genesis *cmtypes.GenesisDoc,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
+	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
 	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
-
-	baseKV, err := initBaseKV(nodeConfig, logger)
-	if err != nil {
-		return nil, err
-	}
 
 	dalc, err := initDALC(nodeConfig, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
+	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, database, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
 
-	mainKV := newPrefixKV(baseKV, mainPrefix)
+	mainKV := newPrefixKV(database, mainPrefix)
 	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
@@ -146,15 +142,6 @@ func newFullNode(
 	return node, nil
 }
 
-// initBaseKV initializes the base key-value store.
-func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
-	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
-		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
-	}
-	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
-}
-
 func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
 	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
@@ -180,7 +167,7 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 }
 
 func initHeaderSyncService(
-	mainKV ds.TxnDatastore,
+	mainKV ds.Batching,
 	nodeConfig config.NodeConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
@@ -194,7 +181,7 @@ func initHeaderSyncService(
 }
 
 func initDataSyncService(
-	mainKV ds.TxnDatastore,
+	mainKV ds.Batching,
 	nodeConfig config.NodeConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
@@ -430,8 +417,8 @@ func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
 }
 
-func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
-	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
+func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
+	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.Batching)
 }
 
 // Start implements NodeLifecycle

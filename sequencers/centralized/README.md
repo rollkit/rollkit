@@ -219,4 +219,4 @@ response, err := seq.VerifyBatch(
         BatchHash: batchHash,
     },
 )
-``` 
+```

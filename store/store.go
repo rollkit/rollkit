@@ -27,14 +27,14 @@ var (
 
 // DefaultStore is a default store implmementation.
 type DefaultStore struct {
-	db     ds.TxnDatastore
+	db     ds.Batching
 	height atomic.Uint64
 }
 
 var _ Store = &DefaultStore{}
 
 // New returns new, default store.
-func New(ds ds.TxnDatastore) Store {
+func New(ds ds.Batching) Store {
 	return &DefaultStore{
 		db: ds,
 	}
@@ -78,30 +78,29 @@ func (s *DefaultStore) SaveBlockData(ctx context.Context, header *types.SignedHe
 		return fmt.Errorf("failed to marshal Data to binary: %w", err)
 	}
 
-	bb, err := s.db.NewTransaction(ctx, false)
+	batch, err := s.db.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create a new batch for transaction: %w", err)
 	}
-	defer bb.Discard(ctx)
 
-	err = bb.Put(ctx, ds.NewKey(getHeaderKey(height)), headerBlob)
+	err = batch.Put(ctx, ds.NewKey(getHeaderKey(height)), headerBlob)
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Header Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getDataKey(height)), dataBlob)
+	err = batch.Put(ctx, ds.NewKey(getDataKey(height)), dataBlob)
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Data Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getSignatureKey(height)), signatureHash[:])
+	err = batch.Put(ctx, ds.NewKey(getSignatureKey(height)), signatureHash[:])
 	if err != nil {
 		return fmt.Errorf("failed to create a new key for Commit Blob: %w", err)
 	}
-	err = bb.Put(ctx, ds.NewKey(getIndexKey(hash)), encodeHeight(height))
+	err = batch.Put(ctx, ds.NewKey(getIndexKey(hash)), encodeHeight(height))
 	if err != nil {
 		return fmt.Errorf("failed to create a new key using height of the block: %w", err)
 	}
 
-	if err = bb.Commit(ctx); err != nil {
+	if err = batch.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
