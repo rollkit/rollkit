@@ -259,7 +259,7 @@ func NewRunNodeCmd() *cobra.Command {
 					case <-time.After(5 * time.Second):
 						logger.Info("Node shutdown timed out")
 					case err := <-errCh:
-						if err != nil && err != context.Canceled {
+						if err != nil && !errors.Is(err, context.Canceled) {
 							logger.Error("Error during shutdown", "error", err)
 						}
 					}
@@ -287,7 +287,7 @@ func NewRunNodeCmd() *cobra.Command {
 			case <-time.After(5 * time.Second):
 				return fmt.Errorf("node shutdown timed out in CI mode")
 			case err := <-errCh:
-				if err != nil && err != context.Canceled {
+				if err != nil && !errors.Is(err, context.Canceled) {
 					return fmt.Errorf("error during node shutdown in CI mode: %w", err)
 				}
 				return nil

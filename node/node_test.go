@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/url"
 	"os"
@@ -216,7 +217,7 @@ func cleanUpNode(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGr
 	// Check for any errors during shutdown
 	select {
 	case err := <-errCh:
-		if err != nil && err != context.Canceled {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			t.Logf("Error stopping node: %v", err)
 		}
 	default:

@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -153,7 +154,7 @@ func (s *FullNodeTestSuite) TearDownTest() {
 		// Check for any errors
 		select {
 		case err := <-s.errCh:
-			if err != nil && err != context.Canceled {
+			if err != nil && !errors.Is(err, context.Canceled) {
 				s.T().Logf("Error stopping node in teardown: %v", err)
 			}
 		default:

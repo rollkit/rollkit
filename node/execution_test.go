@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -159,7 +160,7 @@ func TestExecutionWithDASync(t *testing.T) {
 		// Check for any errors during shutdown
 		select {
 		case err := <-errCh:
-			if err != nil && err != context.Canceled {
+			if err != nil && !errors.Is(err, context.Canceled) {
 				t.Logf("Error stopping node: %v", err)
 			}
 		default:

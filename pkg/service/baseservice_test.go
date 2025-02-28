@@ -83,7 +83,7 @@ func TestBaseService_Run(t *testing.T) {
 				if err == nil {
 					t.Errorf("expected error but got nil")
 				}
-				if tc.runError != nil && err != tc.runError {
+				if tc.runError != nil && !errors.Is(err, tc.runError) {
 					t.Errorf("expected error %v, got %v", tc.runError, err)
 				}
 			} else {
