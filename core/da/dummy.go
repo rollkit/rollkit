@@ -101,12 +101,12 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace Namespace)
 }
 
 // Submit submits blobs to the DA layer.
-func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice int64, namespace Namespace) ([]ID, error) {
+func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice uint64, namespace Namespace) ([]ID, error) {
 	return d.SubmitWithOptions(ctx, blobs, gasPrice, namespace, nil)
 }
 
 // SubmitWithOptions submits blobs to the DA layer with additional options.
-func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice int64, namespace Namespace, options []byte) ([]ID, error) {
+func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice uint64, namespace Namespace, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

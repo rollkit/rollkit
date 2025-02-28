@@ -16,8 +16,7 @@ import (
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-
-	dac "github.com/rollkit/rollkit/sequencers/centralized/da"
+	dac "github.com/rollkit/rollkit/da"
 )
 
 // ErrInvalidRollupId is returned when the rollup id is invalid
@@ -68,7 +67,7 @@ func NewSequencer(
 	batchTime time.Duration,
 	metrics *Metrics,
 ) (*Sequencer, error) {
-	dalc := dac.NewDAClient(da, -1, 0, coreda.Namespace(daNamespace), logger)
+	dalc := dac.NewDAClient(da, 0, 0, coreda.Namespace(daNamespace), logger, nil)
 	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
@@ -236,7 +235,7 @@ func (c *Sequencer) publishBatch(ctx context.Context) error {
 	return nil
 }
 
-func (c *Sequencer) recordMetrics(gasPrice int64, blobSize uint64, statusCode dac.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
+func (c *Sequencer) recordMetrics(gasPrice, blobSize uint64, statusCode dac.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
 	if c.metrics != nil {
 		c.metrics.GasPrice.Set(float64(gasPrice))
 		c.metrics.LastBlobSize.Set(float64(blobSize))
@@ -284,7 +283,7 @@ daSubmitRetryLoop:
 			// scale back gasPrice gradually
 			backoff = 0
 			maxBlobSize = initialMaxBlobSize
-			if c.dalc.GasMultiplier > 0 && gasPrice != -1 {
+			if c.dalc.GasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice / c.dalc.GasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
@@ -294,7 +293,7 @@ daSubmitRetryLoop:
 		case dac.StatusNotIncludedInBlock, dac.StatusAlreadyInMempool:
 			c.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
-			if c.dalc.GasMultiplier > 0 && gasPrice != -1 {
+			if c.dalc.GasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice * c.dalc.GasMultiplier
 			}
 			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
