@@ -18,6 +18,7 @@ import (
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -128,17 +129,25 @@ func NewRunNodeCmd() *cobra.Command {
 
 			dummyExecutor := node.NewDummyExecutor()
 
-			centralisedSequencer := cnode.NewSequencer()
+			da := celestiaDa.New()
+
+			// TODO: use persistent DB
+			db := ds.NewMapDatastore()
+
+			centralisedSequencer, err := cnode.NewSequencer(ctx, logger, db, da, nodeConfig.SequencerRollupID, nodeConfig.RollupID, nodeConfig.BlockTime)
+
+			// TODO: pass in a callback to transform from rollkit header to custom header
+
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
 				nodeConfig,
-				// THIS IS FOR TESTING ONLY
 				dummyExecutor,
 				centralisedSequencer,
 				p2pKey,
 				signingKey,
 				genDoc,
+				db,
 				metrics,
 				logger,
 			)

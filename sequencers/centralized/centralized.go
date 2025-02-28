@@ -17,7 +17,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
-	dac "github.com/rollkit/rollkit/sequencers/centralized/da"
+	dac "github.com/rollkit/rollkit/da"
 )
 
 // ErrInvalidRollupId is returned when the rollup id is invalid
@@ -39,7 +39,11 @@ type Sequencer struct {
 
 	dalc      *dac.DAClient
 	batchTime time.Duration
-	maxSize   uint64
+
+	maxBlobSize uint64
+	//TODO: Implement maxGas and maxBlockBytes
+	maxGas        uint64
+	maxBlockBytes uint64
 
 	rollupId []byte
 
@@ -79,7 +83,7 @@ func NewSequencer(
 		logger:      logger,
 		dalc:        dalc,
 		batchTime:   batchTime,
-		maxSize:     maxBlobSize,
+		maxBlobSize: maxBlobSize,
 		rollupId:    rollupId,
 		tq:          NewTransactionQueue(db),
 		bq:          NewBatchQueue(db),
@@ -130,11 +134,11 @@ func (c *Sequencer) Close() error {
 // This can be overwritten by the execution client if it can only handle smaller size
 func (c *Sequencer) CompareAndSetMaxSize(size uint64) {
 	for {
-		current := atomic.LoadUint64(&c.maxSize)
+		current := atomic.LoadUint64(&c.maxBlobSize)
 		if size >= current {
 			return
 		}
-		if atomic.CompareAndSwapUint64(&c.maxSize, current, size) {
+		if atomic.CompareAndSwapUint64(&c.maxBlobSize, current, size) {
 			return
 		}
 	}
@@ -216,7 +220,7 @@ func (c *Sequencer) batchSubmissionLoop(ctx context.Context) {
 }
 
 func (c *Sequencer) publishBatch(ctx context.Context) error {
-	batch := c.tq.GetNextBatch(ctx, c.maxSize)
+	batch := c.tq.GetNextBatch(ctx, c.maxBlobSize)
 	if batch.Transactions == nil {
 		return nil
 	}
@@ -253,7 +257,7 @@ func (c *Sequencer) submitBatchToDA(batch coresequencer.Batch) error {
 	numSubmittedBatches := 0
 	attempt := 0
 
-	maxBlobSize := c.maxSize
+	maxBlobSize := c.maxBlobSize
 	initialMaxBlobSize := maxBlobSize
 	initialGasPrice := c.dalc.GasPrice
 	gasPrice := c.dalc.GasPrice

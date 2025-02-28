@@ -1075,10 +1075,12 @@ func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
 		// batch is nil when there is nothing to process
 		return nil, nil, ErrNoBatch
 	}
+
 	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
 	for _, tx := range batch.Transactions {
 		txs = append(txs, tx)
 	}
+
 	return txs, &batch.Time, nil
 }
 
@@ -1197,8 +1199,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		   these values get overridden on lines 687-698 after we obtain the IntermediateStateRoots.
 		*/
 		header.DataHash = data.Hash()
-		//header.Validators = m.getLastStateValidators()
-		//header.ValidatorHash = header.Validators.Hash()
 
 		signature, err = m.getSignature(header.Header)
 		if err != nil {
