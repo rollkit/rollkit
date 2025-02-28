@@ -9,6 +9,7 @@ import (
 
 	"cosmossdk.io/log"
 	cmcfg "github.com/cometbft/cometbft/config"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
@@ -56,6 +57,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
+	database := ds.NewMapDatastore()
 
 	node, err := NewNode(
 		ctx,
@@ -65,6 +67,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		p2pKey,
 		signingKey,
 		genesis,
+		database,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 	)

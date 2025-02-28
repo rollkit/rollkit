@@ -49,7 +49,7 @@ func (bq *BatchQueue) AddBatch(ctx context.Context, batch coresequencer.Batch) e
 		return err
 	}
 
-	// Store the batch in BadgerDB
+	// Store the batch in DB
 	return bq.db.Put(ctx, ds.NewKey(hex.EncodeToString(h)), batchBytes)
 
 }
@@ -69,7 +69,7 @@ func (bq *BatchQueue) Next(ctx context.Context) (*coresequencer.Batch, error) {
 		return &coresequencer.Batch{Transactions: nil}, err
 	}
 
-	// Remove the batch from BadgerDB after processing
+	// Remove the batch from DB after processing
 	err = bq.db.Delete(ctx, ds.NewKey(hex.EncodeToString(h)))
 	if err != nil {
 		return &coresequencer.Batch{Transactions: nil}, err
@@ -78,7 +78,7 @@ func (bq *BatchQueue) Next(ctx context.Context) (*coresequencer.Batch, error) {
 	return &batch, nil
 }
 
-// LoadFromDB reloads all batches from BadgerDB into the in-memory queue after a crash or restart.
+// LoadFromDB reloads all batches from DB into the in-memory queue after a crash or restart.
 func (bq *BatchQueue) LoadFromDB(ctx context.Context) error {
 	bq.mu.Lock()
 	defer bq.mu.Unlock()
@@ -139,12 +139,12 @@ func (tq *TransactionQueue) AddTransaction(ctx context.Context, tx []byte) error
 	tq.queue = append(tq.queue, tx)
 	tq.mu.Unlock()
 
-	// Store transaction in BadgerDB
+	// Store transaction in DB
 	return tq.db.Put(ctx, ds.NewKey(GetTransactionHash(tx)), tx)
 }
 
 // GetNextBatch extracts a batch of transactions from the queue
-func (tq *TransactionQueue) GetNextBatch(ctx context.Context, max uint64) coresequencer.Batch {
+func (tq *TransactionQueue) GetNextBatch(ctx context.Context, maxBytes uint64) coresequencer.Batch {
 	tq.mu.Lock()
 	defer tq.mu.Unlock()
 
@@ -156,7 +156,7 @@ func (tq *TransactionQueue) GetNextBatch(ctx context.Context, max uint64) corese
 	for {
 		batch = tq.queue[:batchSize]
 		blobSize := totalBytes(batch)
-		if uint64(blobSize) <= max {
+		if uint64(blobSize) <= maxBytes {
 			break
 		}
 		batchSize = batchSize - 1
@@ -184,7 +184,7 @@ func (tq *TransactionQueue) GetNextBatch(ctx context.Context, max uint64) corese
 	return coresequencer.Batch{Transactions: batch}
 }
 
-// LoadFromDB reloads all transactions from BadgerDB into the in-memory queue
+// LoadFromDB reloads all transactions from DB into the in-memory queue
 func (tq *TransactionQueue) LoadFromDB(ctx context.Context) error {
 	tq.mu.Lock()
 	defer tq.mu.Unlock()
@@ -220,7 +220,7 @@ func (tq *TransactionQueue) AddBatchBackToQueue(ctx context.Context, batch cores
 	// Add the batch back to the in-memory transaction queue
 	tq.queue = append(tq.queue, batch.Transactions...)
 
-	// Optionally, persist the batch back to BadgerDB
+	// Optionally, persist the batch
 	for _, tx := range batch.Transactions {
 		err := tq.db.Put(ctx, ds.NewKey(GetTransactionHash(tx)), tx)
 		if err != nil {

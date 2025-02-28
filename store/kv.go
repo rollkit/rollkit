@@ -13,7 +13,7 @@ import (
 )
 
 // NewDefaultInMemoryKVStore builds KVStore that works in-memory (without accessing disk).
-func NewDefaultInMemoryKVStore() (ds.TxnDatastore, error) {
+func NewDefaultInMemoryKVStore() (ds.Batching, error) {
 	inMemoryOptions := &badger4.Options{
 		GcDiscardRatio: 0.2,
 		GcInterval:     15 * time.Minute,
@@ -24,7 +24,7 @@ func NewDefaultInMemoryKVStore() (ds.TxnDatastore, error) {
 }
 
 // NewDefaultKVStore creates instance of default key-value store.
-func NewDefaultKVStore(rootDir, dbPath, dbName string) (ds.TxnDatastore, error) {
+func NewDefaultKVStore(rootDir, dbPath, dbName string) (ds.Batching, error) {
 	path := filepath.Join(rootify(rootDir, dbPath), dbName)
 	return badger4.NewDatastore(path, nil)
 }

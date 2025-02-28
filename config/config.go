@@ -56,16 +56,20 @@ type NodeConfig struct {
 	DBPath  string
 	P2P     P2PConfig
 	// parameters below are Rollkit specific and read from config
-	Aggregator         bool `mapstructure:"aggregator"`
+	Aggregator bool `mapstructure:"aggregator"`
+
 	BlockManagerConfig `mapstructure:",squash"`
-	DAAddress          string `mapstructure:"da_address"`
-	DAAuthToken        string `mapstructure:"da_auth_token"`
-	Light              bool   `mapstructure:"light"`
-	HeaderConfig       `mapstructure:",squash"`
-	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
-	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
-	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
-	DASubmitOptions    string                       `mapstructure:"da_submit_options"`
+
+	DAAddress   string `mapstructure:"da_address"`
+	DAAuthToken string `mapstructure:"da_auth_token"`
+	Light       bool   `mapstructure:"light"`
+
+	HeaderConfig `mapstructure:",squash"`
+
+	Instrumentation *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
+	DAGasPrice      float64                      `mapstructure:"da_gas_price"`
+	DAGasMultiplier float64                      `mapstructure:"da_gas_multiplier"`
+	DASubmitOptions string                       `mapstructure:"da_submit_options"`
 
 	// CLI flags
 	DANamespace       string `mapstructure:"da_namespace"`

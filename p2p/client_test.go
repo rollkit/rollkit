@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -57,11 +57,8 @@ func TestClientStartup(t *testing.T) {
 }
 
 func TestBootstrapping(t *testing.T) {
-	_ = log.SetLogLevel("dht", "INFO")
-	//log.SetDebugLogging()
-
 	assert := assert.New(t)
-	logger := test.NewFileLogger(t)
+	logger := log.NewTestLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -81,7 +78,7 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewFileLogger(t)
+	logger := log.NewTestLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

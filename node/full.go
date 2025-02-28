@@ -12,7 +12,6 @@ import (
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
-	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -28,11 +27,6 @@ import (
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
-)
-
-// prefixes used in KV store to separate main node data from DALC data
-var (
-	mainPrefix = "0"
 )
 
 const (
@@ -78,38 +72,33 @@ func newFullNode(
 	genesis *cmtypes.GenesisDoc,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
+	database ds.Batching,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
 	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
-
-	baseKV, err := initBaseKV(nodeConfig, logger)
-	if err != nil {
-		return nil, err
-	}
 
 	dalc, err := initDALC(nodeConfig, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
+	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, database, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
 
-	mainKV := newPrefixKV(baseKV, mainPrefix)
-	headerSyncService, err := initHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
+	headerSyncService, err := initHeaderSyncService(database, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	dataSyncService, err := initDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger)
+	dataSyncService, err := initDataSyncService(database, nodeConfig, genesis, p2pClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	store := store.New(mainKV)
+	store := store.New(database)
 
 	blockManager, err := initBlockManager(
 		ctx,
@@ -146,15 +135,6 @@ func newFullNode(
 	return node, nil
 }
 
-// initBaseKV initializes the base key-value store.
-func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
-	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
-		logger.Info("WARNING: working in in-memory mode")
-		return store.NewDefaultInMemoryKVStore()
-	}
-	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
-}
-
 func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
 	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
@@ -180,13 +160,13 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 }
 
 func initHeaderSyncService(
-	mainKV ds.TxnDatastore,
+	database ds.Batching,
 	nodeConfig config.NodeConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.HeaderSyncService, error) {
-	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(database, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
@@ -194,7 +174,7 @@ func initHeaderSyncService(
 }
 
 func initDataSyncService(
-	mainKV ds.TxnDatastore,
+	mainKV ds.Batching,
 	nodeConfig config.NodeConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
@@ -428,10 +408,6 @@ func (n *FullNode) SetLogger(logger log.Logger) {
 // GetLogger returns logger.
 func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
-}
-
-func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
-	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
 }
 
 // Start implements NodeLifecycle

@@ -9,6 +9,7 @@ import (
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
 	cmcfg "github.com/cometbft/cometbft/config"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -47,6 +48,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
+	database := ds.NewMapDatastore()
 
 	node, err := NewNode(
 		s.ctx,
@@ -56,6 +58,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		p2pKey,
 		signingKey,
 		genesis,
+		database,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
@@ -327,6 +330,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
+	database := ds.NewMapDatastore()
 
 	node, err := NewNode(
 		s.ctx,
@@ -336,6 +340,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		p2pKey,
 		signingKey,
 		genesis,
+		database,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
@@ -405,6 +410,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
+	database := ds.NewMapDatastore()
 
 	// Attempt to create a node with invalid DA config
 	node, err := NewNode(
@@ -415,6 +421,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 		p2pKey,
 		signingKey,
 		genesis,
+		database,
 		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)

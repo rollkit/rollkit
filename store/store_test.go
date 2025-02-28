@@ -95,7 +95,7 @@ func TestStoreLoad(t *testing.T) {
 	dKV, _ := NewDefaultKVStore(tmpDir, "db", "test")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	for _, kv := range []ds.TxnDatastore{mKV, dKV} {
+	for _, kv := range []ds.Batching{mKV, dKV} {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				assert := assert.New(t)
