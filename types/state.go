@@ -1,8 +1,10 @@
 package types
 
 import (
+	"fmt"
 	"time"
 
+	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -61,7 +63,14 @@ func NewFromGenesisDoc(genDoc config.GenesisDoc) (State, error) {
 	} else {
 		validators := make([]*types.Validator, 1)
 
-		pubKey := ed25519.PubKey(genDoc.GetProposerAddress())
+		var pubKey cmcrypto.PubKey
+		if len(genDoc.GetProposerAddress()) == ed25519.PubKeySize {
+			pubKey = ed25519.PubKey(genDoc.GetProposerAddress())
+		} else {
+			return State{}, fmt.Errorf("invalid proposer public key size: expected %d, got %d",
+				ed25519.PubKeySize, len(genDoc.GetProposerAddress()))
+		}
+
 		validators[0] = types.NewValidator(pubKey, 1)
 
 		validatorSet = types.NewValidatorSet(validators)
