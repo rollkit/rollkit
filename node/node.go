@@ -28,7 +28,6 @@ func NewNode(
 ) (Node, error) {
 	if conf.Light {
 		return newLightNode(
-			ctx,
 			conf,
 			p2pKey,
 			genesis,
@@ -38,7 +37,6 @@ func NewNode(
 	}
 
 	return newFullNode(
-		ctx,
 		conf,
 		p2pKey,
 		signingKey,

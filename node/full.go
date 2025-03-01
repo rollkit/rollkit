@@ -76,7 +76,6 @@ type FullNode struct {
 
 // newFullNode creates a new Rollkit full node.
 func newFullNode(
-	ctx context.Context,
 	nodeConfig config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,

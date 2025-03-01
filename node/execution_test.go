@@ -75,26 +75,29 @@ func finalizeExecution(t *testing.T, executor execution.Executor, ctx context.Co
 }
 
 func TestExecutionWithDASync(t *testing.T) {
-	t.SkipNow()
 	t.Run("basic DA sync with transactions", func(t *testing.T) {
 		require := require.New(t)
-		ctx := context.Background()
+		// Create a cancellable context with timeout for the entire test
+		// This ensures all goroutines will receive termination signals
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel() // Ensure context is cancelled at the end of the test
 
 		// Setup node with mock DA
 		node, cleanup := setupTestNodeWithCleanup(t)
-		defer cleanup()
+		// Register cleanup to run at the end of the test
+		t.Cleanup(cleanup)
 
 		seqSrv := startMockSequencerServerGRPC(MockSequencerAddress)
 		require.NotNil(seqSrv)
-
-		// Start node
-		err := node.Start(t.Context())
-		require.NoError(err)
-		defer func() {
-			err := node.Stop(t.Context())
-			require.NoError(err)
+		// Register sequencer server cleanup to run after the node is stopped
+		t.Cleanup(func() {
 			seqSrv.GracefulStop()
-		}()
+		})
+
+		// Start node with the cancellable context
+		// Using the same context for both starting and stopping ensures proper termination
+		err := node.Start(ctx)
+		require.NoError(err)
 
 		// Give node time to initialize and submit blocks to DA
 		time.Sleep(2 * time.Second)
@@ -120,5 +123,11 @@ func TestExecutionWithDASync(t *testing.T) {
 		require.NoError(err)
 		require.NotNil(header)
 		require.NotNil(data)
+
+		// Explicitly stop the node before the test ends
+		// Using the same context that was used to start it
+		// This ensures all goroutines receive termination signals
+		err = node.Stop(ctx)
+		require.NoError(err)
 	})
 }

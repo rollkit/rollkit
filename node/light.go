@@ -28,7 +28,6 @@ type LightNode struct {
 }
 
 func newLightNode(
-	ctx context.Context,
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	genesis config.GenesisDoc,

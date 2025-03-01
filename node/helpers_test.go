@@ -58,7 +58,11 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	cleanup := func() {
 		if fn, ok := node.(*FullNode); ok {
-			_ = fn.Stop(ctx)
+			if fn.IsRunning() {
+				// Only attempt to stop the node if it's still running
+				// This prevents errors when trying to stop an already stopped node
+				_ = fn.Stop(ctx)
+			}
 		}
 	}
 
