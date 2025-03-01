@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ func TestGetNodeConfig(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		input    *cmcfg.Config
+		input    *Config
 		expected NodeConfig
 	}{
 		{"empty", nil, NodeConfig{
