@@ -354,7 +354,7 @@ func (s *FullNodeTestSuite) TestGenesisInitialization() {
 
 	// Verify genesis state
 	state := s.node.blockManager.GetLastState()
-	require.Equal(s.node.genesis.GetInitialHeight(), int64(state.InitialHeight))
+	require.Equal(s.node.genesis.GetInitialHeight(), state.InitialHeight)
 	require.Equal(s.node.genesis.GetChainID(), state.ChainID)
 }
 
