@@ -16,16 +16,13 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	proxyda "github.com/rollkit/go-da/proxy"
-	"github.com/rollkit/go-execution"
-	execproxy "github.com/rollkit/go-execution/proxy/grpc"
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
@@ -57,7 +54,6 @@ type FullNode struct {
 
 	nodeConfig config.NodeConfig
 
-	eventBus     *cmtypes.EventBus
 	dalc         *da.DAClient
 	p2pClient    *p2p.Client
 	hSyncService *block.HeaderSyncService
@@ -71,7 +67,6 @@ type FullNode struct {
 	// keep context here only because of API compatibility
 	// - it's used in `OnStart` (defined in service.Service interface)
 	threadManager *types.ThreadManager
-	seqClient     *seqGRPC.Client
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -81,6 +76,8 @@ func newFullNode(
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
+	exec coreexecutor.Executor,
+	sequencer coresequencer.Sequencer,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
@@ -112,11 +109,22 @@ func newFullNode(
 		return nil, err
 	}
 
-	seqClient := seqGRPC.NewClient()
-
 	store := store.New(mainKV)
 
-	blockManager, err := initBlockManager(signingKey, nodeConfig, genesis, store, seqClient, dalc, logger, headerSyncService, dataSyncService, seqMetrics)
+	blockManager, err := initBlockManager(
+		ctx,
+		signingKey,
+		exec,
+		nodeConfig,
+		genesis,
+		store,
+		sequencer,
+		dalc,
+		logger,
+		headerSyncService,
+		dataSyncService,
+		seqMetrics,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +135,6 @@ func newFullNode(
 		p2pClient:     p2pClient,
 		blockManager:  blockManager,
 		dalc:          dalc,
-		seqClient:     seqClient,
 		Store:         store,
 		hSyncService:  headerSyncService,
 		dSyncService:  dataSyncService,
@@ -172,7 +179,13 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
-func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
+func initHeaderSyncService(
+	mainKV ds.TxnDatastore,
+	nodeConfig config.NodeConfig,
+	genesis *cmtypes.GenesisDoc,
+	p2pClient *p2p.Client,
+	logger log.Logger,
+) (*block.HeaderSyncService, error) {
 	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
@@ -180,7 +193,13 @@ func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig,
 	return headerSyncService, nil
 }
 
-func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.DataSyncService, error) {
+func initDataSyncService(
+	mainKV ds.TxnDatastore,
+	nodeConfig config.NodeConfig,
+	genesis *cmtypes.GenesisDoc,
+	p2pClient *p2p.Client,
+	logger log.Logger,
+) (*block.DataSyncService, error) {
 	dataSyncService, err := block.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
@@ -188,11 +207,29 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *cmtypes.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
-	exec, err := initExecutor(nodeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error while initializing executor: %w", err)
-	}
+// initBlockManager initializes the block manager.
+// It requires:
+// - signingKey: the private key of the validator
+// - nodeConfig: the node configuration
+// - genesis: the genesis document
+// - store: the store
+// - seqClient: the sequencing client
+// - dalc: the DA client
+
+func initBlockManager(
+	ctx context.Context,
+	signingKey crypto.PrivKey,
+	exec coreexecutor.Executor,
+	nodeConfig config.NodeConfig,
+	genesis *cmtypes.GenesisDoc,
+	store store.Store,
+	sequencer coresequencer.Sequencer,
+	dalc *da.DAClient,
+	logger log.Logger,
+	headerSyncService *block.HeaderSyncService,
+	dataSyncService *block.DataSyncService,
+	seqMetrics *block.Metrics,
+) (*block.Manager, error) {
 
 	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
 
@@ -202,21 +239,24 @@ func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, g
 		ChainID:         genesis.ChainID,
 		ProposerAddress: genesis.Validators[0].Address.Bytes(),
 	}
-	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, seqClient, dalc, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics)
+	blockManager, err := block.NewManager(
+		ctx,
+		signingKey,
+		nodeConfig.BlockManagerConfig,
+		rollGen,
+		store,
+		exec,
+		sequencer,
+		dalc,
+		logger.With("module", "BlockManager"),
+		headerSyncService.Store(),
+		dataSyncService.Store(),
+		seqMetrics,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)
 	}
 	return blockManager, nil
-}
-
-func initExecutor(cfg config.NodeConfig) (execution.Executor, error) {
-	client := execproxy.NewClient()
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-
-	err := client.Start(cfg.ExecutorAddress, opts...)
-	return client, err
 }
 
 // initGenesisChunks creates a chunked format of the genesis document to make it easier to
@@ -322,13 +362,6 @@ func (n *FullNode) OnStart(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
-	if err := n.seqClient.Start(
-		n.nodeConfig.SequencerAddress,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	); err != nil {
-		return err
-	}
-
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
 
@@ -372,7 +405,6 @@ func (n *FullNode) OnStop(ctx context.Context) {
 		n.p2pClient.Close(),
 		n.hSyncService.Stop(ctx),
 		n.dSyncService.Stop(ctx),
-		n.seqClient.Stop(),
 	)
 	if n.prometheusSrv != nil {
 		err = errors.Join(err, n.prometheusSrv.Shutdown(ctx))
@@ -396,11 +428,6 @@ func (n *FullNode) SetLogger(logger log.Logger) {
 // GetLogger returns logger.
 func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
-}
-
-// EventBus gives access to Node's event bus.
-func (n *FullNode) EventBus() *cmtypes.EventBus {
-	return n.eventBus
 }
 
 func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {

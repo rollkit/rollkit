@@ -54,7 +54,20 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	p2pKey := generateSingleKey()
 
-	node, err := NewNode(ctx, config, p2pKey, signingKey, genesis, DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()), log.NewTestLogger(t))
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
+	node, err := NewNode(
+		ctx,
+		config,
+		dummyExec,
+		dummySequencer,
+		p2pKey,
+		signingKey,
+		genesis,
+		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		log.NewTestLogger(t),
+	)
 	require.NoError(t, err)
 
 	cleanup := func() {

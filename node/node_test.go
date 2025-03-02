@@ -192,8 +192,21 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	key := generateSingleKey()
 
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
 	logger := log.NewTestLogger(t)
-	node, err := NewNode(ctx, config, key, signingKey, genesis, DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()), logger)
+	node, err := NewNode(
+		ctx,
+		config,
+		dummyExec,
+		dummySequencer,
+		key,
+		signingKey,
+		genesis,
+		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
+		logger,
+	)
 	return node, genesisValidatorKey, err
 }
 
