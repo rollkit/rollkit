@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
@@ -27,6 +28,7 @@ func NewNode(
 	conf config.NodeConfig,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
@@ -52,6 +54,7 @@ func NewNode(
 		genesis,
 		exec,
 		sequencer,
+		dac,
 		metricsProvider,
 		logger,
 	)

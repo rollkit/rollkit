@@ -29,12 +29,14 @@ import (
 	"github.com/rollkit/go-sequencing"
 
 	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/da"
+
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
+	rollkitproto "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
@@ -116,7 +118,6 @@ type Manager struct {
 
 	proposerKey crypto.PrivKey
 
-	dalc *da.DAClient
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
@@ -159,6 +160,9 @@ type Manager struct {
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
+	dalc             coreda.Client
+	gasPrice         float64
+	gasMultiplier    float64
 	// grpc client for sequencing middleware
 	sequencer     coresequencer.Sequencer
 	lastBatchHash []byte
@@ -246,11 +250,13 @@ func NewManager(
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dalc *da.DAClient,
+	dalc coreda.Client,
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
 	dataStore *goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
+	gasPrice float64,
+	gasMultiplier float64,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, store, exec, logger)
 	if err != nil {
@@ -286,7 +292,7 @@ func NewManager(
 
 	//proposerAddress := s.Validators.Proposer.Address.Bytes()
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -341,6 +347,8 @@ func NewManager(
 		sequencer:      sequencer,
 		bq:             NewBatchQueue(),
 		exec:           exec,
+		gasPrice:       gasPrice,
+		gasMultiplier:  gasMultiplier,
 	}
 	agg.init(ctx)
 	return agg, nil
@@ -400,7 +408,7 @@ func (m *Manager) GetDAIncludedHeight() uint64 {
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
-func (m *Manager) SetDALC(dalc *da.DAClient) {
+func (m *Manager) SetDALC(dalc coreda.Client) {
 	m.dalc = dalc
 }
 
@@ -998,12 +1006,25 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 		}
 		headerResp, fetchErr := m.fetchHeaders(ctx, daHeight)
 		if fetchErr == nil {
-			if headerResp.Code == da.StatusNotFound {
+			if headerResp.Code == coreda.StatusNotFound {
 				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
 			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Headers), "daHeight", daHeight)
-			for _, header := range headerResp.Headers {
+			for _, bz := range headerResp.Headers {
+				header := new(types.SignedHeader)
+				// decode the header
+				var headerPb rollkitproto.SignedHeader
+				err := headerPb.Unmarshal(bz)
+				if err != nil {
+					m.logger.Error("failed to unmarshal header", "error", err)
+					continue
+				}
+				err = header.FromProto(&headerPb)
+				if err != nil {
+					m.logger.Error("failed to unmarshal header", "error", err)
+					continue
+				}
 				// early validation to reject junk headers
 				if !m.isUsingExpectedCentralizedSequencer(header) {
 					m.logger.Debug("skipping header from unexpected sequencer",
@@ -1052,10 +1073,10 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
-func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
+func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieveHeaders, error) {
 	var err error
 	headerRes := m.dalc.RetrieveHeaders(ctx, daHeight)
-	if headerRes.Code == da.StatusError {
+	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
 	return headerRes, err
@@ -1346,13 +1367,13 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	}
 	numSubmittedHeaders := 0
 	attempt := 0
-	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := m.dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return err
 	}
 	initialMaxBlobSize := maxBlobSize
-	initialGasPrice := m.dalc.GasPrice
-	gasPrice := m.dalc.GasPrice
+	gasPrice := m.gasPrice
+	initialGasPrice := gasPrice
 
 daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
@@ -1362,9 +1383,23 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
-		res := m.dalc.SubmitHeaders(ctx, headersToSubmit, maxBlobSize, gasPrice)
+		headersBz := make([][]byte, len(headersToSubmit))
+		for i, header := range headersToSubmit {
+			headerPb, err := header.ToProto()
+			if err != nil {
+				m.logger.Error("failed to marshal header", "error", err)
+				continue
+			}
+			headersBz[i], err = headerPb.Marshal()
+			if err != nil {
+				m.logger.Error("failed to marshal header", "error", err)
+				continue
+			}
+		}
+
+		res := m.dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, gasPrice)
 		switch res.Code {
-		case da.StatusSuccess:
+		case coreda.StatusSuccess:
 			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
@@ -1388,22 +1423,22 @@ daSubmitRetryLoop:
 			// scale back gasPrice gradually
 			backoff = 0
 			maxBlobSize = initialMaxBlobSize
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice / m.dalc.GasMultiplier
+			if m.gasMultiplier > 0 && gasPrice != -1 {
+				gasPrice = gasPrice / m.gasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
 				}
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
-		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
+		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice * m.dalc.GasMultiplier
+			if m.gasMultiplier > 0 && gasPrice != -1 {
+				gasPrice = gasPrice * m.gasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 
-		case da.StatusTooBig:
+		case coreda.StatusTooBig:
 			maxBlobSize = maxBlobSize / 4
 			fallthrough
 		default:

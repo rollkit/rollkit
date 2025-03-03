@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -49,12 +50,14 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -329,12 +332,14 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -407,13 +412,14 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-
+	dummyDA := coreda.NewDummyDA(100_000)
 	// Attempt to create a node with invalid DA config
 	node, err := NewNode(
 		s.ctx,
 		invalidConfig,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,

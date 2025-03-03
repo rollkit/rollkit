@@ -21,13 +21,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	goDA "github.com/rollkit/go-da"
-	goDAMock "github.com/rollkit/go-da/mocks"
-	goDATest "github.com/rollkit/go-da/test"
+	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-
-	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
+	damocks "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -46,7 +45,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 }
 
 // Returns a minimalistic block manager
-func getManager(t *testing.T, backend goDA.DA) *Manager {
+func getManager(t *testing.T, backend coreda.DA) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
 		dalc:        da.NewDAClient(backend, -1, -1, nil, nil, logger),
@@ -196,7 +195,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, goDATest.NewDummyDA())
+	m := getManager(t, coreda.NewDummyDA(100_000))
 	payload := []byte("test")
 	cases := []struct {
 		name  string
@@ -262,7 +261,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &goDAMock.MockDA{}
+			mockDA := &damocks.DA{}
 			m := getManager(t, mockDA)
 			m.conf.DABlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
@@ -451,7 +450,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, goDATest.NewDummyDA())
+	m := getManager(t, coreda.NewDummyDA(100_000))
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -486,7 +485,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, goDATest.NewDummyDA())
+	m := getManager(t, coreda.NewDummyDA(100_000))
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -609,7 +608,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, &goDAMock.MockDA{})
+	m := getManager(t, coreda.NewDummyDA(100_000))
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
