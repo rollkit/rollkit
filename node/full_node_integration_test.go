@@ -403,8 +403,8 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	require.NoError(err)
 	p2pKey := generateSingleKey()
 
-	dummyExec := NewDummyExecutor()
-	dummySequencer := NewDummySequencer()
+	dummyExec := coreexecutor.NewDummyExecutor()
+	dummySequencer := coresequencer.NewDummySequencer()
 
 	node, err := NewNode(
 		s.ctx,
