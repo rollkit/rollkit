@@ -19,6 +19,7 @@ func main() {
 	rootCmd.AddCommand(
 		cmd.DocsGenCmd,
 		cmd.NewRunNodeCmd(),
+		cmd.NewInitNodeCmd(),
 		cmd.VersionCmd,
 		cmd.NewTomlCmd(),
 		cmd.RebuildCmd,
