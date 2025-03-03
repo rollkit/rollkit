@@ -28,11 +28,11 @@ func generateSingleKey() crypto.PrivKey {
 func getTestConfig(n int) config.NodeConfig {
 	startPort := 10000
 	return config.NodeConfig{
-		Aggregator:       true,
-		DAAddress:        MockDAAddress,
-		DANamespace:      MockDANamespace,
-		ExecutorAddress:  MockExecutorAddress,
-		SequencerAddress: MockSequencerAddress,
+		Aggregator: true,
+		DataAvailability: config.DataAvailabilityConfig{
+			Namespace: MockDANamespace,
+		},
+		ExecutorAddress: MockExecutorAddress,
 		BlockManagerConfig: config.BlockManagerConfig{
 			BlockTime:     500 * time.Millisecond,
 			LazyBlockTime: 5 * time.Second,

@@ -21,8 +21,8 @@ func TestGetNodeConfig(t *testing.T) {
 		{"empty", nil, NodeConfig{}},
 		{"Seeds", &cmcfg.Config{P2P: &cmcfg.P2PConfig{Seeds: "seeds"}}, NodeConfig{P2P: P2PConfig{Seeds: "seeds"}}},
 		{"ListenAddress", &cmcfg.Config{P2P: &cmcfg.P2PConfig{ListenAddress: "127.0.0.1:7676"}}, NodeConfig{P2P: P2PConfig{ListenAddress: "127.0.0.1:7676"}}},
-		{"RootDir", &cmcfg.Config{BaseConfig: cmcfg.BaseConfig{RootDir: "~/root"}}, NodeConfig{RootDir: "~/root"}},
-		{"DBPath", &cmcfg.Config{BaseConfig: cmcfg.BaseConfig{DBPath: "./database"}}, NodeConfig{DBPath: "./database"}},
+		{"RootDir", &cmcfg.Config{BaseConfig: cmcfg.BaseConfig{RootDir: "~/root"}}, NodeConfig{BaseConfig: BaseConfig{RootDir: "~/root"}}},
+		{"DBPath", &cmcfg.Config{BaseConfig: cmcfg.BaseConfig{DBPath: "./database"}}, NodeConfig{BaseConfig: BaseConfig{DBPath: "./database"}}},
 	}
 
 	for _, c := range cases {
@@ -55,6 +55,5 @@ func TestViperAndCobra(t *testing.T) {
 	assert.NoError(nc.GetViperConfig(v))
 
 	assert.Equal(true, nc.Aggregator)
-	assert.Equal(`{"json":true}`, nc.DAAddress)
 	assert.Equal(1234*time.Second, nc.BlockTime)
 }

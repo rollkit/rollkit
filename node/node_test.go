@@ -177,11 +177,11 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
 	config := config.NodeConfig{
-		DAAddress:        MockDAAddress,
-		DANamespace:      MockDANamespace,
-		ExecutorAddress:  MockExecutorAddress,
-		SequencerAddress: MockSequencerAddress,
-		Light:            nodeType == Light,
+		DataAvailability: config.DataAvailabilityConfig{
+			Namespace: MockDANamespace,
+		},
+		ExecutorAddress: MockExecutorAddress,
+		Light:           nodeType == Light,
 	}
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)

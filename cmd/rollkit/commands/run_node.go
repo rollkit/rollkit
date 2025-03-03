@@ -2,39 +2,22 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
-	"net"
-	"net/url"
 	"os"
-	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
-	cometos "github.com/cometbft/cometbft/libs/os"
 	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
-	comettime "github.com/cometbft/cometbft/types/time"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"google.golang.org/grpc"
-
-	"github.com/rollkit/go-da"
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-	goDATest "github.com/rollkit/go-da/test"
-	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
-	execTest "github.com/rollkit/go-execution/test"
-	execTypes "github.com/rollkit/go-execution/types"
-	pb "github.com/rollkit/go-execution/types/pb/execution"
-	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
-	seqTest "github.com/rollkit/go-sequencing/test"
 
 	rollconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
@@ -47,13 +30,6 @@ var (
 
 	// initialize the rollkit node configuration
 	nodeConfig = rollconf.DefaultNodeConfig
-
-	// initialize the logger with the cometBFT defaults
-	logger = log.NewLogger(os.Stdout)
-
-	errDAServerAlreadyRunning  = errors.New("DA server already running")
-	errSequencerAlreadyRunning = errors.New("sequencer already running")
-	errExecutorAlreadyRunning  = errors.New("executor already running")
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -74,26 +50,8 @@ func NewRunNodeCmd() *cobra.Command {
 				nodeConfig.Aggregator = true
 			}
 
-			// Update log format if the flag is set
-			// if config.LogFormat == cometconf.LogFormatJSON {
-			// 	logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
-			// }
-
-			// // Parse the log level
-			// logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
-			// if err != nil {
-			// 	return err
-			// }
-
-			// // Add tracing to the logger if the flag is set
-			// if viper.GetBool(cometcli.TraceFlag) {
-			// 	logger = cometlog.NewTracingLogger(logger)
-			// }
-
-			logger = logger.With("module", "main")
-
 			// Initialize the config files
-			return initFiles()
+			return initFiles(log.NewNopLogger()) //TODO: place the correct logger
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			genDocProvider := cometnode.DefaultGenesisDocProviderFunc(config)
@@ -129,58 +87,31 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
-			// Try and launch a mock JSON RPC DA server if there is no DA server running.
-			// Only start mock DA server if the user did not provide --rollkit.da_address
-			var daSrv *proxy.Server = nil
-			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
-				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock da server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if daSrv != nil {
-						daSrv.Stop(cmd.Context())
-					}
-				}()
-			}
-
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-				genDoc.ChainID = nodeConfig.SequencerRollupID
-			}
-			sequencerRollupID := genDoc.ChainID
-			// Try and launch a mock gRPC sequencer if there is no sequencer running.
-			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
-			var seqSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
-				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if seqSrv != nil {
-						seqSrv.Stop()
-					}
-				}()
+				genDoc.ChainID = nodeConfig.Sequencer.RollupID
 			}
 
-			// Try and launch a mock gRPC executor if there is no executor running.
-			// Only start mock Executor if the user did not provide --rollkit.executor_address
-			var execSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup("rollkit.executor_address").Changed {
-				execSrv, err = tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
-				if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock executor server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if execSrv != nil {
-						execSrv.Stop()
-					}
-				}()
-			}
+			// initialize cleaner
+			logger := log.NewLogger(os.Stdout)
+
+			// Update log format if the flag is set
+			// if config.LogFormat == cometconf.LogFormatJSON {
+			// 	logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
+			// }
+
+			// // Parse the log level
+			// logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
+			// if err != nil {
+			// 	return err
+			// }
+
+			// // Add tracing to the logger if the flag is set
+			// if viper.GetBool(cometcli.TraceFlag) {
+			// 	logger = cometlog.NewTracingLogger(logger)
+			// }
+
+			logger = logger.With("module", "main")
 
 			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
 
@@ -194,6 +125,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			dummyExecutor := node.NewDummyExecutor()
 			dummySequencer := node.NewDummySequencer()
+
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
@@ -220,7 +152,7 @@ func NewRunNodeCmd() *cobra.Command {
 			logger.Info("Started node")
 
 			// Stop upon receiving SIGTERM or CTRL-C.
-			cometos.TrapSignal(logger, func() {
+			trapSignal(logger, func() {
 				if rollnode.IsRunning() {
 					if err := rollnode.Stop(ctx); err != nil {
 						logger.Error("unable to stop the node", "error", err)
@@ -266,91 +198,14 @@ func addNodeFlags(cmd *cobra.Command) {
 	rollconf.AddFlags(cmd)
 }
 
-// tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
-func tryStartMockDAServJSONRPC(
-	ctx context.Context,
-	daAddress string,
-	newServer func(string, string, da.DA) *proxy.Server,
-) (*proxy.Server, error) {
-	addr, err := url.Parse(daAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	if err := srv.Start(ctx); err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("DA server is already running", "address", daAddress)
-			return nil, errDAServerAlreadyRunning
-		}
-		return nil, err
-	}
-
-	logger.Info("Starting mock DA server", "address", daAddress)
-
-	return srv, nil
-}
-
-// tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.
-func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*grpc.Server, error) {
-	dummySeq := seqTest.NewDummySequencer([]byte(rollupId))
-	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) || errors.Is(err, syscall.EADDRNOTAVAIL) {
-			logger.Info(errSequencerAlreadyRunning.Error(), "address", listenAddress)
-			logger.Info("make sure your rollupID matches your sequencer", "rollupID", rollupId)
-			return nil, errSequencerAlreadyRunning
-		}
-		return nil, err
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	logger.Info("Starting mock sequencer", "address", listenAddress, "rollupID", rollupId)
-	return server, nil
-}
-
-// tryStartMockExecutorServerGRPC will try and start a mock gRPC executor server
-func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) {
-	dummyExec := execTest.NewDummyExecutor()
-
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		i := 0
-		for range ticker.C {
-			dummyExec.InjectTx(execTypes.Tx{byte(3*i + 1), byte(3*i + 2), byte(3*i + 3)})
-			i++
-		}
-	}()
-
-	execServer := execGRPC.NewServer(dummyExec, nil)
-	server := grpc.NewServer()
-	pb.RegisterExecutionServiceServer(server, execServer)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("Executor server already running", "address", listenAddress)
-			return nil, errExecutorAlreadyRunning
-		}
-		return nil, err
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	logger.Info("Starting mock executor", "address", listenAddress)
-	return server, nil
-}
-
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
 // note that such a change would also require changing the cosmos-sdk
-func initFiles() error {
+func initFiles(logger log.Logger) error {
 	// Generate the private validator config files
 	cometprivvalKeyFile := config.PrivValidatorKeyFile()
 	cometprivvalStateFile := config.PrivValidatorStateFile()
 	var pv *cometprivval.FilePV
-	if cometos.FileExists(cometprivvalKeyFile) {
+	if fileExists(cometprivvalKeyFile) {
 		pv = cometprivval.LoadFilePV(cometprivvalKeyFile, cometprivvalStateFile)
 		logger.Info("Found private validator", "keyFile", cometprivvalKeyFile,
 			"stateFile", cometprivvalStateFile)
@@ -363,7 +218,7 @@ func initFiles() error {
 
 	// Generate the node key config files
 	nodeKeyFile := config.NodeKeyFile()
-	if cometos.FileExists(nodeKeyFile) {
+	if fileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
 		if _, err := cometp2p.LoadOrGenNodeKey(nodeKeyFile); err != nil {
@@ -374,12 +229,12 @@ func initFiles() error {
 
 	// Generate the genesis file
 	genFile := config.GenesisFile()
-	if cometos.FileExists(genFile) {
+	if fileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
 		genDoc := comettypes.GenesisDoc{
 			ChainID:         fmt.Sprintf("test-rollup-%08x", rand.Uint32()), //nolint:gosec
-			GenesisTime:     comettime.Now(),
+			GenesisTime:     time.Now().Round(0).UTC(),
 			ConsensusParams: comettypes.DefaultConsensusParams(),
 		}
 		pubKey, err := pv.GetPubKey()

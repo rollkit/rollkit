@@ -2,20 +2,11 @@ package commands
 
 import (
 	"context"
-	"errors"
-	"net"
-	"net/url"
 	"reflect"
-	"syscall"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-
-	rollconf "github.com/rollkit/rollkit/config"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -37,7 +28,6 @@ func TestParseFlags(t *testing.T) {
 		"--proxy_app", "tcp://127.0.0.1:27004",
 		"--rollkit.aggregator=false",
 		"--rollkit.block_time", "2s",
-		"--rollkit.da_address", "http://127.0.0.1:27005",
 		"--rollkit.da_auth_token", "token",
 		"--rollkit.da_block_time", "20s",
 		"--rollkit.da_gas_multiplier", "1.5",
@@ -89,13 +79,12 @@ func TestParseFlags(t *testing.T) {
 		{"ProxyApp", config.ProxyApp, "tcp://127.0.0.1:27004"},
 		{"Aggregator", nodeConfig.Aggregator, false},
 		{"BlockTime", nodeConfig.BlockTime, 2 * time.Second},
-		{"DAAddress", nodeConfig.DAAddress, "http://127.0.0.1:27005"},
-		{"DAAuthToken", nodeConfig.DAAuthToken, "token"},
-		{"DABlockTime", nodeConfig.DABlockTime, 20 * time.Second},
-		{"DAGasMultiplier", nodeConfig.DAGasMultiplier, 1.5},
-		{"DAGasPrice", nodeConfig.DAGasPrice, 1.5},
+		{"DAAuthToken", nodeConfig.DataAvailability.AuthToken, "token"},
+		{"DABlockTime", nodeConfig.BlockTime, 20 * time.Second},
+		{"DAGasMultiplier", nodeConfig.DataAvailability.GasMultiplier, 1.5},
+		{"DAGasPrice", nodeConfig.DataAvailability.GasPrice, 1.5},
 		{"DAMempoolTTL", nodeConfig.DAMempoolTTL, uint64(10)},
-		{"DANamespace", nodeConfig.DANamespace, "namespace"},
+		{"DANamespace", nodeConfig.DataAvailability.Namespace, "namespace"},
 		{"DAStartHeight", nodeConfig.DAStartHeight, uint64(100)},
 		{"LazyAggregator", nodeConfig.LazyAggregator, true},
 		{"LazyBlockTime", nodeConfig.LazyBlockTime, 2 * time.Minute},
@@ -146,38 +135,6 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	}
 }
 
-// TestCentralizedAddresses verifies that when centralized service flags are provided,
-// the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
-func TestCentralizedAddresses(t *testing.T) {
-	args := []string{
-		"start",
-		"--rollkit.da_address=http://central-da:26657",
-		"--rollkit.sequencer_address=central-seq:26659",
-		"--rollkit.sequencer_rollup_id=centralrollup",
-	}
-
-	cmd := NewRunNodeCmd()
-	if err := cmd.ParseFlags(args); err != nil {
-		t.Fatalf("ParseFlags error: %v", err)
-	}
-	if err := parseFlags(cmd); err != nil {
-		t.Fatalf("parseFlags error: %v", err)
-	}
-
-	if nodeConfig.DAAddress != "http://central-da:26657" {
-		t.Errorf("Expected nodeConfig.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DAAddress)
-	}
-
-	if nodeConfig.SequencerAddress != "central-seq:26659" {
-		t.Errorf("Expected nodeConfig.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.SequencerAddress)
-	}
-
-	// Also confirm that the sequencer rollup id flag is marked as changed
-	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
-	}
-}
-
 // MockServer wraps proxy.Server to allow us to control its behavior in tests
 type MockServer struct {
 	*proxy.Server
@@ -197,118 +154,4 @@ func (m *MockServer) Stop(ctx context.Context) error {
 		return m.StopFunc(ctx)
 	}
 	return m.Server.Stop(ctx)
-}
-
-func TestStartMockDAServJSONRPC(t *testing.T) {
-	tests := []struct {
-		name          string
-		daAddress     string
-		mockServerErr error
-		expectedErr   error
-	}{
-		{
-			name:          "Success",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: nil,
-			expectedErr:   nil,
-		},
-		{
-			name:          "Invalid URL",
-			daAddress:     "://invalid",
-			mockServerErr: nil,
-			expectedErr:   &url.Error{},
-		},
-		{
-			name:          "Server Already Running",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: syscall.EADDRINUSE,
-			expectedErr:   errDAServerAlreadyRunning,
-		},
-		{
-			name:          "Other Server Error",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: errors.New("other error"),
-			expectedErr:   errors.New("other error"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			newServerFunc := func(hostname, port string, da da.DA) *proxy.Server {
-				mockServer := &MockServer{
-					Server: proxy.NewServer(hostname, port, da),
-					StartFunc: func(ctx context.Context) error {
-						return tt.mockServerErr
-					},
-				}
-				return mockServer.Server
-			}
-
-			srv, err := tryStartMockDAServJSONRPC(context.Background(), tt.daAddress, newServerFunc)
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
-	}
-}
-
-func TestStartMockSequencerServer(t *testing.T) {
-	tests := []struct {
-		name        string
-		seqAddress  string
-		expectedErr error
-	}{
-		{
-			name:        "Success",
-			seqAddress:  "localhost:50051",
-			expectedErr: nil,
-		},
-		{
-			name:        "Invalid URL",
-			seqAddress:  "://invalid",
-			expectedErr: &net.OpError{},
-		},
-		{
-			name:        "Server Already Running",
-			seqAddress:  "localhost:50051",
-			expectedErr: errSequencerAlreadyRunning,
-		},
-		{
-			name:        "Other Server Error",
-			seqAddress:  "localhost:50051",
-			expectedErr: errors.New("other error"),
-		},
-	}
-
-	stopFns := []func(){}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv, err := tryStartMockSequencerServerGRPC(tt.seqAddress, "test-rollup-id")
-			if srv != nil {
-				stopFns = append(stopFns, func() {
-					srv.Stop()
-				})
-			}
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
-	}
-
-	for _, fn := range stopFns {
-		fn()
-	}
 }

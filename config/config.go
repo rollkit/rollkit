@@ -4,80 +4,101 @@ import (
 	"time"
 
 	cmcfg "github.com/cometbft/cometbft/config"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-)
-
-const (
-	// FlagAggregator is a flag for running node in aggregator mode
-	FlagAggregator = "rollkit.aggregator"
-	// FlagDAAddress is a flag for specifying the data availability layer address
-	FlagDAAddress = "rollkit.da_address"
-	// FlagDAAuthToken is a flag for specifying the data availability layer auth token
-	FlagDAAuthToken = "rollkit.da_auth_token" // #nosec G101
-	// FlagBlockTime is a flag for specifying the block time
-	FlagBlockTime = "rollkit.block_time"
-	// FlagDABlockTime is a flag for specifying the data availability layer block time
-	FlagDABlockTime = "rollkit.da_block_time"
-	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
-	FlagDAGasPrice = "rollkit.da_gas_price"
-	// FlagDAGasMultiplier is a flag for specifying the data availability layer gas price retry multiplier
-	FlagDAGasMultiplier = "rollkit.da_gas_multiplier"
-	// FlagDAStartHeight is a flag for specifying the data availability layer start height
-	FlagDAStartHeight = "rollkit.da_start_height"
-	// FlagDANamespace is a flag for specifying the DA namespace ID
-	FlagDANamespace = "rollkit.da_namespace"
-	// FlagDASubmitOptions is a flag for data availability submit options
-	FlagDASubmitOptions = "rollkit.da_submit_options"
-	// FlagLight is a flag for running the node in light mode
-	FlagLight = "rollkit.light"
-	// FlagTrustedHash is a flag for specifying the trusted hash
-	FlagTrustedHash = "rollkit.trusted_hash"
-	// FlagLazyAggregator is a flag for enabling lazy aggregation
-	FlagLazyAggregator = "rollkit.lazy_aggregator"
-	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
-	FlagMaxPendingBlocks = "rollkit.max_pending_blocks"
-	// FlagDAMempoolTTL is a flag for specifying the DA mempool TTL
-	FlagDAMempoolTTL = "rollkit.da_mempool_ttl"
-	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
-	FlagLazyBlockTime = "rollkit.lazy_block_time"
-	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
-	FlagSequencerAddress = "rollkit.sequencer_address"
-	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
-	FlagSequencerRollupID = "rollkit.sequencer_rollup_id"
-	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
-	FlagExecutorAddress = "rollkit.executor_address"
 )
 
 // NodeConfig stores Rollkit node configuration.
 type NodeConfig struct {
-	// parameters below are translated from existing config
-	RootDir string
-	DBPath  string
-	P2P     P2PConfig
-	// parameters below are Rollkit specific and read from config
-	Aggregator         bool `mapstructure:"aggregator"`
-	BlockManagerConfig `mapstructure:",squash"`
-	DAAddress          string `mapstructure:"da_address"`
-	DAAuthToken        string `mapstructure:"da_auth_token"`
-	Light              bool   `mapstructure:"light"`
-	HeaderConfig       `mapstructure:",squash"`
-	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
-	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
-	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
-	DASubmitOptions    string                       `mapstructure:"da_submit_options"`
+	BaseConfig
 
-	// CLI flags
-	DANamespace       string `mapstructure:"da_namespace"`
-	SequencerAddress  string `mapstructure:"sequencer_address"`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
+	HeaderConfig       `mapstructure:",squash"`
+	P2P                P2PConfig
+	BlockManagerConfig `mapstructure:",squash"`
+	Instrumentation    InstrumentationConfig  `mapstructure:"instrumentation"`
+	DataAvailability   DataAvailabilityConfig `mapstructure:"data_availability"`
+	Sequencer          SequencerConfig        `mapstructure:"sequencer"`
+
+	// Light is a flag to run the node in light mode
+	Light bool `mapstructure:"light"`
+
+	// Aggregator signifies that the node is the block producer
+	Aggregator bool `mapstructure:"aggregator"`
 
 	ExecutorAddress string `mapstructure:"executor_address"`
+}
+
+// BaseConfig defines the base configuration for a CometBFT node
+type BaseConfig struct { //nolint: maligned
+
+	// The version of the CometBFT binary that created
+	// or last modified the config file
+	Version string `mapstructure:"version"`
+
+	// The root directory for all data.
+	// This should be set in viper so it can unmarshal into this struct
+	RootDir string `mapstructure:"home"`
+
+	// TCP or UNIX socket address of the ABCI application,
+	// or the name of an ABCI application compiled in with the CometBFT binary
+	ProxyApp string `mapstructure:"proxy_app"`
+
+	// A custom human readable name for this node
+	Moniker string `mapstructure:"moniker"`
+
+	// Database directory
+	DBPath string `mapstructure:"db_dir"`
+
+	// Output level for logging
+	LogLevel string `mapstructure:"log_level"`
+
+	// Output format: 'plain' (colored text) or 'json'
+	LogFormat string `mapstructure:"log_format"`
+
+	// Path to the JSON file containing the initial validator set and other meta data
+	Genesis string `mapstructure:"genesis_file"`
+
+	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
+	PrivValidatorKey string `mapstructure:"priv_validator_key_file"`
+
+	// Path to the JSON file containing the last sign state of a validator
+	PrivValidatorState string `mapstructure:"priv_validator_state_file"`
+
+	// TCP or UNIX socket address for CometBFT to listen on for
+	// connections from an external PrivValidator process
+	PrivValidatorListenAddr string `mapstructure:"priv_validator_laddr"`
+
+	// A JSON file containing the private key to use for p2p authenticated encryption
+	NodeKey string `mapstructure:"node_key_file"`
+
+	// Mechanism to connect to the ABCI application: socket | grpc
+	ABCI string `mapstructure:"abci"`
+
+	// If true, query the ABCI app on connecting to a new peer
+	// so the app can decide if we should keep the connection or not
+	FilterPeers bool `mapstructure:"filter_peers"` // false
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
 type HeaderConfig struct {
 	TrustedHash string `mapstructure:"trusted_hash"`
+}
+
+// DataAvailabilityConfig consists of all parameters required by DataAvailabilityConfig
+type DataAvailabilityConfig struct {
+	// Namespace is the namespace for the data availability layer
+	Namespace string `mapstructure:"namespace"`
+	// AuthToken is the auth token for the data availability layer
+	AuthToken string `mapstructure:"auth_token"`
+
+	// GasPrice is the gas price for the data availability layer
+	GasPrice float64 `mapstructure:"gas_price"`
+	// GasMultiplier is the gas multiplier for the data availability layer
+	GasMultiplier float64 `mapstructure:"gas_multiplier"`
+	// SubmitOptions are the options for the data availability layer
+	SubmitOptions string `mapstructure:"submit_options"`
+}
+
+type SequencerConfig struct {
+	RollupID string `mapstructure:"rollup_id"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
@@ -113,61 +134,7 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 			nodeConf.P2P.Seeds = cmConf.P2P.Seeds
 		}
 		if cmConf.Instrumentation != nil {
-			nodeConf.Instrumentation = cmConf.Instrumentation
+			nodeConf.Instrumentation = *DefaultInstrumentationConfig()
 		}
 	}
-}
-
-// GetViperConfig reads configuration parameters from Viper instance.
-//
-// This method is called in cosmos-sdk.
-func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
-	nc.Aggregator = v.GetBool(FlagAggregator)
-	nc.DAAddress = v.GetString(FlagDAAddress)
-	nc.DAAuthToken = v.GetString(FlagDAAuthToken)
-	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
-	nc.DAGasMultiplier = v.GetFloat64(FlagDAGasMultiplier)
-	nc.DANamespace = v.GetString(FlagDANamespace)
-	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
-	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
-	nc.DASubmitOptions = v.GetString(FlagDASubmitOptions)
-	nc.BlockTime = v.GetDuration(FlagBlockTime)
-	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
-	nc.Light = v.GetBool(FlagLight)
-	nc.TrustedHash = v.GetString(FlagTrustedHash)
-	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
-	nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
-	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
-	nc.SequencerAddress = v.GetString(FlagSequencerAddress)
-	nc.SequencerRollupID = v.GetString(FlagSequencerRollupID)
-	nc.ExecutorAddress = v.GetString(FlagExecutorAddress)
-
-	return nil
-}
-
-// AddFlags adds Rollkit specific configuration options to cobra Command.
-//
-// This function is called in cosmos-sdk.
-func AddFlags(cmd *cobra.Command) {
-	def := DefaultNodeConfig
-
-	cmd.Flags().BoolVar(&def.Aggregator, FlagAggregator, def.Aggregator, "run node in aggregator mode")
-	cmd.Flags().Bool(FlagLazyAggregator, def.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().String(FlagDAAddress, def.DAAddress, "DA address (host:port)")
-	cmd.Flags().String(FlagDAAuthToken, def.DAAuthToken, "DA auth token")
-	cmd.Flags().Duration(FlagBlockTime, def.BlockTime, "block time (for aggregator mode)")
-	cmd.Flags().Duration(FlagDABlockTime, def.DABlockTime, "DA chain block time (for syncing)")
-	cmd.Flags().Float64(FlagDAGasPrice, def.DAGasPrice, "DA gas price for blob transactions")
-	cmd.Flags().Float64(FlagDAGasMultiplier, def.DAGasMultiplier, "DA gas price multiplier for retrying blob transactions")
-	cmd.Flags().Uint64(FlagDAStartHeight, def.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().String(FlagDANamespace, def.DANamespace, "DA namespace to submit blob transactions")
-	cmd.Flags().String(FlagDASubmitOptions, def.DASubmitOptions, "DA submit options")
-	cmd.Flags().Bool(FlagLight, def.Light, "run light client")
-	cmd.Flags().String(FlagTrustedHash, def.TrustedHash, "initial trusted hash to start the header exchange service")
-	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
-	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DAMempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
-	cmd.Flags().Duration(FlagLazyBlockTime, def.LazyBlockTime, "block time (for lazy mode)")
-	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
-	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
-	cmd.Flags().String(FlagExecutorAddress, def.ExecutorAddress, "executor middleware address (host:port)")
 }

@@ -1,18 +1,13 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 
 	rollconf "github.com/rollkit/rollkit/config"
 )
@@ -30,7 +25,6 @@ func InterceptCommand(
 ) (shouldExecute bool, err error) {
 	// Grab flags and verify command
 	flags := []string{}
-	isStartCommand := false
 	if len(os.Args) >= 2 {
 		flags = os.Args[1:]
 
@@ -39,8 +33,6 @@ func InterceptCommand(
 		case "help", "--help", "h", "-h",
 			"version", "--version", "v", "-v":
 			return
-		case "start":
-			isStartCommand = true
 		default:
 			// Check if user attempted to run a rollkit command
 			for _, cmd := range rollkitCommand.Commands() {
@@ -70,48 +62,6 @@ func InterceptCommand(
 		return
 	}
 
-	if isStartCommand {
-		// Only start mock services if the corresponding address flags are not provided,
-		// meaning we want to use default addresses for mocks.
-
-		// DA server
-		var daSrv *proxy.Server = nil
-		daAddress := parseFlag(flags, rollconf.FlagDAAddress)
-		if daAddress == "" {
-			daAddress = rollconf.DefaultDAAddress
-			daSrv, err = tryStartMockDAServJSONRPC(rollkitCommand.Context(), daAddress, proxy.NewServer)
-			if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-				return shouldExecute, fmt.Errorf("failed to launch mock da server: %w", err)
-			}
-			// nolint:errcheck,gosec
-			defer func() {
-				if daSrv != nil {
-					daSrv.Stop(rollkitCommand.Context())
-				}
-			}()
-		}
-
-		// Sequencer server
-		var seqSrv *grpc.Server = nil
-		sequencerAddress := parseFlag(flags, rollconf.FlagSequencerAddress)
-		if sequencerAddress == "" {
-			sequencerAddress = rollconf.DefaultSequencerAddress
-			rollupID := parseFlag(flags, rollconf.FlagSequencerRollupID)
-			if rollupID == "" {
-				rollupID = rollconf.DefaultSequencerRollupID
-			}
-			seqSrv, err = tryStartMockSequencerServerGRPC(sequencerAddress, rollupID)
-			if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-				return shouldExecute, fmt.Errorf("failed to launch mock sequencing server: %w", err)
-			}
-			// nolint:errcheck,gosec
-			defer func() {
-				if seqSrv != nil {
-					seqSrv.Stop()
-				}
-			}()
-		}
-	}
 	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
 }
 
@@ -119,8 +69,8 @@ func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (s
 	// The entrypoint binary file is always in the same directory as the rollkit.toml file.
 	entrypointBinaryFile := filepath.Join(rootDir, rollupBinEntrypoint)
 
-	if !cometos.FileExists(entrypointBinaryFile) || forceRebuild {
-		if !cometos.FileExists(entrypointSourceFile) {
+	if !fileExists(entrypointBinaryFile) || forceRebuild {
+		if !fileExists(entrypointSourceFile) {
 			return "", fmt.Errorf("no entrypoint source file: %s", entrypointSourceFile)
 		}
 

@@ -33,14 +33,16 @@ var DefaultNodeConfig = NodeConfig{
 		LazyAggregator: false,
 		LazyBlockTime:  60 * time.Second,
 	},
-	DAAddress:       DefaultDAAddress,
-	DAGasPrice:      -1,
-	DAGasMultiplier: 0,
-	Light:           false,
+	Light: false,
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
-	SequencerAddress:  DefaultSequencerAddress,
-	SequencerRollupID: DefaultSequencerRollupID,
-	ExecutorAddress:   DefaultExecutorAddress,
+	Sequencer: SequencerConfig{
+		RollupID: DefaultSequencerRollupID,
+	},
+	DataAvailability: DataAvailabilityConfig{
+		GasPrice:      -1,
+		GasMultiplier: 0,
+	},
+	ExecutorAddress: DefaultExecutorAddress,
 }

@@ -395,7 +395,6 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	// Create a node with invalid DA configuration
 	invalidConfig := getTestConfig(1)
-	invalidConfig.DAAddress = "invalid://invalid-address:1234" // Use an invalid URL scheme
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)

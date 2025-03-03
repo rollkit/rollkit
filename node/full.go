@@ -17,8 +17,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	proxyda "github.com/rollkit/go-da/proxy"
-
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -156,26 +154,21 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 }
 
 func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
-	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
+	namespace := make([]byte, len(nodeConfig.DataAvailability.Namespace)/2)
+	_, err := hex.Decode(namespace, []byte(nodeConfig.DataAvailability.Namespace))
 	if err != nil {
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 
-	if nodeConfig.DAGasMultiplier < 0 {
+	if nodeConfig.DataAvailability.GasMultiplier < 0 {
 		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
 	}
 
-	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
-	if err != nil {
-		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
-	}
-
 	var submitOpts []byte
-	if nodeConfig.DASubmitOptions != "" {
-		submitOpts = []byte(nodeConfig.DASubmitOptions)
+	if nodeConfig.DataAvailability.SubmitOptions != "" {
+		submitOpts = []byte(nodeConfig.DataAvailability.SubmitOptions)
 	}
-	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
+	return da.NewDAClient(nil, nodeConfig.DataAvailability.GasPrice, nodeConfig.DataAvailability.GasMultiplier, //TODO: add da instead of nil
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
@@ -345,7 +338,7 @@ func (n *FullNode) startPrometheusServer() *http.Server {
 // OnStart is a part of Service interface.
 func (n *FullNode) OnStart(ctx context.Context) error {
 	// begin prometheus metrics gathering if it is enabled
-	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
+	if n.nodeConfig.Instrumentation.Prometheus && n.nodeConfig.Instrumentation.PrometheusListenAddr != "" {
 		n.prometheusSrv = n.startPrometheusServer()
 	}
 	n.Logger.Info("starting P2P client")
