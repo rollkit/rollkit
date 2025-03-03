@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -44,8 +46,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	p2pKey := generateSingleKey()
 
-	dummyExec := NewDummyExecutor()
-	dummySequencer := NewDummySequencer()
+	dummyExec := coreexecutor.NewDummyExecutor()
+	dummySequencer := coresequencer.NewDummySequencer()
 
 	node, err := NewNode(
 		s.ctx,
