@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
@@ -27,13 +28,9 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
-
-// MockSequencerAddress is a sample address used by the mock sequencer
-const MockSequencerAddress = "localhost:50051"
 
 // WithinDuration asserts that the two durations are within the specified tolerance of each other.
 func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) bool {
@@ -49,7 +46,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 
 // Returns a minimalistic block manager
 func getManager(t *testing.T, backend goDA.DA) *Manager {
-	logger := test.NewLogger(t)
+	logger := log.NewTestLogger(t)
 	return &Manager{
 		dalc:        da.NewDAClient(backend, -1, -1, nil, nil, logger),
 		headerCache: NewHeaderCache(),
@@ -81,7 +78,7 @@ func TestInitialStateClean(t *testing.T) {
 		InitialHeight:   1,
 		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
 	}
-	logger := test.NewLogger(t)
+	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
 	s, err := getInitialState(context.TODO(), genesis, emptyStore, NewDummyExecutor(), logger)
@@ -115,7 +112,7 @@ func TestInitialStateStored(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	logger := test.NewLogger(t)
+	logger := log.NewTestLogger(t)
 	s, err := getInitialState(context.TODO(), genesis, store, NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
@@ -170,7 +167,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
-	logger := test.NewLogger(t)
+	logger := log.NewTestLogger(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
@@ -839,7 +836,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 // TestAggregationLoop tests the AggregationLoop function
 func TestAggregationLoop(t *testing.T) {
 	mockStore := new(mocks.Store)
-	mockLogger := new(test.MockLogger)
+	mockLogger := log.NewTestLogger(t)
 
 	m := &Manager{
 		store:  mockStore,
@@ -870,7 +867,7 @@ func TestAggregationLoop(t *testing.T) {
 
 // TestLazyAggregationLoop tests the lazyAggregationLoop function
 func TestLazyAggregationLoop(t *testing.T) {
-	mockLogger := new(test.MockLogger)
+	mockLogger := log.NewTestLogger(t)
 
 	m := &Manager{
 		logger: mockLogger,
@@ -896,7 +893,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 
 // TestNormalAggregationLoop tests the normalAggregationLoop function
 func TestNormalAggregationLoop(t *testing.T) {
-	mockLogger := new(test.MockLogger)
+	mockLogger := log.NewTestLogger(t)
 
 	m := &Manager{
 		logger: mockLogger,
