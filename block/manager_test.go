@@ -20,9 +20,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	coreda "github.com/rollkit/rollkit/core/da"
-
 	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"

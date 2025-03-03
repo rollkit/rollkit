@@ -35,9 +35,9 @@ import (
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
-	coreda "github.com/rollkit/rollkit/core/da"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/node"
 	rolltypes "github.com/rollkit/rollkit/types"
 )

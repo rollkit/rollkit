@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/gogo/protobuf/proto"
 
-	"cosmossdk.io/log"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )

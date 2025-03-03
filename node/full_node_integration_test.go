@@ -9,10 +9,10 @@ import (
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
 	cmcfg "github.com/cometbft/cometbft/config"
-	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/types"
 )
 
