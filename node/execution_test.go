@@ -24,7 +24,7 @@ func TestBasicExecutionFlow(t *testing.T) {
 	executor := getExecutorFromNode(t, node)
 	txs := getTransactions(t, executor, ctx)
 
-	mockExec := NewDummyExecutor()
+	mockExec := coreexecutor.NewDummyExecutor()
 	stateRoot, maxBytes := initializeChain(t, mockExec, ctx)
 	executor = mockExec
 

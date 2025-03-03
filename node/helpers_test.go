@@ -14,6 +14,8 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -55,9 +57,9 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	p2pKey := generateSingleKey()
 
-	dummyExec := NewDummyExecutor()
-	dummySequencer := NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
+	dummyExec := coreexecutor.NewDummyExecutor()
+	dummySequencer := coresequencer.NewDummySequencer()
 
 	node, err := NewNode(
 		ctx,

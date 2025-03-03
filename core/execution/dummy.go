@@ -1,4 +1,4 @@
-package node
+package execution
 
 import (
 	"bytes"
@@ -7,11 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
-
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/types"
 )
 
 //---------------------
@@ -21,8 +17,8 @@ import (
 // dummyExecutor is a dummy implementation of the dummyExecutor interface for testing
 type dummyExecutor struct {
 	mu           sync.RWMutex // Add mutex for thread safety
-	stateRoot    types.Hash
-	pendingRoots map[uint64]types.Hash
+	stateRoot    []byte
+	pendingRoots map[uint64][]byte
 	maxBytes     uint64
 	injectedTxs  [][]byte
 }
@@ -30,8 +26,8 @@ type dummyExecutor struct {
 // NewDummyExecutor creates a new dummy DummyExecutor instance
 func NewDummyExecutor() *dummyExecutor {
 	return &dummyExecutor{
-		stateRoot:    types.Hash{1, 2, 3},
-		pendingRoots: make(map[uint64]types.Hash),
+		stateRoot:    []byte{1, 2, 3},
+		pendingRoots: make(map[uint64][]byte),
 		maxBytes:     1000000,
 	}
 }
@@ -107,65 +103,4 @@ func (e *dummyExecutor) GetStateRoot() []byte {
 	defer e.mu.RUnlock()
 
 	return e.stateRoot
-}
-
-//---------------------
-// DummySequencer
-//---------------------
-
-// dummySequencer is a dummy implementation of the Sequencer interface for testing
-type dummySequencer struct {
-	mu       sync.RWMutex
-	batches  map[string]*coresequencer.Batch
-	maxBytes atomic.Uint64
-	maxGas   atomic.Uint64
-}
-
-// NewDummySequencer creates a new dummy Sequencer instance
-func NewDummySequencer() coresequencer.Sequencer {
-	return &dummySequencer{
-		batches: make(map[string]*coresequencer.Batch),
-	}
-}
-
-// SetMaxBytes sets the max bytes
-func (s *dummySequencer) SetMaxBytes(size uint64) {
-	s.maxBytes.Store(size)
-}
-
-// SetMaxGas sets the max gas
-func (s *dummySequencer) SetMaxGas(size uint64) {
-	s.maxGas.Store(size)
-}
-
-// SubmitRollupBatchTxs submits a batch of transactions to the sequencer
-func (s *dummySequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.SubmitRollupBatchTxsRequest) (*coresequencer.SubmitRollupBatchTxsResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.batches[string(req.RollupId)] = req.Batch
-	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
-}
-
-// GetNextBatch gets the next batch from the sequencer
-func (s *dummySequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	batch, ok := s.batches[string(req.RollupId)]
-	if !ok {
-		return nil, fmt.Errorf("no batch found for rollup ID: %s", string(req.RollupId))
-	}
-
-	return &coresequencer.GetNextBatchResponse{
-		Batch:     batch,
-		Timestamp: time.Now(),
-	}, nil
-}
-
-// VerifyBatch verifies a batch of transactions received from the sequencer
-func (s *dummySequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
-	return &coresequencer.VerifyBatchResponse{
-		Status: true,
-	}, nil
 }
