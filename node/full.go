@@ -235,7 +235,7 @@ func initBlockManager(
 	blockManager, err := block.NewManager(
 		ctx,
 		signingKey,
-		nodeConfig.BlockManagerConfig,
+		nodeConfig,
 		rollGen,
 		store,
 		exec,

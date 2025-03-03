@@ -263,7 +263,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := &goDAMock.MockDA{}
 			m := getManager(t, mockDA)
-			m.conf.DABlockTime = time.Millisecond
+			m.conf.DataAvailability.BlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
 			kvStore, err := store.NewDefaultInMemoryKVStore()
 			require.NoError(t, err)
@@ -749,10 +749,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Normal aggregation, elapsed < interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: false,
+				conf: config.NodeConfig{
+					BlockManagerConfig: config.BlockManagerConfig{
+						BlockTime:      10 * time.Second,
+						LazyBlockTime:  20 * time.Second,
+						LazyAggregator: false,
+					},
 				},
 			},
 			start:         time.Now().Add(-5 * time.Second),
@@ -761,10 +763,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Normal aggregation, elapsed >= interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: false,
+				conf: config.NodeConfig{
+					BlockManagerConfig: config.BlockManagerConfig{
+						BlockTime:      10 * time.Second,
+						LazyBlockTime:  20 * time.Second,
+						LazyAggregator: false,
+					},
 				},
 			},
 			start:         time.Now().Add(-15 * time.Second),
@@ -773,10 +777,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Lazy aggregation, building block, elapsed < interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: true,
+				conf: config.NodeConfig{
+					BlockManagerConfig: config.BlockManagerConfig{
+						BlockTime:      10 * time.Second,
+						LazyBlockTime:  20 * time.Second,
+						LazyAggregator: true,
+					},
 				},
 				buildingBlock: true,
 			},
@@ -786,10 +792,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Lazy aggregation, building block, elapsed >= interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: true,
+				conf: config.NodeConfig{
+					BlockManagerConfig: config.BlockManagerConfig{
+						BlockTime:      10 * time.Second,
+						LazyBlockTime:  20 * time.Second,
+						LazyAggregator: true,
+					},
 				},
 				buildingBlock: true,
 			},
@@ -799,10 +807,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Lazy aggregation, not building block, elapsed < interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: true,
+				conf: config.NodeConfig{
+					BlockManagerConfig: config.BlockManagerConfig{
+						BlockTime:      10 * time.Second,
+						LazyBlockTime:  20 * time.Second,
+						LazyAggregator: true,
+					},
 				},
 				buildingBlock: false,
 			},
@@ -812,10 +822,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Lazy aggregation, not building block, elapsed >= interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: true,
+				conf: config.NodeConfig{
+					BlockManagerConfig: config.BlockManagerConfig{
+						BlockTime:      10 * time.Second,
+						LazyBlockTime:  20 * time.Second,
+						LazyAggregator: true,
+					},
 				},
 				buildingBlock: false,
 			},
@@ -845,9 +857,11 @@ func TestAggregationLoop(t *testing.T) {
 			ChainID:       "myChain",
 			InitialHeight: 1,
 		},
-		conf: config.BlockManagerConfig{
-			BlockTime:      time.Second,
-			LazyAggregator: false,
+		conf: config.NodeConfig{
+			BlockManagerConfig: config.BlockManagerConfig{
+				BlockTime:      time.Second,
+				LazyAggregator: false,
+			},
 		},
 		bq: NewBatchQueue(),
 	}
@@ -871,9 +885,11 @@ func TestLazyAggregationLoop(t *testing.T) {
 
 	m := &Manager{
 		logger: mockLogger,
-		conf: config.BlockManagerConfig{
-			BlockTime:      time.Second,
-			LazyAggregator: true,
+		conf: config.NodeConfig{
+			BlockManagerConfig: config.BlockManagerConfig{
+				BlockTime:      time.Second,
+				LazyAggregator: true,
+			},
 		},
 		bq: NewBatchQueue(),
 	}
@@ -897,8 +913,10 @@ func TestNormalAggregationLoop(t *testing.T) {
 
 	m := &Manager{
 		logger: mockLogger,
-		conf: config.BlockManagerConfig{
-			BlockTime: time.Second,
+		conf: config.NodeConfig{
+			BlockManagerConfig: config.BlockManagerConfig{
+				BlockTime: time.Second,
+			},
 		},
 	}
 

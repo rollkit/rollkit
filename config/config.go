@@ -95,6 +95,10 @@ type DataAvailabilityConfig struct {
 	GasMultiplier float64 `mapstructure:"gas_multiplier"`
 	// SubmitOptions are the options for the data availability layer
 	SubmitOptions string `mapstructure:"submit_options"`
+	// BlockTime informs about block time of underlying data availability layer
+	BlockTime time.Duration `mapstructure:"da_block_time"`
+	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
+	StartHeight uint64 `mapstructure:"da_start_height"`
 }
 
 type SequencerConfig struct {
@@ -105,10 +109,7 @@ type SequencerConfig struct {
 type BlockManagerConfig struct {
 	// BlockTime defines how often new blocks are produced
 	BlockTime time.Duration `mapstructure:"block_time"`
-	// DABlockTime informs about block time of underlying data availability layer
-	DABlockTime time.Duration `mapstructure:"da_block_time"`
-	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
-	DAStartHeight uint64 `mapstructure:"da_start_height"`
+
 	// DAMempoolTTL is the number of DA blocks until transaction is dropped from the mempool.
 	DAMempoolTTL uint64 `mapstructure:"da_mempool_ttl"`
 	// MaxPendingBlocks defines limit of blocks pending DA submission. 0 means no limit.

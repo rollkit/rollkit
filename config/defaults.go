@@ -28,8 +28,8 @@ var DefaultNodeConfig = NodeConfig{
 	},
 	Aggregator: false,
 	BlockManagerConfig: BlockManagerConfig{
-		BlockTime:      1 * time.Second,
-		DABlockTime:    15 * time.Second,
+		BlockTime: 1 * time.Second,
+
 		LazyAggregator: false,
 		LazyBlockTime:  60 * time.Second,
 	},
@@ -41,6 +41,7 @@ var DefaultNodeConfig = NodeConfig{
 		RollupID: DefaultSequencerRollupID,
 	},
 	DataAvailability: DataAvailabilityConfig{
+		BlockTime:     15 * time.Second,
 		GasPrice:      -1,
 		GasMultiplier: 0,
 	},

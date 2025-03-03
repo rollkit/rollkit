@@ -28,14 +28,14 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Setup node with proper configuration
 	config := getTestConfig(1)
-	config.BlockTime = 100 * time.Millisecond        // Faster block production for tests
-	config.DABlockTime = 200 * time.Millisecond      // Faster DA submission for tests
-	config.BlockManagerConfig.MaxPendingBlocks = 100 // Allow more pending blocks
-	config.Aggregator = true                         // Enable aggregator mode
+	config.BlockTime = 100 * time.Millisecond                  // Faster block production for tests
+	config.DataAvailability.BlockTime = 200 * time.Millisecond // Faster DA submission for tests
+	config.BlockManagerConfig.MaxPendingBlocks = 100           // Allow more pending blocks
+	config.Aggregator = true                                   // Enable aggregator mode
 
 	// Add debug logging for configuration
 	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingBlocks=%d",
-		config.BlockTime, config.DABlockTime, config.BlockManagerConfig.MaxPendingBlocks)
+		config.BlockTime, config.DataAvailability.BlockTime, config.BlockManagerConfig.MaxPendingBlocks)
 
 	// Create genesis with current time
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
