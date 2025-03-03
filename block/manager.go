@@ -111,7 +111,7 @@ type Manager struct {
 	lastStateMtx *sync.RWMutex
 	store        store.Store
 
-	conf    config.BlockManagerConfig
+	conf    config.NodeConfig
 	genesis *RollkitGenesis
 
 	proposerKey crypto.PrivKey
@@ -241,7 +241,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 func NewManager(
 	ctx context.Context,
 	proposerKey crypto.PrivKey,
-	conf config.BlockManagerConfig,
+	conf config.NodeConfig,
 	genesis *RollkitGenesis,
 	store store.Store,
 	exec coreexecutor.Executor,
@@ -260,13 +260,13 @@ func NewManager(
 	//set block height in store
 	store.SetHeight(ctx, s.LastBlockHeight)
 
-	if s.DAHeight < conf.DAStartHeight {
-		s.DAHeight = conf.DAStartHeight
+	if s.DAHeight < conf.DataAvailability.StartHeight {
+		s.DAHeight = conf.DataAvailability.StartHeight
 	}
 
-	if conf.DABlockTime == 0 {
+	if conf.DataAvailability.BlockTime == 0 {
 		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
-		conf.DABlockTime = defaultDABlockTime
+		conf.DataAvailability.BlockTime = defaultDABlockTime
 	}
 
 	if conf.BlockTime == 0 {
@@ -624,7 +624,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 
 // HeaderSubmissionLoop is responsible for submitting blocks to the DA layer.
 func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
-	timer := time.NewTicker(m.conf.DABlockTime)
+	timer := time.NewTicker(m.conf.DataAvailability.BlockTime)
 	defer timer.Stop()
 	for {
 		select {
@@ -675,7 +675,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
 // block data is retrieved from DA layer.
 func (m *Manager) SyncLoop(ctx context.Context) {
-	daTicker := time.NewTicker(m.conf.DABlockTime)
+	daTicker := time.NewTicker(m.conf.DataAvailability.BlockTime)
 	defer daTicker.Stop()
 	blockTicker := time.NewTicker(m.conf.BlockTime)
 	defer blockTicker.Stop()
@@ -1397,7 +1397,7 @@ daSubmitRetryLoop:
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
+			backoff = m.conf.DataAvailability.BlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
 			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
@@ -1430,8 +1430,8 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	if backoff == 0 {
 		backoff = initialBackoff
 	}
-	if backoff > m.conf.DABlockTime {
-		backoff = m.conf.DABlockTime
+	if backoff > m.conf.DataAvailability.BlockTime {
+		backoff = m.conf.DataAvailability.BlockTime
 	}
 	return backoff
 }
