@@ -35,10 +35,10 @@ import (
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/node"
 	rolltypes "github.com/rollkit/rollkit/types"
 )

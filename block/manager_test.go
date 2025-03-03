@@ -23,10 +23,10 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDAMock "github.com/rollkit/go-da/mocks"
 	goDATest "github.com/rollkit/go-da/test"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
 	"github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/test/mocks"
