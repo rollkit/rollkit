@@ -51,14 +51,30 @@ func TestMockDAErrors(t *testing.T) {
 			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
 			After(submitTimeout).
 			Return(nil, &ErrContextDeadline{})
-		doTestSubmitTimeout(t, dalc, headers)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+		require.NoError(t, err)
+
+		dalc.SubmitTimeout = submitTimeout
+		resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, -1)
+		require.Contains(t, resp.Message, (&ErrContextDeadline{}).Error(), "should return context timeout error")
+
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
 		mockDA := &mocks.DA{}
 		dalc := NewDAClient(mockDA, 0, 0, nil, log.NewTestLogger(t), nil)
 		// Set up the mock to return an error for MaxBlobSize
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(0), errors.New("unable to get DA max blob size"))
-		doTestMaxBlockSizeError(t, dalc)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		_, err := dalc.DA.MaxBlobSize(ctx)
+		require.ErrorContains(t, err, "unable to get DA max blob size", "should return max blob size error")
+
 	})
 	t.Run("tx_too_large", func(t *testing.T) {
 		mockDA := &mocks.DA{}
@@ -75,8 +91,18 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
 			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
-			Return([]coreda.ID{}, &ErrTxTooLarge{})
-		doTestTxTooLargeError(t, dalc, headers)
+			After(submitTimeout).
+			Return(nil, &ErrTxTooLarge{})
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+		require.NoError(t, err)
+		require.New(t)
+		resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, -1)
+		require.Contains(t, resp.Message, (&ErrTxTooLarge{}).Error(), "should return tx too large error")
+		require.Equal(t, resp.Code, StatusTooBig)
 	})
 }
 
@@ -99,26 +125,6 @@ func TestSubmitRetrieve(t *testing.T) {
 			tc.f(t, dummyClient)
 		})
 	}
-}
-
-func doTestSubmitTimeout(t *testing.T, dalc *DAClient, headers []*types.SignedHeader) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
-	require.NoError(t, err)
-
-	dalc.SubmitTimeout = submitTimeout
-	resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, -1)
-	require.Contains(t, resp.Message, (&ErrContextDeadline{}).Error(), "should return context timeout error")
-}
-
-func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	_, err := dalc.DA.MaxBlobSize(ctx)
-	require.ErrorContains(t, err, "unable to get DA max blob size", "should return max blob size error")
 }
 
 func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
@@ -176,18 +182,6 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 		require.NotEmpty(t, ret.Headers, height)
 		require.Contains(t, ret.Headers, header, height)
 	}
-}
-
-func doTestTxTooLargeError(t *testing.T, dalc *DAClient, headers []*types.SignedHeader) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
-	require.NoError(t, err)
-	require.New(t)
-	resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, 0)
-	require.Contains(t, resp.Message, (&ErrTxTooLarge{}).Error(), "should return tx too large error")
-	require.Equal(t, resp.Code, StatusTooBig)
 }
 
 func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {

@@ -1387,7 +1387,7 @@ daSubmitRetryLoop:
 			// scale back gasPrice gradually
 			backoff = 0
 			maxBlobSize = initialMaxBlobSize
-			if m.dalc.GasMultiplier > 0 && gasPrice != 0 { //TODO: check if 0 is safe
+			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice / m.dalc.GasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
@@ -1397,7 +1397,7 @@ daSubmitRetryLoop:
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
-			if m.dalc.GasMultiplier > 0 && gasPrice != 0 { //TODO: check if 0 is safe
+			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
