@@ -12,6 +12,11 @@ type Sequencer interface {
 	SequencerInput
 	SequencerOutput
 	BatchVerifier
+
+	// SetMaxBytes sets the maximum size of the block
+	SetMaxBytes(uint64)
+	// SetMaxGas sets the maximum gas of the block
+	SetMaxGas(uint64)
 }
 
 // SequencerInput provides a method for submitting a transaction from rollup to sequencer

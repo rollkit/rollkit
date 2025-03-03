@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
+	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -46,12 +47,14 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,

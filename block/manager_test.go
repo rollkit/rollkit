@@ -20,13 +20,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	goDA "github.com/rollkit/go-da"
-	goDAMock "github.com/rollkit/go-da/mocks"
-	goDATest "github.com/rollkit/go-da/test"
+	coreda "github.com/rollkit/rollkit/core/da"
 
 	"github.com/rollkit/rollkit/config"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
+	damocks "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -45,10 +44,10 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 }
 
 // Returns a minimalistic block manager
-func getManager(t *testing.T, backend goDA.DA) *Manager {
+func getManager(t *testing.T, backend coreda.DA) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
-		dalc:        da.NewDAClient(backend, -1, -1, nil, nil, logger),
+		dalc:        da.NewDAClient(backend, 0, 0, nil, logger, []byte{}),
 		headerCache: NewHeaderCache(),
 		logger:      logger,
 	}
@@ -195,7 +194,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, goDATest.NewDummyDA())
+	m := getManager(t, coreda.NewDummyDA(1000))
 	payload := []byte("test")
 	cases := []struct {
 		name  string
@@ -261,7 +260,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDA := &goDAMock.MockDA{}
+			mockDA := &damocks.DA{}
 			m := getManager(t, mockDA)
 			m.conf.DABlockTime = time.Millisecond
 			m.conf.DAMempoolTTL = 1
@@ -290,10 +289,10 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil)).
-				Return([][]byte{}, &goDA.ErrTxTimedOut{}).Once()
+				Return([][]byte{}, &da.ErrTxTimedOut{}).Once()
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil)).
-				Return([][]byte{}, &goDA.ErrTxTimedOut{}).Once()
+				Return([][]byte{}, &da.ErrTxTimedOut{}).Once()
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil)).
 				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
@@ -450,7 +449,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, goDATest.NewDummyDA())
+	m := getManager(t, coreda.NewDummyDA(1_000_000))
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -485,7 +484,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, goDATest.NewDummyDA())
+	m := getManager(t, coreda.NewDummyDA(1_000_000))
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -608,7 +607,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, &goDAMock.MockDA{})
+	m := getManager(t, &damocks.DA{})
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)

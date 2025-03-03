@@ -35,23 +35,23 @@ var _ coresequencer.Sequencer = &Sequencer{}
 type Sequencer struct {
 	ctx    context.Context
 	logger log.Logger
+	db     ds.Batching
 
-	dalc      *dac.DAClient
-	batchTime time.Duration
-	maxSize   uint64
+	dalc        *dac.DAClient
+	batchTime   time.Duration
+	maxBlobSize *atomic.Uint64
+
+	maxBytes atomic.Uint64
+	maxGas   atomic.Uint64
 
 	rollupId []byte
 
-	tq                 *TransactionQueue
-	lastBatchHash      []byte
-	lastBatchHashMutex sync.RWMutex
+	tq            *TransactionQueue
+	lastBatchHash atomic.Value
 
 	seenBatches      map[string]struct{}
-	seenBatchesMutex sync.Mutex
+	seenBatchesMutex sync.RWMutex
 	bq               *BatchQueue
-
-	db    ds.Batching
-	dbMux sync.Mutex // Mutex for safe concurrent DB access
 
 	metrics *Metrics
 }
@@ -68,17 +68,22 @@ func NewSequencer(
 	metrics *Metrics,
 ) (*Sequencer, error) {
 	dalc := dac.NewDAClient(da, 0, 0, coreda.Namespace(daNamespace), logger, nil)
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	mBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	maxBlobSize := &atomic.Uint64{}
+	maxBlobSize.Store(mBlobSize)
 
 	s := &Sequencer{
 		ctx:         ctx,
 		logger:      logger,
 		dalc:        dalc,
 		batchTime:   batchTime,
-		maxSize:     maxBlobSize,
+		maxBlobSize: maxBlobSize,
+		maxBytes:    atomic.Uint64{},
+		maxGas:      atomic.Uint64{},
 		rollupId:    rollupId,
 		tq:          NewTransactionQueue(db),
 		bq:          NewBatchQueue(db),
@@ -113,6 +118,16 @@ func NewSequencer(
 	return s, nil
 }
 
+// SetMaxBytes sets the max bytes
+func (c *Sequencer) SetMaxBytes(size uint64) {
+	c.maxBytes.Store(size)
+}
+
+// SetMaxGas sets the max gas
+func (c *Sequencer) SetMaxGas(size uint64) {
+	c.maxGas.Store(size)
+}
+
 // Close safely closes the BadgerDB instance if it is open
 func (c *Sequencer) Close() error {
 	if c.db != nil {
@@ -129,11 +144,11 @@ func (c *Sequencer) Close() error {
 // This can be overwritten by the execution client if it can only handle smaller size
 func (c *Sequencer) CompareAndSetMaxSize(size uint64) {
 	for {
-		current := atomic.LoadUint64(&c.maxSize)
+		current := c.maxBlobSize.Load()
 		if size >= current {
 			return
 		}
-		if atomic.CompareAndSwapUint64(&c.maxSize, current, size) {
+		if c.maxBlobSize.CompareAndSwap(current, size) {
 			return
 		}
 	}
@@ -141,24 +156,18 @@ func (c *Sequencer) CompareAndSetMaxSize(size uint64) {
 
 // LoadLastBatchHashFromDB loads the last batch hash from BadgerDB into memory after a crash or restart.
 func (c *Sequencer) LoadLastBatchHashFromDB(ctx context.Context) error {
-	// Lock to ensure concurrency safety
-	c.dbMux.Lock()
-	defer c.dbMux.Unlock()
-
 	// Load the last batch hash from BadgerDB if it exists
 	bz, err := c.db.Get(ctx, ds.NewKey(lastBatchKey))
 	if err != nil {
 		return err
 	}
-	c.lastBatchHash = bz
+	c.lastBatchHash.Store(bz)
 
 	return nil
 }
 
 // LoadSeenBatchesFromDB loads the seen batches from BadgerDB into memory after a crash or restart.
 func (c *Sequencer) LoadSeenBatchesFromDB(ctx context.Context) error {
-	c.dbMux.Lock()
-	defer c.dbMux.Unlock()
 
 	// TODO: what is the best way to load the last seen keys into memory, is this needed?
 	// err := c.db.View(func(txn *badger.Txn) error {
@@ -179,16 +188,10 @@ func (c *Sequencer) LoadSeenBatchesFromDB(ctx context.Context) error {
 }
 
 func (c *Sequencer) setLastBatchHash(ctx context.Context, hash []byte) error {
-	c.dbMux.Lock()
-	defer c.dbMux.Unlock()
-
 	return c.db.Put(ctx, ds.NewKey(lastBatchKey), hash)
 }
 
 func (c *Sequencer) addSeenBatch(ctx context.Context, hash []byte) error {
-	c.dbMux.Lock()
-	defer c.dbMux.Unlock()
-
 	key := ds.NewKey("seen:" + hex.EncodeToString(hash))
 	// Store with TTL if supported by the datastore implementation
 	// For datastores that don't support TTL natively, implement a cleanup routine
@@ -215,7 +218,7 @@ func (c *Sequencer) batchSubmissionLoop(ctx context.Context) {
 }
 
 func (c *Sequencer) publishBatch(ctx context.Context) error {
-	batch := c.tq.GetNextBatch(ctx, c.maxSize)
+	batch := c.tq.GetNextBatch(ctx, c.maxBlobSize.Load())
 	if batch.Transactions == nil {
 		return nil
 	}
@@ -235,9 +238,9 @@ func (c *Sequencer) publishBatch(ctx context.Context) error {
 	return nil
 }
 
-func (c *Sequencer) recordMetrics(gasPrice, blobSize uint64, statusCode dac.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
+func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode dac.StatusCode, numPendingBlocks int, includedBlockHeight uint64) {
 	if c.metrics != nil {
-		c.metrics.GasPrice.Set(float64(gasPrice))
+		c.metrics.GasPrice.Set(gasPrice)
 		c.metrics.LastBlobSize.Set(float64(blobSize))
 		c.metrics.TransactionStatus.With("status", fmt.Sprintf("%d", statusCode)).Add(1)
 		c.metrics.NumPendingBlocks.Set(float64(numPendingBlocks))
@@ -252,7 +255,7 @@ func (c *Sequencer) submitBatchToDA(batch coresequencer.Batch) error {
 	numSubmittedBatches := 0
 	attempt := 0
 
-	maxBlobSize := c.maxSize
+	maxBlobSize := c.maxBlobSize.Load()
 	initialMaxBlobSize := maxBlobSize
 	initialGasPrice := c.dalc.GasPrice
 	gasPrice := c.dalc.GasPrice
@@ -300,6 +303,7 @@ daSubmitRetryLoop:
 
 		case dac.StatusTooBig:
 			maxBlobSize = maxBlobSize / 4
+			c.maxBlobSize.Store(maxBlobSize)
 			fallthrough
 		default:
 			c.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
@@ -365,9 +369,7 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 		return nil, ErrInvalidRollupId
 	}
 	now := time.Now()
-	c.lastBatchHashMutex.Lock()
-	defer c.lastBatchHashMutex.Unlock()
-	lastBatchHash := c.lastBatchHash
+	lastBatchHash := c.lastBatchHash.Load()
 
 	if !reflect.DeepEqual(lastBatchHash, req.LastBatchHash) {
 		return nil, fmt.Errorf("batch hash mismatch: lastBatchHash = %x, req.LastBatchHash = %x", lastBatchHash, req.LastBatchHash)
@@ -393,7 +395,7 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 		return c.recover(ctx, *batch, err)
 	}
 
-	c.lastBatchHash = h
+	c.lastBatchHash.Store(h)
 	err = c.setLastBatchHash(ctx, h)
 	if err != nil {
 		return c.recover(ctx, *batch, err)
@@ -426,8 +428,8 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	if !c.isValid(req.RollupId) {
 		return nil, ErrInvalidRollupId
 	}
-	c.seenBatchesMutex.Lock()
-	defer c.seenBatchesMutex.Unlock()
+	c.seenBatchesMutex.RLock()
+	defer c.seenBatchesMutex.RUnlock()
 	key := hex.EncodeToString(req.BatchHash)
 	if _, exists := c.seenBatches[key]; exists {
 		return &coresequencer.VerifyBatchResponse{Status: true}, nil
@@ -438,17 +440,3 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 func (c *Sequencer) isValid(rollupId []byte) bool {
 	return bytes.Equal(c.rollupId, rollupId)
 }
-
-// // pruneOldBatches removes batches older than a certain height
-// func (c *Sequencer) pruneOldBatches(ctx context.Context, currentHeight uint64, retentionHeight uint64) error {
-// 	if currentHeight <= retentionHeight {
-// 		return nil
-// 	}
-
-// 	pruneHeight := currentHeight - retentionHeight
-
-// 	// Implementation depends on how batch heights are tracked
-// 	// This would require adding height information to batch metadata
-
-// 	return nil
-// }

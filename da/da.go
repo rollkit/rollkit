@@ -10,7 +10,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"cosmossdk.io/log"
-	goDA "github.com/rollkit/go-da"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
@@ -77,8 +76,8 @@ type ResultRetrieveHeaders struct {
 // DAClient is a new DA implementation.
 type DAClient struct {
 	DA              coreda.DA
-	GasPrice        uint64
-	GasMultiplier   uint64
+	GasPrice        float64
+	GasMultiplier   float64
 	Namespace       coreda.Namespace
 	SubmitOptions   []byte
 	SubmitTimeout   time.Duration
@@ -87,7 +86,7 @@ type DAClient struct {
 }
 
 // NewDAClient returns a new DA client.
-func NewDAClient(da coreda.DA, gasPrice, gasMultiplier uint64, ns goDA.Namespace, logger log.Logger, options []byte) *DAClient {
+func NewDAClient(da coreda.DA, gasPrice, gasMultiplier float64, ns coreda.Namespace, logger log.Logger, options []byte) *DAClient {
 	return &DAClient{
 		DA:              da,
 		GasPrice:        gasPrice,
@@ -101,7 +100,7 @@ func NewDAClient(da coreda.DA, gasPrice, gasMultiplier uint64, ns goDA.Namespace
 }
 
 // SubmitHeaders submits block headers to DA.
-func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedHeader, maxBlobSize uint64, gasPrice uint64) ResultSubmit {
+func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedHeader, maxBlobSize uint64, gasPrice float64) ResultSubmit {
 	var (
 		blobs    [][]byte
 		blobSize uint64
@@ -115,7 +114,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedH
 			break
 		}
 		if blobSize+uint64(len(blob)) > maxBlobSize {
-			message = fmt.Sprint((&goDA.ErrBlobSizeOverLimit{}).Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			message = fmt.Sprint((&ErrBlobSizeOverLimit{}).Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
 			dac.logger.Info(message)
 			break
 		}
@@ -137,15 +136,15 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedH
 	if err != nil {
 		status := StatusError
 		switch {
-		case errors.Is(err, &goDA.ErrTxTimedOut{}):
+		case errors.Is(err, &ErrTxTimedOut{}):
 			status = StatusNotIncludedInBlock
-		case errors.Is(err, &goDA.ErrTxAlreadyInMempool{}):
+		case errors.Is(err, &ErrTxAlreadyInMempool{}):
 			status = StatusAlreadyInMempool
-		case errors.Is(err, &goDA.ErrTxIncorrectAccountSequence{}):
+		case errors.Is(err, &ErrTxIncorrectAccountSequence{}):
 			status = StatusAlreadyInMempool
-		case errors.Is(err, &goDA.ErrTxTooLarge{}):
+		case errors.Is(err, &ErrTxTooLarge{}):
 			status = StatusTooBig
-		case errors.Is(err, &goDA.ErrContextDeadline{}):
+		case errors.Is(err, &ErrContextDeadline{}):
 			status = StatusContextDeadline
 		}
 		return ResultSubmit{
@@ -192,7 +191,7 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 		return ResultRetrieveHeaders{
 			BaseResult: BaseResult{
 				Code:     StatusNotFound,
-				Message:  (&goDA.ErrBlobNotFound{}).Error(),
+				Message:  (&ErrBlobNotFound{}).Error(),
 				DAHeight: dataLayerHeight,
 			},
 		}
@@ -240,7 +239,7 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 	}
 }
 
-func (dac *DAClient) submit(ctx context.Context, blobs []goDA.Blob, gasPrice uint64, namespace goDA.Namespace) ([]goDA.ID, error) {
+func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace coreda.Namespace) ([]coreda.ID, error) {
 	if len(dac.SubmitOptions) == 0 {
 		return dac.DA.Submit(ctx, blobs, gasPrice, namespace)
 	}
@@ -268,7 +267,7 @@ type ResultRetrieveBatch struct {
 }
 
 // SubmitBatch submits block data to DA.
-func (dac *DAClient) SubmitBatch(ctx context.Context, data []*coresequencer.Batch, maxBlobSize, gasPrice uint64) ResultSubmitBatch {
+func (dac *DAClient) SubmitBatch(ctx context.Context, data []*coresequencer.Batch, maxBlobSize uint64, gasPrice float64) ResultSubmitBatch {
 	var (
 		blobs    [][]byte
 		blobSize uint64
@@ -285,7 +284,7 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data []*coresequencer.Batc
 			break
 		}
 		if blobSize+uint64(len(blob)) > maxBlobSize {
-			message = fmt.Sprint(goDA.ErrBlobSizeOverLimit{}, "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			message = fmt.Sprint((&ErrBlobSizeOverLimit{}).Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
 			dac.logger.Info(message)
 			break
 		}
@@ -307,15 +306,15 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data []*coresequencer.Batc
 	if err != nil {
 		status := StatusError
 		switch {
-		case errors.Is(err, &goDA.ErrTxTimedOut{}):
+		case errors.Is(err, &ErrTxTimedOut{}):
 			status = StatusNotIncludedInBlock
-		case errors.Is(err, &goDA.ErrTxAlreadyInMempool{}):
+		case errors.Is(err, &ErrTxAlreadyInMempool{}):
 			status = StatusAlreadyInMempool
-		case errors.Is(err, &goDA.ErrTxIncorrectAccountSequence{}):
+		case errors.Is(err, &ErrTxIncorrectAccountSequence{}):
 			status = StatusAlreadyInMempool
-		case errors.Is(err, &goDA.ErrTxTooLarge{}):
+		case errors.Is(err, &ErrTxTooLarge{}):
 			status = StatusTooBig
-		case errors.Is(err, &goDA.ErrContextDeadline{}):
+		case errors.Is(err, &ErrContextDeadline{}):
 			status = StatusContextDeadline
 		}
 		return ResultSubmitBatch{
@@ -364,7 +363,7 @@ func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) 
 		return ResultRetrieveBatch{
 			BaseResult: BaseResult{
 				Code:     StatusNotFound,
-				Message:  (&goDA.ErrBlobNotFound{}).Error(),
+				Message:  (&ErrBlobNotFound{}).Error(),
 				DAHeight: dataLayerHeight,
 			},
 		}

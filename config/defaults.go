@@ -34,7 +34,7 @@ var DefaultNodeConfig = NodeConfig{
 		LazyBlockTime:  60 * time.Second,
 	},
 	DAAddress:       DefaultDAAddress,
-	DAGasPrice:      -1,
+	DAGasPrice:      0,
 	DAGasMultiplier: 0,
 	Light:           false,
 	HeaderConfig: HeaderConfig{

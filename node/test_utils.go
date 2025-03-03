@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -114,8 +115,10 @@ func (e *dummyExecutor) GetStateRoot() []byte {
 
 // dummySequencer is a dummy implementation of the Sequencer interface for testing
 type dummySequencer struct {
-	mu      sync.RWMutex
-	batches map[string]*coresequencer.Batch
+	mu       sync.RWMutex
+	batches  map[string]*coresequencer.Batch
+	maxBytes atomic.Uint64
+	maxGas   atomic.Uint64
 }
 
 // NewDummySequencer creates a new dummy Sequencer instance
@@ -123,6 +126,16 @@ func NewDummySequencer() coresequencer.Sequencer {
 	return &dummySequencer{
 		batches: make(map[string]*coresequencer.Batch),
 	}
+}
+
+// SetMaxBytes sets the max bytes
+func (s *dummySequencer) SetMaxBytes(size uint64) {
+	s.maxBytes.Store(size)
+}
+
+// SetMaxGas sets the max gas
+func (s *dummySequencer) SetMaxGas(size uint64) {
+	s.maxGas.Store(size)
 }
 
 // SubmitRollupBatchTxs submits a batch of transactions to the sequencer

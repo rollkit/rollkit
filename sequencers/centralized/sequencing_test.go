@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -132,9 +133,12 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 
 func TestSequencer_GetNextBatch_LastBatchMismatch(t *testing.T) {
 	db := ds.NewMapDatastore()
+
+	lastBatchHash := atomic.Value{}
+	lastBatchHash.Store([]byte("existingHash"))
 	// Initialize a new sequencer with a mock batch
 	seq := &Sequencer{
-		lastBatchHash: []byte("existingHash"),
+		lastBatchHash: lastBatchHash,
 		bq:            NewBatchQueue(db),
 		seenBatches:   make(map[string]struct{}),
 		rollupId:      []byte("rollup"),
@@ -163,9 +167,11 @@ func TestSequencer_GetNextBatch_LastBatchMismatch(t *testing.T) {
 func TestSequencer_GetNextBatch_LastBatchNilMismatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 
+	lastBatchHash := atomic.Value{}
+	lastBatchHash.Store([]byte("existingHash"))
 	// Initialize a new sequencer
 	seq := &Sequencer{
-		lastBatchHash: []byte("existingHash"),
+		lastBatchHash: lastBatchHash,
 		bq:            NewBatchQueue(db),
 		seenBatches:   make(map[string]struct{}),
 		rollupId:      []byte("rollup"),
@@ -200,7 +206,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	seq := &Sequencer{
 		bq:            NewBatchQueue(db),
 		seenBatches:   make(map[string]struct{}),
-		lastBatchHash: nil,
+		lastBatchHash: atomic.Value{},
 		rollupId:      []byte("rollup"),
 		db:            db,
 	}
@@ -234,7 +240,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	}
 
 	// Ensure lastBatchHash is updated after the batch
-	if seq.lastBatchHash == nil {
+	if seq.lastBatchHash.Load() == nil {
 		t.Fatal("Expected lastBatchHash to be updated, got nil")
 	}
 

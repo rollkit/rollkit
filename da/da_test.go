@@ -4,25 +4,15 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"net/url"
-	"os"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/rollkit/go-da"
-	damock "github.com/rollkit/go-da/mocks"
-	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
-	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 
 	coreda "github.com/rollkit/rollkit/core/da"
-	testServer "github.com/rollkit/rollkit/test/server"
+	"github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -42,40 +32,14 @@ const (
 	submitTimeout = 50 * time.Millisecond
 )
 
-// TestMain starts the mock gRPC and JSONRPC DA services
-// gRPC service listens on MockDAAddress
-// JSONRPC service listens on MockDAAddressHTTP
-// Ports were chosen to be sufficiently different from defaults (26650, 26658)
-// Static ports are used to keep client configuration simple
-// NOTE: this should be unique per test package to avoid
-// "bind: listen address already in use" because multiple packages
-// are tested in parallel
-func TestMain(m *testing.M) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	jsonrpcSrv := testServer.StartMockDAServJSONRPC(ctx, MockDAAddressHTTP)
-	if jsonrpcSrv == nil {
-		os.Exit(1)
-	}
-	grpcSrv := testServer.StartMockDAServGRPC(MockDAAddress)
-	exitCode := m.Run()
-
-	// teardown servers
-	// nolint:errcheck,gosec
-	jsonrpcSrv.Stop(context.Background())
-	grpcSrv.Stop()
-
-	os.Exit(exitCode)
-}
-
 func TestMockDAErrors(t *testing.T) {
 	chainID := "TestMockDAErrors"
 	t.Run("submit_timeout", func(t *testing.T) {
-		mockDA := &damock.MockDA{}
+		mockDA := &mocks.DA{}
 		dalc := NewDAClient(mockDA, 0, 0, nil, log.NewTestLogger(t), nil)
 		header, _ := types.GetRandomBlock(1, 0, chainID)
 		headers := []*types.SignedHeader{header}
-		var blobs []da.Blob
+		var blobs []coreda.Blob
 		for _, header := range headers {
 			headerBytes, err := header.MarshalBinary()
 			require.NoError(t, err)
@@ -86,22 +50,22 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.
 			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
 			After(submitTimeout).
-			Return(nil, &da.ErrContextDeadline{})
+			Return(nil, &ErrContextDeadline{})
 		doTestSubmitTimeout(t, dalc, headers)
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
-		mockDA := &damock.MockDA{}
+		mockDA := &mocks.DA{}
 		dalc := NewDAClient(mockDA, 0, 0, nil, log.NewTestLogger(t), nil)
 		// Set up the mock to return an error for MaxBlobSize
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(0), errors.New("unable to get DA max blob size"))
 		doTestMaxBlockSizeError(t, dalc)
 	})
 	t.Run("tx_too_large", func(t *testing.T) {
-		mockDA := &damock.MockDA{}
+		mockDA := &mocks.DA{}
 		dalc := NewDAClient(mockDA, 0, 0, nil, log.NewTestLogger(t), nil)
 		header, _ := types.GetRandomBlock(1, 0, chainID)
 		headers := []*types.SignedHeader{header}
-		var blobs []da.Blob
+		var blobs []coreda.Blob
 		for _, header := range headers {
 			headerBytes, err := header.MarshalBinary()
 			require.NoError(t, err)
@@ -111,24 +75,13 @@ func TestMockDAErrors(t *testing.T) {
 		mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(1234), nil)
 		mockDA.
 			On("Submit", mock.Anything, blobs, float64(-1), []byte(nil)).
-			Return([]da.ID{}, &da.ErrTxTooLarge{})
+			Return([]coreda.ID{}, &ErrTxTooLarge{})
 		doTestTxTooLargeError(t, dalc, headers)
 	})
 }
 
 func TestSubmitRetrieve(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), 0, 0, nil, log.NewTestLogger(t), nil)
-	jsonrpcClient, err := startMockDAClientJSONRPC(ctx)
-	require.NoError(t, err)
-	grpcClient := startMockDAClientGRPC()
-	require.NoError(t, err)
-	clients := map[string]*DAClient{
-		"dummy":   dummyClient,
-		"jsonrpc": jsonrpcClient,
-		"grpc":    grpcClient,
-	}
 	tests := []struct {
 		name string
 		f    func(t *testing.T, dalc *DAClient)
@@ -140,30 +93,12 @@ func TestSubmitRetrieve(t *testing.T) {
 		// {"submit_large_blocks_overflow", doTestSubmitLargeBlocksOverflow},
 		{"retrieve_no_blocks_found", doTestRetrieveNoBlocksFound},
 	}
-	for name, dalc := range clients {
-		for _, tc := range tests {
-			t.Run(name+"_"+tc.name, func(t *testing.T) {
-				tc.f(t, dalc)
-			})
-		}
-	}
-}
 
-func startMockDAClientGRPC() *DAClient {
-	client := proxygrpc.NewClient()
-	addr, _ := url.Parse(MockDAAddress)
-	if err := client.Start(addr.Host, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
-		panic(err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.f(t, dummyClient)
+		})
 	}
-	return NewDAClient(client, 0, 0, nil, nil, log.TestingLogger())
-}
-
-func startMockDAClientJSONRPC(ctx context.Context) (*DAClient, error) {
-	client, err := proxyjsonrpc.NewClient(ctx, MockDAAddressHTTP, "")
-	if err != nil {
-		return nil, err
-	}
-	return NewDAClient(&client.DA, 0, 0, nil, nil, log.TestingLogger()), nil
 }
 
 func doTestSubmitTimeout(t *testing.T, dalc *DAClient, headers []*types.SignedHeader) {
@@ -173,27 +108,24 @@ func doTestSubmitTimeout(t *testing.T, dalc *DAClient, headers []*types.SignedHe
 	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
-	assert := assert.New(t)
 	dalc.SubmitTimeout = submitTimeout
 	resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, -1)
-	assert.Contains(resp.Message, (&da.ErrContextDeadline{}).Error(), "should return context timeout error")
+	require.Contains(t, resp.Message, (&ErrContextDeadline{}).Error(), "should return context timeout error")
 }
 
 func doTestMaxBlockSizeError(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	assert := assert.New(t)
 	_, err := dalc.DA.MaxBlobSize(ctx)
-	assert.ErrorContains(err, "unable to get DA max blob size", "should return max blob size error")
+	require.ErrorContains(t, err, "unable to get DA max blob size", "should return max blob size error")
 }
 
 func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require := require.New(t)
-	assert := assert.New(t)
+	require.New(t)
 
 	const numBatches = 10
 	const numHeaders = 10
@@ -202,12 +134,12 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	countAtHeight := make(map[uint64]int)
 
 	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	submitAndRecordHeaders := func(headers []*types.SignedHeader) {
 		for len(headers) > 0 {
 			resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, 0)
-			assert.Equal(StatusSuccess, resp.Code, resp.Message)
+			require.Equal(t, StatusSuccess, resp.Code, resp.Message)
 
 			for _, block := range headers[:resp.SubmittedCount] {
 				headerToDAHeight[block] = resp.DAHeight
@@ -229,9 +161,9 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	validateBlockRetrieval := func(height uint64, expectedCount int) {
 		t.Log("Retrieving block, DA Height", height)
 		ret := dalc.RetrieveHeaders(ctx, height)
-		assert.Equal(StatusSuccess, ret.Code, ret.Message)
-		require.NotEmpty(ret.Headers, height)
-		assert.Len(ret.Headers, expectedCount, height)
+		require.Equal(t, StatusSuccess, ret.Code, ret.Message)
+		require.NotEmpty(t, ret.Headers, height)
+		require.Len(t, ret.Headers, expectedCount, height)
 	}
 
 	for height, count := range countAtHeight {
@@ -240,9 +172,9 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 
 	for header, height := range headerToDAHeight {
 		ret := dalc.RetrieveHeaders(ctx, height)
-		assert.Equal(StatusSuccess, ret.Code, height)
-		require.NotEmpty(ret.Headers, height)
-		assert.Contains(ret.Headers, header, height)
+		require.Equal(t, StatusSuccess, ret.Code, height)
+		require.NotEmpty(t, ret.Headers, height)
+		require.Contains(t, ret.Headers, header, height)
 	}
 }
 
@@ -252,11 +184,10 @@ func doTestTxTooLargeError(t *testing.T, dalc *DAClient, headers []*types.Signed
 
 	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
-
-	assert := assert.New(t)
+	require.New(t)
 	resp := dalc.SubmitHeaders(ctx, headers, maxBlobSize, 0)
-	assert.Contains(resp.Message, (&da.ErrTxTooLarge{}).Error(), "should return tx too large error")
-	assert.Equal(resp.Code, StatusTooBig)
+	require.Contains(t, resp.Message, (&ErrTxTooLarge{}).Error(), "should return tx too large error")
+	require.Equal(t, resp.Code, StatusTooBig)
 }
 
 func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
@@ -265,15 +196,14 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
 
 	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
-
-	assert := assert.New(t)
+	require.New(t)
 
 	chainID := "doTestSubmitEmptyBlocks"
 	header1, _ := types.GetRandomBlock(1, 0, chainID)
 	header2, _ := types.GetRandomBlock(1, 0, chainID)
 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, maxBlobSize, 0)
-	assert.Equal(StatusSuccess, resp.Code, "empty blocks should submit")
-	assert.EqualValues(resp.SubmittedCount, 2, "empty blocks should batch")
+	require.Equal(t, StatusSuccess, resp.Code, "empty blocks should submit")
+	require.EqualValues(t, resp.SubmittedCount, 2, "empty blocks should batch")
 }
 
 // func doTestSubmitOversizedBlock(t *testing.T, dalc *DAClient) {
@@ -298,14 +228,14 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
-	assert := assert.New(t)
+	require.New(t)
 
 	chainID := "doTestSubmitSmallBlocksBatch"
 	header1, _ := types.GetRandomBlock(1, 1, chainID)
 	header2, _ := types.GetRandomBlock(1, 2, chainID)
 	resp := dalc.SubmitHeaders(ctx, []*types.SignedHeader{header1, header2}, maxBlobSize, 0)
-	assert.Equal(StatusSuccess, resp.Code, "small blocks should submit")
-	assert.EqualValues(resp.SubmittedCount, 2, "small blocks should batch")
+	require.Equal(t, StatusSuccess, resp.Code, "small blocks should submit")
+	require.EqualValues(t, resp.SubmittedCount, 2, "small blocks should batch")
 }
 
 // func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc *DAClient) {
@@ -349,39 +279,26 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	assert := assert.New(t)
+	require.New(t)
 	result := dalc.RetrieveHeaders(ctx, 123)
 	// Namespaces don't work on dummy da right now (https://github.com/rollkit/go-da/issues/94),
 	// when namespaces are implemented, this should be uncommented
-	// assert.Equal(StatusNotFound, result.Code)
-	// assert.Contains(result.Message, ErrBlobNotFound.Error())
-	assert.Equal(StatusError, result.Code)
+	// require.Equal(t, StatusNotFound, result.Code)
+	// require.Contains(t, result.Message, ErrBlobNotFound.Error())
+	require.Equal(t, StatusError, result.Code)
 }
 
 func TestSubmitWithOptions(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), -1, -1, nil, []byte("option=value"), log.TestingLogger())
-	jsonrpcClient, err := startMockDAClientJSONRPC(ctx)
-	require.NoError(t, err)
-	grpcClient := startMockDAClientGRPC()
-	require.NoError(t, err)
-	clients := map[string]*DAClient{
-		"dummy":   dummyClient,
-		"jsonrpc": jsonrpcClient,
-		"grpc":    grpcClient,
-	}
+	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), 0, 0, nil, log.NewTestLogger(t), []byte("option=value"))
 	tests := []struct {
 		name string
 		f    func(t *testing.T, dalc *DAClient)
 	}{
 		{"submit_retrieve", doTestSubmitRetrieve},
 	}
-	for name, dalc := range clients {
-		for _, tc := range tests {
-			t.Run(name+"_"+tc.name, func(t *testing.T) {
-				tc.f(t, dalc)
-			})
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.f(t, dummyClient)
+		})
 	}
 }

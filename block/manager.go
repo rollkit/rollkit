@@ -25,7 +25,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
 
-	execTypes "github.com/rollkit/go-execution/types"
 	"github.com/rollkit/go-sequencing"
 
 	"github.com/rollkit/rollkit/config"
@@ -1388,7 +1387,7 @@ daSubmitRetryLoop:
 			// scale back gasPrice gradually
 			backoff = 0
 			maxBlobSize = initialMaxBlobSize
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
+			if m.dalc.GasMultiplier > 0 && gasPrice != 0 { //TODO: check if 0 is safe
 				gasPrice = gasPrice / m.dalc.GasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
@@ -1397,8 +1396,8 @@ daSubmitRetryLoop:
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
+			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL)
+			if m.dalc.GasMultiplier > 0 && gasPrice != 0 { //TODO: check if 0 is safe
 				gasPrice = gasPrice * m.dalc.GasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
@@ -1479,11 +1478,6 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 }
 
 func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ abci.ExtendedCommitInfo, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
-	// TODO(tzdybal): get rid of cmtypes.Tx, probable we should have common-shared-dep with basic types
-	rawTxs := make([]execTypes.Tx, len(txs))
-	for i := range txs {
-		rawTxs[i] = execTypes.Tx(txs[i])
-	}
 
 	header := &types.SignedHeader{
 		Header: types.Header{

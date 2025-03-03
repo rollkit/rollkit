@@ -35,6 +35,7 @@ import (
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+	coreda "github.com/rollkit/rollkit/core/da"
 
 	rollconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
@@ -194,6 +195,8 @@ func NewRunNodeCmd() *cobra.Command {
 
 			dummyExecutor := node.NewDummyExecutor()
 			dummySequencer := node.NewDummySequencer()
+			dummyDA := coreda.NewDummyDA(100_000)
+
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
@@ -201,6 +204,7 @@ func NewRunNodeCmd() *cobra.Command {
 				// THIS IS FOR TESTING ONLY
 				dummyExecutor,
 				dummySequencer,
+				dummyDA,
 				p2pKey,
 				signingKey,
 				genDoc,

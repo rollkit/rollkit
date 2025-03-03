@@ -92,8 +92,9 @@ proto-gen:
 mock-gen:
 	@echo "-> Generating mocks"
 	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/rpc/client --name Client
-	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/abci/types --name Application
+	# mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/abci/types --name Application
 	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/store --name Store
+	mockery --output da/mocks --srcpkg github.com/rollkit/rollkit/core/da  --name Da 
 .PHONY: mock-gen
 
 

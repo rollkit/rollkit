@@ -9,6 +9,7 @@ import (
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
 	cmcfg "github.com/cometbft/cometbft/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -47,12 +48,13 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
-
+	dummyDA := coreda.NewDummyDA(100_000)
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -327,12 +329,13 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
-
+	dummyDA := coreda.NewDummyDA(100_000)
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -405,6 +408,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	dummyExec := NewDummyExecutor()
 	dummySequencer := NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
 
 	// Attempt to create a node with invalid DA config
 	node, err := NewNode(
@@ -412,6 +416,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 		invalidConfig,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
