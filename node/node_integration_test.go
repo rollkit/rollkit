@@ -50,9 +50,14 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	p2pKey := generateSingleKey()
 
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
 	node, err := NewNode(
 		s.ctx,
 		config,
+		dummyExec,
+		dummySequencer,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -207,9 +212,14 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 		nodeCancel()
 	})
 
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
 	node, err := NewNode(
 		nodeCtx,
 		conf,
+		dummyExec,
+		dummySequencer,
 		p2pKey,
 		key,
 		genesis,

@@ -17,7 +17,7 @@ To make sure that the serialised blocks don't exceed the underlying DA's blob li
 The `Submit` call may result in an error (`StatusError`) based on the underlying DA implementations on following scenarios:
 
 * the total blobs size exceeds the underlying DA's limits (includes empty blobs)
-* the implementation specific failures, e.g., for [celestia-da-jsonrpc][proxy/jsonrpc], invalid namespace, unable to create the commitment or proof, setting low gas price, etc, could return error.
+* the implementation specific failures, e.g., for [celestia-da-json-rpc][proxy/jsonrpc], invalid namespace, unable to create the commitment or proof, setting low gas price, etc, could return error.
 
 The `RetrieveBlocks` retrieves the rollup blocks for a given DA height using [go-da][go-da] `GetIDs` and `Get` methods. If there are no blocks available for a given DA height, `StatusNotFound` is returned (which is not an error case). The retrieved blobs are converted back to rollup blocks and returned on successful retrieval.
 

@@ -115,6 +115,16 @@ install:
 	@echo "    Check the binary with: which rollkit"
 .PHONY: install
 
+## build: build rollkit CLI
+build:
+	@echo "--> Building Rollkit CLI"
+	@mkdir -p $(CURDIR)/build
+	@go build -ldflags "$(LDFLAGS)" -o $(CURDIR)/build/rollkit ./cmd/rollkit
+	@echo "--> Rollkit CLI Built!"
+	@echo "    Check the version with: rollkit version"
+	@echo "    Check the binary with: $(CURDIR)/build/rollkit"
+.PHONY: build
+
 ## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \

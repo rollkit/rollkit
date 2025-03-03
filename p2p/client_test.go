@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
-	test "github.com/rollkit/rollkit/test/log"
 )
 
 func TestClientStartup(t *testing.T) {
@@ -43,7 +42,7 @@ func TestClientStartup(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()), test.NewFileLoggerCustom(t, test.TempLogFileName(t, testCase.desc)), NopMetrics())
+				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -57,11 +56,8 @@ func TestClientStartup(t *testing.T) {
 }
 
 func TestBootstrapping(t *testing.T) {
-	_ = log.SetLogLevel("dht", "INFO")
-	//log.SetDebugLogging()
-
 	assert := assert.New(t)
-	logger := test.NewFileLogger(t)
+	logger := log.NewTestLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -81,7 +77,7 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := test.NewFileLogger(t)
+	logger := log.NewTestLogger(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -138,7 +134,7 @@ func TestSeedStringParsing(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
-			logger := &test.MockLogger{}
+			logger := log.NewNopLogger()
 			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork",
 				dssync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics())
 			require.NoError(err)
@@ -146,8 +142,6 @@ func TestSeedStringParsing(t *testing.T) {
 			actual := client.parseAddrInfoList(c.input)
 			assert.NotNil(actual)
 			assert.Equal(c.expected, actual)
-			// ensure that errors are logged
-			assert.Equal(c.nErrors, len(logger.ErrLines))
 		})
 	}
 }

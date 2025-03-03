@@ -50,9 +50,14 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	p2pKey := generateSingleKey()
 
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
 	node, err := NewNode(
 		s.ctx,
 		config,
+		dummyExec,
+		dummySequencer,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -305,9 +310,14 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	p2pKey := generateSingleKey()
 
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
 	node, err := NewNode(
 		s.ctx,
 		config,
+		dummyExec,
+		dummySequencer,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -391,9 +401,14 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	require.NoError(err)
 	p2pKey := generateSingleKey()
 
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
 	node, err := NewNode(
 		s.ctx,
 		config,
+		dummyExec,
+		dummySequencer,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -444,10 +459,15 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	p2pKey := generateSingleKey()
 
+	dummyExec := NewDummyExecutor()
+	dummySequencer := NewDummySequencer()
+
 	// Attempt to create a node with invalid DA config
 	node, err := NewNode(
 		s.ctx,
 		invalidConfig,
+		dummyExec,
+		dummySequencer,
 		p2pKey,
 		signingKey,
 		genesis,

@@ -1,6 +1,6 @@
 module github.com/rollkit/rollkit
 
-go 1.24
+go 1.24.0
 
 retract v0.12.0 // Published by accident
 
@@ -15,7 +15,6 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/ipfs/go-datastore v0.7.0
 	github.com/ipfs/go-ds-badger4 v0.1.5
-	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.40.0
 	github.com/libp2p/go-libp2p-kad-dht v0.29.1
 	github.com/libp2p/go-libp2p-pubsub v0.13.0
@@ -25,12 +24,15 @@ require (
 	github.com/rollkit/go-da v0.9.0
 	github.com/rollkit/go-execution v0.2.3
 	github.com/rollkit/go-sequencing v0.4.1
+	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 )
+
+replace github.com/rollkit/rollkit/core => ./core
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
@@ -96,6 +98,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/boxo v0.27.4 // indirect
 	github.com/ipfs/go-cid v0.5.0 // indirect
+	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/ipld/go-ipld-prime v0.21.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect

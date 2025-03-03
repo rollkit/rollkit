@@ -37,7 +37,7 @@ import (
 	seqTest "github.com/rollkit/go-sequencing/test"
 
 	rollconf "github.com/rollkit/rollkit/config"
-	rollnode "github.com/rollkit/rollkit/node"
+	"github.com/rollkit/rollkit/node"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
@@ -127,7 +127,7 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// initialize the metrics
-			metrics := rollnode.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
+			metrics := node.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
 			// Only start mock DA server if the user did not provide --rollkit.da_address
@@ -193,10 +193,15 @@ func NewRunNodeCmd() *cobra.Command {
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
 
+			dummyExecutor := node.NewDummyExecutor()
+			dummySequencer := node.NewDummySequencer()
 			// create the rollkit node
-			rollnode, err := rollnode.NewNode(
+			rollnode, err := node.NewNode(
 				ctx,
 				nodeConfig,
+				// THIS IS FOR TESTING ONLY
+				dummyExecutor,
+				dummySequencer,
 				p2pKey,
 				signingKey,
 				genDoc,
