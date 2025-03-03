@@ -64,22 +64,3 @@ jobs:
         run: gh pr edit ${{ env.PR }} --add-assignee ${{ env.CREATOR }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  auto-add-assignee-label:
-    if: ${{ github.event.issue }}
-    name: Assign issue to creator
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v4
-      - name: Set issue number and creator login
-        run: |
-          echo "ISSUE=${{ github.event.issue.number }}" >> $GITHUB_ENV
-          echo "CREATOR=${{ github.event.issue.user.login }}" >> $GITHUB_ENV
-      - name: Assign issue to creator
-        run: gh issue edit ${{ env.ISSUE }} --add-assignee ${{ env.CREATOR }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
