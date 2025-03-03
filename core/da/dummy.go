@@ -2,6 +2,7 @@ package da
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"sync"
 	"time"
@@ -9,22 +10,24 @@ import (
 
 // DummyDA is a simple in-memory implementation of the DA interface for testing purposes.
 type DummyDA struct {
-	mu            sync.RWMutex
-	blobs         map[string]Blob
-	commitments   map[string]Commitment
-	proofs        map[string]Proof
-	blobsByHeight map[uint64][]ID
-	maxBlobSize   uint64
+	mu                 sync.RWMutex
+	blobs              map[string]Blob
+	commitments        map[string]Commitment
+	proofs             map[string]Proof
+	blobsByHeight      map[uint64][]ID
+	timestampsByHeight map[uint64]time.Time
+	maxBlobSize        uint64
 }
 
 // NewDummyDA creates a new instance of DummyDA with the specified maximum blob size.
 func NewDummyDA(maxBlobSize uint64) *DummyDA {
 	return &DummyDA{
-		blobs:         make(map[string]Blob),
-		commitments:   make(map[string]Commitment),
-		proofs:        make(map[string]Proof),
-		blobsByHeight: make(map[uint64][]ID),
-		maxBlobSize:   maxBlobSize,
+		blobs:              make(map[string]Blob),
+		commitments:        make(map[string]Commitment),
+		proofs:             make(map[string]Proof),
+		blobsByHeight:      make(map[uint64][]ID),
+		timestampsByHeight: make(map[uint64]time.Time),
+		maxBlobSize:        maxBlobSize,
 	}
 }
 
@@ -65,7 +68,7 @@ func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace Namespace
 
 	return &GetIDsResult{
 		IDs:       ids,
-		Timestamp: time.Now(),
+		Timestamp: d.timestampsByHeight[height],
 	}, nil
 }
 
@@ -123,13 +126,15 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 		idStr := string(id)
 
 		d.blobs[idStr] = blob
-		d.commitments[idStr] = blob // Simple commitment
-		d.proofs[idStr] = blob      // Simple proof
+		bz := sha256.Sum256(blob)
+		d.commitments[idStr] = bz[:] // Simple commitment
+		d.proofs[idStr] = bz[:]      // Simple proof
 
 		ids = append(ids, id)
 	}
 
 	d.blobsByHeight[height] = ids
+	d.timestampsByHeight[height] = time.Now()
 	return ids, nil
 }
 
