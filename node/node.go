@@ -7,10 +7,9 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
+	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-
-	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/pkg/service"
 )
 
