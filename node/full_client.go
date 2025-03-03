@@ -286,12 +286,12 @@ func (c *FullClient) GenesisChunked(context context.Context, id uint) (*ctypes.R
 		return nil, fmt.Errorf("error while creating chunks of the genesis document: %w", err)
 	}
 	if genChunks == nil {
-		return nil, fmt.Errorf("service configuration error, genesis chunks are not initialized")
+		return nil, errors.New("service configuration error, genesis chunks are not initialized")
 	}
 
 	chunkLen := len(genChunks)
 	if chunkLen == 0 {
-		return nil, fmt.Errorf("service configuration error, there are no chunks")
+		return nil, errors.New("service configuration error, there are no chunks")
 	}
 
 	if int(id) > chunkLen-1 { //nolint:gosec
@@ -526,7 +526,7 @@ func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, 
 	genesisValidators := c.node.GetGenesis().Validators
 
 	if len(genesisValidators) != 1 {
-		return nil, fmt.Errorf("there should be exactly one validator in genesis")
+		return nil, errors.New("there should be exactly one validator in genesis")
 	}
 	// Since it's a centralized sequencer
 	// changed behavior to get this from genesis
@@ -740,7 +740,7 @@ func (c *FullClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
 	genesisValidators := c.node.GetGenesis().Validators
 
 	if len(genesisValidators) != 1 {
-		return nil, fmt.Errorf("there should be exactly one validator in genesis")
+		return nil, errors.New("there should be exactly one validator in genesis")
 	}
 
 	// Changed behavior to get this from genesis
