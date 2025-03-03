@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -50,8 +52,8 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	p2pKey := generateSingleKey()
 
-	dummyExec := NewDummyExecutor()
-	dummySequencer := NewDummySequencer()
+	dummyExec := coreexecutor.NewDummyExecutor()
+	dummySequencer := coresequencer.NewDummySequencer()
 
 	node, err := NewNode(
 		s.ctx,
@@ -212,8 +214,8 @@ func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf config.NodeConfig) N
 		nodeCancel()
 	})
 
-	dummyExec := NewDummyExecutor()
-	dummySequencer := NewDummySequencer()
+	dummyExec := coreexecutor.NewDummyExecutor()
+	dummySequencer := coresequencer.NewDummySequencer()
 
 	node, err := NewNode(
 		nodeCtx,

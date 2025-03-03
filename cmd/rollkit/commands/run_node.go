@@ -35,6 +35,8 @@ import (
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
 	rollconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
@@ -193,8 +195,8 @@ func NewRunNodeCmd() *cobra.Command {
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
 
-			dummyExecutor := node.NewDummyExecutor()
-			dummySequencer := node.NewDummySequencer()
+			dummyExecutor := coreexecutor.NewDummyExecutor()
+			dummySequencer := coresequencer.NewDummySequencer()
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,

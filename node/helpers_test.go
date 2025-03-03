@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -55,8 +57,8 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	p2pKey := generateSingleKey()
 
-	dummyExec := NewDummyExecutor()
-	dummySequencer := NewDummySequencer()
+	dummyExec := coreexecutor.NewDummyExecutor()
+	dummySequencer := coresequencer.NewDummySequencer()
 
 	node, err := NewNode(
 		ctx,
