@@ -108,7 +108,7 @@ func (syncService *SyncService[H]) Store() *goheaderstore.Store[H] {
 
 func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, initial H) error {
 	if initial.IsZero() {
-		return fmt.Errorf("failed to initialize the store and start syncer")
+		return errors.New("failed to initialize the store and start syncer")
 	}
 	if err := syncService.store.Init(ctx, initial); err != nil {
 		return err
@@ -123,13 +123,13 @@ func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, 
 // Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
 func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrData H) error {
 	if syncService.genesis.InitialHeight < 0 {
-		return fmt.Errorf("invalid initial height; cannot be negative")
+		return errors.New("invalid initial height; cannot be negative")
 	}
 	isGenesis := headerOrData.Height() == uint64(syncService.genesis.InitialHeight)
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
 		if err := syncService.store.Init(ctx, headerOrData); err != nil {
-			return fmt.Errorf("failed to initialize the store")
+			return errors.New("failed to initialize the store")
 		}
 	}
 
@@ -137,7 +137,7 @@ func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context,
 	if !syncService.syncerStatus.started.Load() {
 		firstStart = true
 		if err := syncService.StartSyncer(ctx); err != nil {
-			return fmt.Errorf("failed to start syncer after initializing the store")
+			return errors.New("failed to start syncer after initializing the store")
 		}
 	}
 

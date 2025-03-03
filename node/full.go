@@ -237,7 +237,7 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 	}
 
 	if nodeConfig.DAGasMultiplier < 0 {
-		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
+		return nil, errors.New("gas multiplier must be greater than or equal to zero")
 	}
 
 	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
