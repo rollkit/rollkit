@@ -318,12 +318,6 @@ func addNodeFlags(cmd *cobra.Command) {
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
-
-	// special handling for the p2p external address, due to inconsistencies in mapstructure and flag name
-	if cmd.Flags().Lookup("p2p.external-address").Changed {
-		// nodeConfig.P2P does not have a ExternalAddress field, so we don't need to set it
-		// nodeConfig.P2P.ExternalAddress = viper.GetString("p2p.external-address")
-	}
 }
 
 // tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
@@ -477,12 +471,6 @@ func parseConfig(cmd *cobra.Command) error {
 	// Validate the root directory
 	rollconf.EnsureRoot(nodeConfig.RootDir)
 
-	// Validate the config
-	// nodeConfig does not have a ValidateBasic method, so we don't need to validate it
-	// if err := nodeConfig.ValidateBasic(); err != nil {
-	// 	return fmt.Errorf("error in config file: %w", err)
-	// }
-
 	// Parse the flags
 	if err := parseFlags(cmd); err != nil {
 		return err
@@ -507,12 +495,6 @@ func parseFlags(cmd *cobra.Command) error {
 	})
 	if err != nil {
 		return fmt.Errorf("unable to decode command flags into config: %w", err)
-	}
-
-	// special handling for the p2p external address, due to inconsistencies in mapstructure and flag name
-	if cmd.Flags().Lookup("p2p.external-address").Changed {
-		// nodeConfig.P2P does not have a ExternalAddress field, so we don't need to set it
-		// nodeConfig.P2P.ExternalAddress = viper.GetString("p2p.external-address")
 	}
 
 	// handle rollkit node configuration
