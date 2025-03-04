@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
+	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -47,7 +47,8 @@ func getTestConfig(n int) config.NodeConfig {
 }
 
 func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
-	ctx := context.Background()
+	// Create a cancellable context instead of using background context
+	ctx, cancel := context.WithCancel(context.Background())
 	config := getTestConfig(1)
 
 	// Generate genesis and keys
@@ -71,15 +72,15 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 	)
 	require.NoError(t, err)
 
+	// Update cleanup to cancel the context instead of calling Stop
 	cleanup := func() {
-		if fn, ok := node.(*FullNode); ok {
-			_ = fn.Stop(ctx)
-		}
+		// Cancel the context to stop the node
+		cancel()
 	}
 
 	return node.(*FullNode), cleanup

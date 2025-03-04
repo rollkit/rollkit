@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -24,7 +25,6 @@ import (
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/types"
 )
 
 // prefixes used in KV store to separate main node data from DALC data
@@ -60,10 +60,6 @@ type FullNode struct {
 
 	// Preserves cometBFT compatibility
 	prometheusSrv *http.Server
-
-	// keep context here only because of API compatibility
-	// - it's used in `OnStart` (defined in service.Service interface)
-	threadManager *types.ThreadManager
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -125,15 +121,14 @@ func newFullNode(
 	}
 
 	node := &FullNode{
-		genesis:       genesis,
-		nodeConfig:    nodeConfig,
-		p2pClient:     p2pClient,
-		blockManager:  blockManager,
-		dalc:          dac,
-		Store:         store,
-		hSyncService:  headerSyncService,
-		dSyncService:  dataSyncService,
-		threadManager: types.NewThreadManager(),
+		genesis:      genesis,
+		nodeConfig:   nodeConfig,
+		p2pClient:    p2pClient,
+		blockManager: blockManager,
+		dalc:         dac,
+		Store:        store,
+		hSyncService: headerSyncService,
+		dSyncService: dataSyncService,
 	}
 
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
@@ -142,7 +137,7 @@ func newFullNode(
 }
 
 // initBaseKV initializes the base key-value store.
-func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
+func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.Batching, error) {
 	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
@@ -151,7 +146,7 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.TxnDatastor
 }
 
 func initHeaderSyncService(
-	mainKV ds.TxnDatastore,
+	mainKV ds.Batching,
 	nodeConfig config.NodeConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
@@ -165,7 +160,7 @@ func initHeaderSyncService(
 }
 
 func initDataSyncService(
-	mainKV ds.TxnDatastore,
+	mainKV ds.Batching,
 	nodeConfig config.NodeConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
@@ -317,8 +312,9 @@ func (n *FullNode) startPrometheusServer() *http.Server {
 	return srv
 }
 
-// OnStart is a part of Service interface.
-func (n *FullNode) OnStart(ctx context.Context) error {
+// Run implements the Service interface.
+// It starts all subservices and manages the node's lifecycle.
+func (n *FullNode) Run(ctx context.Context) error {
 	// begin prometheus metrics gathering if it is enabled
 	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
 		n.prometheusSrv = n.startPrometheusServer()
@@ -340,18 +336,44 @@ func (n *FullNode) OnStart(ctx context.Context) error {
 	if n.nodeConfig.Aggregator {
 		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
 
-		n.threadManager.Go(func() { n.blockManager.BatchRetrieveLoop(ctx) })
-		n.threadManager.Go(func() { n.blockManager.AggregationLoop(ctx) })
-		n.threadManager.Go(func() { n.blockManager.HeaderSubmissionLoop(ctx) })
-		n.threadManager.Go(func() { n.headerPublishLoop(ctx) })
-		n.threadManager.Go(func() { n.dataPublishLoop(ctx) })
-		return nil
+		go n.blockManager.BatchRetrieveLoop(ctx)
+		go n.blockManager.AggregationLoop(ctx)
+		go n.blockManager.HeaderSubmissionLoop(ctx)
+		go n.headerPublishLoop(ctx)
+		go n.dataPublishLoop(ctx)
+	} else {
+		go n.blockManager.RetrieveLoop(ctx)
+		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
+		go n.blockManager.DataStoreRetrieveLoop(ctx)
+		go n.blockManager.SyncLoop(ctx)
 	}
-	n.threadManager.Go(func() { n.blockManager.RetrieveLoop(ctx) })
-	n.threadManager.Go(func() { n.blockManager.HeaderStoreRetrieveLoop(ctx) })
-	n.threadManager.Go(func() { n.blockManager.DataStoreRetrieveLoop(ctx) })
-	n.threadManager.Go(func() { n.blockManager.SyncLoop(ctx) })
-	return nil
+
+	// Block until context is canceled
+	<-ctx.Done()
+
+	// Perform cleanup
+	n.Logger.Info("halting full node...")
+	n.Logger.Info("shutting down full node sub services...")
+
+	err = errors.Join(
+		n.p2pClient.Close(),
+		n.hSyncService.Stop(ctx),
+		n.dSyncService.Stop(ctx),
+	)
+
+	if n.prometheusSrv != nil {
+		// Use a timeout context to ensure shutdown doesn't hang
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		err = errors.Join(err, n.prometheusSrv.Shutdown(shutdownCtx))
+	}
+
+	err = errors.Join(err, n.Store.Close())
+	if err != nil {
+		n.Logger.Error("errors while stopping node:", "errors", err)
+	}
+
+	return ctx.Err()
 }
 
 // GetGenesis returns entire genesis doc.
@@ -368,33 +390,6 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 	return n.genChunks, err
 }
 
-// OnStop is a part of Service interface.
-//
-// p2pClient and sync services stop first, ceasing network activities. Then rest of services are halted.
-// Context is cancelled to signal goroutines managed by thread manager to stop.
-// Store is closed last because it's used by other services/goroutines.
-func (n *FullNode) OnStop(ctx context.Context) {
-	n.Logger.Info("halting full node...")
-	n.Logger.Info("shutting down full node sub services...")
-	err := errors.Join(
-		n.p2pClient.Close(),
-		n.hSyncService.Stop(ctx),
-		n.dSyncService.Stop(ctx),
-	)
-	if n.prometheusSrv != nil {
-		err = errors.Join(err, n.prometheusSrv.Shutdown(ctx))
-	}
-
-	n.threadManager.Wait()
-	err = errors.Join(err, n.Store.Close())
-	n.Logger.Error("errors while stopping node:", "errors", err)
-}
-
-// OnReset is a part of Service interface.
-func (n *FullNode) OnReset(ctx context.Context) error {
-	panic("OnReset - not implemented!")
-}
-
 // SetLogger sets the logger used by node.
 func (n *FullNode) SetLogger(logger log.Logger) {
 	n.Logger = logger
@@ -405,21 +400,6 @@ func (n *FullNode) GetLogger() log.Logger {
 	return n.Logger
 }
 
-func newPrefixKV(kvStore ds.Datastore, prefix string) ds.TxnDatastore {
-	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.TxnDatastore)
-}
-
-// Start implements NodeLifecycle
-func (fn *FullNode) Start(ctx context.Context) error {
-	return fn.BaseService.Start(ctx)
-}
-
-// Stop implements NodeLifecycle
-func (fn *FullNode) Stop(ctx context.Context) error {
-	return fn.BaseService.Stop(ctx)
-}
-
-// IsRunning implements NodeLifecycle
-func (fn *FullNode) IsRunning() bool {
-	return fn.BaseService.IsRunning()
+func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
+	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.Batching)
 }
