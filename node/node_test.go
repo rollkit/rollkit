@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmconfig "github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -27,6 +26,7 @@ import (
 	seqTest "github.com/rollkit/go-sequencing/test"
 
 	"github.com/rollkit/rollkit/config"
+	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -274,7 +274,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		key,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmconfig.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logger,
 	)
 	return node, genesisValidatorKey, err
