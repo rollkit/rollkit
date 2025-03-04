@@ -63,7 +63,7 @@ func newLightNode(
 	return node, nil
 }
 
-func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.TxnDatastore, error) {
+func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.Batching, error) {
 	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
