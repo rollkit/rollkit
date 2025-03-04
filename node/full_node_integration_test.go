@@ -407,12 +407,14 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
