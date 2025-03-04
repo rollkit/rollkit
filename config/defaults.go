@@ -42,6 +42,7 @@ var DefaultNodeConfig = NodeConfig{
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
+	Instrumentation:   DefaultInstrumentationConfig(),
 	SequencerAddress:  DefaultSequencerAddress,
 	SequencerRollupID: DefaultSequencerRollupID,
 	ExecutorAddress:   DefaultExecutorAddress,
