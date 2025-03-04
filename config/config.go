@@ -106,7 +106,7 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	nc.RootDir = v.GetString("root_dir")
 	nc.DBPath = v.GetString("db_path")
 
-	nc.P2P.ListenAddress = v.GetString("p2p.listen_address")
+	nc.P2P.ListenAddress = v.GetString("p2p.laddr")
 	nc.P2P.Seeds = v.GetString("p2p.seeds")
 	nc.P2P.BlockedPeers = v.GetString("p2p.blocked_peers")
 	nc.P2P.AllowedPeers = v.GetString("p2p.allowed_peers")

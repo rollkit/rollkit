@@ -43,9 +43,6 @@ import (
 )
 
 var (
-	// initialize the config with the cometBFT defaults
-	//config = cometconf.DefaultConfig()
-
 	// initialize the rollkit node configuration
 	nodeConfig = rollconf.DefaultNodeConfig
 

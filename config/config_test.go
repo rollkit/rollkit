@@ -32,7 +32,7 @@ func TestGetNodeConfig(t *testing.T) {
 		{
 			"ListenAddress",
 			map[string]interface{}{
-				"p2p.listen_address": "127.0.0.1:7676",
+				"p2p.laddr": "127.0.0.1:7676",
 			},
 			NodeConfig{P2P: P2PConfig{ListenAddress: "127.0.0.1:7676"}},
 		},
@@ -113,10 +113,10 @@ func TestConfigFromViper(t *testing.T) {
 		{
 			"basic_config",
 			map[string]interface{}{
-				"root_dir":           "~/root",
-				"db_path":            "./database",
-				"p2p.listen_address": "127.0.0.1:7676",
-				"p2p.seeds":          "seeds",
+				"root_dir":  "~/root",
+				"db_path":   "./database",
+				"p2p.laddr": "127.0.0.1:7676",
+				"p2p.seeds": "seeds",
 			},
 			NodeConfig{
 				RootDir: "~/root",

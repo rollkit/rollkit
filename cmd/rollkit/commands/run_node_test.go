@@ -80,7 +80,6 @@ func TestParseFlags(t *testing.T) {
 		{"DBDir", viper.GetString("db_dir"), "data2"},
 		{"Moniker", viper.GetString("moniker"), "yarik-playground2"},
 		{"ExternalAddress", viper.GetString("p2p.external-address"), "127.0.0.0:26000"},
-		{"ListenAddress", viper.GetString("p2p.laddr"), "tcp://127.0.0.1:27000"},
 		{"PexReactor", viper.GetBool("p2p.pex"), true},
 		{"PrivatePeerIDs", viper.GetString("p2p.private_peer_ids"), "1,2,3"},
 		{"SeedMode", viper.GetBool("p2p.seed_mode"), true},
@@ -101,6 +100,7 @@ func TestParseFlags(t *testing.T) {
 		{"LazyAggregator", nodeConfig.BlockManagerConfig.LazyAggregator, true},
 		{"LazyBlockTime", nodeConfig.BlockManagerConfig.LazyBlockTime, 2 * time.Minute},
 		{"Light", nodeConfig.Light, true},
+		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
 		{"MaxPendingBlocks", nodeConfig.BlockManagerConfig.MaxPendingBlocks, uint64(100)},
 
 		// RPC fields, available in viper but not in nodeConfig
