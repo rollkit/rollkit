@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"net/url"
 	"os"
 	"syscall"
 	"time"
@@ -26,19 +25,18 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
 	execTest "github.com/rollkit/go-execution/test"
 	execTypes "github.com/rollkit/go-execution/types"
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+
+	rollconf "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
-
-	rollconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
@@ -53,7 +51,6 @@ var (
 	// initialize the logger with the cometBFT defaults
 	logger = log.NewLogger(os.Stdout)
 
-	errDAServerAlreadyRunning  = errors.New("DA server already running")
 	errSequencerAlreadyRunning = errors.New("sequencer already running")
 	errExecutorAlreadyRunning  = errors.New("executor already running")
 )
@@ -253,31 +250,6 @@ func addNodeFlags(cmd *cobra.Command) {
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
-}
-
-// tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
-func tryStartMockDAServJSONRPC(
-	ctx context.Context,
-	daAddress string,
-	newServer func(string, string, coreda.DA) *proxy.Server,
-) (*proxy.Server, error) {
-	addr, err := url.Parse(daAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	srv := newServer(addr.Hostname(), addr.Port(), coreda.NewDummyDA(100_000))
-	if err := srv.Start(ctx); err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("DA server is already running", "address", daAddress)
-			return nil, errDAServerAlreadyRunning
-		}
-		return nil, err
-	}
-
-	logger.Info("Starting mock DA server", "address", daAddress)
-
-	return srv, nil
 }
 
 // tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.

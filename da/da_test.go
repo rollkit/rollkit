@@ -47,11 +47,13 @@ func TestMockDAErrors(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+		maxBlobSize, err := dalc.MaxBlobSize(ctx)
 		require.NoError(t, err)
 
 		assert := assert.New(t)
-		dalc.SubmitTimeout = submitTimeout
+
+		ctx, cancel = context.WithTimeout(ctx, submitTimeout)
+		defer cancel()
 
 		resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
 		assert.Contains(resp.Message, ErrContextDeadline.Error(), "should return context timeout error")
@@ -65,7 +67,7 @@ func TestMockDAErrors(t *testing.T) {
 		defer cancel()
 
 		assert := assert.New(t)
-		_, err := dalc.DA.MaxBlobSize(ctx)
+		_, err := dalc.MaxBlobSize(ctx)
 		assert.ErrorContains(err, "unable to get DA max blob size", "should return max blob size error")
 	})
 	t.Run("tx_too_large", func(t *testing.T) {
@@ -82,25 +84,25 @@ func TestMockDAErrors(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+		maxBlobSize, err := dalc.MaxBlobSize(ctx)
 		require.NoError(t, err)
 
 		assert := assert.New(t)
 
 		resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
 		assert.Contains(resp.Message, ErrTxTooLarge.Error(), "should return tx too large error")
-		assert.Equal(resp.Code, StatusTooBig)
+		assert.Equal(resp.Code, coreda.StatusTooBig)
 	})
 }
 
 func TestSubmitRetrieve(t *testing.T) {
 	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), -1, -1, nil, nil, log.NewTestLogger(t))
-	clients := map[string]*DAClient{
+	clients := map[string]coreda.Client{
 		"dummy": dummyClient,
 	}
 	tests := []struct {
 		name string
-		f    func(t *testing.T, dalc *DAClient)
+		f    func(t *testing.T, dalc coreda.Client)
 	}{
 		{"submit_retrieve", doTestSubmitRetrieve},
 		{"submit_empty_blocks", doTestSubmitEmptyBlocks},
@@ -118,7 +120,7 @@ func TestSubmitRetrieve(t *testing.T) {
 	}
 }
 
-func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
+func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -131,13 +133,13 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	blobToDAHeight := make(map[string]uint64)
 	countAtHeight := make(map[uint64]int)
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	require.NoError(err)
 
 	submitAndRecordHeaders := func(blobs []coreda.Blob) {
 		for len(blobs) > 0 {
 			resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
-			assert.Equal(StatusSuccess, resp.Code, resp.Message)
+			assert.Equal(coreda.StatusSuccess, resp.Code, resp.Message)
 
 			for _, blob := range blobs[:resp.SubmittedCount] {
 				blobToDAHeight[string(blob)] = resp.DAHeight
@@ -159,7 +161,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 	validateBlockRetrieval := func(height uint64, expectedCount int) {
 		t.Log("Retrieving block, DA Height", height)
 		ret := dalc.RetrieveHeaders(ctx, height)
-		assert.Equal(StatusSuccess, ret.Code, ret.Message)
+		assert.Equal(coreda.StatusSuccess, ret.Code, ret.Message)
 		require.NotEmpty(ret.Headers, height)
 		assert.Len(ret.Headers, expectedCount, height)
 	}
@@ -170,17 +172,17 @@ func doTestSubmitRetrieve(t *testing.T, dalc *DAClient) {
 
 	for blob, height := range blobToDAHeight {
 		ret := dalc.RetrieveHeaders(ctx, height)
-		assert.Equal(StatusSuccess, ret.Code, height)
+		assert.Equal(coreda.StatusSuccess, ret.Code, height)
 		require.NotEmpty(ret.Headers, height)
 		assert.Contains(ret.Headers, blob, height)
 	}
 }
 
-func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
+func doTestSubmitEmptyBlocks(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
 	assert := assert.New(t)
@@ -189,7 +191,7 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
 	headersBz[0] = make([]byte, 0)
 	headersBz[1] = make([]byte, 0)
 	resp := dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, -1)
-	assert.Equal(StatusSuccess, resp.Code, "empty blocks should submit")
+	assert.Equal(coreda.StatusSuccess, resp.Code, "empty blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "empty blocks should batch")
 }
 
@@ -208,11 +210,11 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc *DAClient) {
 // 	assert.Contains(resp.Message, "failed to submit blocks: no blobs generated blob: over size limit")
 // }
 
-func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
+func doTestSubmitSmallBlocksBatch(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
 	assert := assert.New(t)
@@ -221,7 +223,7 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 	headersBz[0] = make([]byte, 100)
 	headersBz[1] = make([]byte, 100)
 	resp := dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, -1)
-	assert.Equal(StatusSuccess, resp.Code, "small blocks should submit")
+	assert.Equal(coreda.StatusSuccess, resp.Code, "small blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 2, "small blocks should batch")
 }
 
@@ -262,7 +264,7 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc *DAClient) {
 // 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
 // }
 
-func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
+func doTestRetrieveNoBlocksFound(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -272,14 +274,14 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc *DAClient) {
 	// when namespaces are implemented, this should be uncommented
 	// assert.Equal(StatusNotFound, result.Code)
 	// assert.Contains(result.Message, ErrBlobNotFound.Error())
-	assert.Equal(StatusError, result.Code)
+	assert.Equal(coreda.StatusError, result.Code)
 }
 
 func TestSubmitWithOptions(t *testing.T) {
 	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), -1, -1, nil, []byte("option=value"), log.NewTestLogger(t))
 	tests := []struct {
 		name string
-		f    func(t *testing.T, dalc *DAClient)
+		f    func(t *testing.T, dalc coreda.Client)
 	}{
 		{"submit_retrieve", doTestSubmitRetrieve},
 	}

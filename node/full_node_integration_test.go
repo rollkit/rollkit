@@ -51,13 +51,14 @@ func (s *FullNodeTestSuite) SetupTest() {
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
-		dummyDA,
+		dummyClient,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -333,13 +334,14 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
-		dummyDA,
+		dummyClient,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -413,13 +415,14 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 	// Attempt to create a node with invalid DA config
 	node, err := NewNode(
 		s.ctx,
 		invalidConfig,
 		dummyExec,
 		dummySequencer,
-		dummyDA,
+		dummyClient,
 		p2pKey,
 		signingKey,
 		genesis,

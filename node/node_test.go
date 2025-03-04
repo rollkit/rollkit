@@ -23,6 +23,7 @@ import (
 	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+
 	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -197,6 +198,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	logger := log.NewTestLogger(t)
 	node, err := NewNode(
@@ -204,7 +206,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		config,
 		dummyExec,
 		dummySequencer,
-		dummyDA,
+		dummyClient,
 		key,
 		signingKey,
 		genesis,

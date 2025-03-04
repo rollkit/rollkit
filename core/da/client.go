@@ -2,11 +2,18 @@ package da
 
 import "context"
 
+// Client is the interface for the DA layer client.
 type Client interface {
+	// SubmitHeaders submits block headers to DA layer.
+	// The caller is responsible for setting a timeout, if needed.
 	SubmitHeaders(ctx context.Context, headers [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmit
 
 	// RetrieveHeaders retrieves block headers from DA layer.
+	// The caller is responsible for decoding headers and setting a timeout, if needed.
 	RetrieveHeaders(ctx context.Context, dataLayerHeight uint64) ResultRetrieveHeaders
+
+	// MaxBlobSize returns the maximum blob size for the DA layer.
+	MaxBlobSize(ctx context.Context) (uint64, error)
 }
 
 // ResultRetrieveHeaders contains batch of block headers returned from DA layer client.

@@ -32,61 +32,63 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	rollkitproto "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
-// in lazy mode.
-// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
-const defaultLazySleepPercent = 10
+const (
+	// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
+	// in lazy mode.
+	// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
+	defaultLazySleepPercent = 10
 
-// defaultDABlockTime is used only if DABlockTime is not configured for manager
-const defaultDABlockTime = 15 * time.Second
+	// defaultDABlockTime is used only if DABlockTime is not configured for manager
+	defaultDABlockTime = 15 * time.Second
 
-// defaultBlockTime is used only if BlockTime is not configured for manager
-const defaultBlockTime = 1 * time.Second
+	// defaultBlockTime is used only if BlockTime is not configured for manager
+	defaultBlockTime = 1 * time.Second
 
-// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
-const defaultLazyBlockTime = 60 * time.Second
+	// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
+	defaultLazyBlockTime = 60 * time.Second
 
-// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
-const defaultMempoolTTL = 25
+	// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
+	defaultMempoolTTL = 25
 
-// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
-// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-const blockProtocolOverhead = 1 << 16
+	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
+	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
+	blockProtocolOverhead = 1 << 16
 
-// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
-// This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 30
+	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
+	// This is temporary solution. It will be removed in future versions.
+	maxSubmitAttempts = 30
 
-// Applies to most channels, 100 is a large enough buffer to avoid blocking
-const channelLength = 100
+	// Applies to most channels, 100 is a large enough buffer to avoid blocking
+	channelLength = 100
 
-// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
-const headerInChLength = 10000
+	// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
+	headerInChLength = 10000
 
-// initialBackoff defines initial value for block submission backoff
-var initialBackoff = 100 * time.Millisecond
+	// DAIncludedHeightKey is the key used for persisting the da included height in store.
+	DAIncludedHeightKey = "d"
 
-// DAIncludedHeightKey is the key used for persisting the da included height in store.
-const DAIncludedHeightKey = "d"
+	// LastBatchHashKey is the key used for persisting the last batch hash in store.
+	LastBatchHashKey = "l"
+)
 
-// LastBatchHashKey is the key used for persisting the last batch hash in store.
-const LastBatchHashKey = "l"
+var (
+	// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
+	dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
-// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
-var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+	// ErrNoBatch indicate no batch is available for creating block
+	ErrNoBatch = errors.New("no batch to process")
 
-// ErrNoBatch indicate no batch is available for creating block
-var ErrNoBatch = errors.New("no batch to process")
-
-// ErrHeightFromFutureStr is the error message for height from future returned by da
-var ErrHeightFromFutureStr = "given height is from the future"
+	// ErrHeightFromFutureStr is the error message for height from future returned by da
+	ErrHeightFromFutureStr = "given height is from the future"
+	// initialBackoff defines initial value for block submission backoff
+	initialBackoff = 100 * time.Millisecond
+)
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -163,7 +165,7 @@ type Manager struct {
 	dalc             coreda.Client
 	gasPrice         float64
 	gasMultiplier    float64
-	// grpc client for sequencing middleware
+
 	sequencer     coresequencer.Sequencer
 	lastBatchHash []byte
 	bq            *BatchQueue
@@ -1075,6 +1077,8 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieveHeaders, error) {
 	var err error
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+	defer cancel()
 	headerRes := m.dalc.RetrieveHeaders(ctx, daHeight)
 	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
@@ -1397,6 +1401,8 @@ daSubmitRetryLoop:
 			}
 		}
 
+		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+		defer cancel()
 		res := m.dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, gasPrice)
 		switch res.Code {
 		case coreda.StatusSuccess:

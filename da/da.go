@@ -5,45 +5,37 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"time"
 
 	"cosmossdk.io/log"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 )
 
-const (
-	// defaultSubmitTimeout is the timeout for block submission
-	defaultSubmitTimeout = 60 * time.Second
-
-	// defaultRetrieveTimeout is the timeout for block retrieval
-	defaultRetrieveTimeout = 60 * time.Second
-)
-
 // DAClient is a new DA implementation.
 type DAClient struct {
-	DA              coreda.DA
-	GasPrice        float64
-	GasMultiplier   float64
-	Namespace       []byte
-	SubmitOptions   []byte
-	SubmitTimeout   time.Duration
-	RetrieveTimeout time.Duration
-	Logger          log.Logger
+	DA            coreda.DA
+	GasPrice      float64
+	GasMultiplier float64
+	Namespace     []byte
+	SubmitOptions []byte
+	Logger        log.Logger
 }
 
 // NewDAClient returns a new DA client.
 func NewDAClient(da coreda.DA, gasPrice, gasMultiplier float64, ns []byte, options []byte, logger log.Logger) coreda.Client {
 	return &DAClient{
-		DA:              da,
-		GasPrice:        gasPrice,
-		GasMultiplier:   gasMultiplier,
-		Namespace:       ns,
-		SubmitOptions:   options,
-		SubmitTimeout:   defaultSubmitTimeout,
-		RetrieveTimeout: defaultRetrieveTimeout,
-		Logger:          logger,
+		DA:            da,
+		GasPrice:      gasPrice,
+		GasMultiplier: gasMultiplier,
+		Namespace:     ns,
+		SubmitOptions: options,
+		Logger:        logger,
 	}
+}
+
+// MaxBlobSize returns the maximum blob size for the DA layer.
+func (dac *DAClient) MaxBlobSize(ctx context.Context) (uint64, error) {
+	return dac.DA.MaxBlobSize(ctx)
 }
 
 // SubmitHeaders submits block headers to DA.
@@ -72,8 +64,6 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlo
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, dac.SubmitTimeout)
-	defer cancel()
 	ids, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
 		status := coreda.StatusError
@@ -140,8 +130,6 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, dac.RetrieveTimeout)
-	defer cancel()
 	blobs, err := dac.DA.Get(ctx, result.IDs, dac.Namespace)
 	if err != nil {
 		return coreda.ResultRetrieveHeaders{

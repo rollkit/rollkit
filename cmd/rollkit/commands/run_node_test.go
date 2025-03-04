@@ -4,15 +4,12 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/url"
 	"reflect"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 
 	rollconf "github.com/rollkit/rollkit/config"
@@ -197,65 +194,6 @@ func (m *MockServer) Stop(ctx context.Context) error {
 		return m.StopFunc(ctx)
 	}
 	return m.Server.Stop(ctx)
-}
-
-func TestStartMockDAServJSONRPC(t *testing.T) {
-	tests := []struct {
-		name          string
-		daAddress     string
-		mockServerErr error
-		expectedErr   error
-	}{
-		{
-			name:          "Success",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: nil,
-			expectedErr:   nil,
-		},
-		{
-			name:          "Invalid URL",
-			daAddress:     "://invalid",
-			mockServerErr: nil,
-			expectedErr:   &url.Error{},
-		},
-		{
-			name:          "Server Already Running",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: syscall.EADDRINUSE,
-			expectedErr:   errDAServerAlreadyRunning,
-		},
-		{
-			name:          "Other Server Error",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: errors.New("other error"),
-			expectedErr:   errors.New("other error"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			newServerFunc := func(hostname, port string, da da.DA) *proxy.Server {
-				mockServer := &MockServer{
-					Server: proxy.NewServer(hostname, port, da),
-					StartFunc: func(ctx context.Context) error {
-						return tt.mockServerErr
-					},
-				}
-				return mockServer.Server
-			}
-
-			srv, err := tryStartMockDAServJSONRPC(context.Background(), tt.daAddress, newServerFunc)
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
-	}
 }
 
 func TestStartMockSequencerServer(t *testing.T) {
