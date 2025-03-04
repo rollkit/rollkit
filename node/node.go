@@ -10,13 +10,12 @@ import (
 	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/service"
 )
 
 // Node is the interface for a rollup node
 type Node interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
-	IsRunning() bool
+	service.Service
 }
 
 // NewNode returns a new Full or Light Node based on the config

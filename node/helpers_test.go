@@ -46,7 +46,8 @@ func getTestConfig(n int) config.NodeConfig {
 }
 
 func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
-	ctx := context.Background()
+	// Create a cancellable context instead of using background context
+	ctx, cancel := context.WithCancel(context.Background())
 	config := getTestConfig(1)
 
 	// Generate genesis and keys
@@ -72,10 +73,10 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	)
 	require.NoError(t, err)
 
+	// Update cleanup to cancel the context instead of calling Stop
 	cleanup := func() {
-		if fn, ok := node.(*FullNode); ok {
-			_ = fn.Stop(ctx)
-		}
+		// Cancel the context to stop the node
+		cancel()
 	}
 
 	return node.(*FullNode), cleanup

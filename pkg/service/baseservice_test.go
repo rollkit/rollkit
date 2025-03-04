@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 )
@@ -12,219 +13,108 @@ import (
 // dummyService is a simple implementation of the Service interface for testing purposes.
 type dummyService struct {
 	*BaseService
-	// flags to indicate function calls
-	started     bool
-	stopped     bool
-	resetCalled bool
+	runCalled bool
+	runError  error
 }
 
 // newDummyService creates a new dummy service instance and initializes BaseService.
-func newDummyService(name string) *dummyService {
-	d := &dummyService{}
+func newDummyService(name string, runError error) *dummyService {
+	d := &dummyService{
+		runError: runError,
+	}
 	d.BaseService = NewBaseService(log.NewNopLogger(), name, d)
 	return d
 }
 
-// OnStart sets the started flag and returns nil.
-func (d *dummyService) OnStart(ctx context.Context) error {
-	d.started = true
-	return nil
+// Run implements the Service interface for the dummy service.
+func (d *dummyService) Run(ctx context.Context) error {
+	d.runCalled = true
+	if d.runError != nil {
+		return d.runError
+	}
+	<-ctx.Done()
+	return ctx.Err()
 }
 
-// OnStop sets the stopped flag.
-func (d *dummyService) OnStop(ctx context.Context) {
-	d.stopped = true
-}
-
-// OnReset sets the resetCalled flag and returns nil.
-func (d *dummyService) OnReset(ctx context.Context) error {
-	d.resetCalled = true
-	return nil
-}
-
-// Reset implements the Reset method of Service. It simply calls BaseService.Reset.
-func (d *dummyService) Reset(ctx context.Context) error {
-	return d.BaseService.Reset(ctx)
-}
-
-// Start and Stop are already implemented by BaseService.
-// IsRunning, Quit, String, and SetLogger are also inherited from BaseService.
-
-func TestBaseService_Start(t *testing.T) {
+func TestBaseService_Run(t *testing.T) {
 	tests := []struct {
-		name         string
-		preStart     func(d *dummyService)
-		expectError  bool
-		errorContent string
+		name        string
+		setupImpl   bool
+		runError    error
+		expectError bool
 	}{
 		{
-			name:        "Successful start",
-			preStart:    nil,
-			expectError: false,
+			name:        "Default implementation (no impl)",
+			setupImpl:   false,
+			expectError: true, // Context cancellation error
 		},
 		{
-			name: "Start already started service",
-			preStart: func(d *dummyService) {
-				// Start the service beforehand
-				err := d.BaseService.Start(context.Background())
-				if err != nil {
-					t.Fatalf("expected no error, got %v", err)
-				}
-			},
-			expectError:  true,
-			errorContent: "already started",
+			name:        "Custom implementation - success",
+			setupImpl:   true,
+			runError:    nil,
+			expectError: true, // Context cancellation error
+		},
+		{
+			name:        "Custom implementation - error",
+			setupImpl:   true,
+			runError:    errors.New("run error"),
+			expectError: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			d := newDummyService("dummy")
-			if tc.preStart != nil {
-				tc.preStart(d)
+			var bs *BaseService
+			var ds *dummyService
+
+			if tc.setupImpl {
+				ds = newDummyService("dummy", tc.runError)
+				bs = ds.BaseService
+			} else {
+				bs = NewBaseService(log.NewNopLogger(), "dummy", nil)
 			}
 
-			err := d.BaseService.Start(context.Background())
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+
+			err := bs.Run(ctx)
+
 			if tc.expectError {
 				if err == nil {
 					t.Errorf("expected error but got nil")
 				}
-				if err != nil && !errors.Is(err, ErrAlreadyStarted) && !contains(err.Error(), tc.errorContent) {
-					t.Errorf("expected error containing '%s', got '%s'", tc.errorContent, err.Error())
+				if tc.runError != nil && !errors.Is(err, tc.runError) {
+					t.Errorf("expected error %v, got %v", tc.runError, err)
 				}
 			} else {
 				if err != nil {
 					t.Errorf("expected no error, got %v", err)
 				}
-				if !d.started {
-					t.Error("expected OnStart to be called")
-				}
-				if !d.IsRunning() {
-					t.Error("expected service to be running")
-				}
+			}
+
+			if tc.setupImpl && !ds.runCalled {
+				t.Error("expected Run to be called on implementation")
 			}
 		})
 	}
 }
 
-func TestBaseService_Stop(t *testing.T) {
-	tests := []struct {
-		name         string
-		setup        func(d *dummyService)
-		expectError  bool
-		errorContent string
-	}{
-		{
-			name: "Stop without starting",
-			setup: func(d *dummyService) {
-				// do nothing
-			},
-			expectError:  true,
-			errorContent: "not started",
-		},
-		{
-			name: "Start then stop service",
-			setup: func(d *dummyService) {
-				err := d.BaseService.Start(context.Background())
-				if err != nil {
-					t.Fatalf("expected no error, got %v", err)
-				}
-			},
-			expectError: false,
-		},
-	}
+func TestBaseService_String(t *testing.T) {
+	serviceName := "test-service"
+	bs := NewBaseService(log.NewNopLogger(), serviceName, nil)
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			d := newDummyService("dummy")
-			tc.setup(d)
-			err := d.BaseService.Stop(context.Background())
-			if tc.expectError {
-				if err == nil {
-					t.Errorf("expected error but got nil")
-				}
-				if err != nil && !contains(err.Error(), tc.errorContent) {
-					t.Errorf("expected error containing '%s', got '%s'", tc.errorContent, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Errorf("expected no error on stopping, got %v", err)
-				}
-				if !d.stopped {
-					t.Error("expected OnStop to be called")
-				}
-				if d.IsRunning() {
-					t.Error("expected service not to be running")
-				}
-			}
-		})
+	if bs.String() != serviceName {
+		t.Errorf("expected service name %s, got %s", serviceName, bs.String())
 	}
 }
 
-func TestBaseService_Reset(t *testing.T) {
-	tests := []struct {
-		name         string
-		setup        func(d *dummyService)
-		expectError  bool
-		errorContent string
-	}{
-		{
-			name: "Reset without starting (should succeed)",
-			setup: func(d *dummyService) {
-				// service not started
-			},
-			expectError: false,
-		},
-		{
-			name: "Reset while running (should error)",
-			setup: func(d *dummyService) {
-				// Start the service so that it is running
-				err := d.BaseService.Start(context.Background())
-				if err != nil {
-					t.Fatalf("expected no error, got %v", err)
-				}
-			},
-			expectError:  true,
-			errorContent: "cannot reset running service",
-		},
-	}
+func TestBaseService_SetLogger(t *testing.T) {
+	bs := NewBaseService(log.NewNopLogger(), "test", nil)
+	newLogger := log.NewNopLogger()
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			d := newDummyService("dummy")
-			tc.setup(d)
-			err := d.Reset(context.Background())
-			if tc.expectError {
-				if err == nil {
-					t.Errorf("expected error but got nil")
-				}
-				if err != nil && !contains(err.Error(), tc.errorContent) {
-					t.Errorf("expected error containing '%s', got '%s'", tc.errorContent, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Errorf("expected no error on reset, got %v", err)
-				}
-				if !d.resetCalled {
-					t.Error("expected OnReset to be called")
-				}
-			}
-		})
-	}
-}
+	bs.SetLogger(newLogger)
 
-// contains is a helper function to check if a substring is present in a string.
-func contains(s, substr string) bool {
-	return indexOf(s, substr) >= 0
-}
-
-// To avoid importing strings package only for Index, we implement our own simple index calculation.
-func indexOf(s, substr string) int {
-	slen := len(s)
-	subLen := len(substr)
-	for i := 0; i <= slen-subLen; i++ {
-		if s[i:i+subLen] == substr {
-			return i
-		}
+	if bs.Logger != newLogger {
+		t.Error("expected logger to be updated")
 	}
-	return -1
 }
