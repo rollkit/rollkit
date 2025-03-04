@@ -29,17 +29,12 @@ import (
 	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
-	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
-	execTest "github.com/rollkit/go-execution/test"
-	execTypes "github.com/rollkit/go-execution/types"
-	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
-	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-
 	rollconf "github.com/rollkit/rollkit/config"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/node"
+	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
@@ -55,7 +50,6 @@ var (
 
 	errDAServerAlreadyRunning  = errors.New("DA server already running")
 	errSequencerAlreadyRunning = errors.New("sequencer already running")
-	errExecutorAlreadyRunning  = errors.New("executor already running")
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -168,22 +162,6 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
-			// Try and launch a mock gRPC executor if there is no executor running.
-			// Only start mock Executor if the user did not provide --rollkit.executor_address
-			var execSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup("rollkit.executor_address").Changed {
-				execSrv, err = tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
-				if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock executor server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if execSrv != nil {
-						execSrv.Stop()
-					}
-				}()
-			}
-
 			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
 
 			// use noop proxy app by default
@@ -194,14 +172,15 @@ func NewRunNodeCmd() *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			dummyExecutor := coreexecutor.NewDummyExecutor()
+			kvExecutor := createDirectKVExecutor()
 			dummySequencer := coresequencer.NewDummySequencer()
+
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
 				nodeConfig,
 				// THIS IS FOR TESTING ONLY
-				dummyExecutor,
+				kvExecutor,
 				dummySequencer,
 				p2pKey,
 				signingKey,
@@ -313,36 +292,16 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 	return server, nil
 }
 
-// tryStartMockExecutorServerGRPC will try and start a mock gRPC executor server
-func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) {
-	dummyExec := execTest.NewDummyExecutor()
+// createDirectKVExecutor creates a KVExecutor for testing
+func createDirectKVExecutor() *testExecutor.KVExecutor {
+	kvExecutor := testExecutor.NewKVExecutor()
 
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		i := 0
-		for range ticker.C {
-			dummyExec.InjectTx(execTypes.Tx{byte(3*i + 1), byte(3*i + 2), byte(3*i + 3)})
-			i++
-		}
-	}()
-
-	execServer := execGRPC.NewServer(dummyExec, nil)
-	server := grpc.NewServer()
-	pb.RegisterExecutionServiceServer(server, execServer)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("Executor server already running", "address", listenAddress)
-			return nil, errExecutorAlreadyRunning
-		}
-		return nil, err
+	for i := 0; i < 5; i++ {
+		tx := []byte(fmt.Sprintf("test transaction %d", i))
+		kvExecutor.InjectTx(tx)
 	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	logger.Info("Starting mock executor", "address", listenAddress)
-	return server, nil
+
+	return kvExecutor
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default

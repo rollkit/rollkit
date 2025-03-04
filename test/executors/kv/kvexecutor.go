@@ -91,8 +91,10 @@ func (k *KVExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+
 	txs := make([][]byte, len(k.mempool))
 	copy(txs, k.mempool)
+
 	return txs, nil
 }
 
@@ -118,19 +120,24 @@ func (k *KVExecutor) ExecuteTxs(ctx context.Context, txs [][]byte, blockHeight u
 		}
 		k.store[key] = value
 	}
-	return k.computeStateRoot(), 1024, nil
+	stateRoot := k.computeStateRoot()
+	return stateRoot, 1024, nil
 }
 
-// SetFinal marks a block as finalized. In this simple implementation, it validates the block height.
+// SetFinal marks a block as finalized at the specified height.
 func (k *KVExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
-	if blockHeight == 0 {
-		return errors.New("blockHeight must be greater than 0")
-	}
-	// No additional finalization logic in this minimal implementation.
+	// This is a no-op for our simple test executor
 	return nil
+}
+
+// InjectTx adds a transaction to the mempool
+func (k *KVExecutor) InjectTx(tx []byte) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.mempool = append(k.mempool, tx)
 }
