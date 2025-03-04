@@ -111,7 +111,7 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// initialize the metrics
-			metrics := rollnode.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
+			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
 			// Only start mock DA server if the user did not provide --rollkit.da_address

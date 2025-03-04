@@ -79,6 +79,7 @@ func newFullNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
+	ctx := context.Background()
 	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	baseKV, err := initBaseKV(nodeConfig, logger)

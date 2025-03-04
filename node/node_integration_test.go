@@ -12,7 +12,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
-	rollkitconf coreexecutor "github.com/rollkit/rollkit/core/execution"
+	rollkitconf "github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
 )
@@ -158,29 +159,4 @@ func (s *NodeIntegrationTestSuite) TestBlockProduction() {
 
 	// Verify block content
 	s.NotEmpty(data.Txs, "Expected block to contain transactions")
-}
-
-// nolint:unused
-func (s *NodeIntegrationTestSuite) setupNodeWithConfig(conf rollkitconf.NodeConfig) Node {
-	genesis, signingKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	key, err := types.PrivKeyToSigningKey(signingKey)
-	require.NoError(s.T(), err)
-
-	p2pKey := generateSingleKey()
-
-	node, err := NewNode(
-		s.ctx,
-		conf,
-		p2pKey,
-		key,
-		genesis,
-		DefaultMetricsProvider(rollkitconf.DefaultInstrumentationConfig()),
-		log.NewTestLogger(s.T()),
-	)
-	require.NoError(s.T(), err)
-
-	err = node.Start(s.ctx)
-	require.NoError(s.T(), err)
-
-	return node
 }
