@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/config"
+	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -68,7 +68,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 	)
 	require.NoError(t, err)

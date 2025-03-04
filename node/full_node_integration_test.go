@@ -10,10 +10,10 @@ import (
 
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -78,7 +78,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)
@@ -329,7 +329,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
 	require.NoError(err)
@@ -411,7 +411,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
 	require.NoError(err)
@@ -459,7 +459,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
 
