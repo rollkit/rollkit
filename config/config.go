@@ -66,6 +66,8 @@ type NodeConfig struct {
 	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
 	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
 	DASubmitOptions    string                       `mapstructure:"da_submit_options"`
+	// EnablePanicRecovery determines whether to recover from panics in goroutines
+	EnablePanicRecovery bool `mapstructure:"enable_panic_recovery"`
 
 	// CLI flags
 	DANamespace       string `mapstructure:"da_namespace"`

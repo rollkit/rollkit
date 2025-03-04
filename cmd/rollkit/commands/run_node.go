@@ -220,6 +220,18 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Start the node in a goroutine
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						err := fmt.Errorf("node panicked: %v", r)
+						logger.Error("Recovered from panic in node", "panic", r)
+						select {
+						case errCh <- err:
+						default:
+							logger.Error("Error channel full", "error", err)
+						}
+					}
+				}()
+
 				err := rollnode.Run(ctx)
 				select {
 				case errCh <- err:
