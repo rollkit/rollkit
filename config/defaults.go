@@ -18,6 +18,8 @@ const (
 	DefaultSequencerRollupID = "mock-rollup"
 	// DefaultExecutorAddress is the default address for the executor middleware
 	DefaultExecutorAddress = "localhost:40041"
+	// DefaultLogLevel is the default log level for the application
+	DefaultLogLevel = "info"
 )
 
 // DefaultNodeConfig keeps default values of NodeConfig
