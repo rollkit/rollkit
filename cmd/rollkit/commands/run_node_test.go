@@ -35,7 +35,6 @@ func TestParseFlags(t *testing.T) {
 		"--p2p.seed_mode",
 		"--p2p.unconditional_peer_ids", "4,5,6",
 		"--priv_validator_laddr", "tcp://127.0.0.1:27003",
-		"--proxy_app", "tcp://127.0.0.1:27004",
 		"--rollkit.aggregator=false",
 		"--rollkit.block_time", "2s",
 		"--rollkit.da_address", "http://127.0.0.1:27005",
@@ -89,7 +88,6 @@ func TestParseFlags(t *testing.T) {
 		{"SeedMode", viper.GetBool("p2p.seed_mode"), true},
 		{"UnconditionalPeerIDs", viper.GetString("p2p.unconditional_peer_ids"), "4,5,6"},
 		{"PrivValidatorListenAddr", viper.GetString("priv_validator_laddr"), "tcp://127.0.0.1:27003"},
-		{"ProxyApp", viper.GetString("proxy_app"), "tcp://127.0.0.1:27004"},
 
 		// Rollkit fields
 		{"Aggregator", nodeConfig.Aggregator, false},

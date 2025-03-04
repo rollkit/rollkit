@@ -182,12 +182,6 @@ func NewRunNodeCmd() *cobra.Command {
 
 			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
 
-			// use noop proxy app by default
-			if !cmd.Flags().Lookup("proxy_app").Changed {
-				// nodeConfig does not have a ProxyApp field, so we don't need to set it
-				// config.ProxyApp = "noop"
-			}
-
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits

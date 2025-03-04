@@ -28,7 +28,6 @@ rollkit start [flags]
       --p2p.seeds string                                comma-delimited ID@host:port seed nodes
       --p2p.unconditional_peer_ids string               comma-delimited IDs of unconditional peers
       --priv_validator_laddr string                     socket address to listen on for connections from external priv_validator process
-      --proxy_app string                                proxy app address, or one of: 'kvstore', 'persistent_kvstore' or 'noop' for local testing. (default "tcp://127.0.0.1:26658")
       --rollkit.aggregator                              run node in aggregator mode
       --rollkit.block_time duration                     block time (for aggregator mode) (default 1s)
       --rollkit.da_address string                       DA address (host:port) (default "http://localhost:26658")
