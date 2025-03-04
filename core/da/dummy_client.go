@@ -32,7 +32,7 @@ func (c *DummyClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBl
 	copy(blobs, headers)
 
 	// Submit blobs to DA layer
-	_, err := c.da.Submit(ctx, blobs, gasPrice, c.namespace)
+	_, height, err := c.da.Submit(ctx, blobs, gasPrice, c.namespace, nil)
 	if err != nil {
 		return ResultSubmit{
 			BaseResult: BaseResult{
@@ -50,7 +50,7 @@ func (c *DummyClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBl
 			SubmittedCount: uint64(len(headers)),
 			// Note: In a real implementation, we would set the DAHeight to the actual height
 			// where the blobs were included in the DA layer
-			DAHeight: 1, // Dummy height
+			DAHeight: height,
 		},
 	}
 }

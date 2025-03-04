@@ -162,47 +162,18 @@ func (_m *DA) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return r0, r1
 }
 
-// Submit provides a mock function with given fields: ctx, blobs, gasPrice, namespace
-func (_m *DA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte) ([][]byte, error) {
-	ret := _m.Called(ctx, blobs, gasPrice, namespace)
+// Submit provides a mock function with given fields: ctx, blobs, gasPrice, namespace, options
+func (_m *DA) Submit(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte, options []byte) ([][]byte, uint64, error) {
+	ret := _m.Called(ctx, blobs, gasPrice, namespace, options)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Submit")
 	}
 
 	var r0 [][]byte
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte) ([][]byte, error)); ok {
-		return rf(ctx, blobs, gasPrice, namespace)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte) [][]byte); ok {
-		r0 = rf(ctx, blobs, gasPrice, namespace)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([][]byte)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, float64, []byte) error); ok {
-		r1 = rf(ctx, blobs, gasPrice, namespace)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// SubmitWithOptions provides a mock function with given fields: ctx, blobs, gasPrice, namespace, options
-func (_m *DA) SubmitWithOptions(ctx context.Context, blobs [][]byte, gasPrice float64, namespace []byte, options []byte) ([][]byte, error) {
-	ret := _m.Called(ctx, blobs, gasPrice, namespace, options)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SubmitWithOptions")
-	}
-
-	var r0 [][]byte
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte, []byte) ([][]byte, error)); ok {
+	var r1 uint64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte, []byte) ([][]byte, uint64, error)); ok {
 		return rf(ctx, blobs, gasPrice, namespace, options)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, [][]byte, float64, []byte, []byte) [][]byte); ok {
@@ -213,13 +184,19 @@ func (_m *DA) SubmitWithOptions(ctx context.Context, blobs [][]byte, gasPrice fl
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, float64, []byte, []byte) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, [][]byte, float64, []byte, []byte) uint64); ok {
 		r1 = rf(ctx, blobs, gasPrice, namespace, options)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(uint64)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, [][]byte, float64, []byte, []byte) error); ok {
+		r2 = rf(ctx, blobs, gasPrice, namespace, options)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // Validate provides a mock function with given fields: ctx, ids, proofs, namespace

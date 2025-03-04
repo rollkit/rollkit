@@ -2,7 +2,6 @@ package da
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -64,7 +63,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlo
 		}
 	}
 
-	ids, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
+	ids, height, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
 		status := coreda.StatusError
 		switch {
@@ -99,7 +98,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlo
 	return coreda.ResultSubmit{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
-			DAHeight:       binary.LittleEndian.Uint64(ids[0]),
+			DAHeight:       height,
 			SubmittedCount: uint64(len(ids)),
 		},
 	}
@@ -157,9 +156,6 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 	}
 }
 
-func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, error) {
-	if len(dac.SubmitOptions) == 0 {
-		return dac.DA.Submit(ctx, blobs, gasPrice, namespace)
-	}
-	return dac.DA.SubmitWithOptions(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
+func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, uint64, error) {
+	return dac.DA.Submit(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
 }
