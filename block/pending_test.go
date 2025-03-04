@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -80,7 +80,7 @@ func TestPendingBlocks(t *testing.T) {
 func newPendingBlocks(t *testing.T) *PendingHeaders {
 	kv, err := store.NewDefaultInMemoryKVStore()
 	require.NoError(t, err)
-	pendingBlocks, err := NewPendingHeaders(store.New(kv), test.NewLogger(t))
+	pendingBlocks, err := NewPendingHeaders(store.New(kv), log.NewTestLogger(t))
 	require.NoError(t, err)
 	return pendingBlocks
 }

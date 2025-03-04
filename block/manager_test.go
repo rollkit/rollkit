@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
@@ -22,13 +23,12 @@ import (
 	goDA "github.com/rollkit/go-da"
 	goDAMock "github.com/rollkit/go-da/mocks"
 	goDATest "github.com/rollkit/go-da/test"
-	execTest "github.com/rollkit/go-execution/test"
-	"github.com/rollkit/go-sequencing"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
-	test "github.com/rollkit/rollkit/test/log"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -47,7 +47,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 
 // Returns a minimalistic block manager
 func getManager(t *testing.T, backend goDA.DA) *Manager {
-	logger := test.NewLogger(t)
+	logger := log.NewTestLogger(t)
 	return &Manager{
 		dalc:        da.NewDAClient(backend, -1, -1, nil, nil, logger),
 		headerCache: NewHeaderCache(),
@@ -79,10 +79,10 @@ func TestInitialStateClean(t *testing.T) {
 		InitialHeight:   1,
 		ProposerAddress: genesisDoc.GetProposerAddress(),
 	}
-	logger := test.NewLogger(t)
+	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesis, emptyStore, execTest.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesis, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, genesis.InitialHeight-1)
 	require.Equal(genesis.InitialHeight, s.InitialHeight)
@@ -113,8 +113,8 @@ func TestInitialStateStored(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	logger := test.NewLogger(t)
-	s, err := getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor(), logger)
+	logger := log.NewTestLogger(t)
+	s, err := getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -168,7 +168,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
-	logger := test.NewLogger(t)
+	logger := log.NewTestLogger(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
@@ -190,7 +190,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(context.TODO(), genesis, store, execTest.NewDummyExecutor(), logger)
+	_, err = getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
@@ -853,7 +853,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 // TestAggregationLoop tests the AggregationLoop function
 func TestAggregationLoop(t *testing.T) {
 	mockStore := new(mocks.Store)
-	mockLogger := new(test.MockLogger)
+	mockLogger := log.NewTestLogger(t)
 
 	m := &Manager{
 		store:  mockStore,
@@ -884,7 +884,7 @@ func TestAggregationLoop(t *testing.T) {
 
 // TestLazyAggregationLoop tests the lazyAggregationLoop function
 func TestLazyAggregationLoop(t *testing.T) {
-	mockLogger := new(test.MockLogger)
+	mockLogger := log.NewTestLogger(t)
 
 	m := &Manager{
 		logger: mockLogger,
@@ -910,7 +910,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 
 // TestNormalAggregationLoop tests the normalAggregationLoop function
 func TestNormalAggregationLoop(t *testing.T) {
-	mockLogger := new(test.MockLogger)
+	mockLogger := log.NewTestLogger(t)
 
 	m := &Manager{
 		logger: mockLogger,
@@ -950,7 +950,7 @@ func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
 	// Mocking a manager with an empty batch
 	m := &Manager{
 		bq: &BatchQueue{queue: []BatchWithTime{
-			{Batch: &sequencing.Batch{Transactions: nil}, Time: time.Now()},
+			{Batch: &coresequencer.Batch{Transactions: nil}, Time: time.Now()},
 		}},
 	}
 
@@ -967,7 +967,7 @@ func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
 	// Mocking a manager with a valid batch
 	m := &Manager{
 		bq: &BatchQueue{queue: []BatchWithTime{
-			{Batch: &sequencing.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
+			{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
 		}},
 	}
 

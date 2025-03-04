@@ -7,10 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/go-execution"
-	execTest "github.com/rollkit/go-execution/test"
-	execTypes "github.com/rollkit/go-execution/types"
-
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	"github.com/rollkit/rollkit/types"
 )
 
@@ -27,7 +24,7 @@ func TestBasicExecutionFlow(t *testing.T) {
 	executor := getExecutorFromNode(t, node)
 	txs := getTransactions(t, executor, ctx)
 
-	mockExec := execTest.NewDummyExecutor()
+	mockExec := coreexecutor.NewDummyExecutor()
 	stateRoot, maxBytes := initializeChain(t, mockExec, ctx)
 	executor = mockExec
 
@@ -42,26 +39,26 @@ func waitForNodeInitialization() {
 	time.Sleep(1 * time.Second)
 }
 
-func getExecutorFromNode(t *testing.T, node *FullNode) execution.Executor {
+func getExecutorFromNode(t *testing.T, node *FullNode) coreexecutor.Executor {
 	executor := node.blockManager.GetExecutor()
 	require.NotNil(t, executor)
 	return executor
 }
 
-func getTransactions(t *testing.T, executor execution.Executor, ctx context.Context) []execTypes.Tx {
+func getTransactions(t *testing.T, executor coreexecutor.Executor, ctx context.Context) [][]byte {
 	txs, err := executor.GetTxs(ctx)
 	require.NoError(t, err)
 	return txs
 }
 
-func initializeChain(t *testing.T, executor execution.Executor, ctx context.Context) (types.Hash, uint64) {
+func initializeChain(t *testing.T, executor coreexecutor.Executor, ctx context.Context) (types.Hash, uint64) {
 	stateRoot, maxBytes, err := executor.InitChain(ctx, time.Now(), 1, "test-chain")
 	require.NoError(t, err)
 	require.Greater(t, maxBytes, uint64(0))
 	return stateRoot, maxBytes
 }
 
-func executeTransactions(t *testing.T, executor execution.Executor, ctx context.Context, txs []execTypes.Tx, stateRoot types.Hash, maxBytes uint64) (types.Hash, uint64) {
+func executeTransactions(t *testing.T, executor coreexecutor.Executor, ctx context.Context, txs [][]byte, stateRoot types.Hash, maxBytes uint64) (types.Hash, uint64) {
 	newStateRoot, newMaxBytes, err := executor.ExecuteTxs(ctx, txs, 1, time.Now(), stateRoot)
 	require.NoError(t, err)
 	require.Greater(t, newMaxBytes, uint64(0))
@@ -69,7 +66,7 @@ func executeTransactions(t *testing.T, executor execution.Executor, ctx context.
 	return newStateRoot, newMaxBytes
 }
 
-func finalizeExecution(t *testing.T, executor execution.Executor, ctx context.Context) {
+func finalizeExecution(t *testing.T, executor coreexecutor.Executor, ctx context.Context) {
 	err := executor.SetFinal(ctx, 1)
 	require.NoError(t, err)
 }
