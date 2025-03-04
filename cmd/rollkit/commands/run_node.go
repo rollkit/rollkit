@@ -317,7 +317,6 @@ func addNodeFlags(cmd *cobra.Command) {
 	cmtcmd.AddNodeFlags(cmd)
 
 	// nodeConfig does not have a ABCI field, so we use a default value
-	cmd.Flags().String("transport", "socket", "specify abci transport (socket | grpc)")
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// Add Rollkit flags

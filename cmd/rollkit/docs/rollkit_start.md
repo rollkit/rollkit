@@ -9,7 +9,6 @@ rollkit start [flags]
 ### Options
 
 ```
-      --abci string                                     specify abci transport (socket | grpc) (default "socket")
       --ci                                              run node for ci testing
       --consensus.create_empty_blocks                   set this to false to only produce blocks when there are txs or when the AppHash changes (default true)
       --consensus.create_empty_blocks_interval string   the possible interval between empty blocks (default "0s")
@@ -51,7 +50,6 @@ rollkit start [flags]
       --rpc.laddr string                                RPC listen address. Port required (default "tcp://127.0.0.1:26657")
       --rpc.pprof_laddr string                          pprof listen address (https://golang.org/pkg/net/http/pprof)
       --rpc.unsafe                                      enabled unsafe rpc methods
-      --transport string                                specify abci transport (socket | grpc) (default "socket")
 ```
 
 ### Options inherited from parent commands

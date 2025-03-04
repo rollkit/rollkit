@@ -21,7 +21,6 @@ import (
 
 func TestParseFlags(t *testing.T) {
 	flags := []string{
-		"--abci", "grpc",
 		"--consensus.create_empty_blocks", "true",
 		"--consensus.create_empty_blocks_interval", "10s",
 		"--consensus.double_sign_check_height", "10",
@@ -74,7 +73,6 @@ func TestParseFlags(t *testing.T) {
 	}{
 		// CometBFT fields, available in viper but not in nodeConfig
 		// TODO: decide if we want to add them to nodeConfig
-		{"ABCI", viper.GetString("abci"), "grpc"},
 		{"CreateEmptyBlocks", viper.GetBool("consensus.create_empty_blocks"), true},
 		{"CreateEmptyBlocksInterval", viper.GetDuration("consensus.create_empty_blocks_interval"), 10 * time.Second},
 		{"DoubleSignCheckHeight", viper.GetInt64("consensus.double_sign_check_height"), int64(10)},
