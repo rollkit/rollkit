@@ -319,7 +319,7 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 }
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(signingKeyType string, chainID string) (config.GenesisDoc, cmcrypto.PrivKey) {
+func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*config.GenesisDoc, cmcrypto.PrivKey) {
 	var genesisValidatorKey cmcrypto.PrivKey
 	switch signingKeyType {
 	case "secp256k1":

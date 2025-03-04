@@ -51,7 +51,7 @@ var _ Node = &FullNode{}
 type FullNode struct {
 	service.BaseService
 
-	genesis config.GenesisDoc
+	genesis *config.GenesisDoc
 	// cache of chunked genesis data.
 	genChunks []string
 
@@ -79,11 +79,11 @@ func newFullNode(
 	nodeConfig config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	genesis config.GenesisDoc,
+	genesis *config.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
-	seqMetrics, p2pMetrics := metricsProvider(genesis.GetChainID())
+	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	baseKV, err := initBaseKV(nodeConfig, logger)
 	if err != nil {
@@ -95,7 +95,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.GetChainID(), baseKV, logger.With("module", "p2p"), p2pMetrics)
+	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
-func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis config.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
+func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *config.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.HeaderSyncService, error) {
 	headerSyncService, err := block.NewHeaderSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
@@ -179,7 +179,7 @@ func initHeaderSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig,
 	return headerSyncService, nil
 }
 
-func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis config.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.DataSyncService, error) {
+func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, genesis *config.GenesisDoc, p2pClient *p2p.Client, logger log.Logger) (*block.DataSyncService, error) {
 	dataSyncService, err := block.NewDataSyncService(mainKV, nodeConfig, genesis, p2pClient, logger.With("module", "DataSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing DataSyncService: %w", err)
@@ -187,19 +187,19 @@ func initDataSyncService(mainKV ds.TxnDatastore, nodeConfig config.NodeConfig, g
 	return dataSyncService, nil
 }
 
-func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis config.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
+func initBlockManager(signingKey crypto.PrivKey, nodeConfig config.NodeConfig, genesis *config.GenesisDoc, store store.Store, seqClient *seqGRPC.Client, dalc *da.DAClient, logger log.Logger, headerSyncService *block.HeaderSyncService, dataSyncService *block.DataSyncService, seqMetrics *block.Metrics) (*block.Manager, error) {
 	exec, err := initExecutor(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing executor: %w", err)
 	}
 
-	logger.Debug("Proposer address", "address", genesis.GetProposerAddress())
+	logger.Debug("Proposer address", "address", genesis.ProposerAddress)
 
 	rollGen := &block.RollkitGenesis{
-		GenesisTime:     genesis.GetGenesisTime(),
-		InitialHeight:   genesis.GetInitialHeight(),
-		ChainID:         genesis.GetChainID(),
-		ProposerAddress: genesis.GetProposerAddress(),
+		GenesisTime:     genesis.GenesisTime,
+		InitialHeight:   genesis.InitialHeight,
+		ChainID:         genesis.ChainID,
+		ProposerAddress: genesis.ProposerAddress,
 	}
 	blockManager, err := block.NewManager(context.TODO(), signingKey, nodeConfig.BlockManagerConfig, rollGen, store, exec, seqClient, dalc, logger.With("module", "BlockManager"), headerSyncService.Store(), dataSyncService.Store(), seqMetrics)
 	if err != nil {
@@ -345,8 +345,8 @@ func (n *FullNode) OnStart(ctx context.Context) error {
 	return nil
 }
 
-// GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() config.GenesisDoc {
+// GetGenesis returns the genesis document
+func (n *FullNode) GetGenesis() *config.GenesisDoc {
 	return n.genesis
 }
 

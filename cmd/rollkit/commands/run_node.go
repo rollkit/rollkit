@@ -132,7 +132,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// 	genDoc.ChainID = nodeConfig.SequencerRollupID
 			// }
 
-			sequencerRollupID := genDoc.GetChainID()
+			sequencerRollupID := genDoc.ChainID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
 			var seqSrv *grpc.Server = nil

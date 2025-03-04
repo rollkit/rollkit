@@ -22,7 +22,7 @@ func NewNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	genesis config.GenesisDoc,
+	genesis *config.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {

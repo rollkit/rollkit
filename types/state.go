@@ -55,20 +55,20 @@ type State struct {
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc config.GenesisDoc) (State, error) {
+func NewFromGenesisDoc(genDoc *config.GenesisDoc) (State, error) {
 	var validatorSet, nextValidatorSet *types.ValidatorSet
-	if genDoc.GetProposerAddress() == nil {
+	if genDoc.ProposerAddress == nil {
 		validatorSet = types.NewValidatorSet(nil)
 		nextValidatorSet = types.NewValidatorSet(nil)
 	} else {
 		validators := make([]*types.Validator, 1)
 
 		var pubKey cmcrypto.PubKey
-		if len(genDoc.GetProposerAddress()) == ed25519.PubKeySize {
-			pubKey = ed25519.PubKey(genDoc.GetProposerAddress())
+		if len(genDoc.ProposerAddress) == ed25519.PubKeySize {
+			pubKey = ed25519.PubKey(genDoc.ProposerAddress)
 		} else {
 			return State{}, fmt.Errorf("invalid proposer public key size: expected %d, got %d",
-				ed25519.PubKeySize, len(genDoc.GetProposerAddress()))
+				ed25519.PubKeySize, len(genDoc.ProposerAddress))
 		}
 
 		validators[0] = types.NewValidator(pubKey, 1)
@@ -79,19 +79,19 @@ func NewFromGenesisDoc(genDoc config.GenesisDoc) (State, error) {
 
 	s := State{
 		Version:       InitStateVersion,
-		ChainID:       genDoc.GetChainID(),
-		InitialHeight: uint64(genDoc.GetInitialHeight()),
+		ChainID:       genDoc.ChainID,
+		InitialHeight: genDoc.InitialHeight,
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.GetInitialHeight()) - 1,
+		LastBlockHeight: genDoc.InitialHeight - 1,
 		LastBlockID:     types.BlockID{},
-		LastBlockTime:   genDoc.GetGenesisTime(),
+		LastBlockTime:   genDoc.GenesisTime,
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: int64(genDoc.GetInitialHeight()),
+		LastHeightValidatorsChanged: int64(genDoc.InitialHeight),
 	}
 
 	return s, nil

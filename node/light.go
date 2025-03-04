@@ -30,18 +30,18 @@ type LightNode struct {
 func newLightNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
-	genesis config.GenesisDoc,
+	genesis *config.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
 
-	_, p2pMetrics := metricsProvider(genesis.GetChainID())
+	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	datastore, err := openDatastore(conf, logger)
 	if err != nil {
 		return nil, err
 	}
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.GetChainID(), datastore, logger.With("module", "p2p"), p2pMetrics)
+	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
