@@ -47,26 +47,11 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, backend coreda.DA) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
-		dalc:        da.NewDAClient(backend, 0, 0, nil, logger, []byte{}),
+		dalc:        da.NewDAClient(backend, -1, -1, nil, logger, []byte{}),
 		headerCache: NewHeaderCache(),
 		logger:      logger,
 	}
 }
-
-// getBlockBiggerThan generates a block with the given height bigger than the specified limit.
-// func getBlockBiggerThan(blockHeight, limit uint64) (*types.SignedHeader, *types.Data, error) {
-// 	for numTxs := 0; ; numTxs += 100 {
-// 		header, data := types.GetRandomBlock(blockHeight, numTxs)
-// 		blob, err := header.MarshalBinary()
-// 		if err != nil {
-// 			return nil, nil, err
-// 		}
-
-// 		if uint64(len(blob)) > limit {
-// 			return header, data, nil
-// 		}
-// 	}
-// }
 
 func TestInitialStateClean(t *testing.T) {
 	const chainID = "TestInitialStateClean"
