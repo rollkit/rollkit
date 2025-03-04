@@ -36,7 +36,7 @@ const (
 // Uses the go-header library for handling all P2P logic.
 type SyncService[H header.Header[H]] struct {
 	conf      config.NodeConfig
-	genesis   *config.GenesisDoc
+	genesis   *types.GenesisDoc
 	p2p       *p2p.Client
 	ex        *goheaderp2p.Exchange[H]
 	sub       *goheaderp2p.Subscriber[H]
@@ -57,16 +57,16 @@ type DataSyncService = SyncService[*types.Data]
 type HeaderSyncService = SyncService[*types.SignedHeader]
 
 // NewDataSyncService returns a new DataSyncService.
-func NewDataSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *config.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
+func NewDataSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *types.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*DataSyncService, error) {
 	return newSyncService[*types.Data](store, dataSync, conf, genesis, p2p, logger)
 }
 
 // NewHeaderSyncService returns a new HeaderSyncService.
-func NewHeaderSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *config.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
+func NewHeaderSyncService(store ds.TxnDatastore, conf config.NodeConfig, genesis *types.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*HeaderSyncService, error) {
 	return newSyncService[*types.SignedHeader](store, headerSync, conf, genesis, p2p, logger)
 }
 
-func newSyncService[H header.Header[H]](store ds.TxnDatastore, syncType syncType, conf config.NodeConfig, genesis *config.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
+func newSyncService[H header.Header[H]](store ds.TxnDatastore, syncType syncType, conf config.NodeConfig, genesis *types.GenesisDoc, p2p *p2p.Client, logger log.Logger) (*SyncService[H], error) {
 	if genesis == nil {
 		return nil, errors.New("genesis doc cannot be nil")
 	}

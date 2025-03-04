@@ -10,7 +10,6 @@ import (
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
-	"github.com/rollkit/rollkit/config"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
@@ -55,7 +54,7 @@ type State struct {
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc *config.GenesisDoc) (State, error) {
+func NewFromGenesisDoc(genDoc *GenesisDoc) (State, error) {
 	var validatorSet, nextValidatorSet *types.ValidatorSet
 	if genDoc.ProposerAddress == nil {
 		validatorSet = types.NewValidatorSet(nil)

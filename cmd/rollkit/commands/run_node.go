@@ -78,7 +78,7 @@ func NewRunNodeCmd() *cobra.Command {
 			return initFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			genDoc, err := rollconf.LoadGenesisDoc(config.GenesisFile())
+			genDoc, err := rolltypes.LoadGenesisDoc(config.GenesisFile())
 			if err != nil {
 				return err
 			}

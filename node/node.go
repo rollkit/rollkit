@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/types"
 )
 
 // Node is the interface for a rollup node
@@ -22,7 +23,7 @@ func NewNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
-	genesis *config.GenesisDoc,
+	genesis *types.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {

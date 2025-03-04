@@ -14,6 +14,7 @@ import (
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/types"
 )
 
 var _ Node = &LightNode{}
@@ -30,7 +31,7 @@ type LightNode struct {
 func newLightNode(
 	conf config.NodeConfig,
 	p2pKey crypto.PrivKey,
-	genesis *config.GenesisDoc,
+	genesis *types.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
