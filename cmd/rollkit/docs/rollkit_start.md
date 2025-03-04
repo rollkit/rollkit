@@ -18,7 +18,6 @@ rollkit start [flags]
       --genesis_hash bytesHex                           optional SHA-256 hash of the genesis file
   -h, --help                                            help for start
       --moniker string                                  node name (default "Your Computer Username")
-      --p2p.external-address string                     ip:port address to advertise to peers for them to dial
       --p2p.laddr string                                node listen address. (0.0.0.0:0 means any interface, any port) (default "tcp://0.0.0.0:26656")
       --p2p.persistent_peers string                     comma-delimited ID@host:port persistent peers
       --p2p.pex                                         enable/disable Peer-Exchange (default true)
