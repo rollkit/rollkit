@@ -67,7 +67,7 @@ func NewSequencer(
 	batchTime time.Duration,
 	metrics *Metrics,
 ) (*Sequencer, error) {
-	dalc := dac.NewDAClient(da, 0, 0, coreda.Namespace(daNamespace), logger, nil)
+	dalc := dac.NewDAClient(da, -1, -1, coreda.Namespace(daNamespace), logger, nil)
 	mBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
