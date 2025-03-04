@@ -49,9 +49,11 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier float64) *Manager {
 	logger := log.NewTestLogger(t)
 	return &Manager{
-		dalc:        da.NewDAClient(backend, gasPrice, gasMultiplier, nil, nil, logger),
-		headerCache: NewHeaderCache(),
-		logger:      logger,
+		dalc:          da.NewDAClient(backend, gasPrice, gasMultiplier, nil, nil, logger),
+		headerCache:   NewHeaderCache(),
+		logger:        logger,
+		gasPrice:      gasPrice,
+		gasMultiplier: gasMultiplier,
 	}
 }
 func TestInitialStateClean(t *testing.T) {
@@ -233,15 +235,15 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		{"defaults", -1, -1, []float64{
 			-1, -1, -1,
 		}, false},
-		// {"fixed_gas_price", 1.0, -1, []float64{
-		// 	1.0, 1.0, 1.0,
-		// }, false},
-		// {"default_gas_price_with_multiplier", -1, 1.2, []float64{
-		// 	-1, -1, -1,
-		// }, false},
-		// {"fixed_gas_price_with_multiplier", 1.0, 1.2, []float64{
-		// 	1.0, 1.2, 1.2 * 1.2,
-		// }, false},
+		{"fixed_gas_price", 1.0, -1, []float64{
+			1.0, 1.0, 1.0,
+		}, false},
+		{"default_gas_price_with_multiplier", -1, 1.2, []float64{
+			-1, -1, -1,
+		}, false},
+		{"fixed_gas_price_with_multiplier", 1.0, 1.2, []float64{
+			1.0, 1.2, 1.2 * 1.2,
+		}, false},
 	}
 
 	for _, tc := range testCases {
@@ -271,14 +273,14 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			// * successfully submit
 			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
 			mockDA.
-				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil)).
-				Return([][]byte{}, &goDA.ErrTxTimedOut{}).Once()
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil), []byte(nil)).
+				Return([][]byte{}, uint64(0), &goDA.ErrTxTimedOut{}).Once()
 			mockDA.
-				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil)).
-				Return([][]byte{}, &goDA.ErrTxTimedOut{}).Once()
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil), []byte(nil)).
+				Return([][]byte{}, uint64(0), &goDA.ErrTxTimedOut{}).Once()
 			mockDA.
-				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil)).
-				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
+				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil), []byte(nil)).
+				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, uint64(0), nil)
 
 			m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
 			require.NoError(t, err)
@@ -440,10 +442,10 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header1)
-	store.On("GetMetadata", ctx, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
-	store.On("GetBlockData", ctx, uint64(1)).Return(header1, data1, nil)
-	store.On("GetBlockData", ctx, uint64(2)).Return(header2, data2, nil)
-	store.On("GetBlockData", ctx, uint64(3)).Return(header3, data3, nil)
+	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
+	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
+	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
+	store.On("GetBlockData", mock.Anything, uint64(3)).Return(header3, data3, nil)
 	store.On("Height").Return(uint64(3))
 
 	m.store = store
