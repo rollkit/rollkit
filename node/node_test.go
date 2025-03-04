@@ -25,7 +25,6 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
-	"github.com/rollkit/rollkit/config"
 	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -247,7 +246,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
-	config := config.NodeConfig{
+	config := rollkitconfig.NodeConfig{
 		DAAddress:        MockDAAddress,
 		DANamespace:      MockDANamespace,
 		ExecutorAddress:  MockExecutorAddress,

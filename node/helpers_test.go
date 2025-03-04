@@ -11,7 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
 	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -28,19 +27,19 @@ func generateSingleKey() crypto.PrivKey {
 	return key
 }
 
-func getTestConfig(n int) config.NodeConfig {
+func getTestConfig(n int) rollkitconfig.NodeConfig {
 	startPort := 10000
-	return config.NodeConfig{
+	return rollkitconfig.NodeConfig{
 		Aggregator:       true,
 		DAAddress:        MockDAAddress,
 		DANamespace:      MockDANamespace,
 		ExecutorAddress:  MockExecutorAddress,
 		SequencerAddress: MockSequencerAddress,
-		BlockManagerConfig: config.BlockManagerConfig{
+		BlockManagerConfig: rollkitconfig.BlockManagerConfig{
 			BlockTime:     500 * time.Millisecond,
 			LazyBlockTime: 5 * time.Second,
 		},
-		P2P: config.P2PConfig{
+		P2P: rollkitconfig.P2PConfig{
 			ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
 		},
 	}
