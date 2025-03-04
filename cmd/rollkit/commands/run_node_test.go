@@ -73,6 +73,9 @@ func TestParseFlags(t *testing.T) {
 		expected interface{}
 	}{
 		{"ABCI", config.ABCI, "grpc"},
+		{"CreateEmptyBlocks", config.Consensus.CreateEmptyBlocks, true},
+		{"CreateEmptyBlocksInterval", config.Consensus.CreateEmptyBlocksInterval, 10 * time.Second},
+		{"DoubleSignCheckHeight", config.Consensus.DoubleSignCheckHeight, int64(10)},
 		{"ExternalAddress", config.P2P.ExternalAddress, "127.0.0.0:26000"},
 		{"ListenAddress", config.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
 		{"ProxyApp", config.ProxyApp, "tcp://127.0.0.1:27004"},

@@ -188,6 +188,8 @@ type Config struct {
 	ProxyApp string `mapstructure:"proxy_app"`
 	// P2P contains P2P configuration
 	P2P P2PConfig `mapstructure:"p2p"`
+	// Consensus contains consensus configuration
+	Consensus ConsensusConfig `mapstructure:"consensus"`
 }
 
 // DefaultConfig returns the default configuration
@@ -198,6 +200,11 @@ func DefaultConfig() *Config {
 		ProxyApp: "noop",
 		P2P: P2PConfig{
 			ListenAddress: DefaultListenAddress,
+		},
+		Consensus: ConsensusConfig{
+			CreateEmptyBlocks:         true,
+			CreateEmptyBlocksInterval: 1 * time.Second,
+			DoubleSignCheckHeight:     100,
 		},
 	}
 }
