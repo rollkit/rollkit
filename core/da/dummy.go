@@ -135,6 +135,7 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 
 	d.blobsByHeight[height] = ids
 	d.timestampsByHeight[height] = time.Now()
+
 	return ids, nil
 }
 
