@@ -3,7 +3,6 @@ package config
 import (
 	"time"
 
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -52,9 +51,9 @@ const (
 // NodeConfig stores Rollkit node configuration.
 type NodeConfig struct {
 	// parameters below are translated from existing config
-	RootDir string
-	DBPath  string
-	P2P     P2PConfig
+	RootDir string    `mapstructure:"root_dir"`
+	DBPath  string    `mapstructure:"db_path"`
+	P2P     P2PConfig `mapstructure:"p2p"`
 	// parameters below are Rollkit specific and read from config
 	Aggregator         bool `mapstructure:"aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
@@ -100,34 +99,28 @@ type BlockManagerConfig struct {
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
 }
 
-// GetNodeConfig translates Tendermint's configuration into Rollkit configuration.
-//
-// This method only translates configuration, and doesn't verify it. If some option is missing in Tendermint's
-// config, it's skipped during translation.
-func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
-	if cmConf != nil {
-		nodeConf.RootDir = cmConf.RootDir
-		nodeConf.DBPath = cmConf.DBPath
-		if cmConf.P2P != nil {
-			nodeConf.P2P.ListenAddress = cmConf.P2P.ListenAddress
-			nodeConf.P2P.Seeds = cmConf.P2P.Seeds
-		}
-		if cmConf.Instrumentation != nil {
-			// Convert CometBFT InstrumentationConfig to Rollkit InstrumentationConfig
-			nodeConf.Instrumentation = &InstrumentationConfig{
-				Prometheus:           cmConf.Instrumentation.Prometheus,
-				PrometheusListenAddr: cmConf.Instrumentation.PrometheusListenAddr,
-				MaxOpenConnections:   cmConf.Instrumentation.MaxOpenConnections,
-				Namespace:            "rollkit", // Use Rollkit namespace instead of CometBFT's
-			}
-		}
-	}
-}
-
 // GetViperConfig reads configuration parameters from Viper instance.
 //
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
+	nc.RootDir = v.GetString("root_dir")
+	nc.DBPath = v.GetString("db_path")
+
+	nc.P2P.ListenAddress = v.GetString("p2p.listen_address")
+	nc.P2P.Seeds = v.GetString("p2p.seeds")
+	nc.P2P.BlockedPeers = v.GetString("p2p.blocked_peers")
+	nc.P2P.AllowedPeers = v.GetString("p2p.allowed_peers")
+
+	if v.IsSet("instrumentation") {
+		if nc.Instrumentation == nil {
+			nc.Instrumentation = &InstrumentationConfig{}
+		}
+		nc.Instrumentation.Prometheus = v.GetBool("instrumentation.prometheus")
+		nc.Instrumentation.PrometheusListenAddr = v.GetString("instrumentation.prometheus_listen_addr")
+		nc.Instrumentation.MaxOpenConnections = v.GetInt("instrumentation.max_open_connections")
+		nc.Instrumentation.Namespace = "rollkit"
+	}
+
 	nc.Aggregator = v.GetBool(FlagAggregator)
 	nc.DAAddress = v.GetString(FlagDAAddress)
 	nc.DAAuthToken = v.GetString(FlagDAAuthToken)

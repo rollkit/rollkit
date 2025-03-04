@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rollkit/go-da"
@@ -72,39 +73,46 @@ func TestParseFlags(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
-		{"ABCI", config.ABCI, "grpc"},
-		{"CreateEmptyBlocks", config.Consensus.CreateEmptyBlocks, true},
-		{"CreateEmptyBlocksInterval", config.Consensus.CreateEmptyBlocksInterval, 10 * time.Second},
-		{"DoubleSignCheckHeight", config.Consensus.DoubleSignCheckHeight, int64(10)},
-		{"DBBackend", config.DBBackend, "cleverdb"},
-		{"DBDir", config.DBDir(), "data2"},
-		{"Moniker", config.Moniker, "yarik-playground2"},
-		{"ExternalAddress", config.P2P.ExternalAddress, "127.0.0.0:26000"},
-		{"ListenAddress", config.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
-		{"PexReactor", config.P2P.PexReactor, true},
-		{"PrivatePeerIDs", config.P2P.PrivatePeerIDs, "1,2,3"},
-		{"SeedMode", config.P2P.SeedMode, true},
-		{"UnconditionalPeerIDs", config.P2P.UnconditionalPeerIDs, "4,5,6"},
-		{"PrivValidatorListenAddr", config.PrivValidatorListenAddr, "tcp://127.0.0.1:27003"},
-		{"ProxyApp", config.ProxyApp, "tcp://127.0.0.1:27004"},
+		// CometBFT fields, available in viper but not in nodeConfig
+		// TODO: decide if we want to add them to nodeConfig
+		{"ABCI", viper.GetString("abci"), "grpc"},
+		{"CreateEmptyBlocks", viper.GetBool("consensus.create_empty_blocks"), true},
+		{"CreateEmptyBlocksInterval", viper.GetDuration("consensus.create_empty_blocks_interval"), 10 * time.Second},
+		{"DoubleSignCheckHeight", viper.GetInt64("consensus.double_sign_check_height"), int64(10)},
+		{"DBBackend", viper.GetString("db_backend"), "cleverdb"},
+		{"DBDir", viper.GetString("db_dir"), "data2"},
+		{"Moniker", viper.GetString("moniker"), "yarik-playground2"},
+		{"ExternalAddress", viper.GetString("p2p.external-address"), "127.0.0.0:26000"},
+		{"ListenAddress", viper.GetString("p2p.laddr"), "tcp://127.0.0.1:27000"},
+		{"PexReactor", viper.GetBool("p2p.pex"), true},
+		{"PrivatePeerIDs", viper.GetString("p2p.private_peer_ids"), "1,2,3"},
+		{"SeedMode", viper.GetBool("p2p.seed_mode"), true},
+		{"UnconditionalPeerIDs", viper.GetString("p2p.unconditional_peer_ids"), "4,5,6"},
+		{"PrivValidatorListenAddr", viper.GetString("priv_validator_laddr"), "tcp://127.0.0.1:27003"},
+		{"ProxyApp", viper.GetString("proxy_app"), "tcp://127.0.0.1:27004"},
+
+		// Rollkit fields
 		{"Aggregator", nodeConfig.Aggregator, false},
-		{"BlockTime", nodeConfig.BlockTime, 2 * time.Second},
+		{"BlockTime", nodeConfig.BlockManagerConfig.BlockTime, 2 * time.Second},
 		{"DAAddress", nodeConfig.DAAddress, "http://127.0.0.1:27005"},
 		{"DAAuthToken", nodeConfig.DAAuthToken, "token"},
-		{"DABlockTime", nodeConfig.DABlockTime, 20 * time.Second},
+		{"DABlockTime", nodeConfig.BlockManagerConfig.DABlockTime, 20 * time.Second},
 		{"DAGasMultiplier", nodeConfig.DAGasMultiplier, 1.5},
 		{"DAGasPrice", nodeConfig.DAGasPrice, 1.5},
-		{"DAMempoolTTL", nodeConfig.DAMempoolTTL, uint64(10)},
+		{"DAMempoolTTL", nodeConfig.BlockManagerConfig.DAMempoolTTL, uint64(10)},
 		{"DANamespace", nodeConfig.DANamespace, "namespace"},
-		{"DAStartHeight", nodeConfig.DAStartHeight, uint64(100)},
-		{"LazyAggregator", nodeConfig.LazyAggregator, true},
-		{"LazyBlockTime", nodeConfig.LazyBlockTime, 2 * time.Minute},
+		{"DAStartHeight", nodeConfig.BlockManagerConfig.DAStartHeight, uint64(100)},
+		{"LazyAggregator", nodeConfig.BlockManagerConfig.LazyAggregator, true},
+		{"LazyBlockTime", nodeConfig.BlockManagerConfig.LazyBlockTime, 2 * time.Minute},
 		{"Light", nodeConfig.Light, true},
-		{"MaxPendingBlocks", nodeConfig.MaxPendingBlocks, uint64(100)},
-		{"GRPCListenAddress", config.RPC.GRPCListenAddress, "tcp://127.0.0.1:27006"},
-		{"ListenAddress", config.RPC.ListenAddress, "tcp://127.0.0.1:27007"},
-		{"PprofListenAddress", config.RPC.PprofListenAddress, "tcp://127.0.0.1:27008"},
-		{"Unsafe", config.RPC.Unsafe, true},
+		{"MaxPendingBlocks", nodeConfig.BlockManagerConfig.MaxPendingBlocks, uint64(100)},
+
+		// RPC fields, available in viper but not in nodeConfig
+		// TODO: decide if we want to add them to nodeConfig
+		{"GRPCListenAddress", viper.GetString("rpc.grpc_laddr"), "tcp://127.0.0.1:27006"},
+		{"RPCListenAddress", viper.GetString("rpc.laddr"), "tcp://127.0.0.1:27007"},
+		{"PprofListenAddress", viper.GetString("rpc.pprof_laddr"), "tcp://127.0.0.1:27008"},
+		{"Unsafe", viper.GetBool("rpc.unsafe"), true},
 	}
 
 	for _, tc := range testCases {
@@ -237,9 +245,6 @@ func TestStartMockDAServJSONRPC(t *testing.T) {
 			newServerFunc := func(hostname, port string, da da.DA) *proxy.Server {
 				mockServer := &MockServer{
 					Server: proxy.NewServer(hostname, port, da),
-					StartFunc: func(ctx context.Context) error {
-						return tt.mockServerErr
-					},
 				}
 				return mockServer.Server
 			}
