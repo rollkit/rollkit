@@ -29,6 +29,21 @@ type FullNodeTestSuite struct {
 	runningWg sync.WaitGroup
 }
 
+// startNodeInBackground starts the given node in a background goroutine
+// and adds to the wait group for proper cleanup
+func (s *FullNodeTestSuite) startNodeInBackground(node *FullNode) {
+	s.runningWg.Add(1)
+	go func() {
+		defer s.runningWg.Done()
+		err := node.Run(s.ctx)
+		select {
+		case s.errCh <- err:
+		default:
+			s.T().Logf("Error channel full, discarding error: %v", err)
+		}
+	}()
+}
+
 func (s *FullNodeTestSuite) SetupTest() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.errCh = make(chan error, 1)
@@ -75,16 +90,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.node = fn
 
 	// Start the node in a goroutine using Run instead of Start
-	s.runningWg.Add(1)
-	go func() {
-		defer s.runningWg.Done()
-		err := s.node.Run(s.ctx)
-		select {
-		case s.errCh <- err:
-		default:
-			s.T().Logf("Error channel full, discarding error: %v", err)
-		}
-	}()
+	s.startNodeInBackground(s.node)
 
 	// Wait for the node to start and initialize DA connection
 	time.Sleep(2 * time.Second)
@@ -335,16 +341,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.node = fn
 
 	// Start the node using Run in a goroutine
-	s.runningWg.Add(1)
-	go func() {
-		defer s.runningWg.Done()
-		err := s.node.Run(s.ctx)
-		select {
-		case s.errCh <- err:
-		default:
-			s.T().Logf("Error channel full, discarding error: %v", err)
-		}
-	}()
+	s.startNodeInBackground(s.node)
 
 	// Wait blocks to be produced up to max pending
 	time.Sleep(time.Duration(config.BlockManagerConfig.MaxPendingBlocks+1) * config.BlockTime)
@@ -426,16 +423,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.node = fn
 
 	// Start the new node
-	s.runningWg.Add(1)
-	go func() {
-		defer s.runningWg.Done()
-		err := s.node.Run(s.ctx)
-		select {
-		case s.errCh <- err:
-		default:
-			s.T().Logf("Error channel full, discarding error: %v", err)
-		}
-	}()
+	s.startNodeInBackground(s.node)
 
 	// Wait a bit after restart
 	time.Sleep(s.node.nodeConfig.BlockTime)
@@ -443,8 +431,6 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	// Verify state persistence
 	recoveredHeight, err := getNodeHeight(s.node, Store)
 	require.NoError(err)
-
-	fmt.Println("recoveredHeight", recoveredHeight)
 	require.GreaterOrEqual(recoveredHeight, originalHeight)
 }
 

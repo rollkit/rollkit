@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -386,7 +387,10 @@ func (n *FullNode) Run(ctx context.Context) error {
 	)
 
 	if n.prometheusSrv != nil {
-		err = errors.Join(err, n.prometheusSrv.Shutdown(context.Background()))
+		// Use a timeout context to ensure shutdown doesn't hang
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		err = errors.Join(err, n.prometheusSrv.Shutdown(shutdownCtx))
 	}
 
 	err = errors.Join(err, n.Store.Close())
