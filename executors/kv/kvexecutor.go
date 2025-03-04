@@ -1,4 +1,4 @@
-package execution
+package executor
 
 import (
 	"context"
@@ -84,19 +84,16 @@ func (k *KVExecutor) InitChain(ctx context.Context, genesisTime time.Time, initi
 
 // GetTxs retrieves transactions from the mempool without removing them.
 func (k *KVExecutor) GetTxs(ctx context.Context) ([][]byte, error) {
-	sel := func() ([][]byte, error) {
-		k.mu.Lock()
-		defer k.mu.Unlock()
-		txs := make([][]byte, len(k.mempool))
-		copy(txs, k.mempool)
-		return txs, nil
-	}
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
-		return sel()
 	}
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	txs := make([][]byte, len(k.mempool))
+	copy(txs, k.mempool)
+	return txs, nil
 }
 
 // ExecuteTxs processes each transaction assumed to be in the format "key=value".
