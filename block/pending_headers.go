@@ -80,11 +80,6 @@ func (pb *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.Signe
 			// return as much as possible + error information
 			return headers, err
 		}
-		_, err = header.ToProto() // TODO: this is a problem, we should not be marshalling the header to proto here
-		if err != nil {
-			pb.logger.Error("failed to transform header to proto", "error", err)
-			continue
-		}
 		headers = append(headers, header)
 	}
 	return headers, nil

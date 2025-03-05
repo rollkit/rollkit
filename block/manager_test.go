@@ -495,7 +495,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	assert.ErrorContains(err, "failed to transform header to proto")
 	blocks, err := m.pendingHeaders.getPendingHeaders(ctx)
 	assert.NoError(err)
-	assert.Equal(0, len(blocks)) // since we set the highest header to a higher height the store is empty. Is this desired?
+	assert.Equal(3, len(blocks)) // we stop submitting all headers when there is a marshalling error
 }
 
 // invalidateBlockHeader results in a block header that produces a marshalling error
