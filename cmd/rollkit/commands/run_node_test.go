@@ -3,8 +3,11 @@ package commands
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"syscall"
 	"testing"
@@ -309,5 +312,150 @@ func TestStartMockSequencerServer(t *testing.T) {
 
 	for _, fn := range stopFns {
 		fn()
+	}
+}
+
+func TestStartMockExecutorServerGRPC(t *testing.T) {
+	tests := []struct {
+		name        string
+		execAddress string
+		expectedErr error
+	}{
+		{
+			name:        "Success",
+			execAddress: "localhost:50052",
+			expectedErr: nil,
+		},
+		{
+			name:        "Invalid URL",
+			execAddress: "://invalid",
+			expectedErr: &net.OpError{},
+		},
+		{
+			name:        "Server Already Running",
+			execAddress: "localhost:50052",
+			expectedErr: errExecutorAlreadyRunning,
+		},
+	}
+
+	stopFns := []func(){}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := tryStartMockExecutorServerGRPC(tt.execAddress)
+			if srv != nil {
+				stopFns = append(stopFns, func() {
+					srv.Stop()
+				})
+			}
+
+			if tt.expectedErr != nil {
+				assert.Error(t, err)
+				assert.IsType(t, tt.expectedErr, err)
+				assert.Nil(t, srv)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, srv)
+			}
+		})
+	}
+
+	for _, fn := range stopFns {
+		fn()
+	}
+}
+
+func TestRollkitGenesisDocProviderFunc(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir, err := os.MkdirTemp("", "rollkit-test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create the config directory
+	configDir := filepath.Join(tempDir, "config")
+	err = os.MkdirAll(configDir, 0755)
+	assert.NoError(t, err)
+
+	// Create a simple test genesis file
+	testChainID := "test-chain-id"
+	genFileContent := fmt.Sprintf(`{
+		"chain_id": "%s",
+		"genesis_time": "2023-01-01T00:00:00Z",
+		"consensus_params": {
+			"block": {
+				"max_bytes": "22020096",
+				"max_gas": "-1"
+			},
+			"evidence": {
+				"max_age_num_blocks": "100000",
+				"max_age_duration": "172800000000000"
+			},
+			"validator": {
+				"pub_key_types": ["ed25519"]
+			}
+		}
+	}`, testChainID)
+
+	genFile := filepath.Join(configDir, "genesis.json")
+	err = os.WriteFile(genFile, []byte(genFileContent), 0644)
+	assert.NoError(t, err)
+
+	// Create a test node config
+	testNodeConfig := rollconf.NodeConfig{
+		RootDir: tempDir,
+	}
+
+	// Get the genesis doc provider function
+	genDocProvider := RollkitGenesisDocProviderFunc(testNodeConfig)
+	assert.NotNil(t, genDocProvider)
+
+	// Call the provider function and verify the result
+	loadedGenDoc, err := genDocProvider()
+	assert.NoError(t, err)
+	assert.NotNil(t, loadedGenDoc)
+	assert.Equal(t, testChainID, loadedGenDoc.ChainID)
+}
+
+func TestInitFiles(t *testing.T) {
+	// Save the original nodeConfig
+	origNodeConfig := nodeConfig
+
+	// Create a temporary directory for the test
+	tempDir, err := os.MkdirTemp("", "rollkit-test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create the necessary subdirectories
+	configDir := filepath.Join(tempDir, "config")
+	dataDir := filepath.Join(tempDir, "data")
+	err = os.MkdirAll(configDir, 0755)
+	assert.NoError(t, err)
+	err = os.MkdirAll(dataDir, 0755)
+	assert.NoError(t, err)
+
+	// Set the nodeConfig to use the temporary directory
+	nodeConfig = rollconf.NodeConfig{
+		RootDir: tempDir,
+	}
+
+	// Restore the original nodeConfig when the test completes
+	defer func() {
+		nodeConfig = origNodeConfig
+	}()
+
+	// Call initFiles
+	err = initFiles()
+	assert.NoError(t, err)
+
+	// Verify that the expected files were created
+	files := []string{
+		filepath.Join(tempDir, "config", "priv_validator_key.json"),
+		filepath.Join(tempDir, "data", "priv_validator_state.json"),
+		filepath.Join(tempDir, "config", "node_key.json"),
+		filepath.Join(tempDir, "config", "genesis.json"),
+	}
+
+	for _, file := range files {
+		assert.FileExists(t, file)
 	}
 }
