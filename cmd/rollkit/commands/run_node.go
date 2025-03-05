@@ -308,7 +308,6 @@ func addNodeFlags(cmd *cobra.Command) {
 	// Add cometBFT flags
 	cmtcmd.AddNodeFlags(cmd)
 
-	// nodeConfig does not have a ABCI field, so we use a default value
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// Add Rollkit flags
