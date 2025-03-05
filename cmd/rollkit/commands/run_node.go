@@ -8,15 +8,14 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
-	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
@@ -44,9 +43,6 @@ import (
 )
 
 var (
-	// initialize the config with the cometBFT defaults
-	config = cometconf.DefaultConfig()
-
 	// initialize the rollkit node configuration
 	nodeConfig = rollconf.DefaultNodeConfig
 
@@ -98,33 +94,25 @@ func NewRunNodeCmd() *cobra.Command {
 			return initFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			genDocProvider := cometnode.DefaultGenesisDocProviderFunc(config)
+			genDocProvider := RollkitGenesisDocProviderFunc(nodeConfig)
 			genDoc, err := genDocProvider()
 			if err != nil {
 				return err
 			}
-			nodeKey, err := cometp2p.LoadOrGenNodeKey(config.NodeKeyFile())
+			nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
+			nodeKey, err := cometp2p.LoadOrGenNodeKey(nodeKeyFile)
 			if err != nil {
 				return err
 			}
-			pval := cometprivval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
+			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
+			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 			p2pKey, err := rolltypes.GetNodeKey(nodeKey)
 			if err != nil {
 				return err
 			}
 			signingKey, err := rolltypes.GetNodeKey(&cometp2p.NodeKey{PrivKey: pval.Key.PrivKey})
 			if err != nil {
-				return err
-			}
-
-			// default to socket connections for remote clients
-			if len(config.ABCI) == 0 {
-				config.ABCI = "socket"
-			}
-
-			// get the node configuration
-			rollconf.GetNodeConfig(&nodeConfig, config)
-			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
 				return err
 			}
 
@@ -185,11 +173,6 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
-
-			// use noop proxy app by default
-			if !cmd.Flags().Lookup("proxy_app").Changed {
-				config.ProxyApp = "noop"
-			}
 
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())
@@ -325,7 +308,6 @@ func addNodeFlags(cmd *cobra.Command) {
 	// Add cometBFT flags
 	cmtcmd.AddNodeFlags(cmd)
 
-	cmd.Flags().String("transport", config.ABCI, "specify abci transport (socket | grpc)")
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// Add Rollkit flags
@@ -413,8 +395,8 @@ func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) 
 // note that such a change would also require changing the cosmos-sdk
 func initFiles() error {
 	// Generate the private validator config files
-	cometprivvalKeyFile := config.PrivValidatorKeyFile()
-	cometprivvalStateFile := config.PrivValidatorStateFile()
+	cometprivvalKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
+	cometprivvalStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
 	var pv *cometprivval.FilePV
 	if cometos.FileExists(cometprivvalKeyFile) {
 		pv = cometprivval.LoadFilePV(cometprivvalKeyFile, cometprivvalStateFile)
@@ -428,7 +410,7 @@ func initFiles() error {
 	}
 
 	// Generate the node key config files
-	nodeKeyFile := config.NodeKeyFile()
+	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
 	if cometos.FileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
@@ -439,7 +421,7 @@ func initFiles() error {
 	}
 
 	// Generate the genesis file
-	genFile := config.GenesisFile()
+	genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
 	if cometos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
@@ -478,15 +460,10 @@ func parseConfig(cmd *cobra.Command) error {
 			return err
 		}
 	}
-	config.RootDir = home
+	nodeConfig.RootDir = home
 
 	// Validate the root directory
-	cometconf.EnsureRoot(config.RootDir)
-
-	// Validate the config
-	if err := config.ValidateBasic(); err != nil {
-		return fmt.Errorf("error in config file: %w", err)
-	}
+	rollconf.EnsureRoot(nodeConfig.RootDir)
 
 	// Parse the flags
 	if err := parseFlags(cmd); err != nil {
@@ -503,7 +480,7 @@ func parseFlags(cmd *cobra.Command) error {
 	}
 
 	// unmarshal viper into config
-	err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+	err := v.Unmarshal(&nodeConfig, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "mapstructure"
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
@@ -514,15 +491,20 @@ func parseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to decode command flags into config: %w", err)
 	}
 
-	// special handling for the p2p external address, due to inconsistencies in mapstructure and flag name
-	if cmd.Flags().Lookup("p2p.external-address").Changed {
-		config.P2P.ExternalAddress = viper.GetString("p2p.external-address")
-	}
-
 	// handle rollkit node configuration
 	if err := nodeConfig.GetViperConfig(v); err != nil {
 		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
 	}
 
 	return nil
+}
+
+// RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
+// using nodeConfig instead of config.
+func RollkitGenesisDocProviderFunc(nodeConfig rollconf.NodeConfig) func() (*comettypes.GenesisDoc, error) {
+	return func() (*comettypes.GenesisDoc, error) {
+		// Construct the genesis file path using rootify
+		genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
+		return comettypes.GenesisDocFromFile(genFile)
+	}
 }

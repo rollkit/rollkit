@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
@@ -69,6 +70,9 @@ func TestBootstrapping(t *testing.T) {
 
 	// wait for clients to finish refreshing routing tables
 	clients.WaitForDHT()
+
+	// Add a small delay to allow connections to be established
+	time.Sleep(100 * time.Millisecond)
 
 	for _, client := range clients {
 		assert.Equal(3, len(client.host.Network().Peers()))

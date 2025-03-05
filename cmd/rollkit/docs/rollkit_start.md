@@ -52,7 +52,6 @@ rollkit start [flags]
       --rpc.laddr string                                RPC listen address. Port required (default "tcp://127.0.0.1:26657")
       --rpc.pprof_laddr string                          pprof listen address (https://golang.org/pkg/net/http/pprof)
       --rpc.unsafe                                      enabled unsafe rpc methods
-      --transport string                                specify abci transport (socket | grpc) (default "socket")
 ```
 
 ### Options inherited from parent commands

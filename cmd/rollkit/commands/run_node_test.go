@@ -3,13 +3,17 @@ package commands
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rollkit/go-da"
@@ -20,21 +24,18 @@ import (
 
 func TestParseFlags(t *testing.T) {
 	flags := []string{
-		"--abci", "grpc",
 		"--consensus.create_empty_blocks", "true",
 		"--consensus.create_empty_blocks_interval", "10s",
 		"--consensus.double_sign_check_height", "10",
 		"--db_backend", "cleverdb",
 		"--db_dir", "data2",
 		"--moniker", "yarik-playground2",
-		"--p2p.external-address", "127.0.0.0:26000",
 		"--p2p.laddr", "tcp://127.0.0.1:27000",
 		"--p2p.pex",
 		"--p2p.private_peer_ids", "1,2,3",
 		"--p2p.seed_mode",
 		"--p2p.unconditional_peer_ids", "4,5,6",
 		"--priv_validator_laddr", "tcp://127.0.0.1:27003",
-		"--proxy_app", "tcp://127.0.0.1:27004",
 		"--rollkit.aggregator=false",
 		"--rollkit.block_time", "2s",
 		"--rollkit.da_address", "http://127.0.0.1:27005",
@@ -72,39 +73,43 @@ func TestParseFlags(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
-		{"ABCI", config.ABCI, "grpc"},
-		{"CreateEmptyBlocks", config.Consensus.CreateEmptyBlocks, true},
-		{"CreateEmptyBlocksInterval", config.Consensus.CreateEmptyBlocksInterval, 10 * time.Second},
-		{"DoubleSignCheckHeight", config.Consensus.DoubleSignCheckHeight, int64(10)},
-		{"DBBackend", config.DBBackend, "cleverdb"},
-		{"DBDir", config.DBDir(), "data2"},
-		{"Moniker", config.Moniker, "yarik-playground2"},
-		{"ExternalAddress", config.P2P.ExternalAddress, "127.0.0.0:26000"},
-		{"ListenAddress", config.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
-		{"PexReactor", config.P2P.PexReactor, true},
-		{"PrivatePeerIDs", config.P2P.PrivatePeerIDs, "1,2,3"},
-		{"SeedMode", config.P2P.SeedMode, true},
-		{"UnconditionalPeerIDs", config.P2P.UnconditionalPeerIDs, "4,5,6"},
-		{"PrivValidatorListenAddr", config.PrivValidatorListenAddr, "tcp://127.0.0.1:27003"},
-		{"ProxyApp", config.ProxyApp, "tcp://127.0.0.1:27004"},
+		// CometBFT fields, available in viper but not in nodeConfig
+		// TODO: decide if we want to add them to nodeConfig
+		{"CreateEmptyBlocks", viper.GetBool("consensus.create_empty_blocks"), true},
+		{"CreateEmptyBlocksInterval", viper.GetDuration("consensus.create_empty_blocks_interval"), 10 * time.Second},
+		{"DoubleSignCheckHeight", viper.GetInt64("consensus.double_sign_check_height"), int64(10)},
+		{"DBBackend", viper.GetString("db_backend"), "cleverdb"},
+		{"DBDir", viper.GetString("db_dir"), "data2"},
+		{"Moniker", viper.GetString("moniker"), "yarik-playground2"},
+		{"PexReactor", viper.GetBool("p2p.pex"), true},
+		{"PrivatePeerIDs", viper.GetString("p2p.private_peer_ids"), "1,2,3"},
+		{"SeedMode", viper.GetBool("p2p.seed_mode"), true},
+		{"UnconditionalPeerIDs", viper.GetString("p2p.unconditional_peer_ids"), "4,5,6"},
+		{"PrivValidatorListenAddr", viper.GetString("priv_validator_laddr"), "tcp://127.0.0.1:27003"},
+
+		// Rollkit fields
 		{"Aggregator", nodeConfig.Aggregator, false},
-		{"BlockTime", nodeConfig.BlockTime, 2 * time.Second},
+		{"BlockTime", nodeConfig.BlockManagerConfig.BlockTime, 2 * time.Second},
 		{"DAAddress", nodeConfig.DAAddress, "http://127.0.0.1:27005"},
 		{"DAAuthToken", nodeConfig.DAAuthToken, "token"},
-		{"DABlockTime", nodeConfig.DABlockTime, 20 * time.Second},
+		{"DABlockTime", nodeConfig.BlockManagerConfig.DABlockTime, 20 * time.Second},
 		{"DAGasMultiplier", nodeConfig.DAGasMultiplier, 1.5},
 		{"DAGasPrice", nodeConfig.DAGasPrice, 1.5},
-		{"DAMempoolTTL", nodeConfig.DAMempoolTTL, uint64(10)},
+		{"DAMempoolTTL", nodeConfig.BlockManagerConfig.DAMempoolTTL, uint64(10)},
 		{"DANamespace", nodeConfig.DANamespace, "namespace"},
-		{"DAStartHeight", nodeConfig.DAStartHeight, uint64(100)},
-		{"LazyAggregator", nodeConfig.LazyAggregator, true},
-		{"LazyBlockTime", nodeConfig.LazyBlockTime, 2 * time.Minute},
+		{"DAStartHeight", nodeConfig.BlockManagerConfig.DAStartHeight, uint64(100)},
+		{"LazyAggregator", nodeConfig.BlockManagerConfig.LazyAggregator, true},
+		{"LazyBlockTime", nodeConfig.BlockManagerConfig.LazyBlockTime, 2 * time.Minute},
 		{"Light", nodeConfig.Light, true},
-		{"MaxPendingBlocks", nodeConfig.MaxPendingBlocks, uint64(100)},
-		{"GRPCListenAddress", config.RPC.GRPCListenAddress, "tcp://127.0.0.1:27006"},
-		{"ListenAddress", config.RPC.ListenAddress, "tcp://127.0.0.1:27007"},
-		{"PprofListenAddress", config.RPC.PprofListenAddress, "tcp://127.0.0.1:27008"},
-		{"Unsafe", config.RPC.Unsafe, true},
+		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
+		{"MaxPendingBlocks", nodeConfig.BlockManagerConfig.MaxPendingBlocks, uint64(100)},
+
+		// RPC fields, available in viper but not in nodeConfig
+		// TODO: decide if we want to add them to nodeConfig
+		{"GRPCListenAddress", viper.GetString("rpc.grpc_laddr"), "tcp://127.0.0.1:27006"},
+		{"RPCListenAddress", viper.GetString("rpc.laddr"), "tcp://127.0.0.1:27007"},
+		{"PprofListenAddress", viper.GetString("rpc.pprof_laddr"), "tcp://127.0.0.1:27008"},
+		{"Unsafe", viper.GetBool("rpc.unsafe"), true},
 	}
 
 	for _, tc := range testCases {
@@ -237,9 +242,6 @@ func TestStartMockDAServJSONRPC(t *testing.T) {
 			newServerFunc := func(hostname, port string, da da.DA) *proxy.Server {
 				mockServer := &MockServer{
 					Server: proxy.NewServer(hostname, port, da),
-					StartFunc: func(ctx context.Context) error {
-						return tt.mockServerErr
-					},
 				}
 				return mockServer.Server
 			}
@@ -310,5 +312,156 @@ func TestStartMockSequencerServer(t *testing.T) {
 
 	for _, fn := range stopFns {
 		fn()
+	}
+}
+
+func TestStartMockExecutorServerGRPC(t *testing.T) {
+	tests := []struct {
+		name        string
+		execAddress string
+		expectedErr error
+	}{
+		{
+			name:        "Success",
+			execAddress: "localhost:50052",
+			expectedErr: nil,
+		},
+		{
+			name:        "Invalid URL",
+			execAddress: "://invalid",
+			expectedErr: &net.OpError{},
+		},
+		{
+			name:        "Server Already Running",
+			execAddress: "localhost:50052",
+			expectedErr: errExecutorAlreadyRunning,
+		},
+	}
+
+	stopFns := []func(){}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := tryStartMockExecutorServerGRPC(tt.execAddress)
+			if srv != nil {
+				stopFns = append(stopFns, func() {
+					srv.Stop()
+				})
+			}
+
+			if tt.expectedErr != nil {
+				assert.Error(t, err)
+				assert.IsType(t, tt.expectedErr, err)
+				assert.Nil(t, srv)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, srv)
+			}
+		})
+	}
+
+	for _, fn := range stopFns {
+		fn()
+	}
+}
+
+func TestRollkitGenesisDocProviderFunc(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir, err := os.MkdirTemp("", "rollkit-test")
+	assert.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		assert.NoError(t, err)
+	}()
+
+	// Create the config directory
+	configDir := filepath.Join(tempDir, "config")
+	err = os.MkdirAll(configDir, 0750)
+	assert.NoError(t, err)
+
+	// Create a simple test genesis file
+	testChainID := "test-chain-id"
+	genFileContent := fmt.Sprintf(`{
+		"chain_id": "%s",
+		"genesis_time": "2023-01-01T00:00:00Z",
+		"consensus_params": {
+			"block": {
+				"max_bytes": "22020096",
+				"max_gas": "-1"
+			},
+			"evidence": {
+				"max_age_num_blocks": "100000",
+				"max_age_duration": "172800000000000"
+			},
+			"validator": {
+				"pub_key_types": ["ed25519"]
+			}
+		}
+	}`, testChainID)
+
+	genFile := filepath.Join(configDir, "genesis.json")
+	err = os.WriteFile(genFile, []byte(genFileContent), 0600)
+	assert.NoError(t, err)
+
+	// Create a test node config
+	testNodeConfig := rollconf.NodeConfig{
+		RootDir: tempDir,
+	}
+
+	// Get the genesis doc provider function
+	genDocProvider := RollkitGenesisDocProviderFunc(testNodeConfig)
+	assert.NotNil(t, genDocProvider)
+
+	// Call the provider function and verify the result
+	loadedGenDoc, err := genDocProvider()
+	assert.NoError(t, err)
+	assert.NotNil(t, loadedGenDoc)
+	assert.Equal(t, testChainID, loadedGenDoc.ChainID)
+}
+
+func TestInitFiles(t *testing.T) {
+	// Save the original nodeConfig
+	origNodeConfig := nodeConfig
+
+	// Create a temporary directory for the test
+	tempDir, err := os.MkdirTemp("", "rollkit-test")
+	assert.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		assert.NoError(t, err)
+	}()
+
+	// Create the necessary subdirectories
+	configDir := filepath.Join(tempDir, "config")
+	dataDir := filepath.Join(tempDir, "data")
+	err = os.MkdirAll(configDir, 0750)
+	assert.NoError(t, err)
+	err = os.MkdirAll(dataDir, 0750)
+	assert.NoError(t, err)
+
+	// Set the nodeConfig to use the temporary directory
+	nodeConfig = rollconf.NodeConfig{
+		RootDir: tempDir,
+	}
+
+	// Restore the original nodeConfig when the test completes
+	defer func() {
+		nodeConfig = origNodeConfig
+	}()
+
+	// Call initFiles
+	err = initFiles()
+	assert.NoError(t, err)
+
+	// Verify that the expected files were created
+	files := []string{
+		filepath.Join(tempDir, "config", "priv_validator_key.json"),
+		filepath.Join(tempDir, "data", "priv_validator_state.json"),
+		filepath.Join(tempDir, "config", "node_key.json"),
+		filepath.Join(tempDir, "config", "genesis.json"),
+	}
+
+	for _, file := range files {
+		assert.FileExists(t, file)
 	}
 }
