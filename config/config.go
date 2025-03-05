@@ -103,43 +103,99 @@ type BlockManagerConfig struct {
 //
 // This method is called in cosmos-sdk.
 func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
-	nc.RootDir = v.GetString("root_dir")
-	nc.DBPath = v.GetString("db_path")
+	if v.IsSet("root_dir") {
+		nc.RootDir = v.GetString("root_dir")
+	}
+	if v.IsSet("db_path") {
+		nc.DBPath = v.GetString("db_path")
+	}
 
-	nc.P2P.ListenAddress = v.GetString("p2p.laddr")
-	nc.P2P.Seeds = v.GetString("p2p.seeds")
-	nc.P2P.BlockedPeers = v.GetString("p2p.blocked_peers")
-	nc.P2P.AllowedPeers = v.GetString("p2p.allowed_peers")
+	if v.IsSet("p2p.laddr") {
+		nc.P2P.ListenAddress = v.GetString("p2p.laddr")
+	}
+	if v.IsSet("p2p.seeds") {
+		nc.P2P.Seeds = v.GetString("p2p.seeds")
+	}
+	if v.IsSet("p2p.blocked_peers") {
+		nc.P2P.BlockedPeers = v.GetString("p2p.blocked_peers")
+	}
+	if v.IsSet("p2p.allowed_peers") {
+		nc.P2P.AllowedPeers = v.GetString("p2p.allowed_peers")
+	}
 
 	if v.IsSet("instrumentation") {
 		if nc.Instrumentation == nil {
 			nc.Instrumentation = &InstrumentationConfig{}
 		}
-		nc.Instrumentation.Prometheus = v.GetBool("instrumentation.prometheus")
-		nc.Instrumentation.PrometheusListenAddr = v.GetString("instrumentation.prometheus_listen_addr")
-		nc.Instrumentation.MaxOpenConnections = v.GetInt("instrumentation.max_open_connections")
+		if v.IsSet("instrumentation.prometheus") {
+			nc.Instrumentation.Prometheus = v.GetBool("instrumentation.prometheus")
+		}
+		if v.IsSet("instrumentation.prometheus_listen_addr") {
+			nc.Instrumentation.PrometheusListenAddr = v.GetString("instrumentation.prometheus_listen_addr")
+		}
+		if v.IsSet("instrumentation.max_open_connections") {
+			nc.Instrumentation.MaxOpenConnections = v.GetInt("instrumentation.max_open_connections")
+		}
 		nc.Instrumentation.Namespace = "rollkit"
 	}
 
-	nc.Aggregator = v.GetBool(FlagAggregator)
-	nc.DAAddress = v.GetString(FlagDAAddress)
-	nc.DAAuthToken = v.GetString(FlagDAAuthToken)
-	nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
-	nc.DAGasMultiplier = v.GetFloat64(FlagDAGasMultiplier)
-	nc.DANamespace = v.GetString(FlagDANamespace)
-	nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
-	nc.DABlockTime = v.GetDuration(FlagDABlockTime)
-	nc.DASubmitOptions = v.GetString(FlagDASubmitOptions)
-	nc.BlockTime = v.GetDuration(FlagBlockTime)
-	nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
-	nc.Light = v.GetBool(FlagLight)
-	nc.TrustedHash = v.GetString(FlagTrustedHash)
-	nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
-	nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
-	nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
-	nc.SequencerAddress = v.GetString(FlagSequencerAddress)
-	nc.SequencerRollupID = v.GetString(FlagSequencerRollupID)
-	nc.ExecutorAddress = v.GetString(FlagExecutorAddress)
+	if v.IsSet(FlagAggregator) {
+		nc.Aggregator = v.GetBool(FlagAggregator)
+	}
+	if v.IsSet(FlagDAAddress) {
+		nc.DAAddress = v.GetString(FlagDAAddress)
+	}
+	if v.IsSet(FlagDAAuthToken) {
+		nc.DAAuthToken = v.GetString(FlagDAAuthToken)
+	}
+	if v.IsSet(FlagDAGasPrice) {
+		nc.DAGasPrice = v.GetFloat64(FlagDAGasPrice)
+	}
+	if v.IsSet(FlagDAGasMultiplier) {
+		nc.DAGasMultiplier = v.GetFloat64(FlagDAGasMultiplier)
+	}
+	if v.IsSet(FlagDANamespace) {
+		nc.DANamespace = v.GetString(FlagDANamespace)
+	}
+	if v.IsSet(FlagDAStartHeight) {
+		nc.DAStartHeight = v.GetUint64(FlagDAStartHeight)
+	}
+	if v.IsSet(FlagDABlockTime) {
+		nc.DABlockTime = v.GetDuration(FlagDABlockTime)
+	}
+	if v.IsSet(FlagDASubmitOptions) {
+		nc.DASubmitOptions = v.GetString(FlagDASubmitOptions)
+	}
+	if v.IsSet(FlagBlockTime) {
+		nc.BlockTime = v.GetDuration(FlagBlockTime)
+	}
+	if v.IsSet(FlagLazyAggregator) {
+		nc.LazyAggregator = v.GetBool(FlagLazyAggregator)
+	}
+	if v.IsSet(FlagLight) {
+		nc.Light = v.GetBool(FlagLight)
+	}
+	if v.IsSet(FlagTrustedHash) {
+		nc.TrustedHash = v.GetString(FlagTrustedHash)
+	}
+	if v.IsSet(FlagMaxPendingBlocks) {
+		nc.MaxPendingBlocks = v.GetUint64(FlagMaxPendingBlocks)
+	}
+	if v.IsSet(FlagDAMempoolTTL) {
+		nc.DAMempoolTTL = v.GetUint64(FlagDAMempoolTTL)
+	}
+	if v.IsSet(FlagLazyBlockTime) {
+		nc.LazyBlockTime = v.GetDuration(FlagLazyBlockTime)
+	}
+	if v.IsSet(FlagSequencerAddress) {
+		nc.SequencerAddress = v.GetString(FlagSequencerAddress)
+	}
+	if v.IsSet(FlagSequencerRollupID) {
+		nc.SequencerRollupID = v.GetString(FlagSequencerRollupID)
+	}
+	if v.IsSet(FlagExecutorAddress) {
+		nc.ExecutorAddress = v.GetString(FlagExecutorAddress)
+	}
 
 	return nil
 }
