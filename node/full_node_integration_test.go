@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	rollkitconfig "github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -67,6 +68,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	p2pKey := generateSingleKey()
 
+	dummyDA := coreda.NewDummyDA(100_000)
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 
@@ -75,6 +77,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -318,6 +321,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	p2pKey := generateSingleKey()
 
+	dummyDA := coreda.NewDummyDA(100_000)
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 
@@ -326,6 +330,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -402,12 +407,14 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -447,6 +454,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	p2pKey := generateSingleKey()
 
+	dummyDA := coreda.NewDummyDA(100_000)
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 
@@ -456,6 +464,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 		invalidConfig,
 		dummyExec,
 		dummySequencer,
+		dummyDA,
 		p2pKey,
 		signingKey,
 		genesis,

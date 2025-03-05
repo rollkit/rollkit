@@ -18,10 +18,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	proxyda "github.com/rollkit/go-da/proxy"
-
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
@@ -74,6 +73,7 @@ func newFullNode(
 	genesis *cmtypes.GenesisDoc,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
+	da coreda.DA,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
@@ -84,7 +84,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	dalc, err := initDALC(nodeConfig, logger)
+	dalc, err := initDALC(da, nodeConfig, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.Batching, e
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }
 
-func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
+func initDALC(dac coreda.DA, nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
 	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
 	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
 	if err != nil {
@@ -161,17 +161,13 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
 	}
 
-	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
-	if err != nil {
-		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
-	}
-
 	var submitOpts []byte
 	if nodeConfig.DASubmitOptions != "" {
 		submitOpts = []byte(nodeConfig.DASubmitOptions)
 	}
-	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
-		namespace, submitOpts, logger.With("module", "da_client")), nil
+
+	return da.NewDAClient(dac, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
+		namespace, logger.With("module", "da_client"), submitOpts), nil
 }
 
 func initHeaderSyncService(
