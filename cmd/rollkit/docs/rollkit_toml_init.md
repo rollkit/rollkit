@@ -26,4 +26,4 @@ rollkit toml init [flags]
 
 ### SEE ALSO
 
-* [rollkit toml](rollkit_toml.md)  - TOML file operations
+* [rollkit toml](rollkit_toml.md)	 - TOML file operations

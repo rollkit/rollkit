@@ -16,6 +16,7 @@ To load completions for every new session, execute once:
 
 You will need to start a new shell for this setup to take effect.
 
+
 ```
 rollkit completion fish [flags]
 ```
@@ -37,4 +38,4 @@ rollkit completion fish [flags]
 
 ### SEE ALSO
 
-* [rollkit completion](rollkit_completion.md)  - Generate the autocompletion script for the specified shell
+* [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell

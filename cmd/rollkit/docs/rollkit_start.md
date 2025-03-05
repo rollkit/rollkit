@@ -9,6 +9,7 @@ rollkit start [flags]
 ### Options
 
 ```
+      --abci string                                     specify abci transport (socket | grpc) (default "socket")
       --ci                                              run node for ci testing
       --consensus.create_empty_blocks                   set this to false to only produce blocks when there are txs or when the AppHash changes (default true)
       --consensus.create_empty_blocks_interval string   the possible interval between empty blocks (default "0s")
@@ -18,6 +19,7 @@ rollkit start [flags]
       --genesis_hash bytesHex                           optional SHA-256 hash of the genesis file
   -h, --help                                            help for start
       --moniker string                                  node name (default "Your Computer Username")
+      --p2p.external-address string                     ip:port address to advertise to peers for them to dial
       --p2p.laddr string                                node listen address. (0.0.0.0:0 means any interface, any port) (default "tcp://0.0.0.0:26656")
       --p2p.persistent_peers string                     comma-delimited ID@host:port persistent peers
       --p2p.pex                                         enable/disable Peer-Exchange (default true)
@@ -26,6 +28,7 @@ rollkit start [flags]
       --p2p.seeds string                                comma-delimited ID@host:port seed nodes
       --p2p.unconditional_peer_ids string               comma-delimited IDs of unconditional peers
       --priv_validator_laddr string                     socket address to listen on for connections from external priv_validator process
+      --proxy_app string                                proxy app address, or one of: 'kvstore', 'persistent_kvstore' or 'noop' for local testing. (default "tcp://127.0.0.1:26658")
       --rollkit.aggregator                              run node in aggregator mode
       --rollkit.block_time duration                     block time (for aggregator mode) (default 1s)
       --rollkit.da_address string                       DA address (host:port) (default "http://localhost:26658")
@@ -61,4 +64,4 @@ rollkit start [flags]
 
 ### SEE ALSO
 
-* [rollkit](rollkit.md)  - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
+* [rollkit](rollkit.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.

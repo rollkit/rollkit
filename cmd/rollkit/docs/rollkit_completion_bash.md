@@ -15,15 +15,16 @@ To load completions in your current shell session:
 
 To load completions for every new session, execute once:
 
-#### Linux
+#### Linux:
 
 	rollkit completion bash > /etc/bash_completion.d/rollkit
 
-#### macOS
+#### macOS:
 
 	rollkit completion bash > $(brew --prefix)/etc/bash_completion.d/rollkit
 
 You will need to start a new shell for this setup to take effect.
+
 
 ```
 rollkit completion bash
@@ -46,4 +47,4 @@ rollkit completion bash
 
 ### SEE ALSO
 
-* [rollkit completion](rollkit_completion.md)  - Generate the autocompletion script for the specified shell
+* [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell
