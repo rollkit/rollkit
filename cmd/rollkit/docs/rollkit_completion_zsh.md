@@ -17,16 +17,15 @@ To load completions in your current shell session:
 
 To load completions for every new session, execute once:
 
-#### Linux:
+#### Linux
 
 	rollkit completion zsh > "${fpath[1]}/_rollkit"
 
-#### macOS:
+#### macOS
 
 	rollkit completion zsh > $(brew --prefix)/share/zsh/site-functions/_rollkit
 
 You will need to start a new shell for this setup to take effect.
-
 
 ```
 rollkit completion zsh [flags]
@@ -49,4 +48,4 @@ rollkit completion zsh [flags]
 
 ### SEE ALSO
 
-* [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell
+* [rollkit completion](rollkit_completion.md)  - Generate the autocompletion script for the specified shell

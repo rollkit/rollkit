@@ -13,7 +13,6 @@ To load completions in your current shell session:
 To load completions for every new session, add the output of the above command
 to your powershell profile.
 
-
 ```
 rollkit completion powershell [flags]
 ```
@@ -35,4 +34,4 @@ rollkit completion powershell [flags]
 
 ### SEE ALSO
 
-* [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell
+* [rollkit completion](rollkit_completion.md)  - Generate the autocompletion script for the specified shell

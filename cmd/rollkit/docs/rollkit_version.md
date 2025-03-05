@@ -22,4 +22,4 @@ rollkit version [flags]
 
 ### SEE ALSO
 
-* [rollkit](rollkit.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
+* [rollkit](rollkit.md)  - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.

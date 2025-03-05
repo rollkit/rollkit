@@ -28,5 +28,5 @@ This command group is used to interact with TOML files.
 
 ### SEE ALSO
 
-* [rollkit](rollkit.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
-* [rollkit toml init](rollkit_toml_init.md)	 - Initialize a new rollkit.toml file
+* [rollkit](rollkit.md)  - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
+* [rollkit toml init](rollkit_toml_init.md)  - Initialize a new rollkit.toml file
