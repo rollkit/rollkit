@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -18,10 +20,23 @@ const (
 	DefaultSequencerRollupID = "mock-rollup"
 	// DefaultExecutorAddress is the default address for the executor middleware
 	DefaultExecutorAddress = "localhost:40041"
+	// DefaultLogLevel is the default log level for the application
+	DefaultLogLevel = "info"
 )
+
+// DefaultRootDir returns the default root directory for rollkit
+func DefaultRootDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".rollkit")
+}
 
 // DefaultNodeConfig keeps default values of NodeConfig
 var DefaultNodeConfig = NodeConfig{
+	RootDir: DefaultRootDir(),
+	DBPath:  "data",
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
@@ -40,6 +55,7 @@ var DefaultNodeConfig = NodeConfig{
 	HeaderConfig: HeaderConfig{
 		TrustedHash: "",
 	},
+	Instrumentation:   DefaultInstrumentationConfig(),
 	SequencerAddress:  DefaultSequencerAddress,
 	SequencerRollupID: DefaultSequencerRollupID,
 	ExecutorAddress:   DefaultExecutorAddress,

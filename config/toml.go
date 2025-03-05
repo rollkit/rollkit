@@ -11,8 +11,17 @@ import (
 // RollkitToml is the filename for the rollkit configuration file.
 const RollkitToml = "rollkit.toml"
 
+// DefaultDirPerm is the default permissions used when creating directories.
+const DefaultDirPerm = 0700
+
+// DefaultConfigDir is the default directory for configuration files.
+const DefaultConfigDir = "config"
+
+// DefaultDataDir is the default directory for data files.
+const DefaultDataDir = "data"
+
 // ErrReadToml is the error returned when reading the rollkit.toml file fails.
-var ErrReadToml = fmt.Errorf("Reading %s", RollkitToml)
+var ErrReadToml = fmt.Errorf("reading %s", RollkitToml)
 
 // TomlConfig is the configuration read from rollkit.toml
 type TomlConfig struct {
@@ -150,5 +159,28 @@ func WriteTomlConfig(config TomlConfig) error {
 		return err
 	}
 
+	return nil
+}
+
+// EnsureRoot creates the root, config, and data directories if they don't exist,
+// and panics if it fails.
+func EnsureRoot(rootDir string) {
+	if err := ensureDir(rootDir, DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
+	if err := ensureDir(filepath.Join(rootDir, DefaultConfigDir), DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
+	if err := ensureDir(filepath.Join(rootDir, DefaultDataDir), DefaultDirPerm); err != nil {
+		panic(err.Error())
+	}
+}
+
+// ensureDir ensures the directory exists, creating it if necessary.
+func ensureDir(dirPath string, mode os.FileMode) error {
+	err := os.MkdirAll(dirPath, mode)
+	if err != nil {
+		return fmt.Errorf("could not create directory %q: %w", dirPath, err)
+	}
 	return nil
 }

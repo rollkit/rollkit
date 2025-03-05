@@ -3,9 +3,8 @@ package node
 import (
 	"time"
 
-	cmcfg "github.com/cometbft/cometbft/config"
-
 	"github.com/rollkit/rollkit/block"
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/p2p"
 )
 
@@ -16,7 +15,7 @@ type MetricsProvider func(chainID string) (*block.Metrics, *p2p.Metrics)
 
 // DefaultMetricsProvider returns Metrics build using Prometheus client library
 // if Prometheus is enabled. Otherwise, it returns no-op Metrics.
-func DefaultMetricsProvider(config *cmcfg.InstrumentationConfig) MetricsProvider {
+func DefaultMetricsProvider(config *config.InstrumentationConfig) MetricsProvider {
 	return func(chainID string) (*block.Metrics, *p2p.Metrics) {
 		if config.Prometheus {
 			return block.PrometheusMetrics(config.Namespace, "chain_id", chainID),

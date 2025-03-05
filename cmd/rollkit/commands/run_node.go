@@ -8,15 +8,14 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
-	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
@@ -32,6 +31,7 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 	rollconf "github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/node"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
@@ -39,9 +39,6 @@ import (
 )
 
 var (
-	// initialize the config with the cometBFT defaults
-	config = cometconf.DefaultConfig()
-
 	// initialize the rollkit node configuration
 	nodeConfig = rollconf.DefaultNodeConfig
 
@@ -92,16 +89,19 @@ func NewRunNodeCmd() *cobra.Command {
 			return initFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			genDocProvider := cometnode.DefaultGenesisDocProviderFunc(config)
+			genDocProvider := RollkitGenesisDocProviderFunc(nodeConfig)
 			genDoc, err := genDocProvider()
 			if err != nil {
 				return err
 			}
-			nodeKey, err := cometp2p.LoadOrGenNodeKey(config.NodeKeyFile())
+			nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
+			nodeKey, err := cometp2p.LoadOrGenNodeKey(nodeKeyFile)
 			if err != nil {
 				return err
 			}
-			pval := cometprivval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
+			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
+			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 			p2pKey, err := rolltypes.GetNodeKey(nodeKey)
 			if err != nil {
 				return err
@@ -111,19 +111,8 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// default to socket connections for remote clients
-			if len(config.ABCI) == 0 {
-				config.ABCI = "socket"
-			}
-
-			// get the node configuration
-			rollconf.GetNodeConfig(&nodeConfig, config)
-			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
-				return err
-			}
-
 			// initialize the metrics
-			metrics := node.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
+			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
 			// Only start mock DA server if the user did not provide --rollkit.da_address
@@ -164,13 +153,9 @@ func NewRunNodeCmd() *cobra.Command {
 
 			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
 
-			// use noop proxy app by default
-			if !cmd.Flags().Lookup("proxy_app").Changed {
-				config.ProxyApp = "noop"
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			// Create a cancellable context for the node
+			ctx, cancel := context.WithCancel(cmd.Context())
+			defer cancel() // Ensure context is cancelled when command exits
 
 			kvExecutor := createDirectKVExecutor()
 			dummySequencer := coresequencer.NewDummySequencer()
@@ -192,40 +177,103 @@ func NewRunNodeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create new rollkit node: %w", err)
 			}
 
-			// Start the node
-			if err := rollnode.Start(ctx); err != nil {
+			// Create error channel and signal channel
+			errCh := make(chan error, 1)
+			shutdownCh := make(chan struct{})
+
+			// Start the node in a goroutine
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						err := fmt.Errorf("node panicked: %v", r)
+						logger.Error("Recovered from panic in node", "panic", r)
+						select {
+						case errCh <- err:
+						default:
+							logger.Error("Error channel full", "error", err)
+						}
+					}
+				}()
+
+				err := rollnode.Run(ctx)
+				select {
+				case errCh <- err:
+				default:
+					logger.Error("Error channel full", "error", err)
+				}
+			}()
+
+			// Wait a moment to check for immediate startup errors
+			time.Sleep(100 * time.Millisecond)
+
+			// Check if the node stopped immediately
+			select {
+			case err := <-errCh:
 				return fmt.Errorf("failed to start node: %w", err)
+			default:
+				// This is expected - node is running
+				logger.Info("Started node")
 			}
 
-			// TODO: Do rollkit nodes not have information about them? CometBFT has node.switch.NodeInfo()
-			logger.Info("Started node")
-
 			// Stop upon receiving SIGTERM or CTRL-C.
-			cometos.TrapSignal(logger, func() {
-				if rollnode.IsRunning() {
-					if err := rollnode.Stop(ctx); err != nil {
-						logger.Error("unable to stop the node", "error", err)
-					}
-				}
-			})
+			go func() {
+				cometos.TrapSignal(logger, func() {
+					logger.Info("Received shutdown signal")
+					cancel() // Cancel context to stop the node
+					close(shutdownCh)
+				})
+			}()
 
 			// Check if we are running in CI mode
 			inCI, err := cmd.Flags().GetBool("ci")
 			if err != nil {
 				return err
 			}
+
 			if !inCI {
-				// Block forever to force user to stop node
-				select {}
+				// Block until either the node exits with an error or a shutdown signal is received
+				select {
+				case err := <-errCh:
+					return fmt.Errorf("node exited with error: %w", err)
+				case <-shutdownCh:
+					// Wait for the node to clean up
+					select {
+					case <-time.After(5 * time.Second):
+						logger.Info("Node shutdown timed out")
+					case err := <-errCh:
+						if err != nil && !errors.Is(err, context.Canceled) {
+							logger.Error("Error during shutdown", "error", err)
+						}
+					}
+					return nil
+				}
 			}
 
-			// CI mode. Wait for 5s and then verify the node is running before calling stop node.
-			time.Sleep(5 * time.Second)
-			if !rollnode.IsRunning() {
-				return fmt.Errorf("node is not running")
+			// CI mode. Wait for 1s and then verify the node is running before cancelling context
+			time.Sleep(1 * time.Second)
+
+			// Check if the node is still running
+			select {
+			case err := <-errCh:
+				return fmt.Errorf("node stopped unexpectedly in CI mode: %w", err)
+			default:
+				// Node is still running, which is what we want
+				logger.Info("Node running successfully in CI mode, shutting down")
 			}
 
-			return rollnode.Stop(ctx)
+			// Cancel the context to stop the node
+			cancel()
+
+			// Wait for the node to exit with a timeout
+			select {
+			case <-time.After(5 * time.Second):
+				return fmt.Errorf("node shutdown timed out in CI mode")
+			case err := <-errCh:
+				if err != nil && !errors.Is(err, context.Canceled) {
+					return fmt.Errorf("error during node shutdown in CI mode: %w", err)
+				}
+				return nil
+			}
 		},
 	}
 
@@ -240,7 +288,6 @@ func addNodeFlags(cmd *cobra.Command) {
 	// Add cometBFT flags
 	cmtcmd.AddNodeFlags(cmd)
 
-	cmd.Flags().String("transport", config.ABCI, "specify abci transport (socket | grpc)")
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// Add Rollkit flags
@@ -308,8 +355,8 @@ func createDirectKVExecutor() *testExecutor.KVExecutor {
 // note that such a change would also require changing the cosmos-sdk
 func initFiles() error {
 	// Generate the private validator config files
-	cometprivvalKeyFile := config.PrivValidatorKeyFile()
-	cometprivvalStateFile := config.PrivValidatorStateFile()
+	cometprivvalKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
+	cometprivvalStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
 	var pv *cometprivval.FilePV
 	if cometos.FileExists(cometprivvalKeyFile) {
 		pv = cometprivval.LoadFilePV(cometprivvalKeyFile, cometprivvalStateFile)
@@ -323,7 +370,7 @@ func initFiles() error {
 	}
 
 	// Generate the node key config files
-	nodeKeyFile := config.NodeKeyFile()
+	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
 	if cometos.FileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
@@ -334,7 +381,7 @@ func initFiles() error {
 	}
 
 	// Generate the genesis file
-	genFile := config.GenesisFile()
+	genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
 	if cometos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
@@ -373,15 +420,10 @@ func parseConfig(cmd *cobra.Command) error {
 			return err
 		}
 	}
-	config.RootDir = home
+	nodeConfig.RootDir = home
 
 	// Validate the root directory
-	cometconf.EnsureRoot(config.RootDir)
-
-	// Validate the config
-	if err := config.ValidateBasic(); err != nil {
-		return fmt.Errorf("error in config file: %w", err)
-	}
+	rollconf.EnsureRoot(nodeConfig.RootDir)
 
 	// Parse the flags
 	if err := parseFlags(cmd); err != nil {
@@ -398,7 +440,7 @@ func parseFlags(cmd *cobra.Command) error {
 	}
 
 	// unmarshal viper into config
-	err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+	err := v.Unmarshal(&nodeConfig, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "mapstructure"
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
@@ -409,15 +451,20 @@ func parseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to decode command flags into config: %w", err)
 	}
 
-	// special handling for the p2p external address, due to inconsistencies in mapstructure and flag name
-	if cmd.Flags().Lookup("p2p.external-address").Changed {
-		config.P2P.ExternalAddress = viper.GetString("p2p.external-address")
-	}
-
 	// handle rollkit node configuration
 	if err := nodeConfig.GetViperConfig(v); err != nil {
 		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
 	}
 
 	return nil
+}
+
+// RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
+// using nodeConfig instead of config.
+func RollkitGenesisDocProviderFunc(nodeConfig rollconf.NodeConfig) func() (*comettypes.GenesisDoc, error) {
+	return func() (*comettypes.GenesisDoc, error) {
+		// Construct the genesis file path using rootify
+		genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
+		return comettypes.GenesisDocFromFile(genFile)
+	}
 }
