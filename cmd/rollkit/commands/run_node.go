@@ -274,8 +274,8 @@ func NewRunNodeCmd() *cobra.Command {
 				}
 			}
 
-			// CI mode. Wait for 5s and then verify the node is running before cancelling context
-			time.Sleep(5 * time.Second)
+			// CI mode. Wait for 1s and then verify the node is running before cancelling context
+			time.Sleep(1 * time.Second)
 
 			// Check if the node is still running
 			select {
