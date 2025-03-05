@@ -369,11 +369,14 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir, err := os.MkdirTemp("", "rollkit-test")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		assert.NoError(t, err)
+	}()
 
 	// Create the config directory
 	configDir := filepath.Join(tempDir, "config")
-	err = os.MkdirAll(configDir, 0755)
+	err = os.MkdirAll(configDir, 0750)
 	assert.NoError(t, err)
 
 	// Create a simple test genesis file
@@ -397,7 +400,7 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 	}`, testChainID)
 
 	genFile := filepath.Join(configDir, "genesis.json")
-	err = os.WriteFile(genFile, []byte(genFileContent), 0644)
+	err = os.WriteFile(genFile, []byte(genFileContent), 0600)
 	assert.NoError(t, err)
 
 	// Create a test node config
@@ -423,14 +426,17 @@ func TestInitFiles(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir, err := os.MkdirTemp("", "rollkit-test")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		assert.NoError(t, err)
+	}()
 
 	// Create the necessary subdirectories
 	configDir := filepath.Join(tempDir, "config")
 	dataDir := filepath.Join(tempDir, "data")
-	err = os.MkdirAll(configDir, 0755)
+	err = os.MkdirAll(configDir, 0750)
 	assert.NoError(t, err)
-	err = os.MkdirAll(dataDir, 0755)
+	err = os.MkdirAll(dataDir, 0750)
 	assert.NoError(t, err)
 
 	// Set the nodeConfig to use the temporary directory
