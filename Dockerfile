@@ -1,6 +1,6 @@
 ## prep the base image.
 #
-FROM golang as base
+FROM golang AS base
 
 RUN apt update && \
 	apt-get install -y \
@@ -9,20 +9,19 @@ RUN apt update && \
 	curl
 
 # enable faster module downloading.
-ENV GOPROXY https://proxy.golang.org
+ENV GOPROXY=https://proxy.golang.org
 
 ## builder stage.
 #
-FROM base as builder
+FROM base AS builder
 
 WORKDIR /rollkit
 
-# cache dependencies.
-COPY ./go.mod . 
-COPY ./go.sum . 
-RUN go mod download
-
+# Copiar todo el código fuente primero
 COPY . .
+
+# Ahora descargar las dependencias
+RUN go mod download
 
 RUN make install
 
