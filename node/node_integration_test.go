@@ -10,11 +10,11 @@ import (
 
 	"cosmossdk.io/log"
 	testutils "github.com/celestiaorg/utils/test"
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
+	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -65,7 +65,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
 	)
 	require.NoError(s.T(), err)

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmcfg "github.com/cometbft/cometbft/config"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
@@ -71,7 +70,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		p2pKey,
 		signingKey,
 		genesis,
-		DefaultMetricsProvider(cmcfg.DefaultInstrumentationConfig()),
+		DefaultMetricsProvider(config.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),
 	)
 	require.NoError(t, err)

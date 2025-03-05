@@ -62,10 +62,10 @@ type NodeConfig struct {
 	DAAuthToken        string `mapstructure:"da_auth_token"`
 	Light              bool   `mapstructure:"light"`
 	HeaderConfig       `mapstructure:",squash"`
-	Instrumentation    *cmcfg.InstrumentationConfig `mapstructure:"instrumentation"`
-	DAGasPrice         float64                      `mapstructure:"da_gas_price"`
-	DAGasMultiplier    float64                      `mapstructure:"da_gas_multiplier"`
-	DASubmitOptions    string                       `mapstructure:"da_submit_options"`
+	Instrumentation    *InstrumentationConfig `mapstructure:"instrumentation"`
+	DAGasPrice         float64                `mapstructure:"da_gas_price"`
+	DAGasMultiplier    float64                `mapstructure:"da_gas_multiplier"`
+	DASubmitOptions    string                 `mapstructure:"da_submit_options"`
 
 	// CLI flags
 	DANamespace       string `mapstructure:"da_namespace"`
@@ -113,7 +113,13 @@ func GetNodeConfig(nodeConf *NodeConfig, cmConf *cmcfg.Config) {
 			nodeConf.P2P.Seeds = cmConf.P2P.Seeds
 		}
 		if cmConf.Instrumentation != nil {
-			nodeConf.Instrumentation = cmConf.Instrumentation
+			// Convert CometBFT InstrumentationConfig to Rollkit InstrumentationConfig
+			nodeConf.Instrumentation = &InstrumentationConfig{
+				Prometheus:           cmConf.Instrumentation.Prometheus,
+				PrometheusListenAddr: cmConf.Instrumentation.PrometheusListenAddr,
+				MaxOpenConnections:   cmConf.Instrumentation.MaxOpenConnections,
+				Namespace:            "rollkit", // Use Rollkit namespace instead of CometBFT's
+			}
 		}
 	}
 }

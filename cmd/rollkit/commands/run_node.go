@@ -130,7 +130,7 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// initialize the metrics
-			metrics := node.DefaultMetricsProvider(cometconf.DefaultInstrumentationConfig())
+			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
 			// Only start mock DA server if the user did not provide --rollkit.da_address
@@ -290,8 +290,8 @@ func NewRunNodeCmd() *cobra.Command {
 				}
 			}
 
-			// CI mode. Wait for 5s and then verify the node is running before cancelling context
-			time.Sleep(5 * time.Second)
+			// CI mode. Wait for 1s and then verify the node is running before cancelling context
+			time.Sleep(1 * time.Second)
 
 			// Check if the node is still running
 			select {
