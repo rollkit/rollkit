@@ -30,8 +30,8 @@ const LastSubmittedHeightKey = "last submitted"
 // rollkit is able to skip duplicate headers so this shouldn't affect full nodes.
 // TODO(tzdybal): we shouldn't try to push all pending headers at once; this should depend on max blob size
 type PendingHeaders struct {
-	store  store.Store
 	logger log.Logger
+	store  store.Store
 
 	// lastSubmittedHeight holds information about last header successfully submitted to DA
 	lastSubmittedHeight atomic.Uint64
@@ -79,6 +79,11 @@ func (pb *PendingHeaders) getPendingHeaders(ctx context.Context) ([]*types.Signe
 		if err != nil {
 			// return as much as possible + error information
 			return headers, err
+		}
+		_, err = header.ToProto() // TODO: this is a problem, we should not be marshalling the header to proto here
+		if err != nil {
+			pb.logger.Error("failed to transform header to proto", "error", err)
+			continue
 		}
 		headers = append(headers, header)
 	}
