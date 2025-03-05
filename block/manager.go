@@ -1391,13 +1391,13 @@ daSubmitRetryLoop:
 		for i, header := range headersToSubmit {
 			headerPb, err := header.ToProto()
 			if err != nil {
-				m.logger.Error("failed to marshal header", "error", err)
-				continue
+				// do we drop the header from attempting to be submitted?
+				return fmt.Errorf("failed to transform header to proto: %w", err)
 			}
 			headersBz[i], err = headerPb.Marshal()
 			if err != nil {
-				m.logger.Error("failed to marshal header", "error", err)
-				continue
+				// do we drop the header from attempting to be submitted?
+				return fmt.Errorf("failed to marshal header: %w", err)
 			}
 		}
 
