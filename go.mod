@@ -25,6 +25,7 @@ require (
 	github.com/rollkit/go-execution v0.2.3
 	github.com/rollkit/go-sequencing v0.4.1
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
+	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
@@ -32,7 +33,10 @@ require (
 	google.golang.org/protobuf v1.36.5
 )
 
-replace github.com/rollkit/rollkit/core => ./core
+replace (
+	github.com/rollkit/rollkit/core => ./core
+	github.com/rollkit/rollkit/da => ./da
+)
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect

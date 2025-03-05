@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 
 	rollkitconfig "github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -53,12 +54,15 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyClient,
 		p2pKey,
 		signingKey,
 		genesis,
