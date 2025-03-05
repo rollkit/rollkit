@@ -116,11 +116,6 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// get the node configuration
-			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
-				return err
-			}
-
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
