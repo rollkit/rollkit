@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// KVExecutor is a simple in-memory key-value store that implements the Executor interface for testing purposes.
-// It maintains an in-memory store and a mempool for transactions. I also add fields to track genesis initialization.
-
+// KVExecutor is a simple in-memory key-value store that implements the Executor interface
+// for testing purposes. It maintains an in-memory store and a mempool for transactions.
+// It also includes fields to track genesis initialization.
 type KVExecutor struct {
 	store   map[string]string
 	mu      sync.Mutex

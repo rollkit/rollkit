@@ -315,56 +315,6 @@ func TestStartMockSequencerServer(t *testing.T) {
 	}
 }
 
-func TestStartMockExecutorServerGRPC(t *testing.T) {
-	tests := []struct {
-		name        string
-		execAddress string
-		expectedErr error
-	}{
-		{
-			name:        "Success",
-			execAddress: "localhost:50052",
-			expectedErr: nil,
-		},
-		{
-			name:        "Invalid URL",
-			execAddress: "://invalid",
-			expectedErr: &net.OpError{},
-		},
-		{
-			name:        "Server Already Running",
-			execAddress: "localhost:50052",
-			expectedErr: errExecutorAlreadyRunning,
-		},
-	}
-
-	stopFns := []func(){}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv, err := tryStartMockExecutorServerGRPC(tt.execAddress)
-			if srv != nil {
-				stopFns = append(stopFns, func() {
-					srv.Stop()
-				})
-			}
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
-	}
-
-	for _, fn := range stopFns {
-		fn()
-	}
-}
-
 func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir, err := os.MkdirTemp("", "rollkit-test")
