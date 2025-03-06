@@ -158,7 +158,7 @@ func NewRunNodeCmd() *cobra.Command {
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
 
-			kvExecutor := createDirectKVExecutor()
+			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
 
 			// create the rollkit node
@@ -344,7 +344,7 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 }
 
 // createDirectKVExecutor creates a KVExecutor for testing
-func createDirectKVExecutor() *testExecutor.KVExecutor {
+func createDirectKVExecutor(ctx context.Context) *testExecutor.KVExecutor {
 	kvExecutor := testExecutor.NewKVExecutor()
 
 	// Pre-populate with some test transactions
@@ -357,11 +357,13 @@ func createDirectKVExecutor() *testExecutor.KVExecutor {
 	httpAddr := viper.GetString("kv-executor-http")
 	if httpAddr != "" {
 		httpServer := testExecutor.NewHTTPServer(kvExecutor, httpAddr)
+		logger.Info("Creating KV Executor HTTP server", "address", httpAddr)
 		go func() {
-			fmt.Printf("Starting KV Executor HTTP server on %s\n", httpAddr)
-			if err := httpServer.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				fmt.Printf("KV Executor HTTP server error: %v\n", err)
+			logger.Info("Starting KV Executor HTTP server", "address", httpAddr)
+			if err := httpServer.Start(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Error("KV Executor HTTP server error", "error", err)
 			}
+			logger.Info("KV Executor HTTP server stopped", "address", httpAddr)
 		}()
 	}
 

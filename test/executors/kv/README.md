@@ -20,6 +20,14 @@ To disable the HTTP server, set the flag to an empty string:
 ./rollkit run --kv-executor-http=
 ```
 
+### Server Lifecycle
+
+The HTTP server starts when the Rollkit node starts and is automatically shut down when the node stops (including when receiving CTRL+C or other termination signals). The server is context-aware, meaning:
+
+1. It gracefully handles in-progress requests during shutdown
+2. It automatically shuts down when the node's context is cancelled
+3. There's a 5-second timeout for shutdown to complete
+
 ### API Endpoints
 
 The HTTP server provides the following endpoints:

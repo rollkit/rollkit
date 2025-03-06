@@ -1,12 +1,16 @@
 package executor
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleTx(t *testing.T) {
@@ -306,4 +310,79 @@ func TestHTTPServerStartStop(t *testing.T) {
 	// Note: We don't test Start() and Stop() methods directly
 	// as they actually bind to ports, which can be problematic in unit tests.
 	// In a real test environment, you might want to use integration tests for these.
+
+	// Test with context (minimal test just to verify it compiles)
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Just create a mock test to ensure the context parameter is accepted
+	// Don't actually start the server in the test
+	testServer := &HTTPServer{
+		server: &http.Server{
+			Addr: ":0", // Use a random port
+		},
+		executor: exec,
+	}
+
+	// Just verify the method signature works
+	_ = testServer.Start
+}
+
+// TestHTTPServerContextCancellation tests that the server shuts down properly when the context is cancelled
+func TestHTTPServerContextCancellation(t *testing.T) {
+	exec := NewKVExecutor()
+
+	// Use a random available port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to find available port: %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close() // Close the listener to free the port
+
+	serverAddr := fmt.Sprintf("127.0.0.1:%d", port)
+	server := NewHTTPServer(exec, serverAddr)
+
+	// Create a context with cancel function
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start the server
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Start(ctx)
+	}()
+
+	// Give it time to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Send a request to confirm it's running
+	client := &http.Client{Timeout: 1 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("http://%s/store", serverAddr))
+	if err != nil {
+		t.Fatalf("Failed to connect to server: %v", err)
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Cancel the context to shut down the server
+	cancel()
+
+	// Wait for shutdown to complete with timeout
+	select {
+	case err := <-errCh:
+		if err != nil && err != http.ErrServerClosed {
+			t.Fatalf("Server shutdown error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Server shutdown timed out")
+	}
+
+	// Verify server is actually shutdown by attempting a new connection
+	_, err = client.Get(fmt.Sprintf("http://%s/store", serverAddr))
+	if err == nil {
+		t.Fatal("Expected connection error after shutdown, but got none")
+	}
 }

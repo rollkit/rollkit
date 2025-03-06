@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,9 +36,37 @@ func NewHTTPServer(executor *KVExecutor, listenAddr string) *HTTPServer {
 }
 
 // Start begins listening for HTTP requests
-func (hs *HTTPServer) Start() error {
-	fmt.Printf("KV Executor HTTP server starting on %s\n", hs.server.Addr)
-	return hs.server.ListenAndServe()
+func (hs *HTTPServer) Start(ctx context.Context) error {
+	// Start the server in a goroutine
+	errCh := make(chan error, 1)
+	go func() {
+		fmt.Printf("KV Executor HTTP server starting on %s\n", hs.server.Addr)
+		if err := hs.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
+
+	// Monitor for context cancellation
+	go func() {
+		<-ctx.Done()
+		// Create a timeout context for shutdown
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		fmt.Printf("KV Executor HTTP server shutting down on %s\n", hs.server.Addr)
+		if err := hs.server.Shutdown(shutdownCtx); err != nil {
+			fmt.Printf("KV Executor HTTP server shutdown error: %v\n", err)
+		}
+	}()
+
+	// Check if the server started successfully
+	select {
+	case err := <-errCh:
+		return err
+	case <-time.After(100 * time.Millisecond): // Give it a moment to start
+		// Server started successfully
+		return nil
+	}
 }
 
 // Stop shuts down the HTTP server
