@@ -62,51 +62,51 @@ const (
 type NodeConfig struct {
 	// parameters below are translated from existing config
 	RootDir string    `mapstructure:"home"`
-	DBPath  string    `mapstructure:"db_path"`
+	DBPath  string    `mapstructure:"rollkit.db_path"`
 	P2P     P2PConfig `mapstructure:"p2p"`
 	// parameters below are Rollkit specific and read from config
-	Aggregator         bool `mapstructure:"aggregator"`
+	Aggregator         bool `mapstructure:"rollkit.aggregator"`
 	BlockManagerConfig `mapstructure:",squash"`
-	DAAddress          string `mapstructure:"da_address"`
-	DAAuthToken        string `mapstructure:"da_auth_token"`
-	Light              bool   `mapstructure:"light"`
+	DAAddress          string `mapstructure:"rollkit.da_address"`
+	DAAuthToken        string `mapstructure:"rollkit.da_auth_token"`
+	Light              bool   `mapstructure:"rollkit.light"`
 	HeaderConfig       `mapstructure:",squash"`
 	Instrumentation    *InstrumentationConfig `mapstructure:"instrumentation"`
-	DAGasPrice         float64                `mapstructure:"da_gas_price"`
-	DAGasMultiplier    float64                `mapstructure:"da_gas_multiplier"`
-	DASubmitOptions    string                 `mapstructure:"da_submit_options"`
+	DAGasPrice         float64                `mapstructure:"rollkit.da_gas_price"`
+	DAGasMultiplier    float64                `mapstructure:"rollkit.da_gas_multiplier"`
+	DASubmitOptions    string                 `mapstructure:"rollkit.da_submit_options"`
 
 	// CLI flags
-	DANamespace       string `mapstructure:"da_namespace"`
-	SequencerAddress  string `mapstructure:"sequencer_address"`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
+	DANamespace       string `mapstructure:"rollkit.da_namespace"`
+	SequencerAddress  string `mapstructure:"rollkit.sequencer_address"`
+	SequencerRollupID string `mapstructure:"rollkit.sequencer_rollup_id"`
 
-	ExecutorAddress string `mapstructure:"executor_address"`
+	ExecutorAddress string `mapstructure:"rollkit.executor_address"`
 }
 
 // HeaderConfig allows node to pass the initial trusted header hash to start the header exchange service
 type HeaderConfig struct {
-	TrustedHash string `mapstructure:"trusted_hash"`
+	TrustedHash string `mapstructure:"rollkit.trusted_hash"`
 }
 
 // BlockManagerConfig consists of all parameters required by BlockManagerConfig
 type BlockManagerConfig struct {
 	// BlockTime defines how often new blocks are produced
-	BlockTime time.Duration `mapstructure:"block_time"`
+	BlockTime time.Duration `mapstructure:"rollkit.block_time"`
 	// DABlockTime informs about block time of underlying data availability layer
-	DABlockTime time.Duration `mapstructure:"da_block_time"`
+	DABlockTime time.Duration `mapstructure:"rollkit.da_block_time"`
 	// DAStartHeight allows skipping first DAStartHeight-1 blocks when querying for blocks.
-	DAStartHeight uint64 `mapstructure:"da_start_height"`
+	DAStartHeight uint64 `mapstructure:"rollkit.da_start_height"`
 	// DAMempoolTTL is the number of DA blocks until transaction is dropped from the mempool.
-	DAMempoolTTL uint64 `mapstructure:"da_mempool_ttl"`
+	DAMempoolTTL uint64 `mapstructure:"rollkit.da_mempool_ttl"`
 	// MaxPendingBlocks defines limit of blocks pending DA submission. 0 means no limit.
 	// When limit is reached, aggregator pauses block production.
-	MaxPendingBlocks uint64 `mapstructure:"max_pending_blocks"`
+	MaxPendingBlocks uint64 `mapstructure:"rollkit.max_pending_blocks"`
 	// LazyAggregator defines whether new blocks are produced in lazy mode
-	LazyAggregator bool `mapstructure:"lazy_aggregator"`
+	LazyAggregator bool `mapstructure:"rollkit.lazy_aggregator"`
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
-	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
+	LazyBlockTime time.Duration `mapstructure:"rollkit.lazy_block_time"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.

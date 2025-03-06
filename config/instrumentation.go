@@ -7,16 +7,16 @@ type InstrumentationConfig struct {
 	// When true, Prometheus metrics are served under /metrics on
 	// PrometheusListenAddr.
 	// Check out the documentation for the list of available metrics.
-	Prometheus bool `mapstructure:"prometheus"`
+	Prometheus bool `mapstructure:"rollkit.instrumentation.prometheus"`
 
 	// Address to listen for Prometheus collector(s) connections.
-	PrometheusListenAddr string `mapstructure:"prometheus_listen_addr"`
+	PrometheusListenAddr string `mapstructure:"rollkit.instrumentation.prometheus_listen_addr"`
 
 	// Maximum number of simultaneous connections.
 	// If you want to accept a larger number than the default, make sure
 	// you increase your OS limits.
 	// 0 - unlimited.
-	MaxOpenConnections int `mapstructure:"max_open_connections"`
+	MaxOpenConnections int `mapstructure:"rollkit.instrumentation.max_open_connections"`
 
 	// Instrumentation namespace.
 	Namespace string `mapstructure:"namespace"`
