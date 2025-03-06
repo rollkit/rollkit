@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
@@ -304,9 +303,6 @@ func NewRunNodeCmd() *cobra.Command {
 // addNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a rollkit node
 func addNodeFlags(cmd *cobra.Command) {
-	// Add cometBFT flags
-	cmtcmd.AddNodeFlags(cmd)
-
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// Add Rollkit flags

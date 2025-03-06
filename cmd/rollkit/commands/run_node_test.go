@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rollkit/go-da"
@@ -23,19 +22,17 @@ import (
 )
 
 func TestParseFlags(t *testing.T) {
+	// Initialize nodeConfig with default values to avoid issues with instrument
+	nodeConfig = rollconf.DefaultNodeConfig
+
 	flags := []string{
-		"--consensus.create_empty_blocks", "true",
-		"--consensus.create_empty_blocks_interval", "10s",
-		"--consensus.double_sign_check_height", "10",
-		"--db_backend", "cleverdb",
-		"--db_dir", "data2",
-		"--moniker", "yarik-playground2",
-		"--p2p.laddr", "tcp://127.0.0.1:27000",
-		"--p2p.pex",
-		"--p2p.private_peer_ids", "1,2,3",
-		"--p2p.seed_mode",
-		"--p2p.unconditional_peer_ids", "4,5,6",
-		"--priv_validator_laddr", "tcp://127.0.0.1:27003",
+		// P2P flags
+		"--p2p.listen_address", "tcp://127.0.0.1:27000",
+		"--p2p.seeds", "node1@127.0.0.1:27001,node2@127.0.0.1:27002",
+		"--p2p.blocked_peers", "node3@127.0.0.1:27003,node4@127.0.0.1:27004",
+		"--p2p.allowed_peers", "node5@127.0.0.1:27005,node6@127.0.0.1:27006",
+
+		// Rollkit flags
 		"--rollkit.aggregator=false",
 		"--rollkit.block_time", "2s",
 		"--rollkit.da_address", "http://127.0.0.1:27005",
@@ -50,10 +47,16 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.lazy_block_time", "2m",
 		"--rollkit.light",
 		"--rollkit.max_pending_blocks", "100",
-		"--rpc.grpc_laddr", "tcp://127.0.0.1:27006",
-		"--rpc.laddr", "tcp://127.0.0.1:27007",
-		"--rpc.pprof_laddr", "tcp://127.0.0.1:27008",
-		"--rpc.unsafe",
+		"--rollkit.trusted_hash", "abcdef1234567890",
+		"--rollkit.db_path", "custom/db/path",
+		"--rollkit.sequencer_address", "seq@127.0.0.1:27007",
+		"--rollkit.sequencer_rollup_id", "test-rollup",
+		"--rollkit.executor_address", "exec@127.0.0.1:27008",
+		"--rollkit.da_submit_options", "custom-options",
+
+		"--instrumentation.prometheus", "false",
+		"--instrumentation.prometheus_listen_addr", ":26660",
+		"--instrumentation.max_open_connections", "3",
 	}
 
 	args := append([]string{"start"}, flags...)
@@ -73,19 +76,11 @@ func TestParseFlags(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
-		// CometBFT fields, available in viper but not in nodeConfig
-		// TODO: decide if we want to add them to nodeConfig
-		{"CreateEmptyBlocks", viper.GetBool("consensus.create_empty_blocks"), true},
-		{"CreateEmptyBlocksInterval", viper.GetDuration("consensus.create_empty_blocks_interval"), 10 * time.Second},
-		{"DoubleSignCheckHeight", viper.GetInt64("consensus.double_sign_check_height"), int64(10)},
-		{"DBBackend", viper.GetString("db_backend"), "cleverdb"},
-		{"DBDir", viper.GetString("db_dir"), "data2"},
-		{"Moniker", viper.GetString("moniker"), "yarik-playground2"},
-		{"PexReactor", viper.GetBool("p2p.pex"), true},
-		{"PrivatePeerIDs", viper.GetString("p2p.private_peer_ids"), "1,2,3"},
-		{"SeedMode", viper.GetBool("p2p.seed_mode"), true},
-		{"UnconditionalPeerIDs", viper.GetString("p2p.unconditional_peer_ids"), "4,5,6"},
-		{"PrivValidatorListenAddr", viper.GetString("priv_validator_laddr"), "tcp://127.0.0.1:27003"},
+		// P2P fields
+		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
+		{"Seeds", nodeConfig.P2P.Seeds, "node1@127.0.0.1:27001,node2@127.0.0.1:27002"},
+		{"BlockedPeers", nodeConfig.P2P.BlockedPeers, "node3@127.0.0.1:27003,node4@127.0.0.1:27004"},
+		{"AllowedPeers", nodeConfig.P2P.AllowedPeers, "node5@127.0.0.1:27005,node6@127.0.0.1:27006"},
 
 		// Rollkit fields
 		{"Aggregator", nodeConfig.Rollkit.Aggregator, false},
@@ -101,15 +96,17 @@ func TestParseFlags(t *testing.T) {
 		{"LazyAggregator", nodeConfig.Rollkit.LazyAggregator, true},
 		{"LazyBlockTime", nodeConfig.Rollkit.LazyBlockTime, 2 * time.Minute},
 		{"Light", nodeConfig.Rollkit.Light, true},
-		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
 		{"MaxPendingBlocks", nodeConfig.Rollkit.MaxPendingBlocks, uint64(100)},
+		{"TrustedHash", nodeConfig.Rollkit.TrustedHash, "abcdef1234567890"},
+		{"DBPath", nodeConfig.Rollkit.DBPath, "custom/db/path"},
+		{"SequencerAddress", nodeConfig.Rollkit.SequencerAddress, "seq@127.0.0.1:27007"},
+		{"SequencerRollupID", nodeConfig.Rollkit.SequencerRollupID, "test-rollup"},
+		{"ExecutorAddress", nodeConfig.Rollkit.ExecutorAddress, "exec@127.0.0.1:27008"},
+		{"DASubmitOptions", nodeConfig.Rollkit.DASubmitOptions, "custom-options"},
 
-		// RPC fields, available in viper but not in nodeConfig
-		// TODO: decide if we want to add them to nodeConfig
-		{"GRPCListenAddress", viper.GetString("rpc.grpc_laddr"), "tcp://127.0.0.1:27006"},
-		{"RPCListenAddress", viper.GetString("rpc.laddr"), "tcp://127.0.0.1:27007"},
-		{"PprofListenAddress", viper.GetString("rpc.pprof_laddr"), "tcp://127.0.0.1:27008"},
-		{"Unsafe", viper.GetBool("rpc.unsafe"), true},
+		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
+		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26660"},
+		{"MaxOpenConnections", nodeConfig.Instrumentation.MaxOpenConnections, 3},
 	}
 
 	for _, tc := range testCases {
