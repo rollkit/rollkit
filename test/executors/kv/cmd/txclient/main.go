@@ -63,7 +63,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	resp, err := http.Post(txURL, "text/plain", strings.NewReader(txData))
+	// Create a safe URL with the validated components
+	// This addresses the gosec G107 warning about using variable URLs
+	safeURL := url.URL{
+		Scheme: parsedURL.Scheme,
+		Host:   parsedURL.Host,
+		Path:   "/tx", // Hardcode the path
+	}
+
+	resp, err := http.Post(safeURL.String(), "text/plain", strings.NewReader(txData))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error sending transaction: %v\n", err)
 		os.Exit(1)
