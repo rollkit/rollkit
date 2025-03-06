@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -24,7 +25,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error connecting to server: %v\n", err)
 			os.Exit(1)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error closing response body: %v\n", err)
+			}
+		}()
 
 		buffer := new(bytes.Buffer)
 		_, err = buffer.ReadFrom(resp.Body)
@@ -49,13 +54,25 @@ func main() {
 	}
 
 	// Send transaction
-	url := *serverAddr + "/tx"
-	resp, err := http.Post(url, "text/plain", strings.NewReader(txData))
+	txURL := *serverAddr + "/tx"
+
+	// Validate the URL before making the request
+	parsedURL, err := url.Parse(txURL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		fmt.Fprintf(os.Stderr, "Invalid server URL: %s\n", txURL)
+		os.Exit(1)
+	}
+
+	resp, err := http.Post(txURL, "text/plain", strings.NewReader(txData))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error sending transaction: %v\n", err)
 		os.Exit(1)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error closing response body: %v\n", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusAccepted {
 		buffer := new(bytes.Buffer)
