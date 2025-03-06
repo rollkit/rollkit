@@ -46,6 +46,14 @@ const (
 	FlagSequencerRollupID = "rollkit.sequencer_rollup_id"
 	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
 	FlagExecutorAddress = "rollkit.executor_address"
+	// FlagDBPath is a flag for specifying the database path
+	FlagDBPath = "rollkit.db_path"
+	// FlagPrometheus is a flag for enabling Prometheus metrics
+	FlagPrometheus = "rollkit.instrumentation.prometheus"
+	// FlagPrometheusListenAddr is a flag for specifying the Prometheus listen address
+	FlagPrometheusListenAddr = "rollkit.instrumentation.prometheus_listen_addr"
+	// FlagMaxOpenConnections is a flag for specifying the maximum number of open connections
+	FlagMaxOpenConnections = "rollkit.instrumentation.max_open_connections"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -106,8 +114,8 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 	if v.IsSet("root_dir") {
 		nc.RootDir = v.GetString("root_dir")
 	}
-	if v.IsSet("db_path") {
-		nc.DBPath = v.GetString("db_path")
+	if v.IsSet(FlagDBPath) {
+		nc.DBPath = v.GetString(FlagDBPath)
 	}
 
 	if v.IsSet("p2p.laddr") {
@@ -137,6 +145,23 @@ func (nc *NodeConfig) GetViperConfig(v *viper.Viper) error {
 			nc.Instrumentation.MaxOpenConnections = v.GetInt("instrumentation.max_open_connections")
 		}
 		nc.Instrumentation.Namespace = "rollkit"
+	}
+
+	// Check for the new Instrumentation flags
+	if v.IsSet(FlagPrometheus) || v.IsSet(FlagPrometheusListenAddr) || v.IsSet(FlagMaxOpenConnections) {
+		if nc.Instrumentation == nil {
+			nc.Instrumentation = &InstrumentationConfig{}
+			nc.Instrumentation.Namespace = "rollkit"
+		}
+		if v.IsSet(FlagPrometheus) {
+			nc.Instrumentation.Prometheus = v.GetBool(FlagPrometheus)
+		}
+		if v.IsSet(FlagPrometheusListenAddr) {
+			nc.Instrumentation.PrometheusListenAddr = v.GetString(FlagPrometheusListenAddr)
+		}
+		if v.IsSet(FlagMaxOpenConnections) {
+			nc.Instrumentation.MaxOpenConnections = v.GetInt(FlagMaxOpenConnections)
+		}
 	}
 
 	if v.IsSet(FlagAggregator) {
@@ -225,4 +250,13 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagSequencerAddress, def.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 	cmd.Flags().String(FlagExecutorAddress, def.ExecutorAddress, "executor middleware address (host:port)")
+
+	// Add new flags for DBPath and Instrumentation
+	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
+
+	// Add instrumentation flags with default values from DefaultInstrumentationConfig
+	instrDef := DefaultInstrumentationConfig()
+	cmd.Flags().Bool(FlagPrometheus, instrDef.Prometheus, "enable Prometheus metrics")
+	cmd.Flags().String(FlagPrometheusListenAddr, instrDef.PrometheusListenAddr, "Prometheus metrics listen address")
+	cmd.Flags().Int(FlagMaxOpenConnections, instrDef.MaxOpenConnections, "maximum number of simultaneous connections for metrics")
 }
