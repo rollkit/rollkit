@@ -8,6 +8,8 @@ import (
 )
 
 const (
+	// FlagRootDir is a flag for specifying the root directory
+	FlagRootDir = "home"
 	// FlagAggregator is a flag for running node in aggregator mode
 	FlagAggregator = "rollkit.aggregator"
 	// FlagDAAddress is a flag for specifying the data availability layer address
@@ -59,7 +61,7 @@ const (
 // NodeConfig stores Rollkit node configuration.
 type NodeConfig struct {
 	// parameters below are translated from existing config
-	RootDir string    `mapstructure:"root_dir"`
+	RootDir string    `mapstructure:"home"`
 	DBPath  string    `mapstructure:"db_path"`
 	P2P     P2PConfig `mapstructure:"p2p"`
 	// parameters below are Rollkit specific and read from config

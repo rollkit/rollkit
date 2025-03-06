@@ -14,7 +14,6 @@ import (
 
 	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
@@ -451,24 +450,13 @@ func initFiles() error {
 }
 
 func parseConfig(cmd *cobra.Command) error {
-	// Set the root directory for the config to the home directory
-	home := os.Getenv("RKHOME")
-	if home == "" {
-		var err error
-		home, err = cmd.Flags().GetString(cometcli.HomeFlag)
-		if err != nil {
-			return err
-		}
-	}
-	nodeConfig.RootDir = home
-
-	// Validate the root directory
-	rollconf.EnsureRoot(nodeConfig.RootDir)
-
 	// Parse the flags
 	if err := parseFlags(cmd); err != nil {
 		return err
 	}
+
+	// Validate the root directory
+	rollconf.EnsureRoot(nodeConfig.RootDir)
 
 	return nil
 }
