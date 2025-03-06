@@ -72,7 +72,7 @@ List all key-value pairs in the store:
 Specify a different server address:
 
 ```bash
-./txclient -addr http://localhost:9090 -key mykey -value myvalue
+./txclient -addr http://localhost:40042 -key mykey -value myvalue
 ```
 
 ## Transaction Format
