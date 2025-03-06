@@ -475,11 +475,6 @@ func parseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to decode command flags into config: %w", err)
 	}
 
-	// handle rollkit node configuration
-	if err := nodeConfig.GetViperConfig(v); err != nil {
-		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
-	}
-
 	return nil
 }
 

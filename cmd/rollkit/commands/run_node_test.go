@@ -54,9 +54,9 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.executor_address", "exec@127.0.0.1:27008",
 		"--rollkit.da_submit_options", "custom-options",
 
-		"--instrumentation.prometheus", "false",
-		"--instrumentation.prometheus_listen_addr", ":26660",
-		"--instrumentation.max_open_connections", "3",
+		"--instrumentation.prometheus", "true",
+		"--instrumentation.prometheus_listen_addr", ":26665",
+		"--instrumentation.max_open_connections", "1",
 	}
 
 	args := append([]string{"start"}, flags...)
@@ -105,8 +105,8 @@ func TestParseFlags(t *testing.T) {
 		{"DASubmitOptions", nodeConfig.Rollkit.DASubmitOptions, "custom-options"},
 
 		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
-		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26660"},
-		{"MaxOpenConnections", nodeConfig.Instrumentation.MaxOpenConnections, 3},
+		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26665"},
+		{"MaxOpenConnections", nodeConfig.Instrumentation.MaxOpenConnections, 1},
 	}
 
 	for _, tc := range testCases {
