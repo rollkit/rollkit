@@ -68,7 +68,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// use aggregator by default if the flag is not specified explicitly
 			if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-				nodeConfig.Aggregator = true
+				nodeConfig.Rollkit.Aggregator = true
 			}
 
 			// Update log format if the flag is set
@@ -122,7 +122,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// Only start mock DA server if the user did not provide --rollkit.da_address
 			var daSrv *proxy.Server = nil
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
+				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.Rollkit.DAAddress, proxy.NewServer)
 				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
@@ -136,14 +136,14 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-				genDoc.ChainID = nodeConfig.SequencerRollupID
+				genDoc.ChainID = nodeConfig.Rollkit.SequencerRollupID
 			}
 			sequencerRollupID := genDoc.ChainID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
 			var seqSrv *grpc.Server = nil
 			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
+				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.Rollkit.SequencerAddress, sequencerRollupID)
 				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
@@ -159,7 +159,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// Only start mock Executor if the user did not provide --rollkit.executor_address
 			var execSrv *grpc.Server = nil
 			if !cmd.Flags().Lookup("rollkit.executor_address").Changed {
-				execSrv, err = tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
+				execSrv, err = tryStartMockExecutorServerGRPC(nodeConfig.Rollkit.ExecutorAddress)
 				if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock executor server: %w", err)
 				}
@@ -171,7 +171,7 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
-			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
+			logger.Info("Executor address", "address", nodeConfig.Rollkit.ExecutorAddress)
 
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())

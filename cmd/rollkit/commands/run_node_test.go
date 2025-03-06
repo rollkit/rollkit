@@ -88,21 +88,21 @@ func TestParseFlags(t *testing.T) {
 		{"PrivValidatorListenAddr", viper.GetString("priv_validator_laddr"), "tcp://127.0.0.1:27003"},
 
 		// Rollkit fields
-		{"Aggregator", nodeConfig.Aggregator, false},
-		{"BlockTime", nodeConfig.BlockManagerConfig.BlockTime, 2 * time.Second},
-		{"DAAddress", nodeConfig.DAAddress, "http://127.0.0.1:27005"},
-		{"DAAuthToken", nodeConfig.DAAuthToken, "token"},
-		{"DABlockTime", nodeConfig.BlockManagerConfig.DABlockTime, 20 * time.Second},
-		{"DAGasMultiplier", nodeConfig.DAGasMultiplier, 1.5},
-		{"DAGasPrice", nodeConfig.DAGasPrice, 1.5},
-		{"DAMempoolTTL", nodeConfig.BlockManagerConfig.DAMempoolTTL, uint64(10)},
-		{"DANamespace", nodeConfig.DANamespace, "namespace"},
-		{"DAStartHeight", nodeConfig.BlockManagerConfig.DAStartHeight, uint64(100)},
-		{"LazyAggregator", nodeConfig.BlockManagerConfig.LazyAggregator, true},
-		{"LazyBlockTime", nodeConfig.BlockManagerConfig.LazyBlockTime, 2 * time.Minute},
-		{"Light", nodeConfig.Light, true},
+		{"Aggregator", nodeConfig.Rollkit.Aggregator, false},
+		{"BlockTime", nodeConfig.Rollkit.BlockTime, 2 * time.Second},
+		{"DAAddress", nodeConfig.Rollkit.DAAddress, "http://127.0.0.1:27005"},
+		{"DAAuthToken", nodeConfig.Rollkit.DAAuthToken, "token"},
+		{"DABlockTime", nodeConfig.Rollkit.DABlockTime, 20 * time.Second},
+		{"DAGasMultiplier", nodeConfig.Rollkit.DAGasMultiplier, 1.5},
+		{"DAGasPrice", nodeConfig.Rollkit.DAGasPrice, 1.5},
+		{"DAMempoolTTL", nodeConfig.Rollkit.DAMempoolTTL, uint64(10)},
+		{"DANamespace", nodeConfig.Rollkit.DANamespace, "namespace"},
+		{"DAStartHeight", nodeConfig.Rollkit.DAStartHeight, uint64(100)},
+		{"LazyAggregator", nodeConfig.Rollkit.LazyAggregator, true},
+		{"LazyBlockTime", nodeConfig.Rollkit.LazyBlockTime, 2 * time.Minute},
+		{"Light", nodeConfig.Rollkit.Light, true},
 		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
-		{"MaxPendingBlocks", nodeConfig.BlockManagerConfig.MaxPendingBlocks, uint64(100)},
+		{"MaxPendingBlocks", nodeConfig.Rollkit.MaxPendingBlocks, uint64(100)},
 
 		// RPC fields, available in viper but not in nodeConfig
 		// TODO: decide if we want to add them to nodeConfig
@@ -145,8 +145,8 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Errorf("Error: %v", err)
 		}
 
-		if nodeConfig.Aggregator != validValues[i] {
-			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Aggregator)
+		if nodeConfig.Rollkit.Aggregator != validValues[i] {
+			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Rollkit.Aggregator)
 		}
 	}
 }
@@ -169,12 +169,12 @@ func TestCentralizedAddresses(t *testing.T) {
 		t.Fatalf("parseFlags error: %v", err)
 	}
 
-	if nodeConfig.DAAddress != "http://central-da:26657" {
-		t.Errorf("Expected nodeConfig.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DAAddress)
+	if nodeConfig.Rollkit.DAAddress != "http://central-da:26657" {
+		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.Rollkit.DAAddress)
 	}
 
-	if nodeConfig.SequencerAddress != "central-seq:26659" {
-		t.Errorf("Expected nodeConfig.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.SequencerAddress)
+	if nodeConfig.Rollkit.SequencerAddress != "central-seq:26659" {
+		t.Errorf("Expected nodeConfig.Rollkit.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.Rollkit.SequencerAddress)
 	}
 
 	// Also confirm that the sequencer rollup id flag is marked as changed

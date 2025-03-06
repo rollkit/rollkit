@@ -143,34 +143,34 @@ func newFullNode(
 
 // initBaseKV initializes the base key-value store.
 func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.Batching, error) {
-	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" { // this is used for testing
+	if nodeConfig.RootDir == "" && nodeConfig.Rollkit.DBPath == "" { // this is used for testing
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
 	}
-	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
+	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.Rollkit.DBPath, "rollkit")
 }
 
 func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
-	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
+	namespace := make([]byte, len(nodeConfig.Rollkit.DANamespace)/2)
+	_, err := hex.Decode(namespace, []byte(nodeConfig.Rollkit.DANamespace))
 	if err != nil {
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 
-	if nodeConfig.DAGasMultiplier < 0 {
+	if nodeConfig.Rollkit.DAGasMultiplier < 0 {
 		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
 	}
 
-	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
+	client, err := proxyda.NewClient(nodeConfig.Rollkit.DAAddress, nodeConfig.Rollkit.DAAuthToken)
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
 
 	var submitOpts []byte
-	if nodeConfig.DASubmitOptions != "" {
-		submitOpts = []byte(nodeConfig.DASubmitOptions)
+	if nodeConfig.Rollkit.DASubmitOptions != "" {
+		submitOpts = []byte(nodeConfig.Rollkit.DASubmitOptions)
 	}
-	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
+	return da.NewDAClient(client, nodeConfig.Rollkit.DAGasPrice, nodeConfig.Rollkit.DAGasMultiplier,
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
@@ -237,7 +237,7 @@ func initBlockManager(
 	blockManager, err := block.NewManager(
 		ctx,
 		signingKey,
-		nodeConfig.BlockManagerConfig,
+		nodeConfig.Rollkit,
 		rollGen,
 		store,
 		exec,
@@ -358,8 +358,8 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
-	if n.nodeConfig.Aggregator {
-		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.BlockTime)
+	if n.nodeConfig.Rollkit.Aggregator {
+		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Rollkit.BlockTime)
 
 		go n.blockManager.BatchRetrieveLoop(ctx)
 		go n.blockManager.AggregationLoop(ctx)

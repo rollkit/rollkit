@@ -35,7 +35,7 @@ func TestNodeConfigIntegration(t *testing.T) {
 					FlagDBPath: "./custom-db",
 				},
 				validate: func(t *testing.T, nc NodeConfig) {
-					assert.Equal(t, "./custom-db", nc.DBPath)
+					assert.Equal(t, "./custom-db", nc.Rollkit.DBPath)
 				},
 			},
 			{
@@ -103,9 +103,9 @@ func TestNodeConfigIntegration(t *testing.T) {
 		assert.NoError(t, nc.GetViperConfig(v))
 
 		// Verify that the values have been set correctly
-		assert.Equal(t, true, nc.Aggregator)
-		assert.Equal(t, "http://da.example.com", nc.DAAddress)
-		assert.Equal(t, 5*time.Second, nc.BlockTime)
+		assert.Equal(t, true, nc.Rollkit.Aggregator)
+		assert.Equal(t, "http://da.example.com", nc.Rollkit.DAAddress)
+		assert.Equal(t, 5*time.Second, nc.Rollkit.BlockTime)
 	})
 
 	// Subtest to test all flags together
@@ -157,26 +157,26 @@ func TestNodeConfigIntegration(t *testing.T) {
 		assert.NoError(t, nc.GetViperConfig(v))
 
 		// Verify all values
-		assert.Equal(t, true, nc.Aggregator)
-		assert.Equal(t, true, nc.LazyAggregator)
-		assert.Equal(t, "http://da.example.com", nc.DAAddress)
-		assert.Equal(t, "auth-token", nc.DAAuthToken)
-		assert.Equal(t, 5*time.Second, nc.BlockTime)
-		assert.Equal(t, 10*time.Second, nc.DABlockTime)
-		assert.Equal(t, 1.5, nc.DAGasPrice)
-		assert.Equal(t, 2.0, nc.DAGasMultiplier)
-		assert.Equal(t, uint64(100), nc.DAStartHeight)
-		assert.Equal(t, "namespace", nc.DANamespace)
-		assert.Equal(t, "options", nc.DASubmitOptions)
-		assert.Equal(t, true, nc.Light)
-		assert.Equal(t, "hash", nc.TrustedHash)
-		assert.Equal(t, uint64(50), nc.MaxPendingBlocks)
-		assert.Equal(t, uint64(20), nc.DAMempoolTTL)
-		assert.Equal(t, 30*time.Second, nc.LazyBlockTime)
-		assert.Equal(t, "localhost:8080", nc.SequencerAddress)
-		assert.Equal(t, "rollup-id", nc.SequencerRollupID)
-		assert.Equal(t, "localhost:9090", nc.ExecutorAddress)
-		assert.Equal(t, "custom/db/path", nc.DBPath)
+		assert.Equal(t, true, nc.Rollkit.Aggregator)
+		assert.Equal(t, true, nc.Rollkit.LazyAggregator)
+		assert.Equal(t, "http://da.example.com", nc.Rollkit.DAAddress)
+		assert.Equal(t, "auth-token", nc.Rollkit.DAAuthToken)
+		assert.Equal(t, 5*time.Second, nc.Rollkit.BlockTime)
+		assert.Equal(t, 10*time.Second, nc.Rollkit.DABlockTime)
+		assert.Equal(t, 1.5, nc.Rollkit.DAGasPrice)
+		assert.Equal(t, 2.0, nc.Rollkit.DAGasMultiplier)
+		assert.Equal(t, uint64(100), nc.Rollkit.DAStartHeight)
+		assert.Equal(t, "namespace", nc.Rollkit.DANamespace)
+		assert.Equal(t, "options", nc.Rollkit.DASubmitOptions)
+		assert.Equal(t, true, nc.Rollkit.Light)
+		assert.Equal(t, "hash", nc.Rollkit.TrustedHash)
+		assert.Equal(t, uint64(50), nc.Rollkit.MaxPendingBlocks)
+		assert.Equal(t, uint64(20), nc.Rollkit.DAMempoolTTL)
+		assert.Equal(t, 30*time.Second, nc.Rollkit.LazyBlockTime)
+		assert.Equal(t, "localhost:8080", nc.Rollkit.SequencerAddress)
+		assert.Equal(t, "rollup-id", nc.Rollkit.SequencerRollupID)
+		assert.Equal(t, "localhost:9090", nc.Rollkit.ExecutorAddress)
+		assert.Equal(t, "custom/db/path", nc.Rollkit.DBPath)
 
 		// P2P config
 		assert.Equal(t, "tcp://0.0.0.0:26656", nc.P2P.ListenAddress)
