@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/mitchellh/mapstructure"
 
 	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
@@ -20,7 +23,6 @@ import (
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"github.com/mitchellh/mapstructure"
 	"github.com/rollkit/go-da"
 	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
@@ -288,6 +290,9 @@ func addNodeFlags(cmd *cobra.Command) {
 
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
+	// This is for testing only
+	cmd.Flags().String("kv-executor-http", ":40042", "address for the KV executor HTTP server (empty to disable)")
+
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
 }
@@ -341,9 +346,22 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 func createDirectKVExecutor() *testExecutor.KVExecutor {
 	kvExecutor := testExecutor.NewKVExecutor()
 
+	// Pre-populate with some test transactions
 	for i := 0; i < 5; i++ {
-		tx := []byte(fmt.Sprintf("test transaction %d", i))
+		tx := []byte(fmt.Sprintf("test%d=value%d", i, i))
 		kvExecutor.InjectTx(tx)
+	}
+
+	// Start HTTP server for transaction submission if address is specified
+	httpAddr := viper.GetString("kv-executor-http")
+	if httpAddr != "" {
+		httpServer := testExecutor.NewHTTPServer(kvExecutor, httpAddr)
+		go func() {
+			fmt.Printf("Starting KV Executor HTTP server on %s\n", httpAddr)
+			if err := httpServer.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				fmt.Printf("KV Executor HTTP server error: %v\n", err)
+			}
+		}()
 	}
 
 	return kvExecutor

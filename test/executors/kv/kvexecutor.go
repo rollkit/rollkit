@@ -131,6 +131,12 @@ func (k *KVExecutor) SetFinal(ctx context.Context, blockHeight uint64) error {
 		return ctx.Err()
 	default:
 	}
+
+	// Validate blockHeight
+	if blockHeight == 0 {
+		return errors.New("invalid blockHeight: cannot be zero")
+	}
+
 	// This is a no-op for our simple test executor
 	return nil
 }
