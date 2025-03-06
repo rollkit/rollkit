@@ -184,7 +184,7 @@ func startNodeWithCleanup(t *testing.T, node Node) *NodeRunner {
 
 	// Register cleanup function
 	t.Cleanup(func() {
-		cleanUpNode(ctx, cancel, &wg, errCh, t)
+		cleanUpNode(cancel, &wg, errCh, t)
 	})
 
 	return &NodeRunner{
@@ -197,7 +197,7 @@ func startNodeWithCleanup(t *testing.T, node Node) *NodeRunner {
 }
 
 // cleanUpNode stops the node using context cancellation
-func cleanUpNode(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup, errCh chan error, t *testing.T) {
+func cleanUpNode(cancel context.CancelFunc, wg *sync.WaitGroup, errCh chan error, t *testing.T) {
 	// Cancel the context to stop the node
 	cancel()
 

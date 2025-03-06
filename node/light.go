@@ -28,14 +28,7 @@ type LightNode struct {
 	hSyncService *block.HeaderSyncService
 }
 
-func newLightNode(
-	ctx context.Context,
-	conf config.NodeConfig,
-	p2pKey crypto.PrivKey,
-	genesis *cmtypes.GenesisDoc,
-	metricsProvider MetricsProvider,
-	logger log.Logger,
-) (ln *LightNode, err error) {
+func newLightNode(conf config.NodeConfig, p2pKey crypto.PrivKey, genesis *cmtypes.GenesisDoc, metricsProvider MetricsProvider, logger log.Logger) (ln *LightNode, err error) {
 
 	_, p2pMetrics := metricsProvider(genesis.ChainID)
 

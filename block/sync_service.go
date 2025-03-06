@@ -301,7 +301,7 @@ func newP2PServer[H header.Header[H]](
 		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
 		goheaderp2p.WithMetrics[goheaderp2p.ServerParameters](),
 	)
-	return goheaderp2p.NewExchangeServer[H](host, store, opts...)
+	return goheaderp2p.NewExchangeServer(host, store, opts...)
 }
 
 func newP2PExchange[H header.Header[H]](
@@ -329,7 +329,7 @@ func newSyncer[H header.Header[H]](
 	opts = append(opts,
 		goheadersync.WithMetrics(),
 	)
-	return goheadersync.NewSyncer[H](ex, store, sub, opts...)
+	return goheadersync.NewSyncer(ex, store, sub, opts...)
 }
 
 // StartSyncer starts the SyncService's syncer
