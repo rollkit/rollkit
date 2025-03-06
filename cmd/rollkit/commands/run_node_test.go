@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rollkit/go-da"
@@ -54,6 +56,7 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.executor_address", "exec@127.0.0.1:27008",
 		"--rollkit.da_submit_options", "custom-options",
 
+		// Instrumentation flags
 		"--instrumentation.prometheus", "true",
 		"--instrumentation.prometheus_listen_addr", ":26665",
 		"--instrumentation.max_open_connections", "1",
@@ -312,56 +315,6 @@ func TestStartMockSequencerServer(t *testing.T) {
 	}
 }
 
-func TestStartMockExecutorServerGRPC(t *testing.T) {
-	tests := []struct {
-		name        string
-		execAddress string
-		expectedErr error
-	}{
-		{
-			name:        "Success",
-			execAddress: "localhost:50052",
-			expectedErr: nil,
-		},
-		{
-			name:        "Invalid URL",
-			execAddress: "://invalid",
-			expectedErr: &net.OpError{},
-		},
-		{
-			name:        "Server Already Running",
-			execAddress: "localhost:50052",
-			expectedErr: errExecutorAlreadyRunning,
-		},
-	}
-
-	stopFns := []func(){}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv, err := tryStartMockExecutorServerGRPC(tt.execAddress)
-			if srv != nil {
-				stopFns = append(stopFns, func() {
-					srv.Stop()
-				})
-			}
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
-	}
-
-	for _, fn := range stopFns {
-		fn()
-	}
-}
-
 func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir, err := os.MkdirTemp("", "rollkit-test")
@@ -460,5 +413,66 @@ func TestInitFiles(t *testing.T) {
 
 	for _, file := range files {
 		assert.FileExists(t, file)
+	}
+}
+
+// TestKVExecutorHTTPServerShutdown tests that the KVExecutor HTTP server properly
+// shuts down when the context is cancelled
+func TestKVExecutorHTTPServerShutdown(t *testing.T) {
+	// Create a temporary directory for test
+	tempDir, err := os.MkdirTemp("", "kvexecutor-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Find an available port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to find available port: %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close() // Close the listener to free the port
+
+	// Set up the KV executor HTTP address
+	httpAddr := fmt.Sprintf("127.0.0.1:%d", port)
+	viper.Set("kv-executor-http", httpAddr)
+	defer viper.Set("kv-executor-http", "") // Reset after test
+
+	// Create a context with cancel function
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create the KV executor with the context
+	kvExecutor := createDirectKVExecutor(ctx)
+	if kvExecutor == nil {
+		t.Fatal("Failed to create KV executor")
+	}
+
+	// Wait a moment for the server to start
+	time.Sleep(300 * time.Millisecond)
+
+	// Send a request to confirm it's running
+	client := &http.Client{Timeout: 1 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("http://%s/store", httpAddr))
+	if err != nil {
+		t.Fatalf("Failed to connect to server: %v", err)
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Cancel the context to shut down the server
+	cancel()
+
+	// Wait for shutdown to complete
+	time.Sleep(300 * time.Millisecond)
+
+	// Verify server is actually shutdown by attempting a new connection
+	_, err = client.Get(fmt.Sprintf("http://%s/store", httpAddr))
+	if err == nil {
+		t.Fatal("Expected connection error after shutdown, but got none")
 	}
 }
