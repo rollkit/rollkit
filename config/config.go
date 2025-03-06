@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	// Rollkit flags
 	// FlagRootDir is a flag for specifying the root directory
 	FlagRootDir = "home"
 	// FlagAggregator is a flag for running node in aggregator mode
@@ -51,7 +50,6 @@ const (
 	// FlagDBPath is a flag for specifying the database path
 	FlagDBPath = "rollkit.db_path"
 
-	// Instrumentation flags
 	// FlagPrometheus is a flag for enabling Prometheus metrics
 	FlagPrometheus = "instrumentation.prometheus"
 	// FlagPrometheusListenAddr is a flag for specifying the Prometheus listen address
@@ -59,7 +57,6 @@ const (
 	// FlagMaxOpenConnections is a flag for specifying the maximum number of open connections
 	FlagMaxOpenConnections = "instrumentation.max_open_connections"
 
-	// P2P flags
 	// FlagP2PListenAddress is a flag for specifying the P2P listen address
 	FlagP2PListenAddress = "p2p.listen_address"
 	// FlagP2PSeeds is a flag for specifying the P2P seeds
