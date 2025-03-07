@@ -9,6 +9,9 @@ import (
 const (
 	// FlagRootDir is a flag for specifying the root directory
 	FlagRootDir = "home"
+	// FlagDBPath is a flag for specifying the database path
+	FlagDBPath = "db_path"
+
 	// FlagAggregator is a flag for running node in aggregator mode
 	FlagAggregator = "rollkit.aggregator"
 	// FlagDAAddress is a flag for specifying the data availability layer address
@@ -47,8 +50,6 @@ const (
 	FlagSequencerRollupID = "rollkit.sequencer_rollup_id"
 	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
 	FlagExecutorAddress = "rollkit.executor_address"
-	// FlagDBPath is a flag for specifying the database path
-	FlagDBPath = "rollkit.db_path"
 
 	// FlagPrometheus is a flag for enabling Prometheus metrics
 	FlagPrometheus = "instrumentation.prometheus"
@@ -70,8 +71,11 @@ const (
 // NodeConfig stores Rollkit node configuration.
 type NodeConfig struct {
 	// parameters below are translated from existing config
-	RootDir string    `mapstructure:"home"`
-	P2P     P2PConfig `mapstructure:"p2p"`
+	RootDir string `mapstructure:"home"`
+	DBPath  string `mapstructure:"db_path"`
+
+	// P2P configuration
+	P2P P2PConfig `mapstructure:"p2p"`
 
 	// Rollkit specific configuration
 	Rollkit RollkitConfig `mapstructure:"rollkit"`
@@ -82,9 +86,6 @@ type NodeConfig struct {
 
 // RollkitConfig contains all Rollkit specific configuration parameters
 type RollkitConfig struct {
-	// Database configuration
-	DBPath string `mapstructure:"db_path"`
-
 	// Node mode configuration
 	Aggregator bool `mapstructure:"aggregator"`
 	Light      bool `mapstructure:"light"`
@@ -121,6 +122,9 @@ type RollkitConfig struct {
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 
+	cmd.Flags().String(FlagRootDir, def.RootDir, "root directory for Rollkit")
+	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
+
 	cmd.Flags().BoolVar(&def.Rollkit.Aggregator, FlagAggregator, def.Rollkit.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLazyAggregator, def.Rollkit.LazyAggregator, "wait for transactions, don't build empty blocks")
 	cmd.Flags().String(FlagDAAddress, def.Rollkit.DAAddress, "DA address (host:port)")
@@ -140,9 +144,6 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagSequencerAddress, def.Rollkit.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.Rollkit.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 	cmd.Flags().String(FlagExecutorAddress, def.Rollkit.ExecutorAddress, "executor middleware address (host:port)")
-
-	// Add new flags for DBPath and Instrumentation
-	cmd.Flags().String(FlagDBPath, def.Rollkit.DBPath, "database path relative to root directory")
 
 	// Add instrumentation flags with default values from DefaultInstrumentationConfig
 	instrDef := DefaultInstrumentationConfig()

@@ -143,11 +143,11 @@ func newFullNode(
 
 // initBaseKV initializes the base key-value store.
 func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.Batching, error) {
-	if nodeConfig.RootDir == "" && nodeConfig.Rollkit.DBPath == "" { // this is used for testing
+	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
 	}
-	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.Rollkit.DBPath, "rollkit")
+	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }
 
 func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {

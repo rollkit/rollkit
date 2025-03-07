@@ -4,77 +4,91 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
-// TestNodeConfigIntegration is a unified test that tests all functionalities
-// related to NodeConfig configuration, including reading from Viper,
-// integration with Cobra, and setting all flags.
-func TestNodeConfigIntegration(t *testing.T) {
-	// Subtest to test reading basic configurations
-	t.Run("BasicConfigFields", func(t *testing.T) {
-		// Test RootDir
-		t.Run("RootDir", func(t *testing.T) {
-			v := viper.New()
-			v.Set("home", "~/custom-root")
+func TestDefaultNodeConfig(t *testing.T) {
+	// Test that default config has expected values
+	def := DefaultNodeConfig
 
-			nc := NodeConfig{}
-			err := v.Unmarshal(&nc)
-			assert.NoError(t, err)
+	assert.Equal(t, DefaultRootDir(), def.RootDir)
+	assert.Equal(t, "data", def.DBPath)
+	assert.Equal(t, false, def.Rollkit.Aggregator)
+	assert.Equal(t, false, def.Rollkit.Light)
+	assert.Equal(t, DefaultDAAddress, def.Rollkit.DAAddress)
+	assert.Equal(t, "", def.Rollkit.DAAuthToken)
+	assert.Equal(t, float64(-1), def.Rollkit.DAGasPrice)
+	assert.Equal(t, float64(0), def.Rollkit.DAGasMultiplier)
+	assert.Equal(t, "", def.Rollkit.DASubmitOptions)
+	assert.Equal(t, "", def.Rollkit.DANamespace)
+	assert.Equal(t, 1*time.Second, def.Rollkit.BlockTime)
+	assert.Equal(t, 15*time.Second, def.Rollkit.DABlockTime)
+	assert.Equal(t, uint64(0), def.Rollkit.DAStartHeight)
+	assert.Equal(t, uint64(0), def.Rollkit.DAMempoolTTL)
+	assert.Equal(t, uint64(0), def.Rollkit.MaxPendingBlocks)
+	assert.Equal(t, false, def.Rollkit.LazyAggregator)
+	assert.Equal(t, 60*time.Second, def.Rollkit.LazyBlockTime)
+	assert.Equal(t, "", def.Rollkit.TrustedHash)
+	assert.Equal(t, DefaultSequencerAddress, def.Rollkit.SequencerAddress)
+	assert.Equal(t, DefaultSequencerRollupID, def.Rollkit.SequencerRollupID)
+	assert.Equal(t, DefaultExecutorAddress, def.Rollkit.ExecutorAddress)
+}
 
-			assert.Equal(t, "~/custom-root", nc.RootDir)
-		})
+func TestAddFlags(t *testing.T) {
+	cmd := &cobra.Command{}
+	AddFlags(cmd)
 
-		// Test DBPath
-		t.Run("DBPath", func(t *testing.T) {
-			v := viper.New()
-			v.Set("rollkit.db_path", "./custom-db")
+	// Test that all flags are added
+	flags := cmd.Flags()
 
-			nc := NodeConfig{}
-			err := v.Unmarshal(&nc)
-			assert.NoError(t, err)
+	// Test root flags
+	assert.NotNil(t, flags.Lookup(FlagRootDir))
+	assert.NotNil(t, flags.Lookup(FlagDBPath))
 
-			assert.Equal(t, "./custom-db", nc.Rollkit.DBPath)
-		})
+	// Test Rollkit flags
+	assert.NotNil(t, flags.Lookup(FlagAggregator))
+	assert.NotNil(t, flags.Lookup(FlagLazyAggregator))
+	assert.NotNil(t, flags.Lookup(FlagDAAddress))
+	assert.NotNil(t, flags.Lookup(FlagDAAuthToken))
+	assert.NotNil(t, flags.Lookup(FlagBlockTime))
+	assert.NotNil(t, flags.Lookup(FlagDABlockTime))
+	assert.NotNil(t, flags.Lookup(FlagDAGasPrice))
+	assert.NotNil(t, flags.Lookup(FlagDAGasMultiplier))
+	assert.NotNil(t, flags.Lookup(FlagDAStartHeight))
+	assert.NotNil(t, flags.Lookup(FlagDANamespace))
+	assert.NotNil(t, flags.Lookup(FlagDASubmitOptions))
+	assert.NotNil(t, flags.Lookup(FlagLight))
+	assert.NotNil(t, flags.Lookup(FlagTrustedHash))
+	assert.NotNil(t, flags.Lookup(FlagMaxPendingBlocks))
+	assert.NotNil(t, flags.Lookup(FlagDAMempoolTTL))
+	assert.NotNil(t, flags.Lookup(FlagLazyBlockTime))
+	assert.NotNil(t, flags.Lookup(FlagSequencerAddress))
+	assert.NotNil(t, flags.Lookup(FlagSequencerRollupID))
+	assert.NotNil(t, flags.Lookup(FlagExecutorAddress))
+
+	// Test instrumentation flags
+	assert.NotNil(t, flags.Lookup(FlagPrometheus))
+	assert.NotNil(t, flags.Lookup(FlagPrometheusListenAddr))
+	assert.NotNil(t, flags.Lookup(FlagMaxOpenConnections))
+
+	// Test P2P flags
+	assert.NotNil(t, flags.Lookup(FlagP2PListenAddress))
+	assert.NotNil(t, flags.Lookup(FlagP2PSeeds))
+	assert.NotNil(t, flags.Lookup(FlagP2PBlockedPeers))
+	assert.NotNil(t, flags.Lookup(FlagP2PAllowedPeers))
+
+	// Verify that there are no additional flags
+	// Count the number of flags we're explicitly checking
+	expectedFlagCount := 28 // Update this number if you add more flag checks above
+
+	// Get the actual number of flags
+	actualFlagCount := 0
+	flags.VisitAll(func(flag *pflag.Flag) {
+		actualFlagCount++
 	})
 
-	// Subtest to test integration with Cobra
-	t.Run("CobraIntegration", func(t *testing.T) {
-		cmd := &cobra.Command{}
-		AddFlags(cmd)
-
-		v := viper.New()
-		assert.NoError(t, v.BindPFlags(cmd.Flags()))
-
-		// Configure some flags
-		assert.NoError(t, cmd.Flags().Set(FlagAggregator, "true"))
-		assert.NoError(t, cmd.Flags().Set(FlagDAAddress, "http://da.example.com"))
-		assert.NoError(t, cmd.Flags().Set(FlagBlockTime, "5s"))
-
-		// Start with a clean config
-		nc := NodeConfig{
-			Rollkit: RollkitConfig{},
-		}
-		err := v.Unmarshal(&nc, func(c *mapstructure.DecoderConfig) {
-			c.TagName = "mapstructure"
-			c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
-				mapstructure.StringToTimeDurationHookFunc(),
-				mapstructure.StringToSliceHookFunc(","),
-			)
-		})
-		assert.NoError(t, err)
-
-		// Ensure Instrumentation namespace is set
-		if nc.Instrumentation != nil {
-			nc.Instrumentation.Namespace = "rollkit"
-		}
-
-		// Verify that the values have been set correctly
-		assert.Equal(t, true, nc.Rollkit.Aggregator)
-		assert.Equal(t, "http://da.example.com", nc.Rollkit.DAAddress)
-		assert.Equal(t, 5*time.Second, nc.Rollkit.BlockTime)
-	})
+	// Verify that the counts match
+	assert.Equal(t, expectedFlagCount, actualFlagCount, "Number of flags doesn't match. If you added a new flag, please update the test.")
 }

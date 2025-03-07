@@ -57,11 +57,11 @@ func newLightNode(conf config.NodeConfig, p2pKey crypto.PrivKey, genesis *cmtype
 }
 
 func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.Batching, error) {
-	if conf.RootDir == "" && conf.Rollkit.DBPath == "" { // this is used for testing
+	if conf.RootDir == "" && conf.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
 	}
-	return store.NewDefaultKVStore(conf.RootDir, conf.Rollkit.DBPath, "rollkit-light")
+	return store.NewDefaultKVStore(conf.RootDir, conf.DBPath, "rollkit-light")
 }
 
 // OnStart starts the P2P and HeaderSync services

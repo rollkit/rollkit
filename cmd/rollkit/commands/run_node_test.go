@@ -28,6 +28,9 @@ func TestParseFlags(t *testing.T) {
 	nodeConfig = rollconf.DefaultNodeConfig
 
 	flags := []string{
+		"--home", "custom/root/dir",
+		"--db_path", "custom/db/path",
+
 		// P2P flags
 		"--p2p.listen_address", "tcp://127.0.0.1:27000",
 		"--p2p.seeds", "node1@127.0.0.1:27001,node2@127.0.0.1:27002",
@@ -50,7 +53,6 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.light",
 		"--rollkit.max_pending_blocks", "100",
 		"--rollkit.trusted_hash", "abcdef1234567890",
-		"--rollkit.db_path", "custom/db/path",
 		"--rollkit.sequencer_address", "seq@127.0.0.1:27007",
 		"--rollkit.sequencer_rollup_id", "test-rollup",
 		"--rollkit.executor_address", "exec@127.0.0.1:27008",
@@ -79,6 +81,9 @@ func TestParseFlags(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
+		{"RootDir", nodeConfig.RootDir, "custom/root/dir"},
+		{"DBPath", nodeConfig.DBPath, "custom/db/path"},
+
 		// P2P fields
 		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
 		{"Seeds", nodeConfig.P2P.Seeds, "node1@127.0.0.1:27001,node2@127.0.0.1:27002"},
@@ -101,7 +106,6 @@ func TestParseFlags(t *testing.T) {
 		{"Light", nodeConfig.Rollkit.Light, true},
 		{"MaxPendingBlocks", nodeConfig.Rollkit.MaxPendingBlocks, uint64(100)},
 		{"TrustedHash", nodeConfig.Rollkit.TrustedHash, "abcdef1234567890"},
-		{"DBPath", nodeConfig.Rollkit.DBPath, "custom/db/path"},
 		{"SequencerAddress", nodeConfig.Rollkit.SequencerAddress, "seq@127.0.0.1:27007"},
 		{"SequencerRollupID", nodeConfig.Rollkit.SequencerRollupID, "test-rollup"},
 		{"ExecutorAddress", nodeConfig.Rollkit.ExecutorAddress, "exec@127.0.0.1:27008"},
