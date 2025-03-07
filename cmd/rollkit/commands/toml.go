@@ -49,12 +49,20 @@ var initCmd = &cobra.Command{
 			fmt.Printf("Found rollup configuration under %s, adding to rollkit.toml\n", chainConfigDir)
 		}
 
-		config := rollconf.TomlConfig{
-			Entrypoint: entrypoint,
-			Chain: rollconf.ChainTomlConfig{
-				ConfigDir: chainConfigDir,
-			},
+		// Create a config with default values
+		config := rollconf.DefaultNodeConfig
+
+		// Update with the values we found
+		config.Entrypoint = entrypoint
+		config.Chain.ConfigDir = chainConfigDir
+
+		// Set the root directory to the current directory
+		currentDir, err := os.Getwd()
+		if err != nil {
+			fmt.Println("Error getting current directory:", err)
+			os.Exit(1)
 		}
+		config.RootDir = currentDir
 
 		// marshal the config to a toml file in the current directory
 		if err := rollconf.WriteTomlConfig(config); err != nil {

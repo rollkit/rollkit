@@ -23,21 +23,9 @@ const DefaultDataDir = "data"
 // ErrReadToml is the error returned when reading the rollkit.toml file fails.
 var ErrReadToml = fmt.Errorf("reading %s", RollkitToml)
 
-// TomlConfig is the configuration read from rollkit.toml
-type TomlConfig struct {
-	Entrypoint string          `toml:"entrypoint"`
-	Chain      ChainTomlConfig `toml:"chain"`
-
-	RootDir string `toml:"-"`
-}
-
-// ChainTomlConfig is the configuration for the chain section of rollkit.toml
-type ChainTomlConfig struct {
-	ConfigDir string `toml:"config_dir"`
-}
-
-// ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed TomlConfig.
-func ReadToml() (config TomlConfig, err error) {
+// ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed NodeConfig.
+// Only the TOML-specific fields are populated.
+func ReadToml() (config NodeConfig, err error) {
 	startDir, err := os.Getwd()
 	if err != nil {
 		err = fmt.Errorf("%w: getting current dir: %w", ErrReadToml, err)
@@ -50,12 +38,25 @@ func ReadToml() (config TomlConfig, err error) {
 		return
 	}
 
-	if _, err = toml.DecodeFile(configPath, &config); err != nil {
+	// Create a temporary struct to decode only the TOML fields
+	type TomlFields struct {
+		Entrypoint string      `toml:"entrypoint"`
+		Chain      ChainConfig `toml:"chain"`
+	}
+
+	var tomlFields TomlFields
+	if _, err = toml.DecodeFile(configPath, &tomlFields); err != nil {
 		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
 		return
 	}
 
+	// Set the default values
+	config = DefaultNodeConfig
+
+	// Override with values from TOML
 	config.RootDir = filepath.Dir(configPath)
+	config.Entrypoint = tomlFields.Entrypoint
+	config.Chain = tomlFields.Chain
 
 	// Add configPath to chain.ConfigDir if it is a relative path
 	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
@@ -146,8 +147,19 @@ func FindConfigDir(dir string) (string, bool) {
 	return dir, false
 }
 
-// WriteTomlConfig writes the given TomlConfig to the rollkit.toml file in the current directory.
-func WriteTomlConfig(config TomlConfig) error {
+// WriteTomlConfig writes the TOML-specific fields of the given NodeConfig to the rollkit.toml file.
+func WriteTomlConfig(config NodeConfig) error {
+	// Create a temporary struct to encode only the TOML fields
+	type TomlFields struct {
+		Entrypoint string      `toml:"entrypoint"`
+		Chain      ChainConfig `toml:"chain"`
+	}
+
+	tomlFields := TomlFields{
+		Entrypoint: config.Entrypoint,
+		Chain:      config.Chain,
+	}
+
 	configPath := filepath.Join(config.RootDir, RollkitToml)
 	f, err := os.Create(configPath) //nolint:gosec
 	if err != nil {
@@ -155,7 +167,7 @@ func WriteTomlConfig(config TomlConfig) error {
 	}
 	defer f.Close() //nolint:errcheck
 
-	if err := toml.NewEncoder(f).Encode(config); err != nil {
+	if err := toml.NewEncoder(f).Encode(tomlFields); err != nil {
 		return err
 	}
 

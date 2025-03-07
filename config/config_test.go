@@ -79,9 +79,13 @@ func TestAddFlags(t *testing.T) {
 	assert.NotNil(t, flags.Lookup(FlagP2PBlockedPeers))
 	assert.NotNil(t, flags.Lookup(FlagP2PAllowedPeers))
 
+	// Test TOML config flags
+	assert.NotNil(t, flags.Lookup(FlagEntrypoint))
+	assert.NotNil(t, flags.Lookup(FlagChainConfigDir))
+
 	// Verify that there are no additional flags
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 28 // Update this number if you add more flag checks above
+	expectedFlagCount := 30 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags
 	actualFlagCount := 0

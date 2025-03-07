@@ -112,13 +112,14 @@ config_dir = "config"
 		require.NoError(t, os.Chdir(dir))
 		config, err := ReadToml()
 		require.NoError(t, err)
-		require.Equal(t, TomlConfig{
-			Entrypoint: "./cmd/gm/main.go",
-			Chain: ChainTomlConfig{
-				ConfigDir: filepath.Join(dir, "config"),
-			},
-			RootDir: dir,
-		}, config)
+
+		// Create expected config with default values
+		expectedConfig := DefaultNodeConfig
+		expectedConfig.RootDir = dir
+		expectedConfig.Entrypoint = "./cmd/gm/main.go"
+		expectedConfig.Chain.ConfigDir = filepath.Join(dir, "config")
+
+		require.Equal(t, expectedConfig, config)
 	})
 
 	t.Run("returns error if config file not found", func(t *testing.T) {
@@ -143,8 +144,14 @@ config_dir = "config"
 		config, err := ReadToml()
 		require.NoError(t, err)
 
-		// check that config is empty
-		require.Equal(t, TomlConfig{RootDir: dir}, config)
+		// Create expected config with default values
+		expectedConfig := DefaultNodeConfig
+		expectedConfig.RootDir = dir
+		// When reading an empty TOML file, the Chain.ConfigDir should be empty
+		expectedConfig.Chain.ConfigDir = ""
+
+		// check that config has default values with updated RootDir
+		require.Equal(t, expectedConfig, config)
 	})
 
 	t.Run("returns error if config file cannot be decoded", func(t *testing.T) {

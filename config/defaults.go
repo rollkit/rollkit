@@ -57,4 +57,8 @@ var DefaultNodeConfig = NodeConfig{
 		ExecutorAddress:   DefaultExecutorAddress,
 	},
 	Instrumentation: DefaultInstrumentationConfig(),
+	Entrypoint:      "",
+	Chain: ChainConfig{
+		ConfigDir: DefaultConfigDir,
+	},
 }

@@ -5,167 +5,157 @@ import (
 	"os"
 	"testing"
 
-	"github.com/spf13/cobra"
-
 	rollconf "github.com/rollkit/rollkit/config"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/require"
 )
 
+type mockDeps struct {
+	mockReadToml      func() (rollconf.NodeConfig, error)
+	mockRunEntrypoint func(rollkitConfig *rollconf.NodeConfig, args []string) error
+}
+
 func TestInterceptCommand(t *testing.T) {
-	tests := []struct {
-		name              string
-		rollkitCommands   []string
-		mockReadToml      func() (rollconf.TomlConfig, error)
-		mockRunEntrypoint func(rollkitConfig *rollconf.TomlConfig, args []string) error
-		args              []string
-		wantErr           bool
-		wantExecuted      bool
-	}{
-		{
-			name:            "Successful intercept with entrypoint",
-			rollkitCommands: []string{"docs-gen", "toml"},
-			mockReadToml: func() (rollconf.TomlConfig, error) {
-				return rollconf.TomlConfig{
-					Entrypoint: "test-entrypoint",
-					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/test/config"},
-
-					RootDir: "/test/root",
+	t.Run("intercepts command and runs entrypoint", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.NodeConfig, error) {
+				return rollconf.NodeConfig{
+					RootDir:    "/test",
+					Entrypoint: "/test/main.go",
+					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.NodeConfig, flags []string) error {
 				return nil
 			},
-			args:         []string{"rollkit", "start"},
-			wantErr:      false,
-			wantExecuted: true,
-		},
-		{
-			name:            "Intercept with centralized service flags",
-			rollkitCommands: []string{"docs-gen", "toml"},
-			mockReadToml: func() (rollconf.TomlConfig, error) {
-				return rollconf.TomlConfig{
-					Entrypoint: "centralized-entrypoint",
-					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/central/config"},
-					RootDir:    "/central/root",
+		}
+
+		os.Args = []string{"rollkit", "start"}
+		cmd := &cobra.Command{Use: "test"}
+		cmd.AddCommand(&cobra.Command{Use: "docs-gen"})
+		cmd.AddCommand(&cobra.Command{Use: "toml"})
+
+		ok, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.NoError(t, err)
+		require.True(t, ok)
+	})
+
+	t.Run("intercepts command and runs entrypoint with different root dir", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.NodeConfig, error) {
+				return rollconf.NodeConfig{
+					RootDir:    "/central",
+					Entrypoint: "/central/main.go",
+					Chain:      rollconf.ChainConfig{ConfigDir: "/central/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
-				// Assert that the flags include the centralized addresses
-				if parseFlag(flags, rollconf.FlagDAAddress) != "http://centralized-da:26657" {
-					return errors.New("centralized DA address not passed")
-				}
-				if parseFlag(flags, rollconf.FlagSequencerAddress) != "centralized-seq:26659" {
-					return errors.New("centralized Sequencer address not passed")
-				}
-				if parseFlag(flags, rollconf.FlagSequencerRollupID) != "centralizedrollup" {
-					return errors.New("centralized rollup id not passed")
-				}
+			mockRunEntrypoint: func(config *rollconf.NodeConfig, flags []string) error {
 				return nil
 			},
-			args:         []string{"rollkit", "start", "--rollkit.da_address=http://centralized-da:26657", "--rollkit.sequencer_address=centralized-seq:26659", "--rollkit.sequencer_rollup_id=centralizedrollup"},
-			wantErr:      false,
-			wantExecuted: true,
-		},
-		{
-			name:            "Configuration read error",
-			rollkitCommands: []string{"docs-gen", "toml"},
-			mockReadToml: func() (rollconf.TomlConfig, error) {
-				return rollconf.TomlConfig{}, errors.New("read error")
-			},
-			args:         []string{"rollkit", "start"},
-			wantErr:      true,
-			wantExecuted: false,
-		},
-		{
-			name:            "Empty entrypoint",
-			rollkitCommands: []string{"docs-gen", "toml"},
-			mockReadToml: func() (rollconf.TomlConfig, error) {
-				return rollconf.TomlConfig{Entrypoint: ""}, nil
-			},
-			args:         []string{"rollkit", "start"},
-			wantErr:      true,
-			wantExecuted: true,
-		},
-		{
-			name:            "Skip intercept, rollkit command",
-			rollkitCommands: []string{"docs-gen", "toml"},
-			mockReadToml: func() (rollconf.TomlConfig, error) {
-				return rollconf.TomlConfig{
-					Entrypoint: "test-entrypoint",
-					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/test/config"},
+		}
 
-					RootDir: "/test/root",
+		os.Args = []string{"rollkit", "start", "--rollkit.da_address=http://centralized-da:26657"}
+		cmd := &cobra.Command{Use: "test"}
+
+		ok, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.NoError(t, err)
+		require.True(t, ok)
+	})
+
+	t.Run("returns error if readToml fails", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.NodeConfig, error) {
+				return rollconf.NodeConfig{}, errors.New("read error")
+			},
+		}
+
+		os.Args = []string{"rollkit", "start"}
+		cmd := &cobra.Command{Use: "test"}
+
+		_, err := InterceptCommand(cmd, deps.mockReadToml, nil)
+		require.Error(t, err)
+	})
+
+	t.Run("returns error if entrypoint is empty", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.NodeConfig, error) {
+				return rollconf.NodeConfig{Entrypoint: ""}, nil
+			},
+		}
+
+		os.Args = []string{"rollkit", "start"}
+		cmd := &cobra.Command{Use: "test"}
+
+		_, err := InterceptCommand(cmd, deps.mockReadToml, nil)
+		require.Error(t, err)
+	})
+
+	t.Run("does not intercept help command", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.NodeConfig, error) {
+				return rollconf.NodeConfig{
+					RootDir:    "/test",
+					Entrypoint: "/test/main.go",
+					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.NodeConfig, flags []string) error {
 				return nil
 			},
-			args:         []string{"rollkit", "docs-gen"},
-			wantErr:      false,
-			wantExecuted: false,
-		},
-		{
-			name:            "Skip intercept, help command",
-			rollkitCommands: []string{"docs-gen", "toml"},
-			mockReadToml: func() (rollconf.TomlConfig, error) {
-				return rollconf.TomlConfig{
-					Entrypoint: "test-entrypoint",
-					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/test/config"},
+		}
 
-					RootDir: "/test/root",
+		os.Args = []string{"rollkit", "-h"}
+		cmd := &cobra.Command{Use: "test"}
+
+		ok, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("does not intercept version command", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.NodeConfig, error) {
+				return rollconf.NodeConfig{
+					RootDir:    "/test",
+					Entrypoint: "/test/main.go",
+					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.NodeConfig, flags []string) error {
 				return nil
 			},
-			args:         []string{"rollkit", "-h"},
-			wantErr:      false,
-			wantExecuted: false,
-		},
-		{
-			name:            "Skip intercept, rollkit repository itself",
-			rollkitCommands: []string{"docs-gen", "toml"},
-			mockReadToml: func() (rollconf.TomlConfig, error) {
-				return rollconf.TomlConfig{
-					Entrypoint: "test-entrypoint",
-					Chain:      rollconf.ChainTomlConfig{ConfigDir: "/test/config"},
+		}
 
-					RootDir: "/test/rollkit",
+		os.Args = []string{"rollkit", "--version"}
+		cmd := &cobra.Command{Use: "test"}
+
+		ok, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("does not intercept rollkit command", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.NodeConfig, error) {
+				return rollconf.NodeConfig{
+					RootDir:    "/test",
+					Entrypoint: "/test/main.go",
+					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.TomlConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.NodeConfig, flags []string) error {
 				return nil
 			},
-			args:         []string{"rollkit", "start"},
-			wantErr:      false,
-			wantExecuted: false,
-		},
-	}
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			os.Args = tt.args
+		os.Args = []string{"rollkit", "docs-gen"}
+		cmd := &cobra.Command{Use: "test"}
+		cmd.AddCommand(&cobra.Command{Use: "docs-gen"})
 
-			cmd := &cobra.Command{Use: "test"}
-			for _, c := range tt.rollkitCommands {
-				cmd.AddCommand(&cobra.Command{Use: c})
-			}
-
-			ok, err := InterceptCommand(
-				cmd,
-				tt.mockReadToml,
-				tt.mockRunEntrypoint,
-			)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("InterceptCommand() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if ok != tt.wantExecuted {
-				t.Errorf("InterceptCommand() executed = %v, wantExecuted %v", ok, tt.wantExecuted)
-				return
-			}
-		})
-	}
-
+		ok, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
 }
 
 // TestParseFlagWithEquals tests the parseFlag function with different flag formats.

@@ -66,6 +66,11 @@ const (
 	FlagP2PBlockedPeers = "p2p.blocked_peers"
 	// FlagP2PAllowedPeers is a flag for specifying the P2P allowed peers
 	FlagP2PAllowedPeers = "p2p.allowed_peers"
+
+	// FlagEntrypoint is a flag for specifying the entrypoint
+	FlagEntrypoint = "entrypoint"
+	// FlagChainConfigDir is a flag for specifying the chain config directory
+	FlagChainConfigDir = "chain.config_dir"
 )
 
 // NodeConfig stores Rollkit node configuration.
@@ -82,6 +87,10 @@ type NodeConfig struct {
 
 	// Instrumentation configuration
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+
+	// TOML configuration
+	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint"`
+	Chain      ChainConfig `mapstructure:"chain" toml:"chain"`
 }
 
 // RollkitConfig contains all Rollkit specific configuration parameters
@@ -114,6 +123,11 @@ type RollkitConfig struct {
 	SequencerAddress  string `mapstructure:"sequencer_address"`
 	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
 	ExecutorAddress   string `mapstructure:"executor_address"`
+}
+
+// ChainConfig is the configuration for the chain section
+type ChainConfig struct {
+	ConfigDir string `mapstructure:"config_dir" toml:"config_dir"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -156,4 +170,8 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagP2PSeeds, def.P2P.Seeds, "Comma separated list of seed nodes to connect to")
 	cmd.Flags().String(FlagP2PBlockedPeers, def.P2P.BlockedPeers, "Comma separated list of nodes to ignore")
 	cmd.Flags().String(FlagP2PAllowedPeers, def.P2P.AllowedPeers, "Comma separated list of nodes to whitelist")
+
+	// Add TOML config flags
+	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
+	cmd.Flags().String(FlagChainConfigDir, def.Chain.ConfigDir, "chain configuration directory")
 }
