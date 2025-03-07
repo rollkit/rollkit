@@ -8,7 +8,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/celestiaorg/go-header v0.6.4
-	github.com/cometbft/cometbft v0.38.15
+	github.com/cometbft/cometbft v0.38.17
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-kit/kit v0.13.0
 	github.com/gogo/protobuf v1.3.2
