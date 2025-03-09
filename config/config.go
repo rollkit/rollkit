@@ -96,33 +96,33 @@ type NodeConfig struct {
 // RollkitConfig contains all Rollkit specific configuration parameters
 type RollkitConfig struct {
 	// Node mode configuration
-	Aggregator bool `mapstructure:"aggregator"`
-	Light      bool `mapstructure:"light"`
+	Aggregator bool `mapstructure:"aggregator" toml:"aggregator"`
+	Light      bool `mapstructure:"light" toml:"light"`
 
 	// Data availability configuration
-	DAAddress       string  `mapstructure:"da_address"`
-	DAAuthToken     string  `mapstructure:"da_auth_token"`
-	DAGasPrice      float64 `mapstructure:"da_gas_price"`
-	DAGasMultiplier float64 `mapstructure:"da_gas_multiplier"`
-	DASubmitOptions string  `mapstructure:"da_submit_options"`
-	DANamespace     string  `mapstructure:"da_namespace"`
+	DAAddress       string  `mapstructure:"da_address" toml:"da_address"`
+	DAAuthToken     string  `mapstructure:"da_auth_token" toml:"da_auth_token"`
+	DAGasPrice      float64 `mapstructure:"da_gas_price" toml:"da_gas_price"`
+	DAGasMultiplier float64 `mapstructure:"da_gas_multiplier" toml:"da_gas_multiplier"`
+	DASubmitOptions string  `mapstructure:"da_submit_options" toml:"da_submit_options"`
+	DANamespace     string  `mapstructure:"da_namespace" toml:"da_namespace"`
 
 	// Block management configuration
-	BlockTime        time.Duration `mapstructure:"block_time"`
-	DABlockTime      time.Duration `mapstructure:"da_block_time"`
-	DAStartHeight    uint64        `mapstructure:"da_start_height"`
-	DAMempoolTTL     uint64        `mapstructure:"da_mempool_ttl"`
-	MaxPendingBlocks uint64        `mapstructure:"max_pending_blocks"`
-	LazyAggregator   bool          `mapstructure:"lazy_aggregator"`
-	LazyBlockTime    time.Duration `mapstructure:"lazy_block_time"`
+	BlockTime        time.Duration `mapstructure:"block_time" toml:"block_time"`
+	DABlockTime      time.Duration `mapstructure:"da_block_time" toml:"da_block_time"`
+	DAStartHeight    uint64        `mapstructure:"da_start_height" toml:"da_start_height"`
+	DAMempoolTTL     uint64        `mapstructure:"da_mempool_ttl" toml:"da_mempool_ttl"`
+	MaxPendingBlocks uint64        `mapstructure:"max_pending_blocks" toml:"max_pending_blocks"`
+	LazyAggregator   bool          `mapstructure:"lazy_aggregator" toml:"lazy_aggregator"`
+	LazyBlockTime    time.Duration `mapstructure:"lazy_block_time" toml:"lazy_block_time"`
 
 	// Header configuration
-	TrustedHash string `mapstructure:"trusted_hash"`
+	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash"`
 
 	// Sequencer configuration
-	SequencerAddress  string `mapstructure:"sequencer_address"`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id"`
-	ExecutorAddress   string `mapstructure:"executor_address"`
+	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address"`
+	SequencerRollupID string `mapstructure:"sequencer_rollup_id" toml:"sequencer_rollup_id"`
+	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address"`
 }
 
 // ChainConfig is the configuration for the chain section

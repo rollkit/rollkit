@@ -38,10 +38,14 @@ func ReadToml() (config NodeConfig, err error) {
 		return
 	}
 
+	// Set the default values
+	config = DefaultNodeConfig
+
 	// Create a temporary struct to decode only the TOML fields
 	type TomlFields struct {
-		Entrypoint string      `toml:"entrypoint"`
-		Chain      ChainConfig `toml:"chain"`
+		Entrypoint string        `toml:"entrypoint"`
+		Chain      ChainConfig   `toml:"chain"`
+		Rollkit    RollkitConfig `toml:"rollkit"`
 	}
 
 	var tomlFields TomlFields
@@ -50,13 +54,70 @@ func ReadToml() (config NodeConfig, err error) {
 		return
 	}
 
-	// Set the default values
-	config = DefaultNodeConfig
-
 	// Override with values from TOML
 	config.RootDir = filepath.Dir(configPath)
 	config.Entrypoint = tomlFields.Entrypoint
 	config.Chain = tomlFields.Chain
+
+	// Only override Rollkit fields that are explicitly set in the TOML file
+	// This preserves default values for fields not specified in the TOML
+	if tomlFields.Rollkit.Aggregator {
+		config.Rollkit.Aggregator = tomlFields.Rollkit.Aggregator
+	}
+	if tomlFields.Rollkit.Light {
+		config.Rollkit.Light = tomlFields.Rollkit.Light
+	}
+	if tomlFields.Rollkit.DAAddress != "" {
+		config.Rollkit.DAAddress = tomlFields.Rollkit.DAAddress
+	}
+	if tomlFields.Rollkit.DAAuthToken != "" {
+		config.Rollkit.DAAuthToken = tomlFields.Rollkit.DAAuthToken
+	}
+	if tomlFields.Rollkit.DAGasPrice != 0 {
+		config.Rollkit.DAGasPrice = tomlFields.Rollkit.DAGasPrice
+	}
+	if tomlFields.Rollkit.DAGasMultiplier != 0 {
+		config.Rollkit.DAGasMultiplier = tomlFields.Rollkit.DAGasMultiplier
+	}
+	if tomlFields.Rollkit.DASubmitOptions != "" {
+		config.Rollkit.DASubmitOptions = tomlFields.Rollkit.DASubmitOptions
+	}
+	if tomlFields.Rollkit.DANamespace != "" {
+		config.Rollkit.DANamespace = tomlFields.Rollkit.DANamespace
+	}
+	if tomlFields.Rollkit.BlockTime != 0 {
+		config.Rollkit.BlockTime = tomlFields.Rollkit.BlockTime
+	}
+	if tomlFields.Rollkit.DABlockTime != 0 {
+		config.Rollkit.DABlockTime = tomlFields.Rollkit.DABlockTime
+	}
+	if tomlFields.Rollkit.DAStartHeight != 0 {
+		config.Rollkit.DAStartHeight = tomlFields.Rollkit.DAStartHeight
+	}
+	if tomlFields.Rollkit.DAMempoolTTL != 0 {
+		config.Rollkit.DAMempoolTTL = tomlFields.Rollkit.DAMempoolTTL
+	}
+	if tomlFields.Rollkit.MaxPendingBlocks != 0 {
+		config.Rollkit.MaxPendingBlocks = tomlFields.Rollkit.MaxPendingBlocks
+	}
+	if tomlFields.Rollkit.LazyAggregator {
+		config.Rollkit.LazyAggregator = tomlFields.Rollkit.LazyAggregator
+	}
+	if tomlFields.Rollkit.LazyBlockTime != 0 {
+		config.Rollkit.LazyBlockTime = tomlFields.Rollkit.LazyBlockTime
+	}
+	if tomlFields.Rollkit.TrustedHash != "" {
+		config.Rollkit.TrustedHash = tomlFields.Rollkit.TrustedHash
+	}
+	if tomlFields.Rollkit.SequencerAddress != "" {
+		config.Rollkit.SequencerAddress = tomlFields.Rollkit.SequencerAddress
+	}
+	if tomlFields.Rollkit.SequencerRollupID != "" {
+		config.Rollkit.SequencerRollupID = tomlFields.Rollkit.SequencerRollupID
+	}
+	if tomlFields.Rollkit.ExecutorAddress != "" {
+		config.Rollkit.ExecutorAddress = tomlFields.Rollkit.ExecutorAddress
+	}
 
 	// Add configPath to chain.ConfigDir if it is a relative path
 	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {

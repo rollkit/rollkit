@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -118,6 +119,49 @@ config_dir = "config"
 		expectedConfig.RootDir = dir
 		expectedConfig.Entrypoint = "./cmd/gm/main.go"
 		expectedConfig.Chain.ConfigDir = filepath.Join(dir, "config")
+
+		require.Equal(t, expectedConfig, config)
+	})
+
+	t.Run("loads nodeconfig values from TOML file", func(t *testing.T) {
+		dir, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+
+		configPath := filepath.Join(dir, RollkitToml)
+		err = os.WriteFile(configPath, []byte(`
+entrypoint = "./cmd/app/main.go"
+
+[chain]
+config_dir = "custom-config"
+
+[rollkit]
+aggregator = true
+block_time = "2s"
+da_address = "http://custom-da:26658"
+lazy_aggregator = true
+sequencer_address = "custom-sequencer:50051"
+sequencer_rollup_id = "custom-rollup"
+`), 0600)
+		require.NoError(t, err)
+
+		require.NoError(t, os.Chdir(dir))
+		config, err := ReadToml()
+		require.NoError(t, err)
+
+		// Create expected config with default values
+		expectedConfig := DefaultNodeConfig
+		expectedConfig.RootDir = dir
+		expectedConfig.Entrypoint = "./cmd/app/main.go"
+		expectedConfig.Chain.ConfigDir = filepath.Join(dir, "custom-config")
+
+		// These values should be loaded from the TOML file
+		// Only set the values that are actually in the TOML file
+		expectedConfig.Rollkit.Aggregator = true
+		expectedConfig.Rollkit.BlockTime = 2 * time.Second
+		expectedConfig.Rollkit.DAAddress = "http://custom-da:26658"
+		expectedConfig.Rollkit.LazyAggregator = true
+		expectedConfig.Rollkit.SequencerAddress = "custom-sequencer:50051"
+		expectedConfig.Rollkit.SequencerRollupID = "custom-rollup"
 
 		require.Equal(t, expectedConfig, config)
 	})
