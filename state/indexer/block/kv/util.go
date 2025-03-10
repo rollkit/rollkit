@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -24,13 +25,7 @@ type HeightInfo struct {
 }
 
 func intInSlice(a int, list []int) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(list, a)
 }
 
 func int64FromBytes(bz []byte) int64 {
