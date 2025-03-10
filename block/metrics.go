@@ -98,132 +98,96 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "latest_block_height",
 			Help:      "The latest block height.",
 		}, labels).With(labelsAndValues...),
-		ExecutionTime: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "execution_time_seconds",
-				Help:      "Execution time of the block processing.",
-			},
-			labels,
-		),
-		SignatureTime: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "signature_time_seconds",
-				Help:      "Signature time of the block processing.",
-			},
-			labels,
-		),
-		CommitTime: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "commit_time_seconds",
-				Help:      "Commit time of the block processing.",
-			},
-			labels,
-		),
-		SaveTime: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "save_time_seconds",
-				Help:      "Save time of the block processing.",
-			},
-			labels,
-		),
-		TxCount: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "tx_count",
-				Help:      "Transaction count of the block processing.",
-			},
-			labels,
-		),
+		ExecutionTime: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "execution_time_seconds",
+			Help:      "Execution time of the block processing.",
+		}, labels).With(labelsAndValues...),
+		SignatureTime: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "signature_time_seconds",
+			Help:      "Signature time of the block processing.",
+		}, labels).With(labelsAndValues...),
+		CommitTime: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "commit_time_seconds",
+			Help:      "Commit time of the block processing.",
+		}, labels).With(labelsAndValues...),
+		SaveTime: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "save_time_seconds",
+			Help:      "Save time of the block processing.",
+		}, labels).With(labelsAndValues...),
+		TxCount: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "tx_count",
+			Help:      "Transaction count of the block processing.",
+		}, labels).With(labelsAndValues...),
 		HeaderInChanLen: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "block_manager_header_in_chan_len",
 			Help:      "Number of items in the HeaderCh of block manager",
-		}, labels),
+		}, labels).With(labelsAndValues...),
 		DataInChanLen: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "block_manager_data_in_chan_len",
 			Help:      "Number of items in the DataCh of block manager",
-		}, labels),
+		}, labels).With(labelsAndValues...),
 		PendingHeadersCount: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "block_manager_pending_headers_count",
 			Help:      "Number of pending headers in the block manager",
-		}, labels),
-		DAInclusionDelay: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "block_manager_da_inclusion_delay_seconds",
-				Help:      "DA inclusion delay of the block processing.",
-			},
-			labels,
-		),
-		SchedulerTxsTotal: prometheus.NewCounter(
-			stdprometheus.CounterOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "block_manager_scheduler_txs_total",
-				Help:      "Total number of transactions scheduled by the block manager",
-			},
-			labels,
-		),
-		SchedulerTxBytes: prometheus.NewCounter(
-			stdprometheus.CounterOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "block_manager_scheduler_tx_bytes_total",
-				Help:      "Total number of transaction bytes scheduled by the block manager",
-			},
-			labels,
-		),
-		SaveMetricsTime: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "block_manager_save_metrics_time_seconds",
-				Help:      "Time taken to save block metrics",
-			},
-			labels,
-		),
-		TxsPerBatch: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "block_manager_txs_per_batch",
-				Help:      "Number of transactions per batch",
-			},
-			labels,
-		),
-		TxBytesPerBatch: prometheus.NewHistogram(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "block_manager_tx_bytes_per_batch",
-				Help:      "Number of transaction bytes per batch",
-			},
-			labels,
-		),
-		BatchSubmissions: prometheus.NewCounter(
-			stdprometheus.CounterOpts{
-				Namespace: namespace,
-				Subsystem: MetricsSubsystem,
-				Name:      "block_manager_batch_submissions_total",
-				Help:      "Total number of batch submissions to DA",
-			},
-			labels,
-		),
+		}, labels).With(labelsAndValues...),
+		DAInclusionDelay: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_manager_da_inclusion_delay_seconds",
+			Help:      "DA inclusion delay of the block processing.",
+		}, labels).With(labelsAndValues...),
+		SchedulerTxsTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_manager_scheduler_txs_total",
+			Help:      "Total number of transactions scheduled by the block manager",
+		}, labels).With(labelsAndValues...),
+		SchedulerTxBytes: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_manager_scheduler_tx_bytes_total",
+			Help:      "Total number of transaction bytes scheduled by the block manager",
+		}, labels).With(labelsAndValues...),
+		SaveMetricsTime: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_manager_save_metrics_time_seconds",
+			Help:      "Time taken to save block metrics",
+		}, labels).With(labelsAndValues...),
+		TxsPerBatch: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_manager_txs_per_batch",
+			Help:      "Number of transactions per batch",
+		}, labels).With(labelsAndValues...),
+		TxBytesPerBatch: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_manager_tx_bytes_per_batch",
+			Help:      "Number of transaction bytes per batch",
+		}, labels).With(labelsAndValues...),
+		BatchSubmissions: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_manager_batch_submissions_total",
+			Help:      "Total number of batch submissions to DA",
+		}, labels).With(labelsAndValues...),
 	}
 }
 
