@@ -438,7 +438,7 @@ func (n *FullNode) GetGenesisChunks() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return n.genChunks, err
+	return n.genChunks, nil
 }
 
 // OnStop is a part of Service interface.
