@@ -223,11 +223,11 @@ func (syncService *SyncService[H]) setupP2P(ctx context.Context) ([]peer.ID, err
 // Returns error if initialization or starting of syncer fails.
 func (syncService *SyncService[H]) prepareSyncer(ctx context.Context) error {
 	var err error
-	if syncService.syncer, err = newSyncer[H](
+	if syncService.syncer, err = newSyncer(
 		syncService.ex,
 		syncService.store,
 		syncService.sub,
-		[]goheadersync.Option{goheadersync.WithBlockTime(syncService.conf.BlockTime)},
+		[]goheadersync.Option{goheadersync.WithBlockTime(syncService.conf.Rollkit.BlockTime)},
 	); err != nil {
 		return nil
 	}
@@ -250,8 +250,8 @@ func (syncService *SyncService[H]) setFirstAndStart(ctx context.Context, peerIDs
 	var trusted H
 	// Try fetching the trusted header/block from peers if exists
 	if len(peerIDs) > 0 {
-		if syncService.conf.TrustedHash != "" {
-			trustedHashBytes, err := hex.DecodeString(syncService.conf.TrustedHash)
+		if syncService.conf.Rollkit.TrustedHash != "" {
+			trustedHashBytes, err := hex.DecodeString(syncService.conf.Rollkit.TrustedHash)
 			if err != nil {
 				return fmt.Errorf("failed to parse the trusted hash for initializing the store: %w", err)
 			}
@@ -301,7 +301,7 @@ func newP2PServer[H header.Header[H]](
 		goheaderp2p.WithNetworkID[goheaderp2p.ServerParameters](network),
 		goheaderp2p.WithMetrics[goheaderp2p.ServerParameters](),
 	)
-	return goheaderp2p.NewExchangeServer[H](host, store, opts...)
+	return goheaderp2p.NewExchangeServer(host, store, opts...)
 }
 
 func newP2PExchange[H header.Header[H]](
@@ -329,7 +329,7 @@ func newSyncer[H header.Header[H]](
 	opts = append(opts,
 		goheadersync.WithMetrics(),
 	)
-	return goheadersync.NewSyncer[H](ex, store, sub, opts...)
+	return goheadersync.NewSyncer(ex, store, sub, opts...)
 }
 
 // StartSyncer starts the SyncService's syncer
@@ -355,7 +355,7 @@ func (syncService *SyncService[H]) getChainID() string {
 
 func (syncService *SyncService[H]) getPeerIDs() []peer.ID {
 	peerIDs := syncService.p2p.PeerIDs()
-	if !syncService.conf.Aggregator {
+	if !syncService.conf.Rollkit.Aggregator {
 		peerIDs = append(peerIDs, getSeedNodes(syncService.conf.P2P.Seeds, syncService.logger)...)
 	}
 	return peerIDs

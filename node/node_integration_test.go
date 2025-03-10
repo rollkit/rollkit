@@ -38,9 +38,9 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	// Setup node with proper configuration
 	config := getTestConfig(1)
-	config.BlockTime = 100 * time.Millisecond        // Faster block production for tests
-	config.DABlockTime = 200 * time.Millisecond      // Faster DA submission for tests
-	config.BlockManagerConfig.MaxPendingBlocks = 100 // Allow more pending blocks
+	config.Rollkit.BlockTime = 100 * time.Millisecond   // Faster block production for tests
+	config.Rollkit.DABlockTime = 200 * time.Millisecond // Faster DA submission for tests
+	config.Rollkit.MaxPendingBlocks = 100               // Allow more pending blocks
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)

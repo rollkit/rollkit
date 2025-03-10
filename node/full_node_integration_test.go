@@ -50,14 +50,14 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Setup node with proper configuration
 	config := getTestConfig(1)
-	config.BlockTime = 100 * time.Millisecond        // Faster block production for tests
-	config.DABlockTime = 200 * time.Millisecond      // Faster DA submission for tests
-	config.BlockManagerConfig.MaxPendingBlocks = 100 // Allow more pending blocks
-	config.Aggregator = true                         // Enable aggregator mode
+	config.Rollkit.BlockTime = 100 * time.Millisecond   // Faster block production for tests
+	config.Rollkit.DABlockTime = 200 * time.Millisecond // Faster DA submission for tests
+	config.Rollkit.MaxPendingBlocks = 100               // Allow more pending blocks
+	config.Rollkit.Aggregator = true                    // Enable aggregator mode
 
 	// Add debug logging for configuration
 	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingBlocks=%d",
-		config.BlockTime, config.DABlockTime, config.BlockManagerConfig.MaxPendingBlocks)
+		config.Rollkit.BlockTime, config.Rollkit.DABlockTime, config.Rollkit.MaxPendingBlocks)
 
 	// Create genesis with current time
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
@@ -212,7 +212,7 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.T().Log("=== Attempting to Trigger Block Production ===")
 	// Force a state update to trigger block production
 	currentState := s.node.blockManager.GetLastState()
-	currentState.LastBlockTime = time.Now().Add(-2 * s.node.nodeConfig.BlockTime)
+	currentState.LastBlockTime = time.Now().Add(-2 * s.node.nodeConfig.Rollkit.BlockTime)
 	s.node.blockManager.SetLastState(currentState)
 
 	// Monitor after trigger
@@ -245,7 +245,7 @@ func (s *FullNodeTestSuite) TestDAInclusion() {
 	s.T().Logf("Block height: %d, DA height: %d", initialHeight, initialDAHeight)
 	s.T().Logf("Is proposer: %v", s.node.blockManager.IsProposer())
 	s.T().Logf("DA client initialized: %v", s.node.blockManager.DALCInitialized())
-	s.T().Logf("Aggregator enabled: %v", s.node.nodeConfig.Aggregator)
+	s.T().Logf("Aggregator enabled: %v", s.node.nodeConfig.Rollkit.Aggregator)
 
 	// Monitor state changes in shorter intervals
 	s.T().Log("=== Monitoring State Changes ===")
@@ -310,7 +310,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	// Reconfigure node with low max pending
 	config := getTestConfig(1)
-	config.BlockManagerConfig.MaxPendingBlocks = 2
+	config.Rollkit.MaxPendingBlocks = 2
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
@@ -344,12 +344,12 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.startNodeInBackground(s.node)
 
 	// Wait blocks to be produced up to max pending
-	time.Sleep(time.Duration(config.BlockManagerConfig.MaxPendingBlocks+1) * config.BlockTime)
+	time.Sleep(time.Duration(config.Rollkit.MaxPendingBlocks+1) * config.Rollkit.BlockTime)
 
 	// Verify that number of pending blocks doesn't exceed max
 	height, err := getNodeHeight(s.node, Header)
 	require.NoError(err)
-	require.LessOrEqual(height, config.BlockManagerConfig.MaxPendingBlocks)
+	require.LessOrEqual(height, config.Rollkit.MaxPendingBlocks)
 }
 
 func (s *FullNodeTestSuite) TestGenesisInitialization() {
@@ -370,7 +370,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	require.NoError(err)
 
 	// Wait for some blocks
-	time.Sleep(2 * s.node.nodeConfig.BlockTime)
+	time.Sleep(2 * s.node.nodeConfig.Rollkit.BlockTime)
 
 	// Stop the current node
 	s.cancel()
@@ -426,7 +426,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.startNodeInBackground(s.node)
 
 	// Wait a bit after restart
-	time.Sleep(s.node.nodeConfig.BlockTime)
+	time.Sleep(s.node.nodeConfig.Rollkit.BlockTime)
 
 	// Verify state persistence
 	recoveredHeight, err := getNodeHeight(s.node, Store)
@@ -439,7 +439,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	// Create a node with invalid DA configuration
 	invalidConfig := getTestConfig(1)
-	invalidConfig.DAAddress = "invalid://invalid-address:1234" // Use an invalid URL scheme
+	invalidConfig.Rollkit.DAAddress = "invalid://invalid-address:1234" // Use an invalid URL scheme
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)

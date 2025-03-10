@@ -90,4 +90,4 @@ The KV executor expects transactions in the format `key=value`. For example:
 - `mykey=myvalue`
 - `foo=bar`
 
-When a transaction is executed, the key-value pair is added to the store. 
+When a transaction is executed, the key-value pair is added to the store.

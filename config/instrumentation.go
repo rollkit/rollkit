@@ -33,8 +33,7 @@ func DefaultInstrumentationConfig() *InstrumentationConfig {
 	}
 }
 
-// TestInstrumentationConfig returns a default configuration for metrics
-// reporting in test environments.
+// TestInstrumentationConfig returns a default configuration for test environments.
 func TestInstrumentationConfig() *InstrumentationConfig {
 	return DefaultInstrumentationConfig()
 }

@@ -14,14 +14,11 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -31,6 +28,7 @@ import (
 	goDATest "github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
+
 	rollconf "github.com/rollkit/rollkit/config"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/node"
@@ -64,7 +62,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// use aggregator by default if the flag is not specified explicitly
 			if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-				nodeConfig.Aggregator = true
+				nodeConfig.Rollkit.Aggregator = true
 			}
 
 			// Update log format if the flag is set
@@ -118,7 +116,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// Only start mock DA server if the user did not provide --rollkit.da_address
 			var daSrv *proxy.Server = nil
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
+				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.Rollkit.DAAddress, proxy.NewServer)
 				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
@@ -132,14 +130,14 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-				genDoc.ChainID = nodeConfig.SequencerRollupID
+				genDoc.ChainID = nodeConfig.Rollkit.SequencerRollupID
 			}
 			sequencerRollupID := genDoc.ChainID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
 			var seqSrv *grpc.Server = nil
 			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
+				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.Rollkit.SequencerAddress, sequencerRollupID)
 				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
@@ -151,7 +149,7 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
-			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
+			logger.Info("Executor address", "address", nodeConfig.Rollkit.ExecutorAddress)
 
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())
@@ -285,9 +283,6 @@ func NewRunNodeCmd() *cobra.Command {
 // addNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a rollkit node
 func addNodeFlags(cmd *cobra.Command) {
-	// Add cometBFT flags
-	cmtcmd.AddNodeFlags(cmd)
-
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// This is for testing only
@@ -429,50 +424,16 @@ func initFiles() error {
 }
 
 func parseConfig(cmd *cobra.Command) error {
-	// Set the root directory for the config to the home directory
-	home := os.Getenv("RKHOME")
-	if home == "" {
-		var err error
-		home, err = cmd.Flags().GetString(cometcli.HomeFlag)
-		if err != nil {
-			return err
-		}
+	// Load configuration with the correct order of precedence:
+	// DefaultNodeConfig -> Toml -> Flags
+	var err error
+	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
+	if err != nil {
+		return err
 	}
-	nodeConfig.RootDir = home
 
 	// Validate the root directory
 	rollconf.EnsureRoot(nodeConfig.RootDir)
-
-	// Parse the flags
-	if err := parseFlags(cmd); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func parseFlags(cmd *cobra.Command) error {
-	v := viper.GetViper()
-	if err := v.BindPFlags(cmd.Flags()); err != nil {
-		return err
-	}
-
-	// unmarshal viper into config
-	err := v.Unmarshal(&nodeConfig, func(c *mapstructure.DecoderConfig) {
-		c.TagName = "mapstructure"
-		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
-			mapstructure.StringToTimeDurationHookFunc(),
-			mapstructure.StringToSliceHookFunc(","),
-		)
-	})
-	if err != nil {
-		return fmt.Errorf("unable to decode command flags into config: %w", err)
-	}
-
-	// handle rollkit node configuration
-	if err := nodeConfig.GetViperConfig(v); err != nil {
-		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
-	}
 
 	return nil
 }

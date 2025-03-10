@@ -111,7 +111,7 @@ type Manager struct {
 	lastStateMtx *sync.RWMutex
 	store        store.Store
 
-	conf    config.BlockManagerConfig
+	conf    config.RollkitConfig
 	genesis *RollkitGenesis
 
 	proposerKey crypto.PrivKey
@@ -241,7 +241,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 func NewManager(
 	ctx context.Context,
 	proposerKey crypto.PrivKey,
-	conf config.BlockManagerConfig,
+	conf config.RollkitConfig,
 	genesis *RollkitGenesis,
 	store store.Store,
 	exec coreexecutor.Executor,

@@ -32,15 +32,8 @@ func NewNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
-	if conf.Light {
-		return newLightNode(
-			ctx,
-			conf,
-			p2pKey,
-			genesis,
-			metricsProvider,
-			logger,
-		)
+	if conf.Rollkit.Light {
+		return newLightNode(conf, p2pKey, genesis, metricsProvider, logger)
 	}
 
 	return newFullNode(

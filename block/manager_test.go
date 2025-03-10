@@ -750,7 +750,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Normal aggregation, elapsed < interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
+				conf: config.RollkitConfig{
 					BlockTime:      10 * time.Second,
 					LazyBlockTime:  20 * time.Second,
 					LazyAggregator: false,
@@ -760,21 +760,45 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			expectedSleep: 5 * time.Second,
 		},
 		{
-			name: "Normal aggregation, elapsed >= interval",
+			name: "Normal aggregation, elapsed > interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
+				conf: config.RollkitConfig{
 					BlockTime:      10 * time.Second,
 					LazyBlockTime:  20 * time.Second,
 					LazyAggregator: false,
 				},
 			},
 			start:         time.Now().Add(-15 * time.Second),
-			expectedSleep: 0,
+			expectedSleep: 0 * time.Second,
 		},
 		{
-			name: "Lazy aggregation, building block, elapsed < interval",
+			name: "Lazy aggregation, elapsed < interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
+				conf: config.RollkitConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+			},
+			start:         time.Now().Add(-15 * time.Second),
+			expectedSleep: 5 * time.Second,
+		},
+		{
+			name: "Lazy aggregation, elapsed > interval",
+			manager: &Manager{
+				conf: config.RollkitConfig{
+					BlockTime:      10 * time.Second,
+					LazyBlockTime:  20 * time.Second,
+					LazyAggregator: true,
+				},
+			},
+			start:         time.Now().Add(-25 * time.Second),
+			expectedSleep: 0 * time.Second,
+		},
+		{
+			name: "Lazy aggregation, building block",
+			manager: &Manager{
+				conf: config.RollkitConfig{
 					BlockTime:      10 * time.Second,
 					LazyBlockTime:  20 * time.Second,
 					LazyAggregator: true,
@@ -785,9 +809,9 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			expectedSleep: 5 * time.Second,
 		},
 		{
-			name: "Lazy aggregation, building block, elapsed >= interval",
+			name: "Lazy aggregation, building block, elapsed > interval",
 			manager: &Manager{
-				conf: config.BlockManagerConfig{
+				conf: config.RollkitConfig{
 					BlockTime:      10 * time.Second,
 					LazyBlockTime:  20 * time.Second,
 					LazyAggregator: true,
@@ -796,32 +820,6 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			},
 			start:         time.Now().Add(-15 * time.Second),
 			expectedSleep: (10 * time.Second * time.Duration(defaultLazySleepPercent) / 100),
-		},
-		{
-			name: "Lazy aggregation, not building block, elapsed < interval",
-			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: true,
-				},
-				buildingBlock: false,
-			},
-			start:         time.Now().Add(-5 * time.Second),
-			expectedSleep: 15 * time.Second,
-		},
-		{
-			name: "Lazy aggregation, not building block, elapsed >= interval",
-			manager: &Manager{
-				conf: config.BlockManagerConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
-					LazyAggregator: true,
-				},
-				buildingBlock: false,
-			},
-			start:         time.Now().Add(-25 * time.Second),
-			expectedSleep: 0,
 		},
 	}
 
@@ -846,7 +844,7 @@ func TestAggregationLoop(t *testing.T) {
 			ChainID:       "myChain",
 			InitialHeight: 1,
 		},
-		conf: config.BlockManagerConfig{
+		conf: config.RollkitConfig{
 			BlockTime:      time.Second,
 			LazyAggregator: false,
 		},
@@ -872,7 +870,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 
 	m := &Manager{
 		logger: mockLogger,
-		conf: config.BlockManagerConfig{
+		conf: config.RollkitConfig{
 			BlockTime:      time.Second,
 			LazyAggregator: true,
 		},
@@ -898,8 +896,9 @@ func TestNormalAggregationLoop(t *testing.T) {
 
 	m := &Manager{
 		logger: mockLogger,
-		conf: config.BlockManagerConfig{
-			BlockTime: time.Second,
+		conf: config.RollkitConfig{
+			BlockTime:      1 * time.Second,
+			LazyAggregator: false,
 		},
 	}
 

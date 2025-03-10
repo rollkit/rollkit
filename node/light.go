@@ -28,14 +28,7 @@ type LightNode struct {
 	hSyncService *block.HeaderSyncService
 }
 
-func newLightNode(
-	ctx context.Context,
-	conf config.NodeConfig,
-	p2pKey crypto.PrivKey,
-	genesis *cmtypes.GenesisDoc,
-	metricsProvider MetricsProvider,
-	logger log.Logger,
-) (ln *LightNode, err error) {
+func newLightNode(conf config.NodeConfig, p2pKey crypto.PrivKey, genesis *cmtypes.GenesisDoc, metricsProvider MetricsProvider, logger log.Logger) (ln *LightNode, err error) {
 
 	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
@@ -64,7 +57,7 @@ func newLightNode(
 }
 
 func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.Batching, error) {
-	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+	if conf.RootDir == "" && conf.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
 	}
