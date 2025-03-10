@@ -1502,7 +1502,7 @@ func updateState(s *types.State, res *abci.ResponseInitChain) error {
 		return err
 	}
 	if len(nValSet.Validators) != 1 {
-		return fmt.Errorf("expected exactly one validator")
+		return errors.New("expected exactly one validator")
 	}
 
 	s.Validators = cmtypes.NewValidatorSet(nValSet.Validators)
