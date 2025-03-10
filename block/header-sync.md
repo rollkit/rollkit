@@ -30,7 +30,7 @@ The sequencer node, upon successfully creating the block, publishes the signed b
 
 When running in based sequencing mode, headers have a different origin and workflow:
 
-1. **Direct DA Headers**: In based sequencing, the sequencer posts headers directly to the DA layer, potentially bypassing the P2P network. 
+1. **Direct DA Headers**: In based sequencing, the sequencer posts headers directly to the DA layer, potentially bypassing the P2P network.
 
 2. **Header Retrieval**: Full nodes retrieve these headers directly from the DA layer during DA block retrieval.
 

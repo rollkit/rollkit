@@ -97,7 +97,7 @@ In a centralized sequencer configuration, the BlockCreator plays a key role in p
 
 The block manager of the sequencer nodes performs the following steps to produce a block:
 
-1. **Transaction Batch Collection**: 
+1. **Transaction Batch Collection**:
    * The `BlockCreator` collects transactions from the batch queue
    * In centralized sequencer mode, entire batches of transactions are processed together
    * Transactions may come from three sources: the batch queue, directly provided transactions, or the mempool
@@ -231,6 +231,7 @@ In based sequencing mode, transaction batches follow this flow:
    * The transactions are executed and state is updated accordingly
 
 Based sequencing is particularly useful in scenarios where:
+
 * Faster DA inclusion is more important than pre-consensus validation
 * The sequencer is trusted to submit valid batches
 * Transaction throughput needs to be maximized
