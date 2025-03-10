@@ -425,8 +425,11 @@ func initFiles() error {
 }
 
 func parseConfig(cmd *cobra.Command) error {
-	// Parse the flags
-	if err := parseFlags(cmd); err != nil {
+	// Load configuration with the correct order of precedence:
+	// DefaultNodeConfig -> Toml -> Flags
+	var err error
+	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
+	if err != nil {
 		return err
 	}
 
@@ -436,6 +439,7 @@ func parseConfig(cmd *cobra.Command) error {
 	return nil
 }
 
+// parseFlags is kept for backward compatibility but is no longer used directly
 func parseFlags(cmd *cobra.Command) error {
 	v := viper.GetViper()
 	if err := v.BindPFlags(cmd.Flags()); err != nil {

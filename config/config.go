@@ -1,9 +1,15 @@
 package config
 
 import (
+	"errors"
+	"fmt"
+	"os"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -174,4 +180,158 @@ func AddFlags(cmd *cobra.Command) {
 	// Add TOML config flags
 	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
 	cmd.Flags().String(FlagChainConfigDir, def.Chain.ConfigDir, "chain configuration directory")
+}
+
+// LoadNodeConfig loads the node configuration in the following order of precedence:
+// 1. DefaultNodeConfig (lowest priority)
+// 2. TOML configuration file
+// 3. Command line flags (highest priority)
+func LoadNodeConfig(cmd *cobra.Command) (NodeConfig, error) {
+	// 1. Start with default configuration
+	config := DefaultNodeConfig
+
+	// 2. Try to load TOML configuration
+	tomlConfig, err := ReadToml()
+	if err == nil {
+		// TOML configuration found, override defaults
+		config = tomlConfig
+	} else if !os.IsNotExist(err) && !errors.Is(err, ErrReadToml) {
+		// If it's not a "file not found" error or a known TOML error, return the error
+		return config, fmt.Errorf("error reading TOML configuration: %w", err)
+	}
+
+	// 3. Parse flags and override TOML configuration
+	v := viper.New()
+	if err := v.BindPFlags(cmd.Flags()); err != nil {
+		return config, fmt.Errorf("unable to bind flags: %w", err)
+	}
+
+	// Only process flags that were explicitly set
+	flagsSet := make(map[string]bool)
+	cmd.Flags().Visit(func(f *pflag.Flag) {
+		flagsSet[f.Name] = true
+	})
+
+	// If no flags are set, return the config as is
+	if len(flagsSet) == 0 {
+		return config, nil
+	}
+
+	// Create a temporary config to hold flag values
+	flagConfig := NodeConfig{}
+
+	// Unmarshal viper into the temporary config
+	err = v.Unmarshal(&flagConfig, func(c *mapstructure.DecoderConfig) {
+		c.TagName = "mapstructure"
+		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+		)
+	})
+	if err != nil {
+		return config, fmt.Errorf("unable to decode command flags into config: %w", err)
+	}
+
+	// Now we need to selectively copy values from flagConfig to config
+	// for only the flags that were explicitly set
+
+	// Root level flags
+	if flagsSet[FlagRootDir] {
+		config.RootDir = flagConfig.RootDir
+	}
+	if flagsSet[FlagDBPath] {
+		config.DBPath = flagConfig.DBPath
+	}
+	if flagsSet[FlagEntrypoint] {
+		config.Entrypoint = flagConfig.Entrypoint
+	}
+	if flagsSet[FlagChainConfigDir] {
+		config.Chain.ConfigDir = flagConfig.Chain.ConfigDir
+	}
+
+	// P2P flags
+	if flagsSet[FlagP2PListenAddress] {
+		config.P2P.ListenAddress = flagConfig.P2P.ListenAddress
+	}
+	if flagsSet[FlagP2PSeeds] {
+		config.P2P.Seeds = flagConfig.P2P.Seeds
+	}
+	if flagsSet[FlagP2PBlockedPeers] {
+		config.P2P.BlockedPeers = flagConfig.P2P.BlockedPeers
+	}
+	if flagsSet[FlagP2PAllowedPeers] {
+		config.P2P.AllowedPeers = flagConfig.P2P.AllowedPeers
+	}
+
+	// Rollkit flags
+	if flagsSet[FlagAggregator] {
+		config.Rollkit.Aggregator = flagConfig.Rollkit.Aggregator
+	}
+	if flagsSet[FlagLight] {
+		config.Rollkit.Light = flagConfig.Rollkit.Light
+	}
+	if flagsSet[FlagDAAddress] {
+		config.Rollkit.DAAddress = flagConfig.Rollkit.DAAddress
+	}
+	if flagsSet[FlagDAAuthToken] {
+		config.Rollkit.DAAuthToken = flagConfig.Rollkit.DAAuthToken
+	}
+	if flagsSet[FlagBlockTime] {
+		config.Rollkit.BlockTime = flagConfig.Rollkit.BlockTime
+	}
+	if flagsSet[FlagDABlockTime] {
+		config.Rollkit.DABlockTime = flagConfig.Rollkit.DABlockTime
+	}
+	if flagsSet[FlagDAGasPrice] {
+		config.Rollkit.DAGasPrice = flagConfig.Rollkit.DAGasPrice
+	}
+	if flagsSet[FlagDAGasMultiplier] {
+		config.Rollkit.DAGasMultiplier = flagConfig.Rollkit.DAGasMultiplier
+	}
+	if flagsSet[FlagDAStartHeight] {
+		config.Rollkit.DAStartHeight = flagConfig.Rollkit.DAStartHeight
+	}
+	if flagsSet[FlagDANamespace] {
+		config.Rollkit.DANamespace = flagConfig.Rollkit.DANamespace
+	}
+	if flagsSet[FlagDASubmitOptions] {
+		config.Rollkit.DASubmitOptions = flagConfig.Rollkit.DASubmitOptions
+	}
+	if flagsSet[FlagTrustedHash] {
+		config.Rollkit.TrustedHash = flagConfig.Rollkit.TrustedHash
+	}
+	if flagsSet[FlagLazyAggregator] {
+		config.Rollkit.LazyAggregator = flagConfig.Rollkit.LazyAggregator
+	}
+	if flagsSet[FlagMaxPendingBlocks] {
+		config.Rollkit.MaxPendingBlocks = flagConfig.Rollkit.MaxPendingBlocks
+	}
+	if flagsSet[FlagDAMempoolTTL] {
+		config.Rollkit.DAMempoolTTL = flagConfig.Rollkit.DAMempoolTTL
+	}
+	if flagsSet[FlagLazyBlockTime] {
+		config.Rollkit.LazyBlockTime = flagConfig.Rollkit.LazyBlockTime
+	}
+	if flagsSet[FlagSequencerAddress] {
+		config.Rollkit.SequencerAddress = flagConfig.Rollkit.SequencerAddress
+	}
+	if flagsSet[FlagSequencerRollupID] {
+		config.Rollkit.SequencerRollupID = flagConfig.Rollkit.SequencerRollupID
+	}
+	if flagsSet[FlagExecutorAddress] {
+		config.Rollkit.ExecutorAddress = flagConfig.Rollkit.ExecutorAddress
+	}
+
+	// Instrumentation flags
+	if flagsSet[FlagPrometheus] && config.Instrumentation != nil {
+		config.Instrumentation.Prometheus = flagConfig.Instrumentation.Prometheus
+	}
+	if flagsSet[FlagPrometheusListenAddr] && config.Instrumentation != nil {
+		config.Instrumentation.PrometheusListenAddr = flagConfig.Instrumentation.PrometheusListenAddr
+	}
+	if flagsSet[FlagMaxOpenConnections] && config.Instrumentation != nil {
+		config.Instrumentation.MaxOpenConnections = flagConfig.Instrumentation.MaxOpenConnections
+	}
+
+	return config, nil
 }

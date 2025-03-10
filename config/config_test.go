@@ -1,12 +1,15 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultNodeConfig(t *testing.T) {
@@ -95,4 +98,80 @@ func TestAddFlags(t *testing.T) {
 
 	// Verify that the counts match
 	assert.Equal(t, expectedFlagCount, actualFlagCount, "Number of flags doesn't match. If you added a new flag, please update the test.")
+}
+
+func TestLoadNodeConfig(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Create a TOML file in the temporary directory
+	tomlPath := filepath.Join(tempDir, RollkitToml)
+	tomlContent := `
+entrypoint = "./cmd/app/main.go"
+
+[rollkit]
+aggregator = true
+block_time = "5s"
+da_address = "http://toml-da:26657"
+
+[chain]
+config_dir = "config"
+`
+	err := os.WriteFile(tomlPath, []byte(tomlContent), 0600)
+	require.NoError(t, err)
+
+	// Change to the temporary directory so ReadToml can find the file
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		err := os.Chdir(originalDir)
+		if err != nil {
+			t.Logf("Failed to change back to original directory: %v", err)
+		}
+	}()
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
+	// Verify that the TOML file exists and can be read
+	_, err = os.Stat(tomlPath)
+	require.NoError(t, err, "TOML file should exist at %s", tomlPath)
+
+	// Try to read the TOML file directly to verify it works
+	tomlConfig, err := ReadToml()
+	require.NoError(t, err, "Should be able to read TOML file")
+	t.Logf("TOML config read successfully: Entrypoint=%s, Aggregator=%v",
+		tomlConfig.Entrypoint, tomlConfig.Rollkit.Aggregator)
+
+	// Create a command with flags
+	cmd := &cobra.Command{Use: "test"}
+	AddFlags(cmd)
+
+	// Set some flags that should override TOML values
+	flagArgs := []string{
+		"--rollkit.block_time", "10s",
+		"--rollkit.da_address", "http://flag-da:26657",
+		"--rollkit.light", "true", // This is not in TOML, should be set from flag
+	}
+	cmd.SetArgs(flagArgs)
+	err = cmd.ParseFlags(flagArgs)
+	require.NoError(t, err)
+
+	// Load the configuration
+	config, err := LoadNodeConfig(cmd)
+	require.NoError(t, err)
+
+	// Verify the order of precedence:
+	// 1. Default values should be overridden by TOML
+	assert.Equal(t, "./cmd/app/main.go", config.Entrypoint, "Entrypoint should be set from TOML")
+	assert.Equal(t, true, config.Rollkit.Aggregator, "Aggregator should be set from TOML")
+
+	// 2. TOML values should be overridden by flags
+	assert.Equal(t, 10*time.Second, config.Rollkit.BlockTime, "BlockTime should be overridden by flag")
+	assert.Equal(t, "http://flag-da:26657", config.Rollkit.DAAddress, "DAAddress should be overridden by flag")
+
+	// 3. Flags not in TOML should be set
+	assert.Equal(t, true, config.Rollkit.Light, "Light should be set from flag")
+
+	// 4. Values not in flags or TOML should remain as default
+	assert.Equal(t, DefaultNodeConfig.Rollkit.DABlockTime, config.Rollkit.DABlockTime, "DABlockTime should remain as default")
 }

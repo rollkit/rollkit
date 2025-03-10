@@ -72,7 +72,7 @@ func TestParseFlags(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	if err := parseFlags(newRunNodeCmd); err != nil {
+	if err := parseConfig(newRunNodeCmd); err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
@@ -145,7 +145,7 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Errorf("Error: %v", err)
 		}
 
-		if err := parseFlags(newRunNodeCmd); err != nil {
+		if err := parseConfig(newRunNodeCmd); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
@@ -169,8 +169,8 @@ func TestCentralizedAddresses(t *testing.T) {
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
-	if err := parseFlags(cmd); err != nil {
-		t.Fatalf("parseFlags error: %v", err)
+	if err := parseConfig(cmd); err != nil {
+		t.Fatalf("parseConfig error: %v", err)
 	}
 
 	if nodeConfig.Rollkit.DAAddress != "http://central-da:26657" {
