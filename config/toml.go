@@ -41,7 +41,7 @@ func ReadToml() (config NodeConfig, err error) {
 	// Set the default values
 	config = DefaultNodeConfig
 
-	// Create a temporary struct to decode only the TOML fields
+	// Create a temporary struct to decode the TOML fields
 	type TomlFields struct {
 		Entrypoint string        `toml:"entrypoint"`
 		Chain      ChainConfig   `toml:"chain"`
@@ -59,65 +59,9 @@ func ReadToml() (config NodeConfig, err error) {
 	config.Entrypoint = tomlFields.Entrypoint
 	config.Chain = tomlFields.Chain
 
-	// Only override Rollkit fields that are explicitly set in the TOML file
-	// This preserves default values for fields not specified in the TOML
-	if tomlFields.Rollkit.Aggregator {
-		config.Rollkit.Aggregator = tomlFields.Rollkit.Aggregator
-	}
-	if tomlFields.Rollkit.Light {
-		config.Rollkit.Light = tomlFields.Rollkit.Light
-	}
-	if tomlFields.Rollkit.DAAddress != "" {
-		config.Rollkit.DAAddress = tomlFields.Rollkit.DAAddress
-	}
-	if tomlFields.Rollkit.DAAuthToken != "" {
-		config.Rollkit.DAAuthToken = tomlFields.Rollkit.DAAuthToken
-	}
-	if tomlFields.Rollkit.DAGasPrice != 0 {
-		config.Rollkit.DAGasPrice = tomlFields.Rollkit.DAGasPrice
-	}
-	if tomlFields.Rollkit.DAGasMultiplier != 0 {
-		config.Rollkit.DAGasMultiplier = tomlFields.Rollkit.DAGasMultiplier
-	}
-	if tomlFields.Rollkit.DASubmitOptions != "" {
-		config.Rollkit.DASubmitOptions = tomlFields.Rollkit.DASubmitOptions
-	}
-	if tomlFields.Rollkit.DANamespace != "" {
-		config.Rollkit.DANamespace = tomlFields.Rollkit.DANamespace
-	}
-	if tomlFields.Rollkit.BlockTime != 0 {
-		config.Rollkit.BlockTime = tomlFields.Rollkit.BlockTime
-	}
-	if tomlFields.Rollkit.DABlockTime != 0 {
-		config.Rollkit.DABlockTime = tomlFields.Rollkit.DABlockTime
-	}
-	if tomlFields.Rollkit.DAStartHeight != 0 {
-		config.Rollkit.DAStartHeight = tomlFields.Rollkit.DAStartHeight
-	}
-	if tomlFields.Rollkit.DAMempoolTTL != 0 {
-		config.Rollkit.DAMempoolTTL = tomlFields.Rollkit.DAMempoolTTL
-	}
-	if tomlFields.Rollkit.MaxPendingBlocks != 0 {
-		config.Rollkit.MaxPendingBlocks = tomlFields.Rollkit.MaxPendingBlocks
-	}
-	if tomlFields.Rollkit.LazyAggregator {
-		config.Rollkit.LazyAggregator = tomlFields.Rollkit.LazyAggregator
-	}
-	if tomlFields.Rollkit.LazyBlockTime != 0 {
-		config.Rollkit.LazyBlockTime = tomlFields.Rollkit.LazyBlockTime
-	}
-	if tomlFields.Rollkit.TrustedHash != "" {
-		config.Rollkit.TrustedHash = tomlFields.Rollkit.TrustedHash
-	}
-	if tomlFields.Rollkit.SequencerAddress != "" {
-		config.Rollkit.SequencerAddress = tomlFields.Rollkit.SequencerAddress
-	}
-	if tomlFields.Rollkit.SequencerRollupID != "" {
-		config.Rollkit.SequencerRollupID = tomlFields.Rollkit.SequencerRollupID
-	}
-	if tomlFields.Rollkit.ExecutorAddress != "" {
-		config.Rollkit.ExecutorAddress = tomlFields.Rollkit.ExecutorAddress
-	}
+	// Merge Rollkit configuration from TOML with default values
+	// This approach preserves default values for fields not specified in the TOML
+	mergeRollkitConfig(&config.Rollkit, tomlFields.Rollkit)
 
 	// Add configPath to chain.ConfigDir if it is a relative path
 	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
@@ -125,6 +69,73 @@ func ReadToml() (config NodeConfig, err error) {
 	}
 
 	return
+}
+
+// mergeRollkitConfig merges the values from src into dst, only overriding non-zero values.
+// This preserves default values for fields not specified in the TOML.
+func mergeRollkitConfig(dst *RollkitConfig, src RollkitConfig) {
+	// Boolean fields
+	if src.Aggregator {
+		dst.Aggregator = src.Aggregator
+	}
+	if src.Light {
+		dst.Light = src.Light
+	}
+	if src.LazyAggregator {
+		dst.LazyAggregator = src.LazyAggregator
+	}
+
+	// String fields - only override if not empty
+	if src.DAAddress != "" {
+		dst.DAAddress = src.DAAddress
+	}
+	if src.DAAuthToken != "" {
+		dst.DAAuthToken = src.DAAuthToken
+	}
+	if src.DASubmitOptions != "" {
+		dst.DASubmitOptions = src.DASubmitOptions
+	}
+	if src.DANamespace != "" {
+		dst.DANamespace = src.DANamespace
+	}
+	if src.TrustedHash != "" {
+		dst.TrustedHash = src.TrustedHash
+	}
+	if src.SequencerAddress != "" {
+		dst.SequencerAddress = src.SequencerAddress
+	}
+	if src.SequencerRollupID != "" {
+		dst.SequencerRollupID = src.SequencerRollupID
+	}
+	if src.ExecutorAddress != "" {
+		dst.ExecutorAddress = src.ExecutorAddress
+	}
+
+	// Numeric fields - only override if not zero
+	if src.DAGasPrice != 0 {
+		dst.DAGasPrice = src.DAGasPrice
+	}
+	if src.DAGasMultiplier != 0 {
+		dst.DAGasMultiplier = src.DAGasMultiplier
+	}
+	if src.BlockTime != 0 {
+		dst.BlockTime = src.BlockTime
+	}
+	if src.DABlockTime != 0 {
+		dst.DABlockTime = src.DABlockTime
+	}
+	if src.DAStartHeight != 0 {
+		dst.DAStartHeight = src.DAStartHeight
+	}
+	if src.DAMempoolTTL != 0 {
+		dst.DAMempoolTTL = src.DAMempoolTTL
+	}
+	if src.MaxPendingBlocks != 0 {
+		dst.MaxPendingBlocks = src.MaxPendingBlocks
+	}
+	if src.LazyBlockTime != 0 {
+		dst.LazyBlockTime = src.LazyBlockTime
+	}
 }
 
 // findConfigFile searches for the rollkit.toml file starting from the given
@@ -212,13 +223,15 @@ func FindConfigDir(dir string) (string, bool) {
 func WriteTomlConfig(config NodeConfig) error {
 	// Create a temporary struct to encode only the TOML fields
 	type TomlFields struct {
-		Entrypoint string      `toml:"entrypoint"`
-		Chain      ChainConfig `toml:"chain"`
+		Entrypoint string        `toml:"entrypoint"`
+		Chain      ChainConfig   `toml:"chain"`
+		Rollkit    RollkitConfig `toml:"rollkit"`
 	}
 
 	tomlFields := TomlFields{
 		Entrypoint: config.Entrypoint,
 		Chain:      config.Chain,
+		Rollkit:    config.Rollkit,
 	}
 
 	configPath := filepath.Join(config.RootDir, RollkitToml)
