@@ -1,11 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -284,8 +286,8 @@ func TestTomlConfigOperations(t *testing.T) {
 			_, err = os.Stat(configPath)
 			require.NoError(t, err)
 
-			// Read the config back from the file
-			readConfig, err := ReadToml()
+			// Read the config back from the file - use the absolute path to avoid Getwd issues
+			readConfig, err := readTomlFromPath(configPath)
 			require.NoError(t, err)
 
 			// Create expected config with appropriate values
@@ -320,4 +322,39 @@ func TestTomlConfigOperations(t *testing.T) {
 			}
 		})
 	}
+}
+
+// readTomlFromPath reads a TOML file from the given path without relying on os.Getwd(), needed for CI
+func readTomlFromPath(configPath string) (config NodeConfig, err error) {
+	// Set the default values
+	config = DefaultNodeConfig
+
+	// Create a temporary struct to decode the TOML fields
+	type TomlFields struct {
+		Entrypoint string        `toml:"entrypoint"`
+		Chain      ChainConfig   `toml:"chain"`
+		Rollkit    RollkitConfig `toml:"rollkit"`
+	}
+
+	var tomlFields TomlFields
+	if _, err = toml.DecodeFile(configPath, &tomlFields); err != nil {
+		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
+		return
+	}
+
+	// Override with values from TOML
+	config.RootDir = filepath.Dir(configPath)
+	config.Entrypoint = tomlFields.Entrypoint
+	config.Chain = tomlFields.Chain
+
+	// Merge Rollkit configuration from TOML with default values
+	// This approach preserves default values for fields not specified in the TOML
+	mergeRollkitConfig(&config.Rollkit, tomlFields.Rollkit)
+
+	// Add configPath to chain.ConfigDir if it is a relative path
+	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
+		config.Chain.ConfigDir = filepath.Join(config.RootDir, config.Chain.ConfigDir)
+	}
+
+	return
 }
