@@ -73,16 +73,57 @@ In `normal` mode, the block manager runs a timer, which is set to the `BlockTime
 
 In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish, in order to collect as many transactions from the mempool as possible. The 1 second delay is chosen in accordance with the default block time of 1s. The block manager also notifies the full node after every lazy block building.
 
+#### Block Manager Components
+
+The Block Manager consists of multiple specialized components that handle different aspects of block creation and processing:
+
+1. **BlockCreator**: Responsible for the initial creation of blocks, including collecting transactions from the batch queue and creating the base block structure.
+
+2. **ExecutionManager**: Handles block validation, execution of transactions, and application of blocks to the state.
+
+3. **StateManager**: Manages the current blockchain state and provides methods to update it.
+
+4. **SyncManager**: Handles synchronization of blocks across the network, including pending headers and data caches.
+
+5. **DAManager**: Manages interaction with the Data Availability layer.
+
+In a centralized sequencer configuration, the BlockCreator plays a key role in producing batches of transactions that form complete blocks, not just headers.
+
 #### Building the Block
 
 The block manager of the sequencer nodes performs the following steps to produce a block:
 
-* Call `CreateBlock` using executor
-* Sign the block using `signing key` to generate commitment
-* Call `ApplyBlock` using executor to generate an updated state
-* Save the block, validators, and updated state to local store
-* Add the newly generated block to `pendingBlocks` queue
-* Publish the newly generated block to channels to notify other components of the sequencer node (such as block and header gossip)
+1. **Transaction Batch Collection**: 
+   * The `BlockCreator` collects transactions from the batch queue
+   * In centralized sequencer mode, entire batches of transactions are processed together
+   * Transactions may come from three sources: the batch queue, directly provided transactions, or the mempool
+
+2. **Block Creation**:
+   * The `Manager` calls the `BlockCreator.createBlock` method to create the initial block structure
+   * Header information is populated, including chain ID, height, timestamp, and proposer address
+   * Transactions are added to the block data
+
+3. **Data Hash Generation**:
+   * A cryptographic hash of the block data is computed
+   * This hash is included in the header as the data hash
+
+4. **Block Signing**:
+   * The block header is signed using the proposer's private key
+   * This signature is crucial for authenticity verification by other nodes
+
+5. **Block Application**:
+   * Call `ApplyBlock` using the `ExecutionManager` to execute transactions and generate an updated state
+
+6. **State Update and Storage**:
+   * The new state is saved to the local store
+   * The block, its signature, and updated state are persisted
+
+7. **Publication**:
+   * The newly generated block is added to the `pendingBlocks` queue
+   * The block is published through channels to notify other components
+   * The block is prepared for submission to both the P2P network and DA layer
+
+This process ensures that in a centralized sequencer configuration, complete blocks with batched transactions are properly created, signed, and distributed.
 
 ### Block Publication to DA Network
 
@@ -126,6 +167,32 @@ Although a sequencer does not need to retrieve blocks from the P2P network, it s
 #### About Soft Confirmations and DA Inclusions
 
 The block manager retrieves blocks from both the P2P network and the underlying DA network because the blocks are available in the P2P network faster and DA retrieval is slower (e.g., 1 second vs 15 seconds). The blocks retrieved from the P2P network are only marked as soft confirmed until the DA retrieval succeeds on those blocks and they are marked DA included. DA included blocks can be considered to have a higher level of finality.
+
+#### Transaction Batch Processing Flow
+
+In the centralized sequencer configuration, transaction batches flow through the system as follows:
+
+1. **Batch Collection**:
+   * Transactions are collected into batches by the sequencer
+   * The `BatchQueue` component maintains an ordered queue of transaction batches with timestamps
+   * Batches are retrieved using the `Next()` method which returns the next available batch
+
+2. **Batch to Block Conversion**:
+   * The `BlockCreator` converts batches into block data
+   * Batches are wrapped into types.Data structures containing transaction lists
+   * The original batch timestamp is preserved and used for the block timestamp when available
+
+3. **Validation and Execution**:
+   * Batched transactions are validated as a group
+   * The `ExecutionManager` executes the transactions in order
+   * Results are captured for inclusion in the final block
+
+4. **Finalization**:
+   * Once all transactions in a batch are executed, the block is finalized
+   * State is updated with the results of all transactions in the batch
+   * The batch is marked as processed and removed from the queue
+
+This batch-oriented processing ensures efficient handling of transactions in groups, which is particularly important for rollup systems where transaction throughput is a key performance metric.
 
 ### State Update after Block Retrieval
 
