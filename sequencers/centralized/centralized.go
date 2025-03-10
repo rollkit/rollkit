@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -35,23 +34,20 @@ var _ coresequencer.Sequencer = &Sequencer{}
 type Sequencer struct {
 	ctx    context.Context
 	logger log.Logger
-	db     ds.Batching
 
-	dalc        *dac.DAClient
-	batchTime   time.Duration
+	dalc      *dac.DAClient
+	batchTime time.Duration
+
 	maxBlobSize *atomic.Uint64
-
-	maxBytes atomic.Uint64
-	maxGas   atomic.Uint64
+	maxBytes    atomic.Uint64
+	maxGas      atomic.Uint64
 
 	rollupId []byte
 
-	tq            *TransactionQueue
-	lastBatchHash atomic.Value
+	seenBatches map[string]struct{}
+	bq          *BatchQueue
 
-	seenBatches      map[string]struct{}
-	seenBatchesMutex sync.RWMutex
-	bq               *BatchQueue
+	lastSubmittedBatchHash atomic.Value
 
 	metrics *Metrics
 }
@@ -85,36 +81,17 @@ func NewSequencer(
 		maxBytes:    atomic.Uint64{},
 		maxGas:      atomic.Uint64{},
 		rollupId:    rollupId,
-		tq:          NewTransactionQueue(db),
 		bq:          NewBatchQueue(db),
 		seenBatches: make(map[string]struct{}),
-		db:          db,
 		metrics:     metrics,
 	}
 
-	// Load last batch hash from DB to recover from crash
-	err = s.LoadLastBatchHashFromDB(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load last batch hash from DB: %w", err)
-	}
-
-	// Load seen batches from DB to recover from crash
-	err = s.LoadSeenBatchesFromDB(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load seen batches from DB: %w", err)
-	}
-
-	// Load TransactionQueue and BatchQueue from DB to recover from crash
-	err = s.tq.LoadFromDB(ctx) // Load transactions
-	if err != nil {
-		return nil, fmt.Errorf("failed to load transaction queue from DB: %w", err)
-	}
-	err = s.bq.LoadFromDB(ctx) // Load batches
+	err = s.bq.Load(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load batch queue from DB: %w", err)
 	}
 
-	go s.batchSubmissionLoop(s.ctx)
+	go s.batchSubmissionLoop(ctx)
 	return s, nil
 }
 
@@ -128,15 +105,30 @@ func (c *Sequencer) SetMaxGas(size uint64) {
 	c.maxGas.Store(size)
 }
 
-// Close safely closes the BadgerDB instance if it is open
 func (c *Sequencer) Close() error {
-	if c.db != nil {
-		err := c.db.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close BadgerDB: %w", err)
-		}
+	return c.bq.Close()
+}
+
+// SubmitRollupBatchTxs implements sequencing.Sequencer.
+func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.SubmitRollupBatchTxsRequest) (*coresequencer.SubmitRollupBatchTxsResponse, error) {
+	if !c.isValid(req.RollupId) {
+		return nil, ErrInvalidRollupId
 	}
-	return nil
+
+	// create a batch from the set of transactions and store it in the queue
+	batch := coresequencer.Batch{Transactions: req.Batch.Transactions}
+	err := c.bq.AddBatch(ctx, batch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add batch: %w", err)
+	}
+
+	lastSubmittedBatchHash := c.lastSubmittedBatchHash.Load()
+	var batchHash []byte
+	if lastSubmittedBatchHash != nil {
+		batchHash = lastSubmittedBatchHash.([]byte)
+	}
+
+	return &coresequencer.SubmitRollupBatchTxsResponse{LastSubmittedBatchHash: batchHash}, nil
 }
 
 // CompareAndSetMaxSize compares the passed size with the current max size and sets the max size to the smaller of the two
@@ -152,50 +144,6 @@ func (c *Sequencer) CompareAndSetMaxSize(size uint64) {
 			return
 		}
 	}
-}
-
-// LoadLastBatchHashFromDB loads the last batch hash from BadgerDB into memory after a crash or restart.
-func (c *Sequencer) LoadLastBatchHashFromDB(ctx context.Context) error {
-	// Load the last batch hash from BadgerDB if it exists
-	bz, err := c.db.Get(ctx, ds.NewKey(lastBatchKey))
-	if err != nil {
-		return err
-	}
-	c.lastBatchHash.Store(bz)
-
-	return nil
-}
-
-// LoadSeenBatchesFromDB loads the seen batches from BadgerDB into memory after a crash or restart.
-func (c *Sequencer) LoadSeenBatchesFromDB(ctx context.Context) error {
-
-	// TODO: what is the best way to load the last seen keys into memory, is this needed?
-	// err := c.db.View(func(txn *badger.Txn) error {
-	// 	// Create an iterator to go through all entries in BadgerDB
-	// 	it := txn.NewIterator(badger.DefaultIteratorOptions)
-	// 	defer it.Close()
-
-	// 	for it.Rewind(); it.Valid(); it.Next() {
-	// 		item := it.Item()
-	// 		key := item.Key()
-	// 		// Add the batch hash to the seenBatches map (for fast in-memory lookups)
-	// 		c.seenBatches[string(key)] = struct{}{}
-	// 	}
-	// 	return nil
-	// })
-
-	return nil
-}
-
-func (c *Sequencer) setLastBatchHash(ctx context.Context, hash []byte) error {
-	return c.db.Put(ctx, ds.NewKey(lastBatchKey), hash)
-}
-
-func (c *Sequencer) addSeenBatch(ctx context.Context, hash []byte) error {
-	key := ds.NewKey("seen:" + hex.EncodeToString(hash))
-	// Store with TTL if supported by the datastore implementation
-	// For datastores that don't support TTL natively, implement a cleanup routine
-	return c.db.Put(ctx, key, []byte{1})
 }
 
 func (c *Sequencer) batchSubmissionLoop(ctx context.Context) {
@@ -217,23 +165,23 @@ func (c *Sequencer) batchSubmissionLoop(ctx context.Context) {
 	}
 }
 
+// publishBatch publishes a batch to the DA layer
 func (c *Sequencer) publishBatch(ctx context.Context) error {
-	batch := c.tq.GetNextBatch(ctx, c.maxBlobSize.Load())
+	batch, err := c.bq.Next(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get next batch: %w", err)
+	}
 	if batch.Transactions == nil {
 		return nil
 	}
-	err := c.submitBatchToDA(batch)
+	err = c.submitBatchToDA(*batch)
 	if err != nil {
 		// On failure, re-add the batch to the transaction queue for future retry
-		revertErr := c.tq.AddBatchBackToQueue(ctx, batch)
+		revertErr := c.bq.AddBatch(ctx, *batch)
 		if revertErr != nil {
 			return fmt.Errorf("failed to revert batch to queue: %w", revertErr)
 		}
 		return fmt.Errorf("failed to submit batch to DA: %w", err)
-	}
-	err = c.bq.AddBatch(ctx, batch)
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -248,13 +196,27 @@ func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode 
 	}
 }
 
+// submitBatchToDA submits a batch of transactions to the Data Availability (DA) layer.
+// It implements a retry mechanism with exponential backoff and gas price adjustments
+// to handle various failure scenarios.
+//
+// The function attempts to submit the batch multiple times (up to maxSubmitAttempts)
+// with different strategies based on the response from the DA layer:
+// - On success: Reduces gas price gradually (but not below initial price)
+// - On mempool issues: Increases gas price and uses a longer backoff
+// - On size issues: Reduces the blob size and uses exponential backoff
+// - On other errors: Uses exponential backoff
+//
+// It returns an error if not all batches could be submitted after all attempts.
 func (c *Sequencer) submitBatchToDA(batch coresequencer.Batch) error {
+	// Initialize a slice with the batch to submit
 	batchesToSubmit := []*coresequencer.Batch{&batch}
 	submittedAllBlocks := false
 	var backoff time.Duration
 	numSubmittedBatches := 0
 	attempt := 0
 
+	// Store initial values to be able to reset or compare later
 	maxBlobSize := c.maxBlobSize.Load()
 	initialMaxBlobSize := maxBlobSize
 	initialGasPrice := c.dalc.GasPrice
@@ -262,30 +224,40 @@ func (c *Sequencer) submitBatchToDA(batch coresequencer.Batch) error {
 
 daSubmitRetryLoop:
 	for !submittedAllBlocks && attempt < maxSubmitAttempts {
+		// Wait for backoff duration or exit if context is done
 		select {
 		case <-c.ctx.Done():
 			break daSubmitRetryLoop
 		case <-time.After(backoff):
 		}
 
+		// Attempt to submit the batch to the DA layer
 		res := c.dalc.SubmitBatch(c.ctx, batchesToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case dac.StatusSuccess:
+			//TODO: upon success, mark the batch as processed in the WAL & update the last submitted batch hash
+			// Count total transactions for logging
 			txCount := 0
 			for _, batch := range batchesToSubmit {
 				txCount += len(batch.Transactions)
 			}
 			c.logger.Info("successfully submitted batches to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "batchCount", res.SubmittedCount, "txCount", txCount)
+
+			// Check if all batches were submitted
 			if res.SubmittedCount == uint64(len(batchesToSubmit)) {
 				submittedAllBlocks = true
 			}
+
+			// Split the batches into submitted and not submitted
 			submittedBatches, notSubmittedBatches := batchesToSubmit[:res.SubmittedCount], batchesToSubmit[res.SubmittedCount:]
 			numSubmittedBatches += len(submittedBatches)
 			batchesToSubmit = notSubmittedBatches
-			// reset submission options when successful
-			// scale back gasPrice gradually
+
+			// Reset submission parameters after success
 			backoff = 0
 			maxBlobSize = initialMaxBlobSize
+
+			// Gradually reduce gas price on success, but not below initial price
 			if c.dalc.GasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice / c.dalc.GasMultiplier
 				if gasPrice < initialGasPrice {
@@ -293,27 +265,36 @@ daSubmitRetryLoop:
 				}
 			}
 			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+
 		case dac.StatusNotIncludedInBlock, dac.StatusAlreadyInMempool:
+			// For mempool-related issues, use a longer backoff and increase gas price
 			c.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
+
+			// Increase gas price to prioritize the transaction
 			if c.dalc.GasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice * c.dalc.GasMultiplier
 			}
 			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 
 		case dac.StatusTooBig:
+			// If the blob is too big, reduce the max blob size
 			maxBlobSize = maxBlobSize / 4
 			c.maxBlobSize.Store(maxBlobSize)
 			fallthrough
+
 		default:
+			// For other errors, use exponential backoff
 			c.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = c.exponentialBackoff(backoff)
 		}
 
+		// Record metrics for monitoring
 		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(batchesToSubmit), res.DAHeight)
 		attempt += 1
 	}
 
+	// Return error if not all batches were submitted after all attempts
 	if !submittedAllBlocks {
 		return fmt.Errorf(
 			"failed to submit all blocks to DA layer, submitted %d blocks (%d left) after %d attempts",
@@ -345,31 +326,13 @@ func getRemainingSleep(start time.Time, blockTime time.Duration, sleep time.Dura
 	return remaining + sleep
 }
 
-// SubmitRollupBatchTxs implements sequencing.Sequencer.
-func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.SubmitRollupBatchTxsRequest) (*coresequencer.SubmitRollupBatchTxsResponse, error) {
-	if !c.isValid(req.RollupId) {
-		return nil, ErrInvalidRollupId
-	}
-
-	if len(req.Batch.Transactions) > 0 {
-		for _, tx := range req.Batch.Transactions {
-			err := c.tq.AddTransaction(ctx, tx)
-			if err != nil {
-				return nil, fmt.Errorf("failed to add transaction: %w", err)
-			}
-		}
-	}
-
-	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
-}
-
 // GetNextBatch implements sequencing.Sequencer.
 func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextBatchRequest) (*coresequencer.GetNextBatchResponse, error) {
 	if !c.isValid(req.RollupId) {
 		return nil, ErrInvalidRollupId
 	}
 	now := time.Now()
-	lastBatchHash := c.lastBatchHash.Load()
+	lastBatchHash := req.LastBatchHash
 
 	if !reflect.DeepEqual(lastBatchHash, req.LastBatchHash) {
 		return nil, fmt.Errorf("batch hash mismatch: lastBatchHash = %x, req.LastBatchHash = %x", lastBatchHash, req.LastBatchHash)
@@ -395,20 +358,8 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 		return c.recover(ctx, *batch, err)
 	}
 
-	c.lastBatchHash.Store(h)
-	err = c.setLastBatchHash(ctx, h)
-	if err != nil {
-		return c.recover(ctx, *batch, err)
-	}
-
 	hexHash := hex.EncodeToString(h)
-	c.seenBatchesMutex.Lock()
 	c.seenBatches[hexHash] = struct{}{}
-	c.seenBatchesMutex.Unlock()
-	err = c.addSeenBatch(ctx, h)
-	if err != nil {
-		return c.recover(ctx, *batch, err)
-	}
 
 	return batchRes, nil
 }
@@ -428,8 +379,6 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	if !c.isValid(req.RollupId) {
 		return nil, ErrInvalidRollupId
 	}
-	c.seenBatchesMutex.RLock()
-	defer c.seenBatchesMutex.RUnlock()
 	key := hex.EncodeToString(req.BatchHash)
 	if _, exists := c.seenBatches[key]; exists {
 		return &coresequencer.VerifyBatchResponse{Status: true}, nil

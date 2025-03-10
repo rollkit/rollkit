@@ -35,9 +35,7 @@ func TestNewSequencer(t *testing.T) {
 	if seq == nil {
 		t.Fatal("Expected sequencer to not be nil")
 	}
-	if seq.tq == nil {
-		t.Fatal("Expected transaction queue to not be nil")
-	}
+
 	if seq.bq == nil {
 		t.Fatal("Expected batch queue to not be nil")
 	}
@@ -105,7 +103,6 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 		bq:          NewBatchQueue(db),
 		seenBatches: make(map[string]struct{}),
 		rollupId:    []byte("rollup"),
-		db:          db,
 	}
 	defer func() {
 		err := seq.Close()
@@ -138,11 +135,9 @@ func TestSequencer_GetNextBatch_LastBatchMismatch(t *testing.T) {
 	lastBatchHash.Store([]byte("existingHash"))
 	// Initialize a new sequencer with a mock batch
 	seq := &Sequencer{
-		lastBatchHash: lastBatchHash,
-		bq:            NewBatchQueue(db),
-		seenBatches:   make(map[string]struct{}),
-		rollupId:      []byte("rollup"),
-		db:            db,
+		bq:          NewBatchQueue(db),
+		seenBatches: make(map[string]struct{}),
+		rollupId:    []byte("rollup"),
 	}
 	defer func() {
 		err := seq.Close()
@@ -171,11 +166,9 @@ func TestSequencer_GetNextBatch_LastBatchNilMismatch(t *testing.T) {
 	lastBatchHash.Store([]byte("existingHash"))
 	// Initialize a new sequencer
 	seq := &Sequencer{
-		lastBatchHash: lastBatchHash,
-		bq:            NewBatchQueue(db),
-		seenBatches:   make(map[string]struct{}),
-		rollupId:      []byte("rollup"),
-		db:            db,
+		bq:          NewBatchQueue(db),
+		seenBatches: make(map[string]struct{}),
+		rollupId:    []byte("rollup"),
 	}
 	defer func() {
 		err := seq.Close()
@@ -204,11 +197,9 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		bq:            NewBatchQueue(db),
-		seenBatches:   make(map[string]struct{}),
-		lastBatchHash: atomic.Value{},
-		rollupId:      []byte("rollup"),
-		db:            db,
+		bq:          NewBatchQueue(db),
+		seenBatches: make(map[string]struct{}),
+		rollupId:    []byte("rollup"),
 	}
 	defer func() {
 		err := seq.Close()
@@ -239,11 +230,6 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 		t.Fatalf("Expected 2 transactions, got %d", len(res.Batch.Transactions))
 	}
 
-	// Ensure lastBatchHash is updated after the batch
-	if seq.lastBatchHash.Load() == nil {
-		t.Fatal("Expected lastBatchHash to be updated, got nil")
-	}
-
 	// Ensure the batch hash was added to seenBatches
 	if len(seq.seenBatches) == 0 {
 		t.Fatal("Expected seenBatches to not be empty")
@@ -254,9 +240,9 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 	// Initialize a new sequencer with a seen batch
 	seq := &Sequencer{
+		bq:          NewBatchQueue(db),
 		seenBatches: make(map[string]struct{}),
 		rollupId:    []byte("rollup"),
-		db:          db,
 	}
 	defer func() {
 		err := seq.Close()
