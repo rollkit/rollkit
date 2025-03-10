@@ -41,7 +41,7 @@ func TestInitTomlCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read the file content directly to verify the TOML structure
-	content, err := os.ReadFile(configPath)
+	content, err := os.ReadFile(configPath) //nolint:gosec // This is a test file with a controlled path
 	require.NoError(t, err)
 
 	// Check that the content contains the expected default values

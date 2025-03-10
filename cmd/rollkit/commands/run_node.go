@@ -19,7 +19,6 @@ import (
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -435,28 +434,6 @@ func parseConfig(cmd *cobra.Command) error {
 
 	// Validate the root directory
 	rollconf.EnsureRoot(nodeConfig.RootDir)
-
-	return nil
-}
-
-// parseFlags is kept for backward compatibility but is no longer used directly
-func parseFlags(cmd *cobra.Command) error {
-	v := viper.GetViper()
-	if err := v.BindPFlags(cmd.Flags()); err != nil {
-		return err
-	}
-
-	// unmarshal viper into config
-	err := v.Unmarshal(&nodeConfig, func(c *mapstructure.DecoderConfig) {
-		c.TagName = "mapstructure"
-		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
-			mapstructure.StringToTimeDurationHookFunc(),
-			mapstructure.StringToSliceHookFunc(","),
-		)
-	})
-	if err != nil {
-		return fmt.Errorf("unable to decode command flags into config: %w", err)
-	}
 
 	return nil
 }

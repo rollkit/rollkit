@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
-	rollconf "github.com/rollkit/rollkit/config"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	rollconf "github.com/rollkit/rollkit/config"
 )
 
 type mockDeps struct {

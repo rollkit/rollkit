@@ -316,7 +316,7 @@ func TestTomlConfigOperations(t *testing.T) {
 
 			// Verify the file content if needed
 			if tc.verifyFileContent {
-				content, err := os.ReadFile(configPath)
+				content, err := os.ReadFile(configPath) //nolint:gosec // This is a test file with a controlled path
 				require.NoError(t, err)
 				require.NotEmpty(t, content)
 			}
