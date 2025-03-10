@@ -26,6 +26,22 @@ Both header and block sync utilizes [go-header][go-header] library and runs two 
 
 The sequencer node, upon successfully creating the block, publishes the signed block header to the P2P network using the header sync service. The full/light nodes run the header sync service in the background to receive and store the signed headers from the P2P network. Currently the full/light nodes do not consume the P2P synced headers, however they have future utilities in performing certain checks.
 
+### Header Sync and Based Sequencing
+
+When running in based sequencing mode, headers have a different origin and workflow:
+
+1. **Direct DA Headers**: In based sequencing, the sequencer posts headers directly to the DA layer, potentially bypassing the P2P network. 
+
+2. **Header Retrieval**: Full nodes retrieve these headers directly from the DA layer during DA block retrieval.
+
+3. **Batch Association**: Headers from based sequencing reference batch data that must also be retrieved from the DA layer.
+
+4. **Specialized Processing**: Full nodes apply special processing to detect and handle headers that came from based sequencing.
+
+5. **State Consistency**: Despite the different origin, headers from based sequencing still update the same state and are subject to the same validation rules.
+
+Based sequencing creates a parallel path for headers to enter the system, but the end result is still a consistent state across all nodes.
+
 ## Assumptions
 
 * The header sync store is created by prefixing `headerSync` the main datastore.

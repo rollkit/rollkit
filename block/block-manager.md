@@ -64,14 +64,18 @@ Block manager configuration options:
 |DABlockTime|time.Duration|time interval used for both block publication to DA network and block retrieval from DA network ([`defaultDABlockTime`][defaultDABlockTime])|
 |DAStartHeight|uint64|block retrieval from DA network starts from this height|
 |LazyBlockTime|time.Duration|time interval used for block production in lazy aggregator mode even when there are no transactions ([`defaultLazyBlockTime`][defaultLazyBlockTime])|
+|SequencingMode|string|defines the sequencing scheme to use: "normal", "lazy", or "based". This overrides LazyAggregator if set to "lazy" or "based"|
+|PreExecuteBatches|bool|defines whether batches should be pre-executed for validation before submitting to DA in based sequencing mode|
 
 ### Block Production
 
-When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are two modes of block production, which can be specified in the block manager configurations: `normal` and `lazy`.
+When the full node is operating as a sequencer (aka aggregator), the block manager runs the block production logic. There are three modes of block production, which can be specified in the block manager configurations: `normal`, `lazy`, and `based`.
 
 In `normal` mode, the block manager runs a timer, which is set to the `BlockTime` configuration parameter, and continuously produces blocks at `BlockTime` intervals.
 
 In `lazy` mode, the block manager starts building a block when any transaction becomes available in the mempool. After the first notification of the transaction availability, the manager will wait for a 1 second timer to finish, in order to collect as many transactions from the mempool as possible. The 1 second delay is chosen in accordance with the default block time of 1s. The block manager also notifies the full node after every lazy block building.
+
+In `based` mode (also known as based sequencing), the block manager focuses on quick submission of transaction batches directly to the DA layer. Instead of going through the full block creation process before DA submission, batches are minimally processed, wrapped in a header, signed, and submitted directly to DA. This optimizes for faster DA inclusion at the expense of some pre-consensus validation. A pre-execution validation step can optionally be enabled to ensure state transitions are valid before submission.
 
 #### Block Manager Components
 
@@ -193,6 +197,43 @@ In the centralized sequencer configuration, transaction batches flow through the
    * The batch is marked as processed and removed from the queue
 
 This batch-oriented processing ensures efficient handling of transactions in groups, which is particularly important for rollup systems where transaction throughput is a key performance metric.
+
+### Based Sequencing
+
+The based sequencing mode provides a more direct path from transaction batches to DA submission. This approach bypasses much of the normal block production flow and optimizes for getting transactions to the DA layer as quickly as possible.
+
+#### Based Batch Processing
+
+In based sequencing mode, transaction batches follow this flow:
+
+1. **Batch Collection**:
+   * Batches are collected at a faster rate than regular blocks (half of `BlockTime` by default)
+   * Each batch is processed independently without waiting for consensus
+
+2. **Minimal Validation**:
+   * Basic validation checks are performed on each transaction
+   * Optional pre-execution validation can be enabled via the `PreExecuteBatches` configuration option
+   * Pre-execution ensures state transitions are valid without committing them
+
+3. **Batch Preparation**:
+   * Each batch is wrapped in a minimal header structure
+   * The header is signed using the proposer's key
+   * Header and data are serialized into a combined blob format
+
+4. **Direct DA Submission**:
+   * The combined blob is submitted directly to the DA layer
+   * No full consensus or P2P propagation is required before DA submission
+   * This provides faster finality guarantees from the DA layer
+
+5. **Processing by Other Nodes**:
+   * Other nodes detect and retrieve these based batches from the DA layer
+   * Special handling is applied to recognize and process these batches
+   * The transactions are executed and state is updated accordingly
+
+Based sequencing is particularly useful in scenarios where:
+* Faster DA inclusion is more important than pre-consensus validation
+* The sequencer is trusted to submit valid batches
+* Transaction throughput needs to be maximized
 
 ### State Update after Block Retrieval
 

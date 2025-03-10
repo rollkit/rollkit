@@ -759,15 +759,32 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	blockTimer := time.NewTimer(0)
 	defer blockTimer.Stop()
 
-	// Lazy Aggregator mode.
-	// In Lazy Aggregator mode, blocks are built only when there are
-	// transactions or every LazyBlockTime.
-	if m.conf.LazyAggregator {
+	// Check sequencing mode from configuration
+	switch m.conf.SequencingMode {
+	case "based":
+		m.logger.Info("Starting based sequencing mode")
+		m.basedSequencingLoop(ctx)
+		return
+	case "lazy":
+		m.logger.Info("Starting lazy sequencing mode")
 		m.lazyAggregationLoop(ctx, blockTimer)
 		return
-	}
+	case "normal":
+		m.logger.Info("Starting normal sequencing mode")
+		m.normalAggregationLoop(ctx, blockTimer)
+		return
+	default:
+		// For backward compatibility, check the LazyAggregator flag
+		if m.conf.LazyAggregator {
+			m.logger.Info("Starting lazy sequencing mode (legacy config)")
+			m.lazyAggregationLoop(ctx, blockTimer)
+			return
+		}
 
-	m.normalAggregationLoop(ctx, blockTimer)
+		// Default to normal mode
+		m.logger.Info("Starting normal sequencing mode (default)")
+		m.normalAggregationLoop(ctx, blockTimer)
+	}
 }
 
 func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Timer) {
@@ -967,72 +984,186 @@ func (m *Manager) sendNonBlockingSignalToRetrieveCh() {
 	}
 }
 
-// trySyncNextBlock tries to execute as many blocks as possible from the blockCache.
-//
-//	Note: the blockCache contains only valid blocks that are not yet synced
-//
-// For every block, to be able to apply block at height h, we need to have its Commit. It is contained in block at height h+1.
-// If commit for block h+1 is available, we proceed with sync process, and remove synced block from sync cache.
-func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		currentHeight := m.state.store.Height()
-		h := m.sync.headerCache.getHeader(currentHeight + 1)
-		if h == nil {
-			m.logger.Debug("header not found in cache", "height", currentHeight+1)
-			return nil
-		}
-		d := m.sync.dataCache.getData(currentHeight + 1)
-		if d == nil {
-			m.logger.Debug("data not found in cache", "height", currentHeight+1)
-			return nil
-		}
+// handleHeader processes a header from DA
+// If isDirect is true, the header was retrieved directly from DA
+// (as opposed to being retrieved from P2P)
+func (m *Manager) handleHeader(ctx context.Context, header *types.SignedHeader, daHeight uint64, isDirect bool) error {
+	headerHash := header.Hash().String()
+	headerHeight := header.Height()
 
-		hHeight := h.Height()
-		m.logger.Info("Syncing header and data", "height", hHeight)
-		// Validate the received block before applying
-		if err := m.executor.execValidate(m.state.currentState, h, d); err != nil {
-			return fmt.Errorf("failed to validate block: %w", err)
-		}
-		newState, responses, err := m.executor.execApplyBlock(ctx, m.state.currentState, h, d)
-		if err != nil {
-			if ctx.Err() != nil {
-				return err
-			}
-			// if call to applyBlock fails, we halt the node, see https://github.com/cometbft/cometbft/pull/496
-			panic(fmt.Errorf("failed to ApplyBlock: %w", err))
-		}
-		err = m.state.store.SaveBlockData(ctx, h, d, &h.Signature)
-		if err != nil {
-			return SaveBlockError{err}
-		}
-		_, err = m.executor.execCommit(ctx, newState, h, d, responses)
-		if err != nil {
-			return fmt.Errorf("failed to Commit: %w", err)
-		}
+	// Mark header as seen
+	m.sync.headerCache.setSeen(headerHash)
 
-		err = m.state.store.SaveBlockResponses(ctx, hHeight, responses)
-		if err != nil {
-			return SaveBlockResponsesError{err}
-		}
+	// Store header in cache
+	m.sync.headerCache.setHeader(headerHeight, header)
 
-		// Height gets updated
-		m.state.store.SetHeight(ctx, hHeight)
-
-		if daHeight > newState.DAHeight {
-			newState.DAHeight = daHeight
-		}
-		err = m.state.updateState(ctx, newState)
-		if err != nil {
-			m.logger.Error("failed to save updated state", "error", err)
-		}
-		m.sync.headerCache.deleteHeader(currentHeight + 1)
-		m.sync.dataCache.deleteData(currentHeight + 1)
+	// If direct from DA, mark as DA included
+	if isDirect {
+		m.sync.headerCache.setDAIncluded(headerHash)
 	}
+
+	// Send header to the HeaderCh channel
+	m.HeaderCh <- NewHeaderEvent{
+		Header:   header,
+		DAHeight: daHeight,
+	}
+
+	m.logger.Debug("header handled",
+		"height", headerHeight,
+		"hash", headerHash,
+		"from_da", isDirect,
+	)
+
+	return nil
+}
+
+// trySyncNextBlock attempts to sync blocks from DA
+func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
+	// Check if we have a valid DALC
+	if !m.DALCInitialized() {
+		return errors.New("DA client not initialized")
+	}
+
+	// Fetch headers from DA height
+	result, err := m.fetchHeaders(ctx, daHeight)
+	if err != nil {
+		return fmt.Errorf("failed to fetch headers from DA height %d: %w", daHeight, err)
+	}
+
+	// If there are no headers (unlikely, since result.Code would be StatusNotFound)
+	// or the code is not success, just increment DA height and return
+	if len(result.Headers) == 0 || result.Code != da.StatusSuccess {
+		err = m.setDAIncludedHeight(ctx, daHeight)
+		if err != nil {
+			m.logger.Error("error while setting DA included height",
+				"height", daHeight,
+				"err", err,
+			)
+		}
+		return nil
+	}
+
+	// Process the retrieved headers
+	for _, header := range result.Headers {
+		headerHash := header.Hash().String()
+		headerHeight := header.Height()
+
+		// Check if the header is already seen
+		if m.sync.headerCache.isSeen(headerHash) {
+			// Mark the header as DA included
+			if !m.sync.headerCache.isDAIncluded(headerHash) {
+				m.sync.headerCache.setDAIncluded(headerHash)
+
+				// Notify other components about DA inclusion
+				m.logger.Debug("marking block as DA included", "height", headerHeight, "hash", headerHash)
+			}
+			continue
+		}
+
+		// Attempt to handle the header
+		err = m.handleHeader(ctx, header, daHeight, true)
+		if err != nil {
+			m.logger.Error("error while handling header from DA",
+				"err", err,
+				"height", headerHeight,
+				"hash", headerHash,
+			)
+			return fmt.Errorf("error while handling header from DA: %w", err)
+		}
+
+		// Check if this is a based sequencing batch
+		if err := m.tryHandleBasedSequencingBatch(ctx, header, daHeight); err != nil {
+			m.logger.Error("error handling based sequencing batch",
+				"err", err,
+				"height", headerHeight,
+				"hash", headerHash,
+			)
+			// We continue processing even if a based batch fails
+			// as it might be a regular header, not a based batch
+		}
+	}
+
+	// Update the DA included height
+	err = m.setDAIncludedHeight(ctx, daHeight)
+	if err != nil {
+		m.logger.Error("error while setting DA included height",
+			"height", daHeight,
+			"err", err,
+		)
+		return err
+	}
+
+	return nil
+}
+
+// tryHandleBasedSequencingBatch attempts to handle a header as a based sequencing batch
+// This is specifically for batches that were posted directly to DA via based sequencing
+func (m *Manager) tryHandleBasedSequencingBatch(ctx context.Context, header *types.SignedHeader, daHeight uint64) error {
+	headerHeight := header.Height()
+	headerHash := header.Hash().String()
+
+	// Check if we need to retrieve the batch data
+	// We need to check if this is actually a based sequencing batch
+	// by looking at the DataHash which should point to batch data in DA
+
+	// For now, we always try to retrieve potential batch data for all headers
+	// In a production implementation, we might have a way to identify based batches
+
+	// Retrieve the batch data from DA
+	// This would need additional DA client method to fetch arbitrary data by reference
+	// Since we don't have that yet, this is a placeholder
+	data, err := m.retrieveBatchDataFromDA(ctx, header, daHeight)
+	if err != nil {
+		// This might not be a based batch, so we log but don't error
+		m.logger.Debug("Failed to retrieve batch data, might not be a based batch",
+			"height", headerHeight,
+			"hash", headerHash,
+			"err", err,
+		)
+		return nil
+	}
+
+	if data == nil {
+		// Not a based batch or no data found
+		return nil
+	}
+
+	// Apply the batch data
+	m.logger.Info("Applying based sequencing batch",
+		"height", headerHeight,
+		"hash", headerHash,
+		"txs", len(data.Txs),
+	)
+
+	// Apply the batch similarly to how we apply regular blocks
+	state, _, err := m.applyBlock(ctx, header, data)
+	if err != nil {
+		return fmt.Errorf("failed to apply based batch: %w", err)
+	}
+
+	// Update state with the new batch data applied
+	err = m.updateState(ctx, state)
+	if err != nil {
+		return fmt.Errorf("failed to update state after batch application: %w", err)
+	}
+
+	return nil
+}
+
+// retrieveBatchDataFromDA is a placeholder for retrieving batch data from DA
+// In a real implementation, this would use the DA client to fetch the data
+// associated with the header's DataHash or other reference
+func (m *Manager) retrieveBatchDataFromDA(ctx context.Context, header *types.SignedHeader, daHeight uint64) (*types.Data, error) {
+	// This is a placeholder implementation
+	// In a real implementation, this would:
+	// 1. Use the DA client to fetch the data blob using header.DataHash as reference
+	// 2. Decode the blob to extract the Data portion
+	// 3. Return it for processing
+
+	// For now, we return nil to indicate no batch data was found
+	// This will need to be implemented properly when the DA client
+	// supports retrieving arbitrary data
+	return nil, nil
 }
 
 // HeaderStoreRetrieveLoop is responsible for retrieving headers from the Header Store.
@@ -1537,4 +1668,234 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 	}
 
 	return s, nil
+}
+
+// Direct batch-based sequencing mode implementation
+
+// BatchSequencingLoop runs a loop that collects transaction batches and directly
+// posts them to DA without waiting for block creation
+func (m *Manager) BatchSequencingLoop(ctx context.Context) {
+	if !m.isProposer {
+		m.logger.Info("BatchSequencingLoop not starting - not a proposer")
+		return
+	}
+
+	if m.sequencer == nil {
+		m.logger.Error("BatchSequencingLoop not starting - sequencer not configured")
+		return
+	}
+
+	// Use a shorter interval for batch processing than regular blocks
+	batchTimer := time.NewTicker(m.conf.BlockTime / 2)
+	defer batchTimer.Stop()
+
+	m.logger.Info("Starting batch sequencing loop")
+
+	for {
+		select {
+		case <-ctx.Done():
+			m.logger.Info("Stopping batch sequencing loop")
+			return
+		case <-batchTimer.C:
+			err := m.processBatchDirectToDA(ctx)
+			if err != nil {
+				m.logger.Error("Error in batch processing", "error", err)
+			}
+		}
+	}
+}
+
+// processBatchDirectToDA gets the next batch from the queue,
+// wraps it in a minimal header, and posts directly to DA
+func (m *Manager) processBatchDirectToDA(ctx context.Context) error {
+	// Check if DA client is initialized
+	if !m.DALCInitialized() {
+		return errors.New("DA client not initialized")
+	}
+
+	// Get next batch from the batch queue
+	batch := m.batchQueue.Next()
+	if batch == nil {
+		// No batch available, nothing to do
+		return nil
+	}
+
+	// Get current state for creating the header
+	m.state.stateMtx.RLock()
+	currentState := m.state.currentState
+	m.state.stateMtx.RUnlock()
+
+	// Convert batch transactions to types.Txs
+	txs := make(types.Txs, len(batch.Transactions))
+	for i, tx := range batch.Transactions {
+		txs[i] = types.Tx(tx)
+	}
+
+	// Create a data structure
+	data := &types.Data{
+		Txs: txs,
+	}
+
+	// Generate data hash
+	dataHash := data.Hash()
+
+	// Create a minimal header with batch information
+	height := currentState.LastBlockHeight + 1
+	header := &types.SignedHeader{
+		Header: types.Header{
+			Version: types.Version{
+				Block: currentState.Version.Consensus.Block,
+				App:   currentState.Version.Consensus.App,
+			},
+			BaseHeader: types.BaseHeader{
+				ChainID: currentState.ChainID,
+				Height:  height,
+				Time:    uint64(batch.Time.UnixNano()),
+			},
+			DataHash:        dataHash,
+			ConsensusHash:   make(types.Hash, 32),
+			AppHash:         currentState.AppHash,
+			ProposerAddress: m.creator.proposerAddress,
+		},
+	}
+
+	// Validate batch transactions
+	if err := m.validateBatch(ctx, txs); err != nil {
+		m.logger.Error("Batch validation failed", "error", err, "height", height)
+		return fmt.Errorf("batch validation failed: %w", err)
+	}
+
+	// Optionally pre-execute the batch to ensure validity
+	if m.conf.PreExecuteBatches {
+		// Extract raw transaction bytes for execution
+		rawTxs := make([][]byte, len(txs))
+		for i, tx := range txs {
+			rawTxs[i] = tx
+		}
+
+		timestamp := time.Unix(0, int64(header.Header.BaseHeader.Time))
+
+		// Pre-execute the transactions
+		_, err := m.executor.execExecuteTxs(ctx, rawTxs, height, timestamp, currentState.AppHash)
+		if err != nil {
+			m.logger.Error("Batch pre-execution failed", "error", err, "height", height)
+			return fmt.Errorf("batch pre-execution failed: %w", err)
+		}
+	}
+
+	// Sign the header
+	signature, err := m.getSignature(header.Header)
+	if err != nil {
+		return fmt.Errorf("failed to sign header for batch: %w", err)
+	}
+	header.Signature = signature
+
+	// Submit directly to DA
+	maxBlobSize, err := m.da.client.DA.MaxBlobSize(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get max blob size: %w", err)
+	}
+
+	// Create a batch submission that includes both header and data
+	// We'll need to serialize both and submit them together
+	headerBlob, err := header.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to serialize header: %w", err)
+	}
+
+	dataBlob, err := data.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to serialize data: %w", err)
+	}
+
+	// Combine header and data with a simple separator
+	// A more robust production implementation would use a proper serialization format
+	batchSize := uint64(len(headerBlob) + len(dataBlob) + 8) // 8 bytes for size prefix
+	if batchSize > maxBlobSize {
+		return fmt.Errorf("batch size %d exceeds max blob size %d", batchSize, maxBlobSize)
+	}
+
+	// Create a combined blob with size prefixes
+	combinedBlob := make([]byte, 4+len(headerBlob)+4+len(dataBlob))
+	binary.BigEndian.PutUint32(combinedBlob[0:4], uint32(len(headerBlob)))
+	copy(combinedBlob[4:4+len(headerBlob)], headerBlob)
+	binary.BigEndian.PutUint32(combinedBlob[4+len(headerBlob):8+len(headerBlob)], uint32(len(dataBlob)))
+	copy(combinedBlob[8+len(headerBlob):], dataBlob)
+
+	// Submit the combined blob to DA
+	blob := da.Blob{
+		Data: combinedBlob,
+	}
+
+	// Submit to DA and handle the result
+	result, err := m.da.client.SubmitBlob(ctx, blob)
+	if err != nil {
+		return fmt.Errorf("failed to submit batch to DA: %w", err)
+	}
+
+	if result.Code != da.StatusSuccess {
+		return fmt.Errorf("batch submission failed: %s", result.Message)
+	}
+
+	// Log success
+	m.logger.Info("Batch successfully submitted to DA",
+		"height", height,
+		"txs", len(txs),
+		"da_height", result.DAHeight)
+
+	return nil
+}
+
+// validateBatch performs basic validation on a batch of transactions
+// This helps avoid posting invalid batches to the DA layer
+func (m *Manager) validateBatch(ctx context.Context, txs types.Txs) error {
+	if len(txs) == 0 {
+		// Empty batch is technically valid, but we might want to skip it
+		m.logger.Debug("Empty batch detected, proceeding anyway")
+	}
+
+	// Validate each transaction in the batch
+	for i, tx := range txs {
+		if len(tx) == 0 {
+			return fmt.Errorf("transaction %d is empty", i)
+		}
+
+		// Add more transaction validation as needed
+		// For example, size limits, format checks, etc.
+	}
+
+	return nil
+}
+
+// basedSequencingLoop implements a sequencing loop where batches are directly posted to DA
+// This is the implementation of Based Sequencing as described in the design meeting notes
+func (m *Manager) basedSequencingLoop(ctx context.Context) {
+	if !m.isProposer {
+		m.logger.Info("Based sequencing loop not starting - not a proposer")
+		return
+	}
+
+	if m.sequencer == nil {
+		m.logger.Error("Based sequencing loop not starting - sequencer not configured")
+		return
+	}
+
+	// Use a shorter interval for batch processing than regular blocks
+	batchTimer := time.NewTicker(m.conf.BlockTime / 2)
+	defer batchTimer.Stop()
+
+	m.logger.Info("Starting based sequencing loop")
+
+	for {
+		select {
+		case <-ctx.Done():
+			m.logger.Info("Stopping based sequencing loop")
+			return
+		case <-batchTimer.C:
+			err := m.processBatchDirectToDA(ctx)
+			if err != nil {
+				m.logger.Error("Error in batch processing", "error", err)
+			}
+		}
+	}
 }

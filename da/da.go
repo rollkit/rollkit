@@ -70,6 +70,11 @@ type ResultRetrieveHeaders struct {
 	Headers []*types.SignedHeader
 }
 
+// Blob represents a single blob to be submitted to DA
+type Blob struct {
+	Data []byte
+}
+
 // DAClient is a new DA implementation.
 type DAClient struct {
 	DA              goDA.DA
@@ -234,6 +239,68 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 		},
 		Headers: headers,
 	}
+}
+
+// SubmitBlob submits a single blob to DA.
+func (dac *DAClient) SubmitBlob(ctx context.Context, blob Blob) (ResultSubmit, error) {
+	// Prepare the blob data for submission
+	ctx, cancel := context.WithTimeout(ctx, dac.SubmitTimeout)
+	defer cancel()
+
+	// Submit the data directly
+	ids, err := dac.submit(ctx, [][]byte{blob.Data}, dac.GasPrice, dac.Namespace)
+	if err != nil {
+		status := StatusError
+		switch {
+		case errors.Is(err, &goDA.ErrTxTimedOut{}):
+			status = StatusNotIncludedInBlock
+		case errors.Is(err, &goDA.ErrTxAlreadyInMempool{}):
+			status = StatusAlreadyInMempool
+		case errors.Is(err, &goDA.ErrTxIncorrectAccountSequence{}):
+			status = StatusAlreadyInMempool
+		case errors.Is(err, &goDA.ErrTxTooLarge{}):
+			status = StatusTooBig
+		case errors.Is(err, &goDA.ErrContextDeadline{}):
+			status = StatusContextDeadline
+		}
+
+		return ResultSubmit{
+			BaseResult: BaseResult{
+				Code:           status,
+				Message:        err.Error(),
+				SubmittedCount: 0,
+			},
+		}, err
+	}
+
+	// Return success result
+	height := uint64(0)
+	if len(ids) > 0 {
+		// Extract height from the ID if possible
+		height = dac.extractHeightFromID(ids[0])
+	}
+
+	return ResultSubmit{
+		BaseResult: BaseResult{
+			Code:           StatusSuccess,
+			Message:        "blob submitted successfully",
+			SubmittedCount: 1,
+			DAHeight:       height,
+		},
+	}, nil
+}
+
+// extractHeightFromID tries to extract a height from a DA ID
+// This is implementation-specific and may need to be adapted
+func (dac *DAClient) extractHeightFromID(id goDA.ID) uint64 {
+	// For now, just use a fixed height of 1
+	// In a real implementation, this would need to be adapted
+	// to extract the actual height from the specific DA implementation
+	height := uint64(1)
+
+	// We return a placeholder value since the actual extraction
+	// depends on the specific DA implementation
+	return height
 }
 
 func (dac *DAClient) submit(ctx context.Context, blobs []goDA.Blob, gasPrice float64, namespace goDA.Namespace) ([]goDA.ID, error) {

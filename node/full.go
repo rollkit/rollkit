@@ -287,7 +287,7 @@ func (n *FullNode) headerPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case signedHeader := <-n.blockManager.HeaderCh:
-			err := n.hSyncService.WriteToStoreAndBroadcast(ctx, signedHeader)
+			err := n.hSyncService.WriteToStoreAndBroadcast(ctx, signedHeader.Header)
 			if err != nil {
 				// failed to init or start headerstore
 				n.Logger.Error(err.Error())
@@ -303,7 +303,7 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case data := <-n.blockManager.DataCh:
-			err := n.dSyncService.WriteToStoreAndBroadcast(ctx, data)
+			err := n.dSyncService.WriteToStoreAndBroadcast(ctx, data.Data)
 			if err != nil {
 				// failed to init or start blockstore
 				n.Logger.Error(err.Error())

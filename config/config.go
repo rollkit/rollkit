@@ -97,6 +97,12 @@ type BlockManagerConfig struct {
 	// LazyBlockTime defines how often new blocks are produced in lazy mode
 	// even if there are no transactions
 	LazyBlockTime time.Duration `mapstructure:"lazy_block_time"`
+	// SequencingMode defines the sequencing scheme to use (normal, lazy, based)
+	// This overrides LazyAggregator if set to something other than "normal"
+	SequencingMode string `mapstructure:"sequencing_mode"`
+	// PreExecuteBatches defines whether batches should be pre-executed for validation
+	// before submitting to DA in based sequencing mode
+	PreExecuteBatches bool `mapstructure:"pre_execute_batches"`
 }
 
 // GetViperConfig reads configuration parameters from Viper instance.
