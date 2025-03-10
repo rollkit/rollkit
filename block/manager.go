@@ -12,14 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proxy"
 	cmtypes "github.com/cometbft/cometbft/types"
+	secp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
+	ecdsa "github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
@@ -1236,7 +1236,7 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
+		priv := secp256k1.PrivKeyFromBytes(rawBytes)
 		sig = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
 		return sig[1:], nil
 	default:
