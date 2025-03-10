@@ -346,7 +346,7 @@ func TestVoteExtension(t *testing.T) {
 
 		invalidVoteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 			extendVoteFailureChan <- struct{}{}
-			return nil, fmt.Errorf("ExtendVote failed")
+			return nil, errors.New("ExtendVote failed")
 		}
 		app.On("ExtendVote", mock.Anything, mock.Anything).Return(invalidVoteExtension)
 
