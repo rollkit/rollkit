@@ -9,8 +9,12 @@ rollkit start [flags]
 ### Options
 
 ```
+      --chain.config_dir string                         chain configuration directory (default "config")
       --ci                                              run node for ci testing
+      --db_path string                                  database path relative to root directory (default "data")
+      --entrypoint string                               entrypoint for the application
   -h, --help                                            help for start
+      --home string                                     root directory for Rollkit (default "HOME/.rollkit")
       --instrumentation.max_open_connections int        maximum number of simultaneous connections for metrics (default 3)
       --instrumentation.prometheus                      enable Prometheus metrics
       --instrumentation.prometheus_listen_addr string   Prometheus metrics listen address (default ":26660")
@@ -30,7 +34,6 @@ rollkit start [flags]
       --rollkit.da_namespace string                     DA namespace to submit blob transactions
       --rollkit.da_start_height uint                    starting DA block height (for syncing)
       --rollkit.da_submit_options string                DA submit options
-      --rollkit.db_path string                          database path relative to root directory (default "data")
       --rollkit.executor_address string                 executor middleware address (host:port) (default "localhost:40041")
       --rollkit.lazy_aggregator                         wait for transactions, don't build empty blocks
       --rollkit.lazy_block_time duration                block time (for lazy mode) (default 1m0s)
@@ -44,7 +47,6 @@ rollkit start [flags]
 ### Options inherited from parent commands
 
 ```
-      --home string        directory for config and data (default "HOME/.rollkit")
       --log_level string   set the log level; default is info. other options include debug, info, error, none (default "info")
       --trace              print out full stack trace on errors
 ```
