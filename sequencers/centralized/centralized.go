@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"reflect"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,22 +32,16 @@ var _ coresequencer.Sequencer = &Sequencer{}
 
 // Sequencer implements go-sequencing interface
 type Sequencer struct {
-	ctx    context.Context
 	logger log.Logger
 
+	rollupId  []byte
 	dalc      *dac.DAClient
 	batchTime time.Duration
 
-	maxBlobSize *atomic.Uint64
-	maxBytes    atomic.Uint64
-	maxGas      atomic.Uint64
-
-	rollupId []byte
-
-	seenBatches map[string]struct{}
-	bq          *BatchQueue
-
+	maxBlobSize            *atomic.Uint64
 	lastSubmittedBatchHash atomic.Value
+	seenBatches            sync.Map
+	bq                     *BatchQueue
 
 	metrics *Metrics
 }
@@ -73,16 +67,13 @@ func NewSequencer(
 	maxBlobSize.Store(mBlobSize)
 
 	s := &Sequencer{
-		ctx:         ctx,
 		logger:      logger,
 		dalc:        dalc,
 		batchTime:   batchTime,
 		maxBlobSize: maxBlobSize,
-		maxBytes:    atomic.Uint64{},
-		maxGas:      atomic.Uint64{},
 		rollupId:    rollupId,
 		bq:          NewBatchQueue(db),
-		seenBatches: make(map[string]struct{}),
+		seenBatches: sync.Map{},
 		metrics:     metrics,
 	}
 
@@ -93,20 +84,6 @@ func NewSequencer(
 
 	go s.batchSubmissionLoop(ctx)
 	return s, nil
-}
-
-// SetMaxBytes sets the max bytes
-func (c *Sequencer) SetMaxBytes(size uint64) {
-	c.maxBytes.Store(size)
-}
-
-// SetMaxGas sets the max gas
-func (c *Sequencer) SetMaxGas(size uint64) {
-	c.maxGas.Store(size)
-}
-
-func (c *Sequencer) Close() error {
-	return c.bq.Close()
 }
 
 // SubmitRollupBatchTxs implements sequencing.Sequencer.
@@ -146,13 +123,15 @@ func (c *Sequencer) CompareAndSetMaxSize(size uint64) {
 	}
 }
 
+// batchSubmissionLoop is a loop that publishes batches to the DA layer
+// It is called in a separate goroutine when the Sequencer is created
 func (c *Sequencer) batchSubmissionLoop(ctx context.Context) {
 	batchTimer := time.NewTimer(0)
 	defer batchTimer.Stop()
 
 	for {
 		select {
-		case <-c.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-batchTimer.C:
 		}
@@ -174,7 +153,7 @@ func (c *Sequencer) publishBatch(ctx context.Context) error {
 	if batch.Transactions == nil {
 		return nil
 	}
-	err = c.submitBatchToDA(*batch)
+	err = c.submitBatchToDA(ctx, *batch)
 	if err != nil {
 		// On failure, re-add the batch to the transaction queue for future retry
 		revertErr := c.bq.AddBatch(ctx, *batch)
@@ -182,6 +161,11 @@ func (c *Sequencer) publishBatch(ctx context.Context) error {
 			return fmt.Errorf("failed to revert batch to queue: %w", revertErr)
 		}
 		return fmt.Errorf("failed to submit batch to DA: %w", err)
+	}
+
+	err = c.bq.AddBatch(ctx, *batch)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -208,7 +192,7 @@ func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode 
 // - On other errors: Uses exponential backoff
 //
 // It returns an error if not all batches could be submitted after all attempts.
-func (c *Sequencer) submitBatchToDA(batch coresequencer.Batch) error {
+func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Batch) error {
 	// Initialize a slice with the batch to submit
 	batchesToSubmit := []*coresequencer.Batch{&batch}
 	submittedAllBlocks := false
@@ -226,13 +210,13 @@ daSubmitRetryLoop:
 	for !submittedAllBlocks && attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
 		select {
-		case <-c.ctx.Done():
+		case <-ctx.Done():
 			break daSubmitRetryLoop
 		case <-time.After(backoff):
 		}
 
 		// Attempt to submit the batch to the DA layer
-		res := c.dalc.SubmitBatch(c.ctx, batchesToSubmit, maxBlobSize, gasPrice)
+		res := c.dalc.SubmitBatch(ctx, batchesToSubmit, maxBlobSize, gasPrice)
 		switch res.Code {
 		case dac.StatusSuccess:
 			//TODO: upon success, mark the batch as processed in the WAL & update the last submitted batch hash
@@ -279,7 +263,7 @@ daSubmitRetryLoop:
 
 		case dac.StatusTooBig:
 			// If the blob is too big, reduce the max blob size
-			maxBlobSize = maxBlobSize / 4
+			maxBlobSize = maxBlobSize / 4 // TODO: this should be fetched from the DA layer?
 			c.maxBlobSize.Store(maxBlobSize)
 			fallthrough
 
@@ -332,11 +316,6 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 		return nil, ErrInvalidRollupId
 	}
 	now := time.Now()
-	lastBatchHash := req.LastBatchHash
-
-	if !reflect.DeepEqual(lastBatchHash, req.LastBatchHash) {
-		return nil, fmt.Errorf("batch hash mismatch: lastBatchHash = %x, req.LastBatchHash = %x", lastBatchHash, req.LastBatchHash)
-	}
 
 	// Set the max size if it is provided
 	if req.MaxBytes > 0 {
@@ -359,7 +338,7 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	}
 
 	hexHash := hex.EncodeToString(h)
-	c.seenBatches[hexHash] = struct{}{}
+	c.seenBatches.Store(hexHash, struct{}{})
 
 	return batchRes, nil
 }
@@ -380,7 +359,8 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, ErrInvalidRollupId
 	}
 	key := hex.EncodeToString(req.BatchHash)
-	if _, exists := c.seenBatches[key]; exists {
+	_, exists := c.seenBatches.Load(key)
+	if exists {
 		return &coresequencer.VerifyBatchResponse{Status: true}, nil
 	}
 	return &coresequencer.VerifyBatchResponse{Status: false}, nil

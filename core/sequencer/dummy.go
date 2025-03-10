@@ -13,31 +13,15 @@ import (
 
 // dummySequencer is a dummy implementation of the Sequencer interface for testing
 type dummySequencer struct {
-	mu       sync.RWMutex
-	batches  map[string]*Batch
-	maxBytes uint64
-	maxGas   uint64
+	mu      sync.RWMutex
+	batches map[string]*Batch
 }
 
 // NewDummySequencer creates a new dummy Sequencer instance
 func NewDummySequencer() Sequencer {
 	return &dummySequencer{
-		batches:  make(map[string]*Batch),
-		maxBytes: 100_000,
-		maxGas:   100_000,
+		batches: make(map[string]*Batch),
 	}
-}
-
-func (s *dummySequencer) SetMaxBytes(maxBytes uint64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.maxBytes = maxBytes
-}
-
-func (s *dummySequencer) SetMaxGas(maxGas uint64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.maxGas = maxGas
 }
 
 // SubmitRollupBatchTxs submits a batch of transactions to the sequencer
