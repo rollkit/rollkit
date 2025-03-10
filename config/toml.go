@@ -32,6 +32,12 @@ func ReadToml() (config NodeConfig, err error) {
 		return
 	}
 
+	return ReadTomlFromDir(startDir)
+}
+
+// ReadTomlFromDir reads the TOML configuration from the rollkit.toml file in the specified directory
+// and returns the parsed NodeConfig. Only the TOML-specific fields are populated.
+func ReadTomlFromDir(startDir string) (config NodeConfig, err error) {
 	configPath, err := findConfigFile(startDir)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrReadToml, err)

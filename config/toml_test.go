@@ -239,22 +239,6 @@ func TestTomlConfigOperations(t *testing.T) {
 			dir, err := filepath.EvalSymlinks(t.TempDir())
 			require.NoError(t, err)
 
-			// Save current directory to restore it later
-			originalDir, err := os.Getwd()
-			require.NoError(t, err)
-
-			// Ensure we change back to the original directory when the test completes
-			defer func() {
-				err := os.Chdir(originalDir)
-				if err != nil {
-					t.Logf("Failed to change back to original directory: %v", err)
-				}
-			}()
-
-			// Change to the temporary directory
-			err = os.Chdir(dir)
-			require.NoError(t, err)
-
 			// Create a config with appropriate values
 			config := DefaultNodeConfig
 			config.RootDir = dir
