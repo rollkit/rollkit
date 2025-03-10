@@ -212,3 +212,132 @@ blablabla
 		require.Error(t, err)
 	})
 }
+
+func TestTomlConfigOperations(t *testing.T) {
+	testCases := []struct {
+		name              string
+		useCustomValues   bool
+		verifyFileContent bool
+	}{
+		{
+			name:              "Write and read custom config values",
+			useCustomValues:   true,
+			verifyFileContent: false,
+		},
+		{
+			name:              "Initialize default config values",
+			useCustomValues:   false,
+			verifyFileContent: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a temporary directory for testing
+			dir, err := filepath.EvalSymlinks(t.TempDir())
+			require.NoError(t, err)
+
+			// Save current directory to restore it later
+			originalDir, err := os.Getwd()
+			require.NoError(t, err)
+
+			// Change to the temporary directory if needed
+			if !tc.useCustomValues {
+				err = os.Chdir(dir)
+				require.NoError(t, err)
+
+				// Ensure we change back to the original directory when the test completes
+				defer func() {
+					err := os.Chdir(originalDir)
+					if err != nil {
+						t.Logf("Failed to change back to original directory: %v", err)
+					}
+				}()
+			}
+
+			// Create a config with appropriate values
+			config := DefaultNodeConfig
+			config.RootDir = dir
+
+			// Set custom values if needed
+			if tc.useCustomValues {
+				config.Entrypoint = "./cmd/custom/main.go"
+				config.Chain.ConfigDir = "custom-config"
+
+				// Set various Rollkit config values to test different types
+				config.Rollkit.Aggregator = true
+				config.Rollkit.Light = true
+				config.Rollkit.LazyAggregator = true
+				config.Rollkit.BlockTime = 5 * time.Second
+				config.Rollkit.DAAddress = "http://custom-da:26658"
+				config.Rollkit.SequencerAddress = "custom-sequencer:50051"
+				config.Rollkit.SequencerRollupID = "custom-rollup"
+			}
+
+			// Write the config to a TOML file
+			err = WriteTomlConfig(config)
+			require.NoError(t, err)
+
+			// Verify the file was created
+			configPath := filepath.Join(dir, RollkitToml)
+			_, err = os.Stat(configPath)
+			require.NoError(t, err)
+
+			// Read the config back from the file
+			if tc.useCustomValues {
+				require.NoError(t, os.Chdir(dir))
+			}
+			readConfig, err := ReadToml()
+			require.NoError(t, err)
+
+			// Create expected config with appropriate values
+			expectedConfig := DefaultNodeConfig
+			expectedConfig.RootDir = dir
+
+			if tc.useCustomValues {
+				expectedConfig.Entrypoint = "./cmd/custom/main.go"
+				expectedConfig.Chain.ConfigDir = filepath.Join(dir, "custom-config")
+
+				// Set the same Rollkit values as in the original config
+				expectedConfig.Rollkit.Aggregator = true
+				expectedConfig.Rollkit.Light = true
+				expectedConfig.Rollkit.LazyAggregator = true
+				expectedConfig.Rollkit.BlockTime = 5 * time.Second
+				expectedConfig.Rollkit.DAAddress = "http://custom-da:26658"
+				expectedConfig.Rollkit.SequencerAddress = "custom-sequencer:50051"
+				expectedConfig.Rollkit.SequencerRollupID = "custom-rollup"
+			} else {
+				// When reading the TOML file, relative paths in Chain.ConfigDir are converted to absolute paths
+				expectedConfig.Chain.ConfigDir = filepath.Join(dir, DefaultConfigDir)
+			}
+
+			// Compare the configs - this validates that values are preserved
+			require.Equal(t, expectedConfig, readConfig)
+
+			// Verify file content if needed
+			if tc.verifyFileContent {
+				// Read the file content directly to verify the TOML structure
+				content, err := os.ReadFile(configPath)
+				require.NoError(t, err)
+
+				// Check that the content contains the expected values
+				tomlContent := string(content)
+
+				// Verify some key values are present in the TOML file
+				require.Contains(t, tomlContent, "block_time = ")
+				require.Contains(t, tomlContent, "da_address = ")
+				require.Contains(t, tomlContent, "sequencer_address = ")
+				require.Contains(t, tomlContent, "sequencer_rollup_id = ")
+
+				// Verify boolean values
+				if tc.useCustomValues {
+					require.Contains(t, tomlContent, "aggregator = true")
+					require.Contains(t, tomlContent, "light = true")
+				} else {
+					require.Contains(t, tomlContent, "aggregator = false")
+					require.Contains(t, tomlContent, "light = false")
+				}
+			}
+		})
+	}
+}
