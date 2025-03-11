@@ -120,7 +120,7 @@ config_dir = "config"
 	err := os.WriteFile(tomlPath, []byte(tomlContent), 0600)
 	require.NoError(t, err)
 
-	// Change to the temporary directory so ReadToml can find the file
+	// Change to the temporary directory so the config file can be found
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
 	defer func() {
@@ -132,15 +132,9 @@ config_dir = "config"
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 
-	// Verify that the TOML file exists and can be read
+	// Verify that the TOML file exists
 	_, err = os.Stat(tomlPath)
 	require.NoError(t, err, "TOML file should exist at %s", tomlPath)
-
-	// Try to read the TOML file directly to verify it works
-	tomlConfig, err := ReadToml()
-	require.NoError(t, err, "Should be able to read TOML file")
-	t.Logf("TOML config read successfully: Entrypoint=%s, Aggregator=%v",
-		tomlConfig.Entrypoint, tomlConfig.Rollkit.Aggregator)
 
 	// Create a command with flags
 	cmd := &cobra.Command{Use: "test"}

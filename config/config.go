@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -193,34 +192,16 @@ func LoadNodeConfig(cmd *cobra.Command) (NodeConfig, error) {
 	config := DefaultNodeConfig
 	setDefaultsInViper(v, config)
 
-	// 2. Try to load TOML configuration
-	configPath := ""
+	// 2. Try to load TOML configuration from the current directory
+	v.SetConfigName(RollkitToml[:len(RollkitToml)-5]) // Remove the .toml extension
+	v.SetConfigType("toml")
+	v.AddConfigPath(".") // Look in the current directory
 
-	// Check for config file in standard locations
-	if rootDir := os.Getenv("ROLLKIT_HOME"); rootDir != "" {
-		configPath = filepath.Join(rootDir, DefaultConfigDir, RollkitToml)
-	} else if config.RootDir != "" {
-		configPath = filepath.Join(config.RootDir, DefaultConfigDir, RollkitToml)
-	} else {
-		// Try to find the config file in the current directory and its parents
-		startDir, err := os.Getwd()
-		if err == nil {
-			configPath, err = findConfigFile(startDir)
-			if err != nil && !os.IsNotExist(err) {
-				return config, fmt.Errorf("error finding TOML configuration: %w", err)
-			}
-		}
-	}
-
-	if configPath != "" {
-		v.SetConfigFile(configPath)
-		v.SetConfigType("toml")
-
-		if err := v.ReadInConfig(); err == nil {
-			fmt.Printf("Using config file: %s\n", v.ConfigFileUsed())
-		} else if !os.IsNotExist(err) {
-			return config, fmt.Errorf("error reading TOML configuration: %w", err)
-		}
+	if err := v.ReadInConfig(); err == nil {
+		fmt.Printf("Using config file: %s\n", v.ConfigFileUsed())
+	} else if !os.IsNotExist(err) {
+		// If it's not a "file not found" error, return the error
+		return config, fmt.Errorf("error reading TOML configuration: %w", err)
 	}
 
 	// 3. Bind command line flags
