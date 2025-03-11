@@ -199,7 +199,7 @@ func NewManager(
 	mempool mempool.Mempool,
 	mempoolReaper *mempool.CListMempoolReaper,
 	seqClient *grpc.Client,
-	proxyApp proxy.AppConnConsensus,
+	proxyApp proxy.AppConns,
 	dalc *da.DAClient,
 	eventBus *cmtypes.EventBus,
 	logger log.Logger,
@@ -248,7 +248,7 @@ func NewManager(
 	// allow buffer for the block header and protocol encoding
 	maxBlobSize -= blockProtocolOverhead
 
-	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp, eventBus, maxBlobSize, logger, execMetrics)
+	exec := state.NewBlockExecutor(proposerAddress, genesis.ChainID, mempool, mempoolReaper, proxyApp.Consensus(), eventBus, maxBlobSize, logger, execMetrics)
 	if s.LastBlockHeight+1 == uint64(genesis.InitialHeight) { //nolint:gosec
 		res, err := exec.InitChain(genesis)
 		if err != nil {
@@ -311,6 +311,14 @@ func NewManager(
 		bq:             NewBatchQueue(),
 	}
 	agg.init(context.Background())
+
+	if agg.conf.Replay {
+		// Handshake to ensure that app and rollup are in sync
+		if err := agg.Handshake(context.Background(), proxyApp); err != nil {
+			return nil, err
+		}
+	}
+
 	return agg, nil
 }
 
@@ -1510,4 +1518,126 @@ func updateState(s *types.State, res *abci.ResponseInitChain) error {
 	s.LastValidators = cmtypes.NewValidatorSet(nValSet.Validators)
 
 	return nil
+}
+
+// Handshake performs the ABCI handshake with the application.
+func (m *Manager) Handshake(ctx context.Context, proxyApp proxy.AppConns) error {
+	// Handshake is done via ABCI Info on the query conn.
+	res, err := proxyApp.Query().Info(ctx, proxy.RequestInfo)
+	if err != nil {
+		return fmt.Errorf("error calling Info: %w", err)
+	}
+
+	blockHeight := res.LastBlockHeight
+	if blockHeight < 0 {
+		return fmt.Errorf("got a negative last block height (%d) from the app", blockHeight)
+	}
+	appHash := res.LastBlockAppHash
+
+	m.logger.Info("ABCI Handshake App Info",
+		"height", blockHeight,
+		"hash", fmt.Sprintf("%X", appHash),
+		"software-version", res.Version,
+		"protocol-version", res.AppVersion,
+	)
+
+	// Replay blocks up to the latest in the blockstore.
+	appHash, err = m.ReplayBlocks(ctx, appHash, blockHeight)
+	if err != nil {
+		return fmt.Errorf("error on replay: %w", err)
+	}
+
+	m.logger.Info("Completed ABCI Handshake - CometBFT and App are synced",
+		"appHeight", blockHeight, "appHash", fmt.Sprintf("%X", appHash))
+
+	// TODO: (on restart) replay mempool
+
+	return nil
+}
+
+// ReplayBlocks replays blocks from the last state to the app's last block height.
+func (m *Manager) ReplayBlocks(
+	ctx context.Context,
+	appHash []byte,
+	appBlockHeight int64,
+) ([]byte, error) {
+	state := m.lastState
+	stateBlockHeight := m.lastState.LastBlockHeight
+	m.logger.Info(
+		"ABCI Replay Blocks",
+		"appHeight",
+		appBlockHeight,
+		"stateHeight",
+		stateBlockHeight)
+
+	if appBlockHeight < int64(stateBlockHeight) {
+		// the app is behind, so replay blocks
+		return m.replayBlocks(ctx, state, uint64(appBlockHeight), stateBlockHeight)
+	} else if appBlockHeight == int64(stateBlockHeight) {
+		// We're good!
+		assertAppHashEqualsOneFromState(appHash, state)
+		return appHash, nil
+	}
+
+	return nil, fmt.Errorf("app height (%d) higher than state height (%d), possible app rollback needed", appBlockHeight, stateBlockHeight)
+}
+
+func (m *Manager) replayBlocks(
+	ctx context.Context,
+	state types.State,
+	appBlockHeight,
+	stateBlockHeight uint64,
+) ([]byte, error) {
+	var appHash []byte
+	finalBlock := stateBlockHeight
+	firstBlock := appBlockHeight + 1
+	if firstBlock == 1 {
+		firstBlock = state.InitialHeight
+	}
+	for i := firstBlock; i <= finalBlock; i++ {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		m.logger.Info("Applying block", "height", i)
+		header, data, err := m.store.GetBlockData(ctx, i)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get block data for height %d: %w", i, err)
+		}
+		// Extra check to ensure the app was not changed in a way it shouldn't have.
+		if len(appHash) > 0 {
+			assertAppHashEqualsOneFromBlock(appHash, header)
+		}
+		appHash, err = m.executor.ExecCommitBlock(header, data, m.logger, state)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	assertAppHashEqualsOneFromState(appHash, state)
+	return appHash, nil
+}
+
+func assertAppHashEqualsOneFromBlock(appHash []byte, header *types.SignedHeader) {
+	if !bytes.Equal(appHash, header.AppHash) {
+		panic(fmt.Sprintf(`block.AppHash does not match AppHash after replay. Got %X, expected %X.
+
+Block: %v
+`,
+			appHash, header.AppHash, header))
+	}
+}
+
+func assertAppHashEqualsOneFromState(appHash []byte, state types.State) {
+	if !bytes.Equal(appHash, state.AppHash) {
+		panic(fmt.Sprintf(`state.AppHash does not match AppHash after replay. Got
+%X, expected %X.
+
+State: %v
+
+Did you reset CometBFT without resetting your application's data?`,
+			appHash, state.AppHash, state))
+	}
 }
