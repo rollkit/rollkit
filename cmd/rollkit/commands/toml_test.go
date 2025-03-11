@@ -78,5 +78,5 @@ func TestInitTomlCommand(t *testing.T) {
 
 	// Verify that the entire Rollkit configuration matches the default values
 	// This verification is sufficient to cover all individual fields
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit, readConfig.Rollkit)
+	require.Equal(t, rollconf.DefaultNodeConfig.Node, readConfig.Node)
 }

@@ -34,14 +34,14 @@ func DefaultRootDir() string {
 }
 
 // DefaultNodeConfig keeps default values of NodeConfig
-var DefaultNodeConfig = NodeConfig{
+var DefaultNodeConfig = RollkitConfig{
 	RootDir: DefaultRootDir(),
 	DBPath:  "data",
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
 	},
-	Rollkit: RollkitConfig{
+	Node: NodeConfig{
 		Aggregator:        true,
 		BlockTime:         1 * time.Second,
 		DABlockTime:       15 * time.Second,

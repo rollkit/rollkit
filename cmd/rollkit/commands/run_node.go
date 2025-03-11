@@ -95,7 +95,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// Only start mock DA server if the user did not provide --rollkit.da_address
 			var daSrv *proxy.Server = nil
 			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.Rollkit.DAAddress, proxy.NewServer)
+				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.Node.DAAddress, proxy.NewServer)
 				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
 				}
@@ -109,14 +109,14 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-				genDoc.ChainID = nodeConfig.Rollkit.SequencerRollupID
+				genDoc.ChainID = nodeConfig.Node.SequencerRollupID
 			}
 			sequencerRollupID := genDoc.ChainID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
 			var seqSrv *grpc.Server = nil
 			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.Rollkit.SequencerAddress, sequencerRollupID)
+				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.Node.SequencerAddress, sequencerRollupID)
 				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
@@ -128,7 +128,7 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
-			logger.Info("Executor address", "address", nodeConfig.Rollkit.ExecutorAddress)
+			logger.Info("Executor address", "address", nodeConfig.Node.ExecutorAddress)
 
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())
@@ -419,7 +419,7 @@ func parseConfig(cmd *cobra.Command) error {
 
 // RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
 // using nodeConfig instead of config.
-func RollkitGenesisDocProviderFunc(nodeConfig rollconf.NodeConfig) func() (*comettypes.GenesisDoc, error) {
+func RollkitGenesisDocProviderFunc(nodeConfig rollconf.RollkitConfig) func() (*comettypes.GenesisDoc, error) {
 	return func() (*comettypes.GenesisDoc, error) {
 		// Construct the genesis file path using rootify
 		genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")

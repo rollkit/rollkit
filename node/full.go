@@ -52,7 +52,7 @@ type FullNode struct {
 	// cache of chunked genesis data.
 	genChunks []string
 
-	nodeConfig config.NodeConfig
+	nodeConfig config.RollkitConfig
 
 	dalc         *da.DAClient
 	p2pClient    *p2p.Client
@@ -68,7 +68,7 @@ type FullNode struct {
 // newFullNode creates a new Rollkit full node.
 func newFullNode(
 	ctx context.Context,
-	nodeConfig config.NodeConfig,
+	nodeConfig config.RollkitConfig,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
@@ -142,7 +142,7 @@ func newFullNode(
 }
 
 // initBaseKV initializes the base key-value store.
-func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.Batching, error) {
+func initBaseKV(nodeConfig config.RollkitConfig, logger log.Logger) (ds.Batching, error) {
 	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
@@ -150,33 +150,33 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.Batching, e
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }
 
-func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
-	namespace := make([]byte, len(nodeConfig.Rollkit.DANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(nodeConfig.Rollkit.DANamespace))
+func initDALC(nodeConfig config.RollkitConfig, logger log.Logger) (*da.DAClient, error) {
+	namespace := make([]byte, len(nodeConfig.Node.DANamespace)/2)
+	_, err := hex.Decode(namespace, []byte(nodeConfig.Node.DANamespace))
 	if err != nil {
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 
-	if nodeConfig.Rollkit.DAGasMultiplier < 0 {
+	if nodeConfig.Node.DAGasMultiplier < 0 {
 		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
 	}
 
-	client, err := proxyda.NewClient(nodeConfig.Rollkit.DAAddress, nodeConfig.Rollkit.DAAuthToken)
+	client, err := proxyda.NewClient(nodeConfig.Node.DAAddress, nodeConfig.Node.DAAuthToken)
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
 
 	var submitOpts []byte
-	if nodeConfig.Rollkit.DASubmitOptions != "" {
-		submitOpts = []byte(nodeConfig.Rollkit.DASubmitOptions)
+	if nodeConfig.Node.DASubmitOptions != "" {
+		submitOpts = []byte(nodeConfig.Node.DASubmitOptions)
 	}
-	return da.NewDAClient(client, nodeConfig.Rollkit.DAGasPrice, nodeConfig.Rollkit.DAGasMultiplier,
+	return da.NewDAClient(client, nodeConfig.Node.DAGasPrice, nodeConfig.Node.DAGasMultiplier,
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
 func initHeaderSyncService(
 	mainKV ds.Batching,
-	nodeConfig config.NodeConfig,
+	nodeConfig config.RollkitConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
 	logger log.Logger,
@@ -190,7 +190,7 @@ func initHeaderSyncService(
 
 func initDataSyncService(
 	mainKV ds.Batching,
-	nodeConfig config.NodeConfig,
+	nodeConfig config.RollkitConfig,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
 	logger log.Logger,
@@ -215,7 +215,7 @@ func initBlockManager(
 	ctx context.Context,
 	signingKey crypto.PrivKey,
 	exec coreexecutor.Executor,
-	nodeConfig config.NodeConfig,
+	nodeConfig config.RollkitConfig,
 	genesis *cmtypes.GenesisDoc,
 	store store.Store,
 	sequencer coresequencer.Sequencer,
@@ -237,7 +237,7 @@ func initBlockManager(
 	blockManager, err := block.NewManager(
 		ctx,
 		signingKey,
-		nodeConfig.Rollkit,
+		nodeConfig.Node,
 		rollGen,
 		store,
 		exec,
@@ -358,8 +358,8 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
-	if n.nodeConfig.Rollkit.Aggregator {
-		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Rollkit.BlockTime)
+	if n.nodeConfig.Node.Aggregator {
+		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
 
 		go n.blockManager.BatchRetrieveLoop(ctx)
 		go n.blockManager.AggregationLoop(ctx)

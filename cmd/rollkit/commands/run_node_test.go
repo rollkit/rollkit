@@ -91,25 +91,25 @@ func TestParseFlags(t *testing.T) {
 		{"AllowedPeers", nodeConfig.P2P.AllowedPeers, "node5@127.0.0.1:27005,node6@127.0.0.1:27006"},
 
 		// Rollkit fields
-		{"Aggregator", nodeConfig.Rollkit.Aggregator, false},
-		{"BlockTime", nodeConfig.Rollkit.BlockTime, 2 * time.Second},
-		{"DAAddress", nodeConfig.Rollkit.DAAddress, "http://127.0.0.1:27005"},
-		{"DAAuthToken", nodeConfig.Rollkit.DAAuthToken, "token"},
-		{"DABlockTime", nodeConfig.Rollkit.DABlockTime, 20 * time.Second},
-		{"DAGasMultiplier", nodeConfig.Rollkit.DAGasMultiplier, 1.5},
-		{"DAGasPrice", nodeConfig.Rollkit.DAGasPrice, 1.5},
-		{"DAMempoolTTL", nodeConfig.Rollkit.DAMempoolTTL, uint64(10)},
-		{"DANamespace", nodeConfig.Rollkit.DANamespace, "namespace"},
-		{"DAStartHeight", nodeConfig.Rollkit.DAStartHeight, uint64(100)},
-		{"LazyAggregator", nodeConfig.Rollkit.LazyAggregator, true},
-		{"LazyBlockTime", nodeConfig.Rollkit.LazyBlockTime, 2 * time.Minute},
-		{"Light", nodeConfig.Rollkit.Light, true},
-		{"MaxPendingBlocks", nodeConfig.Rollkit.MaxPendingBlocks, uint64(100)},
-		{"TrustedHash", nodeConfig.Rollkit.TrustedHash, "abcdef1234567890"},
-		{"SequencerAddress", nodeConfig.Rollkit.SequencerAddress, "seq@127.0.0.1:27007"},
-		{"SequencerRollupID", nodeConfig.Rollkit.SequencerRollupID, "test-rollup"},
-		{"ExecutorAddress", nodeConfig.Rollkit.ExecutorAddress, "exec@127.0.0.1:27008"},
-		{"DASubmitOptions", nodeConfig.Rollkit.DASubmitOptions, "custom-options"},
+		{"Aggregator", nodeConfig.Node.Aggregator, false},
+		{"BlockTime", nodeConfig.Node.BlockTime, 2 * time.Second},
+		{"DAAddress", nodeConfig.Node.DAAddress, "http://127.0.0.1:27005"},
+		{"DAAuthToken", nodeConfig.Node.DAAuthToken, "token"},
+		{"DABlockTime", nodeConfig.Node.DABlockTime, 20 * time.Second},
+		{"DAGasMultiplier", nodeConfig.Node.DAGasMultiplier, 1.5},
+		{"DAGasPrice", nodeConfig.Node.DAGasPrice, 1.5},
+		{"DAMempoolTTL", nodeConfig.Node.DAMempoolTTL, uint64(10)},
+		{"DANamespace", nodeConfig.Node.DANamespace, "namespace"},
+		{"DAStartHeight", nodeConfig.Node.DAStartHeight, uint64(100)},
+		{"LazyAggregator", nodeConfig.Node.LazyAggregator, true},
+		{"LazyBlockTime", nodeConfig.Node.LazyBlockTime, 2 * time.Minute},
+		{"Light", nodeConfig.Node.Light, true},
+		{"MaxPendingBlocks", nodeConfig.Node.MaxPendingBlocks, uint64(100)},
+		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
+		{"SequencerAddress", nodeConfig.Node.SequencerAddress, "seq@127.0.0.1:27007"},
+		{"SequencerRollupID", nodeConfig.Node.SequencerRollupID, "test-rollup"},
+		{"ExecutorAddress", nodeConfig.Node.ExecutorAddress, "exec@127.0.0.1:27008"},
+		{"DASubmitOptions", nodeConfig.Node.DASubmitOptions, "custom-options"},
 
 		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
 		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26665"},
@@ -149,8 +149,8 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Errorf("Error: %v", err)
 		}
 
-		if nodeConfig.Rollkit.Aggregator != validValues[i] {
-			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Rollkit.Aggregator)
+		if nodeConfig.Node.Aggregator != validValues[i] {
+			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Node.Aggregator)
 		}
 	}
 }
@@ -174,7 +174,7 @@ func TestDefaultAggregatorValue(t *testing.T) {
 	}
 
 	// Verify that Aggregator is true by default
-	assert.True(t, nodeConfig.Rollkit.Aggregator, "Expected Aggregator to be true by default")
+	assert.True(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be true by default")
 }
 
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
@@ -195,12 +195,12 @@ func TestCentralizedAddresses(t *testing.T) {
 		t.Fatalf("parseConfig error: %v", err)
 	}
 
-	if nodeConfig.Rollkit.DAAddress != "http://central-da:26657" {
-		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.Rollkit.DAAddress)
+	if nodeConfig.Node.DAAddress != "http://central-da:26657" {
+		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.Node.DAAddress)
 	}
 
-	if nodeConfig.Rollkit.SequencerAddress != "central-seq:26659" {
-		t.Errorf("Expected nodeConfig.Rollkit.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.Rollkit.SequencerAddress)
+	if nodeConfig.Node.SequencerAddress != "central-seq:26659" {
+		t.Errorf("Expected nodeConfig.Rollkit.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.Node.SequencerAddress)
 	}
 
 	// Also confirm that the sequencer rollup id flag is marked as changed
@@ -380,7 +380,7 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create a test node config
-	testNodeConfig := rollconf.NodeConfig{
+	testNodeConfig := rollconf.RollkitConfig{
 		RootDir: tempDir,
 	}
 
@@ -416,7 +416,7 @@ func TestInitFiles(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Set the nodeConfig to use the temporary directory
-	nodeConfig = rollconf.NodeConfig{
+	nodeConfig = rollconf.RollkitConfig{
 		RootDir: tempDir,
 	}
 

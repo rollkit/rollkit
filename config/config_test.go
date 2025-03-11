@@ -18,25 +18,25 @@ func TestDefaultNodeConfig(t *testing.T) {
 
 	assert.Equal(t, DefaultRootDir(), def.RootDir)
 	assert.Equal(t, "data", def.DBPath)
-	assert.Equal(t, true, def.Rollkit.Aggregator)
-	assert.Equal(t, false, def.Rollkit.Light)
-	assert.Equal(t, DefaultDAAddress, def.Rollkit.DAAddress)
-	assert.Equal(t, "", def.Rollkit.DAAuthToken)
-	assert.Equal(t, float64(-1), def.Rollkit.DAGasPrice)
-	assert.Equal(t, float64(0), def.Rollkit.DAGasMultiplier)
-	assert.Equal(t, "", def.Rollkit.DASubmitOptions)
-	assert.Equal(t, "", def.Rollkit.DANamespace)
-	assert.Equal(t, 1*time.Second, def.Rollkit.BlockTime)
-	assert.Equal(t, 15*time.Second, def.Rollkit.DABlockTime)
-	assert.Equal(t, uint64(0), def.Rollkit.DAStartHeight)
-	assert.Equal(t, uint64(0), def.Rollkit.DAMempoolTTL)
-	assert.Equal(t, uint64(0), def.Rollkit.MaxPendingBlocks)
-	assert.Equal(t, false, def.Rollkit.LazyAggregator)
-	assert.Equal(t, 60*time.Second, def.Rollkit.LazyBlockTime)
-	assert.Equal(t, "", def.Rollkit.TrustedHash)
-	assert.Equal(t, DefaultSequencerAddress, def.Rollkit.SequencerAddress)
-	assert.Equal(t, DefaultSequencerRollupID, def.Rollkit.SequencerRollupID)
-	assert.Equal(t, DefaultExecutorAddress, def.Rollkit.ExecutorAddress)
+	assert.Equal(t, true, def.Node.Aggregator)
+	assert.Equal(t, false, def.Node.Light)
+	assert.Equal(t, DefaultDAAddress, def.Node.DAAddress)
+	assert.Equal(t, "", def.Node.DAAuthToken)
+	assert.Equal(t, float64(-1), def.Node.DAGasPrice)
+	assert.Equal(t, float64(0), def.Node.DAGasMultiplier)
+	assert.Equal(t, "", def.Node.DASubmitOptions)
+	assert.Equal(t, "", def.Node.DANamespace)
+	assert.Equal(t, 1*time.Second, def.Node.BlockTime)
+	assert.Equal(t, 15*time.Second, def.Node.DABlockTime)
+	assert.Equal(t, uint64(0), def.Node.DAStartHeight)
+	assert.Equal(t, uint64(0), def.Node.DAMempoolTTL)
+	assert.Equal(t, uint64(0), def.Node.MaxPendingBlocks)
+	assert.Equal(t, false, def.Node.LazyAggregator)
+	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime)
+	assert.Equal(t, "", def.Node.TrustedHash)
+	assert.Equal(t, DefaultSequencerAddress, def.Node.SequencerAddress)
+	assert.Equal(t, DefaultSequencerRollupID, def.Node.SequencerRollupID)
+	assert.Equal(t, DefaultExecutorAddress, def.Node.ExecutorAddress)
 }
 
 func TestAddFlags(t *testing.T) {
@@ -157,15 +157,15 @@ config_dir = "config"
 	// Verify the order of precedence:
 	// 1. Default values should be overridden by TOML
 	assert.Equal(t, "./cmd/app/main.go", config.Entrypoint, "Entrypoint should be set from TOML")
-	assert.Equal(t, true, config.Rollkit.Aggregator, "Aggregator should be set from TOML")
+	assert.Equal(t, true, config.Node.Aggregator, "Aggregator should be set from TOML")
 
 	// 2. TOML values should be overridden by flags
-	assert.Equal(t, 10*time.Second, config.Rollkit.BlockTime, "BlockTime should be overridden by flag")
-	assert.Equal(t, "http://flag-da:26657", config.Rollkit.DAAddress, "DAAddress should be overridden by flag")
+	assert.Equal(t, 10*time.Second, config.Node.BlockTime, "BlockTime should be overridden by flag")
+	assert.Equal(t, "http://flag-da:26657", config.Node.DAAddress, "DAAddress should be overridden by flag")
 
 	// 3. Flags not in TOML should be set
-	assert.Equal(t, true, config.Rollkit.Light, "Light should be set from flag")
+	assert.Equal(t, true, config.Node.Light, "Light should be set from flag")
 
 	// 4. Values not in flags or TOML should remain as default
-	assert.Equal(t, DefaultNodeConfig.Rollkit.DABlockTime, config.Rollkit.DABlockTime, "DABlockTime should remain as default")
+	assert.Equal(t, DefaultNodeConfig.Node.DABlockTime, config.Node.DABlockTime, "DABlockTime should remain as default")
 }

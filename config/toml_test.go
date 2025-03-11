@@ -158,12 +158,12 @@ sequencer_rollup_id = "custom-rollup"
 
 		// These values should be loaded from the TOML file
 		// Only set the values that are actually in the TOML file
-		expectedConfig.Rollkit.Aggregator = true
-		expectedConfig.Rollkit.BlockTime = 2 * time.Second
-		expectedConfig.Rollkit.DAAddress = "http://custom-da:26658"
-		expectedConfig.Rollkit.LazyAggregator = true
-		expectedConfig.Rollkit.SequencerAddress = "custom-sequencer:50051"
-		expectedConfig.Rollkit.SequencerRollupID = "custom-rollup"
+		expectedConfig.Node.Aggregator = true
+		expectedConfig.Node.BlockTime = 2 * time.Second
+		expectedConfig.Node.DAAddress = "http://custom-da:26658"
+		expectedConfig.Node.LazyAggregator = true
+		expectedConfig.Node.SequencerAddress = "custom-sequencer:50051"
+		expectedConfig.Node.SequencerRollupID = "custom-rollup"
 
 		require.Equal(t, expectedConfig, config)
 	})
@@ -254,13 +254,13 @@ func TestTomlConfigOperations(t *testing.T) {
 				config.Chain.ConfigDir = "custom-config"
 
 				// Set various Rollkit config values to test different types
-				config.Rollkit.Aggregator = true
-				config.Rollkit.Light = true
-				config.Rollkit.LazyAggregator = true
-				config.Rollkit.BlockTime = 5 * time.Second
-				config.Rollkit.DAAddress = "http://custom-da:26658"
-				config.Rollkit.SequencerAddress = "custom-sequencer:50051"
-				config.Rollkit.SequencerRollupID = "custom-rollup"
+				config.Node.Aggregator = true
+				config.Node.Light = true
+				config.Node.LazyAggregator = true
+				config.Node.BlockTime = 5 * time.Second
+				config.Node.DAAddress = "http://custom-da:26658"
+				config.Node.SequencerAddress = "custom-sequencer:50051"
+				config.Node.SequencerRollupID = "custom-rollup"
 			} else {
 				// For default values test, ensure ConfigDir is set to the default value
 				config.Chain.ConfigDir = DefaultConfigDir
@@ -287,13 +287,13 @@ func TestTomlConfigOperations(t *testing.T) {
 				expectedConfig.Chain.ConfigDir = filepath.Join(dir, "custom-config")
 
 				// Set the same custom values as above
-				expectedConfig.Rollkit.Aggregator = true
-				expectedConfig.Rollkit.Light = true
-				expectedConfig.Rollkit.LazyAggregator = true
-				expectedConfig.Rollkit.BlockTime = 5 * time.Second
-				expectedConfig.Rollkit.DAAddress = "http://custom-da:26658"
-				expectedConfig.Rollkit.SequencerAddress = "custom-sequencer:50051"
-				expectedConfig.Rollkit.SequencerRollupID = "custom-rollup"
+				expectedConfig.Node.Aggregator = true
+				expectedConfig.Node.Light = true
+				expectedConfig.Node.LazyAggregator = true
+				expectedConfig.Node.BlockTime = 5 * time.Second
+				expectedConfig.Node.DAAddress = "http://custom-da:26658"
+				expectedConfig.Node.SequencerAddress = "custom-sequencer:50051"
+				expectedConfig.Node.SequencerRollupID = "custom-rollup"
 			} else {
 				// For default values test, set the expected ConfigDir to match what ReadToml will return
 				expectedConfig.Chain.ConfigDir = filepath.Join(dir, DefaultConfigDir)
@@ -313,7 +313,7 @@ func TestTomlConfigOperations(t *testing.T) {
 }
 
 // readTomlFromPath reads a TOML file from the given path without relying on os.Getwd(), needed for CI
-func readTomlFromPath(configPath string) (config NodeConfig, err error) {
+func readTomlFromPath(configPath string) (config RollkitConfig, err error) {
 	// Set the default values
 	config = DefaultNodeConfig
 

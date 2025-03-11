@@ -17,33 +17,33 @@ func TestTranslateAddresses(t *testing.T) {
 
 	cases := []struct {
 		name        string
-		input       NodeConfig
-		expected    NodeConfig
+		input       RollkitConfig
+		expected    RollkitConfig
 		expectedErr string
 	}{
-		{"empty", NodeConfig{}, NodeConfig{}, ""},
+		{"empty", RollkitConfig{}, RollkitConfig{}, ""},
 		{
 			"valid listen address",
-			NodeConfig{P2P: P2PConfig{ListenAddress: validCosmos}},
-			NodeConfig{P2P: P2PConfig{ListenAddress: validRollkit}},
+			RollkitConfig{P2P: P2PConfig{ListenAddress: validCosmos}},
+			RollkitConfig{P2P: P2PConfig{ListenAddress: validRollkit}},
 			"",
 		},
 		{
 			"valid seed address",
-			NodeConfig{P2P: P2PConfig{Seeds: validCosmos + "," + validCosmos}},
-			NodeConfig{P2P: P2PConfig{Seeds: validRollkit + "," + validRollkit}},
+			RollkitConfig{P2P: P2PConfig{Seeds: validCosmos + "," + validCosmos}},
+			RollkitConfig{P2P: P2PConfig{Seeds: validRollkit + "," + validRollkit}},
 			"",
 		},
 		{
 			"invalid listen address",
-			NodeConfig{P2P: P2PConfig{ListenAddress: invalidCosmos}},
-			NodeConfig{},
+			RollkitConfig{P2P: P2PConfig{ListenAddress: invalidCosmos}},
+			RollkitConfig{},
 			errInvalidAddress.Error(),
 		},
 		{
 			"invalid seed address",
-			NodeConfig{P2P: P2PConfig{Seeds: validCosmos + "," + invalidCosmos}},
-			NodeConfig{},
+			RollkitConfig{P2P: P2PConfig{Seeds: validCosmos + "," + invalidCosmos}},
+			RollkitConfig{},
 			errInvalidAddress.Error(),
 		},
 	}

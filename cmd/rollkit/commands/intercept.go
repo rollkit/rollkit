@@ -19,14 +19,14 @@ import (
 
 const rollupBinEntrypoint = "entrypoint"
 
-var rollkitConfig rollconf.NodeConfig
+var rollkitConfig rollconf.RollkitConfig
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
 // specified in the rollkit.toml configuration file.
 func InterceptCommand(
 	rollkitCommand *cobra.Command,
-	readToml func() (rollconf.NodeConfig, error),
-	runEntrypoint func(*rollconf.NodeConfig, []string) error,
+	readToml func() (rollconf.RollkitConfig, error),
+	runEntrypoint func(*rollconf.RollkitConfig, []string) error,
 ) (shouldExecute bool, err error) {
 	// Grab flags and verify command
 	flags := []string{}
@@ -143,7 +143,7 @@ func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (s
 // same flags as the original command, but with the `--home` flag set to the config
 // directory of the chain specified in the rollkit.toml file. This is so the entrypoint,
 // which is a separate binary of the rollup, can read the correct chain configuration files.
-func RunRollupEntrypoint(rollkitConfig *rollconf.NodeConfig, args []string) error {
+func RunRollupEntrypoint(rollkitConfig *rollconf.RollkitConfig, args []string) error {
 	var entrypointSourceFile string
 	if !filepath.IsAbs(rollkitConfig.RootDir) {
 		entrypointSourceFile = filepath.Join(rollkitConfig.RootDir, rollkitConfig.Entrypoint)

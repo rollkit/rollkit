@@ -23,7 +23,7 @@ type Node interface {
 // Example executors can be found: TODO: add link
 func NewNode(
 	ctx context.Context,
-	conf config.NodeConfig,
+	conf config.RollkitConfig,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	p2pKey crypto.PrivKey,
@@ -32,7 +32,7 @@ func NewNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
-	if conf.Rollkit.Light {
+	if conf.Node.Light {
 		return newLightNode(conf, p2pKey, genesis, metricsProvider, logger)
 	}
 
