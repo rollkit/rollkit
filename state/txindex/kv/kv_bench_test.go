@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -15,12 +14,9 @@ import (
 )
 
 func BenchmarkTxSearch(b *testing.B) {
-	dbDir, err := ioutil.TempDir("", "benchmark_tx_search_test")
-	if err != nil {
-		b.Errorf("failed to create temporary directory: %s", err)
-	}
+	dbDir := b.TempDir()
 
-	db, _ := store.NewDefaultKVStore(dbDir, "db", "benchmark_tx_search_test")
+	db, err := store.NewDefaultKVStore(dbDir, "db", "benchmark_tx_search_test")
 	if err != nil {
 		b.Errorf("failed to create database: %s", err)
 	}
