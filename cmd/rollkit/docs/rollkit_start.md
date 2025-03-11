@@ -11,6 +11,15 @@ rollkit start [flags]
 ```
       --chain.config_dir string                         chain configuration directory (default "config")
       --ci                                              run node for ci testing
+      --da.address string                               DA address (host:port) (default "http://localhost:26658")
+      --da.auth_token string                            DA auth token
+      --da.block_time duration                          DA chain block time (for syncing) (default 15s)
+      --da.gas_multiplier float                         DA gas price multiplier for retrying blob transactions
+      --da.gas_price float                              DA gas price for blob transactions (default -1)
+      --da.mempool_ttl uint                             number of DA blocks until transaction is dropped from the mempool
+      --da.namespace string                             DA namespace to submit blob transactions
+      --da.start_height uint                            starting DA block height (for syncing)
+      --da.submit_options string                        DA submit options
       --db_path string                                  database path relative to root directory (default "data")
       --entrypoint string                               entrypoint for the application
   -h, --help                                            help for start
@@ -23,17 +32,8 @@ rollkit start [flags]
       --p2p.blocked_peers string                        Comma separated list of nodes to ignore
       --p2p.listen_address string                       P2P listen address (host:port) (default "/ip4/0.0.0.0/tcp/7676")
       --p2p.seeds string                                Comma separated list of seed nodes to connect to
-      --rollkit.aggregator                              run node in aggregator mode
+      --rollkit.aggregator                              run node in aggregator mode (default true)
       --rollkit.block_time duration                     block time (for aggregator mode) (default 1s)
-      --rollkit.da_address string                       DA address (host:port) (default "http://localhost:26658")
-      --rollkit.da_auth_token string                    DA auth token
-      --rollkit.da_block_time duration                  DA chain block time (for syncing) (default 15s)
-      --rollkit.da_gas_multiplier float                 DA gas price multiplier for retrying blob transactions
-      --rollkit.da_gas_price float                      DA gas price for blob transactions (default -1)
-      --rollkit.da_mempool_ttl uint                     number of DA blocks until transaction is dropped from the mempool
-      --rollkit.da_namespace string                     DA namespace to submit blob transactions
-      --rollkit.da_start_height uint                    starting DA block height (for syncing)
-      --rollkit.da_submit_options string                DA submit options
       --rollkit.executor_address string                 executor middleware address (host:port) (default "localhost:40041")
       --rollkit.lazy_aggregator                         wait for transactions, don't build empty blocks
       --rollkit.lazy_block_time duration                block time (for lazy mode) (default 1m0s)
