@@ -271,10 +271,10 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil), []byte(nil)).
-				Return([][]byte{}, uint64(0), &da.ErrTxTimedOut).Once()
+				Return([][]byte{}, uint64(0), da.ErrTxTimedOut).Once()
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil), []byte(nil)).
-				Return([][]byte{}, uint64(0), &da.ErrTxTimedOut).Once()
+				Return([][]byte{}, uint64(0), da.ErrTxTimedOut).Once()
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil), []byte(nil)).
 				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, uint64(0), nil)
