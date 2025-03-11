@@ -43,47 +43,40 @@ func TestInitTomlCommand(t *testing.T) {
 	// Read the file content directly to verify the TOML structure
 	content, err := os.ReadFile(configPath) //nolint:gosec // This is a test file with a controlled path
 	require.NoError(t, err)
-
-	// Check that the content contains the expected default values
 	tomlContent := string(content)
 
-	// Verify specific default values in the TOML file
-	// Accept both single and double quotes for string values
+	// Verify that the TOML file content contains the expected values
+	// Group verifications by category
+
+	// Verify time values
 	require.Contains(t, tomlContent, "block_time = ")
 	require.Contains(t, tomlContent, "1s")
-	require.Contains(t, tomlContent, "da_address = ")
-	require.Contains(t, tomlContent, "http://localhost:26658")
-	require.Contains(t, tomlContent, "sequencer_address = ")
-	require.Contains(t, tomlContent, "localhost:50051")
-	require.Contains(t, tomlContent, "sequencer_rollup_id = ")
-	require.Contains(t, tomlContent, "mock-rollup")
 	require.Contains(t, tomlContent, "da_block_time = ")
 	require.Contains(t, tomlContent, "15s")
 	require.Contains(t, tomlContent, "lazy_block_time = ")
 	require.Contains(t, tomlContent, "1m0s")
+
+	// Verify addresses
+	require.Contains(t, tomlContent, "da_address = ")
+	require.Contains(t, tomlContent, "http://localhost:26658")
+	require.Contains(t, tomlContent, "sequencer_address = ")
+	require.Contains(t, tomlContent, "localhost:50051")
 	require.Contains(t, tomlContent, "executor_address = ")
 	require.Contains(t, tomlContent, "localhost:40041")
 
-	// Verify default boolean values with exact values
+	// Verify other values
+	require.Contains(t, tomlContent, "sequencer_rollup_id = ")
+	require.Contains(t, tomlContent, "mock-rollup")
+
+	// Verify boolean values
 	require.Contains(t, tomlContent, "aggregator = false")
 	require.Contains(t, tomlContent, "light = false")
 	require.Contains(t, tomlContent, "lazy_aggregator = false")
 
-	// Verify the root directory is set correctly
+	// Verify the root directory
 	require.Equal(t, dir, readConfig.RootDir)
 
-	// Verify Rollkit config values match the defaults by comparing specific fields
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.BlockTime, readConfig.Rollkit.BlockTime)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.DABlockTime, readConfig.Rollkit.DABlockTime)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.LazyBlockTime, readConfig.Rollkit.LazyBlockTime)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.DAAddress, readConfig.Rollkit.DAAddress)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.SequencerAddress, readConfig.Rollkit.SequencerAddress)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.SequencerRollupID, readConfig.Rollkit.SequencerRollupID)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.ExecutorAddress, readConfig.Rollkit.ExecutorAddress)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.Aggregator, readConfig.Rollkit.Aggregator)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.Light, readConfig.Rollkit.Light)
-	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit.LazyAggregator, readConfig.Rollkit.LazyAggregator)
-
-	// Also verify the complete Rollkit config structure matches
+	// Verify that the entire Rollkit configuration matches the default values
+	// This verification is sufficient to cover all individual fields
 	require.Equal(t, rollconf.DefaultNodeConfig.Rollkit, readConfig.Rollkit)
 }
