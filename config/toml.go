@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
+	"github.com/spf13/viper"
 )
 
 // RollkitToml is the filename for the rollkit configuration file.
@@ -32,42 +32,37 @@ func ReadToml() (config NodeConfig, err error) {
 		return
 	}
 
-	return ReadTomlFromDir(startDir)
-}
+	// Configure Viper to search for the configuration file
+	v := viper.New()
+	v.SetConfigName(RollkitToml[:len(RollkitToml)-5]) // Remove the .toml extension
+	v.SetConfigType("toml")
 
-// ReadTomlFromDir reads the TOML configuration from the rollkit.toml file in the specified directory
-// and returns the parsed NodeConfig. Only the TOML-specific fields are populated.
-func ReadTomlFromDir(startDir string) (config NodeConfig, err error) {
+	// Search for the configuration file in the current directory and its parents
 	configPath, err := findConfigFile(startDir)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrReadToml, err)
 		return
 	}
 
-	// Set the default values
+	v.SetConfigFile(configPath)
+
+	// Set default values
 	config = DefaultNodeConfig
 
-	// Create a temporary struct to decode the TOML fields
-	type TomlFields struct {
-		Entrypoint string        `toml:"entrypoint"`
-		Chain      ChainConfig   `toml:"chain"`
-		Rollkit    RollkitConfig `toml:"rollkit"`
-	}
-
-	var tomlFields TomlFields
-	if _, err = toml.DecodeFile(configPath, &tomlFields); err != nil {
+	// Read the configuration file
+	if err = v.ReadInConfig(); err != nil {
 		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
 		return
 	}
 
-	// Override with values from TOML
-	config.RootDir = filepath.Dir(configPath)
-	config.Entrypoint = tomlFields.Entrypoint
-	config.Chain = tomlFields.Chain
+	// Unmarshal directly into NodeConfig
+	if err = v.Unmarshal(&config); err != nil {
+		err = fmt.Errorf("%w unmarshaling config: %w", ErrReadToml, err)
+		return
+	}
 
-	// Merge Rollkit configuration from TOML with default values
-	// This approach preserves default values for fields not specified in the TOML
-	mergeRollkitConfig(&config.Rollkit, tomlFields.Rollkit)
+	// Set the root directory
+	config.RootDir = filepath.Dir(configPath)
 
 	// Add configPath to chain.ConfigDir if it is a relative path
 	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
@@ -75,73 +70,6 @@ func ReadTomlFromDir(startDir string) (config NodeConfig, err error) {
 	}
 
 	return
-}
-
-// mergeRollkitConfig merges the values from src into dst, only overriding non-zero values.
-// This preserves default values for fields not specified in the TOML.
-func mergeRollkitConfig(dst *RollkitConfig, src RollkitConfig) {
-	// Boolean fields
-	if src.Aggregator {
-		dst.Aggregator = src.Aggregator
-	}
-	if src.Light {
-		dst.Light = src.Light
-	}
-	if src.LazyAggregator {
-		dst.LazyAggregator = src.LazyAggregator
-	}
-
-	// String fields - only override if not empty
-	if src.DAAddress != "" {
-		dst.DAAddress = src.DAAddress
-	}
-	if src.DAAuthToken != "" {
-		dst.DAAuthToken = src.DAAuthToken
-	}
-	if src.DASubmitOptions != "" {
-		dst.DASubmitOptions = src.DASubmitOptions
-	}
-	if src.DANamespace != "" {
-		dst.DANamespace = src.DANamespace
-	}
-	if src.TrustedHash != "" {
-		dst.TrustedHash = src.TrustedHash
-	}
-	if src.SequencerAddress != "" {
-		dst.SequencerAddress = src.SequencerAddress
-	}
-	if src.SequencerRollupID != "" {
-		dst.SequencerRollupID = src.SequencerRollupID
-	}
-	if src.ExecutorAddress != "" {
-		dst.ExecutorAddress = src.ExecutorAddress
-	}
-
-	// Numeric fields - only override if not zero
-	if src.DAGasPrice != 0 {
-		dst.DAGasPrice = src.DAGasPrice
-	}
-	if src.DAGasMultiplier != 0 {
-		dst.DAGasMultiplier = src.DAGasMultiplier
-	}
-	if src.BlockTime != 0 {
-		dst.BlockTime = src.BlockTime
-	}
-	if src.DABlockTime != 0 {
-		dst.DABlockTime = src.DABlockTime
-	}
-	if src.DAStartHeight != 0 {
-		dst.DAStartHeight = src.DAStartHeight
-	}
-	if src.DAMempoolTTL != 0 {
-		dst.DAMempoolTTL = src.DAMempoolTTL
-	}
-	if src.MaxPendingBlocks != 0 {
-		dst.MaxPendingBlocks = src.MaxPendingBlocks
-	}
-	if src.LazyBlockTime != 0 {
-		dst.LazyBlockTime = src.LazyBlockTime
-	}
 }
 
 // findConfigFile searches for the rollkit.toml file starting from the given
@@ -227,27 +155,26 @@ func FindConfigDir(dir string) (string, bool) {
 
 // WriteTomlConfig writes the TOML-specific fields of the given NodeConfig to the rollkit.toml file.
 func WriteTomlConfig(config NodeConfig) error {
-	// Create a temporary struct to encode only the TOML fields
-	type TomlFields struct {
-		Entrypoint string        `toml:"entrypoint"`
-		Chain      ChainConfig   `toml:"chain"`
-		Rollkit    RollkitConfig `toml:"rollkit"`
-	}
+	// Configure Viper
+	v := viper.New()
 
-	tomlFields := TomlFields{
-		Entrypoint: config.Entrypoint,
-		Chain:      config.Chain,
-		Rollkit:    config.Rollkit,
-	}
+	// Set values in Viper directly from NodeConfig
+	v.Set("entrypoint", config.Entrypoint)
+	v.Set("chain", config.Chain)
+	v.Set("rollkit", config.Rollkit)
 
+	// Configure the output file
 	configPath := filepath.Join(config.RootDir, RollkitToml)
-	f, err := os.Create(configPath) //nolint:gosec
-	if err != nil {
+	v.SetConfigFile(configPath)
+	v.SetConfigType("toml")
+
+	// Ensure the directory exists
+	if err := os.MkdirAll(filepath.Dir(configPath), DefaultDirPerm); err != nil {
 		return err
 	}
-	defer f.Close() //nolint:errcheck
 
-	if err := toml.NewEncoder(f).Encode(tomlFields); err != nil {
+	// Write the configuration file
+	if err := v.WriteConfig(); err != nil {
 		return err
 	}
 
@@ -275,4 +202,44 @@ func ensureDir(dirPath string, mode os.FileMode) error {
 		return fmt.Errorf("could not create directory %q: %w", dirPath, err)
 	}
 	return nil
+}
+
+// ReadTomlFromDir reads the TOML configuration from the rollkit.toml file in the specified directory
+// and returns the parsed NodeConfig. Only the TOML-specific fields are populated.
+func ReadTomlFromDir(startDir string) (config NodeConfig, err error) {
+	configPath, err := findConfigFile(startDir)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", ErrReadToml, err)
+		return
+	}
+
+	// Configure Viper to read the TOML file
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("toml")
+
+	// Set default values
+	config = DefaultNodeConfig
+
+	// Read the configuration file
+	if err = v.ReadInConfig(); err != nil {
+		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
+		return
+	}
+
+	// Unmarshal directly into NodeConfig
+	if err = v.Unmarshal(&config); err != nil {
+		err = fmt.Errorf("%w unmarshaling config: %w", ErrReadToml, err)
+		return
+	}
+
+	// Set the root directory
+	config.RootDir = filepath.Dir(configPath)
+
+	// Add configPath to chain.ConfigDir if it is a relative path
+	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
+		config.Chain.ConfigDir = filepath.Join(config.RootDir, config.Chain.ConfigDir)
+	}
+
+	return
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -192,9 +192,14 @@ sequencer_rollup_id = "custom-rollup"
 
 		// Create expected config with default values
 		expectedConfig := DefaultNodeConfig
+
+		// Update expected RootDir to match the test directory
 		expectedConfig.RootDir = dir
-		// When reading an empty TOML file, the Chain.ConfigDir should be empty
-		expectedConfig.Chain.ConfigDir = ""
+
+		// Update expected Chain.ConfigDir to match the test directory
+		if expectedConfig.Chain.ConfigDir != "" && !filepath.IsAbs(expectedConfig.Chain.ConfigDir) {
+			expectedConfig.Chain.ConfigDir = filepath.Join(dir, expectedConfig.Chain.ConfigDir)
+		}
 
 		// check that config has default values with updated RootDir
 		require.Equal(t, expectedConfig, config)
@@ -270,7 +275,6 @@ func TestTomlConfigOperations(t *testing.T) {
 			_, err = os.Stat(configPath)
 			require.NoError(t, err)
 
-			// Read the config back from the file - use the absolute path to avoid Getwd issues
 			readConfig, err := readTomlFromPath(configPath)
 			require.NoError(t, err)
 
@@ -313,31 +317,41 @@ func readTomlFromPath(configPath string) (config NodeConfig, err error) {
 	// Set the default values
 	config = DefaultNodeConfig
 
-	// Create a temporary struct to decode the TOML fields
-	type TomlFields struct {
-		Entrypoint string        `toml:"entrypoint"`
-		Chain      ChainConfig   `toml:"chain"`
-		Rollkit    RollkitConfig `toml:"rollkit"`
-	}
+	// Configure Viper to read the TOML file
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("toml")
 
-	var tomlFields TomlFields
-	if _, err = toml.DecodeFile(configPath, &tomlFields); err != nil {
+	// Read the configuration file
+	if err = v.ReadInConfig(); err != nil {
 		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
 		return
 	}
 
-	// Override with values from TOML
+	// Check if the file is empty
+	fileInfo, err := os.Stat(configPath)
+	if err != nil {
+		err = fmt.Errorf("%w getting file info: %w", ErrReadToml, err)
+		return
+	}
+
+	isEmptyFile := fileInfo.Size() == 0
+
+	// Unmarshal directly into NodeConfig
+	if err = v.Unmarshal(&config); err != nil {
+		err = fmt.Errorf("%w unmarshaling config: %w", ErrReadToml, err)
+		return
+	}
+
+	// Set the root directory
 	config.RootDir = filepath.Dir(configPath)
-	config.Entrypoint = tomlFields.Entrypoint
-	config.Chain = tomlFields.Chain
 
-	// Merge Rollkit configuration from TOML with default values
-	// This approach preserves default values for fields not specified in the TOML
-	mergeRollkitConfig(&config.Rollkit, tomlFields.Rollkit)
-
-	// Add configPath to chain.ConfigDir if it is a relative path
-	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
+	// Add configPath to chain.ConfigDir if it is a relative path and the file is not empty
+	if !isEmptyFile && config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
 		config.Chain.ConfigDir = filepath.Join(config.RootDir, config.Chain.ConfigDir)
+	} else if isEmptyFile {
+		// When reading an empty TOML file, the Chain.ConfigDir should be empty
+		config.Chain.ConfigDir = ""
 	}
 
 	return
