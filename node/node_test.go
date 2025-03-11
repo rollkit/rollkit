@@ -13,10 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
-	execTest "github.com/rollkit/go-execution/test"
-	execTypes "github.com/rollkit/go-execution/types"
-	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
@@ -48,37 +44,6 @@ const (
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
 	dummySeq := seqTest.NewMultiRollupSequencer()
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	return server
-}
-
-// startMockExecutorServerGRPC starts a mock gRPC server with the given listenAddress.
-func startMockExecutorServerGRPC(listenAddress string) *grpc.Server {
-	dummyExec := execTest.NewDummyExecutor()
-	_, _, err := dummyExec.InitChain(context.Background(), time.Now(), 1, "test-chain")
-	if err != nil {
-		panic(err)
-	}
-
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		i := 0
-		for range ticker.C {
-			dummyExec.InjectTx(execTypes.Tx{byte(3*i + 1), byte(3*i + 2), byte(3*i + 3)})
-			i++
-		}
-	}()
-
-	execServer := execGRPC.NewServer(dummyExec, nil)
-	server := grpc.NewServer()
-	pb.RegisterExecutionServiceServer(server, execServer)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		panic(err)

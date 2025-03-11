@@ -338,12 +338,6 @@ func TestInitFiles(t *testing.T) {
 // TestKVExecutorHTTPServerShutdown tests that the KVExecutor HTTP server properly
 // shuts down when the context is cancelled
 func TestKVExecutorHTTPServerShutdown(t *testing.T) {
-	// Create a temporary directory for test
-	tempDir, err := os.MkdirTemp("", "kvexecutor-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
 
 	// Find an available port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -351,7 +345,9 @@ func TestKVExecutorHTTPServerShutdown(t *testing.T) {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close() // Close the listener to free the port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("Failed to close listener: %v", err)
+	}
 
 	// Set up the KV executor HTTP address
 	httpAddr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -377,7 +373,9 @@ func TestKVExecutorHTTPServerShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("Failed to close response body: %v", err)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
