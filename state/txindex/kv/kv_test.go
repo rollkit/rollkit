@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -340,9 +338,7 @@ func txResultWithEvents(events []abci.Event) *abci.TxResult {
 }
 
 func benchmarkTxIndex(txsCount int64, b *testing.B) {
-	dir, err := ioutil.TempDir("", "tx_index_db")
-	require.NoError(b, err)
-	defer os.RemoveAll(dir)
+	dir := b.TempDir()
 
 	store, err := store.NewDefaultKVStore(dir, "db", "tx_index")
 	require.NoError(b, err)

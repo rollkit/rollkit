@@ -2,6 +2,7 @@ package kv
 
 import (
 	"math/big"
+	"slices"
 
 	cmtsyntax "github.com/cometbft/cometbft/libs/pubsub/query/syntax"
 	"github.com/cometbft/cometbft/types"
@@ -20,12 +21,7 @@ type HeightInfo struct {
 
 // IntInSlice returns true if a is found in the list.
 func intInSlice(a int, list []int) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, a)
 }
 
 func dedupHeight(conditions []cmtsyntax.Condition) (dedupConditions []cmtsyntax.Condition, heightInfo HeightInfo) {

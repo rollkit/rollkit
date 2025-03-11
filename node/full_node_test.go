@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -204,16 +203,12 @@ func TestPendingBlocks(t *testing.T) {
 	mockDA.On("Submit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("DA not available"))
 
 	dac := da.NewDAClient(mockDA, 1234, -1, goDA.Namespace(MockDAAddress), nil, nil)
-	dbPath, err := os.MkdirTemp("", "testdb")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dbPath)
-	}()
+	dbPath := t.TempDir()
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestPendingBlocks")
 
 	node, _ := createAggregatorWithPersistence(ctx, dbPath, dac, genesis, genesisValidatorKey, t)
-	err = node.Start()
+	err := node.Start()
 	assert.NoError(t, err)
 
 	const (
@@ -351,7 +346,7 @@ func TestVoteExtension(t *testing.T) {
 
 		invalidVoteExtension := func(_ context.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 			extendVoteFailureChan <- struct{}{}
-			return nil, fmt.Errorf("ExtendVote failed")
+			return nil, errors.New("ExtendVote failed")
 		}
 		app.On("ExtendVote", mock.Anything, mock.Anything).Return(invalidVoteExtension)
 

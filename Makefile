@@ -16,7 +16,7 @@ count := 1
 ## help: Show this help message
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
-	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@sed -n 's/^##//p' $< | column -t -s ':' | sort | sed -e 's/^/ /'
 .PHONY: help
 
 ## clean: clean testcache
