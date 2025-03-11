@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	"github.com/stretchr/testify/assert"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
@@ -362,16 +362,25 @@ func TestSubmitBatchToDA(t *testing.T) {
 
 			// Verify the results
 			if tt.expectedError {
-				assert.Error(t, err)
+				// rewrite to not use testify
+				if err == nil {
+					t.Fatalf("Expected error, got nil")
+				}
 				if tt.expectedErrorMsg != "" {
-					assert.Contains(t, err.Error(), tt.expectedErrorMsg)
+					if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
+						t.Fatalf("Expected error message to contain %q, got %q", tt.expectedErrorMsg, err.Error())
+					}
 				}
 			} else {
-				assert.NoError(t, err)
+				if err != nil {
+					t.Fatalf("Expected no error, got %v", err)
+				}
 			}
 
 			// Verify the number of attempts
-			assert.Equal(t, tt.expectedAttempts, daWrapper.callCount, "Unexpected number of DA submission attempts")
+			if tt.expectedAttempts != daWrapper.callCount {
+				t.Fatalf("Expected %d attempts, got %d", tt.expectedAttempts, daWrapper.callCount)
+			}
 
 			// Verify backoff behavior if applicable
 			if tt.simulateBackoff && daWrapper.callCount > 1 {
@@ -381,8 +390,9 @@ func TestSubmitBatchToDA(t *testing.T) {
 					if i > 1 {
 						previousInterval := daWrapper.backoffTimes[i-1].Sub(daWrapper.backoffTimes[i-2])
 						// Allow some flexibility due to scheduling variations
-						assert.GreaterOrEqual(t, currentInterval.Milliseconds(), previousInterval.Milliseconds(),
-							"Expected exponential backoff between retry attempts")
+						if currentInterval.Milliseconds() < previousInterval.Milliseconds() {
+							t.Fatalf("Expected exponential backoff between retry attempts, got %v and %v", currentInterval, previousInterval)
+						}
 					}
 				}
 			}
