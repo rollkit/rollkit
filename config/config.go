@@ -1,14 +1,13 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -187,151 +186,101 @@ func AddFlags(cmd *cobra.Command) {
 // 2. TOML configuration file
 // 3. Command line flags (highest priority)
 func LoadNodeConfig(cmd *cobra.Command) (NodeConfig, error) {
-	// 1. Start with default configuration
+	// Create a new Viper instance to avoid conflicts with any global Viper
+	v := viper.New()
+
+	// 1. Start with default configuration and set defaults in Viper
 	config := DefaultNodeConfig
+	setDefaultsInViper(v, config)
 
 	// 2. Try to load TOML configuration
-	tomlConfig, err := ReadToml()
-	if err == nil {
-		// TOML configuration found, override defaults
-		config = tomlConfig
-	} else if !os.IsNotExist(err) && !errors.Is(err, ErrReadToml) {
-		// If it's not a "file not found" error or a known TOML error, return the error
-		return config, fmt.Errorf("error reading TOML configuration: %w", err)
+	configPath := ""
+
+	// Check for config file in standard locations
+	if rootDir := os.Getenv("ROLLKIT_HOME"); rootDir != "" {
+		configPath = filepath.Join(rootDir, DefaultConfigDir, RollkitToml)
+	} else if config.RootDir != "" {
+		configPath = filepath.Join(config.RootDir, DefaultConfigDir, RollkitToml)
+	} else {
+		// Try to find the config file in the current directory and its parents
+		startDir, err := os.Getwd()
+		if err == nil {
+			configPath, err = findConfigFile(startDir)
+			if err != nil && !os.IsNotExist(err) {
+				return config, fmt.Errorf("error finding TOML configuration: %w", err)
+			}
+		}
 	}
 
-	// 3. Parse flags and override TOML configuration
-	v := viper.New()
+	if configPath != "" {
+		v.SetConfigFile(configPath)
+		v.SetConfigType("toml")
+
+		if err := v.ReadInConfig(); err == nil {
+			fmt.Printf("Using config file: %s\n", v.ConfigFileUsed())
+		} else if !os.IsNotExist(err) {
+			return config, fmt.Errorf("error reading TOML configuration: %w", err)
+		}
+	}
+
+	// 3. Bind command line flags
 	if err := v.BindPFlags(cmd.Flags()); err != nil {
 		return config, fmt.Errorf("unable to bind flags: %w", err)
 	}
 
-	// Only process flags that were explicitly set
-	flagsSet := make(map[string]bool)
-	cmd.Flags().Visit(func(f *pflag.Flag) {
-		flagsSet[f.Name] = true
-	})
-
-	// If no flags are set, return the config as is
-	if len(flagsSet) == 0 {
-		return config, nil
-	}
-
-	// Create a temporary config to hold flag values
-	flagConfig := NodeConfig{}
-
-	// Unmarshal viper into the temporary config
-	err = v.Unmarshal(&flagConfig, func(c *mapstructure.DecoderConfig) {
+	// 4. Unmarshal everything from Viper into the config struct
+	if err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "mapstructure"
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
 		)
-	})
-	if err != nil {
-		return config, fmt.Errorf("unable to decode command flags into config: %w", err)
-	}
-
-	// Now we need to selectively copy values from flagConfig to config
-	// for only the flags that were explicitly set
-
-	// Root level flags
-	if flagsSet[FlagRootDir] {
-		config.RootDir = flagConfig.RootDir
-	}
-	if flagsSet[FlagDBPath] {
-		config.DBPath = flagConfig.DBPath
-	}
-	if flagsSet[FlagEntrypoint] {
-		config.Entrypoint = flagConfig.Entrypoint
-	}
-	if flagsSet[FlagChainConfigDir] {
-		config.Chain.ConfigDir = flagConfig.Chain.ConfigDir
-	}
-
-	// P2P flags
-	if flagsSet[FlagP2PListenAddress] {
-		config.P2P.ListenAddress = flagConfig.P2P.ListenAddress
-	}
-	if flagsSet[FlagP2PSeeds] {
-		config.P2P.Seeds = flagConfig.P2P.Seeds
-	}
-	if flagsSet[FlagP2PBlockedPeers] {
-		config.P2P.BlockedPeers = flagConfig.P2P.BlockedPeers
-	}
-	if flagsSet[FlagP2PAllowedPeers] {
-		config.P2P.AllowedPeers = flagConfig.P2P.AllowedPeers
-	}
-
-	// Rollkit flags
-	if flagsSet[FlagAggregator] {
-		config.Rollkit.Aggregator = flagConfig.Rollkit.Aggregator
-	}
-	if flagsSet[FlagLight] {
-		config.Rollkit.Light = flagConfig.Rollkit.Light
-	}
-	if flagsSet[FlagDAAddress] {
-		config.Rollkit.DAAddress = flagConfig.Rollkit.DAAddress
-	}
-	if flagsSet[FlagDAAuthToken] {
-		config.Rollkit.DAAuthToken = flagConfig.Rollkit.DAAuthToken
-	}
-	if flagsSet[FlagBlockTime] {
-		config.Rollkit.BlockTime = flagConfig.Rollkit.BlockTime
-	}
-	if flagsSet[FlagDABlockTime] {
-		config.Rollkit.DABlockTime = flagConfig.Rollkit.DABlockTime
-	}
-	if flagsSet[FlagDAGasPrice] {
-		config.Rollkit.DAGasPrice = flagConfig.Rollkit.DAGasPrice
-	}
-	if flagsSet[FlagDAGasMultiplier] {
-		config.Rollkit.DAGasMultiplier = flagConfig.Rollkit.DAGasMultiplier
-	}
-	if flagsSet[FlagDAStartHeight] {
-		config.Rollkit.DAStartHeight = flagConfig.Rollkit.DAStartHeight
-	}
-	if flagsSet[FlagDANamespace] {
-		config.Rollkit.DANamespace = flagConfig.Rollkit.DANamespace
-	}
-	if flagsSet[FlagDASubmitOptions] {
-		config.Rollkit.DASubmitOptions = flagConfig.Rollkit.DASubmitOptions
-	}
-	if flagsSet[FlagTrustedHash] {
-		config.Rollkit.TrustedHash = flagConfig.Rollkit.TrustedHash
-	}
-	if flagsSet[FlagLazyAggregator] {
-		config.Rollkit.LazyAggregator = flagConfig.Rollkit.LazyAggregator
-	}
-	if flagsSet[FlagMaxPendingBlocks] {
-		config.Rollkit.MaxPendingBlocks = flagConfig.Rollkit.MaxPendingBlocks
-	}
-	if flagsSet[FlagDAMempoolTTL] {
-		config.Rollkit.DAMempoolTTL = flagConfig.Rollkit.DAMempoolTTL
-	}
-	if flagsSet[FlagLazyBlockTime] {
-		config.Rollkit.LazyBlockTime = flagConfig.Rollkit.LazyBlockTime
-	}
-	if flagsSet[FlagSequencerAddress] {
-		config.Rollkit.SequencerAddress = flagConfig.Rollkit.SequencerAddress
-	}
-	if flagsSet[FlagSequencerRollupID] {
-		config.Rollkit.SequencerRollupID = flagConfig.Rollkit.SequencerRollupID
-	}
-	if flagsSet[FlagExecutorAddress] {
-		config.Rollkit.ExecutorAddress = flagConfig.Rollkit.ExecutorAddress
-	}
-
-	// Instrumentation flags
-	if flagsSet[FlagPrometheus] && config.Instrumentation != nil {
-		config.Instrumentation.Prometheus = flagConfig.Instrumentation.Prometheus
-	}
-	if flagsSet[FlagPrometheusListenAddr] && config.Instrumentation != nil {
-		config.Instrumentation.PrometheusListenAddr = flagConfig.Instrumentation.PrometheusListenAddr
-	}
-	if flagsSet[FlagMaxOpenConnections] && config.Instrumentation != nil {
-		config.Instrumentation.MaxOpenConnections = flagConfig.Instrumentation.MaxOpenConnections
+	}); err != nil {
+		return config, fmt.Errorf("unable to decode configuration: %w", err)
 	}
 
 	return config, nil
+}
+
+// setDefaultsInViper sets all the default values from NodeConfig into Viper
+func setDefaultsInViper(v *viper.Viper, config NodeConfig) {
+	// Root level defaults
+	v.SetDefault(FlagRootDir, config.RootDir)
+	v.SetDefault(FlagDBPath, config.DBPath)
+	v.SetDefault(FlagEntrypoint, config.Entrypoint)
+	v.SetDefault(FlagChainConfigDir, config.Chain.ConfigDir)
+
+	// P2P defaults
+	v.SetDefault(FlagP2PListenAddress, config.P2P.ListenAddress)
+	v.SetDefault(FlagP2PSeeds, config.P2P.Seeds)
+	v.SetDefault(FlagP2PBlockedPeers, config.P2P.BlockedPeers)
+	v.SetDefault(FlagP2PAllowedPeers, config.P2P.AllowedPeers)
+
+	// Rollkit defaults
+	v.SetDefault(FlagAggregator, config.Rollkit.Aggregator)
+	v.SetDefault(FlagLight, config.Rollkit.Light)
+	v.SetDefault(FlagDAAddress, config.Rollkit.DAAddress)
+	v.SetDefault(FlagDAAuthToken, config.Rollkit.DAAuthToken)
+	v.SetDefault(FlagBlockTime, config.Rollkit.BlockTime)
+	v.SetDefault(FlagDABlockTime, config.Rollkit.DABlockTime)
+	v.SetDefault(FlagDAGasPrice, config.Rollkit.DAGasPrice)
+	v.SetDefault(FlagDAGasMultiplier, config.Rollkit.DAGasMultiplier)
+	v.SetDefault(FlagDAStartHeight, config.Rollkit.DAStartHeight)
+	v.SetDefault(FlagDANamespace, config.Rollkit.DANamespace)
+	v.SetDefault(FlagDASubmitOptions, config.Rollkit.DASubmitOptions)
+	v.SetDefault(FlagTrustedHash, config.Rollkit.TrustedHash)
+	v.SetDefault(FlagLazyAggregator, config.Rollkit.LazyAggregator)
+	v.SetDefault(FlagMaxPendingBlocks, config.Rollkit.MaxPendingBlocks)
+	v.SetDefault(FlagDAMempoolTTL, config.Rollkit.DAMempoolTTL)
+	v.SetDefault(FlagLazyBlockTime, config.Rollkit.LazyBlockTime)
+	v.SetDefault(FlagSequencerAddress, config.Rollkit.SequencerAddress)
+	v.SetDefault(FlagSequencerRollupID, config.Rollkit.SequencerRollupID)
+	v.SetDefault(FlagExecutorAddress, config.Rollkit.ExecutorAddress)
+
+	// Instrumentation defaults
+	if config.Instrumentation != nil {
+		v.SetDefault(FlagPrometheus, config.Instrumentation.Prometheus)
+		v.SetDefault(FlagPrometheusListenAddr, config.Instrumentation.PrometheusListenAddr)
+		v.SetDefault(FlagMaxOpenConnections, config.Instrumentation.MaxOpenConnections)
+	}
 }
