@@ -41,7 +41,11 @@ type Sequencer struct {
 	maxBlobSize            *atomic.Uint64
 	lastSubmittedBatchHash atomic.Value
 	seenBatches            sync.Map
-	bq                     *BatchQueue
+
+	// submitted batches
+	sbq *BatchQueue
+	// pending batches
+	bq *BatchQueue
 
 	metrics *Metrics
 }
@@ -72,7 +76,9 @@ func NewSequencer(
 		batchTime:   batchTime,
 		maxBlobSize: maxBlobSize,
 		rollupId:    rollupId,
-		bq:          NewBatchQueue(db),
+		// TODO: this can cause an overhead with IO
+		bq:          NewBatchQueue(db, "pending"),
+		sbq:         NewBatchQueue(db, "submitted"),
 		seenBatches: sync.Map{},
 		metrics:     metrics,
 	}
@@ -80,6 +86,11 @@ func NewSequencer(
 	err = s.bq.Load(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load batch queue from DB: %w", err)
+	}
+
+	err = s.sbq.Load(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load submitted batch queue from DB: %w", err)
 	}
 
 	go s.batchSubmissionLoop(ctx)
@@ -163,7 +174,7 @@ func (c *Sequencer) publishBatch(ctx context.Context) error {
 		return fmt.Errorf("failed to submit batch to DA: %w", err)
 	}
 
-	err = c.bq.AddBatch(ctx, *batch)
+	err = c.sbq.AddBatch(ctx, *batch)
 	if err != nil {
 		return err
 	}
@@ -322,7 +333,7 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 		c.CompareAndSetMaxSize(req.MaxBytes)
 	}
 
-	batch, err := c.bq.Next(ctx)
+	batch, err := c.sbq.Next(ctx)
 	if err != nil {
 		return nil, err
 	}

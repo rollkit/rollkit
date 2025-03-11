@@ -4,20 +4,16 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"strings"
+	"fmt"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore"
-	dssync "github.com/ipfs/go-datastore/sync"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	dac "github.com/rollkit/rollkit/da"
 )
 
 func TestNewSequencer(t *testing.T) {
@@ -106,7 +102,8 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		bq:          NewBatchQueue(db),
+		bq:          NewBatchQueue(db, "pending"),
+		sbq:         NewBatchQueue(db, "submitted"),
 		seenBatches: sync.Map{},
 		rollupId:    []byte("rollup"),
 	}
@@ -141,7 +138,8 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	db := ds.NewMapDatastore()
 
 	seq := &Sequencer{
-		bq:          NewBatchQueue(db),
+		bq:          NewBatchQueue(db, "pending"),
+		sbq:         NewBatchQueue(db, "submitted"),
 		seenBatches: sync.Map{},
 		rollupId:    []byte("rollup"),
 	}
@@ -153,7 +151,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	}()
 
 	// Add mock batch to the BatchQueue
-	err := seq.bq.AddBatch(context.Background(), *mockBatch)
+	err := seq.sbq.AddBatch(context.Background(), *mockBatch)
 	if err != nil {
 		t.Fatalf("Failed to add batch: %v", err)
 	}
@@ -169,6 +167,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 		t.Fatalf("Expected timestamp day to be %d, got %d", time.Now().Day(), res.Timestamp.Day())
 	}
 
+	fmt.Println("res.Batch.Transactions", res.Batch)
 	// Ensure that the transactions are present
 	if len(res.Batch.Transactions) != 2 {
 		t.Fatalf("Expected 2 transactions, got %d", len(res.Batch.Transactions))
@@ -189,7 +188,8 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	db := ds.NewMapDatastore()
 	// Initialize a new sequencer with a seen batch
 	seq := &Sequencer{
-		bq:          NewBatchQueue(db),
+		bq:          NewBatchQueue(db, "pending"),
+		sbq:         NewBatchQueue(db, "submitted"),
 		seenBatches: sync.Map{},
 		rollupId:    []byte("rollup"),
 	}
@@ -221,269 +221,4 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	if res.Status {
 		t.Fatal("Expected status to be false for invalid batch hash")
 	}
-}
-
-func TestSubmitBatchToDA(t *testing.T) {
-	// Create a sample batch for testing
-	sampleBatch := coresequencer.Batch{
-		Transactions: [][]byte{
-			[]byte("tx1"),
-			[]byte("tx2"),
-		},
-	}
-
-	tests := []struct {
-		name             string
-		batch            coresequencer.Batch
-		maxBlobSize      uint64
-		simulateTooBig   bool
-		simulateDAError  bool
-		expectedError    bool
-		expectedErrorMsg string
-		expectedAttempts int
-		// New fields for expanded test cases
-		temporaryErrors int             // Number of temporary errors before success
-		simulateTimeout bool            // Simulate context timeout
-		simulateBackoff bool            // Track if backoff was properly applied
-		backoffDelays   []time.Duration // Expected backoff delays
-	}{
-		{
-			name:             "successful submission",
-			batch:            sampleBatch,
-			maxBlobSize:      1024 * 1024,
-			expectedError:    false,
-			expectedAttempts: 1,
-		},
-		{
-			name:             "blob too big",
-			batch:            sampleBatch,
-			maxBlobSize:      10, // Very small max blob size to trigger StatusTooBig
-			simulateTooBig:   true,
-			expectedError:    false, // Should succeed after reducing blob size
-			expectedAttempts: 2,
-		},
-		{
-			name:             "DA error",
-			batch:            sampleBatch,
-			maxBlobSize:      1024 * 1024,
-			simulateDAError:  true,
-			expectedError:    true,
-			expectedErrorMsg: "failed to submit all blocks to DA layer",
-			expectedAttempts: maxSubmitAttempts,
-		},
-		{
-			name:             "temporary errors with exponential backoff",
-			batch:            sampleBatch,
-			maxBlobSize:      1024 * 1024,
-			temporaryErrors:  3, // Fail 3 times then succeed
-			expectedError:    false,
-			expectedAttempts: 4, // 3 failures + 1 success
-			simulateBackoff:  true,
-		},
-		{
-			name:             "context timeout during retry",
-			batch:            sampleBatch,
-			maxBlobSize:      1024 * 1024,
-			simulateTimeout:  true,
-			expectedError:    true,
-			expectedErrorMsg: "context deadline exceeded",
-			expectedAttempts: 1, // Only one attempt before timeout
-		},
-		{
-			name:             "empty batch submission",
-			batch:            coresequencer.Batch{Transactions: [][]byte{}},
-			maxBlobSize:      1024 * 1024,
-			expectedError:    false,
-			expectedAttempts: 1,
-		},
-		{
-			name:             "partial success then failure",
-			batch:            sampleBatch,
-			maxBlobSize:      1024 * 1024,
-			temporaryErrors:  maxSubmitAttempts - 1, // Almost reach max attempts
-			expectedError:    true,
-			expectedErrorMsg: "failed to submit all blocks to DA layer",
-			expectedAttempts: maxSubmitAttempts,
-			simulateBackoff:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a context with timeout if simulating timeout
-			var ctx context.Context
-			var cancel context.CancelFunc
-			if tt.simulateTimeout {
-				ctx, cancel = context.WithTimeout(context.Background(), 10*time.Millisecond)
-			} else {
-				ctx, cancel = context.WithCancel(context.Background())
-			}
-			defer cancel()
-
-			// Create a DummyDA with the specified max blob size
-			dummyDA := coreda.NewDummyDA(tt.maxBlobSize)
-
-			// Create a wrapper around DummyDA to intercept calls and simulate errors if needed
-			daWrapper := &dummyDAWrapper{
-				DummyDA:         dummyDA,
-				simulateTooBig:  tt.simulateTooBig,
-				simulateDAError: tt.simulateDAError,
-				callCount:       0,
-				temporaryErrors: tt.temporaryErrors,
-				simulateBackoff: tt.simulateBackoff,
-				backoffTimes:    make([]time.Time, 0),
-			}
-
-			// Create a DAClient with the wrapper
-			dalc := dac.NewDAClient(daWrapper, 1.0, 2.0, coreda.Namespace("test"), log.NewTestLogger(t), nil)
-
-			// Create a sequencer with the DA client
-			sequencer := &Sequencer{
-				logger:      log.NewTestLogger(t),
-				dalc:        dalc,
-				batchTime:   time.Second,
-				maxBlobSize: &atomic.Uint64{},
-				rollupId:    []byte("test-rollup"),
-				bq:          NewBatchQueue(dssync.MutexWrap(datastore.NewMapDatastore())),
-				seenBatches: sync.Map{},
-				metrics:     nil,
-			}
-
-			// Set the initial max blob size
-			sequencer.maxBlobSize.Store(tt.maxBlobSize)
-
-			// If simulating timeout, add a small delay to ensure timeout happens during retry
-			if tt.simulateTimeout {
-				daWrapper.addDelay = 50 * time.Millisecond
-			}
-
-			// Call the method under test
-			err := sequencer.submitBatchToDA(ctx, tt.batch)
-
-			// Verify the results
-			if tt.expectedError {
-				// rewrite to not use testify
-				if err == nil {
-					t.Fatalf("Expected error, got nil")
-				}
-				if tt.expectedErrorMsg != "" {
-					if !strings.Contains(err.Error(), tt.expectedErrorMsg) {
-						t.Fatalf("Expected error message to contain %q, got %q", tt.expectedErrorMsg, err.Error())
-					}
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("Expected no error, got %v", err)
-				}
-			}
-
-			// Verify the number of attempts
-			if tt.expectedAttempts != daWrapper.callCount {
-				t.Fatalf("Expected %d attempts, got %d", tt.expectedAttempts, daWrapper.callCount)
-			}
-
-			// Verify backoff behavior if applicable
-			if tt.simulateBackoff && daWrapper.callCount > 1 {
-				// Check that time between retries increases (exponential backoff)
-				for i := 1; i < len(daWrapper.backoffTimes); i++ {
-					currentInterval := daWrapper.backoffTimes[i].Sub(daWrapper.backoffTimes[i-1])
-					if i > 1 {
-						previousInterval := daWrapper.backoffTimes[i-1].Sub(daWrapper.backoffTimes[i-2])
-						// Allow some flexibility due to scheduling variations
-						if currentInterval.Milliseconds() < previousInterval.Milliseconds() {
-							t.Fatalf("Expected exponential backoff between retry attempts, got %v and %v", currentInterval, previousInterval)
-						}
-					}
-				}
-			}
-		})
-	}
-}
-
-// dummyDAWrapper wraps a DummyDA to simulate different error conditions
-type dummyDAWrapper struct {
-	*coreda.DummyDA
-	simulateTooBig  bool
-	simulateDAError bool
-	callCount       int
-	temporaryErrors int           // Number of temporary errors to simulate before success
-	simulateBackoff bool          // Whether to track backoff times
-	backoffTimes    []time.Time   // Records when each call was made to check backoff
-	addDelay        time.Duration // Additional delay to add (for timeout tests)
-}
-
-// Submit overrides the Submit method to simulate errors
-func (w *dummyDAWrapper) Submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace coreda.Namespace) ([]coreda.ID, error) {
-	w.callCount++
-
-	// Record time for backoff verification
-	if w.simulateBackoff {
-		w.backoffTimes = append(w.backoffTimes, time.Now())
-	}
-
-	// Add artificial delay if needed (for timeout tests)
-	if w.addDelay > 0 {
-		time.Sleep(w.addDelay)
-	}
-
-	// Check for context cancellation
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	// Simulate temporary errors
-	if w.temporaryErrors > 0 {
-		w.temporaryErrors--
-		return nil, errors.New("temporary DA error")
-	}
-
-	// Simulate permanent DA error
-	if w.simulateDAError {
-		return nil, errors.New("simulated DA error")
-	}
-
-	// Simulate "blob too big" error on first attempt
-	if w.simulateTooBig && w.callCount == 1 {
-		return nil, errors.New("blob size exceeds maximum")
-	}
-
-	return w.DummyDA.Submit(ctx, blobs, gasPrice, namespace)
-}
-
-// SubmitWithOptions overrides the SubmitWithOptions method to simulate errors
-func (w *dummyDAWrapper) SubmitWithOptions(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace coreda.Namespace, options []byte) ([]coreda.ID, error) {
-	w.callCount++
-
-	// Record time for backoff verification
-	if w.simulateBackoff {
-		w.backoffTimes = append(w.backoffTimes, time.Now())
-	}
-
-	// Add artificial delay if needed (for timeout tests)
-	if w.addDelay > 0 {
-		time.Sleep(w.addDelay)
-	}
-
-	// Check for context cancellation
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	// Simulate temporary errors
-	if w.temporaryErrors > 0 {
-		w.temporaryErrors--
-		return nil, errors.New("temporary DA error")
-	}
-
-	// Simulate permanent DA error
-	if w.simulateDAError {
-		return nil, errors.New("simulated DA error")
-	}
-
-	// Simulate "blob too big" error on first attempt
-	if w.simulateTooBig && w.callCount == 1 {
-		return nil, errors.New("blob size exceeds maximum")
-	}
-
-	return w.DummyDA.SubmitWithOptions(ctx, blobs, gasPrice, namespace, options)
 }

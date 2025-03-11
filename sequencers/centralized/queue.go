@@ -6,11 +6,16 @@ import (
 	"sync"
 
 	ds "github.com/ipfs/go-datastore"
+	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 
 	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
+
+func newPrefixKV(kvStore ds.Batching, prefix string) ds.Batching {
+	return (ktds.Wrap(kvStore, ktds.PrefixTransform{Prefix: ds.NewKey(prefix)}).Children()[0]).(ds.Batching)
+}
 
 // BatchQueue implements a persistent queue for transaction batches
 type BatchQueue struct {
@@ -22,11 +27,10 @@ type BatchQueue struct {
 }
 
 // NewBatchQueue creates a new TransactionQueue
-func NewBatchQueue(db ds.Batching) *BatchQueue {
-
+func NewBatchQueue(db ds.Batching, prefix string) *BatchQueue {
 	return &BatchQueue{
 		queue: make([]coresequencer.Batch, 0),
-		db:    db,
+		db:    newPrefixKV(db, prefix),
 	}
 }
 

@@ -25,7 +25,7 @@ func createTestBatch(t *testing.T, txCount int) coresequencer.Batch {
 func setupTestQueue(t *testing.T) *BatchQueue {
 	// Create an in-memory thread-safe datastore
 	memdb := dssync.MutexWrap(ds.NewMapDatastore())
-	return NewBatchQueue(memdb)
+	return NewBatchQueue(memdb, "test")
 }
 
 func TestNewBatchQueue(t *testing.T) {
