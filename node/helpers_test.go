@@ -26,9 +26,9 @@ func generateSingleKey() crypto.PrivKey {
 	return key
 }
 
-func getTestConfig(n int) rollkitconfig.RollkitConfig {
+func getTestConfig(n int) rollkitconfig.Config {
 	startPort := 10000
-	return rollkitconfig.RollkitConfig{
+	return rollkitconfig.Config{
 		Node: rollkitconfig.NodeConfig{
 			Aggregator:       true,
 			ExecutorAddress:  MockExecutorAddress,

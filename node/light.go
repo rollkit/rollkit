@@ -28,7 +28,7 @@ type LightNode struct {
 	hSyncService *block.HeaderSyncService
 }
 
-func newLightNode(conf config.RollkitConfig, p2pKey crypto.PrivKey, genesis *cmtypes.GenesisDoc, metricsProvider MetricsProvider, logger log.Logger) (ln *LightNode, err error) {
+func newLightNode(conf config.Config, p2pKey crypto.PrivKey, genesis *cmtypes.GenesisDoc, metricsProvider MetricsProvider, logger log.Logger) (ln *LightNode, err error) {
 
 	_, p2pMetrics := metricsProvider(genesis.ChainID)
 
@@ -56,7 +56,7 @@ func newLightNode(conf config.RollkitConfig, p2pKey crypto.PrivKey, genesis *cmt
 	return node, nil
 }
 
-func openDatastore(conf config.RollkitConfig, logger log.Logger) (ds.Batching, error) {
+func openDatastore(conf config.Config, logger log.Logger) (ds.Batching, error) {
 	if conf.RootDir == "" && conf.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()

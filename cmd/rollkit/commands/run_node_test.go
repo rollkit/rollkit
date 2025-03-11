@@ -380,7 +380,7 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create a test node config
-	testNodeConfig := rollconf.RollkitConfig{
+	testNodeConfig := rollconf.Config{
 		RootDir: tempDir,
 	}
 
@@ -416,7 +416,7 @@ func TestInitFiles(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Set the nodeConfig to use the temporary directory
-	nodeConfig = rollconf.RollkitConfig{
+	nodeConfig = rollconf.Config{
 		RootDir: tempDir,
 	}
 

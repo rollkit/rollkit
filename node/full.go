@@ -52,7 +52,7 @@ type FullNode struct {
 	// cache of chunked genesis data.
 	genChunks []string
 
-	nodeConfig config.RollkitConfig
+	nodeConfig config.Config
 
 	dalc         *da.DAClient
 	p2pClient    *p2p.Client
@@ -68,7 +68,7 @@ type FullNode struct {
 // newFullNode creates a new Rollkit full node.
 func newFullNode(
 	ctx context.Context,
-	nodeConfig config.RollkitConfig,
+	nodeConfig config.Config,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
@@ -142,7 +142,7 @@ func newFullNode(
 }
 
 // initBaseKV initializes the base key-value store.
-func initBaseKV(nodeConfig config.RollkitConfig, logger log.Logger) (ds.Batching, error) {
+func initBaseKV(nodeConfig config.Config, logger log.Logger) (ds.Batching, error) {
 	if nodeConfig.RootDir == "" && nodeConfig.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
@@ -150,7 +150,7 @@ func initBaseKV(nodeConfig config.RollkitConfig, logger log.Logger) (ds.Batching
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
 }
 
-func initDALC(nodeConfig config.RollkitConfig, logger log.Logger) (*da.DAClient, error) {
+func initDALC(nodeConfig config.Config, logger log.Logger) (*da.DAClient, error) {
 	namespace := make([]byte, len(nodeConfig.DA.Namespace)/2)
 	_, err := hex.Decode(namespace, []byte(nodeConfig.DA.Namespace))
 	if err != nil {
@@ -176,7 +176,7 @@ func initDALC(nodeConfig config.RollkitConfig, logger log.Logger) (*da.DAClient,
 
 func initHeaderSyncService(
 	mainKV ds.Batching,
-	nodeConfig config.RollkitConfig,
+	nodeConfig config.Config,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
 	logger log.Logger,
@@ -190,7 +190,7 @@ func initHeaderSyncService(
 
 func initDataSyncService(
 	mainKV ds.Batching,
-	nodeConfig config.RollkitConfig,
+	nodeConfig config.Config,
 	genesis *cmtypes.GenesisDoc,
 	p2pClient *p2p.Client,
 	logger log.Logger,
@@ -215,7 +215,7 @@ func initBlockManager(
 	ctx context.Context,
 	signingKey crypto.PrivKey,
 	exec coreexecutor.Executor,
-	nodeConfig config.RollkitConfig,
+	nodeConfig config.Config,
 	genesis *cmtypes.GenesisDoc,
 	store store.Store,
 	sequencer coresequencer.Sequencer,

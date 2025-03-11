@@ -34,7 +34,7 @@ func DefaultRootDir() string {
 }
 
 // DefaultNodeConfig keeps default values of NodeConfig
-var DefaultNodeConfig = RollkitConfig{
+var DefaultNodeConfig = Config{
 	RootDir: DefaultRootDir(),
 	DBPath:  "data",
 	P2P: P2PConfig{

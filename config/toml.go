@@ -31,7 +31,7 @@ var ErrReadToml = fmt.Errorf("reading %s", RollkitConfigToml)
 
 // ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed NodeConfig.
 // Only the TOML-specific fields are populated.
-func ReadToml() (config RollkitConfig, err error) {
+func ReadToml() (config Config, err error) {
 	startDir, err := os.Getwd()
 	if err != nil {
 		err = fmt.Errorf("%w: getting current dir: %w", ErrReadToml, err)
@@ -160,7 +160,7 @@ func FindConfigDir(dir string) (string, bool) {
 }
 
 // WriteTomlConfig writes the TOML-specific fields of the given NodeConfig to the rollkit.toml file.
-func WriteTomlConfig(config RollkitConfig) error {
+func WriteTomlConfig(config Config) error {
 	// Configure Viper
 	v := viper.New()
 

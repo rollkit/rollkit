@@ -12,21 +12,21 @@ import (
 )
 
 type mockDeps struct {
-	mockReadToml      func() (rollconf.RollkitConfig, error)
-	mockRunEntrypoint func(rollkitConfig *rollconf.RollkitConfig, args []string) error
+	mockReadToml      func() (rollconf.Config, error)
+	mockRunEntrypoint func(rollkitConfig *rollconf.Config, args []string) error
 }
 
 func TestInterceptCommand(t *testing.T) {
 	t.Run("intercepts command and runs entrypoint", func(t *testing.T) {
 		deps := mockDeps{
-			mockReadToml: func() (rollconf.RollkitConfig, error) {
-				return rollconf.RollkitConfig{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
 					RootDir:    "/test",
 					Entrypoint: "/test/main.go",
 					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.RollkitConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
 				return nil
 			},
 		}
@@ -43,14 +43,14 @@ func TestInterceptCommand(t *testing.T) {
 
 	t.Run("intercepts command and runs entrypoint with different root dir", func(t *testing.T) {
 		deps := mockDeps{
-			mockReadToml: func() (rollconf.RollkitConfig, error) {
-				return rollconf.RollkitConfig{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
 					RootDir:    "/central",
 					Entrypoint: "/central/main.go",
 					Chain:      rollconf.ChainConfig{ConfigDir: "/central/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.RollkitConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
 				return nil
 			},
 		}
@@ -65,8 +65,8 @@ func TestInterceptCommand(t *testing.T) {
 
 	t.Run("returns error if readToml fails", func(t *testing.T) {
 		deps := mockDeps{
-			mockReadToml: func() (rollconf.RollkitConfig, error) {
-				return rollconf.RollkitConfig{}, errors.New("read error")
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{}, errors.New("read error")
 			},
 		}
 
@@ -79,8 +79,8 @@ func TestInterceptCommand(t *testing.T) {
 
 	t.Run("returns error if entrypoint is empty", func(t *testing.T) {
 		deps := mockDeps{
-			mockReadToml: func() (rollconf.RollkitConfig, error) {
-				return rollconf.RollkitConfig{Entrypoint: ""}, nil
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{Entrypoint: ""}, nil
 			},
 		}
 
@@ -93,14 +93,14 @@ func TestInterceptCommand(t *testing.T) {
 
 	t.Run("does not intercept help command", func(t *testing.T) {
 		deps := mockDeps{
-			mockReadToml: func() (rollconf.RollkitConfig, error) {
-				return rollconf.RollkitConfig{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
 					RootDir:    "/test",
 					Entrypoint: "/test/main.go",
 					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.RollkitConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
 				return nil
 			},
 		}
@@ -115,14 +115,14 @@ func TestInterceptCommand(t *testing.T) {
 
 	t.Run("does not intercept version command", func(t *testing.T) {
 		deps := mockDeps{
-			mockReadToml: func() (rollconf.RollkitConfig, error) {
-				return rollconf.RollkitConfig{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
 					RootDir:    "/test",
 					Entrypoint: "/test/main.go",
 					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.RollkitConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
 				return nil
 			},
 		}
@@ -137,14 +137,14 @@ func TestInterceptCommand(t *testing.T) {
 
 	t.Run("does not intercept rollkit command", func(t *testing.T) {
 		deps := mockDeps{
-			mockReadToml: func() (rollconf.RollkitConfig, error) {
-				return rollconf.RollkitConfig{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
 					RootDir:    "/test",
 					Entrypoint: "/test/main.go",
 					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
 				}, nil
 			},
-			mockRunEntrypoint: func(config *rollconf.RollkitConfig, flags []string) error {
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
 				return nil
 			},
 		}

@@ -750,7 +750,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Normal aggregation, elapsed < interval",
 			manager: &Manager{
-				config: config.RollkitConfig{
+				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
 						LazyBlockTime:  20 * time.Second,
@@ -765,7 +765,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Normal aggregation, elapsed > interval",
 			manager: &Manager{
-				config: config.RollkitConfig{
+				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
 						LazyBlockTime:  20 * time.Second,
@@ -780,7 +780,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Lazy aggregation, not building block",
 			manager: &Manager{
-				config: config.RollkitConfig{
+				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
 						LazyBlockTime:  20 * time.Second,
@@ -795,7 +795,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Lazy aggregation, building block, elapsed < interval",
 			manager: &Manager{
-				config: config.RollkitConfig{
+				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
 						LazyBlockTime:  20 * time.Second,
@@ -810,7 +810,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 		{
 			name: "Lazy aggregation, building block, elapsed > interval",
 			manager: &Manager{
-				config: config.RollkitConfig{
+				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
 						LazyBlockTime:  20 * time.Second,
@@ -845,7 +845,7 @@ func TestAggregationLoop(t *testing.T) {
 			ChainID:       "myChain",
 			InitialHeight: 1,
 		},
-		config: config.RollkitConfig{
+		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      time.Second,
 				LazyAggregator: false,
@@ -873,7 +873,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 
 	m := &Manager{
 		logger: mockLogger,
-		config: config.RollkitConfig{
+		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      time.Second,
 				LazyAggregator: true,
@@ -901,7 +901,7 @@ func TestNormalAggregationLoop(t *testing.T) {
 
 	m := &Manager{
 		logger: mockLogger,
-		config: config.RollkitConfig{
+		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      1 * time.Second,
 				LazyAggregator: false,

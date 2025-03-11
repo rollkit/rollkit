@@ -419,7 +419,7 @@ func parseConfig(cmd *cobra.Command) error {
 
 // RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
 // using nodeConfig instead of config.
-func RollkitGenesisDocProviderFunc(nodeConfig rollconf.RollkitConfig) func() (*comettypes.GenesisDoc, error) {
+func RollkitGenesisDocProviderFunc(nodeConfig rollconf.Config) func() (*comettypes.GenesisDoc, error) {
 	return func() (*comettypes.GenesisDoc, error) {
 		// Construct the genesis file path using rootify
 		genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")

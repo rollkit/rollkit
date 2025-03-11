@@ -245,7 +245,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
-	config := rollkitconfig.RollkitConfig{
+	config := rollkitconfig.Config{
 		Node: rollkitconfig.NodeConfig{
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,

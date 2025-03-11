@@ -316,7 +316,7 @@ func TestTomlConfigOperations(t *testing.T) {
 }
 
 // readTomlFromPath reads a TOML file from the given path without relying on os.Getwd(), needed for CI
-func readTomlFromPath(configPath string) (config RollkitConfig, err error) {
+func readTomlFromPath(configPath string) (config Config, err error) {
 	// Create a new Viper instance to avoid conflicts with any global Viper
 	v := viper.New()
 

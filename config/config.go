@@ -78,15 +78,13 @@ const (
 	FlagChainConfigDir = "chain.config_dir"
 )
 
-// RollkitConfig stores Rollkit node configuration.
-type RollkitConfig struct {
-	// TOML configuration
+// Config stores Rollkit configuration.
+type Config struct {
+	// Base configuration
+	RootDir    string      `mapstructure:"home"`
+	DBPath     string      `mapstructure:"db_path"`
 	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint"`
 	Chain      ChainConfig `mapstructure:"chain" toml:"chain"`
-
-	// parameters below are translated from existing config
-	RootDir string `mapstructure:"home"`
-	DBPath  string `mapstructure:"db_path"`
 
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p"`
@@ -190,7 +188,7 @@ func AddFlags(cmd *cobra.Command) {
 // 1. DefaultNodeConfig (lowest priority)
 // 2. TOML configuration file
 // 3. Command line flags (highest priority)
-func LoadNodeConfig(cmd *cobra.Command) (RollkitConfig, error) {
+func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 	// Create a new Viper instance to avoid conflicts with any global Viper
 	v := viper.New()
 
@@ -245,7 +243,7 @@ func LoadNodeConfig(cmd *cobra.Command) (RollkitConfig, error) {
 }
 
 // setDefaultsInViper sets all the default values from NodeConfig into Viper
-func setDefaultsInViper(v *viper.Viper, config RollkitConfig) {
+func setDefaultsInViper(v *viper.Viper, config Config) {
 	// Root level defaults
 	v.SetDefault(FlagRootDir, config.RootDir)
 	v.SetDefault(FlagDBPath, config.DBPath)
