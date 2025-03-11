@@ -63,7 +63,7 @@ func TestFindConfigFile(t *testing.T) {
 		dir, err := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, err)
 
-		configPath := filepath.Join(dir, RollkitToml)
+		configPath := filepath.Join(dir, RollkitConfigToml)
 		err = os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
 
@@ -80,7 +80,7 @@ func TestFindConfigFile(t *testing.T) {
 		err = os.Mkdir(dir, 0750)
 		require.NoError(t, err)
 
-		configPath := filepath.Join(parentDir, RollkitToml)
+		configPath := filepath.Join(parentDir, RollkitConfigToml)
 		err = os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
 
@@ -103,7 +103,7 @@ func TestReadToml(t *testing.T) {
 		dir, err := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, err)
 
-		configPath := filepath.Join(dir, RollkitToml)
+		configPath := filepath.Join(dir, RollkitConfigToml)
 		err = os.WriteFile(configPath, []byte(`
 entrypoint = "./cmd/gm/main.go"
 
@@ -129,7 +129,7 @@ config_dir = "config"
 		dir, err := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, err)
 
-		configPath := filepath.Join(dir, RollkitToml)
+		configPath := filepath.Join(dir, RollkitConfigToml)
 		err = os.WriteFile(configPath, []byte(`
 entrypoint = "./cmd/app/main.go"
 
@@ -182,7 +182,7 @@ sequencer_rollup_id = "custom-rollup"
 		dir, err := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, err)
 
-		configPath := filepath.Join(dir, RollkitToml)
+		configPath := filepath.Join(dir, RollkitConfigToml)
 		err = os.WriteFile(configPath, []byte{}, 0600)
 		require.NoError(t, err)
 
@@ -209,7 +209,7 @@ sequencer_rollup_id = "custom-rollup"
 		dir, err := filepath.EvalSymlinks(t.TempDir())
 		require.NoError(t, err)
 
-		configPath := filepath.Join(dir, RollkitToml)
+		configPath := filepath.Join(dir, RollkitConfigToml)
 		require.NoError(t, os.WriteFile(configPath, []byte(`
 blablabla
 `), 0600))
@@ -271,7 +271,7 @@ func TestTomlConfigOperations(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify the file was created
-			configPath := filepath.Join(dir, RollkitToml)
+			configPath := filepath.Join(dir, RollkitConfigToml)
 			_, err = os.Stat(configPath)
 			require.NoError(t, err)
 

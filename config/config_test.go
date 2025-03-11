@@ -105,7 +105,7 @@ func TestLoadNodeConfig(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create a TOML file in the temporary directory
-	tomlPath := filepath.Join(tempDir, RollkitToml)
+	tomlPath := filepath.Join(tempDir, RollkitConfigToml)
 	tomlContent := `
 entrypoint = "./cmd/app/main.go"
 

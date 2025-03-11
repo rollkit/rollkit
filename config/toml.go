@@ -8,8 +8,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-// RollkitToml is the filename for the rollkit configuration file.
-const RollkitToml = "rollkit.toml"
+// ConfigBaseName is the base name of the rollkit configuration file without extension.
+const ConfigBaseName = "rollkit"
+
+// ConfigExtension is the file extension for the configuration file without the leading dot.
+const ConfigExtension = "toml"
+
+// RollkitConfigToml is the filename for the rollkit configuration file.
+const RollkitConfigToml = ConfigBaseName + "." + ConfigExtension
 
 // DefaultDirPerm is the default permissions used when creating directories.
 const DefaultDirPerm = 0700
@@ -21,7 +27,7 @@ const DefaultConfigDir = "config"
 const DefaultDataDir = "data"
 
 // ErrReadToml is the error returned when reading the rollkit.toml file fails.
-var ErrReadToml = fmt.Errorf("reading %s", RollkitToml)
+var ErrReadToml = fmt.Errorf("reading %s", RollkitConfigToml)
 
 // ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed NodeConfig.
 // Only the TOML-specific fields are populated.
@@ -34,8 +40,8 @@ func ReadToml() (config NodeConfig, err error) {
 
 	// Configure Viper to search for the configuration file
 	v := viper.New()
-	v.SetConfigName(RollkitToml[:len(RollkitToml)-5]) // Remove the .toml extension
-	v.SetConfigType("toml")
+	v.SetConfigName(ConfigBaseName)
+	v.SetConfigType(ConfigExtension)
 
 	// Search for the configuration file in the current directory and its parents
 	configPath, err := findConfigFile(startDir)
@@ -78,7 +84,7 @@ func ReadToml() (config NodeConfig, err error) {
 func findConfigFile(startDir string) (string, error) {
 	dir := startDir
 	for {
-		configPath := filepath.Join(dir, RollkitToml)
+		configPath := filepath.Join(dir, RollkitConfigToml)
 		if _, err := os.Stat(configPath); err == nil {
 			return configPath, nil
 		}
@@ -89,7 +95,7 @@ func findConfigFile(startDir string) (string, error) {
 		}
 		dir = parentDir
 	}
-	return "", fmt.Errorf("no %s found", RollkitToml)
+	return "", fmt.Errorf("no %s found", RollkitConfigToml)
 }
 
 // FindEntrypoint searches for a main.go file in the current directory and its
@@ -164,7 +170,7 @@ func WriteTomlConfig(config NodeConfig) error {
 	v.Set("rollkit", config.Rollkit)
 
 	// Configure the output file
-	configPath := filepath.Join(config.RootDir, RollkitToml)
+	configPath := filepath.Join(config.RootDir, RollkitConfigToml)
 	v.SetConfigFile(configPath)
 	v.SetConfigType("toml")
 

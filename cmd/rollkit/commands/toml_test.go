@@ -32,7 +32,7 @@ func TestInitTomlCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the file was created
-	configPath := filepath.Join(dir, rollconf.RollkitToml)
+	configPath := filepath.Join(dir, rollconf.RollkitConfigToml)
 	_, err = os.Stat(configPath)
 	require.NoError(t, err)
 

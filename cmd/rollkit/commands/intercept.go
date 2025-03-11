@@ -66,7 +66,7 @@ func InterceptCommand(
 
 	// After successfully reading the TOML file, we expect to be able to use the entrypoint
 	if rollkitConfig.Entrypoint == "" {
-		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
+		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitConfigToml)
 		return
 	}
 
