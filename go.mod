@@ -6,7 +6,6 @@ retract v0.12.0 // Published by accident
 
 require (
 	cosmossdk.io/log v1.5.0
-	github.com/BurntSushi/toml v1.4.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/utils v0.1.0
