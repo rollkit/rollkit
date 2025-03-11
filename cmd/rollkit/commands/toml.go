@@ -78,16 +78,7 @@ var initCmd = &cobra.Command{
 		rollkitConfig := map[string]interface{}{
 			"aggregator":          config.Node.Aggregator,
 			"light":               config.Node.Light,
-			"da_address":          config.Node.DAAddress,
-			"da_auth_token":       config.Node.DAAuthToken,
-			"da_gas_price":        config.Node.DAGasPrice,
-			"da_gas_multiplier":   config.Node.DAGasMultiplier,
-			"da_submit_options":   config.Node.DASubmitOptions,
-			"da_namespace":        config.Node.DANamespace,
 			"block_time":          config.Node.BlockTime.String(),
-			"da_block_time":       config.Node.DABlockTime.String(),
-			"da_start_height":     config.Node.DAStartHeight,
-			"da_mempool_ttl":      config.Node.DAMempoolTTL,
 			"max_pending_blocks":  config.Node.MaxPendingBlocks,
 			"lazy_aggregator":     config.Node.LazyAggregator,
 			"lazy_block_time":     config.Node.LazyBlockTime.String(),
@@ -97,11 +88,24 @@ var initCmd = &cobra.Command{
 			"executor_address":    config.Node.ExecutorAddress,
 		}
 
+		daConfig := map[string]interface{}{
+			"address":        config.DA.Address,
+			"auth_token":     config.DA.AuthToken,
+			"gas_price":      config.DA.GasPrice,
+			"gas_multiplier": config.DA.GasMultiplier,
+			"submit_options": config.DA.SubmitOptions,
+			"namespace":      config.DA.Namespace,
+			"block_time":     config.DA.BlockTime.String(),
+			"start_height":   config.DA.StartHeight,
+			"mempool_ttl":    config.DA.MempoolTTL,
+		}
+
 		// Set the configuration values in Viper
 		v.Set("entrypoint", config.Entrypoint)
 		v.Set("chain", config.Chain)
 		v.Set("rollkit", rollkitConfig)
 		v.Set("root_dir", config.RootDir)
+		v.Set("da", daConfig)
 
 		// Write the configuration file
 		if err := v.WriteConfigAs(rollconf.RollkitConfigToml); err != nil {

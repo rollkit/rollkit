@@ -20,16 +20,16 @@ func TestDefaultNodeConfig(t *testing.T) {
 	assert.Equal(t, "data", def.DBPath)
 	assert.Equal(t, true, def.Node.Aggregator)
 	assert.Equal(t, false, def.Node.Light)
-	assert.Equal(t, DefaultDAAddress, def.Node.DAAddress)
-	assert.Equal(t, "", def.Node.DAAuthToken)
-	assert.Equal(t, float64(-1), def.Node.DAGasPrice)
-	assert.Equal(t, float64(0), def.Node.DAGasMultiplier)
-	assert.Equal(t, "", def.Node.DASubmitOptions)
-	assert.Equal(t, "", def.Node.DANamespace)
+	assert.Equal(t, DefaultDAAddress, def.DA.Address)
+	assert.Equal(t, "", def.DA.AuthToken)
+	assert.Equal(t, float64(-1), def.DA.GasPrice)
+	assert.Equal(t, float64(0), def.DA.GasMultiplier)
+	assert.Equal(t, "", def.DA.SubmitOptions)
+	assert.Equal(t, "", def.DA.Namespace)
 	assert.Equal(t, 1*time.Second, def.Node.BlockTime)
-	assert.Equal(t, 15*time.Second, def.Node.DABlockTime)
-	assert.Equal(t, uint64(0), def.Node.DAStartHeight)
-	assert.Equal(t, uint64(0), def.Node.DAMempoolTTL)
+	assert.Equal(t, 15*time.Second, def.DA.BlockTime)
+	assert.Equal(t, uint64(0), def.DA.StartHeight)
+	assert.Equal(t, uint64(0), def.DA.MempoolTTL)
 	assert.Equal(t, uint64(0), def.Node.MaxPendingBlocks)
 	assert.Equal(t, false, def.Node.LazyAggregator)
 	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime)
@@ -112,7 +112,9 @@ entrypoint = "./cmd/app/main.go"
 [rollkit]
 aggregator = true
 block_time = "5s"
-da_address = "http://toml-da:26657"
+
+[da]
+address = "http://toml-da:26657"
 
 [chain]
 config_dir = "config"
@@ -143,7 +145,7 @@ config_dir = "config"
 	// Set some flags that should override TOML values
 	flagArgs := []string{
 		"--rollkit.block_time", "10s",
-		"--rollkit.da_address", "http://flag-da:26657",
+		"--da.address", "http://flag-da:26657",
 		"--rollkit.light", "true", // This is not in TOML, should be set from flag
 	}
 	cmd.SetArgs(flagArgs)
@@ -161,11 +163,11 @@ config_dir = "config"
 
 	// 2. TOML values should be overridden by flags
 	assert.Equal(t, 10*time.Second, config.Node.BlockTime, "BlockTime should be overridden by flag")
-	assert.Equal(t, "http://flag-da:26657", config.Node.DAAddress, "DAAddress should be overridden by flag")
+	assert.Equal(t, "http://flag-da:26657", config.DA.Address, "DAAddress should be overridden by flag")
 
 	// 3. Flags not in TOML should be set
 	assert.Equal(t, true, config.Node.Light, "Light should be set from flag")
 
 	// 4. Values not in flags or TOML should remain as default
-	assert.Equal(t, DefaultNodeConfig.Node.DABlockTime, config.Node.DABlockTime, "DABlockTime should remain as default")
+	assert.Equal(t, DefaultNodeConfig.DA.BlockTime, config.DA.BlockTime, "DABlockTime should remain as default")
 }

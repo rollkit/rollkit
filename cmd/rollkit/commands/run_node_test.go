@@ -40,14 +40,14 @@ func TestParseFlags(t *testing.T) {
 		// Rollkit flags
 		"--rollkit.aggregator=false",
 		"--rollkit.block_time", "2s",
-		"--rollkit.da_address", "http://127.0.0.1:27005",
-		"--rollkit.da_auth_token", "token",
-		"--rollkit.da_block_time", "20s",
-		"--rollkit.da_gas_multiplier", "1.5",
-		"--rollkit.da_gas_price", "1.5",
-		"--rollkit.da_mempool_ttl", "10",
-		"--rollkit.da_namespace", "namespace",
-		"--rollkit.da_start_height", "100",
+		"--da.address", "http://127.0.0.1:27005",
+		"--da.auth_token", "token",
+		"--da.block_time", "20s",
+		"--da.gas_multiplier", "1.5",
+		"--da.gas_price", "1.5",
+		"--da.mempool_ttl", "10",
+		"--da.namespace", "namespace",
+		"--da.start_height", "100",
 		"--rollkit.lazy_aggregator",
 		"--rollkit.lazy_block_time", "2m",
 		"--rollkit.light",
@@ -56,7 +56,7 @@ func TestParseFlags(t *testing.T) {
 		"--rollkit.sequencer_address", "seq@127.0.0.1:27007",
 		"--rollkit.sequencer_rollup_id", "test-rollup",
 		"--rollkit.executor_address", "exec@127.0.0.1:27008",
-		"--rollkit.da_submit_options", "custom-options",
+		"--da.submit_options", "custom-options",
 
 		// Instrumentation flags
 		"--instrumentation.prometheus", "true",
@@ -93,14 +93,14 @@ func TestParseFlags(t *testing.T) {
 		// Rollkit fields
 		{"Aggregator", nodeConfig.Node.Aggregator, false},
 		{"BlockTime", nodeConfig.Node.BlockTime, 2 * time.Second},
-		{"DAAddress", nodeConfig.Node.DAAddress, "http://127.0.0.1:27005"},
-		{"DAAuthToken", nodeConfig.Node.DAAuthToken, "token"},
-		{"DABlockTime", nodeConfig.Node.DABlockTime, 20 * time.Second},
-		{"DAGasMultiplier", nodeConfig.Node.DAGasMultiplier, 1.5},
-		{"DAGasPrice", nodeConfig.Node.DAGasPrice, 1.5},
-		{"DAMempoolTTL", nodeConfig.Node.DAMempoolTTL, uint64(10)},
-		{"DANamespace", nodeConfig.Node.DANamespace, "namespace"},
-		{"DAStartHeight", nodeConfig.Node.DAStartHeight, uint64(100)},
+		{"DAAddress", nodeConfig.DA.Address, "http://127.0.0.1:27005"},
+		{"DAAuthToken", nodeConfig.DA.AuthToken, "token"},
+		{"DABlockTime", nodeConfig.DA.BlockTime, 20 * time.Second},
+		{"DAGasMultiplier", nodeConfig.DA.GasMultiplier, 1.5},
+		{"DAGasPrice", nodeConfig.DA.GasPrice, 1.5},
+		{"DAMempoolTTL", nodeConfig.DA.MempoolTTL, uint64(10)},
+		{"DANamespace", nodeConfig.DA.Namespace, "namespace"},
+		{"DAStartHeight", nodeConfig.DA.StartHeight, uint64(100)},
 		{"LazyAggregator", nodeConfig.Node.LazyAggregator, true},
 		{"LazyBlockTime", nodeConfig.Node.LazyBlockTime, 2 * time.Minute},
 		{"Light", nodeConfig.Node.Light, true},
@@ -109,7 +109,7 @@ func TestParseFlags(t *testing.T) {
 		{"SequencerAddress", nodeConfig.Node.SequencerAddress, "seq@127.0.0.1:27007"},
 		{"SequencerRollupID", nodeConfig.Node.SequencerRollupID, "test-rollup"},
 		{"ExecutorAddress", nodeConfig.Node.ExecutorAddress, "exec@127.0.0.1:27008"},
-		{"DASubmitOptions", nodeConfig.Node.DASubmitOptions, "custom-options"},
+		{"DASubmitOptions", nodeConfig.DA.SubmitOptions, "custom-options"},
 
 		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
 		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26665"},
@@ -182,7 +182,7 @@ func TestDefaultAggregatorValue(t *testing.T) {
 func TestCentralizedAddresses(t *testing.T) {
 	args := []string{
 		"start",
-		"--rollkit.da_address=http://central-da:26657",
+		"--da.address=http://central-da:26657",
 		"--rollkit.sequencer_address=central-seq:26659",
 		"--rollkit.sequencer_rollup_id=centralrollup",
 	}
@@ -195,8 +195,8 @@ func TestCentralizedAddresses(t *testing.T) {
 		t.Fatalf("parseConfig error: %v", err)
 	}
 
-	if nodeConfig.Node.DAAddress != "http://central-da:26657" {
-		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.Node.DAAddress)
+	if nodeConfig.DA.Address != "http://central-da:26657" {
+		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DA.Address)
 	}
 
 	if nodeConfig.Node.SequencerAddress != "central-seq:26659" {

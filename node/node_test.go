@@ -247,11 +247,13 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
 	config := rollkitconfig.RollkitConfig{
 		Node: rollkitconfig.NodeConfig{
-			DAAddress:        MockDAAddress,
-			DANamespace:      MockDANamespace,
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,
 			Light:            nodeType == Light,
+		},
+		DA: rollkitconfig.DAConfig{
+			Address:   MockDAAddress,
+			Namespace: MockDANamespace,
 		},
 	}
 

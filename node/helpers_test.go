@@ -31,12 +31,14 @@ func getTestConfig(n int) rollkitconfig.RollkitConfig {
 	return rollkitconfig.RollkitConfig{
 		Node: rollkitconfig.NodeConfig{
 			Aggregator:       true,
-			DAAddress:        MockDAAddress,
-			DANamespace:      MockDANamespace,
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,
 			BlockTime:        500 * time.Millisecond,
 			LazyBlockTime:    5 * time.Second,
+		},
+		DA: rollkitconfig.DAConfig{
+			Address:   MockDAAddress,
+			Namespace: MockDANamespace,
 		},
 		P2P: rollkitconfig.P2PConfig{
 			ListenAddress: fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", startPort+n),

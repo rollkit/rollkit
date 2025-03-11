@@ -151,26 +151,26 @@ func initBaseKV(nodeConfig config.RollkitConfig, logger log.Logger) (ds.Batching
 }
 
 func initDALC(nodeConfig config.RollkitConfig, logger log.Logger) (*da.DAClient, error) {
-	namespace := make([]byte, len(nodeConfig.Node.DANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(nodeConfig.Node.DANamespace))
+	namespace := make([]byte, len(nodeConfig.DA.Namespace)/2)
+	_, err := hex.Decode(namespace, []byte(nodeConfig.DA.Namespace))
 	if err != nil {
 		return nil, fmt.Errorf("error decoding namespace: %w", err)
 	}
 
-	if nodeConfig.Node.DAGasMultiplier < 0 {
+	if nodeConfig.DA.GasMultiplier < 0 {
 		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
 	}
 
-	client, err := proxyda.NewClient(nodeConfig.Node.DAAddress, nodeConfig.Node.DAAuthToken)
+	client, err := proxyda.NewClient(nodeConfig.DA.Address, nodeConfig.DA.AuthToken)
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
 
 	var submitOpts []byte
-	if nodeConfig.Node.DASubmitOptions != "" {
-		submitOpts = []byte(nodeConfig.Node.DASubmitOptions)
+	if nodeConfig.DA.SubmitOptions != "" {
+		submitOpts = []byte(nodeConfig.DA.SubmitOptions)
 	}
-	return da.NewDAClient(client, nodeConfig.Node.DAGasPrice, nodeConfig.Node.DAGasMultiplier,
+	return da.NewDAClient(client, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier,
 		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
@@ -237,7 +237,7 @@ func initBlockManager(
 	blockManager, err := block.NewManager(
 		ctx,
 		signingKey,
-		nodeConfig.Node,
+		nodeConfig,
 		rollGen,
 		store,
 		exec,

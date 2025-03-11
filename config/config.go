@@ -20,23 +20,23 @@ const (
 	// FlagAggregator is a flag for running node in aggregator mode
 	FlagAggregator = "rollkit.aggregator"
 	// FlagDAAddress is a flag for specifying the data availability layer address
-	FlagDAAddress = "rollkit.da_address"
+	FlagDAAddress = "da.address"
 	// FlagDAAuthToken is a flag for specifying the data availability layer auth token
-	FlagDAAuthToken = "rollkit.da_auth_token" // #nosec G101
+	FlagDAAuthToken = "da.auth_token" // #nosec G101
 	// FlagBlockTime is a flag for specifying the block time
 	FlagBlockTime = "rollkit.block_time"
 	// FlagDABlockTime is a flag for specifying the data availability layer block time
-	FlagDABlockTime = "rollkit.da_block_time"
+	FlagDABlockTime = "da.block_time"
 	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
-	FlagDAGasPrice = "rollkit.da_gas_price"
+	FlagDAGasPrice = "da.gas_price"
 	// FlagDAGasMultiplier is a flag for specifying the data availability layer gas price retry multiplier
-	FlagDAGasMultiplier = "rollkit.da_gas_multiplier"
+	FlagDAGasMultiplier = "da.gas_multiplier"
 	// FlagDAStartHeight is a flag for specifying the data availability layer start height
-	FlagDAStartHeight = "rollkit.da_start_height"
+	FlagDAStartHeight = "da.start_height"
 	// FlagDANamespace is a flag for specifying the DA namespace ID
-	FlagDANamespace = "rollkit.da_namespace"
+	FlagDANamespace = "da.namespace"
 	// FlagDASubmitOptions is a flag for data availability submit options
-	FlagDASubmitOptions = "rollkit.da_submit_options"
+	FlagDASubmitOptions = "da.submit_options"
 	// FlagLight is a flag for running the node in light mode
 	FlagLight = "rollkit.light"
 	// FlagTrustedHash is a flag for specifying the trusted hash
@@ -46,7 +46,7 @@ const (
 	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
 	FlagMaxPendingBlocks = "rollkit.max_pending_blocks"
 	// FlagDAMempoolTTL is a flag for specifying the DA mempool TTL
-	FlagDAMempoolTTL = "rollkit.da_mempool_ttl"
+	FlagDAMempoolTTL = "da.mempool_ttl"
 	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
 	FlagLazyBlockTime = "rollkit.lazy_block_time"
 	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
@@ -94,8 +94,24 @@ type RollkitConfig struct {
 	// Node specific configuration
 	Node NodeConfig `mapstructure:"rollkit"`
 
+	// Data availability configuration
+	DA DAConfig `mapstructure:"da"`
+
 	// Instrumentation configuration
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+}
+
+// DAConfig contains all Data Availability configuration parameters
+type DAConfig struct {
+	Address       string        `mapstructure:"address" toml:"address"`
+	AuthToken     string        `mapstructure:"auth_token" toml:"auth_token"`
+	GasPrice      float64       `mapstructure:"gas_price" toml:"gas_price"`
+	GasMultiplier float64       `mapstructure:"gas_multiplier" toml:"gas_multiplier"`
+	SubmitOptions string        `mapstructure:"submit_options" toml:"submit_options"`
+	Namespace     string        `mapstructure:"namespace" toml:"namespace"`
+	BlockTime     time.Duration `mapstructure:"block_time" toml:"block_time"`
+	StartHeight   uint64        `mapstructure:"start_height" toml:"start_height"`
+	MempoolTTL    uint64        `mapstructure:"mempool_ttl" toml:"mempool_ttl"`
 }
 
 // NodeConfig contains all Rollkit specific configuration parameters
@@ -103,17 +119,6 @@ type NodeConfig struct {
 	// Node mode configuration
 	Aggregator bool `toml:"aggregator"`
 	Light      bool `toml:"light"`
-
-	// Data availability configuration
-	DAAddress       string        `mapstructure:"da_address" toml:"da_address"`
-	DAAuthToken     string        `mapstructure:"da_auth_token" toml:"da_auth_token"`
-	DAGasPrice      float64       `mapstructure:"da_gas_price" toml:"da_gas_price"`
-	DAGasMultiplier float64       `mapstructure:"da_gas_multiplier" toml:"da_gas_multiplier"`
-	DASubmitOptions string        `mapstructure:"da_submit_options" toml:"da_submit_options"`
-	DANamespace     string        `mapstructure:"da_namespace" toml:"da_namespace"`
-	DABlockTime     time.Duration `mapstructure:"da_block_time" toml:"da_block_time"`
-	DAStartHeight   uint64        `mapstructure:"da_start_height" toml:"da_start_height"`
-	DAMempoolTTL    uint64        `mapstructure:"da_mempool_ttl" toml:"da_mempool_ttl"`
 
 	// Block management configuration
 	BlockTime        time.Duration `mapstructure:"block_time" toml:"block_time"`
@@ -146,19 +151,19 @@ func AddFlags(cmd *cobra.Command) {
 
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().String(FlagDAAddress, def.Node.DAAddress, "DA address (host:port)")
-	cmd.Flags().String(FlagDAAuthToken, def.Node.DAAuthToken, "DA auth token")
+	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
+	cmd.Flags().String(FlagDAAuthToken, def.DA.AuthToken, "DA auth token")
 	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime, "block time (for aggregator mode)")
-	cmd.Flags().Duration(FlagDABlockTime, def.Node.DABlockTime, "DA chain block time (for syncing)")
-	cmd.Flags().Float64(FlagDAGasPrice, def.Node.DAGasPrice, "DA gas price for blob transactions")
-	cmd.Flags().Float64(FlagDAGasMultiplier, def.Node.DAGasMultiplier, "DA gas price multiplier for retrying blob transactions")
-	cmd.Flags().Uint64(FlagDAStartHeight, def.Node.DAStartHeight, "starting DA block height (for syncing)")
-	cmd.Flags().String(FlagDANamespace, def.Node.DANamespace, "DA namespace to submit blob transactions")
-	cmd.Flags().String(FlagDASubmitOptions, def.Node.DASubmitOptions, "DA submit options")
+	cmd.Flags().Duration(FlagDABlockTime, def.DA.BlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Float64(FlagDAGasPrice, def.DA.GasPrice, "DA gas price for blob transactions")
+	cmd.Flags().Float64(FlagDAGasMultiplier, def.DA.GasMultiplier, "DA gas price multiplier for retrying blob transactions")
+	cmd.Flags().Uint64(FlagDAStartHeight, def.DA.StartHeight, "starting DA block height (for syncing)")
+	cmd.Flags().String(FlagDANamespace, def.DA.Namespace, "DA namespace to submit blob transactions")
+	cmd.Flags().String(FlagDASubmitOptions, def.DA.SubmitOptions, "DA submit options")
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
 	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
-	cmd.Flags().Uint64(FlagDAMempoolTTL, def.Node.DAMempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
+	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DA.MempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
 	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime, "block time (for lazy mode)")
 	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
@@ -256,19 +261,19 @@ func setDefaultsInViper(v *viper.Viper, config RollkitConfig) {
 	// Rollkit defaults
 	v.SetDefault(FlagAggregator, config.Node.Aggregator)
 	v.SetDefault(FlagLight, config.Node.Light)
-	v.SetDefault(FlagDAAddress, config.Node.DAAddress)
-	v.SetDefault(FlagDAAuthToken, config.Node.DAAuthToken)
+	v.SetDefault(FlagDAAddress, config.DA.Address)
+	v.SetDefault(FlagDAAuthToken, config.DA.AuthToken)
 	v.SetDefault(FlagBlockTime, config.Node.BlockTime)
-	v.SetDefault(FlagDABlockTime, config.Node.DABlockTime)
-	v.SetDefault(FlagDAGasPrice, config.Node.DAGasPrice)
-	v.SetDefault(FlagDAGasMultiplier, config.Node.DAGasMultiplier)
-	v.SetDefault(FlagDAStartHeight, config.Node.DAStartHeight)
-	v.SetDefault(FlagDANamespace, config.Node.DANamespace)
-	v.SetDefault(FlagDASubmitOptions, config.Node.DASubmitOptions)
+	v.SetDefault(FlagDABlockTime, config.DA.BlockTime)
+	v.SetDefault(FlagDAGasPrice, config.DA.GasPrice)
+	v.SetDefault(FlagDAGasMultiplier, config.DA.GasMultiplier)
+	v.SetDefault(FlagDAStartHeight, config.DA.StartHeight)
+	v.SetDefault(FlagDANamespace, config.DA.Namespace)
+	v.SetDefault(FlagDASubmitOptions, config.DA.SubmitOptions)
 	v.SetDefault(FlagTrustedHash, config.Node.TrustedHash)
 	v.SetDefault(FlagLazyAggregator, config.Node.LazyAggregator)
 	v.SetDefault(FlagMaxPendingBlocks, config.Node.MaxPendingBlocks)
-	v.SetDefault(FlagDAMempoolTTL, config.Node.DAMempoolTTL)
+	v.SetDefault(FlagDAMempoolTTL, config.DA.MempoolTTL)
 	v.SetDefault(FlagLazyBlockTime, config.Node.LazyBlockTime)
 	v.SetDefault(FlagSequencerAddress, config.Node.SequencerAddress)
 	v.SetDefault(FlagSequencerRollupID, config.Node.SequencerRollupID)

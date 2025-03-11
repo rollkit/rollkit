@@ -50,14 +50,14 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Setup node with proper configuration
 	config := getTestConfig(1)
-	config.Node.BlockTime = 100 * time.Millisecond   // Faster block production for tests
-	config.Node.DABlockTime = 200 * time.Millisecond // Faster DA submission for tests
-	config.Node.MaxPendingBlocks = 100               // Allow more pending blocks
-	config.Node.Aggregator = true                    // Enable aggregator mode
+	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
+	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
+	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
+	config.Node.Aggregator = true                  // Enable aggregator mode
 
 	// Add debug logging for configuration
 	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingBlocks=%d",
-		config.Node.BlockTime, config.Node.DABlockTime, config.Node.MaxPendingBlocks)
+		config.Node.BlockTime, config.DA.BlockTime, config.Node.MaxPendingBlocks)
 
 	// Create genesis with current time
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
@@ -439,7 +439,7 @@ func (s *FullNodeTestSuite) TestInvalidDAConfig() {
 
 	// Create a node with invalid DA configuration
 	invalidConfig := getTestConfig(1)
-	invalidConfig.Node.DAAddress = "invalid://invalid-address:1234" // Use an invalid URL scheme
+	invalidConfig.DA.Address = "invalid://invalid-address:1234" // Use an invalid URL scheme
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)

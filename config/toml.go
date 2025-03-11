@@ -168,6 +168,7 @@ func WriteTomlConfig(config RollkitConfig) error {
 	v.Set("entrypoint", config.Entrypoint)
 	v.Set("chain", config.Chain)
 	v.Set("rollkit", config.Node)
+	v.Set("da", config.DA)
 
 	// Configure the output file
 	configPath := filepath.Join(config.RootDir, RollkitConfigToml)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
@@ -139,10 +140,12 @@ config_dir = "custom-config"
 [rollkit]
 aggregator = true
 block_time = "2s"
-da_address = "http://custom-da:26658"
 lazy_aggregator = true
 sequencer_address = "custom-sequencer:50051"
 sequencer_rollup_id = "custom-rollup"
+
+[da]
+address = "http://custom-da:26658"
 `), 0600)
 		require.NoError(t, err)
 
@@ -160,7 +163,7 @@ sequencer_rollup_id = "custom-rollup"
 		// Only set the values that are actually in the TOML file
 		expectedConfig.Node.Aggregator = true
 		expectedConfig.Node.BlockTime = 2 * time.Second
-		expectedConfig.Node.DAAddress = "http://custom-da:26658"
+		expectedConfig.DA.Address = "http://custom-da:26658"
 		expectedConfig.Node.LazyAggregator = true
 		expectedConfig.Node.SequencerAddress = "custom-sequencer:50051"
 		expectedConfig.Node.SequencerRollupID = "custom-rollup"
@@ -258,7 +261,7 @@ func TestTomlConfigOperations(t *testing.T) {
 				config.Node.Light = true
 				config.Node.LazyAggregator = true
 				config.Node.BlockTime = 5 * time.Second
-				config.Node.DAAddress = "http://custom-da:26658"
+				config.DA.Address = "http://custom-da:26658"
 				config.Node.SequencerAddress = "custom-sequencer:50051"
 				config.Node.SequencerRollupID = "custom-rollup"
 			} else {
@@ -291,7 +294,7 @@ func TestTomlConfigOperations(t *testing.T) {
 				expectedConfig.Node.Light = true
 				expectedConfig.Node.LazyAggregator = true
 				expectedConfig.Node.BlockTime = 5 * time.Second
-				expectedConfig.Node.DAAddress = "http://custom-da:26658"
+				expectedConfig.DA.Address = "http://custom-da:26658"
 				expectedConfig.Node.SequencerAddress = "custom-sequencer:50051"
 				expectedConfig.Node.SequencerRollupID = "custom-rollup"
 			} else {
@@ -314,45 +317,39 @@ func TestTomlConfigOperations(t *testing.T) {
 
 // readTomlFromPath reads a TOML file from the given path without relying on os.Getwd(), needed for CI
 func readTomlFromPath(configPath string) (config RollkitConfig, err error) {
-	// Set the default values
+	// Create a new Viper instance to avoid conflicts with any global Viper
+	v := viper.New()
+
+	// Set default values
 	config = DefaultNodeConfig
 
 	// Configure Viper to read the TOML file
-	v := viper.New()
 	v.SetConfigFile(configPath)
-	v.SetConfigType("toml")
 
-	// Read the configuration file
-	if err = v.ReadInConfig(); err != nil {
-		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
-		return
+	// Read the config file
+	if err := v.ReadInConfig(); err != nil {
+		return config, fmt.Errorf("error reading config file: %w", err)
 	}
 
-	// Check if the file is empty
-	fileInfo, err := os.Stat(configPath)
-	if err != nil {
-		err = fmt.Errorf("%w getting file info: %w", ErrReadToml, err)
-		return
+	// Get the directory of the config file to set as RootDir
+	configDir := filepath.Dir(configPath)
+	config.RootDir = configDir
+
+	// Unmarshal the config file into the config struct
+	if err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+		c.TagName = "mapstructure"
+		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+		)
+	}); err != nil {
+		return config, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
-	isEmptyFile := fileInfo.Size() == 0
-
-	// Unmarshal directly into NodeConfig
-	if err = v.Unmarshal(&config); err != nil {
-		err = fmt.Errorf("%w unmarshaling config: %w", ErrReadToml, err)
-		return
+	// Make ConfigDir absolute if it's not already
+	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
+		config.Chain.ConfigDir = filepath.Join(configDir, config.Chain.ConfigDir)
 	}
 
-	// Set the root directory
-	config.RootDir = filepath.Dir(configPath)
-
-	// Add configPath to chain.ConfigDir if it is a relative path and the file is not empty
-	if !isEmptyFile && config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
-		config.Chain.ConfigDir = filepath.Join(config.RootDir, config.Chain.ConfigDir)
-	} else if isEmptyFile {
-		// When reading an empty TOML file, the Chain.ConfigDir should be empty
-		config.Chain.ConfigDir = ""
-	}
-
-	return
+	return config, nil
 }

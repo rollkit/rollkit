@@ -51,13 +51,14 @@ func TestInitTomlCommand(t *testing.T) {
 	// Verify time values
 	require.Contains(t, tomlContent, "block_time = ")
 	require.Contains(t, tomlContent, "1s")
-	require.Contains(t, tomlContent, "da_block_time = ")
+	require.Contains(t, tomlContent, "[da]")
+	require.Contains(t, tomlContent, "block_time = ")
 	require.Contains(t, tomlContent, "15s")
 	require.Contains(t, tomlContent, "lazy_block_time = ")
 	require.Contains(t, tomlContent, "1m0s")
 
 	// Verify addresses
-	require.Contains(t, tomlContent, "da_address = ")
+	require.Contains(t, tomlContent, "address = ")
 	require.Contains(t, tomlContent, "http://localhost:26658")
 	require.Contains(t, tomlContent, "sequencer_address = ")
 	require.Contains(t, tomlContent, "localhost:50051")
