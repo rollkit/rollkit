@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -477,9 +476,6 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 	store := mocks.NewStore(t)
 	invalidateBlockHeader(header3)
-	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}).Return(nil)
-	store.On("SetMetadata", mock.Anything, DAIncludedHeightKey, []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}).Return(nil)
-	store.On("SetMetadata", mock.Anything, LastSubmittedHeightKey, []byte(strconv.FormatUint(2, 10))).Return(nil)
 	store.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
 	store.On("GetBlockData", mock.Anything, uint64(1)).Return(header1, data1, nil)
 	store.On("GetBlockData", mock.Anything, uint64(2)).Return(header2, data2, nil)
