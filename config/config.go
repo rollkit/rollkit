@@ -102,8 +102,8 @@ type NodeConfig struct {
 // RollkitConfig contains all Rollkit specific configuration parameters
 type RollkitConfig struct {
 	// Node mode configuration
-	Aggregator bool `mapstructure:"aggregator" toml:"aggregator"`
-	Light      bool `mapstructure:"light" toml:"light"`
+	Aggregator bool `toml:"aggregator"`
+	Light      bool `toml:"light"`
 
 	// Data availability configuration
 	DAAddress       string  `mapstructure:"da_address" toml:"da_address"`

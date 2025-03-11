@@ -7,7 +7,7 @@ type InstrumentationConfig struct {
 	// When true, Prometheus metrics are served under /metrics on
 	// PrometheusListenAddr.
 	// Check out the documentation for the list of available metrics.
-	Prometheus bool `mapstructure:"prometheus"`
+	Prometheus bool // When true, Prometheus metrics are served
 
 	// Address to listen for Prometheus collector(s) connections.
 	PrometheusListenAddr string `mapstructure:"prometheus_listen_addr"`
@@ -19,7 +19,7 @@ type InstrumentationConfig struct {
 	MaxOpenConnections int `mapstructure:"max_open_connections"`
 
 	// Instrumentation namespace.
-	Namespace string `mapstructure:"namespace"`
+	Namespace string // Instrumentation namespace
 }
 
 // DefaultInstrumentationConfig returns a default configuration for metrics
