@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -14,10 +12,7 @@ import (
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
-	goDATest "github.com/rollkit/go-da/test"
 	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
 	execTest "github.com/rollkit/go-execution/test"
 	execTypes "github.com/rollkit/go-execution/types"
@@ -48,47 +43,6 @@ const (
 	// MockExecutorAddress is a sample address used by the mock executor
 	MockExecutorAddress = "127.0.0.1:40041"
 )
-
-// TestMain does setup and teardown on the test package
-// to make the mock gRPC service available to the nodes
-func TestMain(m *testing.M) {
-	daSrv := startMockDAGRPCServ()
-	if daSrv == nil {
-		os.Exit(1)
-	}
-
-	execSrv := startMockExecutorServerGRPC(MockExecutorAddress)
-	if execSrv == nil {
-		os.Exit(1)
-	}
-
-	exitCode := m.Run()
-
-	// teardown servers
-	daSrv.GracefulStop()
-	execSrv.GracefulStop()
-
-	os.Exit(exitCode)
-}
-
-func startMockDAGRPCServ() *grpc.Server {
-	srv := goDAproxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	addr, err := url.Parse(MockDAAddress)
-	if err != nil {
-		panic(err)
-	}
-	lis, err := net.Listen("tcp", addr.Host)
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		err = srv.Serve(lis)
-		if err != nil {
-			panic(err)
-		}
-	}()
-	return srv
-}
 
 // startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {

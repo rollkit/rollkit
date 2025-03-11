@@ -15,8 +15,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-
 	rollconf "github.com/rollkit/rollkit/config"
 )
 
@@ -179,27 +177,6 @@ func TestCentralizedAddresses(t *testing.T) {
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
 	}
-}
-
-// MockServer wraps proxy.Server to allow us to control its behavior in tests
-type MockServer struct {
-	*proxy.Server
-	StartFunc func(context.Context) error
-	StopFunc  func(context.Context) error
-}
-
-func (m *MockServer) Start(ctx context.Context) error {
-	if m.StartFunc != nil {
-		return m.StartFunc(ctx)
-	}
-	return m.Server.Start(ctx)
-}
-
-func (m *MockServer) Stop(ctx context.Context) error {
-	if m.StopFunc != nil {
-		return m.StopFunc(ctx)
-	}
-	return m.Server.Stop(ctx)
 }
 
 func TestStartMockSequencerServer(t *testing.T) {
