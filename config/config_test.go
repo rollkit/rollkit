@@ -18,7 +18,7 @@ func TestDefaultNodeConfig(t *testing.T) {
 
 	assert.Equal(t, DefaultRootDir(), def.RootDir)
 	assert.Equal(t, "data", def.DBPath)
-	assert.Equal(t, false, def.Rollkit.Aggregator)
+	assert.Equal(t, true, def.Rollkit.Aggregator)
 	assert.Equal(t, false, def.Rollkit.Light)
 	assert.Equal(t, DefaultDAAddress, def.Rollkit.DAAddress)
 	assert.Equal(t, "", def.Rollkit.DAAuthToken)

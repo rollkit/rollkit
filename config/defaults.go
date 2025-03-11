@@ -42,7 +42,7 @@ var DefaultNodeConfig = NodeConfig{
 		Seeds:         "",
 	},
 	Rollkit: RollkitConfig{
-		Aggregator:        false,
+		Aggregator:        true,
 		BlockTime:         1 * time.Second,
 		DABlockTime:       15 * time.Second,
 		LazyAggregator:    false,

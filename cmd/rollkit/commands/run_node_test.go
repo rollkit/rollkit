@@ -155,6 +155,28 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 	}
 }
 
+// TestDefaultAggregatorValue verifies that the default value of Aggregator is true
+// when no flag is specified
+func TestDefaultAggregatorValue(t *testing.T) {
+	// Reset nodeConfig to default values
+	nodeConfig = rollconf.DefaultNodeConfig
+
+	// Create a new command without specifying any flags
+	args := []string{"start"}
+	newRunNodeCmd := NewRunNodeCmd()
+
+	if err := newRunNodeCmd.ParseFlags(args); err != nil {
+		t.Errorf("Error parsing flags: %v", err)
+	}
+
+	if err := parseConfig(newRunNodeCmd); err != nil {
+		t.Errorf("Error parsing config: %v", err)
+	}
+
+	// Verify that Aggregator is true by default
+	assert.True(t, nodeConfig.Rollkit.Aggregator, "Expected Aggregator to be true by default")
+}
+
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
 // the configuration fields in nodeConfig are updated accordingly, ensuring that mocks are skipped.
 func TestCentralizedAddresses(t *testing.T) {
