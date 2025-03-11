@@ -65,22 +65,6 @@ func NewRunNodeCmd() *cobra.Command {
 				nodeConfig.Rollkit.Aggregator = true
 			}
 
-			// Update log format if the flag is set
-			// if config.LogFormat == cometconf.LogFormatJSON {
-			// 	logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
-			// }
-
-			// // Parse the log level
-			// logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
-			// if err != nil {
-			// 	return err
-			// }
-
-			// // Add tracing to the logger if the flag is set
-			// if viper.GetBool(cometcli.TraceFlag) {
-			// 	logger = cometlog.NewTracingLogger(logger)
-			// }
-
 			logger = logger.With("module", "main")
 
 			// Initialize the config files
