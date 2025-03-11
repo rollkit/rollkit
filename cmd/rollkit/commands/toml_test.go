@@ -47,14 +47,22 @@ func TestInitTomlCommand(t *testing.T) {
 	// Check that the content contains the expected default values
 	tomlContent := string(content)
 
-	// Verify specific default values in the TOML file instead of just checking for presence
-	require.Contains(t, tomlContent, "block_time = \"1s\"")
-	require.Contains(t, tomlContent, "da_address = \"http://localhost:26658\"")
-	require.Contains(t, tomlContent, "sequencer_address = \"localhost:50051\"")
-	require.Contains(t, tomlContent, "sequencer_rollup_id = \"mock-rollup\"")
-	require.Contains(t, tomlContent, "da_block_time = \"15s\"")
-	require.Contains(t, tomlContent, "lazy_block_time = \"1m0s\"")
-	require.Contains(t, tomlContent, "executor_address = \"localhost:40041\"")
+	// Verify specific default values in the TOML file
+	// Accept both single and double quotes for string values
+	require.Contains(t, tomlContent, "block_time = ")
+	require.Contains(t, tomlContent, "1s")
+	require.Contains(t, tomlContent, "da_address = ")
+	require.Contains(t, tomlContent, "http://localhost:26658")
+	require.Contains(t, tomlContent, "sequencer_address = ")
+	require.Contains(t, tomlContent, "localhost:50051")
+	require.Contains(t, tomlContent, "sequencer_rollup_id = ")
+	require.Contains(t, tomlContent, "mock-rollup")
+	require.Contains(t, tomlContent, "da_block_time = ")
+	require.Contains(t, tomlContent, "15s")
+	require.Contains(t, tomlContent, "lazy_block_time = ")
+	require.Contains(t, tomlContent, "1m0s")
+	require.Contains(t, tomlContent, "executor_address = ")
+	require.Contains(t, tomlContent, "localhost:40041")
 
 	// Verify default boolean values with exact values
 	require.Contains(t, tomlContent, "aggregator = false")

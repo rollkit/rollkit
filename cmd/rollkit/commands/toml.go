@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	rollconf "github.com/rollkit/rollkit/config"
 )
@@ -64,8 +65,46 @@ var initCmd = &cobra.Command{
 		}
 		config.RootDir = currentDir
 
-		// marshal the config to a toml file in the current directory
-		if err := rollconf.WriteTomlConfig(config); err != nil {
+		// Create a new Viper instance to avoid conflicts with any existing configuration
+		v := viper.New()
+
+		// Configure Viper to use the structure directly
+		v.SetConfigName(rollconf.RollkitToml[:len(rollconf.RollkitToml)-5]) // Remove the .toml extension
+		v.SetConfigType("toml")
+		v.AddConfigPath(currentDir)
+
+		// Create a map with the configuration structure
+		// We need to handle time.Duration values specially to ensure they are serialized as human-readable strings
+		rollkitConfig := map[string]interface{}{
+			"aggregator":          config.Rollkit.Aggregator,
+			"light":               config.Rollkit.Light,
+			"da_address":          config.Rollkit.DAAddress,
+			"da_auth_token":       config.Rollkit.DAAuthToken,
+			"da_gas_price":        config.Rollkit.DAGasPrice,
+			"da_gas_multiplier":   config.Rollkit.DAGasMultiplier,
+			"da_submit_options":   config.Rollkit.DASubmitOptions,
+			"da_namespace":        config.Rollkit.DANamespace,
+			"block_time":          config.Rollkit.BlockTime.String(),
+			"da_block_time":       config.Rollkit.DABlockTime.String(),
+			"da_start_height":     config.Rollkit.DAStartHeight,
+			"da_mempool_ttl":      config.Rollkit.DAMempoolTTL,
+			"max_pending_blocks":  config.Rollkit.MaxPendingBlocks,
+			"lazy_aggregator":     config.Rollkit.LazyAggregator,
+			"lazy_block_time":     config.Rollkit.LazyBlockTime.String(),
+			"trusted_hash":        config.Rollkit.TrustedHash,
+			"sequencer_address":   config.Rollkit.SequencerAddress,
+			"sequencer_rollup_id": config.Rollkit.SequencerRollupID,
+			"executor_address":    config.Rollkit.ExecutorAddress,
+		}
+
+		// Set the configuration values in Viper
+		v.Set("entrypoint", config.Entrypoint)
+		v.Set("chain", config.Chain)
+		v.Set("rollkit", rollkitConfig)
+		v.Set("root_dir", config.RootDir)
+
+		// Write the configuration file
+		if err := v.WriteConfigAs(rollconf.RollkitToml); err != nil {
 			fmt.Println("Error writing rollkit.toml file:", err)
 			os.Exit(1)
 		}
