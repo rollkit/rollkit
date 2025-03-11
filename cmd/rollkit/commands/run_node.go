@@ -92,9 +92,9 @@ func NewRunNodeCmd() *cobra.Command {
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
 			// Try and launch a mock JSON RPC DA server if there is no DA server running.
-			// Only start mock DA server if the user did not provide --rollkit.da_address
+			// Only start mock DA server if the user did not provide --da.address
 			var daSrv *proxy.Server = nil
-			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
+			if !cmd.Flags().Lookup("da.address").Changed {
 				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DA.Address, proxy.NewServer)
 				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock da server: %w", err)
