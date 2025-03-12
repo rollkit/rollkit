@@ -24,6 +24,7 @@ require (
 	github.com/rollkit/go-sequencing v0.4.1
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/rollkit/rollkit/da v0.0.0-00010101000000-000000000000
+	github.com/rs/zerolog v1.33.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.19.0
@@ -180,7 +181,6 @@ require (
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
-	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
