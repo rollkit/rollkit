@@ -109,7 +109,7 @@ func TestLoadNodeConfig(t *testing.T) {
 	tomlContent := `
 entrypoint = "./cmd/app/main.go"
 
-[rollkit]
+[node]
 aggregator = true
 block_time = "5s"
 
@@ -144,9 +144,9 @@ config_dir = "config"
 
 	// Set some flags that should override TOML values
 	flagArgs := []string{
-		"--rollkit.block_time", "10s",
+		"--node.block_time", "10s",
 		"--da.address", "http://flag-da:26657",
-		"--rollkit.light", "true", // This is not in TOML, should be set from flag
+		"--node.light", "true", // This is not in TOML, should be set from flag
 	}
 	cmd.SetArgs(flagArgs)
 	err = cmd.ParseFlags(flagArgs)

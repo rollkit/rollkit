@@ -12,19 +12,43 @@ import (
 )
 
 const (
+	// Base configuration flags
 	// FlagRootDir is a flag for specifying the root directory
 	FlagRootDir = "home"
 	// FlagDBPath is a flag for specifying the database path
 	FlagDBPath = "db_path"
+	// FlagEntrypoint is a flag for specifying the entrypoint
+	FlagEntrypoint = "entrypoint"
+	// FlagChainConfigDir is a flag for specifying the chain config directory
+	FlagChainConfigDir = "chain.config_dir"
 
+	// Node configuration flags
 	// FlagAggregator is a flag for running node in aggregator mode
-	FlagAggregator = "rollkit.aggregator"
+	FlagAggregator = "node.aggregator"
+	// FlagLight is a flag for running the node in light mode
+	FlagLight = "node.light"
+	// FlagBlockTime is a flag for specifying the block time
+	FlagBlockTime = "node.block_time"
+	// FlagTrustedHash is a flag for specifying the trusted hash
+	FlagTrustedHash = "node.trusted_hash"
+	// FlagLazyAggregator is a flag for enabling lazy aggregation
+	FlagLazyAggregator = "node.lazy_aggregator"
+	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
+	FlagMaxPendingBlocks = "node.max_pending_blocks"
+	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
+	FlagLazyBlockTime = "node.lazy_block_time"
+	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
+	FlagSequencerAddress = "node.sequencer_address"
+	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
+	FlagSequencerRollupID = "node.sequencer_rollup_id"
+	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
+	FlagExecutorAddress = "node.executor_address"
+
+	// Data Availability configuration flags
 	// FlagDAAddress is a flag for specifying the data availability layer address
 	FlagDAAddress = "da.address"
 	// FlagDAAuthToken is a flag for specifying the data availability layer auth token
 	FlagDAAuthToken = "da.auth_token" // #nosec G101
-	// FlagBlockTime is a flag for specifying the block time
-	FlagBlockTime = "rollkit.block_time"
 	// FlagDABlockTime is a flag for specifying the data availability layer block time
 	FlagDABlockTime = "da.block_time"
 	// FlagDAGasPrice is a flag for specifying the data availability layer gas price
@@ -37,32 +61,10 @@ const (
 	FlagDANamespace = "da.namespace"
 	// FlagDASubmitOptions is a flag for data availability submit options
 	FlagDASubmitOptions = "da.submit_options"
-	// FlagLight is a flag for running the node in light mode
-	FlagLight = "rollkit.light"
-	// FlagTrustedHash is a flag for specifying the trusted hash
-	FlagTrustedHash = "rollkit.trusted_hash"
-	// FlagLazyAggregator is a flag for enabling lazy aggregation
-	FlagLazyAggregator = "rollkit.lazy_aggregator"
-	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
-	FlagMaxPendingBlocks = "rollkit.max_pending_blocks"
 	// FlagDAMempoolTTL is a flag for specifying the DA mempool TTL
 	FlagDAMempoolTTL = "da.mempool_ttl"
-	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
-	FlagLazyBlockTime = "rollkit.lazy_block_time"
-	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
-	FlagSequencerAddress = "rollkit.sequencer_address"
-	// FlagSequencerRollupID is a flag for specifying the sequencer middleware rollup ID
-	FlagSequencerRollupID = "rollkit.sequencer_rollup_id"
-	// FlagExecutorAddress is a flag for specifying the sequencer middleware address
-	FlagExecutorAddress = "rollkit.executor_address"
 
-	// FlagPrometheus is a flag for enabling Prometheus metrics
-	FlagPrometheus = "instrumentation.prometheus"
-	// FlagPrometheusListenAddr is a flag for specifying the Prometheus listen address
-	FlagPrometheusListenAddr = "instrumentation.prometheus_listen_addr"
-	// FlagMaxOpenConnections is a flag for specifying the maximum number of open connections
-	FlagMaxOpenConnections = "instrumentation.max_open_connections"
-
+	// P2P configuration flags
 	// FlagP2PListenAddress is a flag for specifying the P2P listen address
 	FlagP2PListenAddress = "p2p.listen_address"
 	// FlagP2PSeeds is a flag for specifying the P2P seeds
@@ -72,10 +74,13 @@ const (
 	// FlagP2PAllowedPeers is a flag for specifying the P2P allowed peers
 	FlagP2PAllowedPeers = "p2p.allowed_peers"
 
-	// FlagEntrypoint is a flag for specifying the entrypoint
-	FlagEntrypoint = "entrypoint"
-	// FlagChainConfigDir is a flag for specifying the chain config directory
-	FlagChainConfigDir = "chain.config_dir"
+	// Instrumentation configuration flags
+	// FlagPrometheus is a flag for enabling Prometheus metrics
+	FlagPrometheus = "instrumentation.prometheus"
+	// FlagPrometheusListenAddr is a flag for specifying the Prometheus listen address
+	FlagPrometheusListenAddr = "instrumentation.prometheus_listen_addr"
+	// FlagMaxOpenConnections is a flag for specifying the maximum number of open connections
+	FlagMaxOpenConnections = "instrumentation.max_open_connections"
 )
 
 // Config stores Rollkit configuration.
@@ -90,7 +95,7 @@ type Config struct {
 	P2P P2PConfig `mapstructure:"p2p"`
 
 	// Node specific configuration
-	Node NodeConfig `mapstructure:"rollkit"`
+	Node NodeConfig `mapstructure:"node"`
 
 	// Data availability configuration
 	DA DAConfig `mapstructure:"da"`
@@ -144,44 +149,46 @@ type ChainConfig struct {
 func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 
+	// Base configuration flags
 	cmd.Flags().String(FlagRootDir, def.RootDir, "root directory for Rollkit")
 	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
+	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
+	cmd.Flags().String(FlagChainConfigDir, def.Chain.ConfigDir, "chain configuration directory")
 
+	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
+	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
+	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime, "block time (for aggregator mode)")
+	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "wait for transactions, don't build empty blocks")
+	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
+	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime, "block time (for lazy mode)")
+	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
+	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
+	cmd.Flags().String(FlagExecutorAddress, def.Node.ExecutorAddress, "executor middleware address (host:port)")
+
+	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
 	cmd.Flags().String(FlagDAAuthToken, def.DA.AuthToken, "DA auth token")
-	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime, "block time (for aggregator mode)")
 	cmd.Flags().Duration(FlagDABlockTime, def.DA.BlockTime, "DA chain block time (for syncing)")
 	cmd.Flags().Float64(FlagDAGasPrice, def.DA.GasPrice, "DA gas price for blob transactions")
 	cmd.Flags().Float64(FlagDAGasMultiplier, def.DA.GasMultiplier, "DA gas price multiplier for retrying blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DA.StartHeight, "starting DA block height (for syncing)")
 	cmd.Flags().String(FlagDANamespace, def.DA.Namespace, "DA namespace to submit blob transactions")
 	cmd.Flags().String(FlagDASubmitOptions, def.DA.SubmitOptions, "DA submit options")
-	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
-	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
-	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
 	cmd.Flags().Uint64(FlagDAMempoolTTL, def.DA.MempoolTTL, "number of DA blocks until transaction is dropped from the mempool")
-	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime, "block time (for lazy mode)")
-	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
-	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
-	cmd.Flags().String(FlagExecutorAddress, def.Node.ExecutorAddress, "executor middleware address (host:port)")
 
-	// Add instrumentation flags with default values from DefaultInstrumentationConfig
-	instrDef := DefaultInstrumentationConfig()
-	cmd.Flags().Bool(FlagPrometheus, instrDef.Prometheus, "enable Prometheus metrics")
-	cmd.Flags().String(FlagPrometheusListenAddr, instrDef.PrometheusListenAddr, "Prometheus metrics listen address")
-	cmd.Flags().Int(FlagMaxOpenConnections, instrDef.MaxOpenConnections, "maximum number of simultaneous connections for metrics")
-
-	// Add P2P flags
+	// P2P configuration flags
 	cmd.Flags().String(FlagP2PListenAddress, def.P2P.ListenAddress, "P2P listen address (host:port)")
 	cmd.Flags().String(FlagP2PSeeds, def.P2P.Seeds, "Comma separated list of seed nodes to connect to")
 	cmd.Flags().String(FlagP2PBlockedPeers, def.P2P.BlockedPeers, "Comma separated list of nodes to ignore")
 	cmd.Flags().String(FlagP2PAllowedPeers, def.P2P.AllowedPeers, "Comma separated list of nodes to whitelist")
 
-	// Add TOML config flags
-	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
-	cmd.Flags().String(FlagChainConfigDir, def.Chain.ConfigDir, "chain configuration directory")
+	// Instrumentation configuration flags
+	instrDef := DefaultInstrumentationConfig()
+	cmd.Flags().Bool(FlagPrometheus, instrDef.Prometheus, "enable Prometheus metrics")
+	cmd.Flags().String(FlagPrometheusListenAddr, instrDef.PrometheusListenAddr, "Prometheus metrics listen address")
+	cmd.Flags().Int(FlagMaxOpenConnections, instrDef.MaxOpenConnections, "maximum number of simultaneous connections for metrics")
 }
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
@@ -244,40 +251,42 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 
 // setDefaultsInViper sets all the default values from NodeConfig into Viper
 func setDefaultsInViper(v *viper.Viper, config Config) {
-	// Root level defaults
+	// Base configuration defaults
 	v.SetDefault(FlagRootDir, config.RootDir)
 	v.SetDefault(FlagDBPath, config.DBPath)
 	v.SetDefault(FlagEntrypoint, config.Entrypoint)
 	v.SetDefault(FlagChainConfigDir, config.Chain.ConfigDir)
 
-	// P2P defaults
-	v.SetDefault(FlagP2PListenAddress, config.P2P.ListenAddress)
-	v.SetDefault(FlagP2PSeeds, config.P2P.Seeds)
-	v.SetDefault(FlagP2PBlockedPeers, config.P2P.BlockedPeers)
-	v.SetDefault(FlagP2PAllowedPeers, config.P2P.AllowedPeers)
-
-	// Rollkit defaults
+	// Node configuration defaults
 	v.SetDefault(FlagAggregator, config.Node.Aggregator)
 	v.SetDefault(FlagLight, config.Node.Light)
+	v.SetDefault(FlagBlockTime, config.Node.BlockTime)
+	v.SetDefault(FlagTrustedHash, config.Node.TrustedHash)
+	v.SetDefault(FlagLazyAggregator, config.Node.LazyAggregator)
+	v.SetDefault(FlagMaxPendingBlocks, config.Node.MaxPendingBlocks)
+	v.SetDefault(FlagLazyBlockTime, config.Node.LazyBlockTime)
+	v.SetDefault(FlagSequencerAddress, config.Node.SequencerAddress)
+	v.SetDefault(FlagSequencerRollupID, config.Node.SequencerRollupID)
+	v.SetDefault(FlagExecutorAddress, config.Node.ExecutorAddress)
+
+	// Data Availability configuration defaults
 	v.SetDefault(FlagDAAddress, config.DA.Address)
 	v.SetDefault(FlagDAAuthToken, config.DA.AuthToken)
-	v.SetDefault(FlagBlockTime, config.Node.BlockTime)
 	v.SetDefault(FlagDABlockTime, config.DA.BlockTime)
 	v.SetDefault(FlagDAGasPrice, config.DA.GasPrice)
 	v.SetDefault(FlagDAGasMultiplier, config.DA.GasMultiplier)
 	v.SetDefault(FlagDAStartHeight, config.DA.StartHeight)
 	v.SetDefault(FlagDANamespace, config.DA.Namespace)
 	v.SetDefault(FlagDASubmitOptions, config.DA.SubmitOptions)
-	v.SetDefault(FlagTrustedHash, config.Node.TrustedHash)
-	v.SetDefault(FlagLazyAggregator, config.Node.LazyAggregator)
-	v.SetDefault(FlagMaxPendingBlocks, config.Node.MaxPendingBlocks)
 	v.SetDefault(FlagDAMempoolTTL, config.DA.MempoolTTL)
-	v.SetDefault(FlagLazyBlockTime, config.Node.LazyBlockTime)
-	v.SetDefault(FlagSequencerAddress, config.Node.SequencerAddress)
-	v.SetDefault(FlagSequencerRollupID, config.Node.SequencerRollupID)
-	v.SetDefault(FlagExecutorAddress, config.Node.ExecutorAddress)
 
-	// Instrumentation defaults
+	// P2P configuration defaults
+	v.SetDefault(FlagP2PListenAddress, config.P2P.ListenAddress)
+	v.SetDefault(FlagP2PSeeds, config.P2P.Seeds)
+	v.SetDefault(FlagP2PBlockedPeers, config.P2P.BlockedPeers)
+	v.SetDefault(FlagP2PAllowedPeers, config.P2P.AllowedPeers)
+
+	// Instrumentation configuration defaults
 	if config.Instrumentation != nil {
 		v.SetDefault(FlagPrometheus, config.Instrumentation.Prometheus)
 		v.SetDefault(FlagPrometheusListenAddr, config.Instrumentation.PrometheusListenAddr)

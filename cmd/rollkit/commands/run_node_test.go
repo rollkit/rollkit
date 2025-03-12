@@ -37,9 +37,9 @@ func TestParseFlags(t *testing.T) {
 		"--p2p.blocked_peers", "node3@127.0.0.1:27003,node4@127.0.0.1:27004",
 		"--p2p.allowed_peers", "node5@127.0.0.1:27005,node6@127.0.0.1:27006",
 
-		// Rollkit flags
-		"--rollkit.aggregator=false",
-		"--rollkit.block_time", "2s",
+		// Node flags
+		"--node.aggregator=false",
+		"--node.block_time", "2s",
 		"--da.address", "http://127.0.0.1:27005",
 		"--da.auth_token", "token",
 		"--da.block_time", "20s",
@@ -48,14 +48,14 @@ func TestParseFlags(t *testing.T) {
 		"--da.mempool_ttl", "10",
 		"--da.namespace", "namespace",
 		"--da.start_height", "100",
-		"--rollkit.lazy_aggregator",
-		"--rollkit.lazy_block_time", "2m",
-		"--rollkit.light",
-		"--rollkit.max_pending_blocks", "100",
-		"--rollkit.trusted_hash", "abcdef1234567890",
-		"--rollkit.sequencer_address", "seq@127.0.0.1:27007",
-		"--rollkit.sequencer_rollup_id", "test-rollup",
-		"--rollkit.executor_address", "exec@127.0.0.1:27008",
+		"--node.lazy_aggregator",
+		"--node.lazy_block_time", "2m",
+		"--node.light",
+		"--node.max_pending_blocks", "100",
+		"--node.trusted_hash", "abcdef1234567890",
+		"--node.sequencer_address", "seq@127.0.0.1:27007",
+		"--node.sequencer_rollup_id", "test-rollup",
+		"--node.executor_address", "exec@127.0.0.1:27008",
 		"--da.submit_options", "custom-options",
 
 		// Instrumentation flags
@@ -90,7 +90,7 @@ func TestParseFlags(t *testing.T) {
 		{"BlockedPeers", nodeConfig.P2P.BlockedPeers, "node3@127.0.0.1:27003,node4@127.0.0.1:27004"},
 		{"AllowedPeers", nodeConfig.P2P.AllowedPeers, "node5@127.0.0.1:27005,node6@127.0.0.1:27006"},
 
-		// Rollkit fields
+		// Node fields
 		{"Aggregator", nodeConfig.Node.Aggregator, false},
 		{"BlockTime", nodeConfig.Node.BlockTime, 2 * time.Second},
 		{"DAAddress", nodeConfig.DA.Address, "http://127.0.0.1:27005"},
@@ -127,11 +127,11 @@ func TestParseFlags(t *testing.T) {
 
 func TestAggregatorFlagInvariants(t *testing.T) {
 	flagVariants := [][]string{{
-		"--rollkit.aggregator=false",
+		"--node.aggregator=false",
 	}, {
-		"--rollkit.aggregator=true",
+		"--node.aggregator=true",
 	}, {
-		"--rollkit.aggregator",
+		"--node.aggregator",
 	}}
 
 	validValues := []bool{false, true, true}
@@ -183,8 +183,8 @@ func TestCentralizedAddresses(t *testing.T) {
 	args := []string{
 		"start",
 		"--da.address=http://central-da:26657",
-		"--rollkit.sequencer_address=central-seq:26659",
-		"--rollkit.sequencer_rollup_id=centralrollup",
+		"--node.sequencer_address=central-seq:26659",
+		"--node.sequencer_rollup_id=centralrollup",
 	}
 
 	cmd := NewRunNodeCmd()
@@ -205,7 +205,7 @@ func TestCentralizedAddresses(t *testing.T) {
 
 	// Also confirm that the sequencer rollup id flag is marked as changed
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
+		t.Error("Expected flag \"node.sequencer_rollup_id\" to be marked as changed")
 	}
 }
 
