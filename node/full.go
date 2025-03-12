@@ -7,9 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
-
 	"net/http/pprof"
+	"time"
 
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
