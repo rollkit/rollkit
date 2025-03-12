@@ -152,7 +152,6 @@ func NewRunNodeCmd() *cobra.Command {
 			if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 				return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 			}
-			// nolint:errcheck,gosec
 			defer func() {
 				if seqSrv != nil {
 					seqSrv.Stop()

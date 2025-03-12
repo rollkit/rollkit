@@ -691,7 +691,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 		require.NoError(waitForAtLeastNBlocks(seq, 3, Store))
 		return
 	} else { // if there is a limit, sequencer should produce exactly maxPending blocks and pause
-		require.NoError(waitForAtLeastNBlocks(seq, int(maxPending), Store)) //nolint:gosec
+		require.NoError(waitForAtLeastNBlocks(seq, int(maxPending), Store))
 		// wait few block times and ensure that new blocks are not produced
 		time.Sleep(3 * seq.nodeConfig.BlockTime)
 		require.EqualValues(maxPending, seq.Store.Height())
@@ -710,7 +710,7 @@ func doTestMaxPending(maxPending uint64, t *testing.T) {
 		})
 
 	// wait for next block to ensure that sequencer is producing blocks again
-	require.NoError(waitForAtLeastNBlocks(seq, int(maxPending+1), Store)) //nolint:gosec
+	require.NoError(waitForAtLeastNBlocks(seq, int(maxPending+1), Store))
 }
 
 // TODO: https://github.com/rollkit/rollkit/issues/1811
