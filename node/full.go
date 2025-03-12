@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	"net/http/pprof"
+
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -61,8 +63,8 @@ type FullNode struct {
 	Store        store.Store
 	blockManager *block.Manager
 
-	// Preserves cometBFT compatibility
 	prometheusSrv *http.Server
+	pprofSrv      *http.Server
 }
 
 // newFullNode creates a new Rollkit full node.
@@ -315,34 +317,87 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	}
 }
 
-// startPrometheusServer starts a Prometheus HTTP server, listening for metrics
-// collectors on addr.
-func (n *FullNode) startPrometheusServer() *http.Server {
-	srv := &http.Server{
-		Addr: n.nodeConfig.Instrumentation.PrometheusListenAddr,
-		Handler: promhttp.InstrumentMetricHandler(
+// startInstrumentationServer starts HTTP servers for instrumentation (Prometheus metrics and pprof).
+// Returns the primary server (Prometheus if enabled, otherwise pprof) and optionally a secondary server.
+func (n *FullNode) startInstrumentationServer() (*http.Server, *http.Server) {
+	var prometheusServer, pprofServer *http.Server
+
+	// Check if Prometheus is enabled
+	if n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
+		prometheusMux := http.NewServeMux()
+
+		// Register Prometheus metrics handler
+		prometheusMux.Handle("/metrics", promhttp.InstrumentMetricHandler(
 			prometheus.DefaultRegisterer, promhttp.HandlerFor(
 				prometheus.DefaultGatherer,
 				promhttp.HandlerOpts{MaxRequestsInFlight: n.nodeConfig.Instrumentation.MaxOpenConnections},
 			),
-		),
-		ReadHeaderTimeout: readHeaderTimeout,
-	}
-	go func() {
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			// Error starting or closing listener:
-			n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
+		))
+
+		prometheusServer = &http.Server{
+			Addr:              n.nodeConfig.Instrumentation.PrometheusListenAddr,
+			Handler:           prometheusMux,
+			ReadHeaderTimeout: readHeaderTimeout,
 		}
-	}()
-	return srv
+
+		go func() {
+			if err := prometheusServer.ListenAndServe(); err != http.ErrServerClosed {
+				// Error starting or closing listener:
+				n.Logger.Error("Prometheus HTTP server ListenAndServe", "err", err)
+			}
+		}()
+
+		n.Logger.Info("Started Prometheus HTTP server", "addr", n.nodeConfig.Instrumentation.PrometheusListenAddr)
+	}
+
+	// Check if pprof is enabled
+	if n.nodeConfig.Instrumentation.IsPprofEnabled() {
+		pprofMux := http.NewServeMux()
+
+		// Register pprof handlers
+		pprofMux.HandleFunc("/debug/pprof/", pprof.Index)
+		pprofMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		pprofMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		pprofMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		pprofMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		// Register other pprof handlers
+		pprofMux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		pprofMux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		pprofMux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		pprofMux.Handle("/debug/pprof/block", pprof.Handler("block"))
+		pprofMux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		pprofMux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+
+		pprofServer = &http.Server{
+			Addr:              n.nodeConfig.Instrumentation.GetPprofListenAddr(),
+			Handler:           pprofMux,
+			ReadHeaderTimeout: readHeaderTimeout,
+		}
+
+		go func() {
+			if err := pprofServer.ListenAndServe(); err != http.ErrServerClosed {
+				// Error starting or closing listener:
+				n.Logger.Error("pprof HTTP server ListenAndServe", "err", err)
+			}
+		}()
+
+		n.Logger.Info("Started pprof HTTP server", "addr", n.nodeConfig.Instrumentation.GetPprofListenAddr())
+	}
+
+	// Return the primary server (for backward compatibility) and the secondary server
+	if prometheusServer != nil {
+		return prometheusServer, pprofServer
+	}
+	return pprofServer, nil
 }
 
 // Run implements the Service interface.
 // It starts all subservices and manages the node's lifecycle.
 func (n *FullNode) Run(ctx context.Context) error {
 	// begin prometheus metrics gathering if it is enabled
-	if n.nodeConfig.Instrumentation != nil && n.nodeConfig.Instrumentation.IsPrometheusEnabled() {
-		n.prometheusSrv = n.startPrometheusServer()
+	if n.nodeConfig.Instrumentation != nil &&
+		(n.nodeConfig.Instrumentation.IsPrometheusEnabled() || n.nodeConfig.Instrumentation.IsPprofEnabled()) {
+		n.prometheusSrv, n.pprofSrv = n.startInstrumentationServer()
 	}
 	n.Logger.Info("starting P2P client")
 	err := n.p2pClient.Start(ctx)
@@ -386,11 +441,16 @@ func (n *FullNode) Run(ctx context.Context) error {
 		n.dSyncService.Stop(ctx),
 	)
 
+	// Use a timeout context to ensure shutdown doesn't hang
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
 	if n.prometheusSrv != nil {
-		// Use a timeout context to ensure shutdown doesn't hang
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
 		err = errors.Join(err, n.prometheusSrv.Shutdown(shutdownCtx))
+	}
+
+	if n.pprofSrv != nil {
+		err = errors.Join(err, n.pprofSrv.Shutdown(shutdownCtx))
 	}
 
 	err = errors.Join(err, n.Store.Close())

@@ -20,6 +20,25 @@ type InstrumentationConfig struct {
 
 	// Instrumentation namespace.
 	Namespace string // Instrumentation namespace
+
+	// When true, pprof endpoints are served under /debug/pprof/ on
+	// PprofListenAddr. This enables runtime profiling of the application.
+	// Available endpoints include:
+	// - /debug/pprof/          - Index page
+	// - /debug/pprof/cmdline   - Command line arguments
+	// - /debug/pprof/profile   - CPU profile
+	// - /debug/pprof/symbol    - Symbol lookup
+	// - /debug/pprof/trace     - Execution trace
+	// - /debug/pprof/goroutine - Goroutine stack dumps
+	// - /debug/pprof/heap      - Heap memory profile
+	// - /debug/pprof/mutex     - Mutex contention profile
+	// - /debug/pprof/block     - Block profile
+	// - /debug/pprof/allocs    - Allocation profile
+	Pprof bool // When true, pprof endpoints are served
+
+	// Address to listen for pprof connections.
+	// Default is ":6060" which is the standard port for pprof.
+	PprofListenAddr string `mapstructure:"pprof_listen_addr"`
 }
 
 // DefaultInstrumentationConfig returns a default configuration for metrics
@@ -30,6 +49,8 @@ func DefaultInstrumentationConfig() *InstrumentationConfig {
 		PrometheusListenAddr: ":26660",
 		MaxOpenConnections:   3,
 		Namespace:            "rollkit",
+		Pprof:                false,
+		PprofListenAddr:      ":6060",
 	}
 }
 
@@ -50,4 +71,18 @@ func (cfg *InstrumentationConfig) ValidateBasic() error {
 // IsPrometheusEnabled returns true if Prometheus metrics are enabled.
 func (cfg *InstrumentationConfig) IsPrometheusEnabled() bool {
 	return cfg.Prometheus && cfg.PrometheusListenAddr != ""
+}
+
+// IsPprofEnabled returns true if pprof endpoints are enabled.
+func (cfg *InstrumentationConfig) IsPprofEnabled() bool {
+	return cfg.Pprof
+}
+
+// GetPprofListenAddr returns the address to listen for pprof connections.
+// If PprofListenAddr is empty, it returns the default pprof port ":6060".
+func (cfg *InstrumentationConfig) GetPprofListenAddr() string {
+	if cfg.PprofListenAddr == "" {
+		return ":6060"
+	}
+	return cfg.PprofListenAddr
 }

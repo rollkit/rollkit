@@ -86,6 +86,10 @@ const (
 	FlagPrometheusListenAddr = "instrumentation.prometheus_listen_addr"
 	// FlagMaxOpenConnections is a flag for specifying the maximum number of open connections
 	FlagMaxOpenConnections = "instrumentation.max_open_connections"
+	// FlagPprof is a flag for enabling pprof profiling endpoints for runtime debugging
+	FlagPprof = "instrumentation.pprof"
+	// FlagPprofListenAddr is a flag for specifying the pprof listen address
+	FlagPprofListenAddr = "instrumentation.pprof_listen_addr"
 )
 
 // Config stores Rollkit configuration.
@@ -194,6 +198,8 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagPrometheus, instrDef.Prometheus, "enable Prometheus metrics")
 	cmd.Flags().String(FlagPrometheusListenAddr, instrDef.PrometheusListenAddr, "Prometheus metrics listen address")
 	cmd.Flags().Int(FlagMaxOpenConnections, instrDef.MaxOpenConnections, "maximum number of simultaneous connections for metrics")
+	cmd.Flags().Bool(FlagPprof, instrDef.Pprof, "enable pprof profiling endpoints for runtime debugging")
+	cmd.Flags().String(FlagPprofListenAddr, instrDef.PprofListenAddr, "pprof listen address (default: :6060, standard pprof port)")
 }
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
@@ -296,5 +302,7 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 		v.SetDefault(FlagPrometheus, config.Instrumentation.Prometheus)
 		v.SetDefault(FlagPrometheusListenAddr, config.Instrumentation.PrometheusListenAddr)
 		v.SetDefault(FlagMaxOpenConnections, config.Instrumentation.MaxOpenConnections)
+		v.SetDefault(FlagPprof, config.Instrumentation.Pprof)
+		v.SetDefault(FlagPprofListenAddr, config.Instrumentation.PprofListenAddr)
 	}
 }
