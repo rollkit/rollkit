@@ -63,4 +63,9 @@ var DefaultNodeConfig = Config{
 	Chain: ChainConfig{
 		ConfigDir: DefaultConfigDir,
 	},
+	Log: LogConfig{
+		Level:  DefaultLogLevel,
+		Format: "",
+		Trace:  false,
+	},
 }

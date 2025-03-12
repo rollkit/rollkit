@@ -90,6 +90,15 @@ const (
 	FlagPprof = "instrumentation.pprof"
 	// FlagPprofListenAddr is a flag for specifying the pprof listen address
 	FlagPprofListenAddr = "instrumentation.pprof_listen_addr"
+
+	// Logging configuration flags
+
+	// FlagLogLevel is a flag for specifying the log level
+	FlagLogLevel = "log.level"
+	// FlagLogFormat is a flag for specifying the log format
+	FlagLogFormat = "log.format"
+	// FlagLogTrace is a flag for enabling stack traces in error logs
+	FlagLogTrace = "log.trace"
 )
 
 // Config stores Rollkit configuration.
@@ -111,6 +120,9 @@ type Config struct {
 
 	// Instrumentation configuration
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+
+	// Logging configuration
+	Log LogConfig `mapstructure:"log"`
 }
 
 // DAConfig contains all Data Availability configuration parameters
@@ -150,6 +162,16 @@ type NodeConfig struct {
 // ChainConfig is the configuration for the chain section
 type ChainConfig struct {
 	ConfigDir string `mapstructure:"config_dir" toml:"config_dir"`
+}
+
+// LogConfig contains all logging configuration parameters
+type LogConfig struct {
+	// Level is the log level (debug, info, warn, error)
+	Level string `mapstructure:"level" toml:"level"`
+	// Format is the log format (text, json)
+	Format string `mapstructure:"format" toml:"format"`
+	// Trace enables stack traces in error logs
+	Trace bool `mapstructure:"trace" toml:"trace"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -198,8 +220,13 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagPrometheus, instrDef.Prometheus, "enable Prometheus metrics")
 	cmd.Flags().String(FlagPrometheusListenAddr, instrDef.PrometheusListenAddr, "Prometheus metrics listen address")
 	cmd.Flags().Int(FlagMaxOpenConnections, instrDef.MaxOpenConnections, "maximum number of simultaneous connections for metrics")
-	cmd.Flags().Bool(FlagPprof, instrDef.Pprof, "enable pprof profiling endpoints for runtime debugging")
-	cmd.Flags().String(FlagPprofListenAddr, instrDef.PprofListenAddr, "pprof listen address (default: :6060, standard pprof port)")
+	cmd.Flags().Bool(FlagPprof, instrDef.Pprof, "enable pprof HTTP endpoint")
+	cmd.Flags().String(FlagPprofListenAddr, instrDef.PprofListenAddr, "pprof HTTP server listening address")
+
+	// Logging configuration flags
+	cmd.Flags().String(FlagLogLevel, "info", "log level (debug, info, warn, error)")
+	cmd.Flags().String(FlagLogFormat, "", "log format (text, json)")
+	cmd.Flags().Bool(FlagLogTrace, false, "enable stack traces in error logs")
 }
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
@@ -305,4 +332,9 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 		v.SetDefault(FlagPprof, config.Instrumentation.Pprof)
 		v.SetDefault(FlagPprofListenAddr, config.Instrumentation.PprofListenAddr)
 	}
+
+	// Logging configuration defaults
+	v.SetDefault(FlagLogLevel, "info")
+	v.SetDefault(FlagLogFormat, "")
+	v.SetDefault(FlagLogTrace, false)
 }

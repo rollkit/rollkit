@@ -88,7 +88,7 @@ func TestAddFlags(t *testing.T) {
 
 	// Verify that there are no additional flags
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 32 // Update this number if you add more flag checks above
+	expectedFlagCount := 35 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags
 	actualFlagCount := 0
@@ -97,7 +97,12 @@ func TestAddFlags(t *testing.T) {
 	})
 
 	// Verify that the counts match
-	assert.Equal(t, expectedFlagCount, actualFlagCount, "Number of flags doesn't match. If you added a new flag, please update the test.")
+	assert.Equal(
+		t,
+		expectedFlagCount,
+		actualFlagCount,
+		"Number of flags doesn't match. If you added a new flag, please update the test.",
+	)
 }
 
 func TestLoadNodeConfig(t *testing.T) {

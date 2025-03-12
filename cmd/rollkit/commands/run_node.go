@@ -19,7 +19,6 @@ import (
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -34,6 +33,7 @@ import (
 	"github.com/rollkit/rollkit/node"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	rolltypes "github.com/rollkit/rollkit/types"
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -58,8 +58,6 @@ func NewRunNodeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			logger = logger.With("module", "main")
 
 			// Initialize the config files
 			return initFiles()
@@ -120,29 +118,6 @@ func NewRunNodeCmd() *cobra.Command {
 			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
 
-			// Configure logger format if specified
-			logFormat := viper.GetString("log_format")
-			if logFormat == "json" {
-				// Create a JSON logger using zerolog
-				jsonLogger, ok := logger.Impl().(zerolog.Logger)
-				if ok {
-					jsonLogger = jsonLogger.Output(zerolog.ConsoleWriter{
-						Out:        os.Stdout,
-						NoColor:    true,
-						TimeFormat: time.RFC3339,
-						FormatLevel: func(i interface{}) string {
-							return strings.ToUpper(fmt.Sprintf("%-6s", i))
-						},
-					})
-					logger = log.NewCustomLogger(jsonLogger)
-				}
-			}
-
-			// Add tracing to the logger if the flag is set
-			if viper.GetBool("trace") {
-				// Add trace information to the logger
-				logger = logger.With("trace", "true")
-			}
 			dummyDA := coreda.NewDummyDA(100_000)
 			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
 			// create the rollkit node
@@ -398,7 +373,53 @@ func parseConfig(cmd *cobra.Command) error {
 	// Validate the root directory
 	rollconf.EnsureRoot(nodeConfig.RootDir)
 
+	// Setup logger with configuration from nodeConfig
+	logger = setupLogger(nodeConfig)
+
 	return nil
+}
+
+// setupLogger configures and returns a logger based on the provided configuration.
+// It applies the following settings from the config:
+//   - Log format (text or JSON)
+//   - Log level (debug, info, warn, error)
+//   - Stack traces for error logs
+//
+// The returned logger is already configured with the "module" field set to "main".
+func setupLogger(config rollconf.Config) log.Logger {
+	// Configure basic logger options
+	var logOptions []log.Option
+
+	// Configure logger format
+	if config.Log.Format == "json" {
+		logOptions = append(logOptions, log.OutputJSONOption())
+	}
+
+	// Configure logger level
+	switch strings.ToLower(config.Log.Level) {
+	case "debug":
+		logOptions = append(logOptions, log.LevelOption(zerolog.DebugLevel))
+	case "info":
+		logOptions = append(logOptions, log.LevelOption(zerolog.InfoLevel))
+	case "warn":
+		logOptions = append(logOptions, log.LevelOption(zerolog.WarnLevel))
+	case "error":
+		logOptions = append(logOptions, log.LevelOption(zerolog.ErrorLevel))
+	}
+
+	// Configure stack traces
+	if config.Log.Trace {
+		logOptions = append(logOptions, log.TraceOption(true))
+	}
+
+	// Initialize logger with configured options
+	configuredLogger := log.NewLogger(os.Stdout)
+	if len(logOptions) > 0 {
+		configuredLogger = log.NewLogger(os.Stdout, logOptions...)
+	}
+
+	// Add module to logger
+	return configuredLogger.With("module", "main")
 }
 
 // RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
