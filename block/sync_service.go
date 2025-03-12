@@ -236,16 +236,15 @@ func (syncService *SyncService[H]) prepareSyncer(ctx context.Context) error {
 		syncService.sub,
 		[]goheadersync.Option{goheadersync.WithBlockTime(syncService.conf.BlockTime)},
 	); err != nil {
-		return nil
+		return err
 	}
 
 	if syncService.isInitialized() {
 		if err := syncService.StartSyncer(ctx); err != nil {
-			return nil
+			return err
 		}
-		return nil
 	}
-	return err
+	return nil
 }
 
 // setFirstAndStart looks up for the trusted hash or the genesis header/block.
