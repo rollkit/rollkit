@@ -28,7 +28,7 @@ type Header struct {
     // Commitment representing the state linked to the header
     StateRoot Hash
     // Arbitrary field for additional metadata
-    extraData []byte
+    ExtraData []byte
 }
 ```
 
