@@ -19,7 +19,7 @@ func (h *Header) Hash() Hash {
 			Block: h.Version.Block,
 			App:   h.Version.App,
 		},
-		Height: int64(h.Height()), //nolint:gosec
+		Height: int64(h.Height()),
 		Time:   h.Time(),
 		LastBlockID: cmtypes.BlockID{
 			Hash: cmbytes.HexBytes(h.LastHeaderHash),

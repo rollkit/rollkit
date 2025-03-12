@@ -49,7 +49,6 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 
 	// teardown servers
-	// nolint:errcheck,gosec
 	grpcSrv.Stop()
 
 	os.Exit(exitCode)

@@ -294,13 +294,13 @@ func (c *FullClient) GenesisChunked(context context.Context, id uint) (*ctypes.R
 		return nil, errors.New("service configuration error, there are no chunks")
 	}
 
-	if int(id) > chunkLen-1 { //nolint:gosec
+	if int(id) > chunkLen-1 {
 		return nil, fmt.Errorf("there are %d chunks, %d is invalid", chunkLen-1, id)
 	}
 
 	return &ctypes.ResultGenesisChunk{
 		TotalChunks: chunkLen,
-		ChunkNumber: int(id), //nolint:gosec
+		ChunkNumber: int(id),
 		Data:        genChunks[id],
 	}, nil
 }
@@ -312,7 +312,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	// Currently blocks are not pruned and are synced linearly so the base height is 0
 	minHeight, maxHeight, err := filterMinMax(
 		0,
-		int64(c.node.Store.Height()), //nolint:gosec
+		int64(c.node.Store.Height()),
 		minHeight,
 		maxHeight,
 		limit)
@@ -337,7 +337,7 @@ func (c *FullClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight in
 	}
 
 	return &ctypes.ResultBlockchainInfo{
-		LastHeight: int64(c.node.Store.Height()), //nolint:gosec
+		LastHeight: int64(c.node.Store.Height()),
 		BlockMetas: blocks,
 	}, nil
 
@@ -383,7 +383,7 @@ func (c *FullClient) ConsensusParams(ctx context.Context, height *int64) (*ctype
 	}
 	params := state.ConsensusParams
 	return &ctypes.ResultConsensusParams{
-		BlockHeight: int64(c.normalizeHeight(height)), //nolint:gosec
+		BlockHeight: int64(c.normalizeHeight(height)),
 		ConsensusParams: cmtypes.ConsensusParams{
 			Block: cmtypes.BlockParams{
 				MaxBytes: params.Block.MaxBytes,
@@ -487,7 +487,7 @@ func (c *FullClient) BlockResults(ctx context.Context, height *int64) (*ctypes.R
 	}
 
 	return &ctypes.ResultBlockResults{
-		Height:                int64(h), //nolint:gosec
+		Height:                int64(h),
 		TxsResults:            resp.TxResults,
 		FinalizeBlockEvents:   resp.Events,
 		ValidatorUpdates:      resp.ValidatorUpdates,
@@ -539,7 +539,7 @@ func (c *FullClient) Validators(ctx context.Context, heightPtr *int64, pagePtr, 
 	}
 
 	return &ctypes.ResultValidators{
-		BlockHeight: int64(height), //nolint:gosec
+		BlockHeight: int64(height),
 		Validators: []*cmtypes.Validator{
 			&validator,
 		},

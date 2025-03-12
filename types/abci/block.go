@@ -19,7 +19,7 @@ func ToABCIHeaderPB(header *types.Header) (cmproto.Header, error) {
 			Block: header.Version.Block,
 			App:   header.Version.App,
 		},
-		Height: int64(header.Height()), //nolint:gosec
+		Height: int64(header.Height()),
 		Time:   header.Time(),
 		LastBlockId: cmproto.BlockID{
 			Hash: header.LastHeaderHash[:],
@@ -49,7 +49,7 @@ func ToABCIHeader(header *types.Header) (cmtypes.Header, error) {
 			Block: header.Version.Block,
 			App:   header.Version.App,
 		},
-		Height: int64(header.Height()), //nolint:gosec
+		Height: int64(header.Height()),
 		Time:   header.Time(),
 		LastBlockID: cmtypes.BlockID{
 			Hash: cmbytes.HexBytes(header.LastHeaderHash[:]),
