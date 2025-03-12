@@ -29,62 +29,66 @@ import (
 	"github.com/rollkit/go-sequencing"
 
 	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
+	rollkitproto "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
-// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
-// in lazy mode.
-// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
-const defaultLazySleepPercent = 10
+const (
+	// defaultLazySleepPercent is the percentage of block time to wait to accumulate transactions
+	// in lazy mode.
+	// A value of 10 for e.g. corresponds to 10% of the block time. Must be between 0 and 100.
+	defaultLazySleepPercent = 10
 
-// defaultDABlockTime is used only if DABlockTime is not configured for manager
-const defaultDABlockTime = 15 * time.Second
+	// defaultDABlockTime is used only if DABlockTime is not configured for manager
+	defaultDABlockTime = 15 * time.Second
 
-// defaultBlockTime is used only if BlockTime is not configured for manager
-const defaultBlockTime = 1 * time.Second
+	// defaultBlockTime is used only if BlockTime is not configured for manager
+	defaultBlockTime = 1 * time.Second
 
-// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
-const defaultLazyBlockTime = 60 * time.Second
+	// defaultLazyBlockTime is used only if LazyBlockTime is not configured for manager
+	defaultLazyBlockTime = 60 * time.Second
 
-// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
-const defaultMempoolTTL = 25
+	// defaultMempoolTTL is the number of blocks until transaction is dropped from mempool
+	defaultMempoolTTL = 25
 
-// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
-// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
-const blockProtocolOverhead = 1 << 16
+	// blockProtocolOverhead is the protocol overhead when marshaling the block to blob
+	// see: https://gist.github.com/tuxcanfly/80892dde9cdbe89bfb57a6cb3c27bae2
+	blockProtocolOverhead = 1 << 16
 
-// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
-// This is temporary solution. It will be removed in future versions.
-const maxSubmitAttempts = 30
+	// maxSubmitAttempts defines how many times Rollkit will re-try to publish block to DA layer.
+	// This is temporary solution. It will be removed in future versions.
+	maxSubmitAttempts = 30
 
-// Applies to most channels, 100 is a large enough buffer to avoid blocking
-const channelLength = 100
+	// Applies to most channels, 100 is a large enough buffer to avoid blocking
+	channelLength = 100
 
-// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
-const headerInChLength = 10000
+	// Applies to the headerInCh, 10000 is a large enough number for headers per DA block.
+	headerInChLength = 10000
 
-// initialBackoff defines initial value for block submission backoff
-var initialBackoff = 100 * time.Millisecond
+	// DAIncludedHeightKey is the key used for persisting the da included height in store.
+	DAIncludedHeightKey = "d"
 
-// DAIncludedHeightKey is the key used for persisting the da included height in store.
-const DAIncludedHeightKey = "d"
+	// LastBatchHashKey is the key used for persisting the last batch hash in store.
+	LastBatchHashKey = "l"
+)
 
-// LastBatchHashKey is the key used for persisting the last batch hash in store.
-const LastBatchHashKey = "l"
+var (
+	// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
+	dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
-// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
-var dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
+	// ErrNoBatch indicate no batch is available for creating block
+	ErrNoBatch = errors.New("no batch to process")
 
-// ErrNoBatch indicate no batch is available for creating block
-var ErrNoBatch = errors.New("no batch to process")
-
-// ErrHeightFromFutureStr is the error message for height from future returned by da
-var ErrHeightFromFutureStr = "given height is from the future"
+	// ErrHeightFromFutureStr is the error message for height from future returned by da
+	ErrHeightFromFutureStr = "given height is from the future"
+	// initialBackoff defines initial value for block submission backoff
+	initialBackoff = 100 * time.Millisecond
+)
 
 // NewHeaderEvent is used to pass header and DA height to headerInCh
 type NewHeaderEvent struct {
@@ -116,7 +120,6 @@ type Manager struct {
 
 	proposerKey crypto.PrivKey
 
-	dalc *da.DAClient
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
@@ -159,7 +162,10 @@ type Manager struct {
 	// daIncludedHeight is rollup height at which all blocks have been included
 	// in the DA
 	daIncludedHeight atomic.Uint64
-	// grpc client for sequencing middleware
+	dalc             coreda.Client
+	gasPrice         float64
+	gasMultiplier    float64
+
 	sequencer     coresequencer.Sequencer
 	lastBatchHash []byte
 	bq            *BatchQueue
@@ -246,11 +252,13 @@ func NewManager(
 	store store.Store,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	dalc *da.DAClient,
+	dalc coreda.Client,
 	logger log.Logger,
 	headerStore *goheaderstore.Store[*types.SignedHeader],
 	dataStore *goheaderstore.Store[*types.Data],
 	seqMetrics *Metrics,
+	gasPrice float64,
+	gasMultiplier float64,
 ) (*Manager, error) {
 	s, err := getInitialState(ctx, genesis, store, exec, logger)
 	if err != nil {
@@ -286,7 +294,7 @@ func NewManager(
 
 	//proposerAddress := s.Validators.Proposer.Address.Bytes()
 
-	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -341,6 +349,8 @@ func NewManager(
 		sequencer:      sequencer,
 		bq:             NewBatchQueue(),
 		exec:           exec,
+		gasPrice:       gasPrice,
+		gasMultiplier:  gasMultiplier,
 	}
 	agg.init(ctx)
 	return agg, nil
@@ -400,7 +410,7 @@ func (m *Manager) GetDAIncludedHeight() uint64 {
 }
 
 // SetDALC is used to set DataAvailabilityLayerClient used by Manager.
-func (m *Manager) SetDALC(dalc *da.DAClient) {
+func (m *Manager) SetDALC(dalc coreda.Client) {
 	m.dalc = dalc
 }
 
@@ -998,12 +1008,25 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 		}
 		headerResp, fetchErr := m.fetchHeaders(ctx, daHeight)
 		if fetchErr == nil {
-			if headerResp.Code == da.StatusNotFound {
+			if headerResp.Code == coreda.StatusNotFound {
 				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
 			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Headers), "daHeight", daHeight)
-			for _, header := range headerResp.Headers {
+			for _, bz := range headerResp.Headers {
+				header := new(types.SignedHeader)
+				// decode the header
+				var headerPb rollkitproto.SignedHeader
+				err := headerPb.Unmarshal(bz)
+				if err != nil {
+					m.logger.Error("failed to unmarshal header", "error", err)
+					continue
+				}
+				err = header.FromProto(&headerPb)
+				if err != nil {
+					m.logger.Error("failed to unmarshal header", "error", err)
+					continue
+				}
 				// early validation to reject junk headers
 				if !m.isUsingExpectedCentralizedSequencer(header) {
 					m.logger.Debug("skipping header from unexpected sequencer",
@@ -1052,10 +1075,12 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
-func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
+func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieveHeaders, error) {
 	var err error
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+	defer cancel()
 	headerRes := m.dalc.RetrieveHeaders(ctx, daHeight)
-	if headerRes.Code == da.StatusError {
+	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
 	return headerRes, err
@@ -1346,13 +1371,13 @@ func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	}
 	numSubmittedHeaders := 0
 	attempt := 0
-	maxBlobSize, err := m.dalc.DA.MaxBlobSize(ctx)
+	maxBlobSize, err := m.dalc.MaxBlobSize(ctx)
 	if err != nil {
 		return err
 	}
 	initialMaxBlobSize := maxBlobSize
-	initialGasPrice := m.dalc.GasPrice
-	gasPrice := m.dalc.GasPrice
+	gasPrice := m.gasPrice
+	initialGasPrice := gasPrice
 
 daSubmitRetryLoop:
 	for !submittedAllHeaders && attempt < maxSubmitAttempts {
@@ -1362,9 +1387,25 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
-		res := m.dalc.SubmitHeaders(ctx, headersToSubmit, maxBlobSize, gasPrice)
+		headersBz := make([][]byte, len(headersToSubmit))
+		for i, header := range headersToSubmit {
+			headerPb, err := header.ToProto()
+			if err != nil {
+				// do we drop the header from attempting to be submitted?
+				return fmt.Errorf("failed to transform header to proto: %w", err)
+			}
+			headersBz[i], err = headerPb.Marshal()
+			if err != nil {
+				// do we drop the header from attempting to be submitted?
+				return fmt.Errorf("failed to marshal header: %w", err)
+			}
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
+		defer cancel()
+		res := m.dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, gasPrice)
 		switch res.Code {
-		case da.StatusSuccess:
+		case coreda.StatusSuccess:
 			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
@@ -1388,22 +1429,22 @@ daSubmitRetryLoop:
 			// scale back gasPrice gradually
 			backoff = 0
 			maxBlobSize = initialMaxBlobSize
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice / m.dalc.GasMultiplier
+			if m.gasMultiplier > 0 && gasPrice != -1 {
+				gasPrice = gasPrice / m.gasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
 				}
 			}
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
-		case da.StatusNotIncludedInBlock, da.StatusAlreadyInMempool:
+		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
 			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
-			if m.dalc.GasMultiplier > 0 && gasPrice != -1 {
-				gasPrice = gasPrice * m.dalc.GasMultiplier
+			if m.gasMultiplier > 0 && gasPrice != -1 {
+				gasPrice = gasPrice * m.gasMultiplier
 			}
 			m.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 
-		case da.StatusTooBig:
+		case coreda.StatusTooBig:
 			maxBlobSize = maxBlobSize / 4
 			fallthrough
 		default:

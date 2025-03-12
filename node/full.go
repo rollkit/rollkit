@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,13 +17,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	proxyda "github.com/rollkit/go-da/proxy"
-
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
-	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
@@ -54,7 +51,7 @@ type FullNode struct {
 
 	nodeConfig config.NodeConfig
 
-	dalc         *da.DAClient
+	dalc         coreda.Client
 	p2pClient    *p2p.Client
 	hSyncService *block.HeaderSyncService
 	dSyncService *block.DataSyncService
@@ -74,17 +71,13 @@ func newFullNode(
 	genesis *cmtypes.GenesisDoc,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
+	dac coreda.Client,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
 	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	baseKV, err := initBaseKV(nodeConfig, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	dalc, err := initDALC(nodeConfig, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -115,11 +108,13 @@ func newFullNode(
 		genesis,
 		store,
 		sequencer,
-		dalc,
+		dac,
 		logger,
 		headerSyncService,
 		dataSyncService,
 		seqMetrics,
+		nodeConfig.DAGasPrice,
+		nodeConfig.DAGasMultiplier,
 	)
 	if err != nil {
 		return nil, err
@@ -130,7 +125,7 @@ func newFullNode(
 		nodeConfig:   nodeConfig,
 		p2pClient:    p2pClient,
 		blockManager: blockManager,
-		dalc:         dalc,
+		dalc:         dac,
 		Store:        store,
 		hSyncService: headerSyncService,
 		dSyncService: dataSyncService,
@@ -148,30 +143,6 @@ func initBaseKV(nodeConfig config.NodeConfig, logger log.Logger) (ds.Batching, e
 		return store.NewDefaultInMemoryKVStore()
 	}
 	return store.NewDefaultKVStore(nodeConfig.RootDir, nodeConfig.DBPath, "rollkit")
-}
-
-func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, error) {
-	namespace := make([]byte, len(nodeConfig.DANamespace)/2)
-	_, err := hex.Decode(namespace, []byte(nodeConfig.DANamespace))
-	if err != nil {
-		return nil, fmt.Errorf("error decoding namespace: %w", err)
-	}
-
-	if nodeConfig.DAGasMultiplier < 0 {
-		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
-	}
-
-	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
-	if err != nil {
-		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
-	}
-
-	var submitOpts []byte
-	if nodeConfig.DASubmitOptions != "" {
-		submitOpts = []byte(nodeConfig.DASubmitOptions)
-	}
-	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
-		namespace, submitOpts, logger.With("module", "da_client")), nil
 }
 
 func initHeaderSyncService(
@@ -219,11 +190,13 @@ func initBlockManager(
 	genesis *cmtypes.GenesisDoc,
 	store store.Store,
 	sequencer coresequencer.Sequencer,
-	dalc *da.DAClient,
+	dalc coreda.Client,
 	logger log.Logger,
 	headerSyncService *block.HeaderSyncService,
 	dataSyncService *block.DataSyncService,
 	seqMetrics *block.Metrics,
+	gasPrice float64,
+	gasMultiplier float64,
 ) (*block.Manager, error) {
 
 	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
@@ -247,6 +220,8 @@ func initBlockManager(
 		headerSyncService.Store(),
 		dataSyncService.Store(),
 		seqMetrics,
+		gasPrice,
+		gasMultiplier,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing BlockManager: %w", err)

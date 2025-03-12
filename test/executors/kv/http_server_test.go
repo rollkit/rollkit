@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -319,7 +320,8 @@ func TestHTTPServerStartStop(t *testing.T) {
 	// Don't actually start the server in the test
 	testServer := &HTTPServer{
 		server: &http.Server{
-			Addr: ":0", // Use a random port
+			Addr:              ":0", // Use a random port
+			ReadHeaderTimeout: 1 * time.Second,
 		},
 		executor: exec,
 	}
@@ -338,7 +340,9 @@ func TestHTTPServerContextCancellation(t *testing.T) {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close() // Close the listener to free the port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("Failed to close listener: %v", err)
+	}
 
 	serverAddr := fmt.Sprintf("127.0.0.1:%d", port)
 	server := NewHTTPServer(exec, serverAddr)
@@ -361,7 +365,9 @@ func TestHTTPServerContextCancellation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("Failed to close response body: %v", err)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
@@ -373,7 +379,7 @@ func TestHTTPServerContextCancellation(t *testing.T) {
 	// Wait for shutdown to complete with timeout
 	select {
 	case err := <-errCh:
-		if err != nil && err != http.ErrServerClosed {
+		if err != nil && errors.Is(err, http.ErrServerClosed) {
 			t.Fatalf("Server shutdown error: %v", err)
 		}
 	case <-time.After(2 * time.Second):

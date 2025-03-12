@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -14,18 +12,12 @@ import (
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	goDAproxy "github.com/rollkit/go-da/proxy/grpc"
-	goDATest "github.com/rollkit/go-da/test"
-	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
-	execTest "github.com/rollkit/go-execution/test"
-	execTypes "github.com/rollkit/go-execution/types"
-	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
 	rollkitconfig "github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -48,82 +40,10 @@ const (
 	MockExecutorAddress = "127.0.0.1:40041"
 )
 
-// TestMain does setup and teardown on the test package
-// to make the mock gRPC service available to the nodes
-func TestMain(m *testing.M) {
-	daSrv := startMockDAGRPCServ()
-	if daSrv == nil {
-		os.Exit(1)
-	}
-
-	execSrv := startMockExecutorServerGRPC(MockExecutorAddress)
-	if execSrv == nil {
-		os.Exit(1)
-	}
-
-	exitCode := m.Run()
-
-	// teardown servers
-	daSrv.GracefulStop()
-	execSrv.GracefulStop()
-
-	os.Exit(exitCode)
-}
-
-func startMockDAGRPCServ() *grpc.Server {
-	srv := goDAproxy.NewServer(goDATest.NewDummyDA(), grpc.Creds(insecure.NewCredentials()))
-	addr, err := url.Parse(MockDAAddress)
-	if err != nil {
-		panic(err)
-	}
-	lis, err := net.Listen("tcp", addr.Host)
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		err = srv.Serve(lis)
-		if err != nil {
-			panic(err)
-		}
-	}()
-	return srv
-}
-
 // startMockSequencerServerGRPC starts a mock gRPC server with the given listenAddress.
 func startMockSequencerServerGRPC(listenAddress string) *grpc.Server {
 	dummySeq := seqTest.NewMultiRollupSequencer()
 	server := seqGRPC.NewServer(dummySeq, dummySeq, dummySeq)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		panic(err)
-	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	return server
-}
-
-// startMockExecutorServerGRPC starts a mock gRPC server with the given listenAddress.
-func startMockExecutorServerGRPC(listenAddress string) *grpc.Server {
-	dummyExec := execTest.NewDummyExecutor()
-	_, _, err := dummyExec.InitChain(context.Background(), time.Now(), 1, "test-chain")
-	if err != nil {
-		panic(err)
-	}
-
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		i := 0
-		for range ticker.C {
-			dummyExec.InjectTx(execTypes.Tx{byte(3*i + 1), byte(3*i + 2), byte(3*i + 3)})
-			i++
-		}
-	}()
-
-	execServer := execGRPC.NewServer(dummyExec, nil)
-	server := grpc.NewServer()
-	pb.RegisterExecutionServiceServer(server, execServer)
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		panic(err)
@@ -263,6 +183,8 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	logger := log.NewTestLogger(t)
 	node, err := NewNode(
@@ -270,6 +192,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyClient,
 		key,
 		signingKey,
 		genesis,
