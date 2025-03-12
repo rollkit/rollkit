@@ -23,17 +23,19 @@ type Header struct {
 	Timestamp uint64
 	// The Chain ID
 	ChainID string
-	// Pointer to location of associated block data in the DA layer
+	// Pointer to location of associated block data aka transactions in the DA layer
 	DataCommitment Hash
 	// Commitment representing the state linked to the header
 	StateRoot Hash
+    // Arbitrary field for additional metadata
+    extraData []bytes
 }
 ```
 
 ## Assumptions and Considerations
 
 - The header format assumes that the ABCI Execution layer can handle the new structure without requiring CometBFT's full header.
-- Security considerations include ensuring the integrity and authenticity of the header data, particularly the `DataCommitment` and `StateCommitment` fields.
+- Security considerations include ensuring the integrity and authenticity of the header data, particularly the `DataCommitment` and `StateRoot` fields.
 
 ## Implementation
 
