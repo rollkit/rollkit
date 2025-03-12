@@ -98,7 +98,7 @@ func NewDAClient(da goDA.DA, gasPrice, gasMultiplier float64, ns goDA.Namespace,
 // SubmitHeaders submits block headers to DA.
 func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedHeader, maxBlobSize uint64, gasPrice float64) ResultSubmit {
 	var (
-		blobs    [][]byte
+		blobs    [][]byte = make([][]byte, 0, len(headers))
 		blobSize uint64
 		message  string
 	)
