@@ -48,7 +48,6 @@ type Header struct {
 	StateCommitment Hash
 }
 
-
 // Data defines Rollkit block data.
 type Data struct {
 	*Metadata // Defines metadata for Data struct to help with p2p gossiping.
