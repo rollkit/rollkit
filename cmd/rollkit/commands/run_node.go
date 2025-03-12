@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,14 +24,13 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
-	"github.com/rollkit/go-da"
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-	goDATest "github.com/rollkit/go-da/test"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	rolltypes "github.com/rollkit/rollkit/types"
@@ -45,7 +43,6 @@ var (
 	// initialize the logger with the cometBFT defaults
 	logger = log.NewLogger(os.Stdout)
 
-	errDAServerAlreadyRunning  = errors.New("DA server already running")
 	errSequencerAlreadyRunning = errors.New("sequencer already running")
 )
 
@@ -92,22 +89,6 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
-
-			// Try and launch a mock JSON RPC DA server if there is no DA server running.
-			// Only start mock DA server if the user did not provide --da.address
-			var daSrv *proxy.Server = nil
-			if !cmd.Flags().Lookup("da.address").Changed {
-				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DA.Address, proxy.NewServer)
-				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock da server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if daSrv != nil {
-						daSrv.Stop(cmd.Context())
-					}
-				}()
-			}
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
@@ -162,7 +143,8 @@ func NewRunNodeCmd() *cobra.Command {
 				// Add trace information to the logger
 				logger = logger.With("trace", "true")
 			}
-
+			dummyDA := coreda.NewDummyDA(100_000)
+			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
@@ -170,6 +152,7 @@ func NewRunNodeCmd() *cobra.Command {
 				// THIS IS FOR TESTING ONLY
 				kvExecutor,
 				dummySequencer,
+				dummyDALC,
 				p2pKey,
 				signingKey,
 				genDoc,
@@ -295,31 +278,6 @@ func addNodeFlags(cmd *cobra.Command) {
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
-}
-
-// tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
-func tryStartMockDAServJSONRPC(
-	ctx context.Context,
-	daAddress string,
-	newServer func(string, string, da.DA) *proxy.Server,
-) (*proxy.Server, error) {
-	addr, err := url.Parse(daAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	if err := srv.Start(ctx); err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("DA server is already running", "address", daAddress)
-			return nil, errDAServerAlreadyRunning
-		}
-		return nil, err
-	}
-
-	logger.Info("Starting mock DA server", "address", daAddress)
-
-	return srv, nil
 }
 
 // tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.

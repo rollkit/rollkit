@@ -137,7 +137,7 @@ entrypoint = "./cmd/app/main.go"
 [chain]
 config_dir = "custom-config"
 
-[rollkit]
+[node]
 aggregator = true
 block_time = "2s"
 lazy_aggregator = true

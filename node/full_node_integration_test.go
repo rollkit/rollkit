@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	rollkitconfig "github.com/rollkit/rollkit/config"
+	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
@@ -69,12 +70,15 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyClient,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -320,12 +324,15 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyClient,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -402,12 +409,15 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
+	dummyDA := coreda.NewDummyDA(100_000)
+	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(
 		s.ctx,
 		config,
 		dummyExec,
 		dummySequencer,
+		dummyClient,
 		p2pKey,
 		signingKey,
 		genesis,
@@ -432,39 +442,4 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	recoveredHeight, err := getNodeHeight(s.node, Store)
 	require.NoError(err)
 	require.GreaterOrEqual(recoveredHeight, originalHeight)
-}
-
-func (s *FullNodeTestSuite) TestInvalidDAConfig() {
-	require := require.New(s.T())
-
-	// Create a node with invalid DA configuration
-	invalidConfig := getTestConfig(1)
-	invalidConfig.DA.Address = "invalid://invalid-address:1234" // Use an invalid URL scheme
-
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(err)
-
-	p2pKey := generateSingleKey()
-
-	dummyExec := coreexecutor.NewDummyExecutor()
-	dummySequencer := coresequencer.NewDummySequencer()
-
-	// Attempt to create a node with invalid DA config
-	node, err := NewNode(
-		s.ctx,
-		invalidConfig,
-		dummyExec,
-		dummySequencer,
-		p2pKey,
-		signingKey,
-		genesis,
-		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-		log.NewTestLogger(s.T()),
-	)
-
-	// Verify that node creation fails with appropriate error
-	require.Error(err, "Expected error when creating node with invalid DA config")
-	require.Contains(err.Error(), "unknown url scheme", "Expected error related to invalid URL scheme")
-	require.Nil(node, "Node should not be created with invalid DA config")
 }

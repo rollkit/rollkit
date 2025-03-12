@@ -28,20 +28,20 @@ rollkit start [flags]
       --instrumentation.prometheus                      enable Prometheus metrics
       --instrumentation.prometheus_listen_addr string   Prometheus metrics listen address (default ":26660")
       --kv-executor-http string                         address for the KV executor HTTP server (empty to disable) (default ":40042")
+      --node.aggregator                                 run node in aggregator mode (default true)
+      --node.block_time duration                        block time (for aggregator mode) (default 1s)
+      --node.executor_address string                    executor middleware address (host:port) (default "localhost:40041")
+      --node.lazy_aggregator                            wait for transactions, don't build empty blocks
+      --node.lazy_block_time duration                   block time (for lazy mode) (default 1m0s)
+      --node.light                                      run light client
+      --node.max_pending_blocks uint                    limit of blocks pending DA submission (0 for no limit)
+      --node.sequencer_address string                   sequencer middleware address (host:port) (default "localhost:50051")
+      --node.sequencer_rollup_id string                 sequencer middleware rollup ID (default: mock-rollup) (default "mock-rollup")
+      --node.trusted_hash string                        initial trusted hash to start the header exchange service
       --p2p.allowed_peers string                        Comma separated list of nodes to whitelist
       --p2p.blocked_peers string                        Comma separated list of nodes to ignore
       --p2p.listen_address string                       P2P listen address (host:port) (default "/ip4/0.0.0.0/tcp/7676")
       --p2p.seeds string                                Comma separated list of seed nodes to connect to
-      --rollkit.aggregator                              run node in aggregator mode (default true)
-      --rollkit.block_time duration                     block time (for aggregator mode) (default 1s)
-      --rollkit.executor_address string                 executor middleware address (host:port) (default "localhost:40041")
-      --rollkit.lazy_aggregator                         wait for transactions, don't build empty blocks
-      --rollkit.lazy_block_time duration                block time (for lazy mode) (default 1m0s)
-      --rollkit.light                                   run light client
-      --rollkit.max_pending_blocks uint                 limit of blocks pending DA submission (0 for no limit)
-      --rollkit.sequencer_address string                sequencer middleware address (host:port) (default "localhost:50051")
-      --rollkit.sequencer_rollup_id string              sequencer middleware rollup ID (default: mock-rollup) (default "mock-rollup")
-      --rollkit.trusted_hash string                     initial trusted hash to start the header exchange service
 ```
 
 ### Options inherited from parent commands

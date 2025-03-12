@@ -167,7 +167,7 @@ func WriteTomlConfig(config Config) error {
 	// Set values in Viper directly from NodeConfig
 	v.Set("entrypoint", config.Entrypoint)
 	v.Set("chain", config.Chain)
-	v.Set("rollkit", config.Node)
+	v.Set("node", config.Node)
 	v.Set("da", config.DA)
 
 	// Configure the output file
