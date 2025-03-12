@@ -23,7 +23,7 @@ type Header struct {
 	ChainID string
 	// Block and app version
 	Version Version
-	// prev block info
+	// prev header hash
 	LastHeaderHash Hash
 	// Pointer to location of associated block data in the DA layer
 	DataCommitment Hash
