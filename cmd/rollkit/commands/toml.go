@@ -28,10 +28,9 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitConfigToml),
 	Long:  fmt.Sprintf("This command initializes a new %s file in the current directory.", rollconf.RollkitConfigToml),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if _, err := os.Stat(rollconf.RollkitConfigToml); err == nil {
-			fmt.Printf("%s file already exists in the current directory.\n", rollconf.RollkitConfigToml)
-			os.Exit(1)
+			return fmt.Errorf("%s file already exists in the current directory", rollconf.RollkitConfigToml)
 		}
 
 		// try find main.go file under the current directory
@@ -60,8 +59,7 @@ var initCmd = &cobra.Command{
 		// Set the root directory to the current directory
 		currentDir, err := os.Getwd()
 		if err != nil {
-			fmt.Println("Error getting current directory:", err)
-			os.Exit(1)
+			return fmt.Errorf("error getting current directory: %w", err)
 		}
 		config.RootDir = currentDir
 
@@ -109,10 +107,10 @@ var initCmd = &cobra.Command{
 
 		// Write the configuration file
 		if err := v.WriteConfigAs(rollconf.RollkitConfigToml); err != nil {
-			fmt.Println("Error writing rollkit.toml file:", err)
-			os.Exit(1)
+			return fmt.Errorf("error writing rollkit.toml file: %w", err)
 		}
 
 		fmt.Printf("Initialized %s file in the current directory.\n", rollconf.RollkitConfigToml)
+		return nil
 	},
 }
