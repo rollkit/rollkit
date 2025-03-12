@@ -27,7 +27,7 @@ func NewNode(
 	conf config.NodeConfig,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	da coreda.DA,
+	dac coreda.Client,
 	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
@@ -53,7 +53,7 @@ func NewNode(
 		genesis,
 		exec,
 		sequencer,
-		da,
+		dac,
 		metricsProvider,
 		logger,
 	)

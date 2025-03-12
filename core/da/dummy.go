@@ -37,7 +37,7 @@ func (d *DummyDA) MaxBlobSize(ctx context.Context) (uint64, error) {
 }
 
 // Get returns blobs for the given IDs.
-func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace Namespace) ([]Blob, error) {
+func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -54,7 +54,7 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace Namespace) ([]Blo
 }
 
 // GetIDs returns IDs of all blobs at the given height.
-func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace Namespace) (*GetIDsResult, error) {
+func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace []byte) (*GetIDsResult, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -73,7 +73,7 @@ func (d *DummyDA) GetIDs(ctx context.Context, height uint64, namespace Namespace
 }
 
 // GetProofs returns proofs for the given IDs.
-func (d *DummyDA) GetProofs(ctx context.Context, ids []ID, namespace Namespace) ([]Proof, error) {
+func (d *DummyDA) GetProofs(ctx context.Context, ids []ID, namespace []byte) ([]Proof, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -90,7 +90,7 @@ func (d *DummyDA) GetProofs(ctx context.Context, ids []ID, namespace Namespace) 
 }
 
 // Commit creates commitments for the given blobs.
-func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace Namespace) ([]Commitment, error) {
+func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace []byte) ([]Commitment, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -103,22 +103,17 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace Namespace)
 	return commitments, nil
 }
 
-// Submit submits blobs to the DA layer.
-func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace Namespace) ([]ID, error) {
-	return d.SubmitWithOptions(ctx, blobs, gasPrice, namespace, nil)
-}
-
-// SubmitWithOptions submits blobs to the DA layer with additional options.
-func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice float64, namespace Namespace, options []byte) ([]ID, error) {
+// Submit submits blobs to the DA layer with additional options.
+func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, uint64, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	height := uint64(len(d.blobsByHeight) + 1)
+	height := uint64(len(d.blobsByHeight))
 	ids := make([]ID, 0, len(blobs))
 
 	for _, blob := range blobs {
 		if uint64(len(blob)) > d.maxBlobSize {
-			return nil, errors.New("blob size exceeds maximum")
+			return nil, 0, errors.New("blob size exceeds maximum")
 		}
 
 		// For simplicity, we use the blob itself as the ID
@@ -135,11 +130,12 @@ func (d *DummyDA) SubmitWithOptions(ctx context.Context, blobs []Blob, gasPrice 
 
 	d.blobsByHeight[height] = ids
 	d.timestampsByHeight[height] = time.Now()
-	return ids, nil
+
+	return ids, height, nil
 }
 
 // Validate validates commitments against proofs.
-func (d *DummyDA) Validate(ctx context.Context, ids []ID, proofs []Proof, namespace Namespace) ([]bool, error) {
+func (d *DummyDA) Validate(ctx context.Context, ids []ID, proofs []Proof, namespace []byte) ([]bool, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 

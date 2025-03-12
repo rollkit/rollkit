@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -22,8 +24,19 @@ const (
 	DefaultLogLevel = "info"
 )
 
+// DefaultRootDir returns the default root directory for rollkit
+func DefaultRootDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".rollkit")
+}
+
 // DefaultNodeConfig keeps default values of NodeConfig
 var DefaultNodeConfig = NodeConfig{
+	RootDir: DefaultRootDir(),
+	DBPath:  "data",
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",

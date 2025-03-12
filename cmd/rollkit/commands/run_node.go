@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"net/url"
+	"net/http"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
 	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	cometconf "github.com/cometbft/cometbft/config"
 	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
-	cometnode "github.com/cometbft/cometbft/node"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
@@ -26,37 +25,26 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
-	"github.com/rollkit/go-da"
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
-	goDATest "github.com/rollkit/go-da/test"
-	execGRPC "github.com/rollkit/go-execution/proxy/grpc"
-	execTest "github.com/rollkit/go-execution/test"
-	execTypes "github.com/rollkit/go-execution/types"
-	pb "github.com/rollkit/go-execution/types/pb/execution"
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
 	rollconf "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
-	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
+	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
 
 var (
-	// initialize the config with the cometBFT defaults
-	config = cometconf.DefaultConfig()
-
 	// initialize the rollkit node configuration
 	nodeConfig = rollconf.DefaultNodeConfig
 
 	// initialize the logger with the cometBFT defaults
 	logger = log.NewLogger(os.Stdout)
 
-	errDAServerAlreadyRunning  = errors.New("DA server already running")
 	errSequencerAlreadyRunning = errors.New("sequencer already running")
-	errExecutorAlreadyRunning  = errors.New("executor already running")
 )
 
 // NewRunNodeCmd returns the command that allows the CLI to start a node.
@@ -99,16 +87,19 @@ func NewRunNodeCmd() *cobra.Command {
 			return initFiles()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			genDocProvider := cometnode.DefaultGenesisDocProviderFunc(config)
+			genDocProvider := RollkitGenesisDocProviderFunc(nodeConfig)
 			genDoc, err := genDocProvider()
 			if err != nil {
 				return err
 			}
-			nodeKey, err := cometp2p.LoadOrGenNodeKey(config.NodeKeyFile())
+			nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
+			nodeKey, err := cometp2p.LoadOrGenNodeKey(nodeKeyFile)
 			if err != nil {
 				return err
 			}
-			pval := cometprivval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
+			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
+			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 			p2pKey, err := rolltypes.GetNodeKey(nodeKey)
 			if err != nil {
 				return err
@@ -118,35 +109,8 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// default to socket connections for remote clients
-			if len(config.ABCI) == 0 {
-				config.ABCI = "socket"
-			}
-
-			// get the node configuration
-			rollconf.GetNodeConfig(&nodeConfig, config)
-			if err := rollconf.TranslateAddresses(&nodeConfig); err != nil {
-				return err
-			}
-
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
-
-			// Try and launch a mock JSON RPC DA server if there is no DA server running.
-			// Only start mock DA server if the user did not provide --rollkit.da_address
-			var daSrv *proxy.Server = nil
-			if !cmd.Flags().Lookup("rollkit.da_address").Changed {
-				daSrv, err = tryStartMockDAServJSONRPC(cmd.Context(), nodeConfig.DAAddress, proxy.NewServer)
-				if err != nil && !errors.Is(err, errDAServerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock da server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if daSrv != nil {
-						daSrv.Stop(cmd.Context())
-					}
-				}()
-			}
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
@@ -169,45 +133,24 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
-			// Try and launch a mock gRPC executor if there is no executor running.
-			// Only start mock Executor if the user did not provide --rollkit.executor_address
-			var execSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup("rollkit.executor_address").Changed {
-				execSrv, err = tryStartMockExecutorServerGRPC(nodeConfig.ExecutorAddress)
-				if err != nil && !errors.Is(err, errExecutorAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock executor server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if execSrv != nil {
-						execSrv.Stop()
-					}
-				}()
-			}
-
 			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
-
-			// use noop proxy app by default
-			if !cmd.Flags().Lookup("proxy_app").Changed {
-				config.ProxyApp = "noop"
-			}
 
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
 
-			dummyDA := coreda.NewDummyDA(100_000)
-			dummyExecutor := coreexecutor.NewDummyExecutor()
+			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
-
+			dummyDA := coreda.NewDummyDA(100_000)
+			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier, []byte(nodeConfig.DANamespace), []byte(nodeConfig.DASubmitOptions), logger)
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
 				nodeConfig,
 				// THIS IS FOR TESTING ONLY
-				dummyExecutor,
+				kvExecutor,
 				dummySequencer,
-				dummyDA,
+				dummyDALC,
 				p2pKey,
 				signingKey,
 				genDoc,
@@ -329,36 +272,13 @@ func addNodeFlags(cmd *cobra.Command) {
 	// Add cometBFT flags
 	cmtcmd.AddNodeFlags(cmd)
 
-	cmd.Flags().String("transport", config.ABCI, "specify abci transport (socket | grpc)")
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
+
+	// This is for testing only
+	cmd.Flags().String("kv-executor-http", ":40042", "address for the KV executor HTTP server (empty to disable)")
 
 	// Add Rollkit flags
 	rollconf.AddFlags(cmd)
-}
-
-// tryStartMockDAServJSONRPC will try and start a mock JSONRPC server
-func tryStartMockDAServJSONRPC(
-	ctx context.Context,
-	daAddress string,
-	newServer func(string, string, da.DA) *proxy.Server,
-) (*proxy.Server, error) {
-	addr, err := url.Parse(daAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	srv := newServer(addr.Hostname(), addr.Port(), goDATest.NewDummyDA())
-	if err := srv.Start(ctx); err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("DA server is already running", "address", daAddress)
-			return nil, errDAServerAlreadyRunning
-		}
-		return nil, err
-	}
-
-	logger.Info("Starting mock DA server", "address", daAddress)
-
-	return srv, nil
 }
 
 // tryStartMockSequencerServerGRPC will try and start a mock gRPC server with the given listenAddress.
@@ -381,44 +301,39 @@ func tryStartMockSequencerServerGRPC(listenAddress string, rollupId string) (*gr
 	return server, nil
 }
 
-// tryStartMockExecutorServerGRPC will try and start a mock gRPC executor server
-func tryStartMockExecutorServerGRPC(listenAddress string) (*grpc.Server, error) {
-	dummyExec := execTest.NewDummyExecutor()
+// createDirectKVExecutor creates a KVExecutor for testing
+func createDirectKVExecutor(ctx context.Context) *testExecutor.KVExecutor {
+	kvExecutor := testExecutor.NewKVExecutor()
 
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		i := 0
-		for range ticker.C {
-			dummyExec.InjectTx(execTypes.Tx{byte(3*i + 1), byte(3*i + 2), byte(3*i + 3)})
-			i++
-		}
-	}()
-
-	execServer := execGRPC.NewServer(dummyExec, nil)
-	server := grpc.NewServer()
-	pb.RegisterExecutionServiceServer(server, execServer)
-	lis, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		if errors.Is(err, syscall.EADDRINUSE) {
-			logger.Info("Executor server already running", "address", listenAddress)
-			return nil, errExecutorAlreadyRunning
-		}
-		return nil, err
+	// Pre-populate with some test transactions
+	for i := 0; i < 5; i++ {
+		tx := []byte(fmt.Sprintf("test%d=value%d", i, i))
+		kvExecutor.InjectTx(tx)
 	}
-	go func() {
-		_ = server.Serve(lis)
-	}()
-	logger.Info("Starting mock executor", "address", listenAddress)
-	return server, nil
+
+	// Start HTTP server for transaction submission if address is specified
+	httpAddr := viper.GetString("kv-executor-http")
+	if httpAddr != "" {
+		httpServer := testExecutor.NewHTTPServer(kvExecutor, httpAddr)
+		logger.Info("Creating KV Executor HTTP server", "address", httpAddr)
+		go func() {
+			logger.Info("Starting KV Executor HTTP server", "address", httpAddr)
+			if err := httpServer.Start(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Error("KV Executor HTTP server error", "error", err)
+			}
+			logger.Info("KV Executor HTTP server stopped", "address", httpAddr)
+		}()
+	}
+
+	return kvExecutor
 }
 
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
 // note that such a change would also require changing the cosmos-sdk
 func initFiles() error {
 	// Generate the private validator config files
-	cometprivvalKeyFile := config.PrivValidatorKeyFile()
-	cometprivvalStateFile := config.PrivValidatorStateFile()
+	cometprivvalKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
+	cometprivvalStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
 	var pv *cometprivval.FilePV
 	if cometos.FileExists(cometprivvalKeyFile) {
 		pv = cometprivval.LoadFilePV(cometprivvalKeyFile, cometprivvalStateFile)
@@ -432,7 +347,7 @@ func initFiles() error {
 	}
 
 	// Generate the node key config files
-	nodeKeyFile := config.NodeKeyFile()
+	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
 	if cometos.FileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
@@ -443,7 +358,7 @@ func initFiles() error {
 	}
 
 	// Generate the genesis file
-	genFile := config.GenesisFile()
+	genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
 	if cometos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
@@ -482,15 +397,10 @@ func parseConfig(cmd *cobra.Command) error {
 			return err
 		}
 	}
-	config.RootDir = home
+	nodeConfig.RootDir = home
 
 	// Validate the root directory
-	cometconf.EnsureRoot(config.RootDir)
-
-	// Validate the config
-	if err := config.ValidateBasic(); err != nil {
-		return fmt.Errorf("error in config file: %w", err)
-	}
+	rollconf.EnsureRoot(nodeConfig.RootDir)
 
 	// Parse the flags
 	if err := parseFlags(cmd); err != nil {
@@ -507,7 +417,7 @@ func parseFlags(cmd *cobra.Command) error {
 	}
 
 	// unmarshal viper into config
-	err := v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+	err := v.Unmarshal(&nodeConfig, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "mapstructure"
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
@@ -518,15 +428,20 @@ func parseFlags(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to decode command flags into config: %w", err)
 	}
 
-	// special handling for the p2p external address, due to inconsistencies in mapstructure and flag name
-	if cmd.Flags().Lookup("p2p.external-address").Changed {
-		config.P2P.ExternalAddress = viper.GetString("p2p.external-address")
-	}
-
 	// handle rollkit node configuration
 	if err := nodeConfig.GetViperConfig(v); err != nil {
 		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
 	}
 
 	return nil
+}
+
+// RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
+// using nodeConfig instead of config.
+func RollkitGenesisDocProviderFunc(nodeConfig rollconf.NodeConfig) func() (*comettypes.GenesisDoc, error) {
+	return func() (*comettypes.GenesisDoc, error) {
+		// Construct the genesis file path using rootify
+		genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
+		return comettypes.GenesisDocFromFile(genFile)
+	}
 }
