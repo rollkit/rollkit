@@ -25,9 +25,14 @@ rollkit start [flags]
   -h, --help                                            help for start
       --home string                                     root directory for Rollkit (default "HOME/.rollkit")
       --instrumentation.max_open_connections int        maximum number of simultaneous connections for metrics (default 3)
+      --instrumentation.pprof                           enable pprof HTTP endpoint
+      --instrumentation.pprof_listen_addr string        pprof HTTP server listening address (default ":6060")
       --instrumentation.prometheus                      enable Prometheus metrics
       --instrumentation.prometheus_listen_addr string   Prometheus metrics listen address (default ":26660")
       --kv-executor-http string                         address for the KV executor HTTP server (empty to disable) (default ":40042")
+      --log.format string                               log format (text, json)
+      --log.level string                                log level (debug, info, warn, error) (default "info")
+      --log.trace                                       enable stack traces in error logs
       --node.aggregator                                 run node in aggregator mode (default true)
       --node.block_time duration                        block time (for aggregator mode) (default 1s)
       --node.executor_address string                    executor middleware address (host:port) (default "localhost:40041")
@@ -47,8 +52,9 @@ rollkit start [flags]
 ### Options inherited from parent commands
 
 ```
-      --log_level string   set the log level; default is info. other options include debug, info, error, none (default "info")
-      --trace              print out full stack trace on errors
+      --log_format string   set the log format; options include plain and json (default "plain")
+      --log_level string    set the log level; default is info. other options include debug, info, error, none (default "info")
+      --trace               print out full stack trace on errors
 ```
 
 ### SEE ALSO
