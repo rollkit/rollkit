@@ -32,6 +32,28 @@ type Header struct {
 }
 ```
 
+In case, the rollup has a specific designer proposer or a proposer set, that information can be put in the `extraData` field. So in centralized sequencer mode, the `sequencerAddress` can live in `extraData`. For based sequencer mode, this information is not relevant.
+
+This minimal Rollkit header can be transformed to be tailored to a specific execution layer as well. For example, a smart contact execution layer typically has:
+
+- `transactionsRoot`: Merkle root of all transactions in the block. Can be constructed from unpacking the `DataCommitment` in Rollkit Header
+- `receiptsRoot`: Merkle root of all transaction receipts, which store the results of transaction execution.
+
+This can be filled in by the execution layer and inserted on top of this minimal block header.
+
+In order to transform this header into an ABCI-specific header for IBC compatibility, the ABCI execution layer can insert the following information into the header:
+
+- `Version`: Required by IBC clients to correctly interpret the block's structure and contents.
+- `LastCommitHash`: The hash of the previous block's commit, used by IBC clients to verify the legitimacy of the block's state transitions.
+- `DataHash`: A hash of the block's transaction data, enabling IBC clients to verify that the data has not been tampered with. Can be constructed from unpacking the `DataCommitment` in rollkit header
+- `ValidatorHash`: Current validator set's hash, which IBC clients use to verify that the block was validated by the correct set of validators. This can be the IBC attester set of the chain for backwards compatibility with the IBC tendermint client, if needed.
+- `NextValidatorsHash`: The hash of the next validator set, allowing IBC clients to anticipate and verify upcoming validators.
+- `ConsensusHash`: Denotes the hash of the consensus parameters, ensuring that IBC clients are aligned with the consensus rules of the blockchain.
+- `AppHash`: Same as the `StateRoot` in the Rollkit Header.
+- `EvidenceHash`: A hash of evidence of any misbehavior by validators, which IBC clients use to assess the trustworthiness of the validator set.
+- `LastResultsHash`: Root hash of all results from the txs from the previous block.
+- `ProposerAddress`: The address of the block proposer, allowing IBC clients to track and verify the entities proposing new blocks. Can be constructed from the `extraData` field in the Rollkit Header.
+
 ## Assumptions and Considerations
 
 - The header format assumes that the ABCI Execution layer can handle the new structure without requiring CometBFT's full header.
