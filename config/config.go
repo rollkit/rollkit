@@ -13,6 +13,7 @@ import (
 
 const (
 	// Base configuration flags
+
 	// FlagRootDir is a flag for specifying the root directory
 	FlagRootDir = "home"
 	// FlagDBPath is a flag for specifying the database path
@@ -23,6 +24,7 @@ const (
 	FlagChainConfigDir = "chain.config_dir"
 
 	// Node configuration flags
+
 	// FlagAggregator is a flag for running node in aggregator mode
 	FlagAggregator = "node.aggregator"
 	// FlagLight is a flag for running the node in light mode
@@ -45,6 +47,7 @@ const (
 	FlagExecutorAddress = "node.executor_address"
 
 	// Data Availability configuration flags
+
 	// FlagDAAddress is a flag for specifying the data availability layer address
 	FlagDAAddress = "da.address"
 	// FlagDAAuthToken is a flag for specifying the data availability layer auth token
@@ -65,6 +68,7 @@ const (
 	FlagDAMempoolTTL = "da.mempool_ttl"
 
 	// P2P configuration flags
+
 	// FlagP2PListenAddress is a flag for specifying the P2P listen address
 	FlagP2PListenAddress = "p2p.listen_address"
 	// FlagP2PSeeds is a flag for specifying the P2P seeds
@@ -75,6 +79,7 @@ const (
 	FlagP2PAllowedPeers = "p2p.allowed_peers"
 
 	// Instrumentation configuration flags
+
 	// FlagPrometheus is a flag for enabling Prometheus metrics
 	FlagPrometheus = "instrumentation.prometheus"
 	// FlagPrometheusListenAddr is a flag for specifying the Prometheus listen address
