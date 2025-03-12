@@ -270,7 +270,7 @@ func TestTomlConfigOperations(t *testing.T) {
 			}
 
 			// Write the config to a TOML file
-			err = WriteTomlConfig(config)
+			err = writeTomlConfig(config)
 			require.NoError(t, err)
 
 			// Verify the file was created
@@ -315,7 +315,7 @@ func TestTomlConfigOperations(t *testing.T) {
 	}
 }
 
-// readTomlFromPath reads a TOML file from the given path without relying on os.Getwd(), needed for CI
+// readTomlFromPath reads a TOML file and returns the config
 func readTomlFromPath(configPath string) (config Config, err error) {
 	// Create a new Viper instance to avoid conflicts with any global Viper
 	v := viper.New()
@@ -352,4 +352,33 @@ func readTomlFromPath(configPath string) (config Config, err error) {
 	}
 
 	return config, nil
+}
+
+// writeTomlConfig writes the TOML-specific fields of the given NodeConfig to the rollkit.toml file.
+func writeTomlConfig(config Config) error {
+	// Configure Viper
+	v := viper.New()
+
+	// Set values in Viper directly from NodeConfig
+	v.Set("entrypoint", config.Entrypoint)
+	v.Set("chain", config.Chain)
+	v.Set("node", config.Node)
+	v.Set("da", config.DA)
+
+	// Configure the output file
+	configPath := filepath.Join(config.RootDir, RollkitConfigToml)
+	v.SetConfigFile(configPath)
+	v.SetConfigType("toml")
+
+	// Ensure the directory exists
+	if err := os.MkdirAll(filepath.Dir(configPath), DefaultDirPerm); err != nil {
+		return err
+	}
+
+	// Write the configuration file
+	if err := v.WriteConfig(); err != nil {
+		return err
+	}
+
+	return nil
 }

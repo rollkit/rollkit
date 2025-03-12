@@ -101,8 +101,7 @@ var initCmd = &cobra.Command{
 		// Set the configuration values in Viper
 		v.Set("entrypoint", config.Entrypoint)
 		v.Set("chain", config.Chain)
-		v.Set("rollkit", rollkitConfig)
-		v.Set("root_dir", config.RootDir)
+		v.Set("node", rollkitConfig)
 		v.Set("da", daConfig)
 
 		// Write the configuration file

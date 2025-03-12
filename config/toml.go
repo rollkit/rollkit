@@ -159,35 +159,6 @@ func FindConfigDir(dir string) (string, bool) {
 	return dir, false
 }
 
-// WriteTomlConfig writes the TOML-specific fields of the given NodeConfig to the rollkit.toml file.
-func WriteTomlConfig(config Config) error {
-	// Configure Viper
-	v := viper.New()
-
-	// Set values in Viper directly from NodeConfig
-	v.Set("entrypoint", config.Entrypoint)
-	v.Set("chain", config.Chain)
-	v.Set("node", config.Node)
-	v.Set("da", config.DA)
-
-	// Configure the output file
-	configPath := filepath.Join(config.RootDir, RollkitConfigToml)
-	v.SetConfigFile(configPath)
-	v.SetConfigType("toml")
-
-	// Ensure the directory exists
-	if err := os.MkdirAll(filepath.Dir(configPath), DefaultDirPerm); err != nil {
-		return err
-	}
-
-	// Write the configuration file
-	if err := v.WriteConfig(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // EnsureRoot creates the root, config, and data directories if they don't exist,
 // and panics if it fails.
 func EnsureRoot(rootDir string) {
