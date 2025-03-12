@@ -34,14 +34,18 @@ type Header struct {
 
 In case, the rollup has a specific designer proposer or a proposer set, that information can be put in the `extraData` field. So in centralized sequencer mode, the `sequencerAddress` can live in `extraData`. For based sequencer mode, this information is not relevant.
 
-This minimal Rollkit header can be transformed to be tailored to a specific execution layer as well. For example, a smart contact execution layer typically has:
+This minimal Rollkit header can be transformed to be tailored to a specific execution layer as well by inserting additional information typically needed.
+
+### EVM execution client
 
 - `transactionsRoot`: Merkle root of all transactions in the block. Can be constructed from unpacking the `DataCommitment` in Rollkit Header
-- `receiptsRoot`: Merkle root of all transaction receipts, which store the results of transaction execution.
+- `receiptsRoot`: Merkle root of all transaction receipts, which store the results of transaction execution. This can be inserted by the EVM execution client.
+- `Gas Limit`: Max gas allowed in the block
+- `Gas Used`: Total gas consumed in this block
 
-This can be filled in by the execution layer and inserted on top of this minimal block header.
+### ABCI Execution
 
-In order to transform this header into an ABCI-specific header for IBC compatibility, the ABCI execution layer can insert the following information into the header:
+This header can be transformed into an ABCI-specific header for IBC compatibility.
 
 - `Version`: Required by IBC clients to correctly interpret the block's structure and contents.
 - `LastCommitHash`: The hash of the previous block's commit, used by IBC clients to verify the legitimacy of the block's state transitions.
@@ -56,11 +60,17 @@ In order to transform this header into an ABCI-specific header for IBC compatibi
 
 ## Assumptions and Considerations
 
-- The header format assumes that the ABCI Execution layer can handle the new structure without requiring CometBFT's full header.
-- Security considerations include ensuring the integrity and authenticity of the header data, particularly the `DataCommitment` and `StateRoot` fields.
+- The Rollkit minimal header is designed to be flexible and adaptable, allowing for integration with various execution layers such as EVM and ABCI, without being constrained by CometBFT's header format.
+- The `extraData` field provides a mechanism for including additional metadata, such as sequencer information, which can be crucial for certain rollup configurations.
+- The transformation of the Rollkit header into execution layer-specific headers should be done carefully to ensure compatibility and correctness, especially for IBC and any other cross-chain communication protocols.
 
 ## Implementation
 
 Pending implementation.
 
 ## References
+
+- [Ethereum Developer Documentation](https://ethereum.org/en/developers/docs/): Comprehensive resources for understanding Ethereum's architecture, including block and transaction structures.
+- [Tendermint Core Documentation](https://docs.tendermint.com/master/spec/): Detailed documentation on Tendermint, which includes information on ABCI and its header format.
+- [ABCI Specification](https://github.com/tendermint/spec/blob/master/spec/abci/abci.md): The official specification for the Application Blockchain Interface (ABCI), which describes how applications can interact with the Tendermint consensus engine.
+- [IBC Protocol Specification](https://github.com/cosmos/ibc): Documentation on the Inter-Blockchain Communication (IBC) protocol, which includes details on how headers are used for cross-chain communication.
