@@ -23,12 +23,31 @@ This change also affects how rollup full nodes sync. Previously, rollup full nod
 This ensures that the data integrity and consistency are maintained across the network.
 
 ```go
-// SignedHeader struct focusing on header information
- type SignedHeader struct {
+// SignedHeader struct consists of the header and a signature
+type SignedHeader struct {
     Header // Rollkit Header
     Signature  Signature // Signature of the header producer
     ...
 }
+
+// Header struct focusing on header information
+type Header struct {
+	// Height represents the block height (aka block number) of a given header
+	Height uint64
+	// Time contains Unix nanotime of a block
+	Time uint64
+	// The Chain ID
+	ChainID string
+	// Block and app version
+	Version Version
+	// prev block info
+	LastHeaderHash Hash
+	// Pointer to location of associated block data in the DA layer
+	DataCommitment Hash
+	// Commitment representing the state linked to the header
+	StateCommitment Hash
+}
+
 
 // Data defines Rollkit block data.
 type Data struct {
@@ -46,6 +65,8 @@ The `publishBlock` method in `manager.go` now creates the header and data struct
 Before the separation: Only the entire `Block` struct composed of both header and data was submitted to the DA layer. The `Block` and `SignedHeader` were both gossipped over two separate p2p layers: gossipping `Block` to just full nodes and gossipping the `SignedHeader` to full nodes and future rollup light nodes to join that will only sync headers (and proofs).
 
 After the separation: The `SignedHeader` and `Data` are submitted separately to the DA layer. Note that the `SignedHeader` has a `Header` that is linked to the `Data` via a `DataCommitment` from the DA layer. `SignedHeader` and `Data` are both gossipped over two separate p2p layers: gossipping `Data` to just full nodes and gossipping the `SignedHeader` to full nodes and future rollup light nodes to join that will only sync headers (and proofs).
+
+In based sequencing mode, the header producer is equivalent to a full node.
 
 ### Syncing Full Node
 
