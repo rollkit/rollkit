@@ -340,8 +340,8 @@ func TestHTTPServerContextCancellation(t *testing.T) {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
-	if err := listener.Close(); err != nil { // Close the listener to free the port
-		t.Logf("Failed to close listener: %v", err)
+	if err := listener.Close(); err != nil {
+		t.Fatalf("Failed to close listener: %v", err)
 	}
 
 	serverAddr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -366,7 +366,7 @@ func TestHTTPServerContextCancellation(t *testing.T) {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
 	if err := resp.Body.Close(); err != nil {
-		t.Logf("Failed to close response body: %v", err)
+		t.Fatalf("Failed to close response body: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -379,7 +379,7 @@ func TestHTTPServerContextCancellation(t *testing.T) {
 	// Wait for shutdown to complete with timeout
 	select {
 	case err := <-errCh:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err != nil && errors.Is(err, http.ErrServerClosed) {
 			t.Fatalf("Server shutdown error: %v", err)
 		}
 	case <-time.After(2 * time.Second):

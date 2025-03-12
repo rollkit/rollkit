@@ -6,19 +6,14 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/rollkit/go-da"
-	proxy "github.com/rollkit/go-da/proxy/jsonrpc"
 
 	rollconf "github.com/rollkit/rollkit/config"
 )
@@ -205,84 +200,7 @@ func TestCentralizedAddresses(t *testing.T) {
 
 	// Also confirm that the sequencer rollup id flag is marked as changed
 	if !cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-		t.Error("Expected flag \"node.sequencer_rollup_id\" to be marked as changed")
-	}
-}
-
-// MockServer wraps proxy.Server to allow us to control its behavior in tests
-type MockServer struct {
-	*proxy.Server
-	StartFunc func(context.Context) error
-	StopFunc  func(context.Context) error
-}
-
-func (m *MockServer) Start(ctx context.Context) error {
-	if m.StartFunc != nil {
-		return m.StartFunc(ctx)
-	}
-	return m.Server.Start(ctx)
-}
-
-func (m *MockServer) Stop(ctx context.Context) error {
-	if m.StopFunc != nil {
-		return m.StopFunc(ctx)
-	}
-	return m.Server.Stop(ctx)
-}
-
-func TestStartMockDAServJSONRPC(t *testing.T) {
-	tests := []struct {
-		name          string
-		daAddress     string
-		mockServerErr error
-		expectedErr   error
-	}{
-		{
-			name:          "Success",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: nil,
-			expectedErr:   nil,
-		},
-		{
-			name:          "Invalid URL",
-			daAddress:     "://invalid",
-			mockServerErr: nil,
-			expectedErr:   &url.Error{},
-		},
-		{
-			name:          "Server Already Running",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: syscall.EADDRINUSE,
-			expectedErr:   errDAServerAlreadyRunning,
-		},
-		{
-			name:          "Other Server Error",
-			daAddress:     "http://localhost:26657",
-			mockServerErr: errors.New("other error"),
-			expectedErr:   errors.New("other error"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			newServerFunc := func(hostname, port string, da da.DA) *proxy.Server {
-				mockServer := &MockServer{
-					Server: proxy.NewServer(hostname, port, da),
-				}
-				return mockServer.Server
-			}
-
-			srv, err := tryStartMockDAServJSONRPC(context.Background(), tt.daAddress, newServerFunc)
-
-			if tt.expectedErr != nil {
-				assert.Error(t, err)
-				assert.IsType(t, tt.expectedErr, err)
-				assert.Nil(t, srv)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, srv)
-			}
-		})
+		t.Error("Expected flag \"rollkit.sequencer_rollup_id\" to be marked as changed")
 	}
 }
 
@@ -462,8 +380,8 @@ func TestKVExecutorHTTPServerShutdown(t *testing.T) {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
-	if err := listener.Close(); err != nil { // Close the listener to free the port
-		t.Logf("Failed to close listener: %v", err)
+	if err := listener.Close(); err != nil {
+		t.Fatalf("Failed to close listener: %v", err)
 	}
 
 	// Set up the KV executor HTTP address
