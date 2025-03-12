@@ -18,7 +18,9 @@ type Block struct {
 
 The separation of header and data into distinct structures allows them to be processed independently. The `SignedHeader` struct now focuses on the header information, while the `Data` struct handles transaction data separately. This separation is particularly beneficial in unlocking based rollups, where users submit transactions directly to the Data Availability layer which acts as the entity responsible for creating the list of transactions.
 
-This change also affects how rollup full nodes sync. Previously, rollup full nodes would apply the transactions from the `Block` struct and verify that the `header` in `SignedHeader` matched their locally produced header. Now, with the separation, full nodes obtain the transaction data separately (via the DA layer directly in based sequencer mode, or via p2p gossip/DA layer in centralized sequencer mode) and verify it against the header signed by the header producer once they have both components. This ensures that the data integrity and consistency are maintained across the network.
+This change also affects how rollup full nodes sync. Previously, rollup full nodes would apply the transactions from the `Block` struct and verify that the `header` in `SignedHeader` matched their locally produced header. Now, with the separation, full nodes obtain the transaction data separately (via the DA layer directly in based sequencer mode, or via p2p gossip/DA layer in centralized sequencer mode) and verify it against the header signed by the header producer once they have both components. If a full node receives the header/data via a p2p gossip layer, they should wait to see the same header/data on the DA layer before marking the corresponding block as finalized in their view.
+
+This ensures that the data integrity and consistency are maintained across the network.
 
 ```go
 // SignedHeader struct focusing on header information
@@ -39,9 +41,19 @@ The `publishBlock` method in `manager.go` now creates the header and data struct
 
 ## Message Structure/Communication Format
 
-Before, only the entire `Block` struct composed of both header and data was submitted to the DA layer but after the separation, the `SignedHeader` and `Data` are submitted separately to the DA layer. The `SignedHeader` is linked to the `Data` via a Data commitment from the DA layer.
+### Header Producer
 
-In addition, before the `Block` and `SignedHeader` were both gossipped over a p2p layer to full nodes as well. But after the separation, `SignedHeader` and `Data` are gossipped over the p2p layer since the `Block` struct does not exist anymore and is broken down.
+Before the separation: Only the entire `Block` struct composed of both header and data was submitted to the DA layer. The `Block` and `SignedHeader` were both gossipped over two separate p2p layers: gossipping `Block` to just full nodes and gossipping the `SignedHeader` to full nodes and future rollup light nodes to join that will only sync headers (and proofs).
+
+After the separation: The `SignedHeader` and `Data` are submitted separately to the DA layer. Note that the `SignedHeader` has a `Header` that is linked to the `Data` via a `DataCommitment` from the DA layer. `SignedHeader` and `Data` are both gossipped over two separate p2p layers: gossipping `Data` to just full nodes and gossipping the `SignedHeader` to full nodes and future rollup light nodes to join that will only sync headers (and proofs).
+
+### Syncing Full Node
+
+Before the separation: Full Nodes get the entire `Block` struct via p2p or the DA layer. They can choose to apply the block as soon as they get it via p2p OR just wait to see it on the DA layer. This depends on whether a full node opts in to the p2p layer or not. Gossipping the `SignedHeader` over p2p is primarily for rollup light nodes to get the header.
+
+After the separation: Full nodes get the `Data` struct and the `SignedHeader` struct separately over p2p and DA layers. In code, this refers to the `HeaderStore` and the `DataStore` in block manager. A Full node should wait for having both the `Data` struct and the corresponding `SignedHeader` to it before applying the block data to its associated state machine. This is so that the full node can verify that its locally produced header's state commitment after it applies the `Data` associated to a block is consistent with the `Header` inside the `SignedHeader` that is received from the header producer. The `Header` should contain a link to its associated Data via a `DataCommitment` that is a pointer to the location of the `Data` on the DA layer. Before, a full node marks a block finalized, it should verify that both the `SignedHeader` and `Data` associated to it were made available on the DA layer by checking it directly or veriftying DA inclusion proofs. 
+
+Note that for based sequencing mode, this is not required and blocks can be instantly finalized since the `Data` is directly always derived from the DA layer and already exists there. There's also no need for a `SignedHeader` to exist on the DA layer.
 
 ## Assumptions and Considerations
 
