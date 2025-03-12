@@ -324,11 +324,12 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data []*coresequencer.Batc
 		}
 	}
 
-	if len(ids) == 0 {
+	// check if the ids are empty and if the length of ids is not equal to the length of blobs
+	if len(ids) == 0 || len(ids) != len(blobs) {
 		return ResultSubmitBatch{
 			BaseResult: BaseResult{
 				Code:    StatusError,
-				Message: "failed to submit data: unexpected len(ids): 0",
+				Message: fmt.Sprintf("failed to submit data: unexpected len(ids): %d, len(blobs): %d", len(ids), len(blobs)),
 			},
 		}
 	}
