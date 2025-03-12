@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -136,6 +138,30 @@ func NewRunNodeCmd() *cobra.Command {
 
 			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
+
+			// Configure logger format if specified
+			logFormat := viper.GetString("log_format")
+			if logFormat == "json" {
+				// Create a JSON logger using zerolog
+				jsonLogger, ok := logger.Impl().(zerolog.Logger)
+				if ok {
+					jsonLogger = jsonLogger.Output(zerolog.ConsoleWriter{
+						Out:        os.Stdout,
+						NoColor:    true,
+						TimeFormat: time.RFC3339,
+						FormatLevel: func(i interface{}) string {
+							return strings.ToUpper(fmt.Sprintf("%-6s", i))
+						},
+					})
+					logger = log.NewCustomLogger(jsonLogger)
+				}
+			}
+
+			// Add tracing to the logger if the flag is set
+			if viper.GetBool("trace") {
+				// Add trace information to the logger
+				logger = logger.With("trace", "true")
+			}
 
 			// create the rollkit node
 			rollnode, err := node.NewNode(
