@@ -30,7 +30,6 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
-	"github.com/rollkit/rollkit/p2p/key"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
@@ -310,17 +309,6 @@ func initFiles() error {
 		pv.Save()
 		logger.Info("Generated private validator", "keyFile", cometprivvalKeyFile,
 			"stateFile", cometprivvalStateFile)
-	}
-
-	// Generate the node key config files
-	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
-	if rollos.FileExists(nodeKeyFile) {
-		logger.Info("Found node key", "path", nodeKeyFile)
-	} else {
-		if _, err := key.LoadOrGenNodeKey(nodeKeyFile); err != nil {
-			return err
-		}
-		logger.Info("Generated node key", "path", nodeKeyFile)
 	}
 
 	// Generate the genesis file

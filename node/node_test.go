@@ -166,6 +166,7 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 // newTestNode creates a new test node based on the NodeType.
 func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, crypto.PrivKey, error) {
 	config := rollkitconfig.Config{
+		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,
@@ -183,6 +184,9 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
 	node, err := NewNode(

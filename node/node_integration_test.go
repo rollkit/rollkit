@@ -38,7 +38,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	s.errCh = make(chan error, 1)
 
 	// Setup node with proper configuration
-	config := getTestConfig(1)
+	config := getTestConfig(s.T(), 1)
 	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
 	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
 	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
@@ -52,6 +52,9 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(s.T(), err)
 
 	node, err := NewNode(
 		s.ctx,

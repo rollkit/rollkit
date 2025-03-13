@@ -46,6 +46,8 @@ const (
 // Those seed nodes serve Kademlia DHT protocol, and are agnostic to ORU chain. Using DHT
 // peer routing and discovery clients find other peers within ORU network.
 type Client struct {
+	logger log.Logger
+
 	conf    config.P2PConfig
 	chainID string
 	privKey crypto.PrivKey
@@ -56,12 +58,6 @@ type Client struct {
 	gater *conngater.BasicConnectionGater
 	ps    *pubsub.PubSub
 
-	// cancel is used to cancel context passed to libp2p functions
-	// it's required because of discovery.Advertise call
-	cancel context.CancelFunc
-
-	logger log.Logger
-
 	metrics *Metrics
 }
 
@@ -70,6 +66,10 @@ type Client struct {
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
 func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
+	if conf.RootDir == "" {
+		return nil, fmt.Errorf("rootDir is required")
+	}
+
 	if conf.P2P.ListenAddress == "" {
 		conf.P2P.ListenAddress = config.DefaultListenAddress
 	}
@@ -103,8 +103,6 @@ func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logge
 // 3. Setup DHT, establish connection to seed nodes and initialize peer discovery.
 // 4. Use active peer discovery to look for peers from same ORU network.
 func (c *Client) Start(ctx context.Context) error {
-	// create new, cancelable context
-	ctx, c.cancel = context.WithCancel(ctx)
 	c.logger.Debug("starting P2P client")
 	host, err := c.listen()
 	if err != nil {
@@ -149,7 +147,6 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 
 // Close gently stops Client.
 func (c *Client) Close() error {
-	c.cancel()
 
 	return errors.Join(
 		c.dht.Close(),

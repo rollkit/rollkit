@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -105,8 +106,20 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 
 	clients := make([]*Client, n)
 	for i := 0; i < n; i++ {
-		client, err := NewClient(config.Config{P2P: config.P2PConfig{Seeds: seeds[i]}},
-			conf[i].chainID, sync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics())
+		tempDir := filepath.Join(t.TempDir(), fmt.Sprintf("client_%d", i))
+		ClientInitFiles(t, tempDir)
+		client, err := NewClient(
+			config.Config{
+				RootDir: tempDir,
+				P2P: config.P2PConfig{
+					Seeds: seeds[i],
+				},
+			},
+			conf[i].chainID,
+			sync.MutexWrap(datastore.NewMapDatastore()),
+			logger,
+			NopMetrics(),
+		)
 		require.NoError(err)
 		require.NotNil(client)
 

@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -18,12 +20,19 @@ import (
 
 func TestClientStartup(t *testing.T) {
 	assert := assert.New(t)
+	// create temp config dir
+	tempDir := t.TempDir()
+	ClientInitFiles(t, tempDir)
+
 	testCases := []struct {
 		desc string
 		conf config.Config
 	}{
-		{"blank_config", config.Config{}},
+		{"blank_config", config.Config{
+			RootDir: tempDir,
+		}},
 		{"peer_whitelisting", config.Config{
+			RootDir: tempDir,
 			P2P: config.P2PConfig{
 				ListenAddress: "",
 				Seeds:         "",
@@ -35,6 +44,7 @@ func TestClientStartup(t *testing.T) {
 		{
 			"peer_blacklisting",
 			config.Config{
+				RootDir: tempDir,
 				P2P: config.P2PConfig{
 					ListenAddress: "",
 					Seeds:         "",
@@ -52,8 +62,10 @@ func TestClientStartup(t *testing.T) {
 			assert.NoError(err)
 			assert.NotNil(client)
 
-			err = client.Start(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			err = client.Start(ctx)
 			defer func() {
+				cancel()
 				_ = client.Close()
 			}()
 			assert.NoError(err)
@@ -142,8 +154,16 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := log.NewNopLogger()
-			client, err := NewClient(config.Config{}, "TestNetwork",
-				dssync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics())
+			tempDir := t.TempDir()
+			ClientInitFiles(t, tempDir)
+
+			client, err := NewClient(
+				config.Config{RootDir: tempDir},
+				"TestNetwork",
+				dssync.MutexWrap(datastore.NewMapDatastore()),
+				logger,
+				NopMetrics(),
+			)
 			require.NoError(err)
 			require.NotNil(client)
 			actual := client.parseAddrInfoList(c.input)
@@ -151,4 +171,15 @@ func TestSeedStringParsing(t *testing.T) {
 			assert.Equal(c.expected, actual)
 		})
 	}
+}
+
+// ClientInitFiles creates the config directory and nodekey file for the client
+func ClientInitFiles(t *testing.T, tempDir string) {
+	// Create config directory
+	configDir := filepath.Join(tempDir, "config")
+	err := os.MkdirAll(configDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create config directory: %v", err)
+	}
+
 }

@@ -3,6 +3,7 @@ package key
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -14,8 +15,58 @@ import (
 // NodeKey is the persistent peer key.
 // It contains the nodes private key for authentication.
 type NodeKey struct {
-	PrivKey crypto.PrivKey `json:"priv_key"` // our priv key
-	PubKey  crypto.PubKey  `json:"pub_key"`  // our pub key
+	PrivKey crypto.PrivKey // our priv key
+	PubKey  crypto.PubKey  // our pub key
+}
+
+type nodeKeyJSON struct {
+	PrivKeyBytes []byte `json:"priv_key"`
+	PubKeyBytes  []byte `json:"pub_key"`
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (nodeKey *NodeKey) MarshalJSON() ([]byte, error) {
+	if nodeKey.PrivKey == nil || nodeKey.PubKey == nil {
+		return nil, fmt.Errorf("nodeKey has nil key(s)")
+	}
+
+	privBytes, err := nodeKey.PrivKey.Raw()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key: %w", err)
+	}
+
+	pubBytes, err := nodeKey.PubKey.Raw()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %w", err)
+	}
+
+	return json.Marshal(nodeKeyJSON{
+		PrivKeyBytes: privBytes,
+		PubKeyBytes:  pubBytes,
+	})
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (nodeKey *NodeKey) UnmarshalJSON(data []byte) error {
+	aux := nodeKeyJSON{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	privKey, err := crypto.UnmarshalEd25519PrivateKey(aux.PrivKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal private key: %w", err)
+	}
+
+	pubKey, err := crypto.UnmarshalEd25519PublicKey(aux.PubKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal public key: %w", err)
+	}
+
+	nodeKey.PrivKey = privKey
+	nodeKey.PubKey = pubKey
+
+	return nil
 }
 
 // ID returns the peer's canonical ID - the hash of its public key.
@@ -25,6 +76,7 @@ func (nodeKey *NodeKey) ID() string {
 
 // SaveAs persists the NodeKey to filePath.
 func (nodeKey *NodeKey) SaveAs(filePath string) error {
+
 	jsonBytes, err := json.Marshal(nodeKey)
 	if err != nil {
 		return err
@@ -39,6 +91,9 @@ func (nodeKey *NodeKey) SaveAs(filePath string) error {
 // PubKeyToID returns the ID corresponding to the given PubKey.
 // It's the hex-encoding of the pubKey.Address().
 func PubKeyToID(pubKey crypto.PubKey) string {
+	if pubKey == nil {
+		return ""
+	}
 	raw, err := pubKey.Raw()
 	if err != nil {
 		return ""

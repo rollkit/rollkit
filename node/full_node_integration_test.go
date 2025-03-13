@@ -50,7 +50,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.errCh = make(chan error, 1)
 
 	// Setup node with proper configuration
-	config := getTestConfig(1)
+	config := getTestConfig(s.T(), 1)
 	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
 	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
 	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
@@ -68,6 +68,9 @@ func (s *FullNodeTestSuite) SetupTest() {
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(s.T(), err)
 
 	node, err := NewNode(
 		s.ctx,
@@ -308,7 +311,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.errCh = make(chan error, 1)
 
 	// Reconfigure node with low max pending
-	config := getTestConfig(1)
+	config := getTestConfig(s.T(), 1)
 	config.Node.MaxPendingBlocks = 2
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
@@ -317,6 +320,9 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(err)
 
 	node, err := NewNode(
 		s.ctx,
@@ -391,7 +397,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.errCh = make(chan error, 1)
 
 	// Create a NEW node instance instead of reusing the old one
-	config := getTestConfig(1)
+	config := getTestConfig(s.T(), 1)
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()

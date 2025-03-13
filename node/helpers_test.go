@@ -16,9 +16,10 @@ import (
 	"github.com/rollkit/rollkit/types"
 )
 
-func getTestConfig(n int) rollkitconfig.Config {
+func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 	startPort := 10000
 	return rollkitconfig.Config{
+		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{
 			Aggregator:       true,
 			ExecutorAddress:  MockExecutorAddress,
@@ -39,7 +40,7 @@ func getTestConfig(n int) rollkitconfig.Config {
 func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	// Create a cancellable context instead of using background context
 	ctx, cancel := context.WithCancel(context.Background())
-	config := getTestConfig(1)
+	config := getTestConfig(t, 1)
 
 	// Generate genesis and keys
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
@@ -48,6 +49,9 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(t, err)
 
 	node, err := NewNode(
 		ctx,
