@@ -9,18 +9,17 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
-	cmtcmd "github.com/cometbft/cometbft/cmd/cometbft/commands"
-	cometcli "github.com/cometbft/cometbft/libs/cli"
 	cometos "github.com/cometbft/cometbft/libs/os"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
 	comettime "github.com/cometbft/cometbft/types/time"
-	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -60,29 +59,6 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// use aggregator by default if the flag is not specified explicitly
-			if !cmd.Flags().Lookup("rollkit.aggregator").Changed {
-				nodeConfig.Aggregator = true
-			}
-
-			// Update log format if the flag is set
-			// if config.LogFormat == cometconf.LogFormatJSON {
-			// 	logger = cometlog.NewTMJSONLogger(cometlog.NewSyncWriter(os.Stdout))
-			// }
-
-			// // Parse the log level
-			// logger, err = cometflags.ParseLogLevel(config.LogLevel, logger, cometconf.DefaultLogLevel)
-			// if err != nil {
-			// 	return err
-			// }
-
-			// // Add tracing to the logger if the flag is set
-			// if viper.GetBool(cometcli.TraceFlag) {
-			// 	logger = cometlog.NewTracingLogger(logger)
-			// }
-
-			logger = logger.With("module", "main")
-
 			// Initialize the config files
 			return initFiles()
 		},
@@ -114,14 +90,14 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-				genDoc.ChainID = nodeConfig.SequencerRollupID
+				genDoc.ChainID = nodeConfig.Node.SequencerRollupID
 			}
 			sequencerRollupID := genDoc.ChainID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
 			var seqSrv *grpc.Server = nil
 			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.SequencerAddress, sequencerRollupID)
+				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.Node.SequencerAddress, sequencerRollupID)
 				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
 					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
 				}
@@ -133,7 +109,7 @@ func NewRunNodeCmd() *cobra.Command {
 				}()
 			}
 
-			logger.Info("Executor address", "address", nodeConfig.ExecutorAddress)
+			logger.Info("Executor address", "address", nodeConfig.Node.ExecutorAddress)
 
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())
@@ -141,8 +117,9 @@ func NewRunNodeCmd() *cobra.Command {
 
 			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
+
 			dummyDA := coreda.NewDummyDA(100_000)
-			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier, []byte(nodeConfig.DANamespace), []byte(nodeConfig.DASubmitOptions), logger)
+			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
 			// create the rollkit node
 			rollnode, err := node.NewNode(
 				ctx,
@@ -269,9 +246,6 @@ func NewRunNodeCmd() *cobra.Command {
 // addNodeFlags exposes some common configuration options on the command-line
 // These are exposed for convenience of commands embedding a rollkit node
 func addNodeFlags(cmd *cobra.Command) {
-	// Add cometBFT flags
-	cmtcmd.AddNodeFlags(cmd)
-
 	cmd.Flags().Bool("ci", false, "run node for ci testing")
 
 	// This is for testing only
@@ -388,57 +362,69 @@ func initFiles() error {
 }
 
 func parseConfig(cmd *cobra.Command) error {
-	// Set the root directory for the config to the home directory
-	home := os.Getenv("RKHOME")
-	if home == "" {
-		var err error
-		home, err = cmd.Flags().GetString(cometcli.HomeFlag)
-		if err != nil {
-			return err
-		}
+	// Load configuration with the correct order of precedence:
+	// DefaultNodeConfig -> Toml -> Flags
+	var err error
+	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
+	if err != nil {
+		return err
 	}
-	nodeConfig.RootDir = home
 
 	// Validate the root directory
 	rollconf.EnsureRoot(nodeConfig.RootDir)
 
-	// Parse the flags
-	if err := parseFlags(cmd); err != nil {
-		return err
-	}
+	// Setup logger with configuration from nodeConfig
+	logger = setupLogger(nodeConfig)
 
 	return nil
 }
 
-func parseFlags(cmd *cobra.Command) error {
-	v := viper.GetViper()
-	if err := v.BindPFlags(cmd.Flags()); err != nil {
-		return err
+// setupLogger configures and returns a logger based on the provided configuration.
+// It applies the following settings from the config:
+//   - Log format (text or JSON)
+//   - Log level (debug, info, warn, error)
+//   - Stack traces for error logs
+//
+// The returned logger is already configured with the "module" field set to "main".
+func setupLogger(config rollconf.Config) log.Logger {
+	// Configure basic logger options
+	var logOptions []log.Option
+
+	// Configure logger format
+	if config.Log.Format == "json" {
+		logOptions = append(logOptions, log.OutputJSONOption())
 	}
 
-	// unmarshal viper into config
-	err := v.Unmarshal(&nodeConfig, func(c *mapstructure.DecoderConfig) {
-		c.TagName = "mapstructure"
-		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
-			mapstructure.StringToTimeDurationHookFunc(),
-			mapstructure.StringToSliceHookFunc(","),
-		)
-	})
-	if err != nil {
-		return fmt.Errorf("unable to decode command flags into config: %w", err)
+	// Configure logger level
+	switch strings.ToLower(config.Log.Level) {
+	case "debug":
+		logOptions = append(logOptions, log.LevelOption(zerolog.DebugLevel))
+	case "info":
+		logOptions = append(logOptions, log.LevelOption(zerolog.InfoLevel))
+	case "warn":
+		logOptions = append(logOptions, log.LevelOption(zerolog.WarnLevel))
+	case "error":
+		logOptions = append(logOptions, log.LevelOption(zerolog.ErrorLevel))
 	}
 
-	// handle rollkit node configuration
-	if err := nodeConfig.GetViperConfig(v); err != nil {
-		return fmt.Errorf("unable to decode command flags into nodeConfig: %w", err)
+	// Configure stack traces
+	if config.Log.Trace {
+		logOptions = append(logOptions, log.TraceOption(true))
 	}
 
-	return nil
+	// Initialize logger with configured options
+	configuredLogger := log.NewLogger(os.Stdout)
+	if len(logOptions) > 0 {
+		configuredLogger = log.NewLogger(os.Stdout, logOptions...)
+	}
+
+	// Add module to logger
+	return configuredLogger.With("module", "main")
 }
 
 // RollkitGenesisDocProviderFunc returns a function that loads the GenesisDoc from the filesystem
 // using nodeConfig instead of config.
-func RollkitGenesisDocProviderFunc(nodeConfig rollconf.NodeConfig) func() (*comettypes.GenesisDoc, error) {
+func RollkitGenesisDocProviderFunc(nodeConfig rollconf.Config) func() (*comettypes.GenesisDoc, error) {
 	return func() (*comettypes.GenesisDoc, error) {
 		// Construct the genesis file path using rootify
 		genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")

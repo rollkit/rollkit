@@ -15,6 +15,8 @@ func TestDefaultInstrumentationConfig(t *testing.T) {
 	assert.Equal(t, ":26660", cfg.PrometheusListenAddr)
 	assert.Equal(t, 3, cfg.MaxOpenConnections)
 	assert.Equal(t, "rollkit", cfg.Namespace)
+	assert.False(t, cfg.Pprof)
+	assert.Equal(t, ":6060", cfg.PprofListenAddr)
 }
 
 func TestInstrumentationConfigValidateBasic(t *testing.T) {
@@ -98,6 +100,70 @@ func TestIsPrometheusEnabled(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, tc.cfg.IsPrometheusEnabled())
+		})
+	}
+}
+
+func TestIsPprofEnabled(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		cfg      *InstrumentationConfig
+		expected bool
+	}{
+		{
+			"pprof enabled",
+			&InstrumentationConfig{
+				Pprof: true,
+			},
+			true,
+		},
+		{
+			"pprof disabled",
+			&InstrumentationConfig{
+				Pprof: false,
+			},
+			false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.cfg.IsPprofEnabled())
+		})
+	}
+}
+
+func TestGetPprofListenAddr(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		cfg      *InstrumentationConfig
+		expected string
+	}{
+		{
+			"pprof address set",
+			&InstrumentationConfig{
+				PprofListenAddr:      ":8080",
+				PrometheusListenAddr: ":26660",
+			},
+			":8080",
+		},
+		{
+			"pprof address not set",
+			&InstrumentationConfig{
+				PprofListenAddr:      "",
+				PrometheusListenAddr: ":26660",
+			},
+			":6060",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.cfg.GetPprofListenAddr())
 		})
 	}
 }

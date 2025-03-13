@@ -34,29 +34,38 @@ func DefaultRootDir() string {
 }
 
 // DefaultNodeConfig keeps default values of NodeConfig
-var DefaultNodeConfig = NodeConfig{
+var DefaultNodeConfig = Config{
 	RootDir: DefaultRootDir(),
 	DBPath:  "data",
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
 	},
-	Aggregator: false,
-	BlockManagerConfig: BlockManagerConfig{
-		BlockTime:      1 * time.Second,
-		DABlockTime:    15 * time.Second,
-		LazyAggregator: false,
-		LazyBlockTime:  60 * time.Second,
+	Node: NodeConfig{
+		Aggregator:        true,
+		BlockTime:         1 * time.Second,
+		LazyAggregator:    false,
+		LazyBlockTime:     60 * time.Second,
+		Light:             false,
+		TrustedHash:       "",
+		SequencerAddress:  DefaultSequencerAddress,
+		SequencerRollupID: DefaultSequencerRollupID,
+		ExecutorAddress:   DefaultExecutorAddress,
 	},
-	DAAddress:       DefaultDAAddress,
-	DAGasPrice:      -1,
-	DAGasMultiplier: 0,
-	Light:           false,
-	HeaderConfig: HeaderConfig{
-		TrustedHash: "",
+	DA: DAConfig{
+		Address:       DefaultDAAddress,
+		BlockTime:     15 * time.Second,
+		GasPrice:      -1,
+		GasMultiplier: 0,
 	},
-	Instrumentation:   DefaultInstrumentationConfig(),
-	SequencerAddress:  DefaultSequencerAddress,
-	SequencerRollupID: DefaultSequencerRollupID,
-	ExecutorAddress:   DefaultExecutorAddress,
+	Instrumentation: DefaultInstrumentationConfig(),
+	Entrypoint:      "",
+	Chain: ChainConfig{
+		ConfigDir: DefaultConfigDir,
+	},
+	Log: LogConfig{
+		Level:  DefaultLogLevel,
+		Format: "",
+		Trace:  false,
+	},
 }

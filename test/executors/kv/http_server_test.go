@@ -320,8 +320,8 @@ func TestHTTPServerStartStop(t *testing.T) {
 	// Don't actually start the server in the test
 	testServer := &HTTPServer{
 		server: &http.Server{
-			Addr:              ":0", // Use a random port
-			ReadHeaderTimeout: 1 * time.Second,
+			Addr:              ":0",             // Use a random port
+			ReadHeaderTimeout: 10 * time.Second, // Add timeout to prevent Slowloris attacks
 		},
 		executor: exec,
 	}

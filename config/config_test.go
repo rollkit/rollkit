@@ -1,217 +1,178 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestGetNodeConfig(t *testing.T) {
-	t.Parallel()
+func TestDefaultNodeConfig(t *testing.T) {
+	// Test that default config has expected values
+	def := DefaultNodeConfig
 
-	cases := []struct {
-		name        string
-		viperValues map[string]interface{}
-		expected    NodeConfig
-	}{
-		{
-			"empty",
-			map[string]interface{}{},
-			NodeConfig{},
-		},
-		{
-			"Seeds",
-			map[string]interface{}{
-				"p2p.seeds": "seeds",
-			},
-			NodeConfig{P2P: P2PConfig{Seeds: "seeds"}},
-		},
-		{
-			"ListenAddress",
-			map[string]interface{}{
-				"p2p.laddr": "127.0.0.1:7676",
-			},
-			NodeConfig{P2P: P2PConfig{ListenAddress: "127.0.0.1:7676"}},
-		},
-		{
-			"RootDir",
-			map[string]interface{}{
-				"root_dir": "~/root",
-			},
-			NodeConfig{RootDir: "~/root"},
-		},
-		{
-			"DBPath",
-			map[string]interface{}{
-				"db_path": "./database",
-			},
-			NodeConfig{DBPath: "./database"},
-		},
-		{
-			"Instrumentation",
-			map[string]interface{}{
-				"instrumentation.prometheus":             true,
-				"instrumentation.prometheus_listen_addr": ":8888",
-				"instrumentation.max_open_connections":   5,
-				"instrumentation.namespace":              "rollkit",
-			},
-			NodeConfig{
-				Instrumentation: &InstrumentationConfig{
-					Prometheus:           true,
-					PrometheusListenAddr: ":8888",
-					MaxOpenConnections:   5,
-					Namespace:            "rollkit",
-				},
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			// Create a new Viper instance and set the values directly
-			v := viper.New()
-			for key, value := range c.viperValues {
-				v.Set(key, value)
-			}
-
-			// Read the config from Viper
-			var actual NodeConfig
-			err := actual.GetViperConfig(v)
-			assert.NoError(t, err)
-
-			if c.name == "Instrumentation" {
-				// Special handling for Instrumentation test case
-				assert.Equal(t, c.expected.Instrumentation.Prometheus, actual.Instrumentation.Prometheus)
-				assert.Equal(t, c.expected.Instrumentation.PrometheusListenAddr, actual.Instrumentation.PrometheusListenAddr)
-				assert.Equal(t, c.expected.Instrumentation.MaxOpenConnections, actual.Instrumentation.MaxOpenConnections)
-				assert.Equal(t, c.expected.Instrumentation.Namespace, actual.Instrumentation.Namespace)
-			} else {
-				assert.Equal(t, c.expected.RootDir, actual.RootDir)
-				assert.Equal(t, c.expected.DBPath, actual.DBPath)
-				if c.name == "Seeds" {
-					assert.Equal(t, c.expected.P2P.Seeds, actual.P2P.Seeds)
-				} else if c.name == "ListenAddress" {
-					assert.Equal(t, c.expected.P2P.ListenAddress, actual.P2P.ListenAddress)
-				}
-			}
-		})
-	}
+	assert.Equal(t, DefaultRootDir(), def.RootDir)
+	assert.Equal(t, "data", def.DBPath)
+	assert.Equal(t, true, def.Node.Aggregator)
+	assert.Equal(t, false, def.Node.Light)
+	assert.Equal(t, DefaultDAAddress, def.DA.Address)
+	assert.Equal(t, "", def.DA.AuthToken)
+	assert.Equal(t, float64(-1), def.DA.GasPrice)
+	assert.Equal(t, float64(0), def.DA.GasMultiplier)
+	assert.Equal(t, "", def.DA.SubmitOptions)
+	assert.Equal(t, "", def.DA.Namespace)
+	assert.Equal(t, 1*time.Second, def.Node.BlockTime)
+	assert.Equal(t, 15*time.Second, def.DA.BlockTime)
+	assert.Equal(t, uint64(0), def.DA.StartHeight)
+	assert.Equal(t, uint64(0), def.DA.MempoolTTL)
+	assert.Equal(t, uint64(0), def.Node.MaxPendingBlocks)
+	assert.Equal(t, false, def.Node.LazyAggregator)
+	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime)
+	assert.Equal(t, "", def.Node.TrustedHash)
+	assert.Equal(t, DefaultSequencerAddress, def.Node.SequencerAddress)
+	assert.Equal(t, DefaultSequencerRollupID, def.Node.SequencerRollupID)
+	assert.Equal(t, DefaultExecutorAddress, def.Node.ExecutorAddress)
 }
 
-// TestConfigFromViper tests that the config can be read directly from Viper
-func TestConfigFromViper(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name        string
-		viperValues map[string]interface{}
-		expected    NodeConfig
-	}{
-		{
-			"basic_config",
-			map[string]interface{}{
-				"root_dir":  "~/root",
-				"db_path":   "./database",
-				"p2p.laddr": "127.0.0.1:7676",
-				"p2p.seeds": "seeds",
-			},
-			NodeConfig{
-				RootDir: "~/root",
-				DBPath:  "./database",
-				P2P: P2PConfig{
-					ListenAddress: "127.0.0.1:7676",
-					Seeds:         "seeds",
-				},
-			},
-		},
-		{
-			"instrumentation_config",
-			map[string]interface{}{
-				"instrumentation.prometheus":             true,
-				"instrumentation.prometheus_listen_addr": ":8888",
-				"instrumentation.max_open_connections":   5,
-			},
-			NodeConfig{
-				Instrumentation: &InstrumentationConfig{
-					Prometheus:           true,
-					PrometheusListenAddr: ":8888",
-					MaxOpenConnections:   5,
-					Namespace:            "rollkit",
-				},
-			},
-		},
-		{
-			"rollkit_specific_config",
-			map[string]interface{}{
-				FlagAggregator: true,
-				FlagDAAddress:  "da-address",
-				FlagBlockTime:  "10s",
-			},
-			NodeConfig{
-				Aggregator: true,
-				DAAddress:  "da-address",
-				BlockManagerConfig: BlockManagerConfig{
-					BlockTime: 10 * time.Second,
-				},
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			v := viper.New()
-			for key, value := range c.viperValues {
-				v.Set(key, value)
-			}
-
-			var actual NodeConfig
-			err := actual.GetViperConfig(v)
-			assert.NoError(t, err)
-
-			if c.name == "instrumentation_config" {
-				// Special handling for Instrumentation test case
-				assert.Equal(t, c.expected.Instrumentation.Prometheus, actual.Instrumentation.Prometheus)
-				assert.Equal(t, c.expected.Instrumentation.PrometheusListenAddr, actual.Instrumentation.PrometheusListenAddr)
-				assert.Equal(t, c.expected.Instrumentation.MaxOpenConnections, actual.Instrumentation.MaxOpenConnections)
-				assert.Equal(t, c.expected.Instrumentation.Namespace, actual.Instrumentation.Namespace)
-			} else if c.name == "rollkit_specific_config" {
-				assert.Equal(t, c.expected.Aggregator, actual.Aggregator)
-				assert.Equal(t, c.expected.DAAddress, actual.DAAddress)
-				assert.Equal(t, c.expected.BlockManagerConfig.BlockTime, actual.BlockManagerConfig.BlockTime)
-			} else {
-				assert.Equal(t, c.expected.RootDir, actual.RootDir)
-				assert.Equal(t, c.expected.DBPath, actual.DBPath)
-				assert.Equal(t, c.expected.P2P.ListenAddress, actual.P2P.ListenAddress)
-				assert.Equal(t, c.expected.P2P.Seeds, actual.P2P.Seeds)
-			}
-		})
-	}
-}
-
-// TODO need to update this test to account for all fields
-func TestViperAndCobra(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
+func TestAddFlags(t *testing.T) {
 	cmd := &cobra.Command{}
 	AddFlags(cmd)
 
-	v := viper.GetViper()
-	assert.NoError(v.BindPFlags(cmd.Flags()))
+	// Test that all flags are added
+	flags := cmd.Flags()
 
-	assert.NoError(cmd.Flags().Set(FlagAggregator, "true"))
-	assert.NoError(cmd.Flags().Set(FlagDAAddress, `{"json":true}`))
-	assert.NoError(cmd.Flags().Set(FlagBlockTime, "1234s"))
-	assert.NoError(cmd.Flags().Set(FlagDANamespace, "0102030405060708"))
+	// Test root flags
+	assert.NotNil(t, flags.Lookup(FlagRootDir))
+	assert.NotNil(t, flags.Lookup(FlagDBPath))
 
-	nc := DefaultNodeConfig
+	// Test Rollkit flags
+	assert.NotNil(t, flags.Lookup(FlagAggregator))
+	assert.NotNil(t, flags.Lookup(FlagLazyAggregator))
+	assert.NotNil(t, flags.Lookup(FlagDAAddress))
+	assert.NotNil(t, flags.Lookup(FlagDAAuthToken))
+	assert.NotNil(t, flags.Lookup(FlagBlockTime))
+	assert.NotNil(t, flags.Lookup(FlagDABlockTime))
+	assert.NotNil(t, flags.Lookup(FlagDAGasPrice))
+	assert.NotNil(t, flags.Lookup(FlagDAGasMultiplier))
+	assert.NotNil(t, flags.Lookup(FlagDAStartHeight))
+	assert.NotNil(t, flags.Lookup(FlagDANamespace))
+	assert.NotNil(t, flags.Lookup(FlagDASubmitOptions))
+	assert.NotNil(t, flags.Lookup(FlagLight))
+	assert.NotNil(t, flags.Lookup(FlagTrustedHash))
+	assert.NotNil(t, flags.Lookup(FlagMaxPendingBlocks))
+	assert.NotNil(t, flags.Lookup(FlagDAMempoolTTL))
+	assert.NotNil(t, flags.Lookup(FlagLazyBlockTime))
+	assert.NotNil(t, flags.Lookup(FlagSequencerAddress))
+	assert.NotNil(t, flags.Lookup(FlagSequencerRollupID))
+	assert.NotNil(t, flags.Lookup(FlagExecutorAddress))
 
-	assert.NoError(nc.GetViperConfig(v))
+	// Test instrumentation flags
+	assert.NotNil(t, flags.Lookup(FlagPrometheus))
+	assert.NotNil(t, flags.Lookup(FlagPrometheusListenAddr))
+	assert.NotNil(t, flags.Lookup(FlagMaxOpenConnections))
 
-	assert.Equal(true, nc.Aggregator)
-	assert.Equal(`{"json":true}`, nc.DAAddress)
-	assert.Equal(1234*time.Second, nc.BlockTime)
+	// Test P2P flags
+	assert.NotNil(t, flags.Lookup(FlagP2PListenAddress))
+	assert.NotNil(t, flags.Lookup(FlagP2PSeeds))
+	assert.NotNil(t, flags.Lookup(FlagP2PBlockedPeers))
+	assert.NotNil(t, flags.Lookup(FlagP2PAllowedPeers))
+
+	// Test TOML config flags
+	assert.NotNil(t, flags.Lookup(FlagEntrypoint))
+	assert.NotNil(t, flags.Lookup(FlagChainConfigDir))
+
+	// Verify that there are no additional flags
+	// Count the number of flags we're explicitly checking
+	expectedFlagCount := 35 // Update this number if you add more flag checks above
+
+	// Get the actual number of flags
+	actualFlagCount := 0
+	flags.VisitAll(func(flag *pflag.Flag) {
+		actualFlagCount++
+	})
+
+	// Verify that the counts match
+	assert.Equal(
+		t,
+		expectedFlagCount,
+		actualFlagCount,
+		"Number of flags doesn't match. If you added a new flag, please update the test.",
+	)
+}
+
+func TestLoadNodeConfig(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Create a TOML file in the temporary directory
+	tomlPath := filepath.Join(tempDir, RollkitConfigToml)
+	tomlContent := `
+entrypoint = "./cmd/app/main.go"
+
+[node]
+aggregator = true
+block_time = "5s"
+
+[da]
+address = "http://toml-da:26657"
+
+[chain]
+config_dir = "config"
+`
+	err := os.WriteFile(tomlPath, []byte(tomlContent), 0600)
+	require.NoError(t, err)
+
+	// Change to the temporary directory so the config file can be found
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		err := os.Chdir(originalDir)
+		if err != nil {
+			t.Logf("Failed to change back to original directory: %v", err)
+		}
+	}()
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
+	// Verify that the TOML file exists
+	_, err = os.Stat(tomlPath)
+	require.NoError(t, err, "TOML file should exist at %s", tomlPath)
+
+	// Create a command with flags
+	cmd := &cobra.Command{Use: "test"}
+	AddFlags(cmd)
+
+	// Set some flags that should override TOML values
+	flagArgs := []string{
+		"--node.block_time", "10s",
+		"--da.address", "http://flag-da:26657",
+		"--node.light", "true", // This is not in TOML, should be set from flag
+	}
+	cmd.SetArgs(flagArgs)
+	err = cmd.ParseFlags(flagArgs)
+	require.NoError(t, err)
+
+	// Load the configuration
+	config, err := LoadNodeConfig(cmd)
+	require.NoError(t, err)
+
+	// Verify the order of precedence:
+	// 1. Default values should be overridden by TOML
+	assert.Equal(t, "./cmd/app/main.go", config.Entrypoint, "Entrypoint should be set from TOML")
+	assert.Equal(t, true, config.Node.Aggregator, "Aggregator should be set from TOML")
+
+	// 2. TOML values should be overridden by flags
+	assert.Equal(t, 10*time.Second, config.Node.BlockTime, "BlockTime should be overridden by flag")
+	assert.Equal(t, "http://flag-da:26657", config.DA.Address, "DAAddress should be overridden by flag")
+
+	// 3. Flags not in TOML should be set
+	assert.Equal(t, true, config.Node.Light, "Light should be set from flag")
+
+	// 4. Values not in flags or TOML should remain as default
+	assert.Equal(t, DefaultNodeConfig.DA.BlockTime, config.DA.BlockTime, "DABlockTime should remain as default")
 }

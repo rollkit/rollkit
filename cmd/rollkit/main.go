@@ -3,9 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-
-	"github.com/cometbft/cometbft/libs/cli"
 
 	cmd "github.com/rollkit/rollkit/cmd/rollkit/commands"
 	rollconf "github.com/rollkit/rollkit/config"
@@ -40,9 +37,7 @@ func main() {
 		return
 	}
 
-	// Prepare the base command and execute
-	executor := cli.PrepareBaseCmd(rootCmd, "RK", os.ExpandEnv(filepath.Join("$HOME", ".rollkit")))
-	if err := executor.Execute(); err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		// Print to stderr and exit with error
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

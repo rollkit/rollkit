@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	rollconf "github.com/rollkit/rollkit/config"
 )
@@ -25,12 +26,11 @@ func NewTomlCmd() *cobra.Command {
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitToml),
-	Long:  fmt.Sprintf("This command initializes a new %s file in the current directory.", rollconf.RollkitToml),
-	Run: func(cmd *cobra.Command, args []string) {
-		if _, err := os.Stat(rollconf.RollkitToml); err == nil {
-			fmt.Printf("%s file already exists in the current directory.\n", rollconf.RollkitToml)
-			os.Exit(1)
+	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitConfigToml),
+	Long:  fmt.Sprintf("This command initializes a new %s file in the current directory.", rollconf.RollkitConfigToml),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if _, err := os.Stat(rollconf.RollkitConfigToml); err == nil {
+			return fmt.Errorf("%s file already exists in the current directory", rollconf.RollkitConfigToml)
 		}
 
 		// try find main.go file under the current directory
@@ -49,19 +49,67 @@ var initCmd = &cobra.Command{
 			fmt.Printf("Found rollup configuration under %s, adding to rollkit.toml\n", chainConfigDir)
 		}
 
-		config := rollconf.TomlConfig{
-			Entrypoint: entrypoint,
-			Chain: rollconf.ChainTomlConfig{
-				ConfigDir: chainConfigDir,
-			},
+		// Create a config with default values
+		config := rollconf.DefaultNodeConfig
+
+		// Update with the values we found
+		config.Entrypoint = entrypoint
+		config.Chain.ConfigDir = chainConfigDir
+
+		// Set the root directory to the current directory
+		currentDir, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("error getting current directory: %w", err)
+		}
+		config.RootDir = currentDir
+
+		// Create a new Viper instance to avoid conflicts with any existing configuration
+		v := viper.New()
+
+		// Configure Viper to use the structure directly
+		v.SetConfigName(rollconf.ConfigBaseName)
+		v.SetConfigType(rollconf.ConfigExtension)
+		v.AddConfigPath(currentDir)
+
+		// Create a map with the configuration structure
+		// We need to handle time.Duration values specially to ensure they are serialized as human-readable strings
+		rollkitConfig := map[string]interface{}{
+			"aggregator":          config.Node.Aggregator,
+			"light":               config.Node.Light,
+			"block_time":          config.Node.BlockTime.String(),
+			"max_pending_blocks":  config.Node.MaxPendingBlocks,
+			"lazy_aggregator":     config.Node.LazyAggregator,
+			"lazy_block_time":     config.Node.LazyBlockTime.String(),
+			"trusted_hash":        config.Node.TrustedHash,
+			"sequencer_address":   config.Node.SequencerAddress,
+			"sequencer_rollup_id": config.Node.SequencerRollupID,
+			"executor_address":    config.Node.ExecutorAddress,
 		}
 
-		// marshal the config to a toml file in the current directory
-		if err := rollconf.WriteTomlConfig(config); err != nil {
-			fmt.Println("Error writing rollkit.toml file:", err)
-			os.Exit(1)
+		daConfig := map[string]interface{}{
+			"address":        config.DA.Address,
+			"auth_token":     config.DA.AuthToken,
+			"gas_price":      config.DA.GasPrice,
+			"gas_multiplier": config.DA.GasMultiplier,
+			"submit_options": config.DA.SubmitOptions,
+			"namespace":      config.DA.Namespace,
+			"block_time":     config.DA.BlockTime.String(),
+			"start_height":   config.DA.StartHeight,
+			"mempool_ttl":    config.DA.MempoolTTL,
 		}
 
-		fmt.Printf("Initialized %s file in the current directory.\n", rollconf.RollkitToml)
+		// Set the configuration values in Viper
+		v.Set("entrypoint", config.Entrypoint)
+		v.Set("chain", config.Chain)
+		v.Set("node", rollkitConfig)
+		v.Set("da", daConfig)
+
+		// Write the configuration file
+		if err := v.WriteConfigAs(rollconf.RollkitConfigToml); err != nil {
+			return fmt.Errorf("error writing rollkit.toml file: %w", err)
+		}
+
+		fmt.Printf("Initialized %s file in the current directory.\n", rollconf.RollkitConfigToml)
+		return nil
 	},
 }

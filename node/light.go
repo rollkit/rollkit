@@ -29,8 +29,7 @@ type LightNode struct {
 }
 
 func newLightNode(
-	ctx context.Context,
-	conf config.NodeConfig,
+	conf config.Config,
 	p2pKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
@@ -63,8 +62,8 @@ func newLightNode(
 	return node, nil
 }
 
-func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.Batching, error) {
-	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+func openDatastore(conf config.Config, logger log.Logger) (ds.Batching, error) {
+	if conf.RootDir == "" && conf.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
 	}

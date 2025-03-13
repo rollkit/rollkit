@@ -12,7 +12,7 @@ var (
 )
 
 // TranslateAddresses updates conf by changing Cosmos-style addresses to Multiaddr format.
-func TranslateAddresses(conf *NodeConfig) error {
+func TranslateAddresses(conf *Config) error {
 	if conf.P2P.ListenAddress != "" {
 		addr, err := GetMultiAddr(conf.P2P.ListenAddress)
 		if err != nil {

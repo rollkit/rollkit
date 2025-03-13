@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 	"crypto/rand"
-	"strconv"
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,20 +27,22 @@ func generateSingleKey() crypto.PrivKey {
 	return key
 }
 
-func getTestConfig(n int) rollkitconfig.NodeConfig {
+func getTestConfig(n int) rollkitconfig.Config {
 	startPort := 10000
-	return rollkitconfig.NodeConfig{
-		Aggregator:       true,
-		DAAddress:        MockDAAddress,
-		DANamespace:      MockDANamespace,
-		ExecutorAddress:  MockExecutorAddress,
-		SequencerAddress: MockSequencerAddress,
-		BlockManagerConfig: rollkitconfig.BlockManagerConfig{
-			BlockTime:     500 * time.Millisecond,
-			LazyBlockTime: 5 * time.Second,
+	return rollkitconfig.Config{
+		Node: rollkitconfig.NodeConfig{
+			Aggregator:       true,
+			ExecutorAddress:  MockExecutorAddress,
+			SequencerAddress: MockSequencerAddress,
+			BlockTime:        500 * time.Millisecond,
+			LazyBlockTime:    5 * time.Second,
+		},
+		DA: rollkitconfig.DAConfig{
+			Address:   MockDAAddress,
+			Namespace: MockDANamespace,
 		},
 		P2P: rollkitconfig.P2PConfig{
-			ListenAddress: "/ip4/127.0.0.1/tcp/" + strconv.Itoa(startPort+n),
+			ListenAddress: fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", startPort+n),
 		},
 	}
 }
