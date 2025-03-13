@@ -8,6 +8,30 @@ This document specifies a minimal header format for Rollkit, designed to elimina
 
 The Rollkit minimal header is a streamlined version of the traditional header, focusing on essential information required for block processing and state management for rollup nodes. This header format is designed to be lightweight and efficient, facilitating faster processing and reduced overhead.
 
+### Rollkit Minimal Header Structure
+
+```
+┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+├─────────────────────┬───────────────────────┤
+│ ParentHash          │ Hash of previous block│
+├─────────────────────┼───────────────────────┤
+│ Height              │ Block number          │
+├─────────────────────┼───────────────────────┤
+│ Timestamp           │ Creation time         │
+├─────────────────────┼───────────────────────┤
+│ ChainID             │ Chain identifier      │
+├─────────────────────┼───────────────────────┤
+│ DataCommitment      │ Pointer to block data │
+│                     │ on DA layer           │
+├─────────────────────┼───────────────────────┤
+│ StateRoot           │ State commitment      │
+├─────────────────────┼───────────────────────┤
+│ ExtraData           │ Additional metadata   │
+│                     │ (e.g. sequencer info) │
+└─────────────────────┴───────────────────────┘
+```
+
 ## Message Structure/Communication Format
 
 The header is defined in GoLang as follows:
@@ -43,6 +67,40 @@ This minimal Rollkit header can be transformed to be tailored to a specific exec
 - `Gas Limit`: Max gas allowed in the block.
 - `Gas Used`: Total gas consumed in this block.
 
+#### Transformation to EVM Header
+
+```
+┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+└───────────────────┬─────────────────────────┘
+                    │
+                    ▼ Transform
+┌─────────────────────────────────────────────┐
+│               EVM Header                    │
+├─────────────────────┬───────────────────────┤
+│ ParentHash          │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ Height/Number       │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ Timestamp           │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ ChainID             │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ TransactionsRoot    │ Derived from          │
+│                     │ DataCommitment        │
+├─────────────────────┼───────────────────────┤
+│ StateRoot           │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ ReceiptsRoot        │ Added by EVM client   │
+├─────────────────────┼───────────────────────┤
+│ GasLimit            │ Added by EVM client   │
+├─────────────────────┼───────────────────────┤
+│ GasUsed             │ Added by EVM client   │
+├─────────────────────┼───────────────────────┤
+│ ExtraData           │ From Rollkit Header   │
+└─────────────────────┴───────────────────────┘
+```
+
 ### ABCI Execution
 
 This header can be transformed into an ABCI-specific header for IBC compatibility.
@@ -58,11 +116,69 @@ This header can be transformed into an ABCI-specific header for IBC compatibilit
 - `LastResultsHash`: Root hash of all results from the transactions from the previous block.
 - `ProposerAddress`: The address of the block proposer, allowing IBC clients to track and verify the entities proposing new blocks. Can be constructed from the `extraData` field in the Rollkit Header.
 
+#### Transformation to ABCI Header
+
+```
+┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+└───────────────────┬─────────────────────────┘
+                    │
+                    ▼ Transform
+┌─────────────────────────────────────────────┐
+│               ABCI Header                   │
+├─────────────────────┬───────────────────────┤
+│ Height              │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ Time                │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ ChainID             │ From Rollkit Header   │
+├─────────────────────┼───────────────────────┤
+│ AppHash             │ From StateRoot        │
+├─────────────────────┼───────────────────────┤
+│ DataHash            │ From DataCommitment   │
+├─────────────────────┼───────────────────────┤
+│ Version             │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ LastCommitHash      │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ ValidatorHash       │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ NextValidatorsHash  │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ ConsensusHash       │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ EvidenceHash        │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ LastResultsHash     │ Added for IBC         │
+├─────────────────────┼───────────────────────┤
+│ ProposerAddress     │ From ExtraData        │
+└─────────────────────┴───────────────────────┘
+```
+
 ## Assumptions and Considerations
 
 - The Rollkit minimal header is designed to be flexible and adaptable, allowing for integration with various execution layers such as EVM and ABCI, without being constrained by CometBFT's header format.
 - The `extraData` field provides a mechanism for including additional metadata, such as sequencer information, which can be crucial for certain rollup configurations.
 - The transformation of the Rollkit header into execution layer-specific headers should be done carefully to ensure compatibility and correctness, especially for IBC and any other cross-chain communication protocols.
+
+### Header Transformation Flow
+
+```
+┌─────────────────────────────────────────────┐
+│             Rollkit Minimal Header          │
+│                                             │
+│  A lightweight, flexible header format      │
+│  with essential fields for block processing │
+└───────────┬─────────────────┬───────────────┘
+            │                 │
+            ▼                 ▼
+┌───────────────────┐ ┌─────────────────────┐
+│  EVM Header       │ │  ABCI Header        │
+│                   │ │                     │
+│  For EVM-based    │ │  For IBC-compatible │
+│  execution layers │ │  execution layers   │
+└───────────────────┘ └─────────────────────┘
+```
 
 ## Implementation
 
