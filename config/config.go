@@ -103,6 +103,7 @@ const (
 )
 
 // DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
+// needed for TOML marshalling/unmarshalling especially for time.Duration
 type DurationWrapper struct {
 	time.Duration
 }
@@ -137,8 +138,8 @@ func (d *DurationWrapper) UnmarshalTOML(v interface{}) error {
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir    string      `mapstructure:"home" toml:"RootDir" comment:"Root directory for all data"`
-	DBPath     string      `mapstructure:"db_path" toml:"DBPath" comment:"Path to the database directory"`
+	RootDir    string      `mapstructure:"home" toml:"RootDir" comment:"Root directory where rollkit files are located"`
+	DBPath     string      `mapstructure:"db_path" toml:"DBPath" comment:"Path inside the root directory where the database is located"`
 	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint" comment:"Path to the rollup entrypoint (main.go)"`
 	Chain      ChainConfig `mapstructure:"chain" toml:"chain"`
 
@@ -160,15 +161,15 @@ type Config struct {
 
 // DAConfig contains all Data Availability configuration parameters
 type DAConfig struct {
-	Address       string          `mapstructure:"address" toml:"address" comment:"Address of the data availability layer"`
-	AuthToken     string          `mapstructure:"auth_token" toml:"auth_token" comment:"Authentication token for the data availability layer"`
-	GasPrice      float64         `mapstructure:"gas_price" toml:"gas_price" comment:"Gas price for the data availability layer"`
-	GasMultiplier float64         `mapstructure:"gas_multiplier" toml:"gas_multiplier" comment:"Gas price multiplier for retries"`
-	SubmitOptions string          `mapstructure:"submit_options" toml:"submit_options" comment:"Options for data availability submission"`
-	Namespace     string          `mapstructure:"namespace" toml:"namespace" comment:"Namespace ID for the data availability layer"`
-	BlockTime     DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Block time for the data availability layer (duration)"`
-	StartHeight   uint64          `mapstructure:"start_height" toml:"start_height" comment:"Starting height for the data availability layer"`
-	MempoolTTL    uint64          `mapstructure:"mempool_ttl" toml:"mempool_ttl" comment:"Time-to-live for mempool transactions"`
+	Address       string          `mapstructure:"address" toml:"address" comment:"Address of the data availability layer service (host:port). This is the endpoint where Rollkit will connect to submit and retrieve data."`
+	AuthToken     string          `mapstructure:"auth_token" toml:"auth_token" comment:"Authentication token for the data availability layer service. Required if the DA service needs authentication."`
+	GasPrice      float64         `mapstructure:"gas_price" toml:"gas_price" comment:"Gas price for data availability transactions. Use -1 for automatic gas price determination. Higher values may result in faster inclusion."`
+	GasMultiplier float64         `mapstructure:"gas_multiplier" toml:"gas_multiplier" comment:"Multiplier applied to gas price when retrying failed DA submissions. Values > 1 increase gas price on retries to improve chances of inclusion."`
+	SubmitOptions string          `mapstructure:"submit_options" toml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
+	Namespace     string          `mapstructure:"namespace" toml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer. Helps segregate data from different rollups on the same DA layer."`
+	BlockTime     DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Average block time of the DA chain (duration). Used for syncing and calculating retry intervals for DA submissions."`
+	StartHeight   uint64          `mapstructure:"start_height" toml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new rollup on an existing DA chain."`
+	MempoolTTL    uint64          `mapstructure:"mempool_ttl" toml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
 }
 
 // NodeConfig contains all Rollkit specific configuration parameters
@@ -184,7 +185,7 @@ type NodeConfig struct {
 	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" toml:"lazy_block_time" comment:"Block time in lazy mode (duration)"`
 
 	// Header configuration
-	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash" comment:"Trusted hash for the chain"`
+	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis."`
 
 	// Sequencer configuration
 	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address" comment:"Address of the sequencer middleware"`
