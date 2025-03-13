@@ -56,13 +56,7 @@ func (s *DefaultStore) SetHeight(ctx context.Context, height uint64) error {
 	}
 
 	heightBytes := encodeHeight(height)
-	err := s.db.Put(ctx, ds.NewKey(getHeightKey()), heightBytes)
-	if err != nil {
-		// Since we can't return an error due to interface constraints,
-		// we silently fail but return without updating if there's an error
-		return fmt.Errorf("failed to store height: %w", err)
-	}
-	return nil
+	return s.db.Put(ctx, ds.NewKey(getHeightKey()), heightBytes)
 }
 
 // Height returns height of the highest block saved in the Store.
