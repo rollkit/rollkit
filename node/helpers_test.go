@@ -2,13 +2,11 @@ package node
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
 	rollkitconfig "github.com/rollkit/rollkit/config"
@@ -17,15 +15,6 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/types"
 )
-
-// generateSingleKey generates a single Ed25519 key for testing
-func generateSingleKey() crypto.PrivKey {
-	key, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-	return key
-}
 
 func getTestConfig(n int) rollkitconfig.Config {
 	startPort := 10000

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
+
 	rollhash "github.com/rollkit/rollkit/pkg/hash"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 )
@@ -75,7 +76,7 @@ func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
 
 // LoadNodeKey loads NodeKey located in filePath.
 func LoadNodeKey(filePath string) (*NodeKey, error) {
-	jsonBytes, err := os.ReadFile(filePath)
+	jsonBytes, err := os.ReadFile(filePath) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}

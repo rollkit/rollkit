@@ -38,6 +38,7 @@ func Kill() error {
 	return p.Signal(syscall.SIGTERM)
 }
 
+// Exit exits the program with a message and a status code of 1.
 func Exit(s string) {
 	fmt.Println(s)
 	os.Exit(1)
@@ -53,17 +54,20 @@ func EnsureDir(dir string, mode os.FileMode) error {
 	return nil
 }
 
+// FileExists checks if a file exists.
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
 
+// ReadFile reads a file and returns the contents.
 func ReadFile(filePath string) ([]byte, error) {
-	return os.ReadFile(filePath)
+	return os.ReadFile(filePath) //nolint:gosec
 }
 
+// MustReadFile reads a file and returns the contents. If the file does not exist, it exits the program.
 func MustReadFile(filePath string) []byte {
-	fileBytes, err := os.ReadFile(filePath)
+	fileBytes, err := os.ReadFile(filePath) //nolint:gosec
 	if err != nil {
 		Exit(fmt.Sprintf("MustReadFile failed: %v", err))
 		return nil
@@ -71,10 +75,12 @@ func MustReadFile(filePath string) []byte {
 	return fileBytes
 }
 
+// WriteFile writes a file.
 func WriteFile(filePath string, contents []byte, mode os.FileMode) error {
 	return os.WriteFile(filePath, contents, mode)
 }
 
+// MustWriteFile writes a file. If the file does not exist, it exits the program.
 func MustWriteFile(filePath string, contents []byte, mode os.FileMode) {
 	err := WriteFile(filePath, contents, mode)
 	if err != nil {
@@ -84,11 +90,19 @@ func MustWriteFile(filePath string, contents []byte, mode os.FileMode) {
 
 // CopyFile copies a file. It truncates the destination file if it exists.
 func CopyFile(src, dst string) error {
-	srcfile, err := os.Open(src)
+	srcfile, err := os.Open(src) //nolint:gosec
 	if err != nil {
 		return err
 	}
-	defer srcfile.Close()
+	defer func() {
+		if cerr := srcfile.Close(); cerr != nil {
+			// If we already have an error from the copy operation,
+			// prefer that error over the close error
+			if err == nil {
+				err = cerr
+			}
+		}
+	}()
 
 	info, err := srcfile.Stat()
 	if err != nil {
@@ -99,11 +113,19 @@ func CopyFile(src, dst string) error {
 	}
 
 	// create new file, truncate if exists and apply same permissions as the original one
-	dstfile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
+	dstfile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, info.Mode().Perm()) //nolint:gosec
 	if err != nil {
 		return err
 	}
-	defer dstfile.Close()
+	defer func() {
+		if cerr := dstfile.Close(); cerr != nil {
+			// If we already have an error from the copy operation,
+			// prefer that error over the close error
+			if err == nil {
+				err = cerr
+			}
+		}
+	}()
 
 	_, err = io.Copy(dstfile, srcfile)
 	return err

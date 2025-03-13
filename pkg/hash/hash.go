@@ -3,6 +3,7 @@ package crypto
 import "crypto/sha256"
 
 const (
+	// TruncatedSize is the size of the truncated hash.
 	TruncatedSize = 32
 )
 
