@@ -12,18 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/crypto/pb"
 
 	"github.com/rollkit/go-sequencing"
 
@@ -1093,17 +1089,13 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	return m.proposerKey.Sign(b)
 }
 
-func (m *Manager) getTxsFromBatch() (cmtypes.Txs, *time.Time, error) {
+func (m *Manager) getTxsFromBatch() ([][]byte, *time.Time, error) {
 	batch := m.bq.Next()
 	if batch == nil {
 		// batch is nil when there is nothing to process
 		return nil, nil, ErrNoBatch
 	}
-	txs := make(cmtypes.Txs, 0, len(batch.Transactions))
-	for _, tx := range batch.Transactions {
-		txs = append(txs, tx)
-	}
-	return txs, &batch.Time, nil
+	return batch.Transactions, &batch.Time, nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1163,11 +1155,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		//extendedCommit, err := m.getExtendedCommit(ctx, height)
-		extendedCommit := abci.ExtendedCommitInfo{}
-		// if err != nil {
-		// 	return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
-		// }
 
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
@@ -1198,7 +1185,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Debug("No batch available, creating empty block")
 			// Create an empty block instead of returning
-			txs = cmtypes.Txs{}
+			txs = [][]byte{}
 			timestamp = &time.Time{}
 			*timestamp = time.Now()
 		} else if err != nil {
@@ -1209,7 +1196,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, txs, *timestamp)
 		if err != nil {
 			return err
 		}
@@ -1327,22 +1314,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 }
 
 func (m *Manager) sign(payload []byte) ([]byte, error) {
-	var sig []byte
-	switch m.proposerKey.Type() {
-	case pb.KeyType_Ed25519:
-		return m.proposerKey.Sign(payload)
-	case pb.KeyType_Secp256k1:
-		k := m.proposerKey.(*crypto.Secp256k1PrivateKey)
-		rawBytes, err := k.Raw()
-		if err != nil {
-			return nil, err
-		}
-		priv, _ := secp256k1.PrivKeyFromBytes(rawBytes)
-		sig = ecdsa.SignCompact(priv, cmcrypto.Sha256(payload), false)
-		return sig[1:], nil
-	default:
-		return nil, fmt.Errorf("unsupported private key type: %T", m.proposerKey)
-	}
+	return m.proposerKey.Sign(payload)
 }
 
 func (m *Manager) recordMetrics(data *types.Data) {
@@ -1496,10 +1468,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
@@ -1518,8 +1490,7 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ abci.ExtendedCommitInfo, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
-
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{

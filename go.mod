@@ -6,7 +6,6 @@ retract v0.12.0 // Published by accident
 
 require (
 	cosmossdk.io/log v1.5.0
-	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.15
@@ -42,7 +41,6 @@ require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/bytedance/sonic v1.12.3 // indirect
 	github.com/bytedance/sonic/loader v0.2.0 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect

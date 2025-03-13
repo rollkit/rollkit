@@ -25,6 +25,18 @@ func (c *DummyClient) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return c.da.MaxBlobSize(ctx)
 }
 
+// GasPrice returns the gas price for the DA layer
+func (c *DummyClient) GasPrice(ctx context.Context) (float64, error) {
+	// Delegate to the underlying DA implementation
+	return c.da.GasPrice(ctx)
+}
+
+// GasMultiplier returns the gas multiplier for the DA layer
+func (c *DummyClient) GasMultiplier(ctx context.Context) (float64, error) {
+	// Delegate to the underlying DA implementation
+	return c.da.GasMultiplier(ctx)
+}
+
 // SubmitHeaders submits block headers to DA layer
 func (c *DummyClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmit {
 	// Convert headers to blobs
