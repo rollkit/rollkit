@@ -3,7 +3,6 @@ package types
 import (
 	cryptoRand "crypto/rand"
 	"errors"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -12,9 +11,9 @@ import (
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	"github.com/cometbft/cometbft/p2p"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/rollkit/rollkit/p2p/key"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -246,26 +245,12 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.Priv
 }
 
 // GetNodeKey creates libp2p private key from Tendermints NodeKey.
-func GetNodeKey(nodeKey *p2p.NodeKey) (crypto.PrivKey, error) {
-	if nodeKey == nil || nodeKey.PrivKey == nil {
+func GetNodeKey(nodeKey *key.NodeKey) (crypto.PrivKey, error) {
+	if nodeKey.PrivKey == nil {
 		return nil, errNilKey
 	}
-	switch nodeKey.PrivKey.Type() {
-	case "ed25519":
-		privKey, err := crypto.UnmarshalEd25519PrivateKey(nodeKey.PrivKey.Bytes())
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling node private key: %w", err)
-		}
-		return privKey, nil
-	case "secp256k1":
-		privKey, err := crypto.UnmarshalSecp256k1PrivateKey(nodeKey.PrivKey.Bytes())
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling node private key: %w", err)
-		}
-		return privKey, nil
-	default:
-		return nil, errUnsupportedKeyType
-	}
+
+	return nodeKey.PrivKey, nil
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
@@ -344,7 +329,7 @@ func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*cmtypes.Gene
 
 // PrivKeyToSigningKey converts a privKey to a signing key
 func PrivKeyToSigningKey(privKey cmcrypto.PrivKey) (crypto.PrivKey, error) {
-	nodeKey := &p2p.NodeKey{
+	nodeKey := &key.NodeKey{
 		PrivKey: privKey,
 	}
 	signingKey, err := GetNodeKey(nodeKey)

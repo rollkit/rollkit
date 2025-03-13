@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -30,9 +30,9 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
+	"github.com/rollkit/rollkit/p2p/key"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
-	rolltypes "github.com/rollkit/rollkit/types"
 )
 
 var (
@@ -68,11 +68,12 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
+			// TODO: this should be moved elsewhere
 			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
 			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
 			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 
-			signingKey, err := rolltypes.GetNodeKey(&cometp2p.NodeKey{PrivKey: pval.Key.PrivKey})
+			signingKey, err := crypto.UnmarshalEd25519PrivateKey(pval.Key.PrivKey.Bytes())
 			if err != nil {
 				return err
 			}
@@ -316,7 +317,7 @@ func initFiles() error {
 	if rollos.FileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
-		if _, err := cometp2p.LoadOrGenNodeKey(nodeKeyFile); err != nil {
+		if _, err := key.LoadOrGenNodeKey(nodeKeyFile); err != nil {
 			return err
 		}
 		logger.Info("Generated node key", "path", nodeKeyFile)

@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -27,8 +26,9 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/p2p/key"
+	rollhash "github.com/rollkit/rollkit/pkg/hash"
 	"github.com/rollkit/rollkit/third_party/log"
-	rolltypes "github.com/rollkit/rollkit/types"
 )
 
 // TODO(tzdybal): refactor to configuration parameters
@@ -80,12 +80,7 @@ func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logge
 	}
 
 	nodeKeyFile := filepath.Join(conf.RootDir, "config", "node_key.json")
-	nodeKey, err := p2p.LoadOrGenNodeKey(nodeKeyFile) //TODO: replace with local creation
-	if err != nil {
-		return nil, err
-	}
-
-	p2pKey, err := rolltypes.GetNodeKey(nodeKey)
+	nodeKey, err := key.LoadOrGenNodeKey(nodeKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +88,7 @@ func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logge
 	return &Client{
 		conf:    conf.P2P,
 		gater:   gater,
-		privKey: p2pKey,
+		privKey: nodeKey.PrivKey,
 		chainID: chainID,
 		logger:  logger,
 		metrics: metrics,
@@ -183,21 +178,12 @@ func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
 }
 
 // Info returns client ID, ListenAddr, and Network info
-func (c *Client) Info() (p2p.ID, string, string, error) {
+func (c *Client) Info() (string, string, string, error) {
 	rawKey, err := c.privKey.GetPublic().Raw()
 	if err != nil {
 		return "", "", "", err
 	}
-	return p2p.ID(hex.EncodeToString(sumTruncated(rawKey))), c.conf.ListenAddress, c.chainID, nil
-}
-
-// PeerConnection describe basic information about P2P connection.
-// TODO(tzdybal): move it somewhere
-type PeerConnection struct {
-	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
-	IsOutbound       bool                 `json:"is_outbound"`
-	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
-	RemoteIP         string               `json:"remote_ip"`
+	return hex.EncodeToString(rollhash.SumTruncated(rawKey)), c.conf.ListenAddress, c.chainID, nil
 }
 
 // PeerIDs returns list of peer IDs of connected peers excluding self and inactive
@@ -380,10 +366,4 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
-}
-
-// -------
-func sumTruncated(bz []byte) []byte {
-	hash := sha256.Sum256(bz)
-	return hash[:20]
 }

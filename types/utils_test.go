@@ -3,13 +3,13 @@ package types
 import (
 	"testing"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/crypto/secp256k1"
-	"github.com/cometbft/cometbft/crypto/sr25519"
-	"github.com/cometbft/cometbft/p2p"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/crypto/pb"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rollkit/rollkit/p2p/key"
 )
 
 func TestGetRandomTx(t *testing.T) {
@@ -67,25 +67,25 @@ func TestGetRandomHeader(t *testing.T) {
 func TestGetNodeKey(t *testing.T) {
 	t.Parallel()
 
-	ed25519Key := p2p.NodeKey{
-		PrivKey: ed25519.GenPrivKey(),
+	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(t, err)
+	ed25519Key := key.NodeKey{
+		PrivKey: privKey,
+		PubKey:  pubKey,
 	}
-	secp256k1Key := p2p.NodeKey{
-		PrivKey: secp256k1.GenPrivKey(),
-	}
-	invalid := p2p.NodeKey{
-		PrivKey: sr25519.GenPrivKey(),
+	invalid := key.NodeKey{
+		PrivKey: nil,
+		PubKey:  nil,
 	}
 
 	cases := []struct {
 		name         string
-		input        *p2p.NodeKey
+		input        *key.NodeKey
 		expectedType pb.KeyType
 		err          error
 	}{
 		{"nil", nil, pb.KeyType(-1), errNilKey},
-		{"empty", &p2p.NodeKey{}, pb.KeyType(-1), errNilKey},
-		{"secp256k1", &secp256k1Key, pb.KeyType_Secp256k1, nil},
+		{"empty", &key.NodeKey{}, pb.KeyType(-1), errNilKey},
 		{"ed25519", &ed25519Key, pb.KeyType_Ed25519, nil},
 		{"invalid", &invalid, pb.KeyType(-1), errUnsupportedKeyType},
 	}
