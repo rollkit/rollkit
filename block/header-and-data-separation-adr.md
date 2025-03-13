@@ -32,20 +32,20 @@ type SignedHeader struct {
 
 // Header struct focusing on header information
 type Header struct {
-	// Height represents the block height (aka block number) of a given header
-	Height uint64
-	// Time contains Unix nanotime of a block
-	Time uint64
-	// The Chain ID
-	ChainID string
-	// Block and app version
-	Version Version
-	// prev block info
-	LastHeaderHash Hash
-	// Pointer to location of associated block data in the DA layer
-	DataCommitment Hash
-	// Commitment representing the state linked to the header
-	StateCommitment Hash
+    // Hash of the previous rollup block header.
+    ParentHash Hash
+    // Height represents the block height (aka block number) of a given header
+    Height uint64
+    // Block creation timestamp
+    Timestamp uint64
+    // The Chain ID
+    ChainID string
+    // Pointer to location of associated block data aka transactions in the DA layer
+    DataCommitment Hash
+    // Commitment representing the state linked to the header
+    StateRoot Hash
+    // Arbitrary field for additional metadata
+    ExtraData []byte
 }
 
 // Data defines Rollkit block data.
