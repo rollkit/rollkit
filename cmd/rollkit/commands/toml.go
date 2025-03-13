@@ -73,7 +73,7 @@ var initCmd = &cobra.Command{
 		}
 
 		// Write the TOML data to the file
-		if err := os.WriteFile(rollconf.RollkitConfigToml, buf.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(rollconf.RollkitConfigToml, buf.Bytes(), 0600); err != nil {
 			return fmt.Errorf("error writing rollkit.toml file: %w", err)
 		}
 
