@@ -804,5 +804,5 @@ func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
 	require.NoError(t, err, "Expected no error for valid batch")
 	assert.Len(t, txs, 2, "Expected 2 transactions")
 	assert.NotNil(t, timestamp, "Timestamp should not be nil for valid batch")
-	assert.Equal(t, cmtypes.Txs{cmtypes.Tx([]byte("tx1")), cmtypes.Tx([]byte("tx2"))}, txs, "Transactions do not match")
+	assert.Equal(t, [][]byte{[]byte("tx1"), []byte("tx2")}, txs, "Transactions do not match")
 }

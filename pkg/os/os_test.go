@@ -81,7 +81,7 @@ func TestFileExists(t *testing.T) {
 	}
 
 	// Create file and test again
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil { //nolint:gosec
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -96,13 +96,13 @@ func TestReadWriteFile(t *testing.T) {
 	content := []byte("test content")
 
 	// Test WriteFile
-	err := WriteFile(testFile, content, 0644)
+	err := WriteFile(testFile, content, 0644) //nolint:gosec
 	if err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
 	// Test ReadFile
-	readContent, err := ReadFile(testFile)
+	readContent, err := ReadFile(testFile) //nolint:gosec
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestReadWriteFile(t *testing.T) {
 	}
 
 	// Test reading non-existent file
-	_, err = ReadFile(filepath.Join(tempDir, "nonexistent.txt"))
+	_, err = ReadFile(filepath.Join(tempDir, "nonexistent.txt")) //nolint:gosec
 	if err == nil {
 		t.Error("Expected error when reading non-existent file")
 	}
@@ -125,7 +125,7 @@ func TestCopyFile(t *testing.T) {
 	content := []byte("test content")
 
 	// Create source file
-	if err := os.WriteFile(srcFile, content, 0644); err != nil {
+	if err := os.WriteFile(srcFile, content, 0644); err != nil { //nolint:gosec
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -136,7 +136,7 @@ func TestCopyFile(t *testing.T) {
 	}
 
 	// Verify content
-	dstContent, err := os.ReadFile(dstFile)
+	dstContent, err := os.ReadFile(dstFile) //nolint:gosec
 	if err != nil {
 		t.Fatalf("Failed to read destination file: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestMustReadFile(t *testing.T) {
 	content := []byte("test content")
 
 	// Create test file
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0644); err != nil { //nolint:gosec
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -184,7 +184,7 @@ func TestMustWriteFile(t *testing.T) {
 	MustWriteFile(testFile, content, 0644)
 
 	// Verify content
-	readContent, err := os.ReadFile(testFile)
+	readContent, err := os.ReadFile(testFile) //nolint:gosec
 	if err != nil {
 		t.Fatalf("Failed to read file: %v", err)
 	}
