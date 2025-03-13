@@ -1,4 +1,4 @@
-module github.com/rollkit/rollkit/sequencers/centralized
+module github.com/rollkit/rollkit/sequencers/single
 
 go 1.24.0
 

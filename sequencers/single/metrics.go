@@ -1,4 +1,4 @@
-package centralized
+package single
 
 import (
 	"errors"
