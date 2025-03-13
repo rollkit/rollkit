@@ -153,7 +153,7 @@
 <tr><td>ReapMaxTxs</td><td>max int</td><td>types.Txs</td><td>Reaps up to max transactions from the mempool. If max is negative, there is no cap on the size of all returned transactions (~ all available transactions).</td></tr>
 <tr><td>Lock</td><td>N/A</td><td>N/A</td><td>Locks the mempool. The consensus must be able to hold the lock to safely update.</td></tr>
 <tr><td>Unlock</td><td>N/A</td><td>N/A</td><td>Unlocks the mempool.</td></tr>
-<tr><td>Update</td><td>blockHeight uint64, blockTxs types.Txs, deliverTxResponses []*abci.ResponseDeliverTx, newPreFn PreCheckFunc, newPostFn PostCheckFunc</td><td>error</td><td>Informs the mempool that the given txs were committed and can be discarded. This should be called <em>after</em> block is committed by consensus. Lock/Unlock must be managed by the caller.</td></tr>
+<tr><td>Update</td><td>blockHeight uint64, blockTxs types.Txs, deliverTxResponses []*abci.ResponseDeliverTx, newPreFn PreCheckFunc, newPostFn PostCheckFunc</td><td>error</td><td>Informs the mempool that the given txs were committed and can be discarded. This should be called<em>after</em> block is committed by consensus. Lock/Unlock must be managed by the caller.</td></tr>
 <tr><td>FlushAppConn</td><td>N/A</td><td>error</td><td>Flushes the mempool connection to ensure async callback calls are done, e.g., from CheckTx. Lock/Unlock must be managed by the caller.</td></tr>
 <tr><td>Flush</td><td>N/A</td><td>N/A</td><td>Removes all transactions from the mempool and caches.</td></tr>
 <tr><td>TxsAvailable</td><td>N/A</td><td>&lt;-chan struct{}</td><td>Returns a channel which fires once for every height when transactions are available in the mempool. The returned channel may be nil if EnableTxsAvailable was not called.</td></tr>
