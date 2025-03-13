@@ -140,7 +140,7 @@ type Config struct {
 	// Base configuration
 	RootDir    string      `mapstructure:"home" toml:"RootDir" comment:"Root directory where rollkit files are located"`
 	DBPath     string      `mapstructure:"db_path" toml:"DBPath" comment:"Path inside the root directory where the database is located"`
-	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint" comment:"Path to the rollup entrypoint (main.go)"`
+	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
 	Chain      ChainConfig `mapstructure:"chain" toml:"chain"`
 
 	// P2P configuration
@@ -200,12 +200,9 @@ type ChainConfig struct {
 
 // LogConfig contains all logging configuration parameters
 type LogConfig struct {
-	// Level is the log level (debug, info, warn, error)
-	Level string `mapstructure:"level" toml:"level" comment:"Log level (debug, info, warn, error)"`
-	// Format is the log format (text, json)
+	Level  string `mapstructure:"level" toml:"level" comment:"Log level (debug, info, warn, error)"`
 	Format string `mapstructure:"format" toml:"format" comment:"Log format (text, json)"`
-	// Trace enables stack traces in error logs
-	Trace bool `mapstructure:"trace" toml:"trace" comment:"Enable stack traces in error logs"`
+	Trace  bool   `mapstructure:"trace" toml:"trace" comment:"Enable stack traces in error logs"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
