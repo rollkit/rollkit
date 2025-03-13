@@ -2,7 +2,6 @@ module github.com/rollkit/rollkit
 
 go 1.23.3
 
-toolchain go1.24.1
 
 retract v0.12.0 // Published by accident
 

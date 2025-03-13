@@ -70,7 +70,7 @@ type FullNode struct {
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.NodeConfig,
-	p2pKey crypto.PrivKey,
+	p2pClient *p2p.Client,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
 	exec coreexecutor.Executor,
@@ -79,7 +79,7 @@ func newFullNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
-	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
+	seqMetrics, _ := metricsProvider(genesis.ChainID)
 
 	dalc, err := initDALC(nodeConfig, logger)
 	if err != nil {
@@ -88,11 +88,6 @@ func newFullNode(
 
 	if dalc == nil {
 		return nil, fmt.Errorf("DALC is not initialized")
-	}
-
-	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, database, logger.With("module", "p2p"), p2pMetrics)
-	if err != nil {
-		return nil, err
 	}
 
 	headerSyncService, err := initHeaderSyncService(database, nodeConfig, genesis, p2pClient, logger)
