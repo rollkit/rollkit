@@ -14,6 +14,9 @@ type Client interface {
 
 	// MaxBlobSize returns the maximum blob size for the DA layer.
 	MaxBlobSize(ctx context.Context) (uint64, error)
+
+	// SubmitBatch submits a batch of blobs to the DA layer.
+	SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmitBatch
 }
 
 // ResultRetrieveHeaders contains batch of block headers returned from DA layer client.
@@ -54,10 +57,30 @@ type BaseResult struct {
 	SubmittedCount uint64
 }
 
+//--------------------------------
+// batches
+//--------------------------------
+
 // ResultSubmit contains information returned from DA layer after block headers/data submission.
 type ResultSubmit struct {
 	BaseResult
 	// Not sure if this needs to be bubbled up to other
 	// parts of Rollkit.
 	// Hash hash.Hash
+}
+
+// ResultSubmitBatch contains information returned from DA layer after block headers/data submission.
+type ResultSubmitBatch struct {
+	BaseResult
+	// Not sure if this needs to be bubbled up to other
+	// parts of Rollkit.
+	// Hash hash.Hash
+}
+
+// ResultRetrieveBatch contains batch of block data returned from DA layer client.
+type ResultRetrieveBatch struct {
+	BaseResult
+	// Data is the block data retrieved from Data Availability Layer.
+	// If Code is not equal to StatusSuccess, it has to be nil.
+	Data [][]byte
 }

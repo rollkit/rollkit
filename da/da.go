@@ -164,24 +164,8 @@ func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice f
 // Batches
 //--------------------------------
 
-// ResultSubmitBatch contains information returned from DA layer after block headers/data submission.
-type ResultSubmitBatch struct {
-	coreda.BaseResult
-	// Not sure if this needs to be bubbled up to other
-	// parts of Rollkit.
-	// Hash hash.Hash
-}
-
-// ResultRetrieveBatch contains batch of block data returned from DA layer client.
-type ResultRetrieveBatch struct {
-	coreda.BaseResult
-	// Data is the block data retrieved from Data Availability Layer.
-	// If Code is not equal to StatusSuccess, it has to be nil.
-	Data [][]byte
-}
-
 // SubmitBatch submits block data to DA.
-func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmitBatch {
+func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmitBatch {
 	var (
 		blobs    [][]byte
 		blobSize uint64
@@ -198,7 +182,7 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize
 		blobs = append(blobs, blob)
 	}
 	if len(blobs) == 0 {
-		return ResultSubmitBatch{
+		return coreda.ResultSubmitBatch{
 			BaseResult: coreda.BaseResult{
 				Code:    coreda.StatusError,
 				Message: "failed to submit blocks: no blobs generated " + message,
@@ -221,7 +205,7 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize
 		case errors.Is(err, ErrContextDeadline):
 			status = coreda.StatusContextDeadline
 		}
-		return ResultSubmitBatch{
+		return coreda.ResultSubmitBatch{
 			BaseResult: coreda.BaseResult{
 				Code:    status,
 				Message: "failed to submit block data: " + err.Error(),
@@ -231,7 +215,7 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize
 
 	// check if the ids are empty and if the length of ids is not equal to the length of blobs
 	if len(ids) == 0 || len(ids) != len(blobs) {
-		return ResultSubmitBatch{
+		return coreda.ResultSubmitBatch{
 			BaseResult: coreda.BaseResult{
 				Code:    coreda.StatusError,
 				Message: fmt.Sprintf("failed to submit data: unexpected len(ids): %d, len(blobs): %d", len(ids), len(blobs)),
@@ -239,7 +223,7 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize
 		}
 	}
 
-	return ResultSubmitBatch{
+	return coreda.ResultSubmitBatch{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
 			DAHeight:       height,
@@ -249,10 +233,10 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize
 }
 
 // RetrieveBatch retrieves block data from DA.
-func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) ResultRetrieveBatch {
+func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) coreda.ResultRetrieveBatch {
 	idsResult, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
 	if err != nil {
-		return ResultRetrieveBatch{
+		return coreda.ResultRetrieveBatch{
 			BaseResult: coreda.BaseResult{
 				Code:     coreda.StatusError,
 				Message:  fmt.Sprintf("failed to get IDs: %s", err.Error()),
@@ -264,7 +248,7 @@ func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) 
 
 	// If no block data are found, return a non-blocking error.
 	if len(ids) == 0 {
-		return ResultRetrieveBatch{
+		return coreda.ResultRetrieveBatch{
 			BaseResult: coreda.BaseResult{
 				Code:     coreda.StatusNotFound,
 				Message:  ErrBlobNotFound.Error(),
@@ -275,7 +259,7 @@ func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) 
 
 	blobs, err := dac.DA.Get(ctx, ids, dac.Namespace)
 	if err != nil {
-		return ResultRetrieveBatch{
+		return coreda.ResultRetrieveBatch{
 			BaseResult: coreda.BaseResult{
 				Code:     coreda.StatusError,
 				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
@@ -284,7 +268,7 @@ func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) 
 		}
 	}
 
-	return ResultRetrieveBatch{
+	return coreda.ResultRetrieveBatch{
 		BaseResult: coreda.BaseResult{
 			Code:     coreda.StatusSuccess,
 			DAHeight: dataLayerHeight,
