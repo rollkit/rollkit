@@ -26,13 +26,13 @@ func TestDefaultNodeConfig(t *testing.T) {
 	assert.Equal(t, float64(0), def.DA.GasMultiplier)
 	assert.Equal(t, "", def.DA.SubmitOptions)
 	assert.Equal(t, "", def.DA.Namespace)
-	assert.Equal(t, 1*time.Second, def.Node.BlockTime)
-	assert.Equal(t, 15*time.Second, def.DA.BlockTime)
+	assert.Equal(t, 1*time.Second, def.Node.BlockTime.Duration)
+	assert.Equal(t, 15*time.Second, def.DA.BlockTime.Duration)
 	assert.Equal(t, uint64(0), def.DA.StartHeight)
 	assert.Equal(t, uint64(0), def.DA.MempoolTTL)
 	assert.Equal(t, uint64(0), def.Node.MaxPendingBlocks)
 	assert.Equal(t, false, def.Node.LazyAggregator)
-	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime)
+	assert.Equal(t, 60*time.Second, def.Node.LazyBlockTime.Duration)
 	assert.Equal(t, "", def.Node.TrustedHash)
 	assert.Equal(t, DefaultSequencerAddress, def.Node.SequencerAddress)
 	assert.Equal(t, DefaultSequencerRollupID, def.Node.SequencerRollupID)
@@ -167,12 +167,12 @@ config_dir = "config"
 	assert.Equal(t, true, config.Node.Aggregator, "Aggregator should be set from TOML")
 
 	// 2. TOML values should be overridden by flags
-	assert.Equal(t, 10*time.Second, config.Node.BlockTime, "BlockTime should be overridden by flag")
+	assert.Equal(t, 10*time.Second, config.Node.BlockTime.Duration, "BlockTime should be overridden by flag")
 	assert.Equal(t, "http://flag-da:26657", config.DA.Address, "DAAddress should be overridden by flag")
 
 	// 3. Flags not in TOML should be set
 	assert.Equal(t, true, config.Node.Light, "Light should be set from flag")
 
 	// 4. Values not in flags or TOML should remain as default
-	assert.Equal(t, DefaultNodeConfig.DA.BlockTime, config.DA.BlockTime, "DABlockTime should remain as default")
+	assert.Equal(t, DefaultNodeConfig.DA.BlockTime.Duration, config.DA.BlockTime.Duration, "DABlockTime should remain as default")
 }

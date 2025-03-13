@@ -3,6 +3,7 @@ package commands
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -51,7 +52,16 @@ func TestInitTomlCommand(t *testing.T) {
 	// Verify time values
 	require.Contains(t, tomlContent, "block_time = ")
 	require.Contains(t, tomlContent, "1s")
-	require.Contains(t, tomlContent, "[da]")
+
+	// Verify that the TOML contains the [da] or [DA] section
+	daFound := false
+	if strings.Contains(tomlContent, "[da]") {
+		daFound = true
+	} else if strings.Contains(tomlContent, "[DA]") {
+		daFound = true
+	}
+	require.True(t, daFound, "TOML must contain [da] or [DA] section")
+
 	require.Contains(t, tomlContent, "block_time = ")
 	require.Contains(t, tomlContent, "15s")
 	require.Contains(t, tomlContent, "lazy_block_time = ")

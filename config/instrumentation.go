@@ -7,19 +7,19 @@ type InstrumentationConfig struct {
 	// When true, Prometheus metrics are served under /metrics on
 	// PrometheusListenAddr.
 	// Check out the documentation for the list of available metrics.
-	Prometheus bool // When true, Prometheus metrics are served
+	Prometheus bool `toml:"Prometheus" comment:"Enable Prometheus metrics"` // When true, Prometheus metrics are served
 
 	// Address to listen for Prometheus collector(s) connections.
-	PrometheusListenAddr string `mapstructure:"prometheus_listen_addr"`
+	PrometheusListenAddr string `mapstructure:"prometheus_listen_addr" toml:"PrometheusListenAddr" comment:"Address to listen for Prometheus metrics"`
 
 	// Maximum number of simultaneous connections.
 	// If you want to accept a larger number than the default, make sure
 	// you increase your OS limits.
 	// 0 - unlimited.
-	MaxOpenConnections int `mapstructure:"max_open_connections"`
+	MaxOpenConnections int `mapstructure:"max_open_connections" toml:"MaxOpenConnections" comment:"Maximum number of simultaneous connections"`
 
 	// Instrumentation namespace.
-	Namespace string // Instrumentation namespace
+	Namespace string `toml:"Namespace" comment:"Namespace for metrics"` // Instrumentation namespace
 
 	// When true, pprof endpoints are served under /debug/pprof/ on
 	// PprofListenAddr. This enables runtime profiling of the application.
@@ -34,11 +34,11 @@ type InstrumentationConfig struct {
 	// - /debug/pprof/mutex     - Mutex contention profile
 	// - /debug/pprof/block     - Block profile
 	// - /debug/pprof/allocs    - Allocation profile
-	Pprof bool // When true, pprof endpoints are served
+	Pprof bool `toml:"Pprof" comment:"Enable pprof profiling server"` // When true, pprof endpoints are served
 
 	// Address to listen for pprof connections.
 	// Default is ":6060" which is the standard port for pprof.
-	PprofListenAddr string `mapstructure:"pprof_listen_addr"`
+	PprofListenAddr string `mapstructure:"pprof_listen_addr" toml:"PprofListenAddr" comment:"Address to listen for pprof server"`
 }
 
 // DefaultInstrumentationConfig returns a default configuration for metrics

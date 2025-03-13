@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rollkit/rollkit/config"
 	rollkitconfig "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -34,8 +35,8 @@ func getTestConfig(n int) rollkitconfig.Config {
 			Aggregator:       true,
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,
-			BlockTime:        500 * time.Millisecond,
-			LazyBlockTime:    5 * time.Second,
+			BlockTime:        config.DurationWrapper{Duration: 500 * time.Millisecond},
+			LazyBlockTime:    config.DurationWrapper{Duration: 5 * time.Second},
 		},
 		DA: rollkitconfig.DAConfig{
 			Address:   MockDAAddress,

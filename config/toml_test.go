@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -162,7 +163,7 @@ address = "http://custom-da:26658"
 		// These values should be loaded from the TOML file
 		// Only set the values that are actually in the TOML file
 		expectedConfig.Node.Aggregator = true
-		expectedConfig.Node.BlockTime = 2 * time.Second
+		expectedConfig.Node.BlockTime.Duration = 2 * time.Second
 		expectedConfig.DA.Address = "http://custom-da:26658"
 		expectedConfig.Node.LazyAggregator = true
 		expectedConfig.Node.SequencerAddress = "custom-sequencer:50051"
@@ -260,7 +261,7 @@ func TestTomlConfigOperations(t *testing.T) {
 				config.Node.Aggregator = true
 				config.Node.Light = true
 				config.Node.LazyAggregator = true
-				config.Node.BlockTime = 5 * time.Second
+				config.Node.BlockTime.Duration = 5 * time.Second
 				config.DA.Address = "http://custom-da:26658"
 				config.Node.SequencerAddress = "custom-sequencer:50051"
 				config.Node.SequencerRollupID = "custom-rollup"
@@ -293,7 +294,7 @@ func TestTomlConfigOperations(t *testing.T) {
 				expectedConfig.Node.Aggregator = true
 				expectedConfig.Node.Light = true
 				expectedConfig.Node.LazyAggregator = true
-				expectedConfig.Node.BlockTime = 5 * time.Second
+				expectedConfig.Node.BlockTime.Duration = 5 * time.Second
 				expectedConfig.DA.Address = "http://custom-da:26658"
 				expectedConfig.Node.SequencerAddress = "custom-sequencer:50051"
 				expectedConfig.Node.SequencerRollupID = "custom-rollup"
@@ -341,6 +342,20 @@ func readTomlFromPath(configPath string) (config Config, err error) {
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
+			// Add a custom hook for DurationWrapper
+			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+				// If the target type is DurationWrapper and the source is string
+				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
+					if str, ok := data.(string); ok {
+						duration, err := time.ParseDuration(str)
+						if err != nil {
+							return nil, err
+						}
+						return DurationWrapper{Duration: duration}, nil
+					}
+				}
+				return data, nil
+			},
 		)
 	}); err != nil {
 		return config, fmt.Errorf("error unmarshaling config: %w", err)

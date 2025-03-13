@@ -1,11 +1,12 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	rollconf "github.com/rollkit/rollkit/config"
 )
@@ -63,49 +64,16 @@ var initCmd = &cobra.Command{
 		}
 		config.RootDir = currentDir
 
-		// Create a new Viper instance to avoid conflicts with any existing configuration
-		v := viper.New()
-
-		// Configure Viper to use the structure directly
-		v.SetConfigName(rollconf.ConfigBaseName)
-		v.SetConfigType(rollconf.ConfigExtension)
-		v.AddConfigPath(currentDir)
-
-		// Create a map with the configuration structure
-		// We need to handle time.Duration values specially to ensure they are serialized as human-readable strings
-		rollkitConfig := map[string]interface{}{
-			"aggregator":          config.Node.Aggregator,
-			"light":               config.Node.Light,
-			"block_time":          config.Node.BlockTime.String(),
-			"max_pending_blocks":  config.Node.MaxPendingBlocks,
-			"lazy_aggregator":     config.Node.LazyAggregator,
-			"lazy_block_time":     config.Node.LazyBlockTime.String(),
-			"trusted_hash":        config.Node.TrustedHash,
-			"sequencer_address":   config.Node.SequencerAddress,
-			"sequencer_rollup_id": config.Node.SequencerRollupID,
-			"executor_address":    config.Node.ExecutorAddress,
+		// Marshal the config with comments to TOML format
+		var buf bytes.Buffer
+		encoder := toml.NewEncoder(&buf)
+		err = encoder.Encode(config)
+		if err != nil {
+			return fmt.Errorf("error marshaling TOML data: %w", err)
 		}
 
-		daConfig := map[string]interface{}{
-			"address":        config.DA.Address,
-			"auth_token":     config.DA.AuthToken,
-			"gas_price":      config.DA.GasPrice,
-			"gas_multiplier": config.DA.GasMultiplier,
-			"submit_options": config.DA.SubmitOptions,
-			"namespace":      config.DA.Namespace,
-			"block_time":     config.DA.BlockTime.String(),
-			"start_height":   config.DA.StartHeight,
-			"mempool_ttl":    config.DA.MempoolTTL,
-		}
-
-		// Set the configuration values in Viper
-		v.Set("entrypoint", config.Entrypoint)
-		v.Set("chain", config.Chain)
-		v.Set("node", rollkitConfig)
-		v.Set("da", daConfig)
-
-		// Write the configuration file
-		if err := v.WriteConfigAs(rollconf.RollkitConfigToml); err != nil {
+		// Write the TOML data to the file
+		if err := os.WriteFile(rollconf.RollkitConfigToml, buf.Bytes(), 0644); err != nil {
 			return fmt.Errorf("error writing rollkit.toml file: %w", err)
 		}
 

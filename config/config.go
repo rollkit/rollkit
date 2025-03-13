@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -101,12 +102,44 @@ const (
 	FlagLogTrace = "log.trace"
 )
 
+// DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
+type DurationWrapper struct {
+	time.Duration
+}
+
+// MarshalText implements encoding.TextMarshaler to format the duration as text
+func (d DurationWrapper) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler to parse the duration from text
+func (d *DurationWrapper) UnmarshalText(text []byte) error {
+	var err error
+	d.Duration, err = time.ParseDuration(string(text))
+	return err
+}
+
+// MarshalTOML implements toml.Marshaler to format the duration as text for TOML
+func (d DurationWrapper) MarshalTOML() (interface{}, error) {
+	return d.String(), nil
+}
+
+// UnmarshalTOML implements toml.Unmarshaler to parse the duration from text in TOML
+func (d *DurationWrapper) UnmarshalTOML(v interface{}) error {
+	if s, ok := v.(string); ok {
+		var err error
+		d.Duration, err = time.ParseDuration(s)
+		return err
+	}
+	return fmt.Errorf("cannot unmarshal %T into DurationWrapper", v)
+}
+
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir    string      `mapstructure:"home"`
-	DBPath     string      `mapstructure:"db_path"`
-	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint"`
+	RootDir    string      `mapstructure:"home" toml:"RootDir" comment:"Root directory for all data"`
+	DBPath     string      `mapstructure:"db_path" toml:"DBPath" comment:"Path to the database directory"`
+	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint" comment:"Path to the rollup entrypoint (main.go)"`
 	Chain      ChainConfig `mapstructure:"chain" toml:"chain"`
 
 	// P2P configuration
@@ -127,51 +160,51 @@ type Config struct {
 
 // DAConfig contains all Data Availability configuration parameters
 type DAConfig struct {
-	Address       string        `mapstructure:"address" toml:"address"`
-	AuthToken     string        `mapstructure:"auth_token" toml:"auth_token"`
-	GasPrice      float64       `mapstructure:"gas_price" toml:"gas_price"`
-	GasMultiplier float64       `mapstructure:"gas_multiplier" toml:"gas_multiplier"`
-	SubmitOptions string        `mapstructure:"submit_options" toml:"submit_options"`
-	Namespace     string        `mapstructure:"namespace" toml:"namespace"`
-	BlockTime     time.Duration `mapstructure:"block_time" toml:"block_time"`
-	StartHeight   uint64        `mapstructure:"start_height" toml:"start_height"`
-	MempoolTTL    uint64        `mapstructure:"mempool_ttl" toml:"mempool_ttl"`
+	Address       string          `mapstructure:"address" toml:"address" comment:"Address of the data availability layer"`
+	AuthToken     string          `mapstructure:"auth_token" toml:"auth_token" comment:"Authentication token for the data availability layer"`
+	GasPrice      float64         `mapstructure:"gas_price" toml:"gas_price" comment:"Gas price for the data availability layer"`
+	GasMultiplier float64         `mapstructure:"gas_multiplier" toml:"gas_multiplier" comment:"Gas price multiplier for retries"`
+	SubmitOptions string          `mapstructure:"submit_options" toml:"submit_options" comment:"Options for data availability submission"`
+	Namespace     string          `mapstructure:"namespace" toml:"namespace" comment:"Namespace ID for the data availability layer"`
+	BlockTime     DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Block time for the data availability layer (duration)"`
+	StartHeight   uint64          `mapstructure:"start_height" toml:"start_height" comment:"Starting height for the data availability layer"`
+	MempoolTTL    uint64          `mapstructure:"mempool_ttl" toml:"mempool_ttl" comment:"Time-to-live for mempool transactions"`
 }
 
 // NodeConfig contains all Rollkit specific configuration parameters
 type NodeConfig struct {
 	// Node mode configuration
-	Aggregator bool `toml:"aggregator"`
-	Light      bool `toml:"light"`
+	Aggregator bool `toml:"aggregator" comment:"Run node in aggregator mode"`
+	Light      bool `toml:"light" comment:"Run node in light mode"`
 
 	// Block management configuration
-	BlockTime        time.Duration `mapstructure:"block_time" toml:"block_time"`
-	MaxPendingBlocks uint64        `mapstructure:"max_pending_blocks" toml:"max_pending_blocks"`
-	LazyAggregator   bool          `mapstructure:"lazy_aggregator" toml:"lazy_aggregator"`
-	LazyBlockTime    time.Duration `mapstructure:"lazy_block_time" toml:"lazy_block_time"`
+	BlockTime        DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Block time (duration)"`
+	MaxPendingBlocks uint64          `mapstructure:"max_pending_blocks" toml:"max_pending_blocks" comment:"Maximum number of blocks pending DA submission"`
+	LazyAggregator   bool            `mapstructure:"lazy_aggregator" toml:"lazy_aggregator" comment:"Enable lazy aggregation"`
+	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" toml:"lazy_block_time" comment:"Block time in lazy mode (duration)"`
 
 	// Header configuration
-	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash"`
+	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash" comment:"Trusted hash for the chain"`
 
 	// Sequencer configuration
-	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address"`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id" toml:"sequencer_rollup_id"`
-	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address"`
+	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address" comment:"Address of the sequencer middleware"`
+	SequencerRollupID string `mapstructure:"sequencer_rollup_id" toml:"sequencer_rollup_id" comment:"Rollup ID for the sequencer middleware"`
+	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address" comment:"Address of the executor middleware"`
 }
 
 // ChainConfig is the configuration for the chain section
 type ChainConfig struct {
-	ConfigDir string `mapstructure:"config_dir" toml:"config_dir"`
+	ConfigDir string `mapstructure:"config_dir" toml:"config_dir" comment:"Directory containing the rollup chain configuration"`
 }
 
 // LogConfig contains all logging configuration parameters
 type LogConfig struct {
 	// Level is the log level (debug, info, warn, error)
-	Level string `mapstructure:"level" toml:"level"`
+	Level string `mapstructure:"level" toml:"level" comment:"Log level (debug, info, warn, error)"`
 	// Format is the log format (text, json)
-	Format string `mapstructure:"format" toml:"format"`
+	Format string `mapstructure:"format" toml:"format" comment:"Log format (text, json)"`
 	// Trace enables stack traces in error logs
-	Trace bool `mapstructure:"trace" toml:"trace"`
+	Trace bool `mapstructure:"trace" toml:"trace" comment:"Enable stack traces in error logs"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -189,11 +222,11 @@ func AddFlags(cmd *cobra.Command) {
 	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
-	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime, "block time (for aggregator mode)")
+	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime.Duration, "block time (for aggregator mode)")
 	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
 	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "wait for transactions, don't build empty blocks")
 	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
-	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime, "block time (for lazy mode)")
+	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "block time (for lazy mode)")
 	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 	cmd.Flags().String(FlagExecutorAddress, def.Node.ExecutorAddress, "executor middleware address (host:port)")
@@ -201,7 +234,7 @@ func AddFlags(cmd *cobra.Command) {
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
 	cmd.Flags().String(FlagDAAuthToken, def.DA.AuthToken, "DA auth token")
-	cmd.Flags().Duration(FlagDABlockTime, def.DA.BlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Duration(FlagDABlockTime, def.DA.BlockTime.Duration, "DA chain block time (for syncing)")
 	cmd.Flags().Float64(FlagDAGasPrice, def.DA.GasPrice, "DA gas price for blob transactions")
 	cmd.Flags().Float64(FlagDAGasMultiplier, def.DA.GasMultiplier, "DA gas price multiplier for retrying blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DA.StartHeight, "starting DA block height (for syncing)")
@@ -279,6 +312,18 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
+			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
+					if str, ok := data.(string); ok {
+						duration, err := time.ParseDuration(str)
+						if err != nil {
+							return nil, err
+						}
+						return DurationWrapper{Duration: duration}, nil
+					}
+				}
+				return data, nil
+			},
 		)
 	}); err != nil {
 		return config, fmt.Errorf("unable to decode configuration: %w", err)
