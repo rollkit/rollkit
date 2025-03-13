@@ -17,6 +17,12 @@ type Client interface {
 
 	// SubmitBatch submits a batch of blobs to the DA layer.
 	SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmitBatch
+
+	// GasPrice returns the gas price for the DA layer.
+	GasPrice(ctx context.Context) (float64, error)
+
+	// GasMultiplier returns the gas multiplier for the DA layer.
+	GasMultiplier(ctx context.Context) (float64, error)
 }
 
 // ResultRetrieveHeaders contains batch of block headers returned from DA layer client.

@@ -33,6 +33,12 @@ type DA interface {
 
 	// Validate validates Commitments against the corresponding Proofs. This should be possible without retrieving the Blobs.
 	Validate(ctx context.Context, ids []ID, proofs []Proof, namespace []byte) ([]bool, error)
+
+	// GasPrice returns the gas price for the DA layer.
+	GasPrice(ctx context.Context) (float64, error)
+
+	// GasMultiplier returns the gas multiplier for the DA layer.
+	GasMultiplier(ctx context.Context) (float64, error)
 }
 
 // Blob is the data submitted/received from DA interface.

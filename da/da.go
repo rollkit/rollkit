@@ -13,8 +13,8 @@ import (
 // DAClient is a new DA implementation.
 type DAClient struct {
 	DA            coreda.DA
-	GasPrice      float64
-	GasMultiplier float64
+	gasPrice      float64
+	gasMultiplier float64
 	Namespace     []byte
 	SubmitOptions []byte
 	Logger        log.Logger
@@ -24,8 +24,8 @@ type DAClient struct {
 func NewDAClient(da coreda.DA, gasPrice, gasMultiplier float64, ns []byte, options []byte, logger log.Logger) coreda.Client {
 	return &DAClient{
 		DA:            da,
-		GasPrice:      gasPrice,
-		GasMultiplier: gasMultiplier,
+		gasPrice:      gasPrice,
+		gasMultiplier: gasMultiplier,
 		Namespace:     ns,
 		SubmitOptions: options,
 		Logger:        logger,
@@ -35,6 +35,16 @@ func NewDAClient(da coreda.DA, gasPrice, gasMultiplier float64, ns []byte, optio
 // MaxBlobSize returns the maximum blob size for the DA layer.
 func (dac *DAClient) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return dac.DA.MaxBlobSize(ctx)
+}
+
+// GasPrice returns the gas price for the DA layer.
+func (dac *DAClient) GasPrice(ctx context.Context) (float64, error) {
+	return dac.DA.GasPrice(ctx)
+}
+
+// GasMultiplier returns the gas multiplier for the DA layer.
+func (dac *DAClient) GasMultiplier(ctx context.Context) (float64, error) {
+	return dac.DA.GasMultiplier(ctx)
 }
 
 // SubmitHeaders submits block headers to DA.

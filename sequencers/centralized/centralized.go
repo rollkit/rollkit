@@ -215,8 +215,11 @@ func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Bat
 	// Store initial values to be able to reset or compare later
 	maxBlobSize := c.maxBlobSize.Load()
 	initialMaxBlobSize := maxBlobSize
-	initialGasPrice := c.dalc.GasPrice
-	gasPrice := c.dalc.GasPrice
+	initialGasPrice, err := c.dalc.GasPrice(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get initial gas price: %w", err)
+	}
+	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
 	for !submittedAllBlocks && attempt < maxSubmitAttempts {
@@ -239,6 +242,12 @@ daSubmitRetryLoop:
 		}
 		// Attempt to submit the batch to the DA layer
 		res := c.dalc.SubmitBatch(ctx, data, maxBlobSize, gasPrice)
+
+		gasMultiplier, err := c.dalc.GasMultiplier(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get gas multiplier: %w", err)
+		}
+
 		switch res.Code {
 		case coreda.StatusSuccess:
 			//TODO: upon success, mark the batch as processed in the WAL & update the last submitted batch hash
@@ -264,8 +273,8 @@ daSubmitRetryLoop:
 			maxBlobSize = initialMaxBlobSize
 
 			// Gradually reduce gas price on success, but not below initial price
-			if c.dalc.GasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice / c.dalc.GasMultiplier
+			if gasMultiplier > 0 && gasPrice != 0 {
+				gasPrice = gasPrice / gasMultiplier
 				if gasPrice < initialGasPrice {
 					gasPrice = initialGasPrice
 				}
@@ -278,8 +287,8 @@ daSubmitRetryLoop:
 			backoff = c.batchTime * time.Duration(defaultMempoolTTL)
 
 			// Increase gas price to prioritize the transaction
-			if c.dalc.GasMultiplier > 0 && gasPrice != 0 {
-				gasPrice = gasPrice * c.dalc.GasMultiplier
+			if gasMultiplier > 0 && gasPrice != 0 {
+				gasPrice = gasPrice * gasMultiplier
 			}
 			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 

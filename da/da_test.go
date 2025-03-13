@@ -97,7 +97,7 @@ func TestMockDAErrors(t *testing.T) {
 
 func TestSubmitRetrieve(t *testing.T) {
 	t.Skip("skipping tests") //TODO: fix these tests
-	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), -1, -1, nil, nil, log.NewTestLogger(t))
+	dummyClient := NewDAClient(coreda.NewDummyDA(100_000, 0, 0), -1, -1, nil, nil, log.NewTestLogger(t))
 	tests := []struct {
 		name string
 		f    func(t *testing.T, dalc coreda.Client)
@@ -262,7 +262,7 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc coreda.Client) {
 }
 
 func TestSubmitWithOptions(t *testing.T) {
-	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), -1, -1, nil, []byte("option=value"), log.NewTestLogger(t))
+	dummyClient := NewDAClient(coreda.NewDummyDA(100_000, 0, 0), -1, -1, nil, []byte("option=value"), log.NewTestLogger(t))
 	tests := []struct {
 		name string
 		f    func(t *testing.T, dalc coreda.Client)

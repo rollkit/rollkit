@@ -18,7 +18,7 @@ import (
 
 func TestNewSequencer(t *testing.T) {
 	// Create a new sequencer with mock DA client
-	dummyDA := coreda.NewDummyDA(100_000_000)
+	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
 	metrics, _ := NopMetrics()
 	db := ds.NewMapDatastore()
 	seq, err := NewSequencer(context.Background(), log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics)
@@ -48,7 +48,7 @@ func TestNewSequencer(t *testing.T) {
 func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	// Initialize a new sequencer
 	metrics, _ := NopMetrics()
-	dummyDA := coreda.NewDummyDA(100_000_000)
+	dummyDA := coreda.NewDummyDA(100_000_000, 0, 0)
 	db := ds.NewMapDatastore()
 	seq, err := NewSequencer(context.Background(), log.NewNopLogger(), db, dummyDA, []byte("namespace"), []byte("rollup1"), 10*time.Second, metrics)
 	if err != nil {
