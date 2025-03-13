@@ -3,7 +3,11 @@ package node
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/rollkit/rollkit/p2p/key"
 )
 
 // Source is an enum representing different sources of height
@@ -117,4 +121,25 @@ func Retry(tries int, durationBetweenAttempts time.Duration, fn func() error) (e
 		time.Sleep(durationBetweenAttempts)
 	}
 	return fn()
+}
+
+// InitFiles initializes the files for the node.
+// It creates a temporary directory and nodekey file for testing purposes.
+// It returns the path to the temporary directory and a function to clean up the temporary directory.
+func InitFiles(dir string) error {
+	// Create config directory
+	configDir := filepath.Join(dir, "config")
+	err := os.MkdirAll(configDir, 0755) //nolint:gosec
+	if err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// create the nodekey file
+	nodeKeyFile := filepath.Join(configDir, "node_key.json")
+	_, err = key.LoadOrGenNodeKey(nodeKeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to create node key: %w", err)
+	}
+
+	return nil
 }

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
@@ -155,7 +155,7 @@ func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType Nod
 }
 
 // setupTestNode sets up a test node based on the NodeType.
-func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey) {
+func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, crypto.PrivKey) {
 	node, privKey, err := newTestNode(ctx, t, nodeType, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, node)
@@ -164,8 +164,9 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 }
 
 // newTestNode creates a new test node based on the NodeType.
-func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
+func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, crypto.PrivKey, error) {
 	config := rollkitconfig.Config{
+		RootDir: t.TempDir(),
 		Node: rollkitconfig.NodeConfig{
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,
@@ -177,18 +178,15 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		},
 	}
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	key := generateSingleKey()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(chainID)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
 	node, err := NewNode(
@@ -197,8 +195,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		key,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logger,
