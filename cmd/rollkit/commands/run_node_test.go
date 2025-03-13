@@ -16,40 +16,48 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/node"
 )
 
 func TestParseFlags(t *testing.T) {
+	// Initialize nodeConfig with default values to avoid issues with instrument
+	nodeConfig = rollconf.DefaultNodeConfig
+
 	flags := []string{
-		"--consensus.create_empty_blocks", "true",
-		"--consensus.create_empty_blocks_interval", "10s",
-		"--consensus.double_sign_check_height", "10",
-		"--db_backend", "cleverdb",
-		"--db_dir", "data2",
-		"--moniker", "yarik-playground2",
-		"--p2p.laddr", "tcp://127.0.0.1:27000",
-		"--p2p.pex",
-		"--p2p.private_peer_ids", "1,2,3",
-		"--p2p.seed_mode",
-		"--p2p.unconditional_peer_ids", "4,5,6",
-		"--priv_validator_laddr", "tcp://127.0.0.1:27003",
-		"--rollkit.aggregator=false",
-		"--rollkit.block_time", "2s",
-		"--rollkit.da_address", "http://127.0.0.1:27005",
-		"--rollkit.da_auth_token", "token",
-		"--rollkit.da_block_time", "20s",
-		"--rollkit.da_gas_multiplier", "1.5",
-		"--rollkit.da_gas_price", "1.5",
-		"--rollkit.da_mempool_ttl", "10",
-		"--rollkit.da_namespace", "namespace",
-		"--rollkit.da_start_height", "100",
-		"--rollkit.lazy_aggregator",
-		"--rollkit.lazy_block_time", "2m",
-		"--rollkit.light",
-		"--rollkit.max_pending_blocks", "100",
-		"--rpc.grpc_laddr", "tcp://127.0.0.1:27006",
-		"--rpc.laddr", "tcp://127.0.0.1:27007",
-		"--rpc.pprof_laddr", "tcp://127.0.0.1:27008",
-		"--rpc.unsafe",
+		"--home", "custom/root/dir",
+		"--db_path", "custom/db/path",
+
+		// P2P flags
+		"--p2p.listen_address", "tcp://127.0.0.1:27000",
+		"--p2p.seeds", "node1@127.0.0.1:27001,node2@127.0.0.1:27002",
+		"--p2p.blocked_peers", "node3@127.0.0.1:27003,node4@127.0.0.1:27004",
+		"--p2p.allowed_peers", "node5@127.0.0.1:27005,node6@127.0.0.1:27006",
+
+		// Node flags
+		"--node.aggregator=false",
+		"--node.block_time", "2s",
+		"--da.address", "http://127.0.0.1:27005",
+		"--da.auth_token", "token",
+		"--da.block_time", "20s",
+		"--da.gas_multiplier", "1.5",
+		"--da.gas_price", "1.5",
+		"--da.mempool_ttl", "10",
+		"--da.namespace", "namespace",
+		"--da.start_height", "100",
+		"--node.lazy_aggregator",
+		"--node.lazy_block_time", "2m",
+		"--node.light",
+		"--node.max_pending_blocks", "100",
+		"--node.trusted_hash", "abcdef1234567890",
+		"--node.sequencer_address", "seq@127.0.0.1:27007",
+		"--node.sequencer_rollup_id", "test-rollup",
+		"--node.executor_address", "exec@127.0.0.1:27008",
+		"--da.submit_options", "custom-options",
+
+		// Instrumentation flags
+		"--instrumentation.prometheus", "true",
+		"--instrumentation.prometheus_listen_addr", ":26665",
+		"--instrumentation.max_open_connections", "1",
 	}
 
 	args := append([]string{"start"}, flags...)
@@ -60,7 +68,7 @@ func TestParseFlags(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	if err := parseFlags(newRunNodeCmd); err != nil {
+	if err := parseConfig(newRunNodeCmd); err != nil {
 		t.Errorf("Error: %v", err)
 	}
 
@@ -69,43 +77,39 @@ func TestParseFlags(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
-		// CometBFT fields, available in viper but not in nodeConfig
-		// TODO: decide if we want to add them to nodeConfig
-		{"CreateEmptyBlocks", viper.GetBool("consensus.create_empty_blocks"), true},
-		{"CreateEmptyBlocksInterval", viper.GetDuration("consensus.create_empty_blocks_interval"), 10 * time.Second},
-		{"DoubleSignCheckHeight", viper.GetInt64("consensus.double_sign_check_height"), int64(10)},
-		{"DBBackend", viper.GetString("db_backend"), "cleverdb"},
-		{"DBDir", viper.GetString("db_dir"), "data2"},
-		{"Moniker", viper.GetString("moniker"), "yarik-playground2"},
-		{"PexReactor", viper.GetBool("p2p.pex"), true},
-		{"PrivatePeerIDs", viper.GetString("p2p.private_peer_ids"), "1,2,3"},
-		{"SeedMode", viper.GetBool("p2p.seed_mode"), true},
-		{"UnconditionalPeerIDs", viper.GetString("p2p.unconditional_peer_ids"), "4,5,6"},
-		{"PrivValidatorListenAddr", viper.GetString("priv_validator_laddr"), "tcp://127.0.0.1:27003"},
+		{"RootDir", nodeConfig.RootDir, "custom/root/dir"},
+		{"DBPath", nodeConfig.DBPath, "custom/db/path"},
 
-		// Rollkit fields
-		{"Aggregator", nodeConfig.Aggregator, false},
-		{"BlockTime", nodeConfig.BlockManagerConfig.BlockTime, 2 * time.Second},
-		{"DAAddress", nodeConfig.DAAddress, "http://127.0.0.1:27005"},
-		{"DAAuthToken", nodeConfig.DAAuthToken, "token"},
-		{"DABlockTime", nodeConfig.BlockManagerConfig.DABlockTime, 20 * time.Second},
-		{"DAGasMultiplier", nodeConfig.DAGasMultiplier, 1.5},
-		{"DAGasPrice", nodeConfig.DAGasPrice, 1.5},
-		{"DAMempoolTTL", nodeConfig.BlockManagerConfig.DAMempoolTTL, uint64(10)},
-		{"DANamespace", nodeConfig.DANamespace, "namespace"},
-		{"DAStartHeight", nodeConfig.BlockManagerConfig.DAStartHeight, uint64(100)},
-		{"LazyAggregator", nodeConfig.BlockManagerConfig.LazyAggregator, true},
-		{"LazyBlockTime", nodeConfig.BlockManagerConfig.LazyBlockTime, 2 * time.Minute},
-		{"Light", nodeConfig.Light, true},
+		// P2P fields
 		{"ListenAddress", nodeConfig.P2P.ListenAddress, "tcp://127.0.0.1:27000"},
-		{"MaxPendingBlocks", nodeConfig.BlockManagerConfig.MaxPendingBlocks, uint64(100)},
+		{"Seeds", nodeConfig.P2P.Seeds, "node1@127.0.0.1:27001,node2@127.0.0.1:27002"},
+		{"BlockedPeers", nodeConfig.P2P.BlockedPeers, "node3@127.0.0.1:27003,node4@127.0.0.1:27004"},
+		{"AllowedPeers", nodeConfig.P2P.AllowedPeers, "node5@127.0.0.1:27005,node6@127.0.0.1:27006"},
 
-		// RPC fields, available in viper but not in nodeConfig
-		// TODO: decide if we want to add them to nodeConfig
-		{"GRPCListenAddress", viper.GetString("rpc.grpc_laddr"), "tcp://127.0.0.1:27006"},
-		{"RPCListenAddress", viper.GetString("rpc.laddr"), "tcp://127.0.0.1:27007"},
-		{"PprofListenAddress", viper.GetString("rpc.pprof_laddr"), "tcp://127.0.0.1:27008"},
-		{"Unsafe", viper.GetBool("rpc.unsafe"), true},
+		// Node fields
+		{"Aggregator", nodeConfig.Node.Aggregator, false},
+		{"BlockTime", nodeConfig.Node.BlockTime, 2 * time.Second},
+		{"DAAddress", nodeConfig.DA.Address, "http://127.0.0.1:27005"},
+		{"DAAuthToken", nodeConfig.DA.AuthToken, "token"},
+		{"DABlockTime", nodeConfig.DA.BlockTime, 20 * time.Second},
+		{"DAGasMultiplier", nodeConfig.DA.GasMultiplier, 1.5},
+		{"DAGasPrice", nodeConfig.DA.GasPrice, 1.5},
+		{"DAMempoolTTL", nodeConfig.DA.MempoolTTL, uint64(10)},
+		{"DANamespace", nodeConfig.DA.Namespace, "namespace"},
+		{"DAStartHeight", nodeConfig.DA.StartHeight, uint64(100)},
+		{"LazyAggregator", nodeConfig.Node.LazyAggregator, true},
+		{"LazyBlockTime", nodeConfig.Node.LazyBlockTime, 2 * time.Minute},
+		{"Light", nodeConfig.Node.Light, true},
+		{"MaxPendingBlocks", nodeConfig.Node.MaxPendingBlocks, uint64(100)},
+		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
+		{"SequencerAddress", nodeConfig.Node.SequencerAddress, "seq@127.0.0.1:27007"},
+		{"SequencerRollupID", nodeConfig.Node.SequencerRollupID, "test-rollup"},
+		{"ExecutorAddress", nodeConfig.Node.ExecutorAddress, "exec@127.0.0.1:27008"},
+		{"DASubmitOptions", nodeConfig.DA.SubmitOptions, "custom-options"},
+
+		{"Prometheus", nodeConfig.Instrumentation.Prometheus, true},
+		{"PrometheusListenAddr", nodeConfig.Instrumentation.PrometheusListenAddr, ":26665"},
+		{"MaxOpenConnections", nodeConfig.Instrumentation.MaxOpenConnections, 1},
 	}
 
 	for _, tc := range testCases {
@@ -119,11 +123,11 @@ func TestParseFlags(t *testing.T) {
 
 func TestAggregatorFlagInvariants(t *testing.T) {
 	flagVariants := [][]string{{
-		"--rollkit.aggregator=false",
+		"--node.aggregator=false",
 	}, {
-		"--rollkit.aggregator=true",
+		"--node.aggregator=true",
 	}, {
-		"--rollkit.aggregator",
+		"--node.aggregator",
 	}}
 
 	validValues := []bool{false, true, true}
@@ -137,14 +141,36 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 			t.Errorf("Error: %v", err)
 		}
 
-		if err := parseFlags(newRunNodeCmd); err != nil {
+		if err := parseConfig(newRunNodeCmd); err != nil {
 			t.Errorf("Error: %v", err)
 		}
 
-		if nodeConfig.Aggregator != validValues[i] {
-			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Aggregator)
+		if nodeConfig.Node.Aggregator != validValues[i] {
+			t.Errorf("Expected %v, got %v", validValues[i], nodeConfig.Node.Aggregator)
 		}
 	}
+}
+
+// TestDefaultAggregatorValue verifies that the default value of Aggregator is true
+// when no flag is specified
+func TestDefaultAggregatorValue(t *testing.T) {
+	// Reset nodeConfig to default values
+	nodeConfig = rollconf.DefaultNodeConfig
+
+	// Create a new command without specifying any flags
+	args := []string{"start"}
+	newRunNodeCmd := NewRunNodeCmd()
+
+	if err := newRunNodeCmd.ParseFlags(args); err != nil {
+		t.Errorf("Error parsing flags: %v", err)
+	}
+
+	if err := parseConfig(newRunNodeCmd); err != nil {
+		t.Errorf("Error parsing config: %v", err)
+	}
+
+	// Verify that Aggregator is true by default
+	assert.True(t, nodeConfig.Node.Aggregator, "Expected Aggregator to be true by default")
 }
 
 // TestCentralizedAddresses verifies that when centralized service flags are provided,
@@ -152,25 +178,25 @@ func TestAggregatorFlagInvariants(t *testing.T) {
 func TestCentralizedAddresses(t *testing.T) {
 	args := []string{
 		"start",
-		"--rollkit.da_address=http://central-da:26657",
-		"--rollkit.sequencer_address=central-seq:26659",
-		"--rollkit.sequencer_rollup_id=centralrollup",
+		"--da.address=http://central-da:26657",
+		"--node.sequencer_address=central-seq:26659",
+		"--node.sequencer_rollup_id=centralrollup",
 	}
 
 	cmd := NewRunNodeCmd()
 	if err := cmd.ParseFlags(args); err != nil {
 		t.Fatalf("ParseFlags error: %v", err)
 	}
-	if err := parseFlags(cmd); err != nil {
-		t.Fatalf("parseFlags error: %v", err)
+	if err := parseConfig(cmd); err != nil {
+		t.Fatalf("parseConfig error: %v", err)
 	}
 
-	if nodeConfig.DAAddress != "http://central-da:26657" {
-		t.Errorf("Expected nodeConfig.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DAAddress)
+	if nodeConfig.DA.Address != "http://central-da:26657" {
+		t.Errorf("Expected nodeConfig.Rollkit.DAAddress to be 'http://central-da:26657', got '%s'", nodeConfig.DA.Address)
 	}
 
-	if nodeConfig.SequencerAddress != "central-seq:26659" {
-		t.Errorf("Expected nodeConfig.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.SequencerAddress)
+	if nodeConfig.Node.SequencerAddress != "central-seq:26659" {
+		t.Errorf("Expected nodeConfig.Rollkit.SequencerAddress to be 'central-seq:26659', got '%s'", nodeConfig.Node.SequencerAddress)
 	}
 
 	// Also confirm that the sequencer rollup id flag is marked as changed
@@ -273,7 +299,7 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create a test node config
-	testNodeConfig := rollconf.NodeConfig{
+	testNodeConfig := rollconf.Config{
 		RootDir: tempDir,
 	}
 
@@ -308,8 +334,11 @@ func TestInitFiles(t *testing.T) {
 	err = os.MkdirAll(dataDir, 0750)
 	assert.NoError(t, err)
 
+	err = node.InitFiles(tempDir)
+	assert.NoError(t, err)
+
 	// Set the nodeConfig to use the temporary directory
-	nodeConfig = rollconf.NodeConfig{
+	nodeConfig = rollconf.Config{
 		RootDir: tempDir,
 	}
 
@@ -338,6 +367,16 @@ func TestInitFiles(t *testing.T) {
 // TestKVExecutorHTTPServerShutdown tests that the KVExecutor HTTP server properly
 // shuts down when the context is cancelled
 func TestKVExecutorHTTPServerShutdown(t *testing.T) {
+	// Create a temporary directory for test
+	tempDir, err := os.MkdirTemp("", "kvexecutor-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
+	}()
 
 	// Find an available port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -374,7 +413,7 @@ func TestKVExecutorHTTPServerShutdown(t *testing.T) {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
 	if err := resp.Body.Close(); err != nil {
-		t.Fatalf("Failed to close response body: %v", err)
+		t.Logf("Failed to close response body: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {

@@ -24,31 +24,22 @@ type Node interface {
 // Example executors can be found: TODO: add link
 func NewNode(
 	ctx context.Context,
-	conf config.NodeConfig,
+	conf config.Config,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
-	if conf.Light {
-		return newLightNode(
-			ctx,
-			conf,
-			p2pKey,
-			genesis,
-			metricsProvider,
-			logger,
-		)
+	if conf.Node.Light {
+		return newLightNode(conf, genesis, metricsProvider, logger)
 	}
 
 	return newFullNode(
 		ctx,
 		conf,
-		p2pKey,
 		signingKey,
 		genesis,
 		exec,

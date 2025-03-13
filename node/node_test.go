@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
@@ -104,7 +104,7 @@ func startNodeWithCleanup(t *testing.T, node Node) *NodeRunner {
 
 	// Register cleanup function
 	t.Cleanup(func() {
-		cleanUpNode(ctx, cancel, &wg, errCh, t)
+		cleanUpNode(cancel, &wg, errCh, t)
 	})
 
 	return &NodeRunner{
@@ -117,7 +117,7 @@ func startNodeWithCleanup(t *testing.T, node Node) *NodeRunner {
 }
 
 // cleanUpNode stops the node using context cancellation
-func cleanUpNode(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup, errCh chan error, t *testing.T) {
+func cleanUpNode(cancel context.CancelFunc, wg *sync.WaitGroup, errCh chan error, t *testing.T) {
 	// Cancel the context to stop the node
 	cancel()
 
@@ -155,7 +155,7 @@ func initAndStartNodeWithCleanup(ctx context.Context, t *testing.T, nodeType Nod
 }
 
 // setupTestNode sets up a test node based on the NodeType.
-func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey) {
+func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, crypto.PrivKey) {
 	node, privKey, err := newTestNode(ctx, t, nodeType, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, node)
@@ -164,27 +164,29 @@ func setupTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID
 }
 
 // newTestNode creates a new test node based on the NodeType.
-func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, cmcrypto.PrivKey, error) {
-	config := rollkitconfig.NodeConfig{
-		DAAddress:        MockDAAddress,
-		DANamespace:      MockDANamespace,
-		ExecutorAddress:  MockExecutorAddress,
-		SequencerAddress: MockSequencerAddress,
-		Light:            nodeType == Light,
+func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID string) (Node, crypto.PrivKey, error) {
+	config := rollkitconfig.Config{
+		RootDir: t.TempDir(),
+		Node: rollkitconfig.NodeConfig{
+			ExecutorAddress:  MockExecutorAddress,
+			SequencerAddress: MockSequencerAddress,
+			Light:            nodeType == Light,
+		},
+		DA: rollkitconfig.DAConfig{
+			Address:   MockDAAddress,
+			Namespace: MockDANamespace,
+		},
 	}
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	key := generateSingleKey()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(chainID)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
 
@@ -194,8 +196,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		key,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		logger,

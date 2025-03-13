@@ -7,22 +7,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	rollos "github.com/rollkit/rollkit/pkg/os"
 )
 
 const rollupBinEntrypoint = "entrypoint"
 
-var rollkitConfig rollconf.TomlConfig
+var rollkitConfig rollconf.Config
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
 // specified in the rollkit.toml configuration file.
 func InterceptCommand(
 	rollkitCommand *cobra.Command,
-	readToml func() (rollconf.TomlConfig, error),
-	runEntrypoint func(*rollconf.TomlConfig, []string) error,
+	readToml func() (rollconf.Config, error),
+	runEntrypoint func(*rollconf.Config, []string) error,
 ) (shouldExecute bool, err error) {
 	// Grab flags and verify command
 	flags := []string{}
@@ -59,7 +59,7 @@ func InterceptCommand(
 
 	// After successfully reading the TOML file, we expect to be able to use the entrypoint
 	if rollkitConfig.Entrypoint == "" {
-		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitToml)
+		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitConfigToml)
 		return
 	}
 
@@ -70,8 +70,8 @@ func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (s
 	// The entrypoint binary file is always in the same directory as the rollkit.toml file.
 	entrypointBinaryFile := filepath.Join(rootDir, rollupBinEntrypoint)
 
-	if !cometos.FileExists(entrypointBinaryFile) || forceRebuild {
-		if !cometos.FileExists(entrypointSourceFile) {
+	if !rollos.FileExists(entrypointBinaryFile) || forceRebuild {
+		if !rollos.FileExists(entrypointSourceFile) {
 			return "", fmt.Errorf("no entrypoint source file: %s", entrypointSourceFile)
 		}
 
@@ -94,7 +94,7 @@ func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (s
 // same flags as the original command, but with the `--home` flag set to the config
 // directory of the chain specified in the rollkit.toml file. This is so the entrypoint,
 // which is a separate binary of the rollup, can read the correct chain configuration files.
-func RunRollupEntrypoint(rollkitConfig *rollconf.TomlConfig, args []string) error {
+func RunRollupEntrypoint(rollkitConfig *rollconf.Config, args []string) error {
 	var entrypointSourceFile string
 	if !filepath.IsAbs(rollkitConfig.RootDir) {
 		entrypointSourceFile = filepath.Join(rollkitConfig.RootDir, rollkitConfig.Entrypoint)

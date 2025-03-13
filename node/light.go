@@ -8,7 +8,6 @@ import (
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -29,9 +28,7 @@ type LightNode struct {
 }
 
 func newLightNode(
-	ctx context.Context,
-	conf config.NodeConfig,
-	p2pKey crypto.PrivKey,
+	conf config.Config,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
@@ -43,7 +40,7 @@ func newLightNode(
 	if err != nil {
 		return nil, err
 	}
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
+	client, err := p2p.NewClient(conf, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +60,8 @@ func newLightNode(
 	return node, nil
 }
 
-func openDatastore(conf config.NodeConfig, logger log.Logger) (ds.Batching, error) {
-	if conf.RootDir == "" && conf.DBPath == "" { // this is used for testing
+func openDatastore(conf config.Config, logger log.Logger) (ds.Batching, error) {
+	if conf.RootDir == "" && conf.DBPath == "" {
 		logger.Info("WARNING: working in in-memory mode")
 		return store.NewDefaultInMemoryKVStore()
 	}

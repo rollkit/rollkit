@@ -114,7 +114,7 @@ type Manager struct {
 	lastStateMtx *sync.RWMutex
 	store        store.Store
 
-	conf    config.BlockManagerConfig
+	config  config.Config
 	genesis *RollkitGenesis
 
 	proposerKey crypto.PrivKey
@@ -246,7 +246,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 func NewManager(
 	ctx context.Context,
 	proposerKey crypto.PrivKey,
-	conf config.BlockManagerConfig,
+	config config.Config,
 	genesis *RollkitGenesis,
 	store store.Store,
 	exec coreexecutor.Executor,
@@ -267,28 +267,28 @@ func NewManager(
 	//set block height in store
 	store.SetHeight(ctx, s.LastBlockHeight)
 
-	if s.DAHeight < conf.DAStartHeight {
-		s.DAHeight = conf.DAStartHeight
+	if s.DAHeight < config.DA.StartHeight {
+		s.DAHeight = config.DA.StartHeight
 	}
 
-	if conf.DABlockTime == 0 {
+	if config.DA.BlockTime == 0 {
 		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
-		conf.DABlockTime = defaultDABlockTime
+		config.DA.BlockTime = defaultDABlockTime
 	}
 
-	if conf.BlockTime == 0 {
+	if config.Node.BlockTime == 0 {
 		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
-		conf.BlockTime = defaultBlockTime
+		config.Node.BlockTime = defaultBlockTime
 	}
 
-	if conf.LazyBlockTime == 0 {
+	if config.Node.LazyBlockTime == 0 {
 		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
-		conf.LazyBlockTime = defaultLazyBlockTime
+		config.Node.LazyBlockTime = defaultLazyBlockTime
 	}
 
-	if conf.DAMempoolTTL == 0 {
+	if config.DA.MempoolTTL == 0 {
 		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
-		conf.DAMempoolTTL = defaultMempoolTTL
+		config.DA.MempoolTTL = defaultMempoolTTL
 	}
 
 	//proposerAddress := s.Validators.Proposer.Address.Bytes()
@@ -320,7 +320,7 @@ func NewManager(
 
 	agg := &Manager{
 		proposerKey: proposerKey,
-		conf:        conf,
+		config:      config,
 		genesis:     genesis,
 		lastState:   s,
 		store:       store,
@@ -453,15 +453,15 @@ func (m *Manager) IsDAIncluded(hash types.Hash) bool {
 // getRemainingSleep calculates the remaining sleep time based on config and a start time.
 func (m *Manager) getRemainingSleep(start time.Time) time.Duration {
 	elapsed := time.Since(start)
-	interval := m.conf.BlockTime
+	interval := m.config.Node.BlockTime
 
-	if m.conf.LazyAggregator {
+	if m.config.Node.LazyAggregator {
 		if m.buildingBlock && elapsed >= interval {
 			// Special case to give time for transactions to accumulate if we
 			// are coming out of a period of inactivity.
 			return (interval * time.Duration(defaultLazySleepPercent) / 100)
 		} else if !m.buildingBlock {
-			interval = m.conf.LazyBlockTime
+			interval = m.config.Node.LazyBlockTime
 		}
 	}
 
@@ -505,7 +505,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			if err != nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 				// Always reset timer on error
-				batchTimer.Reset(m.conf.BlockTime)
+				batchTimer.Reset(m.config.Node.BlockTime)
 				continue
 			}
 
@@ -529,7 +529,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 			// Always reset timer
 			elapsed := time.Since(start)
-			remainingSleep := m.conf.BlockTime - elapsed
+			remainingSleep := m.config.Node.BlockTime - elapsed
 			if remainingSleep < 0 {
 				remainingSleep = 0
 			}
@@ -549,7 +549,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 		delay = time.Until(m.genesis.GenesisTime)
 	} else {
 		lastBlockTime := m.getLastBlockTime()
-		delay = time.Until(lastBlockTime.Add(m.conf.BlockTime))
+		delay = time.Until(lastBlockTime.Add(m.config.Node.BlockTime))
 	}
 
 	if delay > 0 {
@@ -566,7 +566,7 @@ func (m *Manager) AggregationLoop(ctx context.Context) {
 	// Lazy Aggregator mode.
 	// In Lazy Aggregator mode, blocks are built only when there are
 	// transactions or every LazyBlockTime.
-	if m.conf.LazyAggregator {
+	if m.config.Node.LazyAggregator {
 		m.lazyAggregationLoop(ctx, blockTimer)
 		return
 	}
@@ -633,7 +633,7 @@ func (m *Manager) normalAggregationLoop(ctx context.Context, blockTimer *time.Ti
 
 // HeaderSubmissionLoop is responsible for submitting blocks to the DA layer.
 func (m *Manager) HeaderSubmissionLoop(ctx context.Context) {
-	timer := time.NewTicker(m.conf.DABlockTime)
+	timer := time.NewTicker(m.config.DA.BlockTime)
 	defer timer.Stop()
 	for {
 		select {
@@ -684,9 +684,9 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 // SyncLoop processes headers gossiped in P2P network to know what's the latest block height,
 // block data is retrieved from DA layer.
 func (m *Manager) SyncLoop(ctx context.Context) {
-	daTicker := time.NewTicker(m.conf.DABlockTime)
+	daTicker := time.NewTicker(m.config.DA.BlockTime)
 	defer daTicker.Stop()
-	blockTicker := time.NewTicker(m.conf.BlockTime)
+	blockTicker := time.NewTicker(m.config.Node.BlockTime)
 	defer blockTicker.Stop()
 	for {
 		select {
@@ -1117,9 +1117,9 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		return ErrNotProposer
 	}
 
-	if m.conf.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.conf.MaxPendingBlocks {
+	if m.config.Node.MaxPendingBlocks != 0 && m.pendingHeaders.numPendingHeaders() >= m.config.Node.MaxPendingBlocks {
 		return fmt.Errorf("refusing to create block: pending blocks [%d] reached limit [%d]",
-			m.pendingHeaders.numPendingHeaders(), m.conf.MaxPendingBlocks)
+			m.pendingHeaders.numPendingHeaders(), m.config.Node.MaxPendingBlocks)
 	}
 
 	var (
@@ -1437,7 +1437,7 @@ daSubmitRetryLoop:
 			m.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			m.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			backoff = m.conf.DABlockTime * time.Duration(m.conf.DAMempoolTTL) //nolint:gosec
+			backoff = m.config.DA.BlockTime * time.Duration(m.config.DA.MempoolTTL) //nolint:gosec
 			if m.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * m.gasMultiplier
 			}
@@ -1470,8 +1470,8 @@ func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {
 	if backoff == 0 {
 		backoff = initialBackoff
 	}
-	if backoff > m.conf.DABlockTime {
-		backoff = m.conf.DABlockTime
+	if backoff > m.config.DA.BlockTime {
+		backoff = m.config.DA.BlockTime
 	}
 	return backoff
 }

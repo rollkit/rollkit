@@ -38,24 +38,23 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	s.errCh = make(chan error, 1)
 
 	// Setup node with proper configuration
-	config := getTestConfig(1)
-	config.BlockTime = 100 * time.Millisecond        // Faster block production for tests
-	config.DABlockTime = 200 * time.Millisecond      // Faster DA submission for tests
-	config.BlockManagerConfig.MaxPendingBlocks = 100 // Allow more pending blocks
+	config := getTestConfig(s.T(), 1)
+	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
+	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
+	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(s.T(), err)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
 	require.NotNil(s.T(), s.seqSrv)
-
-	p2pKey := generateSingleKey()
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(s.T(), err)
 
 	node, err := NewNode(
 		s.ctx,
@@ -63,8 +62,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),

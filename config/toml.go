@@ -5,11 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
+	"github.com/spf13/viper"
 )
 
-// RollkitToml is the filename for the rollkit configuration file.
-const RollkitToml = "rollkit.toml"
+// ConfigBaseName is the base name of the rollkit configuration file without extension.
+const ConfigBaseName = "rollkit"
+
+// ConfigExtension is the file extension for the configuration file without the leading dot.
+const ConfigExtension = "toml"
+
+// RollkitConfigToml is the filename for the rollkit configuration file.
+const RollkitConfigToml = ConfigBaseName + "." + ConfigExtension
 
 // DefaultDirPerm is the default permissions used when creating directories.
 const DefaultDirPerm = 0700
@@ -21,40 +27,47 @@ const DefaultConfigDir = "config"
 const DefaultDataDir = "data"
 
 // ErrReadToml is the error returned when reading the rollkit.toml file fails.
-var ErrReadToml = fmt.Errorf("reading %s", RollkitToml)
+var ErrReadToml = fmt.Errorf("reading %s", RollkitConfigToml)
 
-// TomlConfig is the configuration read from rollkit.toml
-type TomlConfig struct {
-	Entrypoint string          `toml:"entrypoint"`
-	Chain      ChainTomlConfig `toml:"chain"`
-
-	RootDir string `toml:"-"`
-}
-
-// ChainTomlConfig is the configuration for the chain section of rollkit.toml
-type ChainTomlConfig struct {
-	ConfigDir string `toml:"config_dir"`
-}
-
-// ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed TomlConfig.
-func ReadToml() (config TomlConfig, err error) {
+// ReadToml reads the TOML configuration from the rollkit.toml file and returns the parsed NodeConfig.
+// Only the TOML-specific fields are populated.
+func ReadToml() (config Config, err error) {
 	startDir, err := os.Getwd()
 	if err != nil {
 		err = fmt.Errorf("%w: getting current dir: %w", ErrReadToml, err)
 		return
 	}
 
+	// Configure Viper to search for the configuration file
+	v := viper.New()
+	v.SetConfigName(ConfigBaseName)
+	v.SetConfigType(ConfigExtension)
+
+	// Search for the configuration file in the current directory and its parents
 	configPath, err := findConfigFile(startDir)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrReadToml, err)
 		return
 	}
 
-	if _, err = toml.DecodeFile(configPath, &config); err != nil {
+	v.SetConfigFile(configPath)
+
+	// Set default values
+	config = DefaultNodeConfig
+
+	// Read the configuration file
+	if err = v.ReadInConfig(); err != nil {
 		err = fmt.Errorf("%w decoding file %s: %w", ErrReadToml, configPath, err)
 		return
 	}
 
+	// Unmarshal directly into NodeConfig
+	if err = v.Unmarshal(&config); err != nil {
+		err = fmt.Errorf("%w unmarshaling config: %w", ErrReadToml, err)
+		return
+	}
+
+	// Set the root directory
 	config.RootDir = filepath.Dir(configPath)
 
 	// Add configPath to chain.ConfigDir if it is a relative path
@@ -71,7 +84,7 @@ func ReadToml() (config TomlConfig, err error) {
 func findConfigFile(startDir string) (string, error) {
 	dir := startDir
 	for {
-		configPath := filepath.Join(dir, RollkitToml)
+		configPath := filepath.Join(dir, RollkitConfigToml)
 		if _, err := os.Stat(configPath); err == nil {
 			return configPath, nil
 		}
@@ -82,7 +95,7 @@ func findConfigFile(startDir string) (string, error) {
 		}
 		dir = parentDir
 	}
-	return "", fmt.Errorf("no %s found", RollkitToml)
+	return "", fmt.Errorf("no %s found", RollkitConfigToml)
 }
 
 // FindEntrypoint searches for a main.go file in the current directory and its
@@ -144,22 +157,6 @@ func FindConfigDir(dir string) (string, bool) {
 	}
 
 	return dir, false
-}
-
-// WriteTomlConfig writes the given TomlConfig to the rollkit.toml file in the current directory.
-func WriteTomlConfig(config TomlConfig) error {
-	configPath := filepath.Join(config.RootDir, RollkitToml)
-	f, err := os.Create(configPath) //nolint:gosec
-	if err != nil {
-		return err
-	}
-	defer f.Close() //nolint:errcheck
-
-	if err := toml.NewEncoder(f).Encode(config); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // EnsureRoot creates the root, config, and data directories if they don't exist,
