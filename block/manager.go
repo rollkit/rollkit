@@ -1095,9 +1095,7 @@ func (m *Manager) getTxsFromBatch() ([][]byte, *time.Time, error) {
 		return nil, nil, ErrNoBatch
 	}
 	txs := make([][]byte, 0, len(batch.Transactions))
-	for _, tx := range batch.Transactions {
-		txs = append(txs, tx)
-	}
+	txs = append(txs, batch.Transactions...)
 	return txs, &batch.Time, nil
 }
 
