@@ -53,7 +53,7 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 func TestInitialStateClean(t *testing.T) {
 	const chainID = "TestInitialStateClean"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
@@ -71,7 +71,7 @@ func TestInitialStateClean(t *testing.T) {
 func TestInitialStateStored(t *testing.T) {
 	chainID := "TestInitialStateStored"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
@@ -149,7 +149,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
+	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
@@ -381,14 +381,12 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
+				genesisData, privKey := types.GetGenesisWithPrivkey("Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
-				require.NoError(err)
-				signingKey, err := types.PrivKeyToSigningKey(privKey)
 				require.NoError(err)
 				return args{
 					s,
-					signingKey,
+					privKey,
 				}
 			}(),
 			isProposer: true,

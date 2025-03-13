@@ -53,9 +53,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	config := getTestConfig(1)
 
 	// Generate genesis and keys
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(t, err)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -68,7 +66,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(t),

@@ -61,10 +61,8 @@ func (s *FullNodeTestSuite) SetupTest() {
 		config.Node.BlockTime, config.DA.BlockTime, config.Node.MaxPendingBlocks)
 
 	// Create genesis with current time
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 	genesis.GenesisTime = time.Now() // Set genesis time to now
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(s.T(), err)
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -77,7 +75,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -313,9 +311,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	config := getTestConfig(1)
 	config.Node.MaxPendingBlocks = 2
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(err)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -328,7 +324,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -396,9 +392,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	// Create a NEW node instance instead of reusing the old one
 	config := getTestConfig(1)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(err)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -411,7 +405,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),

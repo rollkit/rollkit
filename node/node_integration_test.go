@@ -43,9 +43,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
 	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(s.T(), err)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
 	require.NotNil(s.T(), s.seqSrv)
@@ -61,7 +59,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),

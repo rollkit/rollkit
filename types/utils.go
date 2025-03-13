@@ -9,20 +9,13 @@ import (
 	"github.com/celestiaorg/go-header"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/crypto/secp256k1"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/rollkit/rollkit/p2p/key"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
 const DefaultSigningKeyType = "ed25519"
-
-var (
-	errNilKey             = errors.New("key can't be nil")
-	errUnsupportedKeyType = errors.New("unsupported key type")
-)
 
 // ValidatorConfig carries all necessary state for generating a Validator
 type ValidatorConfig struct {
@@ -244,15 +237,6 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.Priv
 	return newSignedHeader, nil
 }
 
-// GetNodeKey creates libp2p private key from Tendermints NodeKey.
-func GetNodeKey(nodeKey *key.NodeKey) (crypto.PrivKey, error) {
-	if nodeKey.PrivKey == nil {
-		return nil, errNilKey
-	}
-
-	return nodeKey.PrivKey, nil
-}
-
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
 func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, chainID string) (*SignedHeader, error) {
 	header := Header{
@@ -303,14 +287,8 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 }
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*cmtypes.GenesisDoc, cmcrypto.PrivKey) {
-	var genesisValidatorKey cmcrypto.PrivKey
-	switch signingKeyType {
-	case "secp256k1":
-		genesisValidatorKey = secp256k1.GenPrivKey()
-	default:
-		genesisValidatorKey = ed25519.GenPrivKey()
-	}
+func GetGenesisWithPrivkey(chainID string) (*cmtypes.GenesisDoc, crypto.PrivKey) {
+	genesisValidatorKey := ed25519.GenPrivKey()
 	pubKey := genesisValidatorKey.PubKey()
 
 	genesisValidators := []cmtypes.GenesisValidator{{
@@ -324,16 +302,11 @@ func GetGenesisWithPrivkey(signingKeyType string, chainID string) (*cmtypes.Gene
 		InitialHeight: 1,
 		Validators:    genesisValidators,
 	}
-	return genDoc, genesisValidatorKey
-}
-
-// PrivKeyToSigningKey converts a privKey to a signing key
-func PrivKeyToSigningKey(privKey cmcrypto.PrivKey) (crypto.PrivKey, error) {
-	nodeKey := &key.NodeKey{
-		PrivKey: privKey,
+	privKey, err := crypto.UnmarshalEd25519PrivateKey(genesisValidatorKey.Bytes())
+	if err != nil {
+		panic(err)
 	}
-	signingKey, err := GetNodeKey(nodeKey)
-	return signingKey, err
+	return genDoc, privKey
 }
 
 // GetRandomTx returns a tx with random data
