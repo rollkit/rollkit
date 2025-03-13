@@ -28,20 +28,18 @@ func NewNode(
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (Node, error) {
 	if conf.Node.Light {
-		return newLightNode(conf, p2pKey, genesis, metricsProvider, logger)
+		return newLightNode(conf, genesis, metricsProvider, logger)
 	}
 
 	return newFullNode(
 		ctx,
 		conf,
-		p2pKey,
 		signingKey,
 		genesis,
 		exec,

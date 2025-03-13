@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	rollos "github.com/rollkit/rollkit/pkg/os"
 )
 
 const rollupBinEntrypoint = "entrypoint"
@@ -70,8 +70,8 @@ func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (s
 	// The entrypoint binary file is always in the same directory as the rollkit.toml file.
 	entrypointBinaryFile := filepath.Join(rootDir, rollupBinEntrypoint)
 
-	if !cometos.FileExists(entrypointBinaryFile) || forceRebuild {
-		if !cometos.FileExists(entrypointSourceFile) {
+	if !rollos.FileExists(entrypointBinaryFile) || forceRebuild {
+		if !rollos.FileExists(entrypointSourceFile) {
 			return "", fmt.Errorf("no entrypoint source file: %s", entrypointSourceFile)
 		}
 

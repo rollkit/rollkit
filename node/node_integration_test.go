@@ -50,8 +50,6 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
 	require.NotNil(s.T(), s.seqSrv)
 
-	p2pKey := generateSingleKey()
-
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
@@ -63,7 +61,6 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),

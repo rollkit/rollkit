@@ -2,14 +2,12 @@ package p2p
 
 import (
 	"context"
-	"crypto/rand"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
@@ -19,30 +17,37 @@ import (
 )
 
 func TestClientStartup(t *testing.T) {
-	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	assert := assert.New(t)
 	testCases := []struct {
-		desc    string
-		p2pconf config.P2PConfig
+		desc string
+		conf config.Config
 	}{
-		{"blank_config", config.P2PConfig{}},
-		{"peer_whitelisting", config.P2PConfig{
-			ListenAddress: "",
-			Seeds:         "",
-			BlockedPeers:  "",
-			AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
-		}},
-		{"peer_blacklisting", config.P2PConfig{
-			ListenAddress: "",
-			Seeds:         "",
-			BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
-			AllowedPeers:  "",
-		}},
+		{"blank_config", config.Config{}},
+		{"peer_whitelisting", config.Config{
+			P2P: config.P2PConfig{
+				ListenAddress: "",
+				Seeds:         "",
+				BlockedPeers:  "",
+				AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+			},
+		},
+		},
+		{
+			"peer_blacklisting",
+			config.Config{
+				P2P: config.P2PConfig{
+					ListenAddress: "",
+					Seeds:         "",
+					BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+					AllowedPeers:  "",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
+			client, err := NewClient(testCase.conf, "TestChain",
 				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(client)
@@ -102,8 +107,6 @@ func TestDiscovery(t *testing.T) {
 func TestSeedStringParsing(t *testing.T) {
 	t.Parallel()
 
-	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
 	seed1 := "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U"
 	seed1MA, err := multiaddr.NewMultiaddr(seed1)
 	require.NoError(t, err)
@@ -139,7 +142,7 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := log.NewNopLogger()
-			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork",
+			client, err := NewClient(config.Config{}, "TestNetwork",
 				dssync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics())
 			require.NoError(err)
 			require.NotNil(client)

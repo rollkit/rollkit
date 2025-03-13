@@ -57,8 +57,6 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(t, err)
 
-	p2pKey := generateSingleKey()
-
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
@@ -70,7 +68,6 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),

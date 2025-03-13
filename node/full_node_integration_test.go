@@ -66,8 +66,6 @@ func (s *FullNodeTestSuite) SetupTest() {
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(s.T(), err)
 
-	p2pKey := generateSingleKey()
-
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
@@ -79,7 +77,6 @@ func (s *FullNodeTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
@@ -320,8 +317,6 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
 
-	p2pKey := generateSingleKey()
-
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
@@ -333,7 +328,6 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
@@ -405,7 +399,6 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
 	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
 	require.NoError(err)
-	p2pKey := generateSingleKey()
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -418,7 +411,6 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),

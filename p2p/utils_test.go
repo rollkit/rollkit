@@ -105,8 +105,7 @@ func startTestNetwork(ctx context.Context, t *testing.T, n int, conf map[int]hos
 
 	clients := make([]*Client, n)
 	for i := 0; i < n; i++ {
-		client, err := NewClient(config.P2PConfig{Seeds: seeds[i]},
-			mnet.Hosts()[i].Peerstore().PrivKey(mnet.Hosts()[i].ID()),
+		client, err := NewClient(config.Config{P2P: config.P2PConfig{Seeds: seeds[i]}},
 			conf[i].chainID, sync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics())
 		require.NoError(err)
 		require.NotNil(client)

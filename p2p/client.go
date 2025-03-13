@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 
 	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/third_party/log"
+	rolltypes "github.com/rollkit/rollkit/types"
 )
 
 // TODO(tzdybal): refactor to configuration parameters
@@ -67,12 +69,9 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
-	if privKey == nil {
-		return nil, errNoPrivKey
-	}
-	if conf.ListenAddress == "" {
-		conf.ListenAddress = config.DefaultListenAddress
+func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
+	if conf.P2P.ListenAddress == "" {
+		conf.P2P.ListenAddress = config.DefaultListenAddress
 	}
 
 	gater, err := conngater.NewBasicConnectionGater(ds)
@@ -80,10 +79,21 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds
 		return nil, fmt.Errorf("failed to create connection gater: %w", err)
 	}
 
+	nodeKeyFile := filepath.Join(conf.RootDir, "config", "node_key.json")
+	nodeKey, err := p2p.LoadOrGenNodeKey(nodeKeyFile) //TODO: replace with local creation
+	if err != nil {
+		return nil, err
+	}
+
+	p2pKey, err := rolltypes.GetNodeKey(nodeKey)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
-		conf:    conf,
+		conf:    conf.P2P,
 		gater:   gater,
-		privKey: privKey,
+		privKey: p2pKey,
 		chainID: chainID,
 		logger:  logger,
 		metrics: metrics,

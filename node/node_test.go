@@ -183,8 +183,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		return nil, nil, err
 	}
 
-	key := generateSingleKey()
-
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
@@ -197,7 +195,6 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		key,
 		signingKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),

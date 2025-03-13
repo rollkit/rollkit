@@ -14,11 +14,9 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cometos "github.com/cometbft/cometbft/libs/os"
 	cometp2p "github.com/cometbft/cometbft/p2p"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
-	comettime "github.com/cometbft/cometbft/types/time"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,6 +30,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
+	rollos "github.com/rollkit/rollkit/pkg/os"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 	rolltypes "github.com/rollkit/rollkit/types"
 )
@@ -68,18 +67,11 @@ func NewRunNodeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
-			nodeKey, err := cometp2p.LoadOrGenNodeKey(nodeKeyFile)
-			if err != nil {
-				return err
-			}
+
 			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
 			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
 			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
-			p2pKey, err := rolltypes.GetNodeKey(nodeKey)
-			if err != nil {
-				return err
-			}
+
 			signingKey, err := rolltypes.GetNodeKey(&cometp2p.NodeKey{PrivKey: pval.Key.PrivKey})
 			if err != nil {
 				return err
@@ -128,7 +120,6 @@ func NewRunNodeCmd() *cobra.Command {
 				kvExecutor,
 				dummySequencer,
 				dummyDALC,
-				p2pKey,
 				signingKey,
 				genDoc,
 				metrics,
@@ -178,7 +169,7 @@ func NewRunNodeCmd() *cobra.Command {
 
 			// Stop upon receiving SIGTERM or CTRL-C.
 			go func() {
-				cometos.TrapSignal(logger, func() {
+				rollos.TrapSignal(logger, func() {
 					logger.Info("Received shutdown signal")
 					cancel() // Cancel context to stop the node
 					close(shutdownCh)
@@ -309,7 +300,7 @@ func initFiles() error {
 	cometprivvalKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
 	cometprivvalStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
 	var pv *cometprivval.FilePV
-	if cometos.FileExists(cometprivvalKeyFile) {
+	if rollos.FileExists(cometprivvalKeyFile) {
 		pv = cometprivval.LoadFilePV(cometprivvalKeyFile, cometprivvalStateFile)
 		logger.Info("Found private validator", "keyFile", cometprivvalKeyFile,
 			"stateFile", cometprivvalStateFile)
@@ -322,7 +313,7 @@ func initFiles() error {
 
 	// Generate the node key config files
 	nodeKeyFile := filepath.Join(nodeConfig.RootDir, "config", "node_key.json")
-	if cometos.FileExists(nodeKeyFile) {
+	if rollos.FileExists(nodeKeyFile) {
 		logger.Info("Found node key", "path", nodeKeyFile)
 	} else {
 		if _, err := cometp2p.LoadOrGenNodeKey(nodeKeyFile); err != nil {
@@ -333,12 +324,12 @@ func initFiles() error {
 
 	// Generate the genesis file
 	genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
-	if cometos.FileExists(genFile) {
+	if rollos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
 		genDoc := comettypes.GenesisDoc{
 			ChainID:         fmt.Sprintf("test-rollup-%08x", rand.Uint32()), //nolint:gosec
-			GenesisTime:     comettime.Now(),
+			GenesisTime:     time.Now().Round(0).UTC(),
 			ConsensusParams: comettypes.DefaultConsensusParams(),
 		}
 		pubKey, err := pv.GetPubKey()
