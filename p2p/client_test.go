@@ -177,7 +177,7 @@ func TestSeedStringParsing(t *testing.T) {
 func ClientInitFiles(t *testing.T, tempDir string) {
 	// Create config directory
 	configDir := filepath.Join(tempDir, "config")
-	err := os.MkdirAll(configDir, 0755)
+	err := os.MkdirAll(configDir, 0755) //nolint:gosec
 	if err != nil {
 		t.Fatalf("failed to create config directory: %v", err)
 	}
