@@ -166,7 +166,7 @@ type DAConfig struct {
 	GasPrice      float64         `mapstructure:"gas_price" toml:"gas_price" comment:"Gas price for data availability transactions. Use -1 for automatic gas price determination. Higher values may result in faster inclusion."`
 	GasMultiplier float64         `mapstructure:"gas_multiplier" toml:"gas_multiplier" comment:"Multiplier applied to gas price when retrying failed DA submissions. Values > 1 increase gas price on retries to improve chances of inclusion."`
 	SubmitOptions string          `mapstructure:"submit_options" toml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
-	Namespace     string          `mapstructure:"namespace" toml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer. Helps segregate data from different rollups on the same DA layer."`
+	Namespace     string          `mapstructure:"namespace" toml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer."`
 	BlockTime     DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Average block time of the DA chain (duration). Used for syncing and calculating retry intervals for DA submissions."`
 	StartHeight   uint64          `mapstructure:"start_height" toml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new rollup on an existing DA chain."`
 	MempoolTTL    uint64          `mapstructure:"mempool_ttl" toml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
