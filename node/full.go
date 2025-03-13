@@ -67,7 +67,6 @@ type FullNode struct {
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
-	p2pKey crypto.PrivKey,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
 	exec coreexecutor.Executor,
@@ -83,7 +82,7 @@ func newFullNode(
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
+	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}

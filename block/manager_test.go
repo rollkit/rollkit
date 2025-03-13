@@ -9,9 +9,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/crypto/secp256k1"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -56,7 +53,7 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 func TestInitialStateClean(t *testing.T) {
 	const chainID = "TestInitialStateClean"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
@@ -74,7 +71,7 @@ func TestInitialStateClean(t *testing.T) {
 func TestInitialStateStored(t *testing.T) {
 	chainID := "TestInitialStateStored"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, chainID)
+	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
@@ -152,7 +149,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "TestInitialStateUnexpectedHigherGenesis")
+	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
@@ -181,22 +178,22 @@ func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
 	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
 	payload := []byte("test")
+	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
+	require.NoError(err)
 	cases := []struct {
-		name  string
-		input cmcrypto.PrivKey
+		name    string
+		privKey crypto.PrivKey
+		pubKey  crypto.PubKey
 	}{
-		{"ed25519", ed25519.GenPrivKey()},
-		{"secp256k1", secp256k1.GenPrivKey()},
+		{"ed25519", privKey, pubKey},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			pubKey := c.input.PubKey()
-			signingKey, err := types.PrivKeyToSigningKey(c.input)
-			require.NoError(err)
-			m.proposerKey = signingKey
+			m.proposerKey = c.privKey
 			signature, err := m.sign(payload)
 			require.NoError(err)
-			ok := pubKey.VerifySignature(payload, signature)
+			ok, err := c.pubKey.Verify(payload, signature)
+			require.NoError(err)
 			require.True(ok)
 		})
 	}
@@ -384,14 +381,12 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
+				genesisData, privKey := types.GetGenesisWithPrivkey("Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
-				require.NoError(err)
-				signingKey, err := types.PrivKeyToSigningKey(privKey)
 				require.NoError(err)
 				return args{
 					s,
-					signingKey,
+					privKey,
 				}
 			}(),
 			isProposer: true,

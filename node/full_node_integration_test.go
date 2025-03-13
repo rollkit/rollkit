@@ -50,7 +50,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.errCh = make(chan error, 1)
 
 	// Setup node with proper configuration
-	config := getTestConfig(1)
+	config := getTestConfig(s.T(), 1)
 	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
 	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
 	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
@@ -61,17 +61,16 @@ func (s *FullNodeTestSuite) SetupTest() {
 		config.Node.BlockTime, config.DA.BlockTime, config.Node.MaxPendingBlocks)
 
 	// Create genesis with current time
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 	genesis.GenesisTime = time.Now() // Set genesis time to now
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(s.T(), err)
-
-	p2pKey := generateSingleKey()
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(s.T(), err)
 
 	node, err := NewNode(
 		s.ctx,
@@ -79,8 +78,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -313,19 +311,18 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.errCh = make(chan error, 1)
 
 	// Reconfigure node with low max pending
-	config := getTestConfig(1)
+	config := getTestConfig(s.T(), 1)
 	config.Node.MaxPendingBlocks = 2
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(err)
-
-	p2pKey := generateSingleKey()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
 	dummyDA := coreda.NewDummyDA(100_000)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(err)
 
 	node, err := NewNode(
 		s.ctx,
@@ -333,8 +330,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -401,11 +397,8 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.errCh = make(chan error, 1)
 
 	// Create a NEW node instance instead of reusing the old one
-	config := getTestConfig(1)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(err)
-	p2pKey := generateSingleKey()
+	config := getTestConfig(s.T(), 1)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
@@ -418,8 +411,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),

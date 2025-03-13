@@ -2,10 +2,10 @@ package p2p
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,6 +26,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/p2p/key"
+	rollhash "github.com/rollkit/rollkit/pkg/hash"
 	"github.com/rollkit/rollkit/third_party/log"
 )
 
@@ -44,6 +46,8 @@ const (
 // Those seed nodes serve Kademlia DHT protocol, and are agnostic to ORU chain. Using DHT
 // peer routing and discovery clients find other peers within ORU network.
 type Client struct {
+	logger log.Logger
+
 	conf    config.P2PConfig
 	chainID string
 	privKey crypto.PrivKey
@@ -54,12 +58,6 @@ type Client struct {
 	gater *conngater.BasicConnectionGater
 	ps    *pubsub.PubSub
 
-	// cancel is used to cancel context passed to libp2p functions
-	// it's required because of discovery.Advertise call
-	cancel context.CancelFunc
-
-	logger log.Logger
-
 	metrics *Metrics
 }
 
@@ -67,12 +65,13 @@ type Client struct {
 //
 // Basic checks on parameters are done, and default parameters are provided for unset-configuration
 // TODO(tzdybal): consider passing entire config, not just P2P config, to reduce number of arguments
-func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
-	if privKey == nil {
-		return nil, errNoPrivKey
+func NewClient(conf config.Config, chainID string, ds datastore.Datastore, logger log.Logger, metrics *Metrics) (*Client, error) {
+	if conf.RootDir == "" {
+		return nil, fmt.Errorf("rootDir is required")
 	}
-	if conf.ListenAddress == "" {
-		conf.ListenAddress = config.DefaultListenAddress
+
+	if conf.P2P.ListenAddress == "" {
+		conf.P2P.ListenAddress = config.DefaultListenAddress
 	}
 
 	gater, err := conngater.NewBasicConnectionGater(ds)
@@ -80,10 +79,16 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds
 		return nil, fmt.Errorf("failed to create connection gater: %w", err)
 	}
 
+	nodeKeyFile := filepath.Join(conf.RootDir, "config", "node_key.json")
+	nodeKey, err := key.LoadOrGenNodeKey(nodeKeyFile)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
-		conf:    conf,
+		conf:    conf.P2P,
 		gater:   gater,
-		privKey: privKey,
+		privKey: nodeKey.PrivKey,
 		chainID: chainID,
 		logger:  logger,
 		metrics: metrics,
@@ -98,8 +103,6 @@ func NewClient(conf config.P2PConfig, privKey crypto.PrivKey, chainID string, ds
 // 3. Setup DHT, establish connection to seed nodes and initialize peer discovery.
 // 4. Use active peer discovery to look for peers from same ORU network.
 func (c *Client) Start(ctx context.Context) error {
-	// create new, cancelable context
-	ctx, c.cancel = context.WithCancel(ctx)
 	c.logger.Debug("starting P2P client")
 	host, err := c.listen()
 	if err != nil {
@@ -144,7 +147,6 @@ func (c *Client) startWithHost(ctx context.Context, h host.Host) error {
 
 // Close gently stops Client.
 func (c *Client) Close() error {
-	c.cancel()
 
 	return errors.Join(
 		c.dht.Close(),
@@ -173,21 +175,12 @@ func (c *Client) ConnectionGater() *conngater.BasicConnectionGater {
 }
 
 // Info returns client ID, ListenAddr, and Network info
-func (c *Client) Info() (p2p.ID, string, string, error) {
+func (c *Client) Info() (string, string, string, error) {
 	rawKey, err := c.privKey.GetPublic().Raw()
 	if err != nil {
 		return "", "", "", err
 	}
-	return p2p.ID(hex.EncodeToString(sumTruncated(rawKey))), c.conf.ListenAddress, c.chainID, nil
-}
-
-// PeerConnection describe basic information about P2P connection.
-// TODO(tzdybal): move it somewhere
-type PeerConnection struct {
-	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
-	IsOutbound       bool                 `json:"is_outbound"`
-	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
-	RemoteIP         string               `json:"remote_ip"`
+	return hex.EncodeToString(rollhash.SumTruncated(rawKey)), c.conf.ListenAddress, c.chainID, nil
 }
 
 // PeerIDs returns list of peer IDs of connected peers excluding self and inactive
@@ -370,10 +363,4 @@ func (c *Client) parseAddrInfoList(addrInfoStr string) []peer.AddrInfo {
 // For now, chainID is used.
 func (c *Client) getNamespace() string {
 	return c.chainID
-}
-
-// -------
-func sumTruncated(bz []byte) []byte {
-	hash := sha256.Sum256(bz)
-	return hash[:20]
 }
