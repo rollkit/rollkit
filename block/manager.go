@@ -181,20 +181,6 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 	if errors.Is(err, ds.ErrNotFound) {
 		logger.Info("No state found in store, initializing new state")
 
-		// Initialize genesis block explicitly
-		err = store.SaveBlockData(ctx,
-			&types.SignedHeader{Header: types.Header{
-				BaseHeader: types.BaseHeader{
-					Height: genesis.InitialHeight,
-					Time:   uint64(genesis.GenesisTime.UnixNano()),
-				}}},
-			&types.Data{},
-			&types.Signature{},
-		)
-		if err != nil {
-			return types.State{}, fmt.Errorf("failed to save genesis block: %w", err)
-		}
-
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		// TODO(tzdybal): handle max bytes
 		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisTime, genesis.InitialHeight, genesis.ChainID)
@@ -284,11 +270,9 @@ func NewManager(
 		conf.DAMempoolTTL = defaultMempoolTTL
 	}
 
-	//proposerAddress := s.Validators.Proposer.Address.Bytes()
-
 	maxBlobSize, err := dalc.DA.MaxBlobSize(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while getting max blob size: %w", err)
 	}
 	// allow buffer for the block header and protocol encoding
 	//nolint:ineffassign // This assignment is needed
@@ -302,7 +286,7 @@ func NewManager(
 
 	pendingHeaders, err := NewPendingHeaders(store, logger)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while creating pending headers: %w", err)
 	}
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
@@ -417,8 +401,8 @@ func (m *Manager) SetLastState(state types.State) {
 }
 
 // GetStoreHeight returns the manager's store height
-func (m *Manager) GetStoreHeight() uint64 {
-	return m.store.Height()
+func (m *Manager) GetStoreHeight(ctx context.Context) uint64 {
+	return m.store.Height(ctx)
 }
 
 // GetHeaderInCh returns the manager's blockInCh
@@ -532,7 +516,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
 	initialHeight := m.genesis.InitialHeight //nolint:gosec
-	height := m.store.Height()
+	height := m.store.Height(ctx)
 	var delay time.Duration
 
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
@@ -697,7 +681,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			if headerHeight <= m.store.Height() || m.headerCache.isSeen(headerHash) {
+			if headerHeight <= m.store.Height(ctx) || m.headerCache.isSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
@@ -727,7 +711,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
+			if dataHeight <= m.store.Height(ctx) || m.dataCache.isSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
@@ -781,7 +765,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return ctx.Err()
 		default:
 		}
-		currentHeight := m.store.Height()
+		currentHeight := m.store.Height(ctx)
 		h := m.headerCache.getHeader(currentHeight + 1)
 		if h == nil {
 			m.logger.Debug("header not found in cache", "height", currentHeight+1)
@@ -820,9 +804,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return SaveBlockResponsesError{err}
 		}
-
-		// Height gets updated
-		m.store.SetHeight(ctx, hHeight)
 
 		if daHeight > newState.DAHeight {
 			newState.DAHeight = daHeight
@@ -1107,7 +1088,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		lastHeaderTime time.Time
 		err            error
 	)
-	height := m.store.Height()
+	height := m.store.Height(ctx)
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
 	if newHeight <= m.genesis.InitialHeight {
@@ -1141,12 +1122,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-		//extendedCommit, err := m.getExtendedCommit(ctx, height)
-		extendedCommit := abci.ExtendedCommitInfo{}
-		// if err != nil {
-		// 	return fmt.Errorf("failed to load extended commit for height %d: %w", height, err)
-		// }
-
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
@@ -1187,7 +1162,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, extendedCommit, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, txs, *timestamp)
 		if err != nil {
 			return err
 		}
@@ -1262,12 +1237,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 	// Update app hash in state
 	newState.AppHash = appHash
-
-	// SaveBlockResponses commits the DB tx
-	//err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
-	//if err != nil {
-	//	return SaveBlockResponsesError{err}
-	//}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
 	m.store.SetHeight(ctx, headerHeight)
@@ -1456,10 +1425,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, extendedCommit abci.ExtendedCommitInfo, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, extendedCommit, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, txs, timestamp)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
@@ -1478,7 +1447,7 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ abci.ExtendedCommitInfo, _ types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, txs cmtypes.Txs, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
 	// TODO(tzdybal): get rid of cmtypes.Tx, probable we should have common-shared-dep with basic types
 	rawTxs := make([]execTypes.Tx, len(txs))
 	for i := range txs {
@@ -1487,6 +1456,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 
 	header := &types.SignedHeader{
 		Header: types.Header{
+			LastHeaderHash: lastHeaderHash,
 			Version: types.Version{
 				Block: lastState.Version.Consensus.Block,
 				App:   lastState.Version.Consensus.App,
@@ -1513,6 +1483,8 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	for i := range txs {
 		data.Txs[i] = types.Tx(txs[i])
 	}
+
+	header.LastCommitHash = lastSignature.GetCommitHash(&header.Header, header.ProposerAddress)
 
 	return header, data, nil
 }

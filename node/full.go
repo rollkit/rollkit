@@ -16,7 +16,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	goda "github.com/rollkit/go-da"
 	proxyda "github.com/rollkit/go-da/proxy"
+	coreda "github.com/rollkit/rollkit/core/da"
+	rollkitda "github.com/rollkit/rollkit/da"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -83,6 +86,10 @@ func newFullNode(
 		return nil, err
 	}
 
+	if dalc == nil {
+		return nil, fmt.Errorf("DALC is not initialized")
+	}
+
 	p2pClient, err := p2p.NewClient(nodeConfig.P2P, p2pKey, genesis.ChainID, database, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
@@ -146,17 +153,98 @@ func initDALC(nodeConfig config.NodeConfig, logger log.Logger) (*da.DAClient, er
 		return nil, fmt.Errorf("gas multiplier must be greater than or equal to zero")
 	}
 
-	client, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
+	// TODO: figure this one out
+	daClient, err := proxyda.NewClient(nodeConfig.DAAddress, nodeConfig.DAAuthToken)
 	if err != nil {
 		return nil, fmt.Errorf("error while establishing connection to DA layer: %w", err)
 	}
+
+	// Create adapter to convert between go-da.DA and rollkit/core/da.DA
+	adaptedClient := &daAdapter{daClient}
 
 	var submitOpts []byte
 	if nodeConfig.DASubmitOptions != "" {
 		submitOpts = []byte(nodeConfig.DASubmitOptions)
 	}
-	return da.NewDAClient(client, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
+
+	return rollkitda.NewDAClient(adaptedClient, nodeConfig.DAGasPrice, nodeConfig.DAGasMultiplier,
 		namespace, submitOpts, logger.With("module", "da_client")), nil
+}
+
+// TODO: temporary adapter until we remove go-da
+type daAdapter struct {
+	client goda.DA
+}
+
+func (a *daAdapter) GetIDs(ctx context.Context, height uint64, namespace coreda.Namespace) (*coreda.GetIDsResult, error) {
+	result, err := a.client.GetIDs(ctx, height, goda.Namespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+
+	response := &coreda.GetIDsResult{}
+
+	if result != nil {
+		response.IDs = result.IDs
+	}
+
+	return response, nil
+}
+
+func (a *daAdapter) Submit(ctx context.Context, blobs []coreda.Blob, gasPrice int64, namespace coreda.Namespace) ([]coreda.ID, error) {
+	ids, err := a.client.Submit(ctx, blobs, float64(gasPrice), goda.Namespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (a *daAdapter) SubmitWithOptions(ctx context.Context, blobs []coreda.Blob, gasPrice int64, namespace coreda.Namespace, options []byte) ([]coreda.ID, error) {
+	ids, err := a.client.Submit(ctx, blobs, float64(gasPrice), goda.Namespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (a *daAdapter) Validate(ctx context.Context, ids []coreda.ID, proofs []coreda.Proof, namespace coreda.Namespace) ([]bool, error) {
+	results, err := a.client.Validate(ctx, ids, proofs, goda.Namespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (a *daAdapter) Get(ctx context.Context, ids []coreda.ID, namespace coreda.Namespace) ([]coreda.Blob, error) {
+	blobs, err := a.client.Get(ctx, ids, goda.Namespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+	return blobs, nil
+}
+
+func (a *daAdapter) GetProofs(ctx context.Context, ids []coreda.ID, namespace coreda.Namespace) ([]coreda.Proof, error) {
+	proofs, err := a.client.GetProofs(ctx, ids, goda.Namespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+	return proofs, nil
+}
+
+func (a *daAdapter) MaxBlobSize(ctx context.Context) (uint64, error) {
+	return a.client.MaxBlobSize(ctx)
+}
+
+func (a *daAdapter) Commit(ctx context.Context, blobs []coreda.Blob, namespace coreda.Namespace) ([]coreda.Commitment, error) {
+	ids, err := a.client.Submit(ctx, blobs, 0, goda.Namespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+	commitments := make([]coreda.Commitment, len(ids))
+	for i, id := range ids {
+		commitments[i] = coreda.Commitment(id)
+	}
+	return commitments, nil
 }
 
 func initHeaderSyncService(

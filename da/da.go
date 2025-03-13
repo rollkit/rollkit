@@ -111,7 +111,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedH
 			break
 		}
 		if blobSize+uint64(len(blob)) > maxBlobSize {
-			message = fmt.Sprint((&coreda.ErrBlobSizeOverLimit{}).Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
+			message = fmt.Sprint(coreda.ErrBlobSizeOverLimit.Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
 			dac.Logger.Info(message)
 			break
 		}
@@ -129,19 +129,20 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers []*types.SignedH
 
 	ctx, cancel := context.WithTimeout(ctx, dac.SubmitTimeout)
 	defer cancel()
-	ids, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
+
+	ids, err := dac.DA.SubmitWithOptions(ctx, blobs, int64(gasPrice), dac.Namespace, dac.SubmitOptions)
 	if err != nil {
 		status := StatusError
 		switch {
-		case errors.Is(err, &coreda.ErrTxTimedOut{}):
+		case errors.Is(err, coreda.ErrTxTimedOut):
 			status = StatusNotIncludedInBlock
-		case errors.Is(err, &coreda.ErrTxAlreadyInMempool{}):
+		case errors.Is(err, coreda.ErrTxAlreadyInMempool):
 			status = StatusAlreadyInMempool
-		case errors.Is(err, &coreda.ErrTxIncorrectAccountSequence{}):
+		case errors.Is(err, coreda.ErrTxIncorrectAccountSequence):
 			status = StatusAlreadyInMempool
-		case errors.Is(err, &coreda.ErrTxTooLarge{}):
+		case errors.Is(err, coreda.ErrTxTooLarge):
 			status = StatusTooBig
-		case errors.Is(err, &coreda.ErrContextDeadline{}):
+		case errors.Is(err, coreda.ErrContextDeadline):
 			status = StatusContextDeadline
 		}
 		return ResultSubmit{
@@ -188,7 +189,7 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 		return ResultRetrieveHeaders{
 			BaseResult: BaseResult{
 				Code:     StatusNotFound,
-				Message:  (&goDA.ErrBlobNotFound{}).Error(),
+				Message:  coreda.ErrBlobNotFound.Error(),
 				DAHeight: dataLayerHeight,
 			},
 		}
@@ -234,11 +235,4 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 		},
 		Headers: headers,
 	}
-}
-
-func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace coreda.Namespace) ([]coreda.ID, error) {
-	if len(dac.SubmitOptions) == 0 {
-		return dac.DA.Submit(ctx, blobs, gasPrice, namespace)
-	}
-	return dac.DA.SubmitWithOptions(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
 }
