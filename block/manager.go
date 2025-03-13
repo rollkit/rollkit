@@ -1540,7 +1540,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
-	rawTxs := make([]execTypes.Tx, len(data.Txs))
+	rawTxs := make([][]byte, len(data.Txs))
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
