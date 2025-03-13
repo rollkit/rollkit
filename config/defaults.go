@@ -43,9 +43,9 @@ var DefaultNodeConfig = Config{
 	},
 	Node: NodeConfig{
 		Aggregator:        true,
-		BlockTime:         1 * time.Second,
+		BlockTime:         DurationWrapper{1 * time.Second},
 		LazyAggregator:    false,
-		LazyBlockTime:     60 * time.Second,
+		LazyBlockTime:     DurationWrapper{60 * time.Second},
 		Light:             false,
 		TrustedHash:       "",
 		SequencerAddress:  DefaultSequencerAddress,
@@ -54,7 +54,7 @@ var DefaultNodeConfig = Config{
 	},
 	DA: DAConfig{
 		Address:       DefaultDAAddress,
-		BlockTime:     15 * time.Second,
+		BlockTime:     DurationWrapper{15 * time.Second},
 		GasPrice:      -1,
 		GasMultiplier: 0,
 	},

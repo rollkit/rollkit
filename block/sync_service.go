@@ -227,7 +227,7 @@ func (syncService *SyncService[H]) prepareSyncer(ctx context.Context) error {
 		syncService.ex,
 		syncService.store,
 		syncService.sub,
-		[]goheadersync.Option{goheadersync.WithBlockTime(syncService.conf.Node.BlockTime)},
+		[]goheadersync.Option{goheadersync.WithBlockTime(syncService.conf.Node.BlockTime.Duration)},
 	); err != nil {
 		return nil
 	}

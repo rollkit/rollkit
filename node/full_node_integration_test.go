@@ -51,14 +51,14 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	// Setup node with proper configuration
 	config := getTestConfig(s.T(), 1)
-	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
-	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
-	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
-	config.Node.Aggregator = true                  // Enable aggregator mode
+	config.Node.BlockTime.Duration = 100 * time.Millisecond // Faster block production for tests
+	config.DA.BlockTime.Duration = 200 * time.Millisecond   // Faster DA submission for tests
+	config.Node.MaxPendingBlocks = 100                      // Allow more pending blocks
+	config.Node.Aggregator = true                           // Enable aggregator mode
 
 	// Add debug logging for configuration
 	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingBlocks=%d",
-		config.Node.BlockTime, config.DA.BlockTime, config.Node.MaxPendingBlocks)
+		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingBlocks)
 
 	// Create genesis with current time
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
@@ -214,7 +214,7 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.T().Log("=== Attempting to Trigger Block Production ===")
 	// Force a state update to trigger block production
 	currentState := s.node.blockManager.GetLastState()
-	currentState.LastBlockTime = time.Now().Add(-2 * s.node.nodeConfig.Node.BlockTime)
+	currentState.LastBlockTime = time.Now().Add(-2 * s.node.nodeConfig.Node.BlockTime.Duration)
 	s.node.blockManager.SetLastState(currentState)
 
 	// Monitor after trigger
@@ -347,7 +347,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.startNodeInBackground(s.node)
 
 	// Wait blocks to be produced up to max pending
-	time.Sleep(time.Duration(config.Node.MaxPendingBlocks+1) * config.Node.BlockTime)
+	time.Sleep(time.Duration(config.Node.MaxPendingBlocks+1) * config.Node.BlockTime.Duration)
 
 	// Verify that number of pending blocks doesn't exceed max
 	height, err := getNodeHeight(s.node, Header)
@@ -373,7 +373,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	require.NoError(err)
 
 	// Wait for some blocks
-	time.Sleep(2 * s.node.nodeConfig.Node.BlockTime)
+	time.Sleep(2 * s.node.nodeConfig.Node.BlockTime.Duration)
 
 	// Stop the current node
 	s.cancel()
@@ -428,7 +428,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.startNodeInBackground(s.node)
 
 	// Wait a bit after restart
-	time.Sleep(s.node.nodeConfig.Node.BlockTime)
+	time.Sleep(s.node.nodeConfig.Node.BlockTime.Duration)
 
 	// Verify state persistence
 	recoveredHeight, err := getNodeHeight(s.node, Store)

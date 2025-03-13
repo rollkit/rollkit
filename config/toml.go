@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
 
@@ -62,7 +65,27 @@ func ReadToml() (config Config, err error) {
 	}
 
 	// Unmarshal directly into NodeConfig
-	if err = v.Unmarshal(&config); err != nil {
+	if err = v.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+		c.TagName = "mapstructure"
+		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+			// Add a custom hook for DurationWrapper
+			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+				// If the target type is DurationWrapper and the source is string
+				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
+					if str, ok := data.(string); ok {
+						duration, err := time.ParseDuration(str)
+						if err != nil {
+							return nil, err
+						}
+						return DurationWrapper{Duration: duration}, nil
+					}
+				}
+				return data, nil
+			},
+		)
+	}); err != nil {
 		err = fmt.Errorf("%w unmarshaling config: %w", ErrReadToml, err)
 		return
 	}
