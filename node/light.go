@@ -8,7 +8,6 @@ import (
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
@@ -30,27 +29,18 @@ type LightNode struct {
 func newLightNode(
 	ctx context.Context,
 	conf config.NodeConfig,
-	p2pKey crypto.PrivKey,
+	p2pClient *p2p.Client,
 	genesis *cmtypes.GenesisDoc,
 	database ds.Batching,
-	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
-
-	_, p2pMetrics := metricsProvider(genesis.ChainID)
-
-	client, err := p2p.NewClient(conf.P2P, p2pKey, genesis.ChainID, database, logger.With("module", "p2p"), p2pMetrics)
-	if err != nil {
-		return nil, err
-	}
-
-	headerSyncService, err := block.NewHeaderSyncService(database, conf, genesis, client, logger.With("module", "HeaderSyncService"))
+	headerSyncService, err := block.NewHeaderSyncService(database, conf, genesis, p2pClient, logger.With("module", "HeaderSyncService"))
 	if err != nil {
 		return nil, fmt.Errorf("error while initializing HeaderSyncService: %w", err)
 	}
 
 	node := &LightNode{
-		P2P:          client,
+		P2P:          p2pClient,
 		hSyncService: headerSyncService,
 	}
 
