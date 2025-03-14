@@ -57,10 +57,12 @@ type BaseResult struct {
 	Code StatusCode
 	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
 	Message string
-	// DAHeight informs about a height on Data Availability Layer for given result.
-	DAHeight uint64
+	// Height is the height of the block on Data Availability Layer for given result.
+	Height uint64
 	// SubmittedCount is the number of successfully submitted blocks.
 	SubmittedCount uint64
+	// BlobSize is the size of the blob submitted.
+	BlobSize uint64
 }
 
 //--------------------------------

@@ -62,7 +62,7 @@ func (c *DummyClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBl
 			SubmittedCount: uint64(len(headers)),
 			// Note: In a real implementation, we would set the DAHeight to the actual height
 			// where the blobs were included in the DA layer
-			DAHeight: height,
+			Height: height,
 		},
 	}
 }
@@ -84,9 +84,9 @@ func (c *DummyClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint6
 	if len(result.IDs) == 0 {
 		return ResultRetrieveHeaders{
 			BaseResult: BaseResult{
-				Code:     StatusSuccess,
-				Message:  fmt.Sprintf("no headers found at height %d", dataLayerHeight),
-				DAHeight: dataLayerHeight,
+				Code:    StatusSuccess,
+				Message: fmt.Sprintf("no headers found at height %d", dataLayerHeight),
+				Height:  dataLayerHeight,
 			},
 			Headers: [][]byte{},
 		}
@@ -110,9 +110,9 @@ func (c *DummyClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint6
 	// Return success result
 	return ResultRetrieveHeaders{
 		BaseResult: BaseResult{
-			Code:     StatusSuccess,
-			Message:  fmt.Sprintf("retrieved %d headers from height %d", len(headers), dataLayerHeight),
-			DAHeight: dataLayerHeight,
+			Code:    StatusSuccess,
+			Message: fmt.Sprintf("retrieved %d headers from height %d", len(headers), dataLayerHeight),
+			Height:  dataLayerHeight,
 		},
 		Headers: headers,
 	}
@@ -141,7 +141,7 @@ func (c *DummyClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSiz
 			Code:           StatusSuccess,
 			Message:        fmt.Sprintf("successfully submitted %d items in batch", len(data)),
 			SubmittedCount: uint64(len(data)),
-			DAHeight:       height,
+			Height:         height,
 		},
 	}
 }
@@ -163,9 +163,9 @@ func (c *DummyClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64)
 	if len(result.IDs) == 0 {
 		return ResultRetrieveBatch{
 			BaseResult: BaseResult{
-				Code:     StatusSuccess,
-				Message:  fmt.Sprintf("no data found at height %d", dataLayerHeight),
-				DAHeight: dataLayerHeight,
+				Code:    StatusSuccess,
+				Message: fmt.Sprintf("no data found at height %d", dataLayerHeight),
+				Height:  dataLayerHeight,
 			},
 			Data: [][]byte{},
 		}
@@ -185,9 +185,9 @@ func (c *DummyClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64)
 	// Return success result
 	return ResultRetrieveBatch{
 		BaseResult: BaseResult{
-			Code:     StatusSuccess,
-			Message:  fmt.Sprintf("retrieved %d items from batch at height %d", len(blobs), dataLayerHeight),
-			DAHeight: dataLayerHeight,
+			Code:    StatusSuccess,
+			Message: fmt.Sprintf("retrieved %d items from batch at height %d", len(blobs), dataLayerHeight),
+			Height:  dataLayerHeight,
 		},
 		Data: blobs,
 	}

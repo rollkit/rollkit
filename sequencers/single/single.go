@@ -256,7 +256,7 @@ daSubmitRetryLoop:
 			for _, batch := range batchesToSubmit {
 				txCount += len(batch.Transactions)
 			}
-			c.logger.Info("successfully submitted batches to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "batchCount", res.SubmittedCount, "txCount", txCount)
+			c.logger.Info("successfully submitted batches to DA layer", "gasPrice", gasPrice, "height", res.Height, "batchCount", res.SubmittedCount, "txCount", txCount)
 
 			// Check if all batches were submitted
 			if res.SubmittedCount == uint64(len(batchesToSubmit)) {
@@ -305,7 +305,7 @@ daSubmitRetryLoop:
 		}
 
 		// Record metrics for monitoring
-		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(batchesToSubmit), res.DAHeight)
+		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(batchesToSubmit), res.Height)
 		attempt += 1
 	}
 

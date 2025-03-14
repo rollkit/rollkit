@@ -1377,7 +1377,7 @@ daSubmitRetryLoop:
 		res := m.dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, gasPrice)
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "headerCount", res.SubmittedCount)
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}

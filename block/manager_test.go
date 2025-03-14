@@ -176,7 +176,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 	payload := []byte("test")
 	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -292,7 +292,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -327,7 +327,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -445,7 +445,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
