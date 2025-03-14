@@ -14,6 +14,15 @@ type Client interface {
 
 	// MaxBlobSize returns the maximum blob size for the DA layer.
 	MaxBlobSize(ctx context.Context) (uint64, error)
+
+	// SubmitBatch submits a batch of blobs to the DA layer.
+	SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmitBatch
+
+	// GasPrice returns the gas price for the DA layer.
+	GasPrice(ctx context.Context) (float64, error)
+
+	// GasMultiplier returns the gas multiplier for the DA layer.
+	GasMultiplier(ctx context.Context) (float64, error)
 }
 
 // ResultRetrieveHeaders contains batch of block headers returned from DA layer client.
@@ -48,11 +57,17 @@ type BaseResult struct {
 	Code StatusCode
 	// Message may contain DA layer specific information (like DA block height/hash, detailed error message, etc)
 	Message string
-	// DAHeight informs about a height on Data Availability Layer for given result.
-	DAHeight uint64
+	// Height is the height of the block on Data Availability Layer for given result.
+	Height uint64
 	// SubmittedCount is the number of successfully submitted blocks.
 	SubmittedCount uint64
+	// BlobSize is the size of the blob submitted.
+	BlobSize uint64
 }
+
+//--------------------------------
+// batches
+//--------------------------------
 
 // ResultSubmit contains information returned from DA layer after block headers/data submission.
 type ResultSubmit struct {
@@ -60,4 +75,20 @@ type ResultSubmit struct {
 	// Not sure if this needs to be bubbled up to other
 	// parts of Rollkit.
 	// Hash hash.Hash
+}
+
+// ResultSubmitBatch contains information returned from DA layer after block headers/data submission.
+type ResultSubmitBatch struct {
+	BaseResult
+	// Not sure if this needs to be bubbled up to other
+	// parts of Rollkit.
+	// Hash hash.Hash
+}
+
+// ResultRetrieveBatch contains batch of block data returned from DA layer client.
+type ResultRetrieveBatch struct {
+	BaseResult
+	// Data is the block data retrieved from Data Availability Layer.
+	// If Code is not equal to StatusSuccess, it has to be nil.
+	Data [][]byte
 }

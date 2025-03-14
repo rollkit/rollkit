@@ -1313,10 +1313,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) sign(payload []byte) ([]byte, error) {
-	return m.proposerKey.Sign(payload)
-}
-
 func (m *Manager) recordMetrics(data *types.Data) {
 	m.metrics.NumTxs.Set(float64(len(data.Txs)))
 	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
@@ -1377,7 +1373,7 @@ daSubmitRetryLoop:
 		res := m.dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, gasPrice)
 		switch res.Code {
 		case coreda.StatusSuccess:
-			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.DAHeight, "headerCount", res.SubmittedCount)
+			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
 			if res.SubmittedCount == uint64(len(headersToSubmit)) {
 				submittedAllHeaders = true
 			}

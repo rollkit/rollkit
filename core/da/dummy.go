@@ -17,10 +17,12 @@ type DummyDA struct {
 	blobsByHeight      map[uint64][]ID
 	timestampsByHeight map[uint64]time.Time
 	maxBlobSize        uint64
+	gasPrice           float64
+	gasMultiplier      float64
 }
 
 // NewDummyDA creates a new instance of DummyDA with the specified maximum blob size.
-func NewDummyDA(maxBlobSize uint64) *DummyDA {
+func NewDummyDA(maxBlobSize uint64, gasPrice float64, gasMultiplier float64) *DummyDA {
 	return &DummyDA{
 		blobs:              make(map[string]Blob),
 		commitments:        make(map[string]Commitment),
@@ -28,12 +30,24 @@ func NewDummyDA(maxBlobSize uint64) *DummyDA {
 		blobsByHeight:      make(map[uint64][]ID),
 		timestampsByHeight: make(map[uint64]time.Time),
 		maxBlobSize:        maxBlobSize,
+		gasPrice:           gasPrice,
+		gasMultiplier:      gasMultiplier,
 	}
 }
 
 // MaxBlobSize returns the maximum blob size.
 func (d *DummyDA) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return d.maxBlobSize, nil
+}
+
+// GasPrice returns the gas price for the DA layer.
+func (d *DummyDA) GasPrice(ctx context.Context) (float64, error) {
+	return d.gasPrice, nil
+}
+
+// GasMultiplier returns the gas multiplier for the DA layer.
+func (d *DummyDA) GasMultiplier(ctx context.Context) (float64, error) {
+	return d.gasMultiplier, nil
 }
 
 // Get returns blobs for the given IDs.
@@ -43,8 +57,7 @@ func (d *DummyDA) Get(ctx context.Context, ids []ID, namespace []byte) ([]Blob, 
 
 	blobs := make([]Blob, 0, len(ids))
 	for _, id := range ids {
-		idStr := string(id)
-		blob, exists := d.blobs[idStr]
+		blob, exists := d.blobs[string(id)]
 		if !exists {
 			return nil, errors.New("blob not found")
 		}
@@ -79,8 +92,7 @@ func (d *DummyDA) GetProofs(ctx context.Context, ids []ID, namespace []byte) ([]
 
 	proofs := make([]Proof, 0, len(ids))
 	for _, id := range ids {
-		idStr := string(id)
-		proof, exists := d.proofs[idStr]
+		proof, exists := d.proofs[string(id)]
 		if !exists {
 			return nil, errors.New("proof not found")
 		}
@@ -145,8 +157,7 @@ func (d *DummyDA) Validate(ctx context.Context, ids []ID, proofs []Proof, namesp
 
 	results := make([]bool, len(ids))
 	for i, id := range ids {
-		idStr := string(id)
-		_, exists := d.blobs[idStr]
+		_, exists := d.blobs[string(id)]
 		results[i] = exists
 	}
 

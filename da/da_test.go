@@ -97,7 +97,7 @@ func TestMockDAErrors(t *testing.T) {
 
 func TestSubmitRetrieve(t *testing.T) {
 	t.Skip("skipping tests") //TODO: fix these tests
-	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), -1, -1, nil, nil, log.NewTestLogger(t))
+	dummyClient := NewDAClient(coreda.NewDummyDA(100_000, 0, 0), -1, -1, nil, nil, log.NewTestLogger(t))
 	tests := []struct {
 		name string
 		f    func(t *testing.T, dalc coreda.Client)
@@ -121,8 +121,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require := require.New(t)
-	assert := assert.New(t)
+	require.New(t)
 
 	const numBatches = 10
 	const numHeaders = 10
@@ -130,14 +129,14 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 	countAtHeight := make(map[uint64]int)
 
 	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	require.NoError(err)
+	require.NoError(t, err)
 
 	submitAndRecordHeaders := func(blobs []coreda.Blob) {
 		for len(blobs) > 0 {
 			resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
-			assert.Equal(coreda.StatusSuccess, resp.Code, resp.Message)
+			assert.Equal(t, coreda.StatusSuccess, resp.Code, resp.Message)
 
-			countAtHeight[resp.DAHeight]++
+			countAtHeight[resp.Height]++
 			blobs = blobs[resp.SubmittedCount:]
 		}
 	}
@@ -154,8 +153,8 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 	validateBlockRetrieval := func(height uint64, expectedCount int) {
 		t.Log("Retrieving block, DA Height", height)
 		ret := dalc.RetrieveHeaders(ctx, height)
-		assert.Equal(coreda.StatusSuccess, ret.Code, ret.Message)
-		require.NotEmpty(ret.Headers, height)
+		assert.Equal(t, coreda.StatusSuccess, ret.Code, ret.Message)
+		require.NotEmpty(t, ret.Headers, height)
 		// assert.Len(ret.Headers, expectedCount, height) // TODO: fix this
 	}
 
@@ -171,15 +170,14 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc coreda.Client) {
 
 	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	require.NoError(t, err)
-
-	assert := assert.New(t)
+	require.New(t)
 
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 0)
 	headersBz[1] = make([]byte, 0)
 	resp := dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, -1)
-	assert.Equal(coreda.StatusSuccess, resp.Code, "empty blocks should submit")
-	assert.EqualValues(resp.SubmittedCount, 2, "empty blocks should batch")
+	assert.Equal(t, coreda.StatusSuccess, resp.Code, "empty blocks should submit")
+	assert.EqualValues(t, resp.SubmittedCount, 2, "empty blocks should batch")
 }
 
 func doTestSubmitOversizedBlock(t *testing.T, dalc coreda.Client) {
@@ -205,14 +203,14 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc coreda.Client) {
 	maxBlobSize, err := dalc.MaxBlobSize(ctx)
 	require.NoError(t, err)
 
-	assert := assert.New(t)
+	require.New(t)
 
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 100)
 	headersBz[1] = make([]byte, 100)
 	resp := dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, -1)
-	assert.Equal(coreda.StatusSuccess, resp.Code, "small blocks should submit")
-	assert.EqualValues(resp.SubmittedCount, 2, "small blocks should batch")
+	assert.Equal(t, coreda.StatusSuccess, resp.Code, "small blocks should submit")
+	assert.EqualValues(t, resp.SubmittedCount, 2, "small blocks should batch")
 }
 
 func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc coreda.Client) {
@@ -254,17 +252,17 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	assert := assert.New(t)
+	require.New(t)
 	result := dalc.RetrieveHeaders(ctx, 123)
 	// Namespaces don't work on dummy da right now (https://github.com/rollkit/go-da/issues/94),
 	// when namespaces are implemented, this should be uncommented
 	// assert.Equal(StatusNotFound, result.Code)
 	// assert.Contains(result.Message, ErrBlobNotFound.Error())
-	assert.Equal(coreda.StatusError, result.Code)
+	assert.Equal(t, coreda.StatusError, result.Code)
 }
 
 func TestSubmitWithOptions(t *testing.T) {
-	dummyClient := NewDAClient(coreda.NewDummyDA(100_000), -1, -1, nil, []byte("option=value"), log.NewTestLogger(t))
+	dummyClient := NewDAClient(coreda.NewDummyDA(100_000, 0, 0), -1, -1, nil, []byte("option=value"), log.NewTestLogger(t))
 	tests := []struct {
 		name string
 		f    func(t *testing.T, dalc coreda.Client)

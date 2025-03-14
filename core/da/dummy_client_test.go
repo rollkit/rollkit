@@ -7,7 +7,7 @@ import (
 
 func TestDummyClient(t *testing.T) {
 	// Create a new DummyDA with a max blob size of 1024 bytes
-	dummyDA := NewDummyDA(1024)
+	dummyDA := NewDummyDA(1024, 0, 0)
 
 	// Create a new DummyClient with the DummyDA
 	namespace := []byte("test-namespace")

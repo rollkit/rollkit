@@ -182,13 +182,14 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	err := InitFiles(config.RootDir)
 	require.NoError(t, err)
 
 	logger := log.NewTestLogger(t)
+
 	node, err := NewNode(
 		ctx,
 		config,
