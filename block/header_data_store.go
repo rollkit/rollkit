@@ -43,6 +43,13 @@ func (m *Manager) HeaderStoreRetrieveLoop(ctx context.Context) {
 				}
 				m.logger.Debug("header retrieved from p2p header sync", "headerHeight", header.Height(), "daHeight", daHeight)
 				m.headerInCh <- NewHeaderEvent{header, daHeight}
+
+				// Process the header
+				err = m.ProcessHeader(ctx, header)
+				if err != nil {
+					m.logger.Error("failed to process header", "height", header.Height(), "err", err)
+					continue
+				}
 			}
 		}
 		lastHeaderStoreHeight = headerStoreHeight
@@ -60,15 +67,15 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 		}
 		dataStoreHeight := m.dataStore.Height()
 		if dataStoreHeight > lastDataStoreHeight {
-			data, err := m.getDataFromDataStore(ctx, lastDataStoreHeight+1, dataStoreHeight)
+			dataItems, err := m.getDataFromDataStore(ctx, lastDataStoreHeight+1, dataStoreHeight)
 			if err != nil {
-				m.logger.Error("failed to get data from Data Store", "lastDataStoreHeight", lastDataStoreHeight, "dataStoreHeight", dataStoreHeight, "errors", err.Error())
+				m.logger.Error("failed to get data from Data Store", "lastDataHeight", lastDataStoreHeight, "dataStoreHeight", dataStoreHeight, "errors", err.Error())
 				continue
 			}
 			daHeight := atomic.LoadUint64(&m.daHeight)
-			for _, d := range data {
+			for _, data := range dataItems {
 				// Check for shut down event prior to logging
-				// and sending header to dataInCh. The reason
+				// and sending data to dataInCh. The reason
 				// for checking for the shutdown event
 				// separately is due to the inconsistent nature
 				// of the select statement when multiple cases
@@ -78,9 +85,15 @@ func (m *Manager) DataStoreRetrieveLoop(ctx context.Context) {
 					return
 				default:
 				}
-				//TODO: remove junk if possible
-				m.logger.Debug("data retrieved from p2p data sync", "dataHeight", d.Metadata.Height, "daHeight", daHeight)
-				m.dataInCh <- NewDataEvent{d, daHeight}
+				m.logger.Debug("data retrieved from p2p data sync", "dataHeight", data.Metadata.Height, "daHeight", daHeight)
+				m.dataInCh <- NewDataEvent{data, daHeight}
+
+				// Process the data
+				err = m.ProcessData(ctx, data)
+				if err != nil {
+					m.logger.Error("failed to process data", "height", data.Metadata.Height, "err", err)
+					continue
+				}
 			}
 		}
 		lastDataStoreHeight = dataStoreHeight

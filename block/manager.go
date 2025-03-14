@@ -113,26 +113,24 @@ type Manager struct {
 	// daHeight is the height of the latest processed DA block
 	daHeight uint64
 
+	// Channels for receiving headers and data
 	HeaderCh chan *types.SignedHeader
 	DataCh   chan *types.Data
 
-	headerInCh  chan NewHeaderEvent
-	headerStore *goheaderstore.Store[*types.SignedHeader]
+	// Channels for internal communication
+	headerInCh    chan NewHeaderEvent
+	dataInCh      chan NewDataEvent
+	headerStoreCh chan struct{}
+	dataStoreCh   chan struct{}
+	retrieveCh    chan struct{}
 
-	dataInCh  chan NewDataEvent
-	dataStore *goheaderstore.Store[*types.Data]
-
+	// Caches for headers and data
 	headerCache *HeaderCache
 	dataCache   *DataCache
 
-	// headerStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve headers from headerStore
-	headerStoreCh chan struct{}
-
-	// dataStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data from dataStore
-	dataStoreCh chan struct{}
-
-	// retrieveCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve data
-	retrieveCh chan struct{}
+	// Stores for headers and data
+	headerStore *goheaderstore.Store[*types.SignedHeader]
+	dataStore   *goheaderstore.Store[*types.Data]
 
 	logger log.Logger
 

@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
@@ -74,86 +76,16 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	if err != nil {
 		return err
 	}
-	sh.Signature = other.Signature
-
-	if other.Validators != nil && other.Validators.GetProposer() != nil {
-		validators, err := types.ValidatorSetFromProto(other.Validators)
-		if err != nil {
-			return err
-		}
-
-		sh.Validators = validators
-	}
-	return nil
-}
-
-// MarshalBinary encodes SignedHeader into binary form and returns it.
-func (sh *SignedHeader) MarshalBinary() ([]byte, error) {
-	hp, err := sh.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	return hp.Marshal()
-}
-
-// UnmarshalBinary decodes binary form of SignedHeader into object.
-func (sh *SignedHeader) UnmarshalBinary(data []byte) error {
-	var pHeader pb.SignedHeader
-	err := pHeader.Unmarshal(data)
+	copy(sh.Signature[:], other.Signature)
+	vSet, err := types.ValidatorSetFromProto(other.Validators)
 	if err != nil {
 		return err
 	}
-	err = sh.FromProto(&pHeader)
-	if err != nil {
-		return err
-	}
+	sh.Validators = vSet
 	return nil
 }
 
-// ToProto converts Header into protobuf representation and returns it.
-func (h *Header) ToProto() *pb.Header {
-	return &pb.Header{
-		Version: &pb.Version{
-			Block: h.Version.Block,
-			App:   h.Version.App,
-		},
-		Height:          h.BaseHeader.Height,
-		Time:            h.BaseHeader.Time,
-		LastHeaderHash:  h.LastHeaderHash[:],
-		LastCommitHash:  h.LastCommitHash[:],
-		DataHash:        h.DataHash[:],
-		ConsensusHash:   h.ConsensusHash[:],
-		AppHash:         h.AppHash[:],
-		LastResultsHash: h.LastResultsHash[:],
-		ProposerAddress: h.ProposerAddress[:],
-		ChainId:         h.BaseHeader.ChainID,
-		ValidatorHash:   h.ValidatorHash,
-	}
-}
-
-// FromProto fills Header with data from its protobuf representation.
-func (h *Header) FromProto(other *pb.Header) error {
-	h.Version.Block = other.Version.Block
-	h.Version.App = other.Version.App
-	h.BaseHeader.ChainID = other.ChainId
-	h.BaseHeader.Height = other.Height
-	h.BaseHeader.Time = other.Time
-	h.LastHeaderHash = other.LastHeaderHash
-	h.LastCommitHash = other.LastCommitHash
-	h.DataHash = other.DataHash
-	h.ConsensusHash = other.ConsensusHash
-	h.AppHash = other.AppHash
-	h.LastResultsHash = other.LastResultsHash
-	h.ValidatorHash = other.ValidatorHash
-	if len(other.ProposerAddress) > 0 {
-		h.ProposerAddress = make([]byte, len(other.ProposerAddress))
-		copy(h.ProposerAddress, other.ProposerAddress)
-	}
-
-	return nil
-}
-
-// ToProto ...
+// ToProto converts Metadata into protobuf representation and returns it.
 func (m *Metadata) ToProto() *pb.Metadata {
 	return &pb.Metadata{
 		ChainId:      m.ChainID,
@@ -163,43 +95,181 @@ func (m *Metadata) ToProto() *pb.Metadata {
 	}
 }
 
-// FromProto ...
+// FromProto fills Metadata with data from its protobuf representation.
 func (m *Metadata) FromProto(other *pb.Metadata) {
 	m.ChainID = other.ChainId
 	m.Height = other.Height
 	m.Time = other.Time
-	m.LastDataHash = other.LastDataHash
+	copy(m.LastDataHash[:], other.LastDataHash)
+}
+
+// ToProto converts Header into protobuf representation and returns it.
+func (h *Header) ToProto() *pb.Header {
+	blockVersion := uint64(0)
+	appVersion := uint64(0)
+	if h.Version.Block != 0 {
+		blockVersion = h.Version.Block
+	}
+	if h.Version.App != 0 {
+		appVersion = h.Version.App
+	}
+	version := &pb.Version{
+		Block: blockVersion,
+		App:   appVersion,
+	}
+	return &pb.Header{
+		Version:         version,
+		Height:          h.Height(),
+		Time:            h.BaseHeader.Time,
+		LastHeaderHash:  h.LastHeaderHash[:],
+		LastCommitHash:  h.LastCommitHash[:],
+		DataHash:        h.DataHash[:],
+		ConsensusHash:   h.ConsensusHash[:],
+		AppHash:         h.AppHash[:],
+		LastResultsHash: h.LastResultsHash[:],
+		ProposerAddress: h.ProposerAddress,
+		ValidatorHash:   h.ValidatorHash[:],
+		ChainId:         h.ChainID(),
+	}
+}
+
+// FromProto fills Header with data from protobuf representation.
+func (h *Header) FromProto(other *pb.Header) error {
+	v := Version{}
+	if other.Version != nil {
+		v.Block = other.Version.Block
+		v.App = other.Version.App
+	}
+	h.Version = v
+	h.BaseHeader.Height = other.Height
+	h.BaseHeader.Time = other.Time
+	h.BaseHeader.ChainID = other.ChainId
+	copy(h.LastHeaderHash[:], other.LastHeaderHash)
+	copy(h.LastCommitHash[:], other.LastCommitHash)
+	copy(h.DataHash[:], other.DataHash)
+	copy(h.ConsensusHash[:], other.ConsensusHash)
+	copy(h.AppHash[:], other.AppHash)
+	copy(h.LastResultsHash[:], other.LastResultsHash)
+	h.ProposerAddress = other.ProposerAddress
+	copy(h.ValidatorHash[:], other.ValidatorHash)
+	return nil
 }
 
 // ToProto converts Data into protobuf representation and returns it.
 func (d *Data) ToProto() *pb.Data {
-	var mProto *pb.Metadata
+	txs := make([][]byte, len(d.Txs))
+	for i, tx := range d.Txs {
+		txs[i] = tx
+	}
+
+	md := &pb.Metadata{}
 	if d.Metadata != nil {
-		mProto = d.Metadata.ToProto()
+		md = &pb.Metadata{
+			ChainId:      d.Metadata.ChainID,
+			Height:       d.Metadata.Height,
+			Time:         d.Metadata.Time,
+			LastDataHash: d.Metadata.LastDataHash[:],
+		}
 	}
 	return &pb.Data{
-		Metadata: mProto,
-		Txs:      txsToByteSlices(d.Txs),
-		// IntermediateStateRoots: d.IntermediateStateRoots.RawRootsList,
-		// Note: Temporarily remove Evidence #896
-		// Evidence:               evidenceToProto(d.Evidence),
+		Metadata: md,
+		Txs:      txs,
 	}
 }
 
-// FromProto fills the Data with data from its protobuf representation
+// FromProto fills Data with data from protobuf representation.
 func (d *Data) FromProto(other *pb.Data) error {
 	if other.Metadata != nil {
 		if d.Metadata == nil {
 			d.Metadata = &Metadata{}
 		}
-		d.Metadata.FromProto(other.Metadata)
+		d.Metadata.ChainID = other.Metadata.ChainId
+		d.Metadata.Height = other.Metadata.Height
+		d.Metadata.Time = other.Metadata.Time
+		copy(d.Metadata.LastDataHash[:], other.Metadata.LastDataHash)
 	}
-	d.Txs = byteSlicesToTxs(other.Txs)
-	// d.IntermediateStateRoots.RawRootsList = other.IntermediateStateRoots
-	// Note: Temporarily remove Evidence #896
-	// d.Evidence = evidenceFromProto(other.Evidence)
-
+	txs := make(Txs, len(other.Txs))
+	for i, tx := range other.Txs {
+		txs[i] = tx
+	}
+	d.Txs = txs
 	return nil
+}
+
+// NewABCICommit returns a new commit in ABCI format.
+func NewABCICommit(height uint64, round int32, blockID types.BlockID, commitSigs []types.CommitSig) *types.Commit {
+	return &types.Commit{
+		Height:     int64(height), // nolint: gosec
+		Round:      round,
+		BlockID:    blockID,
+		Signatures: commitSigs,
+	}
+}
+
+// GetCometBFTBlock converts *Types.SignedHeader and *Types.Data to *cmtTypes.Block.
+func GetCometBFTBlock(blockHeader *SignedHeader, blockData *Data) (*types.Block, error) {
+	// Create a tendermint TmBlock
+	abciHeader, err := ToTendermintHeader(&blockHeader.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	val := blockHeader.Validators.Validators[0].Address
+	abciCommit := GetABCICommit(blockHeader.Height(), blockHeader.Hash(), val, blockHeader.Time(), blockHeader.Signature)
+
+	if len(abciCommit.Signatures) == 1 {
+		abciCommit.Signatures[0].ValidatorAddress = blockHeader.ProposerAddress
+	}
+
+	// put the validatorhash from rollkit to tendermint
+	abciHeader.ValidatorsHash = blockHeader.Header.ValidatorHash
+	abciHeader.NextValidatorsHash = blockHeader.Header.ValidatorHash
+
+	// add txs to the block
+	var txs = make([]types.Tx, 0)
+	for _, tx := range blockData.Txs {
+		txs = append(txs, types.Tx(tx))
+	}
+	tmblock := &types.Block{
+		Header: abciHeader,
+		Data: types.Data{
+			Txs: txs,
+		},
+		Evidence:   *types.NewEvidenceData(),
+		LastCommit: abciCommit,
+	}
+
+	return tmblock, nil
+}
+
+// ToTendermintHeader converts rollkit Header to tendermint Header.
+func ToTendermintHeader(header *Header) (types.Header, error) {
+	pHeader := header.ToProto()
+	var tmHeader cmproto.Header
+	tmHeader.Version.Block = int64(pHeader.Version.Block)
+	tmHeader.Version.App = int64(pHeader.Version.App)
+
+	tmHeader.ChainID = pHeader.ChainId
+	tmHeader.Height = int64(pHeader.Height)
+
+	t := time.Unix(0, int64(pHeader.Time))
+	tmHeader.Time = t
+
+	tmHeader.LastBlockId.Hash = pHeader.LastHeaderHash
+	tmHeader.LastBlockId.PartSetHeader.Total = 0
+	tmHeader.LastBlockId.PartSetHeader.Hash = nil
+
+	tmHeader.LastCommitHash = pHeader.LastCommitHash
+	tmHeader.DataHash = pHeader.DataHash
+	tmHeader.ValidatorsHash = pHeader.ValidatorHash
+	tmHeader.NextValidatorsHash = pHeader.ValidatorHash
+	tmHeader.ConsensusHash = pHeader.ConsensusHash
+	tmHeader.AppHash = pHeader.AppHash
+	tmHeader.LastResultsHash = pHeader.LastResultsHash
+	tmHeader.EvidenceHash = []byte{}
+	tmHeader.ProposerAddress = pHeader.ProposerAddress
+
+	return types.HeaderFromProto(tmHeader)
 }
 
 // ToProto converts State into protobuf representation and returns it.
@@ -278,65 +348,4 @@ func (s *State) FromProto(other *pb.State) error {
 	s.AppHash = other.AppHash
 
 	return nil
-}
-
-func txsToByteSlices(txs Txs) [][]byte {
-	if txs == nil {
-		return nil
-	}
-	bytes := make([][]byte, len(txs))
-	for i := range txs {
-		bytes[i] = txs[i]
-	}
-	return bytes
-}
-
-func byteSlicesToTxs(bytes [][]byte) Txs {
-	if len(bytes) == 0 {
-		return nil
-	}
-	txs := make(Txs, len(bytes))
-	for i := range txs {
-		txs[i] = bytes[i]
-	}
-	return txs
-}
-
-// Note: Temporarily remove Evidence #896
-
-// func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
-// 	var ret []*abci.Evidence
-// 	for _, e := range evidence.Evidence {
-// 		for i := range e.ABCI() {
-// 			ae := e.ABCI()[i]
-// 			ret = append(ret, &ae)
-// 		}
-// 	}
-// 	return ret
-// }
-
-// func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
-// 	var ret EvidenceData
-// 	// TODO(tzdybal): right now Evidence is just an interface without implementations
-// 	return ret
-// }
-
-// ConsensusParamsFromProto converts protobuf consensus parameters to consensus parameters
-func ConsensusParamsFromProto(pbParams cmproto.ConsensusParams) types.ConsensusParams {
-	c := types.ConsensusParams{
-		Block: types.BlockParams{
-			MaxBytes: pbParams.Block.MaxBytes,
-			MaxGas:   pbParams.Block.MaxGas,
-		},
-		Validator: types.ValidatorParams{
-			PubKeyTypes: pbParams.Validator.PubKeyTypes,
-		},
-		Version: types.VersionParams{
-			App: pbParams.Version.App,
-		},
-	}
-	if pbParams.Abci != nil {
-		c.ABCI.VoteExtensionsEnableHeight = pbParams.Abci.GetVoteExtensionsEnableHeight()
-	}
-	return c
 }
