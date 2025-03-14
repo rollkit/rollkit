@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package rollkit.pkg.remote_signer.v1;
+
+option go_package = "github.com/rollkit/rollkit/pkg/remote_signer/v1";
+
+// The SignRequest holds the bytes we want to sign.
+message SignRequest {
+  bytes message = 1;
+}
+
+// The SignResponse returns the signature bytes.
+message SignResponse {
+  bytes signature = 1;
+}
+
+// The GetPublicRequest is an empty request.
+message GetPublicRequest {}
+
+// The GetPublicResponse returns the public key.
+message GetPublicResponse {
+  bytes public_key = 1;
+}
+
+// The SignerService defines the RPCs to sign and to retrieve the public key.
+service SignerService {
+  rpc Sign(SignRequest) returns (SignResponse);
+  rpc GetPublic(GetPublicRequest) returns (GetPublicResponse);
+}
