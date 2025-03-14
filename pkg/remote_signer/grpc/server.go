@@ -3,21 +3,22 @@ package grpc
 import (
 	"context"
 
+	"github.com/rollkit/rollkit/pkg/remote_signer"
 	v1 "github.com/rollkit/rollkit/pkg/remote_signer/v1"
 )
 
 // RemoteSigner implements the SignerService generated interface from the .proto
 type RemoteSignerServer struct {
-	signer                              v1.SignerServiceServer
+	signer                              remote_signer.Signer
 	v1.UnimplementedSignerServiceServer // Embedded for forward compatibility
 }
 
-func NewRemoteSignerServer(s v1.SignerServiceServer) *RemoteSignerServer {
+func NewRemoteSignerServer(s remote_signer.Signer) *RemoteSignerServer {
 	return &RemoteSignerServer{signer: s}
 }
 
 func (r *RemoteSignerServer) Sign(ctx context.Context, req *v1.SignRequest) (*v1.SignResponse, error) {
-	sig, err := r.signer.Sign(ctx, req)
+	sig, err := r.signer.Sign(req.GetMessage())
 	if err != nil {
 		return nil, err
 	}
