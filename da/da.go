@@ -108,7 +108,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlo
 	return coreda.ResultSubmit{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
-			DAHeight:       height,
+			Height:         height,
 			SubmittedCount: uint64(len(ids)),
 		},
 	}
@@ -121,9 +121,9 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 	if err != nil {
 		return coreda.ResultRetrieveHeaders{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusError,
-				Message:  fmt.Sprintf("failed to get IDs: %s", err.Error()),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusError,
+				Message: fmt.Sprintf("failed to get IDs: %s", err.Error()),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
@@ -132,9 +132,9 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 	if result == nil || len(result.IDs) == 0 {
 		return coreda.ResultRetrieveHeaders{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusNotFound,
-				Message:  ErrBlobNotFound.Error(),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusNotFound,
+				Message: ErrBlobNotFound.Error(),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
@@ -143,9 +143,9 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 	if err != nil {
 		return coreda.ResultRetrieveHeaders{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusError,
-				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusError,
+				Message: fmt.Sprintf("failed to get blobs: %s", err.Error()),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
@@ -159,8 +159,8 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 
 	return coreda.ResultRetrieveHeaders{
 		BaseResult: coreda.BaseResult{
-			Code:     coreda.StatusSuccess,
-			DAHeight: dataLayerHeight,
+			Code:   coreda.StatusSuccess,
+			Height: dataLayerHeight,
 		},
 		Headers: blobs,
 	}
@@ -236,7 +236,7 @@ func (dac *DAClient) SubmitBatch(ctx context.Context, data [][]byte, maxBlobSize
 	return coreda.ResultSubmitBatch{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
-			DAHeight:       height,
+			Height:         height,
 			SubmittedCount: uint64(len(ids)),
 		},
 	}
@@ -248,9 +248,9 @@ func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) 
 	if err != nil {
 		return coreda.ResultRetrieveBatch{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusError,
-				Message:  fmt.Sprintf("failed to get IDs: %s", err.Error()),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusError,
+				Message: fmt.Sprintf("failed to get IDs: %s", err.Error()),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
@@ -260,9 +260,9 @@ func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) 
 	if len(ids) == 0 {
 		return coreda.ResultRetrieveBatch{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusNotFound,
-				Message:  ErrBlobNotFound.Error(),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusNotFound,
+				Message: ErrBlobNotFound.Error(),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
@@ -271,17 +271,17 @@ func (dac *DAClient) RetrieveBatch(ctx context.Context, dataLayerHeight uint64) 
 	if err != nil {
 		return coreda.ResultRetrieveBatch{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusError,
-				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusError,
+				Message: fmt.Sprintf("failed to get blobs: %s", err.Error()),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
 
 	return coreda.ResultRetrieveBatch{
 		BaseResult: coreda.BaseResult{
-			Code:     coreda.StatusSuccess,
-			DAHeight: dataLayerHeight,
+			Code:   coreda.StatusSuccess,
+			Height: dataLayerHeight,
 		},
 		Data: blobs,
 	}

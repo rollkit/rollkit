@@ -136,7 +136,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 			resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
 			assert.Equal(t, coreda.StatusSuccess, resp.Code, resp.Message)
 
-			countAtHeight[resp.DAHeight]++
+			countAtHeight[resp.Height]++
 			blobs = blobs[resp.SubmittedCount:]
 		}
 	}

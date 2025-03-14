@@ -1313,10 +1313,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) sign(payload []byte) ([]byte, error) {
-	return m.proposerKey.Sign(payload)
-}
-
 func (m *Manager) recordMetrics(data *types.Data) {
 	m.metrics.NumTxs.Set(float64(len(data.Txs)))
 	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
