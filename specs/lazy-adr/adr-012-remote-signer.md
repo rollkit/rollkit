@@ -7,7 +7,7 @@
 
 ## Context
 
-Rollkit with single or multiple signers requires a fast, secure, and flexible digital signing solution. Currently, nodes perform local signing using keys stored on disk. However, this approach distributes private keys across many nodes, increasing the risk of compromise. By centralizing the signing process behind a remote service—ideally backed by an HSM (Hardware Security Module)—we can both secure our keys and achieve high availability. This remote signing service will also allow clients written in different languages to use a unified API through gRPC.
+Rollkit with single or multiple signers requires a fast, secure, and flexible digital signing solution. Currently, nodes perform local signing using keys stored on disk, in plain. However, this approach distributes private keys across many nodes, increasing the risk of compromise. By centralizing the signing process behind a remote service—ideally backed by an HSM (Hardware Security Module)—we can both secure our keys and achieve high availability. This remote signing service will also allow clients written in different languages to use a unified API through gRPC.
 
 ## Alternative Approaches
 
@@ -28,8 +28,8 @@ We will implement a remote signing service that uses gRPC to communicate between
 
 ```mermaid
 graph TD
-    A[Client Node] -->|gRPC Call: Sign()/GetPublic()| B[HSM / Remote Signing Server]
-    B -->|Uses| C[Secure Key Storage (HSM)]
+    A[Client Node] -->|"gRPC Call: Sign()/GetPublic()"| B[HSM / Remote Signing Server]
+    B -->|Uses| C["Secure Key Storage (HSM)"]
     B -->|Returns Signature/Public Key| A
 ```
 
@@ -45,23 +45,7 @@ type Signer interface {
 
 ## Detailed Design
 
-### User Requirements
-
-- Nodes require a fast and secure way to sign messages.
-- The signing service must be accessible from multiple programming languages.
-- Private keys must be centrally managed and secured.
-
-### Affected Systems
-
-- Node signing functionality.
-- Key management system (e.g., HSM or secure file storage).
-- gRPC-based communication layer.
-
-### Data Structures and APIs
-
-- Data Structures: The Signer interface remains unchanged. The implementation details for private/public key handling may vary.
-- APIs:
-The gRPC service is defined with the following protobuf:
+### GRPC API
 
 ```proto
 syntax = "proto3";
@@ -94,40 +78,8 @@ service SignerService {
   rpc GetPublic(GetPublicRequest) returns (GetPublicResponse);
 }
 ```
+Signing operations will typically require very high throughput and minimal latency. Nodes frequently request digital signatures, expecting quick responses. Public key retrievals, while less frequent than signatures, still occur regularly for validation purposes.
 
-### Efficiency Considerations
-
-- Time: gRPC provides low-latency communication suitable for high-frequency signing operations.
-- Space: Efficient binary serialization minimizes payload sizes.
-
-### Expected Access Patterns
-
-- High-throughput, low-latency signing requests.
-- Frequent public key retrievals for validation.
-
-### Logging, Monitoring, and Observability
-
-- Integration with centralized logging systems.
-- Metrics collection on signing latency and error rates.
-- Alerts for network issues between nodes and the signing service.
-
-### Security Considerations
-
-- Centralized key management minimizes the risk of key exposure.
-- Use of gRPC ensures secure communication channels (with TLS in production).
-- Role-based access and auditing for signing operations.
-
-### Testing Strategy
-
-- Unit tests for both local and remote implementations.
-- Integration tests to validate end-to-end gRPC communication.
-- Performance benchmarks to ensure signing meets throughput requirements.
-
-### Deployment Considerations
-
-- Rolling deployment of the signing service with failover strategies.
-- Monitoring and logging setups to capture operational metrics.
-- Potential need for a breaking release if nodes rely on the remote signing service without fallback.
 
 ## Status
 
