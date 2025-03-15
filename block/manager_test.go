@@ -760,7 +760,8 @@ func TestNormalAggregationLoop(t *testing.T) {
 func TestGetTxsFromBatch_NoBatch(t *testing.T) {
 	// Mocking a manager with an empty batch queue
 	m := &Manager{
-		bq: &BatchQueue{queue: nil}, // No batch available
+		bq:     &BatchQueue{queue: nil}, // No batch available
+		logger: log.NewTestLogger(t),
 	}
 
 	// Call the method and assert the results

@@ -215,7 +215,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	m.recordMetrics(uint64(headerHeight))
+	m.recordMetrics(headerHeight)
 	// Check for shut down event prior to sending the header and block to
 	// their respective channels. The reason for checking for the shutdown
 	// event separately is due to the inconsistent nature of the select
