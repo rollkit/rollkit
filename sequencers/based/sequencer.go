@@ -64,10 +64,7 @@ func (s *BasedSequencer) SubmitRollupBatchTxs(ctx context.Context, req coreseque
 	defer s.mu.Unlock()
 
 	// Convert transactions to DA blobs
-	blobs := make([]da.Blob, len(req.Batch.Transactions))
-	for i, tx := range req.Batch.Transactions {
-		blobs[i] = tx
-	}
+	blobs := req.Batch.Transactions
 
 	// Submit transactions to DA
 	_, height, err := s.da.Submit(ctx, blobs, s.gasPrice, s.namespace, nil)

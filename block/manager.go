@@ -669,23 +669,3 @@ func (m *Manager) nextState(state types.State, header *types.SignedHeader, state
 	}
 	return s, nil
 }
-
-// handleHeaderGossip determines how to handle header gossip based on sequencer mode
-func (m *Manager) handleHeaderGossip(ctx context.Context, header *types.SignedHeader) error {
-	// In based sequencing mode, headers are expected to be finalized immediately
-	// after verification with DA layer, so we mark them as DA included right away
-	if m.IsBasedSequencing() {
-		headerHash := header.Hash().String()
-		m.headerCache.setDAIncluded(headerHash)
-		err := m.setDAIncludedHeight(ctx, header.Height())
-		if err != nil {
-			return err
-		}
-		m.logger.Info("based mode: header marked as DA included immediately",
-			"headerHeight", header.Height(),
-			"headerHash", headerHash)
-	}
-
-	// Continue with normal header processing
-	return nil
-}
