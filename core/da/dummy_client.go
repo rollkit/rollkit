@@ -107,3 +107,8 @@ func (c *DummyClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint6
 		Headers: headers,
 	}
 }
+
+// GetDA returns the underlying DA implementation
+func (c *DummyClient) GetDA() DA {
+	return c.da
+}
