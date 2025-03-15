@@ -779,6 +779,7 @@ func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
 		bq: &BatchQueue{queue: []BatchWithTime{
 			{Batch: &coresequencer.Batch{Transactions: nil}, Time: time.Now()},
 		}},
+		logger: log.NewTestLogger(t),
 	}
 
 	// Call the method and assert the results
@@ -796,6 +797,7 @@ func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
 		bq: &BatchQueue{queue: []BatchWithTime{
 			{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
 		}},
+		logger: log.NewTestLogger(t),
 	}
 
 	// Call the method and assert the results
