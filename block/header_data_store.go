@@ -104,13 +104,15 @@ func (m *Manager) getHeadersFromHeaderStore(ctx context.Context, startHeight, en
 	if startHeight > endHeight {
 		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
 	}
-	headers := make([]*types.SignedHeader, endHeight-startHeight+1)
+
+	headers := make([]*types.SignedHeader, 0, endHeight-startHeight+1)
 	for i := startHeight; i <= endHeight; i++ {
+		// Adapt to go-header-store interface which doesn't take a context
 		header, err := m.headerStore.GetByHeight(ctx, i)
 		if err != nil {
 			return nil, err
 		}
-		headers[i-startHeight] = header
+		headers = append(headers, header)
 	}
 	return headers, nil
 }
@@ -119,13 +121,15 @@ func (m *Manager) getDataFromDataStore(ctx context.Context, startHeight, endHeig
 	if startHeight > endHeight {
 		return nil, fmt.Errorf("startHeight (%d) is greater than endHeight (%d)", startHeight, endHeight)
 	}
-	data := make([]*types.Data, endHeight-startHeight+1)
+
+	data := make([]*types.Data, 0, endHeight-startHeight+1)
 	for i := startHeight; i <= endHeight; i++ {
+		// Adapt to go-header-store interface which doesn't take a context
 		d, err := m.dataStore.GetByHeight(ctx, i)
 		if err != nil {
 			return nil, err
 		}
-		data[i-startHeight] = d
+		data = append(data, d)
 	}
 	return data, nil
 }

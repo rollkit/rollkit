@@ -39,14 +39,3 @@ func (h *Header) SetDataCommitment(data *Data) {
 func (h *Header) ValidateDataCommitment(data *Data) bool {
 	return bytes.Equal(h.DataHash[:], data.Hash()[:])
 }
-
-// SetDataCommitment sets the DataCommitment in a minimal header.
-func (h *MinimalHeader) SetDataCommitment(data *Data) {
-	dataHash := data.Hash()
-	h.DataCommitment = dataHash
-}
-
-// ValidateDataCommitment validates that the minimal header's DataCommitment matches the hash of the provided data.
-func (h *MinimalHeader) ValidateDataCommitment(data *Data) bool {
-	return bytes.Equal(h.DataCommitment[:], data.Hash()[:])
-}

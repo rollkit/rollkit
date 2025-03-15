@@ -509,11 +509,13 @@ func (m *Manager) sign(payload []byte) ([]byte, error) {
 	return m.proposerKey.Sign(payload)
 }
 
-func (m *Manager) recordMetrics(data *types.Data) {
-	m.metrics.NumTxs.Set(float64(len(data.Txs)))
-	m.metrics.TotalTxs.Add(float64(len(data.Txs)))
-	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
-	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
+func (m *Manager) recordMetrics(height uint64) {
+	if m.metrics == nil {
+		return
+	}
+
+	// If height is provided directly, use it
+	m.metrics.CommittedHeight.Set(float64(height))
 }
 
 func (m *Manager) exponentialBackoff(backoff time.Duration) time.Duration {

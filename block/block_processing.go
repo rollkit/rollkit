@@ -47,7 +47,7 @@ func (m *Manager) ProcessBlock(ctx context.Context, header *types.SignedHeader, 
 	m.lastStateMtx.Unlock()
 
 	// Record metrics
-	m.recordMetrics(data)
+	m.recordMetrics(header.Height())
 
 	return nil
 }
