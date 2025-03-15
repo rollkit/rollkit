@@ -53,6 +53,37 @@ a sovereign, customizable blockchain as easily as a smart contract.
 
 Check out our tutorials on our [website][docs].
 
+## Sequencing Modes
+
+Rollkit supports multiple sequencing modes that provide flexibility for different use cases:
+
+### Centralized Sequencing
+
+In this mode, a dedicated sequencer service is responsible for transaction ordering. This is the default mode when a sequencer address is specified:
+
+```toml
+[node]
+sequencer_address = "localhost:50051"
+```
+
+### Based Sequencing
+
+Based sequencing leverages the Data Availability (DA) layer for transaction ordering, simplifying the architecture and improving decentralization. This mode is used automatically when no sequencer address is provided:
+
+```toml
+[node]
+# No sequencer_address = uses based sequencing automatically
+```
+
+The Based Sequencing mode provides these benefits:
+- Simplified architecture with no separate sequencer service
+- Decentralized transaction ordering using the DA layer
+- Reduced network overhead with header-only gossiping
+- Faster finalization as headers are marked finalized upon verification
+- Better security by inheriting properties of the underlying DA layer
+
+Learn more about Based Sequencing in the [documentation](./sequencers/based/README.md).
+
 ## Contributing
 
 We welcome your contributions! Everyone is welcome to contribute, whether it's

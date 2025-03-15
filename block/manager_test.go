@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -705,10 +706,17 @@ func TestAggregationLoop(t *testing.T) {
 
 // TestLazyAggregationLoop tests the lazyAggregationLoop function
 func TestLazyAggregationLoop(t *testing.T) {
+	// Create a mutex-protected logger to prevent data races
+	var logMu sync.Mutex
 	mockLogger := log.NewTestLogger(t)
 
-	m := &Manager{
+	threadSafeLogger := &threadSafeTestLogger{
 		logger: mockLogger,
+		mu:     &logMu,
+	}
+
+	m := &Manager{
+		logger: threadSafeLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      time.Second,
@@ -729,6 +737,30 @@ func TestLazyAggregationLoop(t *testing.T) {
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
+}
+
+// threadSafeTestLogger wraps a logger with a mutex to make it thread-safe
+type threadSafeTestLogger struct {
+	logger log.Logger
+	mu     *sync.Mutex
+}
+
+func (t *threadSafeTestLogger) Debug(msg string, keyvals ...interface{}) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.logger.Debug(msg, keyvals...)
+}
+
+func (t *threadSafeTestLogger) Info(msg string, keyvals ...interface{}) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.logger.Info(msg, keyvals...)
+}
+
+func (t *threadSafeTestLogger) Error(msg string, keyvals ...interface{}) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.logger.Error(msg, keyvals...)
 }
 
 // TestNormalAggregationLoop tests the normalAggregationLoop function
@@ -760,7 +792,8 @@ func TestNormalAggregationLoop(t *testing.T) {
 func TestGetTxsFromBatch_NoBatch(t *testing.T) {
 	// Mocking a manager with an empty batch queue
 	m := &Manager{
-		bq: &BatchQueue{queue: nil}, // No batch available
+		bq:     &BatchQueue{queue: nil}, // No batch available
+		logger: log.NewTestLogger(t),
 	}
 
 	// Call the method and assert the results
@@ -778,6 +811,7 @@ func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
 		bq: &BatchQueue{queue: []BatchWithTime{
 			{Batch: &coresequencer.Batch{Transactions: nil}, Time: time.Now()},
 		}},
+		logger: log.NewTestLogger(t),
 	}
 
 	// Call the method and assert the results
@@ -795,6 +829,7 @@ func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
 		bq: &BatchQueue{queue: []BatchWithTime{
 			{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
 		}},
+		logger: log.NewTestLogger(t),
 	}
 
 	// Call the method and assert the results
