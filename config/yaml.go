@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/goccy/go-yaml"
@@ -142,67 +141,52 @@ func WriteYamlConfig(config Config) error {
 		}
 	}
 
-	// Get the type information for Config struct
-	configType := reflect.TypeOf(Config{})
-	nodeConfigType := reflect.TypeOf(NodeConfig{})
-	daConfigType := reflect.TypeOf(DAConfig{})
-	p2pConfigType := reflect.TypeOf(P2PConfig{})
-	logConfigType := reflect.TypeOf(LogConfig{})
+	// Helper function to process struct fields recursively
+	var processFields func(t reflect.Type, prefix string)
+	processFields = func(t reflect.Type, prefix string) {
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
 
-	// Helper function to get comment from struct field
-	getComment := func(field reflect.StructField) string {
-		return field.Tag.Get("comment")
-	}
+			// Skip unexported fields
+			if !field.IsExported() {
+				continue
+			}
 
-	// Base configuration
-	for _, name := range []string{"home", "db_path", "entrypoint", "config_dir"} {
-		if field, ok := configType.FieldByNameFunc(func(s string) bool {
-			f, _ := configType.FieldByName(s)
-			return strings.EqualFold(f.Tag.Get("yaml"), name)
-		}); ok {
-			addComment("$."+name, getComment(field))
+			yamlTag := field.Tag.Get("yaml")
+			comment := field.Tag.Get("comment")
+
+			// Skip fields without yaml tag
+			if yamlTag == "" || yamlTag == "-" {
+				continue
+			}
+
+			// Handle embedded structs
+			if field.Type.Kind() == reflect.Struct && field.Anonymous {
+				processFields(field.Type, prefix)
+				continue
+			}
+
+			// Get the field path
+			fieldPath := yamlTag
+			if prefix != "" {
+				fieldPath = prefix + "." + fieldPath
+			}
+			fieldPath = "$." + fieldPath
+
+			// Add comment if present
+			if comment != "" {
+				addComment(fieldPath, comment)
+			}
+
+			// Process nested structs (non-anonymous)
+			if field.Type.Kind() == reflect.Struct && !field.Anonymous {
+				processFields(field.Type, yamlTag)
+			}
 		}
 	}
 
-	// Node configuration
-	for _, name := range []string{"aggregator", "light", "block_time", "max_pending_blocks", "lazy_aggregator", "lazy_block_time", "trusted_hash", "sequencer_address", "sequencer_rollup_id", "executor_address"} {
-		if field, ok := nodeConfigType.FieldByNameFunc(func(s string) bool {
-			f, _ := nodeConfigType.FieldByName(s)
-			return strings.EqualFold(f.Tag.Get("yaml"), name)
-		}); ok {
-			addComment("$.node."+name, getComment(field))
-		}
-	}
-
-	// DA configuration
-	for _, name := range []string{"address", "auth_token", "gas_price", "gas_multiplier", "submit_options", "namespace", "block_time", "start_height", "mempool_ttl"} {
-		if field, ok := daConfigType.FieldByNameFunc(func(s string) bool {
-			f, _ := daConfigType.FieldByName(s)
-			return strings.EqualFold(f.Tag.Get("yaml"), name)
-		}); ok {
-			addComment("$.da."+name, getComment(field))
-		}
-	}
-
-	// P2P configuration
-	for _, name := range []string{"listen_address", "seeds", "blocked_peers", "allowed_peers"} {
-		if field, ok := p2pConfigType.FieldByNameFunc(func(s string) bool {
-			f, _ := p2pConfigType.FieldByName(s)
-			return strings.EqualFold(f.Tag.Get("yaml"), name)
-		}); ok {
-			addComment("$.p2p."+name, getComment(field))
-		}
-	}
-
-	// Log configuration
-	for _, name := range []string{"level", "format", "trace"} {
-		if field, ok := logConfigType.FieldByNameFunc(func(s string) bool {
-			f, _ := logConfigType.FieldByName(s)
-			return strings.EqualFold(f.Tag.Get("yaml"), name)
-		}); ok {
-			addComment("$.log."+name, getComment(field))
-		}
-	}
+	// Process the Config struct
+	processFields(reflect.TypeOf(Config{}), "")
 
 	data, err := yaml.MarshalWithOptions(config, yaml.WithComment(yamlCommentMap))
 	if err != nil {
