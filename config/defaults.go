@@ -8,7 +8,7 @@ import (
 
 const (
 	// DefaultDirPerm is the default permissions used when creating directories.
-	DefaultDirPerm = 0700
+	DefaultDirPerm = 0750
 
 	// DefaultConfigDir is the default directory for configuration files.
 	DefaultConfigDir = "config"
