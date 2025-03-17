@@ -41,6 +41,7 @@ func TestInitYamlCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read the file content directly to verify the YAML structure
+	//nolint:gosec // This is a test file and we control the input
 	content, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	yamlContent := string(content)

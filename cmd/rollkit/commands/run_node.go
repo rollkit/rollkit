@@ -351,7 +351,9 @@ func parseConfig(cmd *cobra.Command) error {
 	}
 
 	// Validate the root directory
-	rollconf.EnsureRoot(nodeConfig.RootDir)
+	if err := rollconf.EnsureRoot(nodeConfig.RootDir); err != nil {
+		return err
+	}
 
 	// Setup logger with configuration from nodeConfig
 	logger = setupLogger(nodeConfig)
