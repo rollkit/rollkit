@@ -57,27 +57,31 @@ func InterceptCommand(
 	// At this point we expect to execute the command against the entrypoint
 	shouldExecute = true
 
-	// After successfully reading the YAML file, we expect to be able to use the entrypoint
-	if rollkitConfig.Entrypoint == "" {
-		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitConfigYaml)
-		return
-	}
-
-	// Verify that the entrypoint file exists
-	entrypointPath := rollkitConfig.Entrypoint
-	if !filepath.IsAbs(entrypointPath) {
-		entrypointPath = filepath.Join(rollkitConfig.RootDir, entrypointPath)
-	}
-
-	if err = validateEntryPoint(entrypointPath); err != nil {
+	err = validateEntryPoint(rollkitConfig)
+	if err != nil {
 		return
 	}
 
 	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
 }
 
-// validateEntryPoint validates that the entrypoint exists, is not a directory, and is a Go file
-func validateEntryPoint(entrypointPath string) error {
+// validateEntryPoint performs several validations on the entrypoint configuration:
+// 1. Checks if an entrypoint is specified in the config
+// 2. Resolves the absolute path of the entrypoint
+// 3. Verifies that the entrypoint file exists
+// 4. Ensures the entrypoint is not a directory
+// 5. Confirms the entrypoint is a Go file (.go extension)
+func validateEntryPoint(config rollconf.Config) error {
+	if config.Entrypoint == "" {
+		return fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitConfigYaml)
+	}
+
+	// Resolve absolute path for entrypoint
+	entrypointPath := config.Entrypoint
+	if !filepath.IsAbs(entrypointPath) {
+		entrypointPath = filepath.Join(config.RootDir, entrypointPath)
+	}
+
 	fileInfo, err := os.Stat(entrypointPath)
 	if err != nil {
 		return fmt.Errorf("entrypoint file not found: %s", entrypointPath)
