@@ -1,9 +1,8 @@
-
-# ADR 0012: Remote Signing Service for Fast and Secure Digital Signatures
+# ADR 010: Remote Signing Service for Fast and Secure Digital Signatures
 
 ## Changelog
 
-- 2025-03-14: Initial ADR creation including remote and local signing implementations, gRPC client/server flow, .
+- 2025-03-14: Initial ADR creation including remote and local signing implementations, gRPC client/server flow.
 
 ## Context
 
@@ -49,29 +48,22 @@ type Signer interface {
 
 ```proto
 syntax = "proto3";
-
 package signer;
-
 import "google/protobuf/empty.proto";
-
 // The SignRequest holds the bytes we want to sign.
 message SignRequest {
   bytes message = 1;
 }
-
 // The SignResponse returns the signature bytes.
 message SignResponse {
   bytes signature = 1;
 }
-
 // GetPublicRequest requests the public key
 message GetPublicRequest {}
-
 // The GetPublicResponse returns the public key.
 message GetPublicResponse {
   bytes public_key = 1;
 }
-
 // The SignerService defines the RPCs to sign and to retrieve the public key.
 service SignerService {
   rpc Sign(SignRequest) returns (SignResponse);
@@ -102,15 +94,3 @@ Proposed
 ## Neutral
 
  • Fallback Capability: The availability of both local and remote implementations ensures flexibility during development and production.
-
-## References
-- gRPC Documentation
-- HSM Best Practices
-
-⸻
-
-Revised Remote Signing Flow Diagram
-
-This diagram illustrates the updated flow where the client node makes a gRPC call to the HSM-based signing server.
-
-
