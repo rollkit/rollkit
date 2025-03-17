@@ -2,8 +2,9 @@ package commands
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -207,7 +208,11 @@ func TestCentralizedAddresses(t *testing.T) {
 
 func TestStartMockSequencerServer(t *testing.T) {
 	// Use a random base port to avoid conflicts
-	basePort := 60000 + rand.Intn(5000)
+	var randomBytes [2]byte
+	if _, err := rand.Read(randomBytes[:]); err != nil {
+		t.Fatalf("Failed to generate random port: %v", err)
+	}
+	basePort := 60000 + int(binary.LittleEndian.Uint16(randomBytes[:]))%5000
 
 	tests := []struct {
 		name        string
@@ -243,14 +248,19 @@ func TestStartMockSequencerServer(t *testing.T) {
 						if err != nil {
 							return
 						}
-						conn.Close()
+						if err := conn.Close(); err != nil {
+							t.Errorf("Failed to close connection: %v", err)
+							return
+						}
 					}
 				}()
 				return &l, nil
 			},
 			teardown: func(l *net.Listener) {
 				if l != nil {
-					(*l).Close()
+					if err := (*l).Close(); err != nil {
+						t.Errorf("Failed to close listener: %v", err)
+					}
 				}
 			},
 		},
