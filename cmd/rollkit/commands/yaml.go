@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/config"
@@ -63,14 +62,8 @@ var initYamlCmd = &cobra.Command{
 		}
 		config.RootDir = currentDir
 
-		// Marshal the config to YAML format
-		data, err := yaml.Marshal(config)
-		if err != nil {
-			return fmt.Errorf("error marshaling YAML data: %w", err)
-		}
-
-		// Write the YAML data to the file
-		if err := os.WriteFile(rollconf.RollkitConfigYaml, data, 0600); err != nil {
+		// Use writeYamlConfig instead of manual marshaling and file writing
+		if err := rollconf.WriteYamlConfig(config); err != nil {
 			return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 		}
 

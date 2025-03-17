@@ -103,7 +103,7 @@ const (
 )
 
 // DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
-// needed for TOML marshalling/unmarshalling especially for time.Duration
+// needed for YAML marshalling/unmarshalling especially for time.Duration
 type DurationWrapper struct {
 	time.Duration
 }
@@ -118,21 +118,6 @@ func (d *DurationWrapper) UnmarshalText(text []byte) error {
 	var err error
 	d.Duration, err = time.ParseDuration(string(text))
 	return err
-}
-
-// MarshalTOML implements toml.Marshaler to format the duration as text for TOML
-func (d DurationWrapper) MarshalTOML() (interface{}, error) {
-	return d.String(), nil
-}
-
-// UnmarshalTOML implements toml.Unmarshaler to parse the duration from text in TOML
-func (d *DurationWrapper) UnmarshalTOML(v interface{}) error {
-	if s, ok := v.(string); ok {
-		var err error
-		d.Duration, err = time.ParseDuration(s)
-		return err
-	}
-	return fmt.Errorf("cannot unmarshal %T into DurationWrapper", v)
 }
 
 // Config stores Rollkit configuration.

@@ -343,7 +343,7 @@ func initFiles() error {
 
 func parseConfig(cmd *cobra.Command) error {
 	// Load configuration with the correct order of precedence:
-	// DefaultNodeConfig -> Toml -> Flags
+	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
 	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
 	if err != nil {

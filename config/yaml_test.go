@@ -19,7 +19,7 @@ func TestReadYaml(t *testing.T) {
 			setup: func(t *testing.T, dir string) error {
 				cfg := DefaultNodeConfig
 				cfg.RootDir = dir
-				return writeYamlConfig(cfg)
+				return WriteYamlConfig(cfg)
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
 				require.NoError(t, err)
@@ -33,7 +33,7 @@ func TestReadYaml(t *testing.T) {
 				cfg.RootDir = dir
 				cfg.Node.Aggregator = true
 				cfg.Node.Light = true
-				return writeYamlConfig(cfg)
+				return WriteYamlConfig(cfg)
 			},
 			validate: func(t *testing.T, cfg Config, err error) {
 				require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestYamlConfigOperations(t *testing.T) {
 				cfg.P2P.Seeds = "seed1.example.com:26656,seed2.example.com:26656"
 
 				// Write the config file
-				err := writeYamlConfig(cfg)
+				err := WriteYamlConfig(cfg)
 				require.NoError(t, err)
 
 				return &cfg
@@ -125,7 +125,7 @@ func TestYamlConfigOperations(t *testing.T) {
 				cfg.RootDir = dir
 
 				// Write the config file
-				err := writeYamlConfig(cfg)
+				err := WriteYamlConfig(cfg)
 				require.NoError(t, err)
 
 				return &cfg

@@ -4,7 +4,7 @@ Rebuild rollup entrypoint
 
 ### Synopsis
 
-Rebuild rollup entrypoint specified in the rollkit.toml
+Rebuild rollup entrypoint specified in the rollkit.yaml
 
 ```
 rollkit rebuild [flags]

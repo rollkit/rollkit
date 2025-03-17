@@ -120,8 +120,9 @@ func findConfigFile(startDir string) (string, error) {
 	return "", fmt.Errorf("no %s found", RollkitConfigYaml)
 }
 
-// writeYamlConfig writes the YAML configuration to the rollkit.yaml file.
-func writeYamlConfig(config Config) error {
+// WriteYamlConfig writes the YAML configuration to the rollkit.yaml file.
+// It ensures the directory exists and writes the configuration with proper permissions.
+func WriteYamlConfig(config Config) error {
 	// Configure the output file
 	configPath := filepath.Join(config.RootDir, RollkitConfigYaml)
 
