@@ -185,12 +185,12 @@ type NodeConfig struct {
 	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" toml:"lazy_block_time" comment:"Maximum interval between blocks in lazy aggregation mode (LazyAggregator). Ensures blocks are produced periodically even without transactions to keep the chain active. Generally larger than BlockTime."`
 
 	// Header configuration
-	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis."`
+	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
 
 	// Sequencer configuration
-	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address" comment:"Address of the sequencer middleware"`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id" toml:"sequencer_rollup_id" comment:"Rollup ID for the sequencer middleware"`
-	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address" comment:"Address of the executor middleware"`
+	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address" comment:"Address of the sequencer middleware (host:port). The sequencer is responsible for ordering transactions in the rollup. If not specified, a mock sequencer will be started at this address. Default: localhost:50051."`
+	SequencerRollupID string `mapstructure:"sequencer_rollup_id" toml:"sequencer_rollup_id" comment:"Unique identifier for the rollup chain used by the sequencer. This ID is used to identify the specific rollup when submitting transactions to and retrieving batches from the sequencer. If not specified, the chain ID from genesis will be used. Default: mock-rollup."`
+	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address" comment:"Address of the executor middleware (host:port). The executor is responsible for processing transactions and maintaining the state of the rollup. Used for connecting to an external execution environment. Default: localhost:40041."`
 }
 
 // ChainConfig is the configuration for the chain section
