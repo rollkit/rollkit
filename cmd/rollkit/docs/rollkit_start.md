@@ -9,8 +9,8 @@ rollkit start [flags]
 ### Options
 
 ```
-      --chain.config_dir string                         chain configuration directory (default "config")
       --ci                                              run node for ci testing
+      --config_dir string                               chain configuration directory (default "config")
       --da.address string                               DA address (host:port) (default "http://localhost:26658")
       --da.auth_token string                            DA auth token
       --da.block_time duration                          DA chain block time (for syncing) (default 15s)
@@ -36,10 +36,10 @@ rollkit start [flags]
       --node.aggregator                                 run node in aggregator mode (default true)
       --node.block_time duration                        block time (for aggregator mode) (default 1s)
       --node.executor_address string                    executor middleware address (host:port) (default "localhost:40041")
-      --node.lazy_aggregator                            wait for transactions, don't build empty blocks
-      --node.lazy_block_time duration                   block time (for lazy mode) (default 1m0s)
+      --node.lazy_aggregator                            produce blocks only when transactions are available or after lazy block time
+      --node.lazy_block_time duration                   maximum interval between blocks in lazy aggregation mode (default 1m0s)
       --node.light                                      run light client
-      --node.max_pending_blocks uint                    limit of blocks pending DA submission (0 for no limit)
+      --node.max_pending_blocks uint                    maximum blocks pending DA confirmation before pausing block production (0 for no limit)
       --node.sequencer_address string                   sequencer middleware address (host:port) (default "localhost:50051")
       --node.sequencer_rollup_id string                 sequencer middleware rollup ID (default: mock-rollup) (default "mock-rollup")
       --node.trusted_hash string                        initial trusted hash to start the header exchange service
