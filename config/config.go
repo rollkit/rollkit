@@ -138,66 +138,66 @@ func (d *DurationWrapper) UnmarshalTOML(v interface{}) error {
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir    string `mapstructure:"home" toml:"RootDir" comment:"Root directory where rollkit files are located"`
-	DBPath     string `mapstructure:"db_path" toml:"DBPath" comment:"Path inside the root directory where the database is located"`
-	Entrypoint string `mapstructure:"entrypoint" toml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
-	ConfigDir  string `mapstructure:"config_dir" toml:"config_dir" comment:"Directory containing the rollup chain configuration"`
+	RootDir    string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
+	DBPath     string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
+	Entrypoint string `mapstructure:"entrypoint" yaml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
+	ConfigDir  string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
 
 	// P2P configuration
-	P2P P2PConfig `mapstructure:"p2p"`
+	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
 
 	// Node specific configuration
-	Node NodeConfig `mapstructure:"node"`
+	Node NodeConfig `mapstructure:"node" yaml:"node"`
 
 	// Data availability configuration
-	DA DAConfig `mapstructure:"da"`
+	DA DAConfig `mapstructure:"da" yaml:"da"`
 
 	// Instrumentation configuration
-	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation" yaml:"instrumentation"`
 
 	// Logging configuration
-	Log LogConfig `mapstructure:"log"`
+	Log LogConfig `mapstructure:"log" yaml:"log"`
 }
 
 // DAConfig contains all Data Availability configuration parameters
 type DAConfig struct {
-	Address       string          `mapstructure:"address" toml:"address" comment:"Address of the data availability layer service (host:port). This is the endpoint where Rollkit will connect to submit and retrieve data."`
-	AuthToken     string          `mapstructure:"auth_token" toml:"auth_token" comment:"Authentication token for the data availability layer service. Required if the DA service needs authentication."`
-	GasPrice      float64         `mapstructure:"gas_price" toml:"gas_price" comment:"Gas price for data availability transactions. Use -1 for automatic gas price determination. Higher values may result in faster inclusion."`
-	GasMultiplier float64         `mapstructure:"gas_multiplier" toml:"gas_multiplier" comment:"Multiplier applied to gas price when retrying failed DA submissions. Values > 1 increase gas price on retries to improve chances of inclusion."`
-	SubmitOptions string          `mapstructure:"submit_options" toml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
-	Namespace     string          `mapstructure:"namespace" toml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer."`
-	BlockTime     DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Average block time of the DA chain (duration). Determines frequency of DA layer syncing, maximum backoff time for retries, and is multiplied by MempoolTTL to calculate transaction expiration. Examples: \"15s\", \"30s\", \"1m\", \"2m30s\", \"10m\"."`
-	StartHeight   uint64          `mapstructure:"start_height" toml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new rollup on an existing DA chain."`
-	MempoolTTL    uint64          `mapstructure:"mempool_ttl" toml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
+	Address       string          `mapstructure:"address" yaml:"address" comment:"Address of the data availability layer service (host:port). This is the endpoint where Rollkit will connect to submit and retrieve data."`
+	AuthToken     string          `mapstructure:"auth_token" yaml:"auth_token" comment:"Authentication token for the data availability layer service. Required if the DA service needs authentication."`
+	GasPrice      float64         `mapstructure:"gas_price" yaml:"gas_price" comment:"Gas price for data availability transactions. Use -1 for automatic gas price determination. Higher values may result in faster inclusion."`
+	GasMultiplier float64         `mapstructure:"gas_multiplier" yaml:"gas_multiplier" comment:"Multiplier applied to gas price when retrying failed DA submissions. Values > 1 increase gas price on retries to improve chances of inclusion."`
+	SubmitOptions string          `mapstructure:"submit_options" yaml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
+	Namespace     string          `mapstructure:"namespace" yaml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer."`
+	BlockTime     DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Average block time of the DA chain (duration). Determines frequency of DA layer syncing, maximum backoff time for retries, and is multiplied by MempoolTTL to calculate transaction expiration. Examples: \"15s\", \"30s\", \"1m\", \"2m30s\", \"10m\"."`
+	StartHeight   uint64          `mapstructure:"start_height" yaml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new rollup on an existing DA chain."`
+	MempoolTTL    uint64          `mapstructure:"mempool_ttl" yaml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
 }
 
 // NodeConfig contains all Rollkit specific configuration parameters
 type NodeConfig struct {
 	// Node mode configuration
-	Aggregator bool `toml:"aggregator" comment:"Run node in aggregator mode"`
-	Light      bool `toml:"light" comment:"Run node in light mode"`
+	Aggregator bool `yaml:"aggregator" comment:"Run node in aggregator mode"`
+	Light      bool `yaml:"light" comment:"Run node in light mode"`
 
 	// Block management configuration
-	BlockTime        DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Block time (duration). Examples: \"500ms\", \"1s\", \"5s\", \"1m\", \"2m30s\", \"10m\"."`
-	MaxPendingBlocks uint64          `mapstructure:"max_pending_blocks" toml:"max_pending_blocks" comment:"Maximum number of blocks pending DA submission. When this limit is reached, the aggregator pauses block production until some blocks are confirmed. Use 0 for no limit."`
-	LazyAggregator   bool            `mapstructure:"lazy_aggregator" toml:"lazy_aggregator" comment:"Enables lazy aggregation mode, where blocks are only produced when transactions are available or after LazyBlockTime. Optimizes resources by avoiding empty block creation during periods of inactivity."`
-	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" toml:"lazy_block_time" comment:"Maximum interval between blocks in lazy aggregation mode (LazyAggregator). Ensures blocks are produced periodically even without transactions to keep the chain active. Generally larger than BlockTime."`
+	BlockTime        DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Block time (duration). Examples: \"500ms\", \"1s\", \"5s\", \"1m\", \"2m30s\", \"10m\"."`
+	MaxPendingBlocks uint64          `mapstructure:"max_pending_blocks" yaml:"max_pending_blocks" comment:"Maximum number of blocks pending DA submission. When this limit is reached, the aggregator pauses block production until some blocks are confirmed. Use 0 for no limit."`
+	LazyAggregator   bool            `mapstructure:"lazy_aggregator" yaml:"lazy_aggregator" comment:"Enables lazy aggregation mode, where blocks are only produced when transactions are available or after LazyBlockTime. Optimizes resources by avoiding empty block creation during periods of inactivity."`
+	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" yaml:"lazy_block_time" comment:"Maximum interval between blocks in lazy aggregation mode (LazyAggregator). Ensures blocks are produced periodically even without transactions to keep the chain active. Generally larger than BlockTime."`
 
 	// Header configuration
-	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
+	TrustedHash string `mapstructure:"trusted_hash" yaml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
 
 	// Sequencer configuration
-	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address" comment:"Address of the sequencer middleware (host:port). The sequencer is responsible for ordering transactions in the rollup. If not specified, a mock sequencer will be started at this address. Default: localhost:50051."`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id" toml:"sequencer_rollup_id" comment:"Unique identifier for the rollup chain used by the sequencer. This ID is used to identify the specific rollup when submitting transactions to and retrieving batches from the sequencer. If not specified, the chain ID from genesis will be used. Default: mock-rollup."`
-	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address" comment:"Address of the executor middleware (host:port). The executor is responsible for processing transactions and maintaining the state of the rollup. Used for connecting to an external execution environment. Default: localhost:40041."`
+	SequencerAddress  string `mapstructure:"sequencer_address" yaml:"sequencer_address" comment:"Address of the sequencer middleware (host:port). The sequencer is responsible for ordering transactions in the rollup. If not specified, a mock sequencer will be started at this address. Default: localhost:50051."`
+	SequencerRollupID string `mapstructure:"sequencer_rollup_id" yaml:"sequencer_rollup_id" comment:"Unique identifier for the rollup chain used by the sequencer. This ID is used to identify the specific rollup when submitting transactions to and retrieving batches from the sequencer. If not specified, the chain ID from genesis will be used. Default: mock-rollup."`
+	ExecutorAddress   string `mapstructure:"executor_address" yaml:"executor_address" comment:"Address of the executor middleware (host:port). The executor is responsible for processing transactions and maintaining the state of the rollup. Used for connecting to an external execution environment. Default: localhost:40041."`
 }
 
 // LogConfig contains all logging configuration parameters
 type LogConfig struct {
-	Level  string `mapstructure:"level" toml:"level" comment:"Log level (debug, info, warn, error)"`
-	Format string `mapstructure:"format" toml:"format" comment:"Log format (text, json)"`
-	Trace  bool   `mapstructure:"trace" toml:"trace" comment:"Enable stack traces in error logs"`
+	Level  string `mapstructure:"level" yaml:"level" comment:"Log level (debug, info, warn, error)"`
+	Format string `mapstructure:"format" yaml:"format" comment:"Log format (text, json)"`
+	Trace  bool   `mapstructure:"trace" yaml:"trace" comment:"Enable stack traces in error logs"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -257,7 +257,7 @@ func AddFlags(cmd *cobra.Command) {
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
 // 1. DefaultNodeConfig (lowest priority)
-// 2. TOML configuration file
+// 2. YAML configuration file
 // 3. Command line flags (highest priority)
 func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 	// Create a new Viper instance to avoid conflicts with any global Viper
@@ -267,7 +267,7 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 	config := DefaultNodeConfig
 	setDefaultsInViper(v, config)
 
-	// 2. Try to load TOML configuration from various locations
+	// 2. Try to load YAML configuration from various locations
 	// First try using the current directory
 	v.SetConfigName(ConfigBaseName)
 	v.SetConfigType(ConfigExtension)
@@ -286,7 +286,7 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 		// If it's not a "file not found" error, return the error
 		var configFileNotFound viper.ConfigFileNotFoundError
 		if !errors.As(err, &configFileNotFound) {
-			return config, fmt.Errorf("error reading TOML configuration: %w", err)
+			return config, fmt.Errorf("error reading YAML configuration: %w", err)
 		}
 		// Otherwise, just continue with defaults
 	} else {

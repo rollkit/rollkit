@@ -82,7 +82,7 @@ func TestAddFlags(t *testing.T) {
 	assert.NotNil(t, flags.Lookup(FlagP2PBlockedPeers))
 	assert.NotNil(t, flags.Lookup(FlagP2PAllowedPeers))
 
-	// Test TOML config flags
+	// Test YAML config flags
 	assert.NotNil(t, flags.Lookup(FlagEntrypoint))
 	assert.NotNil(t, flags.Lookup(FlagChainConfigDir))
 
@@ -109,22 +109,21 @@ func TestLoadNodeConfig(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 
-	// Create a TOML file in the temporary directory
-	tomlPath := filepath.Join(tempDir, RollkitConfigToml)
-	tomlContent := `
-entrypoint = "./cmd/app/main.go"
+	// Create a YAML file in the temporary directory
+	yamlPath := filepath.Join(tempDir, RollkitConfigYaml)
+	yamlContent := `
+entrypoint: "./cmd/app/main.go"
 
-[node]
-aggregator = true
-block_time = "5s"
+node:
+  aggregator: true
+  block_time: "5s"
 
-[da]
-address = "http://toml-da:26657"
+da:
+  address: "http://yaml-da:26657"
 
-[chain]
-config_dir = "config"
+config_dir: "config"
 `
-	err := os.WriteFile(tomlPath, []byte(tomlContent), 0600)
+	err := os.WriteFile(yamlPath, []byte(yamlContent), 0600)
 	require.NoError(t, err)
 
 	// Change to the temporary directory so the config file can be found
@@ -139,19 +138,19 @@ config_dir = "config"
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 
-	// Verify that the TOML file exists
-	_, err = os.Stat(tomlPath)
-	require.NoError(t, err, "TOML file should exist at %s", tomlPath)
+	// Verify that the YAML file exists
+	_, err = os.Stat(yamlPath)
+	require.NoError(t, err, "YAML file should exist at %s", yamlPath)
 
 	// Create a command with flags
 	cmd := &cobra.Command{Use: "test"}
 	AddFlags(cmd)
 
-	// Set some flags that should override TOML values
+	// Set some flags that should override YAML values
 	flagArgs := []string{
 		"--node.block_time", "10s",
 		"--da.address", "http://flag-da:26657",
-		"--node.light", "true", // This is not in TOML, should be set from flag
+		"--node.light", "true", // This is not in YAML, should be set from flag
 	}
 	cmd.SetArgs(flagArgs)
 	err = cmd.ParseFlags(flagArgs)
@@ -162,17 +161,17 @@ config_dir = "config"
 	require.NoError(t, err)
 
 	// Verify the order of precedence:
-	// 1. Default values should be overridden by TOML
-	assert.Equal(t, "./cmd/app/main.go", config.Entrypoint, "Entrypoint should be set from TOML")
-	assert.Equal(t, true, config.Node.Aggregator, "Aggregator should be set from TOML")
+	// 1. Default values should be overridden by YAML
+	assert.Equal(t, "./cmd/app/main.go", config.Entrypoint, "Entrypoint should be set from YAML")
+	assert.Equal(t, true, config.Node.Aggregator, "Aggregator should be set from YAML")
 
-	// 2. TOML values should be overridden by flags
+	// 2. YAML values should be overridden by flags
 	assert.Equal(t, 10*time.Second, config.Node.BlockTime.Duration, "BlockTime should be overridden by flag")
 	assert.Equal(t, "http://flag-da:26657", config.DA.Address, "DAAddress should be overridden by flag")
 
-	// 3. Flags not in TOML should be set
+	// 3. Flags not in YAML should be set
 	assert.Equal(t, true, config.Node.Light, "Light should be set from flag")
 
-	// 4. Values not in flags or TOML should remain as default
+	// 4. Values not in flags or YAML should remain as default
 	assert.Equal(t, DefaultNodeConfig.DA.BlockTime.Duration, config.DA.BlockTime.Duration, "DABlockTime should remain as default")
 }

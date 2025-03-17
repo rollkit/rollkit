@@ -1,13 +1,13 @@
-## rollkit toml init
+## rollkit yaml init
 
-Initialize a new rollkit.toml file
+Initialize a new rollkit.yaml file
 
 ### Synopsis
 
-This command initializes a new rollkit.toml file in the current directory.
+This command initializes a new rollkit.yaml file in the current directory.
 
 ```
-rollkit toml init [flags]
+rollkit yaml init [flags]
 ```
 
 ### Options
@@ -26,4 +26,4 @@ rollkit toml init [flags]
 
 ### SEE ALSO
 
-* [rollkit toml](rollkit_toml.md)	 - TOML file operations
+* [rollkit yaml](rollkit_yaml.md)	 - YAML file operations

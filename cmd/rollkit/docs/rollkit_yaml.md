@@ -1,21 +1,21 @@
-## rollkit toml
+## rollkit yaml
 
-TOML file operations
+YAML file operations
 
 ### Synopsis
 
-This command group is used to interact with TOML files.
+This command group is used to interact with YAML files.
 
 ### Examples
 
 ```
-  rollkit toml init
+  rollkit yaml init
 ```
 
 ### Options
 
 ```
-  -h, --help   help for toml
+  -h, --help   help for yaml
 ```
 
 ### Options inherited from parent commands
@@ -29,4 +29,4 @@ This command group is used to interact with TOML files.
 ### SEE ALSO
 
 * [rollkit](rollkit.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
-* [rollkit toml init](rollkit_toml_init.md)	 - Initialize a new rollkit.toml file
+* [rollkit yaml init](rollkit_yaml_init.md)	 - Initialize a new rollkit.yaml file

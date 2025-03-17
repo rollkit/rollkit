@@ -2,7 +2,6 @@ package shares
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -314,7 +313,7 @@ func TestShareBuilderImportRawData(t *testing.T) {
 			}
 			// Since rawData has padding, we need to use contains
 			if !bytes.Contains(rawData, tc.want) {
-				t.Errorf(fmt.Sprintf("%#v does not contain %#v", rawData, tc.want))
+				t.Errorf("%#v does not contain %#v", rawData, tc.want)
 			}
 		})
 	}

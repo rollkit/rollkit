@@ -7,12 +7,18 @@ import (
 )
 
 const (
+	// DefaultDirPerm is the default permissions used when creating directories.
+	DefaultDirPerm = 0700
+
+	// DefaultConfigDir is the default directory for configuration files.
+	DefaultConfigDir = "config"
+
 	// DefaultListenAddress is a default listen address for P2P client.
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
 	// Version is the current rollkit version
 	// Please keep updated with each new release
 	Version = "0.38.5"
-	// DefaultDAAddress is the default address for the DA middleware
+	// DefaultDAAddress is the default address for the data availability layer
 	DefaultDAAddress = "http://localhost:26658"
 	// DefaultSequencerAddress is the default address for the sequencer middleware
 	DefaultSequencerAddress = "localhost:50051"

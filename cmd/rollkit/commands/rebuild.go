@@ -15,9 +15,9 @@ var RebuildCmd = &cobra.Command{
 	Long:  "Rebuild rollup entrypoint specified in the rollkit.toml",
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
-		rollkitConfig, err = rollconf.ReadToml()
+		rollkitConfig, err = rollconf.ReadYaml("")
 		if err != nil {
-			log.Fatalf("Could not read rollkit.toml file: %s", err)
+			log.Fatalf("Could not read rollkit.yaml file: %s", err)
 		}
 
 		if _, err := buildEntrypoint(rollkitConfig.RootDir, rollkitConfig.Entrypoint, true); err != nil {
