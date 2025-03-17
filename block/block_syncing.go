@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	"github.com/rollkit/rollkit/sequencers/based"
 )
 
 // SyncLoop is responsible for syncing blocks.
@@ -40,20 +38,6 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				continue
 			}
 			m.headerCache.setHeader(headerHeight, header)
-
-			// If we're in based sequencing mode, handle header gossip differently
-			if m.IsBasedSequencing() {
-				// In based sequencing, we mark headers as DA included immediately after verification
-				m.headerCache.setDAIncluded(headerHash)
-				err := m.setDAIncludedHeight(ctx, header.Height())
-				if err != nil {
-					m.logger.Error("failed to mark header as DA included in based mode", "error", err)
-				} else {
-					m.logger.Info("based mode: header marked as DA included immediately",
-						"headerHeight", header.Height(),
-						"headerHash", headerHash)
-				}
-			}
 
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToRetrieveCh()
@@ -186,11 +170,4 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		m.headerCache.deleteHeader(currentHeight + 1)
 		m.dataCache.deleteData(currentHeight + 1)
 	}
-}
-
-// IsBasedSequencing returns true if the node is using based sequencing
-func (m *Manager) IsBasedSequencing() bool {
-	// Check if the sequencer is using based sequencing
-	_, isBasedSequencer := m.sequencer.(*based.BasedSequencer)
-	return isBasedSequencer
 }

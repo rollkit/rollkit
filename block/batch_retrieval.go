@@ -9,13 +9,6 @@ import (
 )
 
 // BatchRetrieveLoop is responsible for retrieving batches from the sequencer.
-//
-// In based sequencing mode, this loop fetches transaction batches ordered by the base layer (Celestia).
-// The loop periodically:
-// 1. Queries the sequencer for the next batch using the GetNextBatch method
-// 2. For full nodes, verifies the batch using VerifyBatch method to ensure the batch was properly ordered by the base layer
-// 3. Adds the verified batch to the batch queue for block creation
-// 4. Resets the batch timer for the next retrieval cycle
 func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 	m.logger.Info("Starting BatchRetrieveLoop")
 	batchTimer := time.NewTimer(0)

@@ -181,6 +181,7 @@ func initDataSyncService(
 // - store: the store
 // - seqClient: the sequencing client
 // - dalc: the DA client
+
 func initBlockManager(
 	ctx context.Context,
 	signingKey crypto.PrivKey,
@@ -277,12 +278,6 @@ func (n *FullNode) dataPublishLoop(ctx context.Context) {
 	for {
 		select {
 		case data := <-n.blockManager.DataCh:
-			// In based sequencing mode, we don't gossip blocks, only headers
-			if n.blockManager.IsBasedSequencing() {
-				n.Logger.Debug("Based sequencing: skipping block gossip, only headers are gossiped")
-				continue
-			}
-
 			err := n.dSyncService.WriteToStoreAndBroadcast(ctx, data)
 			if err != nil {
 				// failed to init or start blockstore

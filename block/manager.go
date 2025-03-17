@@ -369,36 +369,10 @@ func (m *Manager) GetLastState() types.State {
 	return m.lastState
 }
 
-// init initializes the Manager instance.
 func (m *Manager) init(ctx context.Context) {
-	go m.SyncLoop(ctx)
-	go m.HeaderStoreRetrieveLoop(ctx)
-	go m.DataStoreRetrieveLoop(ctx)
-
-	// If dalc is initialized start the DA retrieve loop
-	if m.dalc != nil {
-		go m.RetrieveLoop(ctx)
-		if m.isProposer {
-			go m.HeaderSubmissionLoop(ctx)
-		}
-	}
-
-	if m.isProposer {
-		// Starting Aggregation Loop based on configuration
-		blockTimer := time.NewTimer(0)
-		defer blockTimer.Stop()
-
-		// If we're using based sequencing, start the batch retrieve loop
-		if m.sequencer != nil && m.IsBasedSequencing() {
-			m.logger.Info("Starting batch retrieve loop for based sequencing")
-			go m.BatchRetrieveLoop(ctx)
-		}
-
-		if m.config.Node.LazyAggregator {
-			go m.lazyAggregationLoop(ctx, blockTimer)
-		} else {
-			go m.normalAggregationLoop(ctx, blockTimer)
-		}
+	// initialize da included height
+	if height, err := m.store.GetMetadata(ctx, DAIncludedHeightKey); err == nil && len(height) == 8 {
+		m.daIncludedHeight.Store(binary.BigEndian.Uint64(height))
 	}
 }
 
