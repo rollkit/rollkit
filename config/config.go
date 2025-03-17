@@ -185,6 +185,14 @@ type LogConfig struct {
 	Trace  bool   `mapstructure:"trace" yaml:"trace" comment:"Enable stack traces in error logs"`
 }
 
+// P2PConfig contains all peer-to-peer networking configuration parameters
+type P2PConfig struct {
+	ListenAddress string `mapstructure:"listen_address" yaml:"listen_address" comment:"Address to listen for incoming connections (host:port)"`
+	Seeds         string `mapstructure:"seeds" yaml:"seeds" comment:"Comma separated list of seed nodes to connect to"`
+	BlockedPeers  string `mapstructure:"blocked_peers" yaml:"blocked_peers" comment:"Comma separated list of peer IDs to block from connecting"`
+	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
+}
+
 // AddFlags adds Rollkit specific configuration options to cobra Command.
 //
 // This function is called in cosmos-sdk.
