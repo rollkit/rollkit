@@ -69,26 +69,29 @@ func InterceptCommand(
 		entrypointPath = filepath.Join(rollkitConfig.RootDir, entrypointPath)
 	}
 
-	// Check if the file exists
-	fileInfo, statErr := os.Stat(entrypointPath)
-	if statErr != nil {
-		err = fmt.Errorf("entrypoint file not found: %s", entrypointPath)
-		return
-	}
-
-	// Check if it's a directory
-	if fileInfo.IsDir() {
-		err = fmt.Errorf("entrypoint cannot be a directory: %s", entrypointPath)
-		return
-	}
-
-	// Check if it's a Go file
-	if !strings.HasSuffix(entrypointPath, ".go") {
-		err = fmt.Errorf("entrypoint must be a Go file: %s", entrypointPath)
+	if err = validateEntryPoint(entrypointPath); err != nil {
 		return
 	}
 
 	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
+}
+
+// validateEntryPoint validates that the entrypoint exists, is not a directory, and is a Go file
+func validateEntryPoint(entrypointPath string) error {
+	fileInfo, err := os.Stat(entrypointPath)
+	if err != nil {
+		return fmt.Errorf("entrypoint file not found: %s", entrypointPath)
+	}
+
+	if fileInfo.IsDir() {
+		return fmt.Errorf("entrypoint cannot be a directory: %s", entrypointPath)
+	}
+
+	if !strings.HasSuffix(entrypointPath, ".go") {
+		return fmt.Errorf("entrypoint must be a Go file: %s", entrypointPath)
+	}
+
+	return nil
 }
 
 func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (string, error) {
