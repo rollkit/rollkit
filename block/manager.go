@@ -1146,7 +1146,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		m.logger.Debug("Submitting transaction to sequencer",
-			"txCount", len(execTxs))
+			"txCount", len(execTxs), "rollupId", m.genesis.ChainID)
 		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
 			RollupId: sequencing.RollupId(m.genesis.ChainID),
 			Batch:    &coresequencer.Batch{Transactions: execTxs},
@@ -1160,6 +1160,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
 
+		time.Sleep(100 * time.Millisecond)
 		batchData, err := m.getTxsFromBatch()
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Debug("No batch available, creating empty block")
