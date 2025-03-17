@@ -122,7 +122,7 @@ config_dir = "config"
 		expectedConfig := DefaultNodeConfig
 		expectedConfig.RootDir = dir
 		expectedConfig.Entrypoint = "./cmd/gm/main.go"
-		expectedConfig.Chain.ConfigDir = filepath.Join(dir, "config")
+		expectedConfig.ConfigDir = filepath.Join(dir, "config")
 
 		require.Equal(t, expectedConfig, config)
 	})
@@ -134,8 +134,6 @@ config_dir = "config"
 		configPath := filepath.Join(dir, RollkitConfigToml)
 		err = os.WriteFile(configPath, []byte(`
 entrypoint = "./cmd/app/main.go"
-
-[chain]
 config_dir = "custom-config"
 
 [node]
@@ -158,7 +156,7 @@ address = "http://custom-da:26658"
 		expectedConfig := DefaultNodeConfig
 		expectedConfig.RootDir = dir
 		expectedConfig.Entrypoint = "./cmd/app/main.go"
-		expectedConfig.Chain.ConfigDir = filepath.Join(dir, "custom-config")
+		expectedConfig.ConfigDir = filepath.Join(dir, "custom-config")
 
 		// These values should be loaded from the TOML file
 		// Only set the values that are actually in the TOML file
@@ -200,9 +198,9 @@ address = "http://custom-da:26658"
 		// Update expected RootDir to match the test directory
 		expectedConfig.RootDir = dir
 
-		// Update expected Chain.ConfigDir to match the test directory
-		if expectedConfig.Chain.ConfigDir != "" && !filepath.IsAbs(expectedConfig.Chain.ConfigDir) {
-			expectedConfig.Chain.ConfigDir = filepath.Join(dir, expectedConfig.Chain.ConfigDir)
+		// Update expected ConfigDir to match the test directory
+		if expectedConfig.ConfigDir != "" && !filepath.IsAbs(expectedConfig.ConfigDir) {
+			expectedConfig.ConfigDir = filepath.Join(dir, expectedConfig.ConfigDir)
 		}
 
 		// check that config has default values with updated RootDir
@@ -255,7 +253,7 @@ func TestTomlConfigOperations(t *testing.T) {
 			// Set custom values if needed
 			if tc.useCustomValues {
 				config.Entrypoint = "./cmd/custom/main.go"
-				config.Chain.ConfigDir = "custom-config"
+				config.ConfigDir = "custom-config"
 
 				// Set various Rollkit config values to test different types
 				config.Node.Aggregator = true
@@ -267,7 +265,7 @@ func TestTomlConfigOperations(t *testing.T) {
 				config.Node.SequencerRollupID = "custom-rollup"
 			} else {
 				// For default values test, ensure ConfigDir is set to the default value
-				config.Chain.ConfigDir = DefaultConfigDir
+				config.ConfigDir = DefaultConfigDir
 			}
 
 			// Write the config to a TOML file
@@ -288,7 +286,7 @@ func TestTomlConfigOperations(t *testing.T) {
 
 			if tc.useCustomValues {
 				expectedConfig.Entrypoint = "./cmd/custom/main.go"
-				expectedConfig.Chain.ConfigDir = filepath.Join(dir, "custom-config")
+				expectedConfig.ConfigDir = filepath.Join(dir, "custom-config")
 
 				// Set the same custom values as above
 				expectedConfig.Node.Aggregator = true
@@ -300,7 +298,7 @@ func TestTomlConfigOperations(t *testing.T) {
 				expectedConfig.Node.SequencerRollupID = "custom-rollup"
 			} else {
 				// For default values test, set the expected ConfigDir to match what ReadToml will return
-				expectedConfig.Chain.ConfigDir = filepath.Join(dir, DefaultConfigDir)
+				expectedConfig.ConfigDir = filepath.Join(dir, DefaultConfigDir)
 			}
 
 			// Verify the read config matches the expected config
@@ -362,8 +360,8 @@ func readTomlFromPath(configPath string) (config Config, err error) {
 	}
 
 	// Make ConfigDir absolute if it's not already
-	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
-		config.Chain.ConfigDir = filepath.Join(configDir, config.Chain.ConfigDir)
+	if config.ConfigDir != "" && !filepath.IsAbs(config.ConfigDir) {
+		config.ConfigDir = filepath.Join(configDir, config.ConfigDir)
 	}
 
 	return config, nil
@@ -376,7 +374,7 @@ func writeTomlConfig(config Config) error {
 
 	// Set values in Viper directly from NodeConfig
 	v.Set("entrypoint", config.Entrypoint)
-	v.Set("chain", config.Chain)
+	v.Set("config_dir", config.ConfigDir)
 	v.Set("node", config.Node)
 	v.Set("da", config.DA)
 

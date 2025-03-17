@@ -22,7 +22,7 @@ const (
 	// FlagEntrypoint is a flag for specifying the entrypoint
 	FlagEntrypoint = "entrypoint"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
-	FlagChainConfigDir = "chain.config_dir"
+	FlagChainConfigDir = "config_dir"
 
 	// Node configuration flags
 
@@ -138,10 +138,10 @@ func (d *DurationWrapper) UnmarshalTOML(v interface{}) error {
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir    string      `mapstructure:"home" toml:"RootDir" comment:"Root directory where rollkit files are located"`
-	DBPath     string      `mapstructure:"db_path" toml:"DBPath" comment:"Path inside the root directory where the database is located"`
-	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
-	Chain      ChainConfig `mapstructure:"chain" toml:"chain"`
+	RootDir    string `mapstructure:"home" toml:"RootDir" comment:"Root directory where rollkit files are located"`
+	DBPath     string `mapstructure:"db_path" toml:"DBPath" comment:"Path inside the root directory where the database is located"`
+	Entrypoint string `mapstructure:"entrypoint" toml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
+	ConfigDir  string `mapstructure:"config_dir" toml:"config_dir" comment:"Directory containing the rollup chain configuration"`
 
 	// P2P configuration
 	P2P P2PConfig `mapstructure:"p2p"`
@@ -193,11 +193,6 @@ type NodeConfig struct {
 	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address" comment:"Address of the executor middleware (host:port). The executor is responsible for processing transactions and maintaining the state of the rollup. Used for connecting to an external execution environment. Default: localhost:40041."`
 }
 
-// ChainConfig is the configuration for the chain section
-type ChainConfig struct {
-	ConfigDir string `mapstructure:"config_dir" toml:"config_dir" comment:"Directory containing the rollup chain configuration"`
-}
-
 // LogConfig contains all logging configuration parameters
 type LogConfig struct {
 	Level  string `mapstructure:"level" toml:"level" comment:"Log level (debug, info, warn, error)"`
@@ -215,7 +210,7 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagRootDir, def.RootDir, "root directory for Rollkit")
 	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
 	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
-	cmd.Flags().String(FlagChainConfigDir, def.Chain.ConfigDir, "chain configuration directory")
+	cmd.Flags().String(FlagChainConfigDir, def.ConfigDir, "chain configuration directory")
 
 	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
@@ -336,7 +331,7 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	v.SetDefault(FlagRootDir, config.RootDir)
 	v.SetDefault(FlagDBPath, config.DBPath)
 	v.SetDefault(FlagEntrypoint, config.Entrypoint)
-	v.SetDefault(FlagChainConfigDir, config.Chain.ConfigDir)
+	v.SetDefault(FlagChainConfigDir, config.ConfigDir)
 
 	// Node configuration defaults
 	v.SetDefault(FlagAggregator, config.Node.Aggregator)

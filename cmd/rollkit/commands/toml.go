@@ -55,7 +55,7 @@ var initCmd = &cobra.Command{
 
 		// Update with the values we found
 		config.Entrypoint = entrypoint
-		config.Chain.ConfigDir = chainConfigDir
+		config.ConfigDir = chainConfigDir
 
 		// Set the root directory to the current directory
 		currentDir, err := os.Getwd()

@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -18,12 +19,18 @@ type mockDeps struct {
 
 func TestInterceptCommand(t *testing.T) {
 	t.Run("intercepts command and runs entrypoint", func(t *testing.T) {
+		// Create a temporary directory and file for the test
+		tempDir := t.TempDir()
+		entrypointPath := filepath.Join(tempDir, "main.go")
+		err := os.WriteFile(entrypointPath, []byte("package main\nfunc main() {}\n"), 0600)
+		require.NoError(t, err)
+
 		deps := mockDeps{
 			mockReadToml: func() (rollconf.Config, error) {
 				return rollconf.Config{
-					RootDir:    "/test",
-					Entrypoint: "/test/main.go",
-					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
+					RootDir:    tempDir,
+					Entrypoint: "main.go",
+					ConfigDir:  filepath.Join(tempDir, "config"),
 				}, nil
 			},
 			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
@@ -42,12 +49,18 @@ func TestInterceptCommand(t *testing.T) {
 	})
 
 	t.Run("intercepts command and runs entrypoint with different root dir", func(t *testing.T) {
+		// Create a temporary directory and file for the test
+		tempDir := t.TempDir()
+		entrypointPath := filepath.Join(tempDir, "main.go")
+		err := os.WriteFile(entrypointPath, []byte("package main\nfunc main() {}\n"), 0600)
+		require.NoError(t, err)
+
 		deps := mockDeps{
 			mockReadToml: func() (rollconf.Config, error) {
 				return rollconf.Config{
-					RootDir:    "/central",
-					Entrypoint: "/central/main.go",
-					Chain:      rollconf.ChainConfig{ConfigDir: "/central/config"},
+					RootDir:    tempDir,
+					Entrypoint: "main.go",
+					ConfigDir:  filepath.Join(tempDir, "config"),
 				}, nil
 			},
 			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
@@ -97,7 +110,7 @@ func TestInterceptCommand(t *testing.T) {
 				return rollconf.Config{
 					RootDir:    "/test",
 					Entrypoint: "/test/main.go",
-					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
+					ConfigDir:  "/test/config",
 				}, nil
 			},
 			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
@@ -119,7 +132,7 @@ func TestInterceptCommand(t *testing.T) {
 				return rollconf.Config{
 					RootDir:    "/test",
 					Entrypoint: "/test/main.go",
-					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
+					ConfigDir:  "/test/config",
 				}, nil
 			},
 			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
@@ -141,7 +154,7 @@ func TestInterceptCommand(t *testing.T) {
 				return rollconf.Config{
 					RootDir:    "/test",
 					Entrypoint: "/test/main.go",
-					Chain:      rollconf.ChainConfig{ConfigDir: "/test/config"},
+					ConfigDir:  "/test/config",
 				}, nil
 			},
 			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
@@ -156,6 +169,90 @@ func TestInterceptCommand(t *testing.T) {
 		ok, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
 		require.NoError(t, err)
 		require.False(t, ok)
+	})
+
+	t.Run("does not intercept command when entrypoint is empty", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
+					RootDir:    "/central",
+					Entrypoint: "",
+					ConfigDir:  "/central/config",
+				}, nil
+			},
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
+				return nil
+			},
+		}
+
+		os.Args = []string{"rollkit", "start"}
+		cmd := &cobra.Command{Use: "test"}
+
+		_, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.Error(t, err)
+	})
+
+	t.Run("does not intercept command when entrypoint is not found", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
+					RootDir:    "/test",
+					Entrypoint: "/test/not-found.go",
+					ConfigDir:  "/test/config",
+				}, nil
+			},
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
+				return nil
+			},
+		}
+
+		os.Args = []string{"rollkit", "start"}
+		cmd := &cobra.Command{Use: "test"}
+
+		_, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.Error(t, err)
+	})
+
+	t.Run("does not intercept command when entrypoint is not a go file", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
+					RootDir:    "/test",
+					Entrypoint: "/test/not-a-go-file",
+					ConfigDir:  "/test/config",
+				}, nil
+			},
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
+				return nil
+			},
+		}
+
+		os.Args = []string{"rollkit", "start"}
+		cmd := &cobra.Command{Use: "test"}
+
+		_, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.Error(t, err)
+	})
+
+	t.Run("does not intercept command when entrypoint is a directory", func(t *testing.T) {
+		deps := mockDeps{
+			mockReadToml: func() (rollconf.Config, error) {
+				return rollconf.Config{
+					RootDir:    "/test",
+					Entrypoint: "/test",
+					ConfigDir:  "/test/config",
+				}, nil
+			},
+			mockRunEntrypoint: func(config *rollconf.Config, flags []string) error {
+				return nil
+			},
+		}
+
+		os.Args = []string{"rollkit", "start"}
+		cmd := &cobra.Command{Use: "test"}
+
+		_, err := InterceptCommand(cmd, deps.mockReadToml, deps.mockRunEntrypoint)
+		require.Error(t, err)
 	})
 }
 

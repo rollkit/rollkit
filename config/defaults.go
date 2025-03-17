@@ -35,8 +35,9 @@ func DefaultRootDir() string {
 
 // DefaultNodeConfig keeps default values of NodeConfig
 var DefaultNodeConfig = Config{
-	RootDir: DefaultRootDir(),
-	DBPath:  "data",
+	RootDir:   DefaultRootDir(),
+	DBPath:    "data",
+	ConfigDir: DefaultConfigDir,
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
@@ -60,9 +61,6 @@ var DefaultNodeConfig = Config{
 	},
 	Instrumentation: DefaultInstrumentationConfig(),
 	Entrypoint:      "",
-	Chain: ChainConfig{
-		ConfigDir: DefaultConfigDir,
-	},
 	Log: LogConfig{
 		Level:  DefaultLogLevel,
 		Format: "",

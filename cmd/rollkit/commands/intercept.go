@@ -63,6 +63,31 @@ func InterceptCommand(
 		return
 	}
 
+	// Verify that the entrypoint file exists
+	entrypointPath := rollkitConfig.Entrypoint
+	if !filepath.IsAbs(entrypointPath) {
+		entrypointPath = filepath.Join(rollkitConfig.RootDir, entrypointPath)
+	}
+
+	// Check if the file exists
+	fileInfo, statErr := os.Stat(entrypointPath)
+	if statErr != nil {
+		err = fmt.Errorf("entrypoint file not found: %s", entrypointPath)
+		return
+	}
+
+	// Check if it's a directory
+	if fileInfo.IsDir() {
+		err = fmt.Errorf("entrypoint cannot be a directory: %s", entrypointPath)
+		return
+	}
+
+	// Check if it's a Go file
+	if !strings.HasSuffix(entrypointPath, ".go") {
+		err = fmt.Errorf("entrypoint must be a Go file: %s", entrypointPath)
+		return
+	}
+
 	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
 }
 
@@ -109,10 +134,10 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.Config, args []string) error {
 
 	var runArgs []string
 	runArgs = append(runArgs, args...)
-	if rollkitConfig.Chain.ConfigDir != "" {
+	if rollkitConfig.ConfigDir != "" {
 		// The entrypoint is a separate binary based on https://github.com/rollkit/cosmos-sdk, so
 		// we have to pass --home flag to the entrypoint to read the correct chain configuration files if specified.
-		runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
+		runArgs = append(runArgs, "--home", rollkitConfig.ConfigDir)
 	}
 
 	entrypointCmd := exec.Command(entrypointBinaryFilePath, runArgs...) //nolint:gosec

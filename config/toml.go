@@ -91,9 +91,9 @@ func ReadToml() (config Config, err error) {
 	// Set the root directory
 	config.RootDir = filepath.Dir(configPath)
 
-	// Add configPath to chain.ConfigDir if it is a relative path
-	if config.Chain.ConfigDir != "" && !filepath.IsAbs(config.Chain.ConfigDir) {
-		config.Chain.ConfigDir = filepath.Join(config.RootDir, config.Chain.ConfigDir)
+	// Add configPath to ConfigDir if it is a relative path
+	if config.ConfigDir != "" && !filepath.IsAbs(config.ConfigDir) {
+		config.ConfigDir = filepath.Join(config.RootDir, config.ConfigDir)
 	}
 
 	return
