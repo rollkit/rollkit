@@ -34,11 +34,11 @@ const (
 	FlagBlockTime = "node.block_time"
 	// FlagTrustedHash is a flag for specifying the trusted hash
 	FlagTrustedHash = "node.trusted_hash"
-	// FlagLazyAggregator is a flag for enabling lazy aggregation
+	// FlagLazyAggregator is a flag for enabling lazy aggregation mode that only produces blocks when transactions are available
 	FlagLazyAggregator = "node.lazy_aggregator"
-	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
+	// FlagMaxPendingBlocks is a flag to limit and pause block production when too many blocks are waiting for DA confirmation
 	FlagMaxPendingBlocks = "node.max_pending_blocks"
-	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
+	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
 	FlagLazyBlockTime = "node.lazy_block_time"
 	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
 	FlagSequencerAddress = "node.sequencer_address"
@@ -167,7 +167,7 @@ type DAConfig struct {
 	GasMultiplier float64         `mapstructure:"gas_multiplier" toml:"gas_multiplier" comment:"Multiplier applied to gas price when retrying failed DA submissions. Values > 1 increase gas price on retries to improve chances of inclusion."`
 	SubmitOptions string          `mapstructure:"submit_options" toml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
 	Namespace     string          `mapstructure:"namespace" toml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer."`
-	BlockTime     DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Average block time of the DA chain (duration). Used for syncing and calculating retry intervals for DA submissions."`
+	BlockTime     DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Average block time of the DA chain (duration). Determines frequency of DA layer syncing, maximum backoff time for retries, and is multiplied by MempoolTTL to calculate transaction expiration. Examples: \"15s\", \"30s\", \"1m\", \"2m30s\", \"10m\"."`
 	StartHeight   uint64          `mapstructure:"start_height" toml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new rollup on an existing DA chain."`
 	MempoolTTL    uint64          `mapstructure:"mempool_ttl" toml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
 }
@@ -179,10 +179,10 @@ type NodeConfig struct {
 	Light      bool `toml:"light" comment:"Run node in light mode"`
 
 	// Block management configuration
-	BlockTime        DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Block time (duration)"`
-	MaxPendingBlocks uint64          `mapstructure:"max_pending_blocks" toml:"max_pending_blocks" comment:"Maximum number of blocks pending DA submission"`
-	LazyAggregator   bool            `mapstructure:"lazy_aggregator" toml:"lazy_aggregator" comment:"Enable lazy aggregation"`
-	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" toml:"lazy_block_time" comment:"Block time in lazy mode (duration)"`
+	BlockTime        DurationWrapper `mapstructure:"block_time" toml:"block_time" comment:"Block time (duration). Examples: \"500ms\", \"1s\", \"5s\", \"1m\", \"2m30s\", \"10m\"."`
+	MaxPendingBlocks uint64          `mapstructure:"max_pending_blocks" toml:"max_pending_blocks" comment:"Maximum number of blocks pending DA submission. When this limit is reached, the aggregator pauses block production until some blocks are confirmed. Use 0 for no limit."`
+	LazyAggregator   bool            `mapstructure:"lazy_aggregator" toml:"lazy_aggregator" comment:"Enables lazy aggregation mode, where blocks are only produced when transactions are available or after LazyBlockTime. Optimizes resources by avoiding empty block creation during periods of inactivity."`
+	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" toml:"lazy_block_time" comment:"Maximum interval between blocks in lazy aggregation mode (LazyAggregator). Ensures blocks are produced periodically even without transactions to keep the chain active. Generally larger than BlockTime."`
 
 	// Header configuration
 	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis."`
@@ -222,9 +222,9 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
 	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime.Duration, "block time (for aggregator mode)")
 	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
-	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
-	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "block time (for lazy mode)")
+	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "produce blocks only when transactions are available or after lazy block time")
+	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "maximum blocks pending DA confirmation before pausing block production (0 for no limit)")
+	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "maximum interval between blocks in lazy aggregation mode")
 	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 	cmd.Flags().String(FlagExecutorAddress, def.Node.ExecutorAddress, "executor middleware address (host:port)")

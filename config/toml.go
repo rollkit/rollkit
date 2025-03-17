@@ -70,9 +70,7 @@ func ReadToml() (config Config, err error) {
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
-			// Add a custom hook for DurationWrapper
 			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
-				// If the target type is DurationWrapper and the source is string
 				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
 					if str, ok := data.(string); ok {
 						duration, err := time.ParseDuration(str)
