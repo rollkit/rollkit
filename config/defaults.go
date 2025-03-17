@@ -10,8 +10,11 @@ const (
 	// DefaultDirPerm is the default permissions used when creating directories.
 	DefaultDirPerm = 0750
 
-	// DefaultConfigDir is the default directory for configuration files.
+	// DefaultConfigDir is the default directory for configuration files (e.g. rollkit.toml).
 	DefaultConfigDir = "config"
+
+	// DefaultDataDir is the default directory for data files (e.g. database).
+	DefaultDataDir = "data"
 
 	// DefaultListenAddress is a default listen address for P2P client.
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
@@ -42,7 +45,7 @@ func DefaultRootDir() string {
 // DefaultNodeConfig keeps default values of NodeConfig
 var DefaultNodeConfig = Config{
 	RootDir:   DefaultRootDir(),
-	DBPath:    "data",
+	DBPath:    DefaultDataDir,
 	ConfigDir: DefaultConfigDir,
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
