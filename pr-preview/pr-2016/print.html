@@ -263,7 +263,7 @@ gantt
 <tr><td>signing key</td><td>crypto.PrivKey</td><td>used for signing a block after it is created</td></tr>
 <tr><td>config</td><td>config.BlockManagerConfig</td><td>block manager configurations (see config options below)</td></tr>
 <tr><td>genesis</td><td>*cmtypes.GenesisDoc</td><td>initialize the block manager with genesis state (genesis configuration defined in <code>config/genesis.json</code> file under the app directory)</td></tr>
-<tr><td>store</td><td>store.Store</td><td>local datastore for storing rollup blocks and states (default local store path is <code>$db_dir/rollkit</code> and <code>db_dir</code> specified in the <code>config.toml</code> file under the app directory)</td></tr>
+<tr><td>store</td><td>store.Store</td><td>local datastore for storing rollup blocks and states (default local store path is <code>$db_dir/rollkit</code> and <code>db_dir</code> specified in the <code>config.yaml</code> file under the app directory)</td></tr>
 <tr><td>mempool, proxyapp, eventbus</td><td>mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus</td><td>for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production</td></tr>
 <tr><td>dalc</td><td>da.DAClient</td><td>the data availability light client used to submit and retrieve blocks to DA network</td></tr>
 <tr><td>blockstore</td><td>*goheaderstore.Store[*types.Block]</td><td>to retrieve blocks gossiped over the P2P network</td></tr>
@@ -341,7 +341,7 @@ This block is marked as soft confirmed by the validating full node until the sam
 <li>The block manager loads the initial state from the local store and uses genesis if not found in the local store, when the node (re)starts.</li>
 <li>The default mode for sequencer nodes is normal (not lazy).</li>
 <li>The sequencer can produce empty blocks.</li>
-<li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.toml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
+<li>The block manager uses persistent storage (disk) when the <code>root_dir</code> and <code>db_path</code> configuration parameters are specified in <code>config.yaml</code> file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.</li>
 <li>The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.</li>
 <li>The data sync store is created by prefixing <code>dataSync</code> on the main data store.</li>
 <li>The genesis <code>ChainID</code> is used to create the <code>PubSubTopID</code> in go-header with the string <code>-block</code> appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.</li>
