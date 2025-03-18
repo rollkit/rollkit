@@ -86,11 +86,8 @@ type Manager struct {
 	headerCache    *HeaderCache
 	dataCache      *DataCache
 	store          store.Store
-	sequencer      coresequencer.Sequencer
 	batchQueue     *BatchQueue
-	lastBatchHash  []byte
 	pendingHeaders *PendingHeaders
-	exec           coreexecutor.Executor
 
 	// Configuration
 	config      config.Config
@@ -113,6 +110,15 @@ type Manager struct {
 
 	// Metrics
 	metrics *Metrics
+
+	// Sequencer client
+	sequencer coresequencer.Sequencer
+
+	// Last batch hash
+	lastBatchHash []byte
+
+	// Executor
+	exec coreexecutor.Executor
 }
 
 // RollkitGenesis is the genesis state of the rollup
@@ -206,6 +212,8 @@ func NewManager(
 		eventBus:       eventBus,
 		headerStore:    headerStore,
 		dataStore:      dataStore,
+		sequencer:      sequencer,
+		exec:           exec,
 	}
 
 	// Set DA heights
@@ -230,7 +238,7 @@ func NewManager(
 		DAIncludedHeight: m.daIncludedHeight.Load(),
 	})
 
-	// Create publisher component
+	// Create publisher component - pass gasPrice and gasMultiplier only here
 	m.publisher, err = NewPublisher(PublisherOptions{
 		EventBus:      eventBus,
 		Store:         store,
@@ -272,11 +280,6 @@ func NewManager(
 	eventBus.Subscribe(EventStateUpdated, m.handleStateUpdated)
 	eventBus.Subscribe(EventDAHeightChanged, m.handleDAHeightChanged)
 	eventBus.Subscribe(EventSequencerBatch, m.handleSequencerBatch)
-
-	// Set up batch processing from sequencer
-	if sequencer != nil {
-		go m.BatchRetrieveLoop(ctx)
-	}
 
 	return m, nil
 }
