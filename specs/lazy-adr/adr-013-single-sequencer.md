@@ -1,4 +1,4 @@
-# ADR 11: Single Sequencer
+# ADR 13: Single Sequencer
 
 ## Changelog
 
@@ -8,7 +8,7 @@
 
 Rollkit supports modular sequencer implementations and a single sequencer is a simple and efficient solution that can serve as a starting point for rollup developers who don't need the complexity of a decentralized sequencing solution.
 
-The single sequencer needs to implement the Generic Sequencer interface defined in the `go-sequencing` package, provide transaction batching capabilities, and reliably submit these batches to a DA layer. It should also maintain state to track submitted batches and provide verification capabilities.
+The single sequencer needs to implement the Generic Sequencer interface defined in the `core/sequencer` package, provide transaction batching capabilities, and reliably submit these batches to a DA layer. It should also maintain state to track submitted batches and provide verification capabilities.
 
 ## Alternative Approaches
 
@@ -36,7 +36,7 @@ This approach was not chosen because:
 
 We implement a standalone single sequencer that:
 
-1. Implements the Generic Sequencer interface from the `go-sequencing` package
+1. Implements the Generic Sequencer interface from the `core/sequencer` package
 2. Batches transactions and submits them to a DA layer at regular intervals
 3. Provides metrics for monitoring and observability
 
@@ -109,7 +109,7 @@ The single sequencer uses the following key data structures:
 
 ### APIs
 
-The single sequencer implements the Generic Sequencer interface from the `go-sequencing` package:
+The single sequencer implements the Generic Sequencer interface from the `core/sequencer` package:
 
 ```go
 type Sequencer interface {
