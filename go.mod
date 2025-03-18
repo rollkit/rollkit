@@ -5,7 +5,7 @@ go 1.23.3
 retract v0.12.0 // Published by accident
 
 require (
-	github.com/BurntSushi/toml v1.4.0
+	github.com/BurntSushi/toml v1.5.0
 	github.com/celestiaorg/go-header v0.6.4
 	github.com/cometbft/cometbft v0.38.15
 	github.com/cosmos/gogoproto v1.7.0
