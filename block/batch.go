@@ -2,6 +2,9 @@ package block
 
 import (
 	"sync"
+	"time"
+
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 )
 
 // BatchQueue is a queue of transaction batches with timestamps
@@ -9,6 +12,12 @@ type BatchQueue struct {
 	queue    []BatchWithTime
 	mu       sync.Mutex
 	notifyCh chan struct{}
+}
+
+// BatchWithTime is used to pass batch and time to BatchQueue
+type BatchWithTime struct {
+	*coresequencer.Batch
+	time.Time
 }
 
 // NewBatchQueue creates a new BatchQueue
