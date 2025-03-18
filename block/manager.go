@@ -493,8 +493,8 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 				"lastBatchHash", hex.EncodeToString(m.lastBatchHash))
 
 			req := coresequencer.GetNextBatchRequest{
-				RollupId:      []byte(m.genesis.ChainID),
-				LastBatchHash: m.lastBatchHash,
+				RollupId: []byte(m.genesis.ChainID),
+				// LastBatchData: m.lastBatchHash, //TODO: add this
 			}
 
 			res, err := m.sequencer.GetNextBatch(ctx, req)

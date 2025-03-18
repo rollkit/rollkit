@@ -241,7 +241,7 @@ daSubmitRetryLoop:
 			data[i] = bz
 		}
 		// Attempt to submit the batch to the DA layer
-		res := c.dalc.SubmitBatch(ctx, data, maxBlobSize, gasPrice)
+		res := c.dalc.Submit(ctx, data, maxBlobSize, gasPrice)
 
 		gasMultiplier, err := c.dalc.GasMultiplier(ctx)
 		if err != nil {

@@ -65,4 +65,6 @@ type BaseResult struct {
 	SubmittedCount uint64
 	// BlobSize is the size of the blob submitted.
 	BlobSize uint64
+	// IDs is the list of IDs of the blobs submitted.
+	IDs []ID
 }
