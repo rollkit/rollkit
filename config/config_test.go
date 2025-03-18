@@ -47,7 +47,7 @@ func TestAddFlags(t *testing.T) {
 	flags := cmd.Flags()
 
 	// Test root flags
-	assert.NotNil(t, flags.Lookup(FlagRootDir))
+	// Note: FlagRootDir is added by registerFlagsRootCmd in root.go, not by AddFlags
 	assert.NotNil(t, flags.Lookup(FlagDBPath))
 
 	// Test Rollkit flags
@@ -88,7 +88,7 @@ func TestAddFlags(t *testing.T) {
 
 	// Verify that there are no additional flags
 	// Count the number of flags we're explicitly checking
-	expectedFlagCount := 35 // Update this number if you add more flag checks above
+	expectedFlagCount := 34 // Update this number if you add more flag checks above
 
 	// Get the actual number of flags
 	actualFlagCount := 0

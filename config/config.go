@@ -200,7 +200,6 @@ func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 
 	// Base configuration flags
-	cmd.Flags().String(FlagRootDir, def.RootDir, "root directory for Rollkit")
 	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
 	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
 	cmd.Flags().String(FlagChainConfigDir, def.ConfigDir, "chain configuration directory")

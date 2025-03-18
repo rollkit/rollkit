@@ -65,6 +65,9 @@ func TestParseFlags(t *testing.T) {
 
 	newRunNodeCmd := NewRunNodeCmd()
 
+	// Register root flags to be able to use --home flag
+	registerFlagsRootCmd(newRunNodeCmd)
+
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)
 	}
