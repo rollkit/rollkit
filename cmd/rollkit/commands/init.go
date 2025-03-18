@@ -61,7 +61,7 @@ var InitCmd = &cobra.Command{
 		config.RootDir = homePath
 
 		// Make sure the home directory exists
-		if err := os.MkdirAll(homePath, os.ModePerm); err != nil {
+		if err := os.MkdirAll(homePath, os.ModePerm&0750); err != nil {
 			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
 
