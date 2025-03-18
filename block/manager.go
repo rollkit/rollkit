@@ -169,6 +169,26 @@ func NewManager(
 		daHeight = config.DA.StartHeight
 	}
 
+	if config.DA.BlockTime.Duration == 0 {
+		logger.Info("Using default DA block time", "DABlockTime", defaultDABlockTime)
+		config.DA.BlockTime.Duration = defaultDABlockTime
+	}
+
+	if config.Node.BlockTime.Duration == 0 {
+		logger.Info("Using default block time", "BlockTime", defaultBlockTime)
+		config.Node.BlockTime.Duration = defaultBlockTime
+	}
+
+	if config.Node.LazyBlockTime.Duration == 0 {
+		logger.Info("Using default lazy block time", "LazyBlockTime", defaultLazyBlockTime)
+		config.Node.LazyBlockTime.Duration = defaultLazyBlockTime
+	}
+
+	if config.DA.MempoolTTL == 0 {
+		logger.Info("Using default mempool ttl", "MempoolTTL", defaultMempoolTTL)
+		config.DA.MempoolTTL = defaultMempoolTTL
+	}
+
 	// Check if the node is a proposer
 	isProposer, err := isProposer(proposerKey, s)
 	if err != nil {
