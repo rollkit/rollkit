@@ -7,12 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/crypto"
-
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtypes "github.com/cometbft/cometbft/types"
-
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rollkit/go-sequencing"
+
 	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
