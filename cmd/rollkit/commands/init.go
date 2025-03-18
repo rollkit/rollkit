@@ -9,21 +9,8 @@ import (
 	rollconf "github.com/rollkit/rollkit/config"
 )
 
-// NewYamlCmd creates a new cobra command group for YAML file operations.
-func NewYamlCmd() *cobra.Command {
-	yamlCmd := &cobra.Command{
-		Use:     "yaml",
-		Short:   "YAML file operations",
-		Long:    `This command group is used to interact with YAML files.`,
-		Example: `  rollkit yaml init`,
-	}
-
-	yamlCmd.AddCommand(initYamlCmd)
-
-	return yamlCmd
-}
-
-var initYamlCmd = &cobra.Command{
+// InitCmd initializes a new rollkit.yaml file in the current directory
+var InitCmd = &cobra.Command{
 	Use:   "init",
 	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitConfigYaml),
 	Long:  fmt.Sprintf("This command initializes a new %s file in the current directory.", rollconf.RollkitConfigYaml),

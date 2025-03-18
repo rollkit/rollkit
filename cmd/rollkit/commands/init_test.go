@@ -10,7 +10,7 @@ import (
 	rollconf "github.com/rollkit/rollkit/config"
 )
 
-func TestInitYamlCommand(t *testing.T) {
+func TestInitCommand(t *testing.T) {
 	// Create a temporary directory for testing
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -25,9 +25,8 @@ func TestInitYamlCommand(t *testing.T) {
 	// Change to the temporary directory
 	require.NoError(t, os.Chdir(dir))
 
-	// Execute the init command
-	cmd := NewYamlCmd()
-	cmd.SetArgs([]string{"init"})
+	// Execute the init command directly
+	cmd := InitCmd
 	err = cmd.Execute()
 	require.NoError(t, err)
 

@@ -17,7 +17,7 @@ func main() {
 		cmd.DocsGenCmd,
 		cmd.NewRunNodeCmd(),
 		cmd.VersionCmd,
-		cmd.NewYamlCmd(),
+		cmd.InitCmd,
 		cmd.RebuildCmd,
 	)
 
