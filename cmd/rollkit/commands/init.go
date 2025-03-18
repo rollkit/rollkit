@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -13,10 +14,24 @@ import (
 var InitCmd = &cobra.Command{
 	Use:   "init",
 	Short: fmt.Sprintf("Initialize a new %s file", rollconf.RollkitConfigYaml),
-	Long:  fmt.Sprintf("This command initializes a new %s file in the current directory.", rollconf.RollkitConfigYaml),
+	Long:  fmt.Sprintf("This command initializes a new %s file in the specified directory (or current directory if not specified).", rollconf.RollkitConfigYaml),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if _, err := os.Stat(rollconf.RollkitConfigYaml); err == nil {
-			return fmt.Errorf("%s file already exists in the current directory", rollconf.RollkitConfigYaml)
+		homePath, err := cmd.Flags().GetString(rollconf.FlagRootDir)
+		if err != nil {
+			return fmt.Errorf("error reading home flag: %w", err)
+		}
+
+		// If home is not specified, use the current directory
+		if homePath == "" {
+			homePath, err = os.Getwd()
+			if err != nil {
+				return fmt.Errorf("error getting current directory: %w", err)
+			}
+		}
+
+		configFilePath := filepath.Join(homePath, rollconf.RollkitConfigYaml)
+		if _, err := os.Stat(configFilePath); err == nil {
+			return fmt.Errorf("%s file already exists in the specified directory", rollconf.RollkitConfigYaml)
 		}
 
 		// try find main.go file under the current directory
@@ -42,19 +57,25 @@ var InitCmd = &cobra.Command{
 		config.Entrypoint = entrypoint
 		config.ConfigDir = chainConfigDir
 
-		// Set the root directory to the current directory
-		currentDir, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("error getting current directory: %w", err)
+		// Set the root directory to the specified home path
+		config.RootDir = homePath
+
+		// Make sure the home directory exists
+		if err := os.MkdirAll(homePath, os.ModePerm); err != nil {
+			return fmt.Errorf("error creating directory %s: %w", homePath, err)
 		}
-		config.RootDir = currentDir
 
 		// Use writeYamlConfig instead of manual marshaling and file writing
 		if err := rollconf.WriteYamlConfig(config); err != nil {
 			return fmt.Errorf("error writing rollkit.yaml file: %w", err)
 		}
 
-		fmt.Printf("Initialized %s file in the current directory.\n", rollconf.RollkitConfigYaml)
+		fmt.Printf("Initialized %s file in %s\n", rollconf.RollkitConfigYaml, homePath)
 		return nil
 	},
+}
+
+func init() {
+	// Add the home flag
+	InitCmd.Flags().String("home", "", "Directory where the rollkit.yaml file will be created")
 }
