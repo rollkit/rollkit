@@ -1,6 +1,9 @@
 package da
 
-import "context"
+import (
+	"context"
+	"encoding/binary"
+)
 
 // Client is the interface for the DA layer client.
 type Client interface {
@@ -66,5 +69,22 @@ type BaseResult struct {
 	// BlobSize is the size of the blob submitted.
 	BlobSize uint64
 	// IDs is the list of IDs of the blobs submitted.
-	IDs []ID
+	IDs [][]byte
+}
+
+// makeID creates an ID from a height and a commitment.
+func makeID(height uint64, commitment []byte) []byte {
+	id := make([]byte, len(commitment)+8)
+	binary.LittleEndian.PutUint64(id, height)
+	copy(id[8:], commitment)
+	return id
+}
+
+// SplitID splits an ID into a height and a commitment.
+func SplitID(id []byte) (uint64, []byte) {
+	if len(id) <= 8 {
+		return 0, nil
+	}
+	commitment := id[8:]
+	return binary.LittleEndian.Uint64(id[:8]), commitment
 }

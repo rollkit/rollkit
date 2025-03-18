@@ -31,7 +31,7 @@ func TestDummyClient(t *testing.T) {
 	}
 
 	// Test SubmitHeaders
-	submitResult := client.Submit(ctx, headers, maxBlobSize, 1.0)
+	submitResult := client.Submit(ctx, headers, 1024, 1.0)
 
 	// Check the result
 	if submitResult.Code != StatusSuccess {

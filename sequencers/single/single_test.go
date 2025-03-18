@@ -77,7 +77,7 @@ func TestSequencer_SubmitRollupBatchTxs(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Verify the transaction was added
-	nextBatchresp, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: rollupId, LastBatchHash: nil})
+	nextBatchresp, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: rollupId})
 	if err != nil {
 		t.Fatalf("Failed to get next batch: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestSequencer_GetNextBatch_NoLastBatch(t *testing.T) {
 	}()
 
 	// Test case where lastBatchHash and seq.lastBatchHash are both nil
-	res, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: seq.rollupId, LastBatchHash: nil})
+	res, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: seq.rollupId})
 	if err != nil {
 		t.Fatalf("Failed to get next batch: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestSequencer_GetNextBatch_Success(t *testing.T) {
 	}
 
 	// Test success case with no previous lastBatchHash
-	res, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: seq.rollupId, LastBatchHash: nil})
+	res, err := seq.GetNextBatch(context.Background(), coresequencer.GetNextBatchRequest{RollupId: seq.rollupId})
 	if err != nil {
 		t.Fatalf("Failed to get next batch: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	seq.seenBatches.Store(hex.EncodeToString(batchHash), struct{}{})
 
 	// Test that VerifyBatch returns true for an existing batch
-	res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchHash: batchHash})
+	res, err := seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchData: [][]byte{batchHash}})
 	if err != nil {
 		t.Fatalf("Failed to verify batch: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestSequencer_VerifyBatch(t *testing.T) {
 	}
 
 	// Test that VerifyBatch returns false for a non-existing batch
-	res, err = seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchHash: []byte("invalidHash")})
+	res, err = seq.VerifyBatch(context.Background(), coresequencer.VerifyBatchRequest{RollupId: seq.rollupId, BatchData: [][]byte{[]byte("invalidHash")}})
 	if err != nil {
 		t.Fatalf("Failed to verify batch: %v", err)
 	}

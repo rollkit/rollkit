@@ -48,14 +48,14 @@ func (dac *DAClient) GasMultiplier(ctx context.Context) (float64, error) {
 }
 
 // SubmitHeaders submits block headers to DA.
-func (dac *DAClient) Submit(ctx context.Context, headers [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmit {
+func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmit {
 	var (
 		blobs    [][]byte
 		blobSize uint64
 		message  string
 	)
-	for i := range headers {
-		blob := headers[i]
+	for i := range data {
+		blob := data[i]
 		if blobSize+uint64(len(blob)) > maxBlobSize {
 			message = fmt.Sprint(ErrBlobSizeOverLimit.Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
 			dac.Logger.Info(message)
@@ -73,7 +73,7 @@ func (dac *DAClient) Submit(ctx context.Context, headers [][]byte, maxBlobSize u
 		}
 	}
 
-	ids, height, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
+	ids, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
 		status := coreda.StatusError
 		switch {
@@ -108,7 +108,7 @@ func (dac *DAClient) Submit(ctx context.Context, headers [][]byte, maxBlobSize u
 	return coreda.ResultSubmit{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
-			Height:         height,
+			IDs:            ids,
 			SubmittedCount: uint64(len(ids)),
 		},
 	}
@@ -166,6 +166,6 @@ func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) cored
 	}
 }
 
-func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, uint64, error) {
+func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, error) {
 	return dac.DA.Submit(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
 }

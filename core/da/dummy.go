@@ -116,7 +116,7 @@ func (d *DummyDA) Commit(ctx context.Context, blobs []Blob, namespace []byte) ([
 }
 
 // Submit submits blobs to the DA layer with additional options.
-func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, uint64, error) {
+func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, namespace []byte, options []byte) ([]ID, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -125,17 +125,20 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, na
 
 	for _, blob := range blobs {
 		if uint64(len(blob)) > d.maxBlobSize {
-			return nil, 0, errors.New("blob size exceeds maximum")
+			return nil, errors.New("blob size exceeds maximum")
 		}
 
-		// For simplicity, we use the blob itself as the ID
-		id := blob
+		// Create a commitment using SHA-256 hash
+		bz := sha256.Sum256(blob)
+		commitment := bz[:]
+
+		// Create ID from height and commitment
+		id := makeID(height, commitment)
 		idStr := string(id)
 
 		d.blobs[idStr] = blob
-		bz := sha256.Sum256(blob)
-		d.commitments[idStr] = bz[:] // Simple commitment
-		d.proofs[idStr] = bz[:]      // Simple proof
+		d.commitments[idStr] = commitment
+		d.proofs[idStr] = commitment // Simple proof
 
 		ids = append(ids, id)
 	}
@@ -143,7 +146,7 @@ func (d *DummyDA) Submit(ctx context.Context, blobs []Blob, gasPrice float64, na
 	d.blobsByHeight[height] = ids
 	d.timestampsByHeight[height] = time.Now()
 
-	return ids, height, nil
+	return ids, nil
 }
 
 // Validate validates commitments against proofs.

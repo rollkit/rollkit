@@ -85,8 +85,6 @@ type SubmitRollupBatchTxsRequest struct {
 
 // SubmitRollupBatchTxsResponse is a response to submitting a batch of transactions from rollup to sequencer
 type SubmitRollupBatchTxsResponse struct {
-	// last submitted batch hash is the hash of the last successfully submitted batch to the DA layer
-	LastSubmittedBatchHash []byte
 }
 
 // GetNextBatchRequest is a request to get the next batch of transactions from sequencer to rollup

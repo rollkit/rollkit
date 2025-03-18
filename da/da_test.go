@@ -47,15 +47,12 @@ func TestMockDAErrors(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		maxBlobSize, err := dalc.MaxBlobSize(ctx)
-		require.NoError(t, err)
-
 		assert := assert.New(t)
 
 		ctx, cancel = context.WithTimeout(ctx, submitTimeout)
 		defer cancel()
 
-		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
+		resp := dalc.Submit(ctx, blobs, -1)
 		assert.Contains(resp.Message, ErrContextDeadline.Error(), "should return context timeout error")
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
@@ -84,12 +81,9 @@ func TestMockDAErrors(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		maxBlobSize, err := dalc.MaxBlobSize(ctx)
-		require.NoError(t, err)
-
 		assert := assert.New(t)
 
-		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
+		resp := dalc.Submit(ctx, blobs, -1)
 		assert.Contains(resp.Message, ErrTxTooLarge.Error(), "should return tx too large error")
 		assert.Equal(resp.Code, coreda.StatusTooBig)
 	})
@@ -128,12 +122,9 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 
 	countAtHeight := make(map[uint64]int)
 
-	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	require.NoError(t, err)
-
 	submitAndRecordHeaders := func(blobs []coreda.Blob) {
 		for len(blobs) > 0 {
-			resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
+			resp := dalc.Submit(ctx, blobs, -1)
 			assert.Equal(t, coreda.StatusSuccess, resp.Code, resp.Message)
 
 			countAtHeight[resp.Height]++
@@ -168,14 +159,12 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	require.NoError(t, err)
 	require.New(t)
 
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 0)
 	headersBz[1] = make([]byte, 0)
-	resp := dalc.Submit(ctx, headersBz, maxBlobSize, -1)
+	resp := dalc.Submit(ctx, headersBz, -1)
 	assert.Equal(t, coreda.StatusSuccess, resp.Code, "empty blocks should submit")
 	assert.EqualValues(t, resp.SubmittedCount, 2, "empty blocks should batch")
 }
@@ -184,14 +173,13 @@ func doTestSubmitOversizedBlock(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require := require.New(t)
-	assert := assert.New(t)
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
+	require.NoError(t, err)
 
-	limit, err := dalc.MaxBlobSize(ctx)
-	require.NoError(err)
+	assert := assert.New(t)
 	oversized := make([]coreda.Blob, 1)
-	oversized[0] = make([]byte, limit+1)
-	resp := dalc.Submit(ctx, oversized, limit, -1)
+	oversized[0] = make([]byte, maxBlobSize+1)
+	resp := dalc.Submit(ctx, oversized, -1)
 	assert.Equal(coreda.StatusError, resp.Code, "oversized block should throw error")
 	assert.Contains(resp.Message, "failed to submit blocks: no blobs generated blob: over size limit")
 }
@@ -200,15 +188,12 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	require.NoError(t, err)
-
 	require.New(t)
 
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 100)
 	headersBz[1] = make([]byte, 100)
-	resp := dalc.Submit(ctx, headersBz, maxBlobSize, -1)
+	resp := dalc.Submit(ctx, headersBz, -1)
 	assert.Equal(t, coreda.StatusSuccess, resp.Code, "small blocks should submit")
 	assert.EqualValues(t, resp.SubmittedCount, 2, "small blocks should batch")
 }
@@ -238,12 +223,12 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc coreda.Client) {
 	}
 
 	// overflowing blocks submit partially
-	resp := dalc.Submit(ctx, []coreda.Blob{header1, header2}, limit, -1)
+	resp := dalc.Submit(ctx, []coreda.Blob{header1, header2}, -1)
 	assert.Equal(coreda.StatusSuccess, resp.Code, "overflowing blocks should submit partially")
 	assert.EqualValues(1, resp.SubmittedCount, "submitted count should be partial")
 
 	// retry remaining blocks
-	resp = dalc.Submit(ctx, []coreda.Blob{header2}, limit, -1)
+	resp = dalc.Submit(ctx, []coreda.Blob{header2}, -1)
 	assert.Equal(coreda.StatusSuccess, resp.Code, "remaining blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
 }

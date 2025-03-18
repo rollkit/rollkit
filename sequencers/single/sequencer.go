@@ -16,7 +16,6 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	dac "github.com/rollkit/rollkit/da"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
 )
 
 // ErrInvalidRollupId is returned when the rollup id is invalid
@@ -39,9 +38,7 @@ type Sequencer struct {
 	dalc      coreda.Client
 	batchTime time.Duration
 
-	maxBlobSize            *atomic.Uint64
-	lastSubmittedBatchHash atomic.Value
-	seenBatches            sync.Map
+	seenBatches sync.Map
 
 	// submitted batches
 	sbq *BatchQueue
@@ -72,11 +69,10 @@ func NewSequencer(
 	maxBlobSize.Store(mBlobSize)
 
 	s := &Sequencer{
-		logger:      logger,
-		dalc:        dalc,
-		batchTime:   batchTime,
-		maxBlobSize: maxBlobSize,
-		rollupId:    rollupId,
+		logger:    logger,
+		dalc:      dalc,
+		batchTime: batchTime,
+		rollupId:  rollupId,
 		// TODO: this can cause an overhead with IO
 		bq:          NewBatchQueue(db, "pending"),
 		sbq:         NewBatchQueue(db, "submitted"),
@@ -111,28 +107,7 @@ func (c *Sequencer) SubmitRollupBatchTxs(ctx context.Context, req coresequencer.
 		return nil, fmt.Errorf("failed to add batch: %w", err)
 	}
 
-	lastSubmittedBatchHash := c.lastSubmittedBatchHash.Load()
-	var batchHash []byte
-	if lastSubmittedBatchHash != nil {
-		batchHash = lastSubmittedBatchHash.([]byte)
-	}
-
-	return &coresequencer.SubmitRollupBatchTxsResponse{LastSubmittedBatchHash: batchHash}, nil
-}
-
-// CompareAndSetMaxSize compares the passed size with the current max size and sets the max size to the smaller of the two
-// Initially the max size is set to the max blob size returned by the DA layer
-// This can be overwritten by the execution client if it can only handle smaller size
-func (c *Sequencer) CompareAndSetMaxSize(size uint64) {
-	for {
-		current := c.maxBlobSize.Load()
-		if size >= current {
-			return
-		}
-		if c.maxBlobSize.CompareAndSwap(current, size) {
-			return
-		}
-	}
+	return &coresequencer.SubmitRollupBatchTxsResponse{}, nil
 }
 
 // batchSubmissionLoop is a loop that publishes batches to the DA layer
@@ -196,33 +171,37 @@ func (c *Sequencer) recordMetrics(gasPrice float64, blobSize uint64, statusCode 
 // It implements a retry mechanism with exponential backoff and gas price adjustments
 // to handle various failure scenarios.
 //
-// The function attempts to submit the batch multiple times (up to maxSubmitAttempts)
-// with different strategies based on the response from the DA layer:
+// The function attempts to submit a batch multiple times (up to maxSubmitAttempts),
+// handling partial submissions where only some transactions within the batch are accepted.
+// Different strategies are used based on the response from the DA layer:
 // - On success: Reduces gas price gradually (but not below initial price)
 // - On mempool issues: Increases gas price and uses a longer backoff
 // - On size issues: Reduces the blob size and uses exponential backoff
 // - On other errors: Uses exponential backoff
 //
-// It returns an error if not all batches could be submitted after all attempts.
+// It returns an error if not all transactions could be submitted after all attempts.
 func (c *Sequencer) submitBatchToDA(ctx context.Context, batch coresequencer.Batch) error {
-	// Initialize a slice with the batch to submit
-	batchesToSubmit := []*coresequencer.Batch{&batch}
-	submittedAllBlocks := false
+	currentBatch := batch
+	submittedAllTxs := false
 	var backoff time.Duration
-	numSubmittedBatches := 0
+	totalTxCount := len(batch.Transactions)
+	submittedTxCount := 0
 	attempt := 0
 
 	// Store initial values to be able to reset or compare later
-	maxBlobSize := c.maxBlobSize.Load()
-	initialMaxBlobSize := maxBlobSize
 	initialGasPrice, err := c.dalc.GasPrice(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get initial gas price: %w", err)
 	}
+	initialMaxBlobSize, err := c.dalc.MaxBlobSize(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get initial max blob size: %w", err)
+	}
+	maxBlobSize := initialMaxBlobSize
 	gasPrice := initialGasPrice
 
 daSubmitRetryLoop:
-	for !submittedAllBlocks && attempt < maxSubmitAttempts {
+	for !submittedAllTxs && attempt < maxSubmitAttempts {
 		// Wait for backoff duration or exit if context is done
 		select {
 		case <-ctx.Done():
@@ -230,18 +209,8 @@ daSubmitRetryLoop:
 		case <-time.After(backoff):
 		}
 
-		data := make([][]byte, len(batchesToSubmit))
-		for i, batch := range batchesToSubmit {
-			// transform batchesToSubmit into [][]byte
-			pbBatch := pb.Batch{Txs: batch.Transactions}
-			bz, err := pbBatch.Marshal()
-			if err != nil {
-				return fmt.Errorf("failed to marshal batch: %w", err)
-			}
-			data[i] = bz
-		}
 		// Attempt to submit the batch to the DA layer
-		res := c.dalc.Submit(ctx, data, maxBlobSize, gasPrice)
+		res := c.dalc.Submit(ctx, currentBatch.Transactions, maxBlobSize, gasPrice)
 
 		gasMultiplier, err := c.dalc.GasMultiplier(ctx)
 		if err != nil {
@@ -250,23 +219,24 @@ daSubmitRetryLoop:
 
 		switch res.Code {
 		case coreda.StatusSuccess:
-			//TODO: upon success, mark the batch as processed in the WAL & update the last submitted batch hash
-			// Count total transactions for logging
-			txCount := 0
-			for _, batch := range batchesToSubmit {
-				txCount += len(batch.Transactions)
-			}
-			c.logger.Info("successfully submitted batches to DA layer", "gasPrice", gasPrice, "height", res.Height, "batchCount", res.SubmittedCount, "txCount", txCount)
+			// Count submitted transactions for this attempt
+			submittedTxs := int(res.SubmittedCount)
+			c.logger.Info("successfully submitted transactions to DA layer",
+				"gasPrice", gasPrice,
+				"height", res.Height,
+				"submittedTxs", submittedTxs,
+				"remainingTxs", len(currentBatch.Transactions)-submittedTxs)
 
-			// Check if all batches were submitted
-			if res.SubmittedCount == uint64(len(batchesToSubmit)) {
-				submittedAllBlocks = true
-			}
+			// Update overall progress
+			submittedTxCount += submittedTxs
 
-			// Split the batches into submitted and not submitted
-			submittedBatches, notSubmittedBatches := batchesToSubmit[:res.SubmittedCount], batchesToSubmit[res.SubmittedCount:]
-			numSubmittedBatches += len(submittedBatches)
-			batchesToSubmit = notSubmittedBatches
+			// Check if all transactions in the current batch were submitted
+			if submittedTxs == len(currentBatch.Transactions) {
+				submittedAllTxs = true
+			} else {
+				// Update the current batch to contain only the remaining transactions
+				currentBatch.Transactions = currentBatch.Transactions[submittedTxs:]
+			}
 
 			// Reset submission parameters after success
 			backoff = 0
@@ -279,7 +249,7 @@ daSubmitRetryLoop:
 					gasPrice = initialGasPrice
 				}
 			}
-			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			c.logger.Debug("resetting DA layer submission options", "backoff", backoff, "gasPrice", gasPrice)
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			// For mempool-related issues, use a longer backoff and increase gas price
@@ -290,12 +260,12 @@ daSubmitRetryLoop:
 			if gasMultiplier > 0 && gasPrice != 0 {
 				gasPrice = gasPrice * gasMultiplier
 			}
-			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice, "maxBlobSize", maxBlobSize)
+			c.logger.Info("retrying DA layer submission with", "backoff", backoff, "gasPrice", gasPrice)
 
 		case coreda.StatusTooBig:
+			// if the blob size is too big, it means we are trying to consume the entire block on Celestia
 			// If the blob is too big, reduce the max blob size
 			maxBlobSize = maxBlobSize / 4 // TODO: this should be fetched from the DA layer?
-			c.maxBlobSize.Store(maxBlobSize)
 			fallthrough
 
 		default:
@@ -305,16 +275,16 @@ daSubmitRetryLoop:
 		}
 
 		// Record metrics for monitoring
-		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(batchesToSubmit), res.Height)
+		c.recordMetrics(gasPrice, res.BlobSize, res.Code, len(currentBatch.Transactions), res.Height)
 		attempt += 1
 	}
 
-	// Return error if not all batches were submitted after all attempts
-	if !submittedAllBlocks {
+	// Return error if not all transactions were submitted after all attempts
+	if !submittedAllTxs {
 		return fmt.Errorf(
-			"failed to submit all blocks to DA layer, submitted %d blocks (%d left) after %d attempts",
-			numSubmittedBatches,
-			len(batchesToSubmit),
+			"failed to submit all transactions to DA layer, submitted %d txs (%d left) after %d attempts",
+			submittedTxCount,
+			totalTxCount-submittedTxCount,
 			attempt,
 		)
 	}
@@ -348,17 +318,12 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	}
 	now := time.Now()
 
-	// Set the max size if it is provided
-	if req.MaxBytes > 0 {
-		c.CompareAndSetMaxSize(req.MaxBytes)
-	}
-
 	batch, err := c.sbq.Next(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	batchRes := &coresequencer.GetNextBatchResponse{Batch: batch, Timestamp: now}
+	batchRes := &coresequencer.GetNextBatchResponse{Batch: batch, Timestamp: now, BatchData: nil} // TODO: populate with DA IDs for all the batches
 	if batch.Transactions == nil {
 		return batchRes, nil
 	}
@@ -369,6 +334,7 @@ func (c *Sequencer) GetNextBatch(ctx context.Context, req coresequencer.GetNextB
 	}
 
 	hexHash := hex.EncodeToString(h)
+
 	c.seenBatches.Store(hexHash, struct{}{})
 
 	return batchRes, nil
@@ -389,10 +355,15 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 	if !c.isValid(req.RollupId) {
 		return nil, ErrInvalidRollupId
 	}
-	key := hex.EncodeToString(req.BatchHash)
-	_, exists := c.seenBatches.Load(key)
-	if exists {
-		return &coresequencer.VerifyBatchResponse{Status: true}, nil
+
+	//TODO: how to do verification?
+	for _, data := range req.BatchData {
+		height, _ := coreda.SplitID(data)
+
+		res := c.dalc.Retrieve(ctx, height)
+		if res.Code != coreda.StatusSuccess {
+			return nil, fmt.Errorf("failed to retrieve commitment: %s", res.Message)
+		}
 	}
 	return &coresequencer.VerifyBatchResponse{Status: false}, nil
 }
