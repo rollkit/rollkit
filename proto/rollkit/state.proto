@@ -10,6 +10,7 @@ import "tendermint/types/validator.proto";
 
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
 
+// State is the state of the blockchain.
 message State {
   tendermint.state.Version version = 1;
 
