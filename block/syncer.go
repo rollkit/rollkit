@@ -15,6 +15,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/events"
 	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
 	rollkitproto "github.com/rollkit/rollkit/types/pb/rollkit"
 )
@@ -28,7 +29,7 @@ type Syncer struct {
 	dataCache        *DataCache
 	headerStore      *goheaderstore.Store[*types.SignedHeader]
 	dataStore        *goheaderstore.Store[*types.Data]
-	logger           Logger
+	logger           log.Logger
 	config           config.Config
 	daHeight         atomic.Uint64
 	daIncludedHeight atomic.Uint64
@@ -39,9 +40,11 @@ type SyncerOptions struct {
 	EventBus         *events.Bus
 	Store            store.Store
 	DALC             coreda.Client
+	GasPrice         float64
+	GasMultiplier    float64
 	HeaderStore      *goheaderstore.Store[*types.SignedHeader]
 	DataStore        *goheaderstore.Store[*types.Data]
-	Logger           Logger
+	Logger           log.Logger
 	Config           config.Config
 	DAHeight         uint64
 	DAIncludedHeight uint64

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -191,9 +192,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	ctx := context.Background()
 
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
 	payload := []byte("test")
 	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -217,7 +216,7 @@ func TestSignVerifySignature(t *testing.T) {
 			producer.proposerKey = c.privKey
 			signature, err := producer.getSignature(types.Header{})
 			require.NoError(err)
-			ok, err := c.pubKey.Verify(payload, signature)
+			_, err = c.pubKey.Verify(payload, signature)
 			require.NoError(err, "Error verifying signature")
 			// Note: This test will fail since we're signing an empty header
 			// but verifying a different payload - this is just to test the flow
@@ -358,7 +357,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 		GasPrice:      -1,
 		GasMultiplier: -1,
 	})
-	require.NoError(t, err)
+	require.NoError(err)
 
 	err = publisher.submitHeadersToDA(ctx)
 	assert.ErrorContains(err, "failed to transform header to proto")
@@ -401,7 +400,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 		GasPrice:      -1,
 		GasMultiplier: -1,
 	})
-	require.NoError(t, err)
+	require.NoError(err)
 
 	err = publisher.submitHeadersToDA(ctx)
 	assert.ErrorContains(err, "failed to transform header to proto")
@@ -560,22 +559,25 @@ func TestGetRemainingSleep(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
-	m.isProposer = false
-	err := m.publishBlock(context.Background())
+	// Create a Producer that is not a proposer
+	producer := &Producer{
+		isProposer: false,
+		logger:     log.NewTestLogger(t),
+	}
+	err := producer.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
 }
 
 func TestManager_getRemainingSleep(t *testing.T) {
 	tests := []struct {
 		name          string
-		manager       *Manager
+		producer      *Producer
 		start         time.Time
 		expectedSleep time.Duration
 	}{
 		{
 			name: "Normal aggregation, elapsed < interval",
-			manager: &Manager{
+			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
@@ -584,13 +586,14 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: false,
+				logger:        log.NewTestLogger(t),
 			},
 			start:         time.Now().Add(-5 * time.Second),
 			expectedSleep: 5 * time.Second,
 		},
 		{
 			name: "Normal aggregation, elapsed > interval",
-			manager: &Manager{
+			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
@@ -599,13 +602,14 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: false,
+				logger:        log.NewTestLogger(t),
 			},
 			start:         time.Now().Add(-15 * time.Second),
 			expectedSleep: 0 * time.Second,
 		},
 		{
 			name: "Lazy aggregation, not building block",
-			manager: &Manager{
+			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
@@ -614,13 +618,14 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: false,
+				logger:        log.NewTestLogger(t),
 			},
 			start:         time.Now().Add(-5 * time.Second),
 			expectedSleep: 15 * time.Second,
 		},
 		{
 			name: "Lazy aggregation, building block, elapsed < interval",
-			manager: &Manager{
+			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
@@ -629,13 +634,14 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: true,
+				logger:        log.NewTestLogger(t),
 			},
 			start:         time.Now().Add(-5 * time.Second),
 			expectedSleep: 5 * time.Second,
 		},
 		{
 			name: "Lazy aggregation, building block, elapsed > interval",
-			manager: &Manager{
+			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
 						BlockTime:      10 * time.Second,
@@ -644,6 +650,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: true,
+				logger:        log.NewTestLogger(t),
 			},
 			start:         time.Now().Add(-15 * time.Second),
 			expectedSleep: 1 * time.Second, // 10% of BlockTime
@@ -652,7 +659,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualSleep := tt.manager.getRemainingSleep(tt.start)
+			actualSleep := tt.producer.getRemainingSleep(tt.start)
 			// Allow for a small difference, e.g., 5 millisecond
 			assert.True(t, WithinDuration(t, tt.expectedSleep, actualSleep, 5*time.Millisecond))
 		})
@@ -663,10 +670,13 @@ func TestManager_getRemainingSleep(t *testing.T) {
 func TestAggregationLoop(t *testing.T) {
 	mockStore := new(mocks.Store)
 	mockLogger := log.NewTestLogger(t)
+	eventBus := events.NewEventBus(context.Background(), mockLogger)
 
-	m := &Manager{
-		store:  mockStore,
-		logger: mockLogger,
+	// Create a Producer component directly
+	producer := &Producer{
+		store:    mockStore,
+		logger:   mockLogger,
+		eventBus: eventBus,
 		genesis: &RollkitGenesis{
 			ChainID:       "myChain",
 			InitialHeight: 1,
@@ -677,7 +687,8 @@ func TestAggregationLoop(t *testing.T) {
 				LazyAggregator: false,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq:         NewBatchQueue(),
+		isProposer: true,
 	}
 
 	mockStore.On("Height").Return(uint64(0))
@@ -685,7 +696,8 @@ func TestAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	go m.AggregationLoop(ctx)
+	// Test the Producer's aggregationLoop method
+	go producer.aggregationLoop(ctx)
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
@@ -697,7 +709,8 @@ func TestAggregationLoop(t *testing.T) {
 func TestLazyAggregationLoop(t *testing.T) {
 	mockLogger := log.NewTestLogger(t)
 
-	m := &Manager{
+	// Create a Producer component directly
+	producer := &Producer{
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
@@ -711,11 +724,12 @@ func TestLazyAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(m.config.Node.BlockTime)
+	blockTimer := time.NewTimer(producer.config.Node.BlockTime)
 	defer blockTimer.Stop()
 
-	go m.lazyAggregationLoop(ctx, blockTimer)
-	m.bq.notifyCh <- struct{}{}
+	// Test the Producer's lazyAggregationLoop method
+	go producer.lazyAggregationLoop(ctx)
+	producer.bq.notifyCh <- struct{}{}
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
@@ -725,7 +739,8 @@ func TestLazyAggregationLoop(t *testing.T) {
 func TestNormalAggregationLoop(t *testing.T) {
 	mockLogger := log.NewTestLogger(t)
 
-	m := &Manager{
+	// Create a Producer component directly
+	producer := &Producer{
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
@@ -738,23 +753,21 @@ func TestNormalAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(m.config.Node.BlockTime)
-	defer blockTimer.Stop()
-
-	go m.normalAggregationLoop(ctx, blockTimer)
+	// Test the normalAggregationLoop method directly
+	go producer.aggregationLoop(ctx)
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
 }
 
 func TestGetTxsFromBatch_NoBatch(t *testing.T) {
-	// Mocking a manager with an empty batch queue
-	m := &Manager{
+	// Create a Producer with an empty batch queue
+	producer := &Producer{
 		bq: &BatchQueue{queue: nil}, // No batch available
 	}
 
 	// Call the method and assert the results
-	txs, timestamp, err := m.getTxsFromBatch()
+	txs, timestamp, err := producer.getTxsFromBatch()
 
 	// Assertions
 	assert.Nil(t, txs, "Transactions should be nil when no batch exists")
@@ -763,15 +776,15 @@ func TestGetTxsFromBatch_NoBatch(t *testing.T) {
 }
 
 func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
-	// Mocking a manager with an empty batch
-	m := &Manager{
+	// Create a Producer with an empty batch
+	producer := &Producer{
 		bq: &BatchQueue{queue: []BatchWithTime{
 			{Batch: &coresequencer.Batch{Transactions: nil}, Time: time.Now()},
 		}},
 	}
 
 	// Call the method and assert the results
-	txs, timestamp, err := m.getTxsFromBatch()
+	txs, timestamp, err := producer.getTxsFromBatch()
 
 	// Assertions
 	require.NoError(t, err, "Expected no error for empty batch")
@@ -780,19 +793,231 @@ func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
 }
 
 func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
-	// Mocking a manager with a valid batch
-	m := &Manager{
+	// Create a Producer with a valid batch
+	producer := &Producer{
 		bq: &BatchQueue{queue: []BatchWithTime{
 			{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
 		}},
 	}
 
 	// Call the method and assert the results
-	txs, timestamp, err := m.getTxsFromBatch()
+	txs, timestamp, err := producer.getTxsFromBatch()
 
 	// Assertions
 	require.NoError(t, err, "Expected no error for valid batch")
 	assert.Len(t, txs, 2, "Expected 2 transactions")
 	assert.NotNil(t, timestamp, "Timestamp should not be nil for valid batch")
 	assert.Equal(t, [][]byte{[]byte("tx1"), []byte("tx2")}, txs, "Transactions do not match")
+}
+
+func TestPublisherSubmitLoop(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	logger := log.NewTestLogger(t)
+	eventBus := events.NewEventBus(ctx, logger)
+	mockStore := new(mocks.Store)
+	mockDALC := new(damocks.DA)
+
+	// Create a Publisher component for testing
+	publisher, err := NewPublisher(PublisherOptions{
+		EventBus: eventBus,
+		Store:    mockStore,
+		DALC:     da.NewDAClient(mockDALC, -1, -1, nil, nil, logger),
+		Logger:   logger,
+		Config: config.Config{
+			DA: config.DAConfig{
+				BlockTime: 100 * time.Millisecond,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// Mock the pendingHeaders to be empty to avoid actual submission
+	mockStore.On("Height").Return(uint64(0))
+	mockStore.On("GetMetadata", mock.Anything, LastSubmittedHeightKey).Return(nil, ds.ErrNotFound)
+
+	// Start the submission loop
+	go publisher.headerSubmissionLoop(ctx)
+
+	// Wait for the loop to run a few cycles
+	time.Sleep(500 * time.Millisecond)
+
+	// Verify expectations
+	mockStore.AssertExpectations(t)
+}
+
+func TestSyncerRetrieveLoop(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	logger := log.NewTestLogger(t)
+	eventBus := events.NewEventBus(ctx, logger)
+	mockStore := new(mocks.Store)
+	mockDALC := new(damocks.DA)
+
+	// Setup a minimal result for RetrieveHeaders
+	emptyResult := coreda.ResultRetrieveHeaders{
+		BaseResult: coreda.BaseResult{
+			Code: coreda.StatusSuccess,
+		},
+		Headers: [][]byte{},
+	}
+	mockDALC.On("RetrieveHeaders", mock.Anything, mock.Anything).Return(emptyResult)
+
+	// Create a Syncer component for testing
+	syncer := NewSyncer(SyncerOptions{
+		EventBus: eventBus,
+		Store:    mockStore,
+		DALC:     da.NewDAClient(mockDALC, -1, -1, nil, nil, logger),
+		Logger:   logger,
+		Config: config.Config{
+			DA: config.DAConfig{
+				BlockTime: 100 * time.Millisecond,
+			},
+		},
+	})
+
+	// Start the retrieval loop
+	go syncer.retrieveLoop(ctx)
+
+	// Wait for the loop to run a few cycles
+	time.Sleep(500 * time.Millisecond)
+
+	// Verify expectations
+	mockDALC.AssertExpectations(t)
+}
+
+func TestHandleBlockDAIncluded(t *testing.T) {
+	// Setup
+	ctx := context.Background()
+	logger := log.NewTestLogger(t)
+	eventBus := events.NewEventBus(ctx, logger)
+	headerCache := NewHeaderCache()
+
+	// Create test data
+	header, _ := types.GetRandomBlock(1, 0, "test")
+	hash := header.Hash()
+
+	// Create syncer with minimal components
+	syncer := &Syncer{
+		eventBus:    eventBus,
+		headerCache: headerCache,
+		logger:      logger,
+	}
+
+	// Initially, the header should not be marked as DA included
+	require.False(t, syncer.headerCache.isDAIncluded(hash.String()))
+
+	// Create and publish a BlockDAIncludedEvent
+	event := BlockDAIncludedEvent{
+		Header:   header,
+		Height:   1,
+		DAHeight: 10,
+	}
+
+	// Handle the event
+	syncer.handleBlockDAIncluded(ctx, event)
+
+	// Verify the header is now marked as DA included
+	require.True(t, syncer.headerCache.isDAIncluded(hash.String()))
+}
+
+func TestStateManagerHandleEvents(t *testing.T) {
+	// Setup
+	ctx := context.Background()
+	logger := log.NewTestLogger(t)
+	eventBus := events.NewEventBus(ctx, logger)
+	mockStore := new(mocks.Store)
+	mockExec := coreexecutor.NewDummyExecutor()
+
+	// Initialize state
+	initialState := types.State{
+		ChainID:         "test-chain",
+		InitialHeight:   1,
+		LastBlockHeight: 0,
+		AppHash:         []byte("initial-hash"),
+	}
+
+	// Setup mock for UpdateState call
+	mockStore.On("UpdateState", mock.Anything, mock.AnythingOfType("types.State")).Return(nil)
+
+	// Create StateManager with mock components
+	stateManager := NewStateManager(StateManagerOptions{
+		EventBus:     eventBus,
+		Store:        mockStore,
+		Exec:         mockExec,
+		Logger:       logger,
+		InitialState: initialState,
+	})
+
+	// Verify initial state
+	state := stateManager.GetLastState()
+	require.Equal(t, initialState, state)
+
+	// Create and publish a StateUpdatedEvent
+	newState := types.State{
+		ChainID:         "test-chain",
+		InitialHeight:   1,
+		LastBlockHeight: 1,
+		AppHash:         []byte("new-hash"),
+	}
+
+	// Test StateUpdatedEvent handling by directly updating the state
+	err := stateManager.updateState(ctx, newState)
+	require.NoError(t, err)
+
+	// Verify the state was updated
+	updatedState := stateManager.GetLastState()
+	require.Equal(t, newState, updatedState)
+	require.Equal(t, uint64(1), updatedState.LastBlockHeight)
+	require.Equal(t, []byte("new-hash"), updatedState.AppHash)
+
+	// Verify that store's UpdateState was called
+	mockStore.AssertExpectations(t)
+}
+
+func TestCreateBlock(t *testing.T) {
+	// Setup
+	ctx := context.Background()
+	logger := log.NewTestLogger(t)
+
+	// Create test data
+	genesisDoc, privKey := types.GetGenesisWithPrivkey("test-chain")
+	state, err := types.NewFromGenesisDoc(genesisDoc)
+	require.NoError(t, err)
+
+	// Create a Producer component
+	producer := &Producer{
+		proposerKey:  privKey,
+		lastState:    state,
+		lastStateMtx: new(sync.RWMutex),
+		logger:       logger,
+		genesis: &RollkitGenesis{
+			ChainID:         "test-chain",
+			InitialHeight:   1,
+			ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
+		},
+	}
+
+	// Create a block
+	txs := [][]byte{[]byte("tx1"), []byte("tx2")}
+	timestamp := time.Now()
+	header, data, err := producer.createBlock(ctx, 1, txs, timestamp)
+
+	// Assertions
+	require.NoError(t, err)
+	require.NotNil(t, header)
+	require.NotNil(t, data)
+	require.Equal(t, uint64(1), header.Height())
+	require.Equal(t, "test-chain", header.ChainID())
+	require.Equal(t, 2, len(data.Txs))
+	require.Equal(t, types.Tx([]byte("tx1")), data.Txs[0])
+	require.Equal(t, types.Tx([]byte("tx2")), data.Txs[1])
+
+	// Verify the data hash in the header matches the actual data hash
+	require.Equal(t, data.Hash(), header.DataHash)
+
+	// Verify the header is signed
+	require.NotEmpty(t, header.Signature)
 }
