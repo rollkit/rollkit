@@ -24,8 +24,8 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 			Aggregator:       true,
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,
-			BlockTime:        500 * time.Millisecond,
-			LazyBlockTime:    5 * time.Second,
+			BlockTime:        rollkitconfig.DurationWrapper{Duration: 500 * time.Millisecond},
+			LazyBlockTime:    rollkitconfig.DurationWrapper{Duration: 5 * time.Second},
 		},
 		DA: rollkitconfig.DAConfig{
 			Address:   MockDAAddress,

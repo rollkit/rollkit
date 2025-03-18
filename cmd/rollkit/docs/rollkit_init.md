@@ -1,13 +1,13 @@
-## rollkit toml init
+## rollkit init
 
-Initialize a new rollkit.toml file
+Initialize a new rollkit.yaml file
 
 ### Synopsis
 
-This command initializes a new rollkit.toml file in the current directory.
+This command initializes a new rollkit.yaml file in the specified directory (or current directory if not specified).
 
 ```
-rollkit toml init [flags]
+rollkit init [flags]
 ```
 
 ### Options
@@ -19,6 +19,7 @@ rollkit toml init [flags]
 ### Options inherited from parent commands
 
 ```
+      --home string         root directory for Rollkit (default "HOME/.rollkit")
       --log_format string   set the log format; options include plain and json (default "plain")
       --log_level string    set the log level; default is info. other options include debug, info, error, none (default "info")
       --trace               print out full stack trace on errors
@@ -26,4 +27,4 @@ rollkit toml init [flags]
 
 ### SEE ALSO
 
-* [rollkit toml](rollkit_toml.md)	 - TOML file operations
+* [rollkit](rollkit.md)	 - The first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.

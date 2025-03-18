@@ -244,7 +244,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := &damocks.DA{}
 			m := getManager(t, mockDA, tc.gasPrice, tc.gasMultiplier)
-			m.config.DA.BlockTime = time.Millisecond
+			m.config.DA.BlockTime.Duration = time.Millisecond
 			m.config.DA.MempoolTTL = 1
 			kvStore, err := store.NewDefaultInMemoryKVStore()
 			require.NoError(t, err)
@@ -588,8 +588,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: false,
 					},
 				},
@@ -603,8 +607,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: false,
 					},
 				},
@@ -618,8 +626,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: true,
 					},
 				},
@@ -633,8 +645,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: true,
 					},
 				},
@@ -648,8 +664,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: true,
 					},
 				},
@@ -683,7 +703,7 @@ func TestAggregationLoop(t *testing.T) {
 		},
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      time.Second,
+				BlockTime:      config.DurationWrapper{Duration: time.Second},
 				LazyAggregator: false,
 			},
 		},
@@ -711,7 +731,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      time.Second,
+				BlockTime:      config.DurationWrapper{Duration: time.Second},
 				LazyAggregator: true,
 			},
 		},
@@ -721,7 +741,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(m.config.Node.BlockTime)
+	blockTimer := time.NewTimer(m.config.Node.BlockTime.Duration)
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
@@ -739,7 +759,7 @@ func TestNormalAggregationLoop(t *testing.T) {
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      1 * time.Second,
+				BlockTime:      config.DurationWrapper{Duration: 1 * time.Second},
 				LazyAggregator: false,
 			},
 		},
@@ -748,7 +768,7 @@ func TestNormalAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(m.config.Node.BlockTime)
+	blockTimer := time.NewTimer(m.config.Node.BlockTime.Duration)
 	defer blockTimer.Stop()
 
 	go m.normalAggregationLoop(ctx, blockTimer)
