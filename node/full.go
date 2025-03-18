@@ -386,19 +386,13 @@ func (n *FullNode) Run(ctx context.Context) error {
 		return fmt.Errorf("error while starting data sync service: %w", err)
 	}
 
-	if n.nodeConfig.Node.Aggregator {
-		n.Logger.Info("working in aggregator mode", "block time", n.nodeConfig.Node.BlockTime)
+	// Set up forwarding channels for block sync
+	go n.headerPublishLoop(ctx)
+	go n.dataPublishLoop(ctx)
 
-		go n.blockManager.BatchRetrieveLoop(ctx)
-		go n.blockManager.AggregationLoop(ctx)
-		go n.blockManager.HeaderSubmissionLoop(ctx)
-		go n.headerPublishLoop(ctx)
-		go n.dataPublishLoop(ctx)
-	} else {
-		go n.blockManager.RetrieveLoop(ctx)
-		go n.blockManager.HeaderStoreRetrieveLoop(ctx)
-		go n.blockManager.DataStoreRetrieveLoop(ctx)
-		go n.blockManager.SyncLoop(ctx)
+	// Start the block manager with all its components
+	if err = n.blockManager.Start(ctx); err != nil {
+		return fmt.Errorf("error while starting block manager: %w", err)
 	}
 
 	// Block until context is canceled
