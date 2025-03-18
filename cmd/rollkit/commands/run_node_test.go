@@ -312,7 +312,7 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 
 	// Create the config directory
 	configDir := filepath.Join(tempDir, "config")
-	err = os.MkdirAll(configDir, 0750)
+	err = os.MkdirAll(configDir, rollconf.DefaultDirPerm)
 	assert.NoError(t, err)
 
 	// Create a simple test genesis file
@@ -371,9 +371,9 @@ func TestInitFiles(t *testing.T) {
 	// Create the necessary subdirectories
 	configDir := filepath.Join(tempDir, "config")
 	dataDir := filepath.Join(tempDir, "data")
-	err = os.MkdirAll(configDir, 0750)
+	err = os.MkdirAll(configDir, rollconf.DefaultDirPerm)
 	assert.NoError(t, err)
-	err = os.MkdirAll(dataDir, 0750)
+	err = os.MkdirAll(dataDir, rollconf.DefaultDirPerm)
 	assert.NoError(t, err)
 
 	err = node.InitFiles(tempDir)

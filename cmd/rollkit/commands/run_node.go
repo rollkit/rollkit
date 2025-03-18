@@ -300,11 +300,11 @@ func initFiles() error {
 	configDir := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir)
 	dataDir := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath)
 
-	if err := os.MkdirAll(configDir, 0750); err != nil {
+	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	if err := os.MkdirAll(dataDir, 0750); err != nil {
+	if err := os.MkdirAll(dataDir, rollconf.DefaultDirPerm); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 

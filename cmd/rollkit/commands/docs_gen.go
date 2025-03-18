@@ -9,6 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
+
+	rollconf "github.com/rollkit/rollkit/config"
 )
 
 var docsDirectory = "./cmd/rollkit/docs"
@@ -24,7 +26,7 @@ var DocsGenCmd = &cobra.Command{
 			return err
 		}
 		// Initiate the docs directory
-		err = os.MkdirAll(docsDirectory, 0750)
+		err = os.MkdirAll(docsDirectory, rollconf.DefaultDirPerm)
 		if err != nil {
 			return err
 		}
