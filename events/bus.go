@@ -34,7 +34,7 @@ type Logger interface {
 // NewEventBus creates a new event bus
 func NewEventBus(parentCtx context.Context, logger Logger) *Bus {
 	ctx, cancel := context.WithCancel(parentCtx)
-	
+
 	bus := &Bus{
 		handlers:     make(map[string][]Handler),
 		ctx:          ctx,
@@ -42,11 +42,11 @@ func NewEventBus(parentCtx context.Context, logger Logger) *Bus {
 		eventChannel: make(chan Event, 100), // Buffer size can be configured
 		logger:       logger,
 	}
-	
+
 	// Start the event dispatcher
 	bus.wg.Add(1)
 	go bus.dispatch()
-	
+
 	return bus
 }
 
@@ -54,7 +54,7 @@ func NewEventBus(parentCtx context.Context, logger Logger) *Bus {
 func (b *Bus) Subscribe(eventType string, handler Handler) {
 	b.handlersMu.Lock()
 	defer b.handlersMu.Unlock()
-	
+
 	b.handlers[eventType] = append(b.handlers[eventType], handler)
 	b.logger.Debug("Subscribed to event", "type", eventType)
 }
@@ -74,7 +74,7 @@ func (b *Bus) Publish(event Event) {
 // dispatch processes events from the channel and routes them to handlers
 func (b *Bus) dispatch() {
 	defer b.wg.Done()
-	
+
 	for {
 		select {
 		case event := <-b.eventChannel:
@@ -89,11 +89,11 @@ func (b *Bus) dispatch() {
 // handleEvent sends an event to all registered handlers for its type
 func (b *Bus) handleEvent(event Event) {
 	eventType := event.Type()
-	
+
 	b.handlersMu.RLock()
 	handlers := b.handlers[eventType]
 	b.handlersMu.RUnlock()
-	
+
 	for _, handler := range handlers {
 		// Create a copy of the handler to avoid closure issues
 		h := handler

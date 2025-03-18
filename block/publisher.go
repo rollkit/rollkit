@@ -105,7 +105,13 @@ func (p *Publisher) handleBlockCreated(ctx context.Context, evt events.Event) {
 
 // headerSubmissionLoop is responsible for submitting blocks to DA
 func (p *Publisher) headerSubmissionLoop(ctx context.Context) {
-	timer := time.NewTicker(p.config.DA.BlockTime.Duration)
+	// Ensure we have a positive duration to avoid panic
+	blockTimeDuration := p.config.DA.BlockTime.Duration
+	if blockTimeDuration <= 0 {
+		blockTimeDuration = time.Second * 5 // Default to 5 seconds if configuration is invalid
+		p.logger.Error("Invalid block time duration (must be positive), using default value", "default", blockTimeDuration)
+	}
+	timer := time.NewTicker(blockTimeDuration)
 	defer timer.Stop()
 
 	for {
@@ -151,6 +157,9 @@ func (p *Publisher) submitHeadersToDA(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// allow buffer for the block header and protocol encoding
+	//nolint:ineffassign // This assignment is needed
+	maxBlobSize -= blockProtocolOverhead
 
 	initialMaxBlobSize := maxBlobSize
 	gasPrice := p.gasPrice

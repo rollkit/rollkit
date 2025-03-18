@@ -2,6 +2,7 @@ package block
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -227,11 +228,11 @@ func (p *Producer) publishBlock(ctx context.Context) error {
 	}
 
 	txs, timestamp, err := p.getTxsFromBatch()
-	if err != nil && err != ErrNoBatch {
+	if err != nil && !errors.Is(err, ErrNoBatch) {
 		return fmt.Errorf("failed to get transactions from batch: %w", err)
 	}
 
-	if err == ErrNoBatch {
+	if errors.Is(err, ErrNoBatch) {
 		// Create an empty block instead of returning
 		txs = [][]byte{}
 		now := time.Now()
@@ -295,6 +296,11 @@ func (p *Producer) getLastBlockTime() time.Time {
 
 // createBlock creates a new block
 func (p *Producer) createBlock(ctx context.Context, height uint64, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+	// Nil check for lastStateMtx to prevent panic
+	if p.lastStateMtx == nil {
+		return nil, nil, fmt.Errorf("lastStateMtx is nil, producer may not be properly initialized")
+	}
+
 	p.lastStateMtx.RLock()
 	defer p.lastStateMtx.RUnlock()
 

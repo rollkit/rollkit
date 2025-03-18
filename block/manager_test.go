@@ -687,8 +687,10 @@ func TestAggregationLoop(t *testing.T) {
 				LazyAggregator: false,
 			},
 		},
-		bq:         NewBatchQueue(),
-		isProposer: true,
+		bq:           NewBatchQueue(),
+		isProposer:   true,
+		lastStateMtx: new(sync.RWMutex),
+		lastState:    types.State{LastBlockTime: time.Now()},
 	}
 
 	mockStore.On("Height").Return(uint64(0))
@@ -718,7 +720,9 @@ func TestLazyAggregationLoop(t *testing.T) {
 				LazyAggregator: true,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq:           NewBatchQueue(),
+		lastStateMtx: new(sync.RWMutex),
+		lastState:    types.State{LastBlockTime: time.Now()},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -748,6 +752,8 @@ func TestNormalAggregationLoop(t *testing.T) {
 				LazyAggregator: false,
 			},
 		},
+		lastStateMtx: new(sync.RWMutex),
+		lastState:    types.State{LastBlockTime: time.Now()},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
