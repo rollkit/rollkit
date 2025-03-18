@@ -9,8 +9,13 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/crypto"
 
+	cmbytes "github.com/cometbft/cometbft/libs/bytes"
+	cmtypes "github.com/cometbft/cometbft/types"
+
+	"github.com/rollkit/go-sequencing"
 	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
+	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/events"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
@@ -24,6 +29,7 @@ type Producer struct {
 	config           config.Config
 	genesis          *RollkitGenesis
 	exec             coreexecutor.Executor
+	sequencer        coresequencer.Sequencer
 	bq               *BatchQueue
 	buildingBlock    bool
 	lastStateMtx     *sync.RWMutex
@@ -227,6 +233,32 @@ func (p *Producer) publishBlock(ctx context.Context) error {
 			p.store.Height()-p.daIncludedHeight, p.config.Node.MaxPendingBlocks)
 	}
 
+	// Get transactions from executor
+	execTxs, err := p.exec.GetTxs(ctx)
+	if err != nil {
+		p.logger.Error("failed to get txs from executor", "err", err)
+		// Continue but log the state
+		p.logger.Info("Current state",
+			"height", p.store.Height(),
+			"isProposer", p.isProposer)
+	}
+
+	// Submit transactions to sequencer if we have a sequencer configured
+	if p.sequencer != nil && len(execTxs) > 0 {
+		p.logger.Debug("Submitting transaction to sequencer", "txCount", len(execTxs))
+		_, err = p.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
+			RollupId: sequencing.RollupId(p.genesis.ChainID),
+			Batch:    &coresequencer.Batch{Transactions: execTxs},
+		})
+		if err != nil {
+			p.logger.Error("failed to submit rollup transaction to sequencer",
+				"err", err,
+				"chainID", p.genesis.ChainID)
+		} else {
+			p.logger.Debug("Successfully submitted transaction to sequencer")
+		}
+	}
+
 	txs, timestamp, err := p.getTxsFromBatch()
 	if err != nil && !errors.Is(err, ErrNoBatch) {
 		return fmt.Errorf("failed to get transactions from batch: %w", err)
@@ -234,9 +266,16 @@ func (p *Producer) publishBlock(ctx context.Context) error {
 
 	if errors.Is(err, ErrNoBatch) {
 		// Create an empty block instead of returning
+		p.logger.Debug("No batch available, creating empty block")
 		txs = [][]byte{}
 		now := time.Now()
 		timestamp = &now
+	}
+
+	// Get the last block time for monotonicity check
+	lastBlockTime := p.getLastBlockTime()
+	if timestamp.Before(lastBlockTime) {
+		return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, lastBlockTime)
 	}
 
 	// Create the block
@@ -245,12 +284,101 @@ func (p *Producer) publishBlock(ctx context.Context) error {
 		return err
 	}
 
+	p.logger.Debug("block info", "num_tx", len(data.Txs))
+
+	// Save block data
+	err = p.store.SaveBlockData(ctx, header, data, &header.Signature)
+	if err != nil {
+		return fmt.Errorf("error saving block data: %w", err)
+	}
+
+	// Extract raw transactions for execution
+	rawTxs := make([][]byte, len(data.Txs))
+	for i := range data.Txs {
+		rawTxs[i] = data.Txs[i]
+	}
+
+	// Execute transactions to get new state root
+	p.lastStateMtx.RLock()
+	newStateRoot, _, err := p.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), p.lastState.AppHash)
+	if err != nil {
+		p.lastStateMtx.RUnlock()
+		if ctx.Err() != nil {
+			return err
+		}
+		// If execution fails, panic to halt the node
+		panic(err)
+	}
+	p.lastStateMtx.RUnlock()
+
+	// Update the header data hash and resign
+	header.Header.DataHash = data.Hash()
+	signature, err := p.getSignature(header.Header)
+	if err != nil {
+		return err
+	}
+	header.Signature = signature
+
+	// Save the updated block data
+	err = p.store.SaveBlockData(ctx, header, data, &signature)
+	if err != nil {
+		return fmt.Errorf("error saving updated block data: %w", err)
+	}
+
+	// Create new state with updated block info
+	p.lastStateMtx.RLock()
+	newState := types.State{
+		Version:         p.lastState.Version,
+		ChainID:         p.lastState.ChainID,
+		InitialHeight:   p.lastState.InitialHeight,
+		LastBlockHeight: header.Height(),
+		LastBlockTime:   header.Time(),
+		LastBlockID: cmtypes.BlockID{
+			Hash: cmbytes.HexBytes(header.Hash()),
+		},
+		AppHash:  newStateRoot,
+		DAHeight: p.daIncludedHeight,
+	}
+	p.lastStateMtx.RUnlock()
+
+	// Finalize the block
+	err = p.exec.SetFinal(ctx, header.Height())
+	if err != nil {
+		return fmt.Errorf("failed to finalize block: %w", err)
+	}
+
+	// Update the store height
+	p.store.SetHeight(ctx, header.Height())
+
+	// Update state
+	p.lastStateMtx.Lock()
+	oldState := p.lastState
+	p.lastState = newState
+	p.lastStateMtx.Unlock()
+
+	// Save updated state to store
+	if err := p.store.UpdateState(ctx, newState); err != nil {
+		// Restore old state on failure
+		p.lastStateMtx.Lock()
+		p.lastState = oldState
+		p.lastStateMtx.Unlock()
+		return fmt.Errorf("failed to update state: %w", err)
+	}
+
+	// Publish state updated event
+	p.eventBus.Publish(StateUpdatedEvent{
+		State:  newState,
+		Height: header.Height(),
+	})
+
 	// Publish the block created event
 	p.eventBus.Publish(BlockCreatedEvent{
 		Header: header,
 		Data:   data,
 		Height: header.Height(),
 	})
+
+	p.logger.Debug("successfully proposed block", "proposer", header.ProposerAddress, "height", header.Height())
 
 	return nil
 }
