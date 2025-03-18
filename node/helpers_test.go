@@ -62,7 +62,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-		log.NewTestLogger(t),
+		log.NewTestLoggerInfo(t),
 	)
 	require.NoError(t, err)
 

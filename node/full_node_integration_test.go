@@ -81,7 +81,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-		log.NewTestLogger(s.T()),
+		log.NewTestLoggerInfo(s.T()),
 	)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), node)
@@ -333,7 +333,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-		log.NewTestLogger(s.T()),
+		log.NewTestLoggerInfo(s.T()),
 	)
 	require.NoError(err)
 	require.NotNil(node)
@@ -414,7 +414,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
-		log.NewTestLogger(s.T()),
+		log.NewTestLoggerInfo(s.T()),
 	)
 	require.NoError(err)
 

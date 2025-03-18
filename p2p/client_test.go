@@ -58,7 +58,7 @@ func TestClientStartup(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
 			client, err := NewClient(testCase.conf, "TestChain",
-				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
+				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLoggerInfo(t), NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(client)
 
@@ -75,7 +75,7 @@ func TestClientStartup(t *testing.T) {
 
 func TestBootstrapping(t *testing.T) {
 	assert := assert.New(t)
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -98,7 +98,7 @@ func TestBootstrapping(t *testing.T) {
 
 func TestDiscovery(t *testing.T) {
 	assert := assert.New(t)
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

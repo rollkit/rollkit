@@ -44,7 +44,7 @@ func WithinDuration(t *testing.T, expected, actual, tolerance time.Duration) boo
 
 // Returns a minimalistic block manager
 func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier float64) *Manager {
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 
 	ctx := context.Background()
 	eventBus := events.NewEventBus(ctx, logger)
@@ -72,7 +72,7 @@ func TestInitialStateClean(t *testing.T) {
 		InitialHeight:   1,
 		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
 	}
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
 	s, err := getInitialState(context.TODO(), genesis, emptyStore, coreexecutor.NewDummyExecutor(), logger)
@@ -106,7 +106,7 @@ func TestInitialStateStored(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	s, err := getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
@@ -164,7 +164,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
@@ -200,7 +200,7 @@ func TestSignVerifySignature(t *testing.T) {
 	// Create a Producer component for testing signing
 	producer := &Producer{
 		proposerKey: privKey,
-		logger:      log.NewTestLogger(t),
+		logger:      log.NewTestLoggerInfo(t),
 	}
 
 	cases := []struct {
@@ -544,7 +544,7 @@ func TestGetRemainingSleep(t *testing.T) {
 			producer := &Producer{
 				config:        tt.config,
 				buildingBlock: tt.buildingBlock,
-				logger:        log.NewTestLogger(t),
+				logger:        log.NewTestLoggerInfo(t),
 			}
 
 			// Calculate start time based on elapsed time
@@ -562,7 +562,7 @@ func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	// Create a Producer that is not a proposer
 	producer := &Producer{
 		isProposer: false,
-		logger:     log.NewTestLogger(t),
+		logger:     log.NewTestLoggerInfo(t),
 	}
 	err := producer.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
@@ -586,7 +586,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: false,
-				logger:        log.NewTestLogger(t),
+				logger:        log.NewTestLoggerInfo(t),
 			},
 			start:         time.Now().Add(-5 * time.Second),
 			expectedSleep: 5 * time.Second,
@@ -602,7 +602,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: false,
-				logger:        log.NewTestLogger(t),
+				logger:        log.NewTestLoggerInfo(t),
 			},
 			start:         time.Now().Add(-15 * time.Second),
 			expectedSleep: 0 * time.Second,
@@ -618,7 +618,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: false,
-				logger:        log.NewTestLogger(t),
+				logger:        log.NewTestLoggerInfo(t),
 			},
 			start:         time.Now().Add(-5 * time.Second),
 			expectedSleep: 15 * time.Second,
@@ -634,7 +634,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: true,
-				logger:        log.NewTestLogger(t),
+				logger:        log.NewTestLoggerInfo(t),
 			},
 			start:         time.Now().Add(-5 * time.Second),
 			expectedSleep: 5 * time.Second,
@@ -650,7 +650,7 @@ func TestManager_getRemainingSleep(t *testing.T) {
 					},
 				},
 				buildingBlock: true,
-				logger:        log.NewTestLogger(t),
+				logger:        log.NewTestLoggerInfo(t),
 			},
 			start:         time.Now().Add(-15 * time.Second),
 			expectedSleep: 1 * time.Second, // 10% of BlockTime
@@ -669,14 +669,18 @@ func TestManager_getRemainingSleep(t *testing.T) {
 // TestAggregationLoop tests the AggregationLoop function
 func TestAggregationLoop(t *testing.T) {
 	mockStore := new(mocks.Store)
-	mockLogger := log.NewTestLogger(t)
+	mockLogger := log.NewTestLoggerInfo(t)
 	eventBus := events.NewEventBus(context.Background(), mockLogger)
+
+	// Create a private key for testing
+	proposerKey, _, _ := crypto.GenerateEd25519Key(nil)
 
 	// Create a Producer component directly
 	producer := &Producer{
-		store:    mockStore,
-		logger:   mockLogger,
-		eventBus: eventBus,
+		store:       mockStore,
+		logger:      mockLogger,
+		eventBus:    eventBus,
+		proposerKey: proposerKey,
 		genesis: &RollkitGenesis{
 			ChainID:       "myChain",
 			InitialHeight: 1,
@@ -709,11 +713,15 @@ func TestAggregationLoop(t *testing.T) {
 
 // TestLazyAggregationLoop tests the lazyAggregationLoop function
 func TestLazyAggregationLoop(t *testing.T) {
-	mockLogger := log.NewTestLogger(t)
+	mockLogger := log.NewTestLoggerInfo(t)
+
+	// Create a private key for testing
+	proposerKey, _, _ := crypto.GenerateEd25519Key(nil)
 
 	// Create a Producer component directly
 	producer := &Producer{
-		logger: mockLogger,
+		logger:      mockLogger,
+		proposerKey: proposerKey,
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      config.DurationWrapper{Duration: time.Second},
@@ -741,11 +749,15 @@ func TestLazyAggregationLoop(t *testing.T) {
 
 // TestNormalAggregationLoop tests the normalAggregationLoop function
 func TestNormalAggregationLoop(t *testing.T) {
-	mockLogger := log.NewTestLogger(t)
+	mockLogger := log.NewTestLoggerInfo(t)
+
+	// Create a private key for testing
+	proposerKey, _, _ := crypto.GenerateEd25519Key(nil)
 
 	// Create a Producer component directly
 	producer := &Producer{
-		logger: mockLogger,
+		logger:      mockLogger,
+		proposerKey: proposerKey,
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      config.DurationWrapper{Duration: 1 * time.Second},
@@ -820,7 +832,7 @@ func TestPublisherSubmitLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	eventBus := events.NewEventBus(ctx, logger)
 	mockStore := new(mocks.Store)
 	mockDALC := new(damocks.DA)
@@ -857,7 +869,7 @@ func TestSyncerRetrieveLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	eventBus := events.NewEventBus(ctx, logger)
 	mockStore := new(mocks.Store)
 	mockDALC := new(damocks.DA)
@@ -897,7 +909,7 @@ func TestSyncerRetrieveLoop(t *testing.T) {
 func TestHandleBlockDAIncluded(t *testing.T) {
 	// Setup
 	ctx := context.Background()
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	eventBus := events.NewEventBus(ctx, logger)
 	headerCache := NewHeaderCache()
 
@@ -932,7 +944,7 @@ func TestHandleBlockDAIncluded(t *testing.T) {
 func TestStateManagerHandleEvents(t *testing.T) {
 	// Setup
 	ctx := context.Background()
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	eventBus := events.NewEventBus(ctx, logger)
 	mockStore := new(mocks.Store)
 	mockExec := coreexecutor.NewDummyExecutor()
@@ -986,7 +998,7 @@ func TestStateManagerHandleEvents(t *testing.T) {
 func TestCreateBlock(t *testing.T) {
 	// Setup
 	ctx := context.Background()
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 
 	// Create test data
 	genesisDoc, privKey := types.GetGenesisWithPrivkey("test-chain")
