@@ -351,7 +351,6 @@ func (c *Sequencer) recover(ctx context.Context, batch coresequencer.Batch, err 
 
 // VerifyBatch implements sequencing.Sequencer.
 func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBatchRequest) (*coresequencer.VerifyBatchResponse, error) {
-	//TODO: need to add DA verification
 	if !c.isValid(req.RollupId) {
 		return nil, ErrInvalidRollupId
 	}
