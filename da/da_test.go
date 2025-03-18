@@ -55,7 +55,7 @@ func TestMockDAErrors(t *testing.T) {
 		ctx, cancel = context.WithTimeout(ctx, submitTimeout)
 		defer cancel()
 
-		resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
+		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
 		assert.Contains(resp.Message, ErrContextDeadline.Error(), "should return context timeout error")
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
@@ -89,7 +89,7 @@ func TestMockDAErrors(t *testing.T) {
 
 		assert := assert.New(t)
 
-		resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
+		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
 		assert.Contains(resp.Message, ErrTxTooLarge.Error(), "should return tx too large error")
 		assert.Equal(resp.Code, coreda.StatusTooBig)
 	})
@@ -133,7 +133,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 
 	submitAndRecordHeaders := func(blobs []coreda.Blob) {
 		for len(blobs) > 0 {
-			resp := dalc.SubmitHeaders(ctx, blobs, maxBlobSize, -1)
+			resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
 			assert.Equal(t, coreda.StatusSuccess, resp.Code, resp.Message)
 
 			countAtHeight[resp.Height]++
@@ -152,9 +152,9 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 
 	validateBlockRetrieval := func(height uint64, expectedCount int) {
 		t.Log("Retrieving block, DA Height", height)
-		ret := dalc.RetrieveHeaders(ctx, height)
+		ret := dalc.Retrieve(ctx, height)
 		assert.Equal(t, coreda.StatusSuccess, ret.Code, ret.Message)
-		require.NotEmpty(t, ret.Headers, height)
+		require.NotEmpty(t, ret.Data, height)
 		// assert.Len(ret.Headers, expectedCount, height) // TODO: fix this
 	}
 
@@ -175,7 +175,7 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc coreda.Client) {
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 0)
 	headersBz[1] = make([]byte, 0)
-	resp := dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, -1)
+	resp := dalc.Submit(ctx, headersBz, maxBlobSize, -1)
 	assert.Equal(t, coreda.StatusSuccess, resp.Code, "empty blocks should submit")
 	assert.EqualValues(t, resp.SubmittedCount, 2, "empty blocks should batch")
 }
@@ -191,7 +191,7 @@ func doTestSubmitOversizedBlock(t *testing.T, dalc coreda.Client) {
 	require.NoError(err)
 	oversized := make([]coreda.Blob, 1)
 	oversized[0] = make([]byte, limit+1)
-	resp := dalc.SubmitHeaders(ctx, oversized, limit, -1)
+	resp := dalc.Submit(ctx, oversized, limit, -1)
 	assert.Equal(coreda.StatusError, resp.Code, "oversized block should throw error")
 	assert.Contains(resp.Message, "failed to submit blocks: no blobs generated blob: over size limit")
 }
@@ -208,7 +208,7 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc coreda.Client) {
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 100)
 	headersBz[1] = make([]byte, 100)
-	resp := dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, -1)
+	resp := dalc.Submit(ctx, headersBz, maxBlobSize, -1)
 	assert.Equal(t, coreda.StatusSuccess, resp.Code, "small blocks should submit")
 	assert.EqualValues(t, resp.SubmittedCount, 2, "small blocks should batch")
 }
@@ -238,12 +238,12 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc coreda.Client) {
 	}
 
 	// overflowing blocks submit partially
-	resp := dalc.SubmitHeaders(ctx, []coreda.Blob{header1, header2}, limit, -1)
+	resp := dalc.Submit(ctx, []coreda.Blob{header1, header2}, limit, -1)
 	assert.Equal(coreda.StatusSuccess, resp.Code, "overflowing blocks should submit partially")
 	assert.EqualValues(1, resp.SubmittedCount, "submitted count should be partial")
 
 	// retry remaining blocks
-	resp = dalc.SubmitHeaders(ctx, []coreda.Blob{header2}, limit, -1)
+	resp = dalc.Submit(ctx, []coreda.Blob{header2}, limit, -1)
 	assert.Equal(coreda.StatusSuccess, resp.Code, "remaining blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
 }
@@ -253,7 +253,7 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc coreda.Client) {
 	defer cancel()
 
 	require.New(t)
-	result := dalc.RetrieveHeaders(ctx, 123)
+	result := dalc.Retrieve(ctx, 123)
 	// Namespaces don't work on dummy da right now (https://github.com/rollkit/go-da/issues/94),
 	// when namespaces are implemented, this should be uncommented
 	// assert.Equal(StatusNotFound, result.Code)

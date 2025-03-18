@@ -1007,8 +1007,8 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				m.logger.Debug("no header found", "daHeight", daHeight, "reason", headerResp.Message)
 				return nil
 			}
-			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Headers), "daHeight", daHeight)
-			for _, bz := range headerResp.Headers {
+			m.logger.Debug("retrieved potential headers", "n", len(headerResp.Data), "daHeight", daHeight)
+			for _, bz := range headerResp.Data {
 				header := new(types.SignedHeader)
 				// decode the header
 				var headerPb rollkitproto.SignedHeader
@@ -1070,11 +1070,11 @@ func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader
 	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
 }
 
-func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieveHeaders, error) {
+func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (coreda.ResultRetrieve, error) {
 	var err error
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
 	defer cancel()
-	headerRes := m.dalc.RetrieveHeaders(ctx, daHeight)
+	headerRes := m.dalc.Retrieve(ctx, daHeight)
 	if headerRes.Code == coreda.StatusError {
 		err = fmt.Errorf("failed to retrieve block: %s", headerRes.Message)
 	}
@@ -1370,7 +1370,7 @@ daSubmitRetryLoop:
 
 		ctx, cancel := context.WithTimeout(ctx, 60*time.Second) //TODO: make this configurable
 		defer cancel()
-		res := m.dalc.SubmitHeaders(ctx, headersBz, maxBlobSize, gasPrice)
+		res := m.dalc.Submit(ctx, headersBz, maxBlobSize, gasPrice)
 		switch res.Code {
 		case coreda.StatusSuccess:
 			m.logger.Info("successfully submitted Rollkit headers to DA layer", "gasPrice", gasPrice, "daHeight", res.Height, "headerCount", res.SubmittedCount)
