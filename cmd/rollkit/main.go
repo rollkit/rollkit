@@ -17,17 +17,22 @@ func main() {
 		cmd.DocsGenCmd,
 		cmd.NewRunNodeCmd(),
 		cmd.VersionCmd,
-		cmd.NewTomlCmd(),
+		cmd.InitCmd,
 		cmd.RebuildCmd,
 	)
 
-	// In case there is a rollkit.toml file in the current dir or somewhere up the
+	// Wrapper function for ReadYaml that doesn't take arguments
+	readYamlWrapper := func() (rollconf.Config, error) {
+		return rollconf.ReadYaml("")
+	}
+
+	// In case there is a rollkit.yaml file in the current dir or somewhere up the
 	// directory tree - we want to intercept the command and execute it against an entrypoint
-	// specified in the rollkit.toml file. In case of missing toml file or missing entrypoint key
+	// specified in the rollkit.yaml file. In case of missing yaml file or missing entrypoint key
 	// or missing actual entrypoint file - the normal rootCmd command is executed.
 	executed, err := cmd.InterceptCommand(
 		rootCmd,
-		rollconf.ReadToml,
+		readYamlWrapper,
 		cmd.RunRollupEntrypoint,
 	)
 	if err != nil {

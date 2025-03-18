@@ -92,7 +92,7 @@ func (s *Syncer) retrieveLoop(ctx context.Context) {
 	s.sendNonBlockingSignalToRetrieveCh()
 
 	// Set up a ticker for regular checks
-	ticker := time.NewTicker(s.config.DA.BlockTime)
+	ticker := time.NewTicker(s.config.DA.BlockTime.Duration)
 	defer ticker.Stop()
 
 	// Set up a channel for immediate retrieval signals
@@ -135,7 +135,7 @@ func (s *Syncer) headerStoreRetrieveLoop(ctx context.Context) {
 	lastHeaderStoreHeight := uint64(0)
 
 	// Set up a ticker for regular checks
-	ticker := time.NewTicker(s.config.Node.BlockTime)
+	ticker := time.NewTicker(s.config.Node.BlockTime.Duration)
 	defer ticker.Stop()
 
 	// Set up a channel for immediate retrieval signals
@@ -195,7 +195,7 @@ func (s *Syncer) dataStoreRetrieveLoop(ctx context.Context) {
 	lastDataStoreHeight := uint64(0)
 
 	// Set up a ticker for regular checks
-	ticker := time.NewTicker(s.config.Node.BlockTime)
+	ticker := time.NewTicker(s.config.Node.BlockTime.Duration)
 	defer ticker.Stop()
 
 	// Set up a channel for immediate retrieval signals

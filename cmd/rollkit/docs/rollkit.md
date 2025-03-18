@@ -6,14 +6,14 @@ The first sovereign rollup framework that allows you to launch a sovereign, cust
 
 
 Rollkit is the first sovereign rollup framework that allows you to launch a sovereign, customizable blockchain as easily as a smart contract.
-The rollkit-cli uses the environment variable "RKHOME" to point to a file path where the node keys, config, and data will be stored. 
-If a path is not specified for RKHOME, the rollkit command will create a folder "~/.rollkit" where it will store said data.
+If the --home flag is not specified, the rollkit command will create a folder "~/.rollkit" where it will store node keys, config, and data.
 
 
 ### Options
 
 ```
   -h, --help                help for rollkit
+      --home string         root directory for Rollkit (default "HOME/.rollkit")
       --log_format string   set the log format; options include plain and json (default "plain")
       --log_level string    set the log level; default is info. other options include debug, info, error, none (default "info")
       --trace               print out full stack trace on errors
@@ -23,7 +23,7 @@ If a path is not specified for RKHOME, the rollkit command will create a folder 
 
 * [rollkit completion](rollkit_completion.md)	 - Generate the autocompletion script for the specified shell
 * [rollkit docs-gen](rollkit_docs-gen.md)	 - Generate documentation for rollkit CLI
+* [rollkit init](rollkit_init.md)	 - Initialize a new rollkit.yaml file
 * [rollkit rebuild](rollkit_rebuild.md)	 - Rebuild rollup entrypoint
 * [rollkit start](rollkit_start.md)	 - Run the rollkit node
-* [rollkit toml](rollkit_toml.md)	 - TOML file operations
 * [rollkit version](rollkit_version.md)	 - Show version info

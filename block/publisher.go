@@ -105,7 +105,7 @@ func (p *Publisher) handleBlockCreated(ctx context.Context, evt events.Event) {
 
 // headerSubmissionLoop is responsible for submitting blocks to DA
 func (p *Publisher) headerSubmissionLoop(ctx context.Context) {
-	timer := time.NewTicker(p.config.DA.BlockTime)
+	timer := time.NewTicker(p.config.DA.BlockTime.Duration)
 	defer timer.Stop()
 
 	for {
@@ -236,7 +236,7 @@ daSubmitRetryLoop:
 
 		case coreda.StatusNotIncludedInBlock, coreda.StatusAlreadyInMempool:
 			p.logger.Error("DA layer submission failed", "error", res.Message, "attempt", attempt)
-			p.daSubmitBackoff = p.config.DA.BlockTime * time.Duration(p.config.DA.MempoolTTL)
+			p.daSubmitBackoff = p.config.DA.BlockTime.Duration * time.Duration(p.config.DA.MempoolTTL)
 
 			if p.gasMultiplier > 0 && gasPrice != -1 {
 				gasPrice = gasPrice * p.gasMultiplier
@@ -277,8 +277,8 @@ func (p *Publisher) exponentialBackoff(backoff time.Duration) time.Duration {
 	if backoff == 0 {
 		backoff = initialBackoff
 	}
-	if backoff > p.config.DA.BlockTime {
-		backoff = p.config.DA.BlockTime
+	if backoff > p.config.DA.BlockTime.Duration {
+		backoff = p.config.DA.BlockTime.Duration
 	}
 	return backoff
 }

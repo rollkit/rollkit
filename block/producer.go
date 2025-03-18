@@ -178,7 +178,7 @@ func (p *Producer) aggregationLoop(ctx context.Context) {
 		delay = time.Until(p.genesis.GenesisTime)
 	} else {
 		lastBlockTime := p.getLastBlockTime()
-		delay = time.Until(lastBlockTime.Add(p.config.Node.BlockTime))
+		delay = time.Until(lastBlockTime.Add(p.config.Node.BlockTime.Duration))
 	}
 
 	if delay > 0 {
@@ -260,17 +260,17 @@ func (p *Producer) getRemainingSleep(start time.Time) time.Duration {
 	interval := p.config.Node.BlockTime
 
 	if p.config.Node.LazyAggregator {
-		if p.buildingBlock && elapsed >= interval {
+		if p.buildingBlock && elapsed >= interval.Duration {
 			// Special case to give time for transactions to accumulate if we
 			// are coming out of a period of inactivity.
-			return (interval * time.Duration(defaultLazySleepPercent) / 100)
+			return (interval.Duration * time.Duration(defaultLazySleepPercent) / 100)
 		} else if !p.buildingBlock {
 			interval = p.config.Node.LazyBlockTime
 		}
 	}
 
-	if elapsed < interval {
-		return interval - elapsed
+	if elapsed < interval.Duration {
+		return interval.Duration - elapsed
 	}
 
 	return 0

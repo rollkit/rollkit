@@ -395,7 +395,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			if err != nil {
 				m.logger.Error("error while retrieving batch", "error", err)
 				// Always reset timer on error
-				batchTimer.Reset(m.config.Node.BlockTime)
+				batchTimer.Reset(m.config.Node.BlockTime.Duration)
 				continue
 			}
 
@@ -426,7 +426,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 			// Always reset timer
 			elapsed := time.Since(start)
-			remainingSleep := m.config.Node.BlockTime - elapsed
+			remainingSleep := m.config.Node.BlockTime.Duration - elapsed
 			if remainingSleep < 0 {
 				remainingSleep = 0
 			}

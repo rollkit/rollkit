@@ -266,7 +266,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := &damocks.DA{}
 			m := getManager(t, mockDA, tc.gasPrice, tc.gasMultiplier)
-			m.config.DA.BlockTime = time.Millisecond
+			m.config.DA.BlockTime = config.DurationWrapper{Duration: time.Millisecond}
 			m.config.DA.MempoolTTL = 1
 			kvStore, err := store.NewDefaultInMemoryKVStore()
 			require.NoError(t, err)
@@ -475,8 +475,8 @@ func TestGetRemainingSleep(t *testing.T) {
 			name: "Normal aggregation, elapsed < interval",
 			config: config.Config{
 				Node: config.NodeConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
+					BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+					LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 					LazyAggregator: false,
 				},
 			},
@@ -488,8 +488,8 @@ func TestGetRemainingSleep(t *testing.T) {
 			name: "Normal aggregation, elapsed > interval",
 			config: config.Config{
 				Node: config.NodeConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
+					BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+					LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 					LazyAggregator: false,
 				},
 			},
@@ -501,8 +501,8 @@ func TestGetRemainingSleep(t *testing.T) {
 			name: "Lazy aggregation, not building block",
 			config: config.Config{
 				Node: config.NodeConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
+					BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+					LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 					LazyAggregator: true,
 				},
 			},
@@ -514,8 +514,8 @@ func TestGetRemainingSleep(t *testing.T) {
 			name: "Lazy aggregation, building block, elapsed < interval",
 			config: config.Config{
 				Node: config.NodeConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
+					BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+					LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 					LazyAggregator: true,
 				},
 			},
@@ -527,8 +527,8 @@ func TestGetRemainingSleep(t *testing.T) {
 			name: "Lazy aggregation, building block, elapsed > interval",
 			config: config.Config{
 				Node: config.NodeConfig{
-					BlockTime:      10 * time.Second,
-					LazyBlockTime:  20 * time.Second,
+					BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+					LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 					LazyAggregator: true,
 				},
 			},
@@ -580,8 +580,8 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+						LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 						LazyAggregator: false,
 					},
 				},
@@ -596,8 +596,8 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+						LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 						LazyAggregator: false,
 					},
 				},
@@ -612,8 +612,8 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+						LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 						LazyAggregator: true,
 					},
 				},
@@ -628,8 +628,8 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+						LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 						LazyAggregator: true,
 					},
 				},
@@ -644,8 +644,8 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			producer: &Producer{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime:      config.DurationWrapper{Duration: 10 * time.Second},
+						LazyBlockTime:  config.DurationWrapper{Duration: 20 * time.Second},
 						LazyAggregator: true,
 					},
 				},
@@ -683,7 +683,7 @@ func TestAggregationLoop(t *testing.T) {
 		},
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      time.Second,
+				BlockTime:      config.DurationWrapper{Duration: time.Second},
 				LazyAggregator: false,
 			},
 		},
@@ -714,7 +714,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      time.Second,
+				BlockTime:      config.DurationWrapper{Duration: time.Second},
 				LazyAggregator: true,
 			},
 		},
@@ -724,7 +724,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(producer.config.Node.BlockTime)
+	blockTimer := time.NewTimer(producer.config.Node.BlockTime.Duration)
 	defer blockTimer.Stop()
 
 	// Test the Producer's lazyAggregationLoop method
@@ -744,7 +744,7 @@ func TestNormalAggregationLoop(t *testing.T) {
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      1 * time.Second,
+				BlockTime:      config.DurationWrapper{Duration: 1 * time.Second},
 				LazyAggregator: false,
 			},
 		},
@@ -827,7 +827,7 @@ func TestPublisherSubmitLoop(t *testing.T) {
 		Logger:   logger,
 		Config: config.Config{
 			DA: config.DAConfig{
-				BlockTime: 100 * time.Millisecond,
+				BlockTime: config.DurationWrapper{Duration: 100 * time.Millisecond},
 			},
 		},
 	})
@@ -873,7 +873,7 @@ func TestSyncerRetrieveLoop(t *testing.T) {
 		Logger:   logger,
 		Config: config.Config{
 			DA: config.DAConfig{
-				BlockTime: 100 * time.Millisecond,
+				BlockTime: config.DurationWrapper{Duration: 100 * time.Millisecond},
 			},
 		},
 	})
