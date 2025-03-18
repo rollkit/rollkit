@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
 	rollconf "github.com/rollkit/rollkit/config"
@@ -25,13 +26,30 @@ func TestInitCommand(t *testing.T) {
 	// Change to the temporary directory
 	require.NoError(t, os.Chdir(dir))
 
-	// Execute the init command directly
-	cmd := InitCmd
+	// Remove any existing rollkit.yaml files in the test directory
+	configPath := filepath.Join(dir, rollconf.RollkitConfigYaml)
+	_ = os.Remove(configPath) // Ignore error if file doesn't exist
+
+	// Create a new test-specific command
+	cmd := &cobra.Command{
+		Use: "test",
+	}
+
+	// Add init command as subcommand
+	initCmd := *InitCmd // Create a copy to avoid affecting other tests
+	cmd.AddCommand(&initCmd)
+
+	// Register all persistent flags from root command
+	registerFlagsRootCmd(cmd)
+
+	// Set home flag to the test directory
+	cmd.SetArgs([]string{"init", "--home", dir})
+
+	// Execute the command
 	err = cmd.Execute()
 	require.NoError(t, err)
 
 	// Verify the file was created
-	configPath := filepath.Join(dir, rollconf.RollkitConfigYaml)
 	_, err = os.Stat(configPath)
 	require.NoError(t, err)
 

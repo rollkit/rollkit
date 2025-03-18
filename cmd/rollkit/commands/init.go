@@ -74,8 +74,3 @@ var InitCmd = &cobra.Command{
 		return nil
 	},
 }
-
-func init() {
-	// Add the home flag
-	InitCmd.Flags().String("home", "", "Directory where the rollkit.yaml file will be created")
-}
