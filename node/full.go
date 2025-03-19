@@ -197,7 +197,7 @@ func initBlockManager(
 	gasMultiplier float64,
 ) (*block.Manager, error) {
 
-	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
+	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.String())
 
 	rollGen := &block.RollkitGenesis{
 		GenesisTime:     genesis.GenesisTime,
