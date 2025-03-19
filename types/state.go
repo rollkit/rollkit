@@ -59,20 +59,14 @@ type State struct {
 
 // NewFromGenesisDoc reads blockchain State from genesis.
 func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
-	// err := genDoc.ValidateAndComplete()
-	// if err != nil {
-	// 	return State{}, fmt.Errorf("error in genesis doc: %w", err)
-	// }
-
 	var validatorSet, nextValidatorSet *types.ValidatorSet
 	if genDoc.ProposerAddress() == nil {
 		validatorSet = types.NewValidatorSet(nil)
 		nextValidatorSet = types.NewValidatorSet(nil)
 	} else {
-		validators := make([]*types.Validator, 1)
-		validators[0] = types.NewValidator(genDoc.ProposerAddress(), 1)
-		validatorSet = types.NewValidatorSet(validators)
-		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
+		// We don't need to create a validator set here since it will be set by the caller
+		validatorSet = types.NewValidatorSet(nil)
+		nextValidatorSet = types.NewValidatorSet(nil)
 	}
 
 	s := State{

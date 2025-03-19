@@ -50,40 +50,30 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 		gasMultiplier: gasMultiplier,
 	}
 }
+
 func TestInitialStateClean(t *testing.T) {
-	const chainID = "TestInitialStateClean"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	genesis := coreexecutor.NewBaseGenesis(
-		chainID,
-		1,
-		genesisDoc.GenesisTime(),
-		genesisDoc.ProposerAddress(),
-		nil, // No raw bytes for now
-	)
+
+	// Create genesis document
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateClean")
 	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
-	s, err := getInitialState(context.TODO(), genesis, emptyStore, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
-	require.Equal(s.LastBlockHeight, genesis.InitialHeight()-1)
-	require.Equal(genesis.InitialHeight, s.InitialHeight)
+	initialHeight := genesisData.InitialHeight()
+	require.Equal(uint64(initialHeight-1), s.LastBlockHeight)
+	require.Equal(uint64(initialHeight), s.InitialHeight)
 }
 
 func TestInitialStateStored(t *testing.T) {
-	chainID := "TestInitialStateStored"
 	require := require.New(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
+
+	// Create genesis document
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateStored")
 	valset := types.GetRandomValidatorSet()
-	genesis := coreexecutor.NewBaseGenesis(
-		chainID,
-		1,
-		genesisDoc.GenesisTime(),
-		genesisDoc.ProposerAddress(),
-		nil, // No raw bytes for now
-	)
 	sampleState := types.State{
-		ChainID:         chainID,
+		ChainID:         "TestInitialStateStored",
 		InitialHeight:   1,
 		LastBlockHeight: 100,
 		Validators:      valset,
@@ -98,7 +88,7 @@ func TestInitialStateStored(t *testing.T) {
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
 	logger := log.NewTestLogger(t)
-	s, err := getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
+	s, err := getInitialState(context.TODO(), genesisData, store, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	require.Equal(s.LastBlockHeight, uint64(100))
 	require.Equal(s.InitialHeight, uint64(1))
@@ -153,15 +143,18 @@ func TestHandleEmptyDataHash(t *testing.T) {
 func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
-	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
-	valset := types.GetRandomValidatorSet()
-	genesis := coreexecutor.NewBaseGenesis(
-		"TestInitialStateUnexpectedHigherGenesis",
-		2,
-		genesisDoc.GenesisTime(),
-		genesisDoc.ProposerAddress(),
+
+	// Create genesis document with initial height 2
+	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
+	// Create a new genesis with height 2
+	genesisData = coreexecutor.NewBaseGenesis(
+		genesisData.ChainID(),
+		uint64(2), // Set initial height to 2
+		genesisData.GenesisTime(),
+		genesisData.ProposerAddress(),
 		nil, // No raw bytes for now
 	)
+	valset := types.GetRandomValidatorSet()
 	sampleState := types.State{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
@@ -176,7 +169,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	store := store.New(es)
 	err := store.UpdateState(ctx, sampleState)
 	require.NoError(err)
-	_, err = getInitialState(context.TODO(), genesis, store, coreexecutor.NewDummyExecutor(), logger)
+	_, err = getInitialState(context.TODO(), genesisData, store, coreexecutor.NewDummyExecutor(), logger)
 	require.EqualError(err, "genesis.InitialHeight (2) is greater than last stored state's LastBlockHeight (0)")
 }
 
@@ -387,9 +380,15 @@ func Test_isProposer(t *testing.T) {
 		{
 			name: "Signing key matches genesis proposer public key",
 			args: func() args {
-				genesisData, privKey := types.GetGenesisWithPrivkey("Test_isProposer")
+				genesisData, privKey, pubKey := types.GetGenesisWithPrivkey("Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
+				// Update the validator set with the actual public key
+				s.Validators = cmtypes.NewValidatorSet([]*cmtypes.Validator{
+					cmtypes.NewValidator(pubKey, 1),
+				})
+				s.NextValidators = s.Validators.CopyIncrementProposerPriority(1)
+				s.LastValidators = s.Validators
 				return args{
 					s,
 					privKey,
