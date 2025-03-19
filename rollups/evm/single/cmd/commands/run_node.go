@@ -67,7 +67,7 @@ func NewRunNodeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			genDoc.InitialHeight = 0
+			//genDoc.InitialHeight = 0
 
 			// TODO: this should be moved elsewhere
 			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
