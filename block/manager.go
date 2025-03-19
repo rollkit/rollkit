@@ -1191,8 +1191,11 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Debug("No batch available, creating empty block")
 			// Create an empty block instead of returning
-			batchData.Batch.Transactions = [][]byte{}
-			batchData.Time = time.Now().Round(0).UTC()
+			batchData = &BatchData{
+				Batch: &coresequencer.Batch{Transactions: [][]byte{}},
+				Time:  time.Now().Round(0).UTC(),
+				Data:  [][]byte{},
+			}
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
