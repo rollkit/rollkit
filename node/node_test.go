@@ -188,7 +188,7 @@ func newTestNode(ctx context.Context, t *testing.T, nodeType NodeType, chainID s
 	err := InitFiles(config.RootDir)
 	require.NoError(t, err)
 
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLoggerInfo(t)
 	node, err := NewNode(
 		ctx,
 		config,
