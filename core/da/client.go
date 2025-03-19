@@ -7,7 +7,7 @@ import (
 
 // Client is the interface for the DA layer client.
 type Client interface {
-	// SubmitData submits block data to DA layer.
+	// Submit submits block data to DA layer.
 	// The caller is responsible for setting a timeout, if needed.
 	Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmit
 
