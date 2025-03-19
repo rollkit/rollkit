@@ -1,0 +1,33 @@
+# Tests / Code Coverage workflow
+# This workflow is triggered by ci_release.yml workflow
+name: Tests / Code Coverage
+on:
+  workflow_call:
+
+jobs:
+  ignite-gm:
+    name: Build Ignite GM Chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+      - name: Install Rollkit
+        run: make install
+      - name: Download JavaScript commands file
+        run: curl -o commands.js https://raw.githubusercontent.com/rollkit/rollkit/refs/heads/tutorial-test-mvp/.github/workflows/assets/commands.js
+      - name: Create ES module script
+        run: |
+          echo "import commands from './commands.js';" > executeCommands.mjs
+          echo "import { execSync } from 'child_process';" >> executeCommands.mjs
+          echo "for (const cmd of commands) {" >> executeCommands.mjs
+          echo "  console.log('Executing:', cmd.name);" >> executeCommands.mjs
+          echo "  execSync(cmd.command, { stdio: 'inherit' });" >> executeCommands.mjs
+          echo "}" >> executeCommands.mjs
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23'
+      - name: Execute Commands
+        run: node executeCommands.mjs
