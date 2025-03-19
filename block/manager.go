@@ -97,10 +97,11 @@ type NewDataEvent struct {
 	DAHeight uint64
 }
 
-// BatchWithTime is used to pass batch and time to BatchQueue
-type BatchWithTime struct {
+// BatchData is used to pass batch and time to BatchQueue
+type BatchData struct {
 	*coresequencer.Batch
 	time.Time
+	Data [][]byte
 }
 
 // Manager is responsible for aggregating transactions into blocks.
@@ -515,7 +516,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 					"txCount", len(res.Batch.Transactions),
 					"timestamp", res.Timestamp)
 
-				m.bq.AddBatch(BatchWithTime{Batch: res.Batch, Time: res.Timestamp})
+				m.bq.AddBatch(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
 				if len(res.Batch.Transactions) != 0 {
 					h := convertBatchDataToBytes(res.BatchData)
 					if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
@@ -1094,13 +1095,13 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	return m.proposerKey.Sign(b)
 }
 
-func (m *Manager) getTxsFromBatch() ([][]byte, *time.Time, error) {
+func (m *Manager) getTxsFromBatch() (*BatchData, error) {
 	batch := m.bq.Next()
 	if batch == nil {
 		// batch is nil when there is nothing to process
-		return nil, nil, ErrNoBatch
+		return nil, ErrNoBatch
 	}
-	return batch.Transactions, &batch.Time, nil
+	return &BatchData{Batch: batch.Batch, Time: batch.Time, Data: batch.Data}, nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1186,22 +1187,21 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
 
-		txs, timestamp, err := m.getTxsFromBatch()
+		batchData, err := m.getTxsFromBatch()
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Debug("No batch available, creating empty block")
 			// Create an empty block instead of returning
-			txs = [][]byte{}
-			timestamp = &time.Time{}
-			*timestamp = time.Now()
+			batchData.Batch.Transactions = [][]byte{}
+			batchData.Time = time.Now().Round(0).UTC()
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
 		// sanity check timestamp for monotonically increasing
-		if timestamp.Before(lastHeaderTime) {
-			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
+		if batchData.Time.Before(lastHeaderTime) {
+			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
 		if err != nil {
 			return err
 		}
@@ -1469,10 +1469,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
@@ -1491,7 +1491,9 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+	data := batchData.Data
+	batchdata := convertBatchDataToBytes(data)
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -1501,9 +1503,9 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			BaseHeader: types.BaseHeader{
 				ChainID: lastState.ChainID,
 				Height:  height,
-				Time:    uint64(timestamp.UnixNano()), //nolint:gosec
+				Time:    uint64(batchData.Time.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
-			DataHash:        make(types.Hash, 32),
+			DataHash:        batchdata,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
@@ -1511,17 +1513,14 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		Signature: *lastSignature,
 	}
 
-	data := &types.Data{
-		Txs: make(types.Txs, len(txs)),
-		// IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
-		// Note: Temporarily remove Evidence #896
-		// Evidence:               types.EvidenceData{Evidence: nil},
+	blockData := &types.Data{
+		Txs: make(types.Txs, 0, len(batchData.Batch.Transactions)),
 	}
-	for i := range txs {
-		data.Txs[i] = types.Tx(txs[i])
+	for i := range batchData.Batch.Transactions {
+		blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
 	}
 
-	return header, data, nil
+	return header, blockData, nil
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
