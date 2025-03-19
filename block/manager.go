@@ -186,9 +186,12 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 		// Initialize genesis block explicitly
 		err = store.SaveBlockData(ctx,
 			&types.SignedHeader{Header: types.Header{
+				DataHash:        new(types.Data).Hash(),
+				ProposerAddress: genesis.ProposerAddress,
 				BaseHeader: types.BaseHeader{
-					Height: genesis.InitialHeight,
-					Time:   uint64(genesis.GenesisTime.UnixNano()),
+					ChainID: genesis.ChainID,
+					Height:  genesis.InitialHeight,
+					Time:    uint64(genesis.GenesisTime.UnixNano()),
 				}}},
 			&types.Data{},
 			&types.Signature{},
@@ -1494,7 +1497,7 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	data := batchData.Data
 	batchdata := convertBatchDataToBytes(data)
 	header := &types.SignedHeader{
@@ -1508,6 +1511,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 				Height:  height,
 				Time:    uint64(batchData.Time.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
+			LastHeaderHash:  lastHeaderHash,
 			DataHash:        batchdata,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
@@ -1517,7 +1521,7 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	}
 
 	blockData := &types.Data{
-		Txs: make(types.Txs, 0, len(batchData.Batch.Transactions)),
+		Txs: make(types.Txs, len(batchData.Batch.Transactions)),
 	}
 	for i := range batchData.Batch.Transactions {
 		blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
