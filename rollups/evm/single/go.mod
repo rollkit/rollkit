@@ -4,6 +4,9 @@ go 1.24.0
 
 replace github.com/rollkit/rollkit => ../../../
 
+replace github.com/rollkit/rollkit/core => ../../../core
+replace github.com/rollkit/rollkit/da => ../../../da
+
 replace github.com/rollkit/go-execution-evm => ../../../../go-execution-evm
 
 require (
