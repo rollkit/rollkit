@@ -3,6 +3,8 @@ package execution
 import (
 	"context"
 	"time"
+
+	"github.com/rollkit/rollkit/config"
 )
 
 // Executor defines the interface that execution clients must implement to be compatible with Rollkit.
@@ -17,7 +19,7 @@ type Executor interface {
 	// Returns:
 	// - Genesis: The constructed genesis state
 	// - error: Any errors during genesis creation
-	BuildGenesis() (Genesis, error)
+	BuildGenesis(config config.Config) (Genesis, error)
 
 	// InitChain initializes a new blockchain instance with genesis parameters.
 	// Requirements:

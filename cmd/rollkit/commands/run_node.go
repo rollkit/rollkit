@@ -110,6 +110,11 @@ func NewRunNodeCmd() *cobra.Command {
 			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
 
+			genesis, err := kvExecutor.BuildGenesis(nodeConfig)
+			if err != nil {
+				return fmt.Errorf("failed to build genesis: %w", err)
+			}
+
 			dummyDA := coreda.NewDummyDA(100_000)
 			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
 			// create the rollkit node
@@ -121,7 +126,7 @@ func NewRunNodeCmd() *cobra.Command {
 				dummySequencer,
 				dummyDALC,
 				signingKey,
-				genDoc,
+				genesis,
 				metrics,
 				logger,
 			)

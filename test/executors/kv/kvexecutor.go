@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/core/execution"
 )
 
@@ -63,7 +64,7 @@ func (k *KVExecutor) computeStateRoot() []byte {
 }
 
 // BuildGenesis implements execution.Executor.
-func (k *KVExecutor) BuildGenesis() (execution.Genesis, error) {
+func (k *KVExecutor) BuildGenesis(config config.Config) (execution.Genesis, error) {
 	panic("unimplemented")
 }
 

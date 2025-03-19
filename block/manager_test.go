@@ -54,17 +54,19 @@ func TestInitialStateClean(t *testing.T) {
 	const chainID = "TestInitialStateClean"
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	genesis := &RollkitGenesis{
-		ChainID:         chainID,
-		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+	genesis := coreexecutor.NewBaseGenesis(
+		chainID,
+		1,
+		genesisDoc.GenesisTime,
+		genesisDoc.Validators[0].Address.Bytes(),
+		nil, // No raw bytes for now
+	)
 	logger := log.NewTestLogger(t)
 	es, _ := store.NewDefaultInMemoryKVStore()
 	emptyStore := store.New(es)
 	s, err := getInitialState(context.TODO(), genesis, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
-	require.Equal(s.LastBlockHeight, genesis.InitialHeight-1)
+	require.Equal(s.LastBlockHeight, genesis.InitialHeight()-1)
 	require.Equal(genesis.InitialHeight, s.InitialHeight)
 }
 
@@ -73,11 +75,13 @@ func TestInitialStateStored(t *testing.T) {
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
 	valset := types.GetRandomValidatorSet()
-	genesis := &RollkitGenesis{
-		ChainID:         chainID,
-		InitialHeight:   1,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+	genesis := coreexecutor.NewBaseGenesis(
+		chainID,
+		1,
+		genesisDoc.GenesisTime,
+		genesisDoc.Validators[0].Address.Bytes(),
+		nil, // No raw bytes for now
+	)
 	sampleState := types.State{
 		ChainID:         chainID,
 		InitialHeight:   1,
@@ -151,11 +155,13 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	logger := log.NewTestLogger(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	valset := types.GetRandomValidatorSet()
-	genesis := &RollkitGenesis{
-		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
-		InitialHeight:   2,
-		ProposerAddress: genesisDoc.Validators[0].Address.Bytes(),
-	}
+	genesis := coreexecutor.NewBaseGenesis(
+		"TestInitialStateUnexpectedHigherGenesis",
+		2,
+		genesisDoc.GenesisTime,
+		genesisDoc.Validators[0].Address.Bytes(),
+		nil, // No raw bytes for now
+	)
 	sampleState := types.State{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
@@ -697,10 +703,13 @@ func TestAggregationLoop(t *testing.T) {
 	m := &Manager{
 		store:  mockStore,
 		logger: mockLogger,
-		genesis: &RollkitGenesis{
-			ChainID:       "myChain",
-			InitialHeight: 1,
-		},
+		genesis: coreexecutor.NewBaseGenesis(
+			"myChain",
+			1,
+			time.Now(),
+			[]byte{},
+			nil, // No raw bytes for now
+		),
 		config: config.Config{
 			Node: config.NodeConfig{
 				BlockTime:      config.DurationWrapper{Duration: time.Second},

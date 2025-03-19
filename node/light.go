@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/block"
 	"github.com/rollkit/rollkit/config"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	"github.com/rollkit/rollkit/p2p"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
@@ -29,18 +29,18 @@ type LightNode struct {
 
 func newLightNode(
 	conf config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis coreexecutor.Genesis,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (ln *LightNode, err error) {
 
-	_, p2pMetrics := metricsProvider(genesis.ChainID)
+	_, p2pMetrics := metricsProvider(genesis.ChainID())
 
 	datastore, err := openDatastore(conf, logger)
 	if err != nil {
 		return nil, err
 	}
-	client, err := p2p.NewClient(conf, genesis.ChainID, datastore, logger.With("module", "p2p"), p2pMetrics)
+	client, err := p2p.NewClient(conf, genesis.ChainID(), datastore, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
