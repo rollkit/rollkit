@@ -37,6 +37,12 @@ func (c *DummyClient) GasMultiplier(ctx context.Context) (float64, error) {
 	return c.da.GasMultiplier(ctx)
 }
 
+// GetNamespace returns the namespace for the DA layer
+func (c *DummyClient) GetNamespace(ctx context.Context) ([]byte, error) {
+	// Delegate to the underlying DA implementation
+	return c.namespace, nil
+}
+
 // SubmitHeaders submits block headers to DA layer
 func (c *DummyClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmit {
 	// Convert headers to blobs

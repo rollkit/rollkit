@@ -68,8 +68,8 @@ const (
 	// DAIncludedHeightKey is the key used for persisting the da included height in store.
 	DAIncludedHeightKey = "d"
 
-	// LastBatchHashKey is the key used for persisting the last batch hash in store.
-	LastBatchHashKey = "l"
+	// LastBatchDataKey is the key used for persisting the last batch data in store.
+	LastBatchDataKey = "l"
 )
 
 var (
@@ -97,10 +97,11 @@ type NewDataEvent struct {
 	DAHeight uint64
 }
 
-// BatchWithTime is used to pass batch and time to BatchQueue
-type BatchWithTime struct {
+// BatchData is used to pass batch, time and data (da.IDs) to BatchQueue
+type BatchData struct {
 	*coresequencer.Batch
 	time.Time
+	Data [][]byte
 }
 
 // Manager is responsible for aggregating transactions into blocks.
@@ -162,7 +163,7 @@ type Manager struct {
 	gasMultiplier    float64
 
 	sequencer     coresequencer.Sequencer
-	lastBatchHash []byte
+	lastBatchData [][]byte
 	bq            *BatchQueue
 }
 
@@ -309,9 +310,14 @@ func NewManager(
 	}
 
 	// If lastBatchHash is not set, retrieve the last batch hash from store
-	lastBatchHash, err := store.GetMetadata(ctx, LastBatchHashKey)
+	lastBatchDataBytes, err := store.GetMetadata(ctx, LastBatchDataKey)
 	if err != nil {
 		logger.Error("error while retrieving last batch hash", "error", err)
+	}
+
+	lastBatchData, err := bytesToBatchData(lastBatchDataBytes)
+	if err != nil {
+		logger.Error("error while converting last batch hash", "error", err)
 	}
 
 	agg := &Manager{
@@ -332,7 +338,7 @@ func NewManager(
 		headerStore:    headerStore,
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
-		lastBatchHash:  lastBatchHash,
+		lastBatchData:  lastBatchData,
 		headerCache:    NewHeaderCache(),
 		dataCache:      NewDataCache(),
 		retrieveCh:     make(chan struct{}, 1),
@@ -490,11 +496,11 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 			start := time.Now()
 			m.logger.Debug("Attempting to retrieve next batch",
 				"chainID", m.genesis.ChainID,
-				"lastBatchHash", hex.EncodeToString(m.lastBatchHash))
+				"lastBatchData", m.lastBatchData)
 
 			req := coresequencer.GetNextBatchRequest{
-				RollupId: []byte(m.genesis.ChainID),
-				// LastBatchData: m.lastBatchHash, //TODO: add this
+				RollupId:      []byte(m.genesis.ChainID),
+				LastBatchData: m.lastBatchData,
 			}
 
 			res, err := m.sequencer.GetNextBatch(ctx, req)
@@ -510,15 +516,15 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 					"txCount", len(res.Batch.Transactions),
 					"timestamp", res.Timestamp)
 
-				if h, err := res.Batch.Hash(); err == nil {
-					m.bq.AddBatch(BatchWithTime{Batch: res.Batch, Time: res.Timestamp})
-					if len(res.Batch.Transactions) != 0 {
-						if err := m.store.SetMetadata(ctx, LastBatchHashKey, h); err != nil {
-							m.logger.Error("error while setting last batch hash", "error", err)
-						}
-						m.lastBatchHash = h
+				m.bq.AddBatch(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
+				if len(res.Batch.Transactions) != 0 {
+					h := convertBatchDataToBytes(res.BatchData)
+					if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
+						m.logger.Error("error while setting last batch hash", "error", err)
 					}
+					m.lastBatchData = res.BatchData
 				}
+
 			} else {
 				m.logger.Debug("No batch available")
 			}
@@ -1089,13 +1095,13 @@ func (m *Manager) getSignature(header types.Header) (types.Signature, error) {
 	return m.proposerKey.Sign(b)
 }
 
-func (m *Manager) getTxsFromBatch() ([][]byte, *time.Time, error) {
+func (m *Manager) getTxsFromBatch() (*BatchData, error) {
 	batch := m.bq.Next()
 	if batch == nil {
 		// batch is nil when there is nothing to process
-		return nil, nil, ErrNoBatch
+		return nil, ErrNoBatch
 	}
-	return batch.Transactions, &batch.Time, nil
+	return &BatchData{Batch: batch.Batch, Time: batch.Time, Data: batch.Data}, nil
 }
 
 func (m *Manager) publishBlock(ctx context.Context) error {
@@ -1181,22 +1187,24 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
 
-		txs, timestamp, err := m.getTxsFromBatch()
+		batchData, err := m.getTxsFromBatch()
 		if errors.Is(err, ErrNoBatch) {
 			m.logger.Debug("No batch available, creating empty block")
 			// Create an empty block instead of returning
-			txs = [][]byte{}
-			timestamp = &time.Time{}
-			*timestamp = time.Now()
+			batchData = &BatchData{
+				Batch: &coresequencer.Batch{Transactions: [][]byte{}},
+				Time:  time.Now().Round(0).UTC(),
+				Data:  [][]byte{},
+			}
 		} else if err != nil {
 			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
 		// sanity check timestamp for monotonically increasing
-		if timestamp.Before(lastHeaderTime) {
-			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", timestamp, m.getLastBlockTime())
+		if batchData.Time.Before(lastHeaderTime) {
+			return fmt.Errorf("timestamp is not monotonically increasing: %s < %s", batchData.Time, m.getLastBlockTime())
 		}
 		m.logger.Info("Creating and publishing block", "height", newHeight)
-		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, txs, *timestamp)
+		header, data, err = m.createBlock(ctx, newHeight, lastSignature, lastHeaderHash, batchData)
 		if err != nil {
 			return err
 		}
@@ -1464,10 +1472,10 @@ func (m *Manager) getLastBlockTime() time.Time {
 	return m.lastState.LastBlockTime
 }
 
-func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
-	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, txs, timestamp)
+	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
 func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
@@ -1486,7 +1494,9 @@ func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types
 	return newState.AppHash, err
 }
 
-func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, txs [][]byte, timestamp time.Time) (*types.SignedHeader, *types.Data, error) {
+func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignature *types.Signature, _ types.Hash, lastState types.State, batchData *BatchData) (*types.SignedHeader, *types.Data, error) {
+	data := batchData.Data
+	batchdata := convertBatchDataToBytes(data)
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
@@ -1496,9 +1506,9 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 			BaseHeader: types.BaseHeader{
 				ChainID: lastState.ChainID,
 				Height:  height,
-				Time:    uint64(timestamp.UnixNano()), //nolint:gosec
+				Time:    uint64(batchData.Time.UnixNano()), //nolint:gosec // why is time unix? (tac0turtle)
 			},
-			DataHash:        make(types.Hash, 32),
+			DataHash:        batchdata,
 			ConsensusHash:   make(types.Hash, 32),
 			AppHash:         lastState.AppHash,
 			ProposerAddress: m.genesis.ProposerAddress,
@@ -1506,17 +1516,14 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 		Signature: *lastSignature,
 	}
 
-	data := &types.Data{
-		Txs: make(types.Txs, len(txs)),
-		// IntermediateStateRoots: types.IntermediateStateRoots{RawRootsList: nil},
-		// Note: Temporarily remove Evidence #896
-		// Evidence:               types.EvidenceData{Evidence: nil},
+	blockData := &types.Data{
+		Txs: make(types.Txs, 0, len(batchData.Batch.Transactions)),
 	}
-	for i := range txs {
-		data.Txs[i] = types.Tx(txs[i])
+	for i := range batchData.Batch.Transactions {
+		blockData.Txs[i] = types.Tx(batchData.Batch.Transactions[i])
 	}
 
-	return header, data, nil
+	return header, blockData, nil
 }
 
 func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
@@ -1557,4 +1564,73 @@ func (m *Manager) nextState(state types.State, header *types.SignedHeader, state
 		//LastValidators:                   state.Validators.Copy(),
 	}
 	return s, nil
+}
+
+func convertBatchDataToBytes(batchData [][]byte) []byte {
+	// If batchData is nil or empty, return an empty byte slice
+	if len(batchData) == 0 {
+		return []byte{}
+	}
+
+	// For a single item, we still need to length-prefix it for consistency
+	// First, calculate the total size needed
+	// Format: 4 bytes (length) + data for each entry
+	totalSize := 0
+	for _, data := range batchData {
+		totalSize += 4 + len(data) // 4 bytes for length prefix + data length
+	}
+
+	// Allocate buffer with calculated capacity
+	result := make([]byte, 0, totalSize)
+
+	// Add length-prefixed data
+	for _, data := range batchData {
+		// Encode length as 4-byte big-endian integer
+		lengthBytes := make([]byte, 4)
+		binary.BigEndian.PutUint32(lengthBytes, uint32(len(data)))
+
+		// Append length prefix
+		result = append(result, lengthBytes...)
+
+		// Append actual data
+		result = append(result, data...)
+	}
+
+	return result
+}
+
+// bytesToBatchData converts a length-prefixed byte array back to a slice of byte slices
+func bytesToBatchData(data []byte) ([][]byte, error) {
+	if len(data) == 0 {
+		return [][]byte{}, nil
+	}
+
+	var result [][]byte
+	offset := 0
+
+	for offset < len(data) {
+		// Check if we have at least 4 bytes for the length prefix
+		if offset+4 > len(data) {
+			return nil, fmt.Errorf("corrupted data: insufficient bytes for length prefix at offset %d", offset)
+		}
+
+		// Read the length prefix
+		length := binary.BigEndian.Uint32(data[offset : offset+4])
+		offset += 4
+
+		// Check if we have enough bytes for the data
+		if offset+int(length) > len(data) {
+			return nil, fmt.Errorf("corrupted data: insufficient bytes for entry of length %d at offset %d", length, offset)
+		}
+
+		// Extract the data entry
+		entry := make([]byte, length)
+		copy(entry, data[offset:offset+int(length)])
+		result = append(result, entry)
+
+		// Move to the next entry
+		offset += int(length)
+	}
+
+	return result, nil
 }
