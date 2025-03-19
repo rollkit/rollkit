@@ -6,6 +6,9 @@ toolchain go1.24.2
 
 replace github.com/rollkit/rollkit => ../../../
 
+replace github.com/rollkit/rollkit/core => ../../../core
+replace github.com/rollkit/rollkit/da => ../../../da
+
 replace github.com/rollkit/go-execution-evm => ../../../../go-execution-evm
 
 require (
