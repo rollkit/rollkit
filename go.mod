@@ -11,6 +11,7 @@ require (
 	github.com/cometbft/cometbft v0.38.15
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-kit/kit v0.13.0
+	github.com/goccy/go-yaml v1.16.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/ipfs/go-datastore v0.7.0
 	github.com/ipfs/go-ds-badger4 v0.1.5
