@@ -97,7 +97,7 @@ type NewDataEvent struct {
 	DAHeight uint64
 }
 
-// BatchData is used to pass batch and time to BatchQueue
+// BatchData is used to pass batch, time and data (da.IDs) to BatchQueue
 type BatchData struct {
 	*coresequencer.Batch
 	time.Time
