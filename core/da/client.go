@@ -11,7 +11,7 @@ type Client interface {
 	// The caller is responsible for setting a timeout, if needed.
 	Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmit
 
-	// RetrieveData retrieves block data from DA layer.
+	// Retrieve retrieves block data from DA layer.
 	// The caller is responsible for decoding data and setting a timeout, if needed.
 	Retrieve(ctx context.Context, dataLayerHeight uint64) ResultRetrieve
 
