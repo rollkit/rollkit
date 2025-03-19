@@ -34,8 +34,11 @@ var _ coresequencer.Sequencer = &Sequencer{}
 type Sequencer struct {
 	logger log.Logger
 
+	proposer bool
+
 	rollupId  []byte
 	dalc      coreda.Client
+	da        coreda.DA
 	batchTime time.Duration
 
 	seenBatches sync.Map
@@ -58,6 +61,7 @@ func NewSequencer(
 	rollupId []byte,
 	batchTime time.Duration,
 	metrics *Metrics,
+	proposer bool,
 ) (*Sequencer, error) {
 	dalc := dac.NewDAClient(da, -1, -1, daNamespace, nil, logger)
 	mBlobSize, err := dalc.MaxBlobSize(ctx)
@@ -71,6 +75,7 @@ func NewSequencer(
 	s := &Sequencer{
 		logger:    logger,
 		dalc:      dalc,
+		da:        da,
 		batchTime: batchTime,
 		rollupId:  rollupId,
 		// TODO: this can cause an overhead with IO
@@ -78,6 +83,7 @@ func NewSequencer(
 		sbq:         NewBatchQueue(db, "submitted"),
 		seenBatches: sync.Map{},
 		metrics:     metrics,
+		proposer:    proposer,
 	}
 
 	err = s.bq.Load(ctx)
@@ -355,16 +361,32 @@ func (c *Sequencer) VerifyBatch(ctx context.Context, req coresequencer.VerifyBat
 		return nil, ErrInvalidRollupId
 	}
 
-	//TODO: how to do verification?
-	for _, data := range req.BatchData {
-		height, _ := coreda.SplitID(data)
-
-		res := c.dalc.Retrieve(ctx, height)
-		if res.Code != coreda.StatusSuccess {
-			return nil, fmt.Errorf("failed to retrieve commitment: %s", res.Message)
+	if !c.proposer {
+		namespace, err := c.dalc.GetNamespace(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get namespace: %w", err)
 		}
+		// get the proofs
+		proofs, err := c.da.GetProofs(ctx, req.BatchData, namespace)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get proofs: %w", err)
+		}
+
+		// verify the proof
+		valid, err := c.da.Validate(ctx, req.BatchData, proofs, namespace)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate proof: %w", err)
+		}
+		// if all the proofs are valid, return true
+		for _, v := range valid {
+			if !v {
+				return &coresequencer.VerifyBatchResponse{Status: false}, nil
+			}
+		}
+		return &coresequencer.VerifyBatchResponse{Status: true}, nil
 	}
-	return &coresequencer.VerifyBatchResponse{Status: false}, nil
+	// If we are the proposer, we don't need to verify the batch
+	return &coresequencer.VerifyBatchResponse{Status: true}, nil
 }
 
 func (c *Sequencer) isValid(rollupId []byte) bool {

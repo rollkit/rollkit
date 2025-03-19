@@ -37,6 +37,11 @@ func (dac *DAClient) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return dac.DA.MaxBlobSize(ctx)
 }
 
+// GetNamespace returns the namespace for the DA layer.
+func (dac *DAClient) GetNamespace(ctx context.Context) ([]byte, error) {
+	return dac.Namespace, nil
+}
+
 // GasPrice returns the gas price for the DA layer.
 func (dac *DAClient) GasPrice(ctx context.Context) (float64, error) {
 	return dac.DA.GasPrice(ctx)

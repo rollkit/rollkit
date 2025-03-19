@@ -23,6 +23,9 @@ type Client interface {
 
 	// GasMultiplier returns the gas multiplier for the DA layer.
 	GasMultiplier(ctx context.Context) (float64, error)
+
+	// GetNamespace returns the namespace for the DA layer.
+	GetNamespace(ctx context.Context) ([]byte, error)
 }
 
 // ResultSubmit contains information returned from DA layer after block headers/data submission.
@@ -33,7 +36,7 @@ type ResultSubmit struct {
 // ResultRetrieveHeaders contains batch of block headers returned from DA layer client.
 type ResultRetrieve struct {
 	BaseResult
-	// Header is the block header retrieved from Data Availability Layer.
+	// Data is the block data retrieved from Data Availability Layer.
 	// If Code is not equal to StatusSuccess, it has to be nil.
 	Data [][]byte
 }

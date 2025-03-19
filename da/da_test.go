@@ -10,7 +10,6 @@ import (
 	"cosmossdk.io/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 
 	coreda "github.com/rollkit/rollkit/core/da"
 	"github.com/rollkit/rollkit/da/mocks"
@@ -48,11 +47,13 @@ func TestMockDAErrors(t *testing.T) {
 		defer cancel()
 
 		assert := assert.New(t)
+		maxBlobSize, err := dalc.MaxBlobSize(ctx)
+		assert.NoError(err)
 
 		ctx, cancel = context.WithTimeout(ctx, submitTimeout)
 		defer cancel()
 
-		resp := dalc.Submit(ctx, blobs, -1)
+		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
 		assert.Contains(resp.Message, ErrContextDeadline.Error(), "should return context timeout error")
 	})
 	t.Run("max_blob_size_error", func(t *testing.T) {
@@ -82,8 +83,10 @@ func TestMockDAErrors(t *testing.T) {
 		defer cancel()
 
 		assert := assert.New(t)
+		maxBlobSize, err := dalc.MaxBlobSize(ctx)
+		assert.NoError(err)
 
-		resp := dalc.Submit(ctx, blobs, -1)
+		resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
 		assert.Contains(resp.Message, ErrTxTooLarge.Error(), "should return tx too large error")
 		assert.Equal(resp.Code, coreda.StatusTooBig)
 	})
@@ -115,7 +118,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require.New(t)
+	assert := assert.New(t)
 
 	const numBatches = 10
 	const numHeaders = 10
@@ -124,8 +127,11 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 
 	submitAndRecordHeaders := func(blobs []coreda.Blob) {
 		for len(blobs) > 0 {
-			resp := dalc.Submit(ctx, blobs, -1)
-			assert.Equal(t, coreda.StatusSuccess, resp.Code, resp.Message)
+			maxBlobSize, err := dalc.MaxBlobSize(ctx)
+			assert.NoError(err)
+
+			resp := dalc.Submit(ctx, blobs, maxBlobSize, -1)
+			assert.Equal(coreda.StatusSuccess, resp.Code, resp.Message)
 
 			countAtHeight[resp.Height]++
 			blobs = blobs[resp.SubmittedCount:]
@@ -145,7 +151,7 @@ func doTestSubmitRetrieve(t *testing.T, dalc coreda.Client) {
 		t.Log("Retrieving block, DA Height", height)
 		ret := dalc.Retrieve(ctx, height)
 		assert.Equal(t, coreda.StatusSuccess, ret.Code, ret.Message)
-		require.NotEmpty(t, ret.Data, height)
+		assert.NotEmpty(t, ret.Data, height)
 		// assert.Len(ret.Headers, expectedCount, height) // TODO: fix this
 	}
 
@@ -159,13 +165,15 @@ func doTestSubmitEmptyBlocks(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require.New(t)
+	assert := assert.New(t)
 
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 0)
 	headersBz[1] = make([]byte, 0)
-	resp := dalc.Submit(ctx, headersBz, -1)
-	assert.Equal(t, coreda.StatusSuccess, resp.Code, "empty blocks should submit")
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
+	assert.NoError(err)
+	resp := dalc.Submit(ctx, headersBz, maxBlobSize, -1)
+	assert.Equal(coreda.StatusSuccess, resp.Code, "empty blocks should submit")
 	assert.EqualValues(t, resp.SubmittedCount, 2, "empty blocks should batch")
 }
 
@@ -173,13 +181,14 @@ func doTestSubmitOversizedBlock(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	maxBlobSize, err := dalc.MaxBlobSize(ctx)
-	require.NoError(t, err)
-
 	assert := assert.New(t)
+
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
+	assert.NoError(err)
+
 	oversized := make([]coreda.Blob, 1)
 	oversized[0] = make([]byte, maxBlobSize+1)
-	resp := dalc.Submit(ctx, oversized, -1)
+	resp := dalc.Submit(ctx, oversized, maxBlobSize, -1)
 	assert.Equal(coreda.StatusError, resp.Code, "oversized block should throw error")
 	assert.Contains(resp.Message, "failed to submit blocks: no blobs generated blob: over size limit")
 }
@@ -188,12 +197,14 @@ func doTestSubmitSmallBlocksBatch(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require.New(t)
+	assert := assert.New(t)
 
 	headersBz := make([]coreda.Blob, 2)
 	headersBz[0] = make([]byte, 100)
 	headersBz[1] = make([]byte, 100)
-	resp := dalc.Submit(ctx, headersBz, -1)
+	maxBlobSize, err := dalc.MaxBlobSize(ctx)
+	assert.NoError(err)
+	resp := dalc.Submit(ctx, headersBz, maxBlobSize, -1)
 	assert.Equal(t, coreda.StatusSuccess, resp.Code, "small blocks should submit")
 	assert.EqualValues(t, resp.SubmittedCount, 2, "small blocks should batch")
 }
@@ -202,11 +213,10 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require := require.New(t)
 	assert := assert.New(t)
 
 	limit, err := dalc.MaxBlobSize(ctx)
-	require.NoError(err)
+	assert.NoError(err)
 
 	// two large blocks, over blob limit to force partial submit
 	var header1, header2 coreda.Blob
@@ -223,12 +233,12 @@ func doTestSubmitLargeBlocksOverflow(t *testing.T, dalc coreda.Client) {
 	}
 
 	// overflowing blocks submit partially
-	resp := dalc.Submit(ctx, []coreda.Blob{header1, header2}, -1)
+	resp := dalc.Submit(ctx, []coreda.Blob{header1, header2}, limit, -1)
 	assert.Equal(coreda.StatusSuccess, resp.Code, "overflowing blocks should submit partially")
 	assert.EqualValues(1, resp.SubmittedCount, "submitted count should be partial")
 
 	// retry remaining blocks
-	resp = dalc.Submit(ctx, []coreda.Blob{header2}, -1)
+	resp = dalc.Submit(ctx, []coreda.Blob{header2}, limit, -1)
 	assert.Equal(coreda.StatusSuccess, resp.Code, "remaining blocks should submit")
 	assert.EqualValues(resp.SubmittedCount, 1, "submitted count should match")
 }
@@ -237,13 +247,13 @@ func doTestRetrieveNoBlocksFound(t *testing.T, dalc coreda.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	require.New(t)
+	assert := assert.New(t)
 	result := dalc.Retrieve(ctx, 123)
 	// Namespaces don't work on dummy da right now (https://github.com/rollkit/go-da/issues/94),
 	// when namespaces are implemented, this should be uncommented
 	// assert.Equal(StatusNotFound, result.Code)
 	// assert.Contains(result.Message, ErrBlobNotFound.Error())
-	assert.Equal(t, coreda.StatusError, result.Code)
+	assert.Equal(coreda.StatusError, result.Code)
 }
 
 func TestSubmitWithOptions(t *testing.T) {
