@@ -23,6 +23,11 @@ type dummyExecutor struct {
 	injectedTxs  [][]byte
 }
 
+// BuildGenesis implements Executor.
+func (e *dummyExecutor) BuildGenesis() (Genesis, error) {
+	panic("unimplemented")
+}
+
 // NewDummyExecutor creates a new dummy DummyExecutor instance
 func NewDummyExecutor() *dummyExecutor {
 	return &dummyExecutor{

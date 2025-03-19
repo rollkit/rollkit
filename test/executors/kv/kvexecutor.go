@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/rollkit/rollkit/core/execution"
 )
 
 // KVExecutor is a simple in-memory key-value store that implements the Executor interface
@@ -58,6 +60,11 @@ func (k *KVExecutor) computeStateRoot() []byte {
 		sb.WriteString(fmt.Sprintf("%s:%s;", key, k.store[key]))
 	}
 	return []byte(sb.String())
+}
+
+// BuildGenesis implements execution.Executor.
+func (k *KVExecutor) BuildGenesis() (execution.Genesis, error) {
+	panic("unimplemented")
 }
 
 // InitChain initializes the chain state with genesis parameters.

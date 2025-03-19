@@ -5,40 +5,20 @@ import (
 	"time"
 )
 
-// Genesis defines an interface for types that represent genesis state
-type Genesis interface {
-	// Bytes returns the genesis state as bytes
-	Bytes() []byte
-	// Validate validates the genesis state for correctness
-	Validate() error
-}
-
-// CommonPreGenesis defines the common interface that all PreGenesis types must implement
-type CommonPreGenesis interface {
-	// ChainID returns the chain identifier
-	ChainID() string
-}
-
-type GenesisProvider[P CommonPreGenesis, G Genesis] interface {
-	// BuildGenesis creates a new Genesis state from PreGenesis data.
-	// Requirements:
-	// - Must validate PreGenesis data for correctness
-	// - Must be deterministic (same input always produces same output)
-	// - Must return error if PreGenesis data is invalid
-	//
-	// Parameters:
-	// - preGenesis: Initial data needed to build the genesis state
-	//
-	// Returns:
-	// - Genesis: The constructed genesis state
-	// - error: Any errors during genesis creation
-	BuildGenesis(preGenesis P) (G, error)
-}
-
 // Executor defines the interface that execution clients must implement to be compatible with Rollkit.
 // This interface enables the separation between consensus and execution layers, allowing for modular
 // and pluggable execution environments.
 type Executor interface {
+	// BuildGenesis creates a new Genesis state.
+	// Requirements:
+	// - Must be deterministic (same call always produces same output)
+	// - Must return error if genesis creation fails
+	//
+	// Returns:
+	// - Genesis: The constructed genesis state
+	// - error: Any errors during genesis creation
+	BuildGenesis() (Genesis, error)
+
 	// InitChain initializes a new blockchain instance with genesis parameters.
 	// Requirements:
 	// - Must generate initial state root representing empty/genesis state
