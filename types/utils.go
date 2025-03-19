@@ -2,6 +2,7 @@ package types
 
 import (
 	cryptoRand "crypto/rand"
+	"encoding/json"
 	"errors"
 	"math/rand"
 	"time"
@@ -12,6 +13,8 @@ import (
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -287,7 +290,7 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 }
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(chainID string) (*cmtypes.GenesisDoc, crypto.PrivKey) {
+func GetGenesisWithPrivkey(chainID string) (coreexecutor.Genesis, crypto.PrivKey) {
 	genesisValidatorKey := ed25519.GenPrivKey()
 	pubKey := genesisValidatorKey.PubKey()
 
@@ -301,12 +304,30 @@ func GetGenesisWithPrivkey(chainID string) (*cmtypes.GenesisDoc, crypto.PrivKey)
 		ChainID:       chainID,
 		InitialHeight: 1,
 		Validators:    genesisValidators,
+		GenesisTime:   time.Now(),
 	}
+
 	privKey, err := crypto.UnmarshalEd25519PrivateKey(genesisValidatorKey.Bytes())
 	if err != nil {
 		panic(err)
 	}
-	return genDoc, privKey
+
+	// Serialize the genesis doc to bytes
+	genBytes, err := json.Marshal(genDoc)
+	if err != nil {
+		panic(err)
+	}
+
+	// Create a BaseGenesis that implements the Genesis interface
+	baseGenesis := coreexecutor.NewBaseGenesis(
+		genDoc.ChainID,
+		uint64(genDoc.InitialHeight),
+		genDoc.GenesisTime,
+		genDoc.Validators[0].Address,
+		genBytes,
+	)
+
+	return baseGenesis, privKey
 }
 
 // GetRandomTx returns a tx with random data

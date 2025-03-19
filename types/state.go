@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"time"
 
 	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
@@ -9,6 +8,7 @@ import (
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
@@ -58,64 +58,43 @@ type State struct {
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
-	err := genDoc.ValidateAndComplete()
-	if err != nil {
-		return State{}, fmt.Errorf("error in genesis doc: %w", err)
-	}
+func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
+	// err := genDoc.ValidateAndComplete()
+	// if err != nil {
+	// 	return State{}, fmt.Errorf("error in genesis doc: %w", err)
+	// }
 
 	var validatorSet, nextValidatorSet *types.ValidatorSet
-	if genDoc.Validators == nil {
+	if genDoc.ProposerAddress() == nil {
 		validatorSet = types.NewValidatorSet(nil)
 		nextValidatorSet = types.NewValidatorSet(nil)
 	} else {
-		validators := make([]*types.Validator, len(genDoc.Validators))
-		for i, val := range genDoc.Validators {
-			validators[i] = types.NewValidator(val.PubKey, val.Power)
-		}
+		validators := make([]*types.Validator, 1)
+		validators[0] = types.NewValidator(genDoc.ProposerAddress(), 1)
 		validatorSet = types.NewValidatorSet(validators)
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
 
 	s := State{
 		Version:       InitStateVersion,
-		ChainID:       genDoc.ChainID,
-		InitialHeight: uint64(genDoc.InitialHeight),
+		ChainID:       genDoc.ChainID(),
+		InitialHeight: genDoc.InitialHeight(),
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
+		LastBlockHeight: uint64(genDoc.InitialHeight()) - 1,
 		LastBlockID:     types.BlockID{},
-		LastBlockTime:   genDoc.GenesisTime,
+		LastBlockTime:   genDoc.GenesisTime(),
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: genDoc.InitialHeight,
+		LastHeightValidatorsChanged: int64(genDoc.InitialHeight()),
 
-		ConsensusParams: cmproto.ConsensusParams{
-			Block: &cmproto.BlockParams{
-				MaxBytes: genDoc.ConsensusParams.Block.MaxBytes,
-				MaxGas:   genDoc.ConsensusParams.Block.MaxGas,
-			},
-			Evidence: &cmproto.EvidenceParams{
-				MaxAgeNumBlocks: genDoc.ConsensusParams.Evidence.MaxAgeNumBlocks,
-				MaxAgeDuration:  genDoc.ConsensusParams.Evidence.MaxAgeDuration,
-				MaxBytes:        genDoc.ConsensusParams.Evidence.MaxBytes,
-			},
-			Validator: &cmproto.ValidatorParams{
-				PubKeyTypes: genDoc.ConsensusParams.Validator.PubKeyTypes,
-			},
-			Version: &cmproto.VersionParams{
-				App: genDoc.ConsensusParams.Version.App,
-			},
-			Abci: &cmproto.ABCIParams{
-				VoteExtensionsEnableHeight: genDoc.ConsensusParams.ABCI.VoteExtensionsEnableHeight,
-			},
-		},
-		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight),
+		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight()),
 	}
-	s.AppHash = genDoc.AppHash.Bytes()
+
+	s.AppHash = genDoc.Bytes()
 
 	return s, nil
 }

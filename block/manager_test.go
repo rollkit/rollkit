@@ -57,8 +57,8 @@ func TestInitialStateClean(t *testing.T) {
 	genesis := coreexecutor.NewBaseGenesis(
 		chainID,
 		1,
-		genesisDoc.GenesisTime,
-		genesisDoc.Validators[0].Address.Bytes(),
+		genesisDoc.GenesisTime(),
+		genesisDoc.ProposerAddress(),
 		nil, // No raw bytes for now
 	)
 	logger := log.NewTestLogger(t)
@@ -78,8 +78,8 @@ func TestInitialStateStored(t *testing.T) {
 	genesis := coreexecutor.NewBaseGenesis(
 		chainID,
 		1,
-		genesisDoc.GenesisTime,
-		genesisDoc.Validators[0].Address.Bytes(),
+		genesisDoc.GenesisTime(),
+		genesisDoc.ProposerAddress(),
 		nil, // No raw bytes for now
 	)
 	sampleState := types.State{
@@ -158,8 +158,8 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	genesis := coreexecutor.NewBaseGenesis(
 		"TestInitialStateUnexpectedHigherGenesis",
 		2,
-		genesisDoc.GenesisTime,
-		genesisDoc.Validators[0].Address.Bytes(),
+		genesisDoc.GenesisTime(),
+		genesisDoc.ProposerAddress(),
 		nil, // No raw bytes for now
 	)
 	sampleState := types.State{
