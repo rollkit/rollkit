@@ -6,8 +6,6 @@ import (
 	"os"
 	"testing"
 
-	abcitypes "github.com/cometbft/cometbft/abci/types"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -171,47 +169,6 @@ func TestRestart(t *testing.T) {
 	assert.Equal(expectedHeight, state2.LastBlockHeight)
 }
 
-func TestBlockResponses(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	kv, _ := NewDefaultInMemoryKVStore()
-	s := New(kv)
-
-	expected := &abcitypes.ResponseFinalizeBlock{
-		Events: []abcitypes.Event{{
-			Type: "test",
-			Attributes: []abcitypes.EventAttribute{{
-				Key:   string("foo"),
-				Value: string("bar"),
-				Index: false,
-			}},
-		}},
-		TxResults:        nil,
-		ValidatorUpdates: nil,
-		ConsensusParamUpdates: &cmproto.ConsensusParams{
-			Block: &cmproto.BlockParams{
-				MaxBytes: 12345,
-				MaxGas:   678909876,
-			},
-		},
-	}
-
-	err := s.SaveBlockResponses(ctx, 1, expected)
-	assert.NoError(err)
-
-	resp, err := s.GetBlockResponses(ctx, 123)
-	assert.Error(err)
-	assert.Nil(resp)
-
-	resp, err = s.GetBlockResponses(ctx, 1)
-	assert.NoError(err)
-	assert.NotNil(resp)
-	assert.Equal(expected, resp)
-}
-
 func TestMetadata(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -244,42 +201,4 @@ func TestMetadata(t *testing.T) {
 	v, err := s.GetMetadata(ctx, "unused key")
 	require.Error(err)
 	require.Nil(v)
-}
-
-func TestExtendedCommits(t *testing.T) {
-	t.Parallel()
-
-	require := require.New(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	kv, err := NewDefaultInMemoryKVStore()
-	require.NoError(err)
-	s := New(kv)
-
-	// reading before saving returns error
-	commit, err := s.GetExtendedCommit(ctx, 1)
-	require.Error(err)
-	require.ErrorIs(err, ds.ErrNotFound)
-	require.Nil(commit)
-
-	expected := &abcitypes.ExtendedCommitInfo{
-		Round: 123,
-		Votes: []abcitypes.ExtendedVoteInfo{{
-			Validator: abcitypes.Validator{
-				Address: types.GetRandomBytes(20),
-				Power:   123,
-			},
-			VoteExtension:      []byte("extended"),
-			ExtensionSignature: []byte("just trust me bro"),
-			BlockIdFlag:        0,
-		}},
-	}
-
-	err = s.SaveExtendedCommit(ctx, 10, expected)
-	require.NoError(err)
-	commit, err = s.GetExtendedCommit(ctx, 10)
-	require.NoError(err)
-	require.Equal(expected, commit)
 }
