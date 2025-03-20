@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/types"
-	"github.com/cometbft/cometbft/version"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -14,7 +13,7 @@ import (
 // The Consensus.App version will be set during the Handshake, once
 // we hear from the app what protocol version it is running.
 var InitStateVersion = pb.Version{
-	Block: version.BlockProtocol,
+	Block: 1,
 	App:   0,
 }
 
