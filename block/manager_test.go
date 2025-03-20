@@ -72,7 +72,6 @@ func TestInitialStateStored(t *testing.T) {
 	chainID := "TestInitialStateStored"
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
@@ -82,9 +81,6 @@ func TestInitialStateStored(t *testing.T) {
 		ChainID:         chainID,
 		InitialHeight:   1,
 		LastBlockHeight: 100,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -150,7 +146,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   2,
@@ -160,9 +155,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
 		LastBlockHeight: 0,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
