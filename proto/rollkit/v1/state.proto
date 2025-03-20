@@ -17,13 +17,13 @@ message State {
 
   uint64 last_block_height = 4;
 
-  google.protobuf.Timestamp last_block_time = 6 [
+  google.protobuf.Timestamp last_block_time = 5 [
     (gogoproto.nullable) = false,
     (gogoproto.stdtime) = true
   ];
 
+  uint64 da_height = 6;
+  bytes last_results_hash = 7;
 
-  bytes last_results_hash = 14;
-
-  bytes app_hash = 15;
+  bytes app_hash = 8;
 }

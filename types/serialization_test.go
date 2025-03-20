@@ -99,7 +99,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
-	//valSet := GetRandomValidatorSet()
 
 	cases := []struct {
 		name  string
@@ -112,9 +111,6 @@ func TestStateRoundTrip(t *testing.T) {
 		{
 			name: "with all fields set",
 			state: State{
-				//LastValidators: valSet,
-				//Validators:     valSet,
-				//NextValidators: valSet,
 				Version: pb.Version{
 					Block: 123,
 					App:   456,

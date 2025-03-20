@@ -204,18 +204,7 @@ func (d *Data) FromProto(other *pb.Data) error {
 
 // ToProto converts State into protobuf representation and returns it.
 func (s *State) ToProto() (*pb.State, error) {
-	// nextValidators, err := s.NextValidators.ToProto()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// validators, err := s.Validators.ToProto()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// lastValidators, err := s.LastValidators.ToProto()
-	// if err != nil {
-	// 	return nil, err
-	// }
+
 	return &pb.State{
 		Version: &pb.Version{
 			Block: s.Version.Block,
@@ -225,13 +214,9 @@ func (s *State) ToProto() (*pb.State, error) {
 		InitialHeight:   s.InitialHeight,
 		LastBlockHeight: s.LastBlockHeight,
 		LastBlockTime:   s.LastBlockTime,
-		//LastHeightConsensusParamsChanged: s.LastHeightConsensusParamsChanged,
+		DaHeight:        s.DAHeight,
 		LastResultsHash: s.LastResultsHash[:],
 		AppHash:         s.AppHash[:],
-		//NextValidators:                   nextValidators,
-		//Validators:                       validators,
-		//LastValidators:                   lastValidators,
-		//LastHeightValidatorsChanged:      s.LastHeightValidatorsChanged,
 	}, nil
 }
 
@@ -249,6 +234,7 @@ func (s *State) FromProto(other *pb.State) error {
 
 	s.LastResultsHash = other.LastResultsHash
 	s.AppHash = other.AppHash
+	s.DAHeight = other.DaHeight
 
 	return nil
 }
