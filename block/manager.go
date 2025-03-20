@@ -816,11 +816,6 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		// err = m.store.SaveBlockResponses(ctx, hHeight, responses)
-		// if err != nil {
-		// 	return SaveBlockResponsesError{err}
-		// }
-
 		// Height gets updated
 		m.store.SetHeight(ctx, hHeight)
 
