@@ -13,7 +13,6 @@ import (
 	"time"
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
-	abci "github.com/cometbft/cometbft/abci/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
@@ -800,7 +799,7 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err := m.execValidate(m.lastState, h, d); err != nil {
 			return fmt.Errorf("failed to validate block: %w", err)
 		}
-		newState, responses, err := m.applyBlock(ctx, h, d)
+		newState, err := m.applyBlock(ctx, h, d)
 		if err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -812,15 +811,15 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			return SaveBlockError{err}
 		}
-		_, err = m.execCommit(ctx, newState, h, d, responses)
+		_, err = m.execCommit(ctx, newState, h, d)
 		if err != nil {
 			return fmt.Errorf("failed to Commit: %w", err)
 		}
 
-		err = m.store.SaveBlockResponses(ctx, hHeight, responses)
-		if err != nil {
-			return SaveBlockResponsesError{err}
-		}
+		// err = m.store.SaveBlockResponses(ctx, hHeight, responses)
+		// if err != nil {
+		// 	return SaveBlockResponsesError{err}
+		// }
 
 		// Height gets updated
 		m.store.SetHeight(ctx, hHeight)
@@ -1222,7 +1221,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 	}
 
-	newState, responses, err := m.applyBlock(ctx, header, data)
+	newState, err := m.applyBlock(ctx, header, data)
 	if err != nil {
 		if ctx.Err() != nil {
 			return err
@@ -1265,18 +1264,12 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	}
 
 	// Commit the new state and block which writes to disk on the proxy app
-	appHash, err := m.execCommit(ctx, newState, header, data, responses)
+	appHash, err := m.execCommit(ctx, newState, header, data)
 	if err != nil {
 		return err
 	}
 	// Update app hash in state
 	newState.AppHash = appHash
-
-	// SaveBlockResponses commits the DB tx
-	//err = m.store.SaveBlockResponses(ctx, headerHeight, responses)
-	//if err != nil {
-	//	return SaveBlockResponsesError{err}
-	//}
 
 	// Update the store height before submitting to the DA layer but after committing to the DB
 	m.store.SetHeight(ctx, headerHeight)
@@ -1468,7 +1461,7 @@ func (m *Manager) createBlock(ctx context.Context, height uint64, lastSignature 
 	return m.execCreateBlock(ctx, height, lastSignature, lastHeaderHash, m.lastState, batchData)
 }
 
-func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
+func (m *Manager) applyBlock(ctx context.Context, header *types.SignedHeader, data *types.Data) (types.State, error) {
 	m.lastStateMtx.RLock()
 	defer m.lastStateMtx.RUnlock()
 	return m.execApplyBlock(ctx, m.lastState, header, data)
@@ -1479,7 +1472,7 @@ func (m *Manager) execValidate(_ types.State, _ *types.SignedHeader, _ *types.Da
 	return nil
 }
 
-func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data, _ *abci.ResponseFinalizeBlock) ([]byte, error) {
+func (m *Manager) execCommit(ctx context.Context, newState types.State, h *types.SignedHeader, _ *types.Data) ([]byte, error) {
 	err := m.exec.SetFinal(ctx, h.Height())
 	return newState.AppHash, err
 }
@@ -1517,22 +1510,22 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	return header, blockData, nil
 }
 
-func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, *abci.ResponseFinalizeBlock, error) {
+func (m *Manager) execApplyBlock(ctx context.Context, lastState types.State, header *types.SignedHeader, data *types.Data) (types.State, error) {
 	rawTxs := make([][]byte, len(data.Txs))
 	for i := range data.Txs {
 		rawTxs[i] = data.Txs[i]
 	}
 	newStateRoot, _, err := m.exec.ExecuteTxs(ctx, rawTxs, header.Height(), header.Time(), lastState.AppHash)
 	if err != nil {
-		return types.State{}, nil, err
+		return types.State{}, err
 	}
 
 	s, err := m.nextState(lastState, header, newStateRoot)
 	if err != nil {
-		return types.State{}, nil, err
+		return types.State{}, err
 	}
 
-	return s, nil, nil
+	return s, nil
 }
 
 func (m *Manager) nextState(state types.State, header *types.SignedHeader, stateRoot []byte) (types.State, error) {
