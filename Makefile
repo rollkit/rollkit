@@ -36,9 +36,13 @@ cover:
 deps:
 	@echo "--> Installing dependencies"
 	@go mod download
-	@make proto-gen
 	@go mod tidy
+	@./scripts/go-mod-tidy-all.sh
 .PHONY: deps
+
+tidy-all:
+	@./scripts/go-mod-tidy-all.sh
+.PHONY: tidy-all
 
 ## lint: Run linters golangci-lint and markdownlint.
 lint: vet
@@ -88,7 +92,7 @@ proto-gen:
 mock-gen:
 	@echo "-> Generating mocks"
 	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/rpc/client --name Client
-	mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/abci/types --name Application
+	# mockery --output test/mocks --srcpkg github.com/cometbft/cometbft/abci/types --name Application
 	mockery --output test/mocks --srcpkg github.com/rollkit/rollkit/store --name Store
 	mockery --output da/mocks --srcpkg github.com/rollkit/rollkit/core/da --name DA
 .PHONY: mock-gen

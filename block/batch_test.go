@@ -10,16 +10,16 @@ import (
 )
 
 var (
-	batch1 = BatchWithTime{&coresequencer.Batch{
+	batch1 = BatchData{&coresequencer.Batch{
 		Transactions: [][]byte{
 			[]byte("batch1"),
 		},
-	}, time.Time{}}
-	batch2 = BatchWithTime{&coresequencer.Batch{
+	}, time.Time{}, [][]byte{[]byte("batch1")}}
+	batch2 = BatchData{&coresequencer.Batch{
 		Transactions: [][]byte{
 			[]byte("batch2"),
 		},
-	}, time.Time{}}
+	}, time.Time{}, [][]byte{[]byte("batch2")}}
 )
 
 func TestNewBatchQueue(t *testing.T) {
