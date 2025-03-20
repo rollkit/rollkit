@@ -1,13 +1,12 @@
 package types
 
 import (
+	"crypto/rand"
 	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/go-header"
-	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtypes "github.com/cometbft/cometbft/types"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +27,7 @@ func TestSignedHeader(t *testing.T) {
 	})
 }
 
-func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader, privKey cmcrypto.PrivKey) {
+func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader, privKey crypto.PrivKey) {
 	tests := []struct {
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case
 		err     error                        // Expected error
@@ -126,7 +125,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 	}
 }
 
-func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypto.PrivKey) {
+func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.PrivKey) {
 	// Define test cases
 	tests := []struct {
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case
@@ -201,22 +200,12 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				v1Key, v2Key := ed25519.GenPrivKey(), ed25519.GenPrivKey()
-				validators := []*cmtypes.Validator{
-					{
-						Address:          v1Key.PubKey().Address(),
-						PubKey:           v1Key.PubKey(),
-						VotingPower:      int64(50),
-						ProposerPriority: int64(1),
-					},
-					{
-						Address:          v2Key.PubKey().Address(),
-						PubKey:           v2Key.PubKey(),
-						VotingPower:      int64(50),
-						ProposerPriority: int64(1),
-					},
-				}
-				untrusted.Validators = cmtypes.NewValidatorSet(validators)
+				pubKey1, _, err := crypto.GenerateEd25519Key(rand.Reader)
+				require.NoError(t, err)
+
+				signer1, err := NewSigner(pubKey1.GetPublic())
+				require.NoError(t, err)
+				untrusted.Signer = signer1
 				return &untrusted, true
 			},
 			err: ErrInvalidValidatorSetLengthMismatch,
@@ -227,14 +216,11 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey cmcrypt
 		{
 			prepare: func() (*SignedHeader, bool) {
 				untrusted := *untrustedAdj
-				vKey := ed25519.GenPrivKey()
-				untrusted.ProposerAddress = vKey.PubKey().Address().Bytes()
-				untrusted.Validators.Proposer = &cmtypes.Validator{
-					Address:          vKey.PubKey().Address(),
-					PubKey:           vKey.PubKey(),
-					VotingPower:      int64(100),
-					ProposerPriority: int64(1),
-				}
+				pubKey1, _, err := crypto.GenerateEd25519Key(rand.Reader)
+				require.NoError(t, err)
+				signer1, err := NewSigner(pubKey1.GetPublic())
+				require.NoError(t, err)
+				untrusted.ProposerAddress = signer1.Address
 				return &untrusted, true
 			},
 			err: ErrProposerNotInValSet,

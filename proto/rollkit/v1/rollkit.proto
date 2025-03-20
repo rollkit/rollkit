@@ -1,7 +1,9 @@
 syntax = "proto3";
 package rollkit.v1;
 
-option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 
 // Version captures the consensus rules for processing a block in the blockchain,
 // including all blockchain data structures and the rules of the application's
@@ -61,6 +63,12 @@ message Header {
 message SignedHeader {
   Header header = 1;
   bytes signature = 2;
+  Signer signer = 3;
+}
+
+message Signer {
+  bytes address = 1;
+  bytes pub_key = 2;
 }
 
 // Metadata is the metadata of a block in the blockchain.
@@ -83,4 +91,13 @@ message Data {
   Metadata metadata = 1;
   repeated bytes txs = 2;
   // repeated bytes intermediate_state_roots = 2;
+}
+
+message Vote {
+  string chain_id = 1;
+  uint64 height = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bytes block_id_hash = 4;
+  bytes signature = 5;
+  bytes validator_address = 6;
 }
