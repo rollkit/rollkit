@@ -153,8 +153,8 @@ func GetRandomHeader(chainID string) Header {
 			ChainID: chainID,
 		},
 		Version: Version{
-			Block: InitStateVersion.Consensus.Block,
-			App:   InitStateVersion.Consensus.App,
+			Block: InitStateVersion.Block,
+			App:   InitStateVersion.App,
 		},
 		LastHeaderHash:  GetRandomBytes(32),
 		LastCommitHash:  GetRandomBytes(32),
@@ -248,8 +248,8 @@ func GetFirstSignedHeader(privkey cmEd25519.PrivKey, valSet *cmtypes.ValidatorSe
 			ChainID: chainID,
 		},
 		Version: Version{
-			Block: InitStateVersion.Consensus.Block,
-			App:   InitStateVersion.Consensus.App,
+			Block: InitStateVersion.Block,
+			App:   InitStateVersion.App,
 		},
 		LastHeaderHash:  GetRandomBytes(32),
 		LastCommitHash:  GetRandomBytes(32),

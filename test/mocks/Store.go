@@ -5,10 +5,7 @@ package mocks
 import (
 	context "context"
 
-	abcitypes "github.com/cometbft/cometbft/abci/types"
-
 	header "github.com/celestiaorg/go-header"
-
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/rollkit/rollkit/types"
@@ -113,66 +110,6 @@ func (_m *Store) GetBlockData(ctx context.Context, height uint64) (*types.Signed
 	}
 
 	return r0, r1, r2
-}
-
-// GetBlockResponses provides a mock function with given fields: ctx, height
-func (_m *Store) GetBlockResponses(ctx context.Context, height uint64) (*abcitypes.ResponseFinalizeBlock, error) {
-	ret := _m.Called(ctx, height)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetBlockResponses")
-	}
-
-	var r0 *abcitypes.ResponseFinalizeBlock
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*abcitypes.ResponseFinalizeBlock, error)); ok {
-		return rf(ctx, height)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) *abcitypes.ResponseFinalizeBlock); ok {
-		r0 = rf(ctx, height)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*abcitypes.ResponseFinalizeBlock)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
-		r1 = rf(ctx, height)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetExtendedCommit provides a mock function with given fields: ctx, height
-func (_m *Store) GetExtendedCommit(ctx context.Context, height uint64) (*abcitypes.ExtendedCommitInfo, error) {
-	ret := _m.Called(ctx, height)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetExtendedCommit")
-	}
-
-	var r0 *abcitypes.ExtendedCommitInfo
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*abcitypes.ExtendedCommitInfo, error)); ok {
-		return rf(ctx, height)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) *abcitypes.ExtendedCommitInfo); ok {
-		r0 = rf(ctx, height)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*abcitypes.ExtendedCommitInfo)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
-		r1 = rf(ctx, height)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // GetMetadata provides a mock function with given fields: ctx, key
@@ -322,42 +259,6 @@ func (_m *Store) SaveBlockData(ctx context.Context, _a1 *types.SignedHeader, dat
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.SignedHeader, *types.Data, *types.Signature) error); ok {
 		r0 = rf(ctx, _a1, data, signature)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SaveBlockResponses provides a mock function with given fields: ctx, height, responses
-func (_m *Store) SaveBlockResponses(ctx context.Context, height uint64, responses *abcitypes.ResponseFinalizeBlock) error {
-	ret := _m.Called(ctx, height, responses)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SaveBlockResponses")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *abcitypes.ResponseFinalizeBlock) error); ok {
-		r0 = rf(ctx, height, responses)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SaveExtendedCommit provides a mock function with given fields: ctx, height, commit
-func (_m *Store) SaveExtendedCommit(ctx context.Context, height uint64, commit *abcitypes.ExtendedCommitInfo) error {
-	ret := _m.Called(ctx, height, commit)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SaveExtendedCommit")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *abcitypes.ExtendedCommitInfo) error); ok {
-		r0 = rf(ctx, height, commit)
 	} else {
 		r0 = ret.Error(0)
 	}

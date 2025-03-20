@@ -65,7 +65,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	err := InitFiles(config.RootDir)
@@ -317,7 +317,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	err := InitFiles(config.RootDir)
@@ -401,7 +401,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(

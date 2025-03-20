@@ -7,22 +7,19 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 var (
-	headerPrefix         = "h"
-	dataPrefix           = "d"
-	indexPrefix          = "i"
-	signaturePrefix      = "c"
-	extendedCommitPrefix = "ec"
-	statePrefix          = "s"
-	responsesPrefix      = "r"
-	metaPrefix           = "m"
+	headerPrefix    = "h"
+	dataPrefix      = "d"
+	indexPrefix     = "i"
+	signaturePrefix = "c"
+	statePrefix     = "s"
+	metaPrefix      = "m"
 )
 
 // DefaultStore is a default store implmementation.
@@ -150,29 +147,6 @@ func (s *DefaultStore) getHeightByHash(ctx context.Context, hash types.Hash) (ui
 	return height, nil
 }
 
-// SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
-func (s *DefaultStore) SaveBlockResponses(ctx context.Context, height uint64, responses *abci.ResponseFinalizeBlock) error {
-	data, err := responses.Marshal()
-	if err != nil {
-		return fmt.Errorf("failed to marshal response: %w", err)
-	}
-	return s.db.Put(ctx, ds.NewKey(getResponsesKey(height)), data)
-}
-
-// GetBlockResponses returns block results at given height, or error if it's not found in Store.
-func (s *DefaultStore) GetBlockResponses(ctx context.Context, height uint64) (*abci.ResponseFinalizeBlock, error) {
-	data, err := s.db.Get(ctx, ds.NewKey(getResponsesKey(height)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve block results from height %v: %w", height, err)
-	}
-	var responses abci.ResponseFinalizeBlock
-	err = responses.Unmarshal(data)
-	if err != nil {
-		return &responses, fmt.Errorf("failed to unmarshal data: %w", err)
-	}
-	return &responses, nil
-}
-
 // GetSignatureByHash returns signature for a block at given height, or error if it's not found in Store.
 func (s *DefaultStore) GetSignatureByHash(ctx context.Context, hash types.Hash) (*types.Signature, error) {
 	height, err := s.getHeightByHash(ctx, hash)
@@ -190,29 +164,6 @@ func (s *DefaultStore) GetSignature(ctx context.Context, height uint64) (*types.
 	}
 	signature := types.Signature(signatureData)
 	return &signature, nil
-}
-
-// SaveExtendedCommit saves extended commit information in Store.
-func (s *DefaultStore) SaveExtendedCommit(ctx context.Context, height uint64, commit *abci.ExtendedCommitInfo) error {
-	bytes, err := commit.Marshal()
-	if err != nil {
-		return fmt.Errorf("failed to marshal Extended Commit: %w", err)
-	}
-	return s.db.Put(ctx, ds.NewKey(getExtendedCommitKey(height)), bytes)
-}
-
-// GetExtendedCommit returns extended commit (commit with vote extensions) for a block at given height.
-func (s *DefaultStore) GetExtendedCommit(ctx context.Context, height uint64) (*abci.ExtendedCommitInfo, error) {
-	bytes, err := s.db.Get(ctx, ds.NewKey(getExtendedCommitKey(height)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load extended commit data: %w", err)
-	}
-	extendedCommit := new(abci.ExtendedCommitInfo)
-	err = extendedCommit.Unmarshal(bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal extended commit: %w", err)
-	}
-	return extendedCommit, nil
 }
 
 // UpdateState updates state saved in Store. Only one State is stored.
@@ -278,16 +229,8 @@ func getSignatureKey(height uint64) string {
 	return GenerateKey([]string{signaturePrefix, strconv.FormatUint(height, 10)})
 }
 
-func getExtendedCommitKey(height uint64) string {
-	return GenerateKey([]string{extendedCommitPrefix, strconv.FormatUint(height, 10)})
-}
-
 func getStateKey() string {
 	return statePrefix
-}
-
-func getResponsesKey(height uint64) string {
-	return GenerateKey([]string{responsesPrefix, strconv.FormatUint(height, 10)})
 }
 
 func getMetaKey(key string) string {

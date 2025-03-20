@@ -108,7 +108,7 @@ func NewRunNodeCmd() *cobra.Command {
 			// Create a cancellable context for the node
 			dummySequencer := coresequencer.NewDummySequencer()
 
-			dummyDA := coreda.NewDummyDA(100_000)
+			dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
 			// create the rollkit node
 			rollnode, err := node.NewNode(
