@@ -12,6 +12,7 @@ type Signer struct {
 	Address []byte
 }
 
+// NewSigner creates a new signer from a public key.
 func NewSigner(pubKey crypto.PubKey) (Signer, error) {
 	bz, err := pubKey.Raw()
 	if err != nil {
@@ -25,6 +26,7 @@ func NewSigner(pubKey crypto.PubKey) (Signer, error) {
 	}, nil
 }
 
+// Verify verifies a vote with a signature.
 func (s *Signer) Verify(vote []byte, signature []byte) (bool, error) {
 	return s.PubKey.Verify(vote, signature)
 }

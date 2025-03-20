@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
+
 	v1 "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -120,6 +121,7 @@ func (h *Header) ValidateBasic() error {
 	return nil
 }
 
+// Vote returns a vote for the header.
 func (h *Header) Vote() ([]byte, error) {
 	v := &v1.Vote{
 		ChainId:          h.ChainID(),

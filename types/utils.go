@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-header"
-
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtypes "github.com/cometbft/cometbft/types"
@@ -109,9 +108,7 @@ func GetRandomNextBlock(header *SignedHeader, data *Data, privKey crypto.PrivKey
 	newSignedHeader.LastResultsHash = nil
 	newSignedHeader.Header.DataHash = dataHash
 	newSignedHeader.AppHash = appHash
-	newSignedHeader.LastCommitHash = header.Signature.GetCommitHash(
-		&newSignedHeader.Header, header.ProposerAddress,
-	)
+
 	signature, err := GetSignature(newSignedHeader.Header, privKey)
 	if err != nil {
 		panic(err)
@@ -221,31 +218,13 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey crypto.PrivKe
 		Header: GetRandomNextHeader(signedHeader.Header, chainID),
 		Signer: signedHeader.Signer,
 	}
-	newSignedHeader.LastCommitHash = signedHeader.Signature.GetCommitHash(
-		&newSignedHeader.Header, signedHeader.ProposerAddress,
-	)
+
 	signature, err := GetSignature(newSignedHeader.Header, privKey)
 	if err != nil {
 		return nil, err
 	}
 	newSignedHeader.Signature = *signature
 	return newSignedHeader, nil
-}
-
-// GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
-func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
-	vals := []*cmtypes.Validator{
-		{
-			Address:          g.Validators[0].Address,
-			PubKey:           g.Validators[0].PubKey,
-			VotingPower:      int64(1),
-			ProposerPriority: int64(1),
-		},
-	}
-	return cmtypes.ValidatorSet{
-		Validators: vals,
-		Proposer:   vals[0],
-	}
 }
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
