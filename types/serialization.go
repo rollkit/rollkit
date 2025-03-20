@@ -1,9 +1,6 @@
 package types
 
 import (
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/types"
-
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -57,14 +54,9 @@ func (d *Data) UnmarshalBinary(data []byte) error {
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
-	vSet, err := sh.Validators.ToProto()
-	if err != nil {
-		return nil, err
-	}
 	return &pb.SignedHeader{
-		Header:     sh.Header.ToProto(),
-		Signature:  sh.Signature[:],
-		Validators: vSet,
+		Header:    sh.Header.ToProto(),
+		Signature: sh.Signature[:],
 	}, nil
 }
 
@@ -76,14 +68,6 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 	}
 	sh.Signature = other.Signature
 
-	if other.Validators != nil && other.Validators.GetProposer() != nil {
-		validators, err := types.ValidatorSetFromProto(other.Validators)
-		if err != nil {
-			return err
-		}
-
-		sh.Validators = validators
-	}
 	return nil
 }
 
@@ -259,43 +243,4 @@ func byteSlicesToTxs(bytes [][]byte) Txs {
 		txs[i] = bytes[i]
 	}
 	return txs
-}
-
-// Note: Temporarily remove Evidence #896
-
-// func evidenceToProto(evidence EvidenceData) []*abci.Evidence {
-// 	var ret []*abci.Evidence
-// 	for _, e := range evidence.Evidence {
-// 		for i := range e.ABCI() {
-// 			ae := e.ABCI()[i]
-// 			ret = append(ret, &ae)
-// 		}
-// 	}
-// 	return ret
-// }
-
-// func evidenceFromProto(evidence []*abci.Evidence) EvidenceData {
-// 	var ret EvidenceData
-// 	// TODO(tzdybal): right now Evidence is just an interface without implementations
-// 	return ret
-// }
-
-// ConsensusParamsFromProto converts protobuf consensus parameters to consensus parameters
-func ConsensusParamsFromProto(pbParams cmproto.ConsensusParams) types.ConsensusParams {
-	c := types.ConsensusParams{
-		Block: types.BlockParams{
-			MaxBytes: pbParams.Block.MaxBytes,
-			MaxGas:   pbParams.Block.MaxGas,
-		},
-		Validator: types.ValidatorParams{
-			PubKeyTypes: pbParams.Validator.PubKeyTypes,
-		},
-		Version: types.VersionParams{
-			App: pbParams.Version.App,
-		},
-	}
-	if pbParams.Abci != nil {
-		c.ABCI.VoteExtensionsEnableHeight = pbParams.Abci.GetVoteExtensionsEnableHeight()
-	}
-	return c
 }

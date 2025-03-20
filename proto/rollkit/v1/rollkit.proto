@@ -1,8 +1,6 @@
 syntax = "proto3";
 package rollkit.v1;
 
-import "tendermint/types/validator.proto";
-
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
 
 // Version captures the consensus rules for processing a block in the blockchain,
@@ -63,7 +61,6 @@ message Header {
 message SignedHeader {
   Header header = 1;
   bytes signature = 2;
-  tendermint.types.ValidatorSet validators = 3;
 }
 
 // Metadata is the metadata of a block in the blockchain.

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -173,29 +172,4 @@ func TestTxsRoundtrip(t *testing.T) {
 	for i := range txs {
 		assert.Equal(t, txs[i], newTxs[i])
 	}
-}
-
-func TestConsensusParamsFromProto(t *testing.T) {
-	// Prepare test case
-	pbParams := cmproto.ConsensusParams{
-		Block: &cmproto.BlockParams{
-			MaxBytes: 12345,
-			MaxGas:   67890,
-		},
-		Validator: &cmproto.ValidatorParams{
-			PubKeyTypes: []string{cmtypes.ABCIPubKeyTypeEd25519},
-		},
-		Version: &cmproto.VersionParams{
-			App: 42,
-		},
-	}
-
-	// Call the function to be tested
-	params := ConsensusParamsFromProto(pbParams)
-
-	// Check the results
-	assert.Equal(t, int64(12345), params.Block.MaxBytes)
-	assert.Equal(t, int64(67890), params.Block.MaxGas)
-	assert.Equal(t, uint64(42), params.Version.App)
-	assert.Equal(t, []string{cmtypes.ABCIPubKeyTypeEd25519}, params.Validator.PubKeyTypes)
 }
