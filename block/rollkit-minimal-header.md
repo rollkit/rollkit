@@ -48,7 +48,7 @@ type Header struct {
     // The Chain ID
     ChainID string
     // Pointer to location of associated block data aka transactions in the DA layer
-    DataCommitment Hash
+    DataCommitment []byte
     // Commitment representing the state linked to the header
     StateRoot Hash
     // Arbitrary field for additional metadata
