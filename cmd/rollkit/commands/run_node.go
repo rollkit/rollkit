@@ -16,7 +16,6 @@ import (
 	"cosmossdk.io/log"
 	cometprivval "github.com/cometbft/cometbft/privval"
 	comettypes "github.com/cometbft/cometbft/types"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -31,6 +30,8 @@ import (
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
 	rollos "github.com/rollkit/rollkit/pkg/os"
+	"github.com/rollkit/rollkit/pkg/remote_signer"
+	"github.com/rollkit/rollkit/pkg/remote_signer/file"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )
 
@@ -67,15 +68,15 @@ func NewRunNodeCmd() *cobra.Command {
 				return err
 			}
 
-			// TODO: this should be moved elsewhere
-			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
-			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath, "priv_validator_state.json")
-			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
+			// // TODO: this should be moved elsewhere
+			// privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
+			// privValidatorStateFile := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath, "priv_validator_state.json")
+			// pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 
-			signingKey, err := crypto.UnmarshalEd25519PrivateKey(pval.Key.PrivKey.Bytes())
-			if err != nil {
-				return err
-			}
+			// signingKey, err := crypto.UnmarshalEd25519PrivateKey(pval.Key.PrivKey.Bytes())
+			// if err != nil {
+			// 	return err
+			// }
 
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
@@ -84,28 +85,30 @@ func NewRunNodeCmd() *cobra.Command {
 			if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
 				genDoc.ChainID = nodeConfig.Node.SequencerRollupID
 			}
-			sequencerRollupID := genDoc.ChainID
-			// Try and launch a mock gRPC sequencer if there is no sequencer running.
-			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
-			var seqSrv *grpc.Server = nil
-			if !cmd.Flags().Lookup(rollconf.FlagSequencerAddress).Changed {
-				seqSrv, err = tryStartMockSequencerServerGRPC(nodeConfig.Node.SequencerAddress, sequencerRollupID)
-				if err != nil && !errors.Is(err, errSequencerAlreadyRunning) {
-					return fmt.Errorf("failed to launch mock sequencing server: %w", err)
-				}
-				// nolint:errcheck,gosec
-				defer func() {
-					if seqSrv != nil {
-						seqSrv.Stop()
-					}
-				}()
-			}
 
 			logger.Info("Executor address", "address", nodeConfig.Node.ExecutorAddress)
 
 			// Create a cancellable context for the node
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel() // Ensure context is cancelled when command exits
+
+			//create a new remote signer
+			var signer remote_signer.Signer
+			if nodeConfig.RemoteSigner.SignerType == "file" {
+				passphrase, err := cmd.Flags().GetString(rollconf.FlagRemoteSignerPassphrase)
+				if err != nil {
+					return err
+				}
+
+				signer, err = file.NewFileSystemSigner(nodeConfig.RemoteSigner.SignerPath, []byte(passphrase))
+				if err != nil {
+					return err
+				}
+			} else if nodeConfig.RemoteSigner.SignerType == "grpc" {
+				panic("grpc remote signer not implemented")
+			} else {
+				return fmt.Errorf("unknown remote signer type: %s", nodeConfig.RemoteSigner.SignerType)
+			}
 
 			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
@@ -120,7 +123,7 @@ func NewRunNodeCmd() *cobra.Command {
 				kvExecutor,
 				dummySequencer,
 				dummyDALC,
-				signingKey,
+				signer,
 				genDoc,
 				metrics,
 				logger,

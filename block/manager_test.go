@@ -22,6 +22,8 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
+	"github.com/rollkit/rollkit/pkg/remote_signer"
+	noopsigner "github.com/rollkit/rollkit/pkg/remote_signer/noop"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -362,7 +364,7 @@ func Test_isProposer(t *testing.T) {
 
 	type args struct {
 		state         types.State
-		signerPrivKey crypto.PrivKey
+		signerPrivKey remote_signer.Signer
 	}
 	tests := []struct {
 		name       string
@@ -376,9 +378,11 @@ func Test_isProposer(t *testing.T) {
 				genesisData, privKey := types.GetGenesisWithPrivkey("Test_isProposer")
 				s, err := types.NewFromGenesisDoc(genesisData)
 				require.NoError(err)
+				signer, err := noopsigner.NewNoopSigner()
+				require.NoError(err)
 				return args{
 					s,
-					privKey,
+					signer,
 				}
 			}(),
 			isProposer: true,

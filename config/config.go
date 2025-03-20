@@ -100,6 +100,16 @@ const (
 	FlagLogFormat = "log.format"
 	// FlagLogTrace is a flag for enabling stack traces in error logs
 	FlagLogTrace = "log.trace"
+
+	// Remote signer configuration flags
+
+	// FlagRemoteSignerType is a flag for specifying the remote signer type
+	FlagRemoteSignerType = "remote_signer.type"
+	// FlagRemoteSignerPath is a flag for specifying the remote signer path
+	FlagRemoteSignerPath = "remote_signer.path"
+
+	// FlagRemoteSignerPassphrase is a flag for specifying the remote signer passphrase
+	FlagRemoteSignerPassphrase = "remote_signer.passphrase"
 )
 
 // DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
@@ -142,6 +152,9 @@ type Config struct {
 
 	// Logging configuration
 	Log LogConfig `mapstructure:"log" yaml:"log"`
+
+	// Remote signer configuration
+	RemoteSigner RemoteSignerConfig `mapstructure:"remote_signer" yaml:"remote_signer"`
 }
 
 // DAConfig contains all Data Availability configuration parameters
@@ -191,6 +204,12 @@ type P2PConfig struct {
 	Seeds         string `mapstructure:"seeds" yaml:"seeds" comment:"Comma separated list of seed nodes to connect to"`
 	BlockedPeers  string `mapstructure:"blocked_peers" yaml:"blocked_peers" comment:"Comma separated list of peer IDs to block from connecting"`
 	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
+}
+
+// RemoteSignerConfig contains all remote signer configuration parameters
+type RemoteSignerConfig struct {
+	SignerType string `mapstructure:"signer_type" yaml:"signer_type" comment:"Type of remote signer to use (file, grpc)"`
+	SignerPath string `mapstructure:"signer_path" yaml:"signer_path" comment:"Path to the signer file or address"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -245,6 +264,11 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FlagLogLevel, "info", "log level (debug, info, warn, error)")
 	cmd.Flags().String(FlagLogFormat, "", "log format (text, json)")
 	cmd.Flags().Bool(FlagLogTrace, false, "enable stack traces in error logs")
+
+	// Remote signer configuration flags
+	cmd.Flags().String(FlagRemoteSignerType, def.RemoteSigner.SignerType, "type of remote signer to use (file, grpc)")
+	cmd.Flags().String(FlagRemoteSignerPath, def.RemoteSigner.SignerPath, "path to the signer file or address")
+	cmd.Flags().String(FlagRemoteSignerPassphrase, "", "passphrase for the remote signer")
 }
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
