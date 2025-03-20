@@ -22,6 +22,7 @@ import (
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
+	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
@@ -44,7 +45,7 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 	logger := log.NewTestLogger(t)
 	return &Manager{
 		dalc:          da.NewDAClient(backend, gasPrice, gasMultiplier, nil, nil, logger),
-		headerCache:   NewHeaderCache(),
+		headerCache:   cache.NewCache[types.SignedHeader](),
 		logger:        logger,
 		gasPrice:      gasPrice,
 		gasMultiplier: gasMultiplier,
@@ -102,7 +103,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 
 	// Mock store and data cache
 	store := mocks.NewStore(t)
-	dataCache := NewDataCache()
+	dataCache := cache.NewCache[types.Data]()
 
 	// Setup the manager with the mock and data cache
 	m := &Manager{
@@ -134,7 +135,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	store.AssertExpectations(t)
 
 	// make sure that the store has the correct data
-	d := dataCache.getData(header.Height())
+	d := dataCache.GetItem(header.Height())
 	require.NotNil(d)
 	require.Equal(d.Metadata.LastDataHash, lastDataHash)
 	require.Equal(d.Metadata.ChainID, header.ChainID())
@@ -196,7 +197,7 @@ func TestIsDAIncluded(t *testing.T) {
 
 	// Create a minimalistic block manager
 	m := &Manager{
-		headerCache: NewHeaderCache(),
+		headerCache: cache.NewCache[types.SignedHeader](),
 	}
 	hash := types.Hash([]byte("hash"))
 
@@ -204,7 +205,7 @@ func TestIsDAIncluded(t *testing.T) {
 	require.False(m.IsDAIncluded(hash))
 
 	// Set the hash as DAIncluded and verify IsDAIncluded returns true
-	m.headerCache.setDAIncluded(hash.String())
+	m.headerCache.SetDAIncluded(hash.String())
 	require.True(m.IsDAIncluded(hash))
 }
 
