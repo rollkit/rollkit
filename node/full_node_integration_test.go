@@ -50,28 +50,27 @@ func (s *FullNodeTestSuite) SetupTest() {
 	s.errCh = make(chan error, 1)
 
 	// Setup node with proper configuration
-	config := getTestConfig(1)
-	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
-	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
-	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
-	config.Node.Aggregator = true                  // Enable aggregator mode
+	config := getTestConfig(s.T(), 1)
+	config.Node.BlockTime.Duration = 100 * time.Millisecond // Faster block production for tests
+	config.DA.BlockTime.Duration = 200 * time.Millisecond   // Faster DA submission for tests
+	config.Node.MaxPendingBlocks = 100                      // Allow more pending blocks
+	config.Node.Aggregator = true                           // Enable aggregator mode
 
 	// Add debug logging for configuration
 	s.T().Logf("Test configuration: BlockTime=%v, DABlockTime=%v, MaxPendingBlocks=%d",
-		config.Node.BlockTime, config.DA.BlockTime, config.Node.MaxPendingBlocks)
+		config.Node.BlockTime.Duration, config.DA.BlockTime.Duration, config.Node.MaxPendingBlocks)
 
 	// Create genesis with current time
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 	genesis.GenesisTime = time.Now() // Set genesis time to now
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(s.T(), err)
-
-	p2pKey := generateSingleKey()
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(s.T(), err)
 
 	node, err := NewNode(
 		s.ctx,
@@ -79,8 +78,7 @@ func (s *FullNodeTestSuite) SetupTest() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -216,7 +214,7 @@ func (s *FullNodeTestSuite) TestSubmitBlocksToDA() {
 	s.T().Log("=== Attempting to Trigger Block Production ===")
 	// Force a state update to trigger block production
 	currentState := s.node.blockManager.GetLastState()
-	currentState.LastBlockTime = time.Now().Add(-2 * s.node.nodeConfig.Node.BlockTime)
+	currentState.LastBlockTime = time.Now().Add(-2 * s.node.nodeConfig.Node.BlockTime.Duration)
 	s.node.blockManager.SetLastState(currentState)
 
 	// Monitor after trigger
@@ -313,19 +311,18 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.errCh = make(chan error, 1)
 
 	// Reconfigure node with low max pending
-	config := getTestConfig(1)
+	config := getTestConfig(s.T(), 1)
 	config.Node.MaxPendingBlocks = 2
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(err)
-
-	p2pKey := generateSingleKey()
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
+
+	err := InitFiles(config.RootDir)
+	require.NoError(err)
 
 	node, err := NewNode(
 		s.ctx,
@@ -333,8 +330,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -351,7 +347,7 @@ func (s *FullNodeTestSuite) TestMaxPending() {
 	s.startNodeInBackground(s.node)
 
 	// Wait blocks to be produced up to max pending
-	time.Sleep(time.Duration(config.Node.MaxPendingBlocks+1) * config.Node.BlockTime)
+	time.Sleep(time.Duration(config.Node.MaxPendingBlocks+1) * config.Node.BlockTime.Duration)
 
 	// Verify that number of pending blocks doesn't exceed max
 	height, err := getNodeHeight(s.node, Header)
@@ -377,7 +373,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	require.NoError(err)
 
 	// Wait for some blocks
-	time.Sleep(2 * s.node.nodeConfig.Node.BlockTime)
+	time.Sleep(2 * s.node.nodeConfig.Node.BlockTime.Duration)
 
 	// Stop the current node
 	s.cancel()
@@ -401,15 +397,12 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.errCh = make(chan error, 1)
 
 	// Create a NEW node instance instead of reusing the old one
-	config := getTestConfig(1)
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "test-chain")
-	signingKey, err := types.PrivKeyToSigningKey(genesisValidatorKey)
-	require.NoError(err)
-	p2pKey := generateSingleKey()
+	config := getTestConfig(s.T(), 1)
+	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	node, err := NewNode(
@@ -418,8 +411,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 		dummyExec,
 		dummySequencer,
 		dummyClient,
-		p2pKey,
-		signingKey,
+		genesisValidatorKey,
 		genesis,
 		DefaultMetricsProvider(rollkitconfig.DefaultInstrumentationConfig()),
 		log.NewTestLogger(s.T()),
@@ -436,7 +428,7 @@ func (s *FullNodeTestSuite) TestStateRecovery() {
 	s.startNodeInBackground(s.node)
 
 	// Wait a bit after restart
-	time.Sleep(s.node.nodeConfig.Node.BlockTime)
+	time.Sleep(s.node.nodeConfig.Node.BlockTime.Duration)
 
 	// Verify state persistence
 	recoveredHeight, err := getNodeHeight(s.node, Store)

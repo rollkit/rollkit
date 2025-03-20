@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -21,7 +22,7 @@ const (
 	// FlagEntrypoint is a flag for specifying the entrypoint
 	FlagEntrypoint = "entrypoint"
 	// FlagChainConfigDir is a flag for specifying the chain config directory
-	FlagChainConfigDir = "chain.config_dir"
+	FlagChainConfigDir = "config_dir"
 
 	// Node configuration flags
 
@@ -33,11 +34,11 @@ const (
 	FlagBlockTime = "node.block_time"
 	// FlagTrustedHash is a flag for specifying the trusted hash
 	FlagTrustedHash = "node.trusted_hash"
-	// FlagLazyAggregator is a flag for enabling lazy aggregation
+	// FlagLazyAggregator is a flag for enabling lazy aggregation mode that only produces blocks when transactions are available
 	FlagLazyAggregator = "node.lazy_aggregator"
-	// FlagMaxPendingBlocks is a flag to pause aggregator in case of large number of blocks pending DA submission
+	// FlagMaxPendingBlocks is a flag to limit and pause block production when too many blocks are waiting for DA confirmation
 	FlagMaxPendingBlocks = "node.max_pending_blocks"
-	// FlagLazyBlockTime is a flag for specifying the block time in lazy mode
+	// FlagLazyBlockTime is a flag for specifying the maximum interval between blocks in lazy aggregation mode
 	FlagLazyBlockTime = "node.lazy_block_time"
 	// FlagSequencerAddress is a flag for specifying the sequencer middleware address
 	FlagSequencerAddress = "node.sequencer_address"
@@ -101,77 +102,95 @@ const (
 	FlagLogTrace = "log.trace"
 )
 
+// DurationWrapper is a wrapper for time.Duration that implements encoding.TextMarshaler and encoding.TextUnmarshaler
+// needed for YAML marshalling/unmarshalling especially for time.Duration
+type DurationWrapper struct {
+	time.Duration
+}
+
+// MarshalText implements encoding.TextMarshaler to format the duration as text
+func (d DurationWrapper) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler to parse the duration from text
+func (d *DurationWrapper) UnmarshalText(text []byte) error {
+	var err error
+	d.Duration, err = time.ParseDuration(string(text))
+	return err
+}
+
 // Config stores Rollkit configuration.
 type Config struct {
 	// Base configuration
-	RootDir    string      `mapstructure:"home"`
-	DBPath     string      `mapstructure:"db_path"`
-	Entrypoint string      `mapstructure:"entrypoint" toml:"entrypoint"`
-	Chain      ChainConfig `mapstructure:"chain" toml:"chain"`
+	RootDir    string `mapstructure:"home" yaml:"home" comment:"Root directory where rollkit files are located"`
+	DBPath     string `mapstructure:"db_path" yaml:"db_path" comment:"Path inside the root directory where the database is located"`
+	Entrypoint string `mapstructure:"entrypoint" yaml:"entrypoint" comment:"Path to the rollup application's main.go file. Rollkit will build and execute this file when processing commands. This allows Rollkit to act as a wrapper around your rollup application."`
+	ConfigDir  string `mapstructure:"config_dir" yaml:"config_dir" comment:"Directory containing the rollup chain configuration"`
 
 	// P2P configuration
-	P2P P2PConfig `mapstructure:"p2p"`
+	P2P P2PConfig `mapstructure:"p2p" yaml:"p2p"`
 
 	// Node specific configuration
-	Node NodeConfig `mapstructure:"node"`
+	Node NodeConfig `mapstructure:"node" yaml:"node"`
 
 	// Data availability configuration
-	DA DAConfig `mapstructure:"da"`
+	DA DAConfig `mapstructure:"da" yaml:"da"`
 
 	// Instrumentation configuration
-	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation" yaml:"instrumentation"`
 
 	// Logging configuration
-	Log LogConfig `mapstructure:"log"`
+	Log LogConfig `mapstructure:"log" yaml:"log"`
 }
 
 // DAConfig contains all Data Availability configuration parameters
 type DAConfig struct {
-	Address       string        `mapstructure:"address" toml:"address"`
-	AuthToken     string        `mapstructure:"auth_token" toml:"auth_token"`
-	GasPrice      float64       `mapstructure:"gas_price" toml:"gas_price"`
-	GasMultiplier float64       `mapstructure:"gas_multiplier" toml:"gas_multiplier"`
-	SubmitOptions string        `mapstructure:"submit_options" toml:"submit_options"`
-	Namespace     string        `mapstructure:"namespace" toml:"namespace"`
-	BlockTime     time.Duration `mapstructure:"block_time" toml:"block_time"`
-	StartHeight   uint64        `mapstructure:"start_height" toml:"start_height"`
-	MempoolTTL    uint64        `mapstructure:"mempool_ttl" toml:"mempool_ttl"`
+	Address       string          `mapstructure:"address" yaml:"address" comment:"Address of the data availability layer service (host:port). This is the endpoint where Rollkit will connect to submit and retrieve data."`
+	AuthToken     string          `mapstructure:"auth_token" yaml:"auth_token" comment:"Authentication token for the data availability layer service. Required if the DA service needs authentication."`
+	GasPrice      float64         `mapstructure:"gas_price" yaml:"gas_price" comment:"Gas price for data availability transactions. Use -1 for automatic gas price determination. Higher values may result in faster inclusion."`
+	GasMultiplier float64         `mapstructure:"gas_multiplier" yaml:"gas_multiplier" comment:"Multiplier applied to gas price when retrying failed DA submissions. Values > 1 increase gas price on retries to improve chances of inclusion."`
+	SubmitOptions string          `mapstructure:"submit_options" yaml:"submit_options" comment:"Additional options passed to the DA layer when submitting data. Format depends on the specific DA implementation being used."`
+	Namespace     string          `mapstructure:"namespace" yaml:"namespace" comment:"Namespace ID used when submitting blobs to the DA layer."`
+	BlockTime     DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Average block time of the DA chain (duration). Determines frequency of DA layer syncing, maximum backoff time for retries, and is multiplied by MempoolTTL to calculate transaction expiration. Examples: \"15s\", \"30s\", \"1m\", \"2m30s\", \"10m\"."`
+	StartHeight   uint64          `mapstructure:"start_height" yaml:"start_height" comment:"Starting block height on the DA layer from which to begin syncing. Useful when deploying a new rollup on an existing DA chain."`
+	MempoolTTL    uint64          `mapstructure:"mempool_ttl" yaml:"mempool_ttl" comment:"Number of DA blocks after which a transaction is considered expired and dropped from the mempool. Controls retry backoff timing."`
 }
 
 // NodeConfig contains all Rollkit specific configuration parameters
 type NodeConfig struct {
 	// Node mode configuration
-	Aggregator bool `toml:"aggregator"`
-	Light      bool `toml:"light"`
+	Aggregator bool `yaml:"aggregator" comment:"Run node in aggregator mode"`
+	Light      bool `yaml:"light" comment:"Run node in light mode"`
 
 	// Block management configuration
-	BlockTime        time.Duration `mapstructure:"block_time" toml:"block_time"`
-	MaxPendingBlocks uint64        `mapstructure:"max_pending_blocks" toml:"max_pending_blocks"`
-	LazyAggregator   bool          `mapstructure:"lazy_aggregator" toml:"lazy_aggregator"`
-	LazyBlockTime    time.Duration `mapstructure:"lazy_block_time" toml:"lazy_block_time"`
+	BlockTime        DurationWrapper `mapstructure:"block_time" yaml:"block_time" comment:"Block time (duration). Examples: \"500ms\", \"1s\", \"5s\", \"1m\", \"2m30s\", \"10m\"."`
+	MaxPendingBlocks uint64          `mapstructure:"max_pending_blocks" yaml:"max_pending_blocks" comment:"Maximum number of blocks pending DA submission. When this limit is reached, the aggregator pauses block production until some blocks are confirmed. Use 0 for no limit."`
+	LazyAggregator   bool            `mapstructure:"lazy_aggregator" yaml:"lazy_aggregator" comment:"Enables lazy aggregation mode, where blocks are only produced when transactions are available or after LazyBlockTime. Optimizes resources by avoiding empty block creation during periods of inactivity."`
+	LazyBlockTime    DurationWrapper `mapstructure:"lazy_block_time" yaml:"lazy_block_time" comment:"Maximum interval between blocks in lazy aggregation mode (LazyAggregator). Ensures blocks are produced periodically even without transactions to keep the chain active. Generally larger than BlockTime."`
 
 	// Header configuration
-	TrustedHash string `mapstructure:"trusted_hash" toml:"trusted_hash"`
+	TrustedHash string `mapstructure:"trusted_hash" yaml:"trusted_hash" comment:"Initial trusted hash used to bootstrap the header exchange service. Allows nodes to start synchronizing from a specific trusted point in the chain instead of genesis. When provided, the node will fetch the corresponding header/block from peers using this hash and use it as a starting point for synchronization. If not provided, the node will attempt to fetch the genesis block instead."`
 
 	// Sequencer configuration
-	SequencerAddress  string `mapstructure:"sequencer_address" toml:"sequencer_address"`
-	SequencerRollupID string `mapstructure:"sequencer_rollup_id" toml:"sequencer_rollup_id"`
-	ExecutorAddress   string `mapstructure:"executor_address" toml:"executor_address"`
-}
-
-// ChainConfig is the configuration for the chain section
-type ChainConfig struct {
-	ConfigDir string `mapstructure:"config_dir" toml:"config_dir"`
+	SequencerAddress  string `mapstructure:"sequencer_address" yaml:"sequencer_address" comment:"Address of the sequencer middleware (host:port). The sequencer is responsible for ordering transactions in the rollup. If not specified, a mock sequencer will be started at this address. Default: localhost:50051."`
+	SequencerRollupID string `mapstructure:"sequencer_rollup_id" yaml:"sequencer_rollup_id" comment:"Unique identifier for the rollup chain used by the sequencer. This ID is used to identify the specific rollup when submitting transactions to and retrieving batches from the sequencer. If not specified, the chain ID from genesis will be used. Default: mock-rollup."`
+	ExecutorAddress   string `mapstructure:"executor_address" yaml:"executor_address" comment:"Address of the executor middleware (host:port). The executor is responsible for processing transactions and maintaining the state of the rollup. Used for connecting to an external execution environment. Default: localhost:40041."`
 }
 
 // LogConfig contains all logging configuration parameters
 type LogConfig struct {
-	// Level is the log level (debug, info, warn, error)
-	Level string `mapstructure:"level" toml:"level"`
-	// Format is the log format (text, json)
-	Format string `mapstructure:"format" toml:"format"`
-	// Trace enables stack traces in error logs
-	Trace bool `mapstructure:"trace" toml:"trace"`
+	Level  string `mapstructure:"level" yaml:"level" comment:"Log level (debug, info, warn, error)"`
+	Format string `mapstructure:"format" yaml:"format" comment:"Log format (text, json)"`
+	Trace  bool   `mapstructure:"trace" yaml:"trace" comment:"Enable stack traces in error logs"`
+}
+
+// P2PConfig contains all peer-to-peer networking configuration parameters
+type P2PConfig struct {
+	ListenAddress string `mapstructure:"listen_address" yaml:"listen_address" comment:"Address to listen for incoming connections (host:port)"`
+	Seeds         string `mapstructure:"seeds" yaml:"seeds" comment:"Comma separated list of seed nodes to connect to"`
+	BlockedPeers  string `mapstructure:"blocked_peers" yaml:"blocked_peers" comment:"Comma separated list of peer IDs to block from connecting"`
+	AllowedPeers  string `mapstructure:"allowed_peers" yaml:"allowed_peers" comment:"Comma separated list of peer IDs to allow connections from"`
 }
 
 // AddFlags adds Rollkit specific configuration options to cobra Command.
@@ -181,19 +200,18 @@ func AddFlags(cmd *cobra.Command) {
 	def := DefaultNodeConfig
 
 	// Base configuration flags
-	cmd.Flags().String(FlagRootDir, def.RootDir, "root directory for Rollkit")
 	cmd.Flags().String(FlagDBPath, def.DBPath, "database path relative to root directory")
 	cmd.Flags().String(FlagEntrypoint, def.Entrypoint, "entrypoint for the application")
-	cmd.Flags().String(FlagChainConfigDir, def.Chain.ConfigDir, "chain configuration directory")
+	cmd.Flags().String(FlagChainConfigDir, def.ConfigDir, "chain configuration directory")
 
 	// Node configuration flags
 	cmd.Flags().BoolVar(&def.Node.Aggregator, FlagAggregator, def.Node.Aggregator, "run node in aggregator mode")
 	cmd.Flags().Bool(FlagLight, def.Node.Light, "run light client")
-	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime, "block time (for aggregator mode)")
+	cmd.Flags().Duration(FlagBlockTime, def.Node.BlockTime.Duration, "block time (for aggregator mode)")
 	cmd.Flags().String(FlagTrustedHash, def.Node.TrustedHash, "initial trusted hash to start the header exchange service")
-	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "wait for transactions, don't build empty blocks")
-	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "limit of blocks pending DA submission (0 for no limit)")
-	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime, "block time (for lazy mode)")
+	cmd.Flags().Bool(FlagLazyAggregator, def.Node.LazyAggregator, "produce blocks only when transactions are available or after lazy block time")
+	cmd.Flags().Uint64(FlagMaxPendingBlocks, def.Node.MaxPendingBlocks, "maximum blocks pending DA confirmation before pausing block production (0 for no limit)")
+	cmd.Flags().Duration(FlagLazyBlockTime, def.Node.LazyBlockTime.Duration, "maximum interval between blocks in lazy aggregation mode")
 	cmd.Flags().String(FlagSequencerAddress, def.Node.SequencerAddress, "sequencer middleware address (host:port)")
 	cmd.Flags().String(FlagSequencerRollupID, def.Node.SequencerRollupID, "sequencer middleware rollup ID (default: mock-rollup)")
 	cmd.Flags().String(FlagExecutorAddress, def.Node.ExecutorAddress, "executor middleware address (host:port)")
@@ -201,7 +219,7 @@ func AddFlags(cmd *cobra.Command) {
 	// Data Availability configuration flags
 	cmd.Flags().String(FlagDAAddress, def.DA.Address, "DA address (host:port)")
 	cmd.Flags().String(FlagDAAuthToken, def.DA.AuthToken, "DA auth token")
-	cmd.Flags().Duration(FlagDABlockTime, def.DA.BlockTime, "DA chain block time (for syncing)")
+	cmd.Flags().Duration(FlagDABlockTime, def.DA.BlockTime.Duration, "DA chain block time (for syncing)")
 	cmd.Flags().Float64(FlagDAGasPrice, def.DA.GasPrice, "DA gas price for blob transactions")
 	cmd.Flags().Float64(FlagDAGasMultiplier, def.DA.GasMultiplier, "DA gas price multiplier for retrying blob transactions")
 	cmd.Flags().Uint64(FlagDAStartHeight, def.DA.StartHeight, "starting DA block height (for syncing)")
@@ -231,7 +249,7 @@ func AddFlags(cmd *cobra.Command) {
 
 // LoadNodeConfig loads the node configuration in the following order of precedence:
 // 1. DefaultNodeConfig (lowest priority)
-// 2. TOML configuration file
+// 2. YAML configuration file
 // 3. Command line flags (highest priority)
 func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 	// Create a new Viper instance to avoid conflicts with any global Viper
@@ -241,7 +259,7 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 	config := DefaultNodeConfig
 	setDefaultsInViper(v, config)
 
-	// 2. Try to load TOML configuration from various locations
+	// 2. Try to load YAML configuration from various locations
 	// First try using the current directory
 	v.SetConfigName(ConfigBaseName)
 	v.SetConfigType(ConfigExtension)
@@ -260,7 +278,7 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 		// If it's not a "file not found" error, return the error
 		var configFileNotFound viper.ConfigFileNotFoundError
 		if !errors.As(err, &configFileNotFound) {
-			return config, fmt.Errorf("error reading TOML configuration: %w", err)
+			return config, fmt.Errorf("error reading YAML configuration: %w", err)
 		}
 		// Otherwise, just continue with defaults
 	} else {
@@ -279,6 +297,18 @@ func LoadNodeConfig(cmd *cobra.Command) (Config, error) {
 		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
+			func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+				if t == reflect.TypeOf(DurationWrapper{}) && f.Kind() == reflect.String {
+					if str, ok := data.(string); ok {
+						duration, err := time.ParseDuration(str)
+						if err != nil {
+							return nil, err
+						}
+						return DurationWrapper{Duration: duration}, nil
+					}
+				}
+				return data, nil
+			},
 		)
 	}); err != nil {
 		return config, fmt.Errorf("unable to decode configuration: %w", err)
@@ -293,7 +323,7 @@ func setDefaultsInViper(v *viper.Viper, config Config) {
 	v.SetDefault(FlagRootDir, config.RootDir)
 	v.SetDefault(FlagDBPath, config.DBPath)
 	v.SetDefault(FlagEntrypoint, config.Entrypoint)
-	v.SetDefault(FlagChainConfigDir, config.Chain.ConfigDir)
+	v.SetDefault(FlagChainConfigDir, config.ConfigDir)
 
 	// Node configuration defaults
 	v.SetDefault(FlagAggregator, config.Node.Aggregator)

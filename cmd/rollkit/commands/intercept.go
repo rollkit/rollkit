@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	cometos "github.com/cometbft/cometbft/libs/os"
 	"github.com/spf13/cobra"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	rollos "github.com/rollkit/rollkit/pkg/os"
 )
 
 const rollupBinEntrypoint = "entrypoint"
@@ -18,10 +18,10 @@ const rollupBinEntrypoint = "entrypoint"
 var rollkitConfig rollconf.Config
 
 // InterceptCommand intercepts the command and runs it against the `entrypoint`
-// specified in the rollkit.toml configuration file.
+// specified in the rollkit.yaml configuration file.
 func InterceptCommand(
 	rollkitCommand *cobra.Command,
-	readToml func() (rollconf.Config, error),
+	readConfig func() (rollconf.Config, error),
 	runEntrypoint func(*rollconf.Config, []string) error,
 ) (shouldExecute bool, err error) {
 	// Grab flags and verify command
@@ -44,7 +44,7 @@ func InterceptCommand(
 		}
 	}
 
-	rollkitConfig, err = readToml()
+	rollkitConfig, err = readConfig()
 	if err != nil {
 		return
 	}
@@ -57,21 +57,53 @@ func InterceptCommand(
 	// At this point we expect to execute the command against the entrypoint
 	shouldExecute = true
 
-	// After successfully reading the TOML file, we expect to be able to use the entrypoint
-	if rollkitConfig.Entrypoint == "" {
-		err = fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitConfigToml)
+	err = validateEntryPoint(rollkitConfig)
+	if err != nil {
 		return
 	}
 
 	return shouldExecute, runEntrypoint(&rollkitConfig, flags)
 }
 
+// validateEntryPoint performs several validations on the entrypoint configuration:
+// 1. Checks if an entrypoint is specified in the config
+// 2. Resolves the absolute path of the entrypoint
+// 3. Verifies that the entrypoint file exists
+// 4. Ensures the entrypoint is not a directory
+// 5. Confirms the entrypoint is a Go file (.go extension)
+func validateEntryPoint(config rollconf.Config) error {
+	if config.Entrypoint == "" {
+		return fmt.Errorf("no entrypoint specified in %s", rollconf.RollkitConfigYaml)
+	}
+
+	// Resolve absolute path for entrypoint
+	entrypointPath := config.Entrypoint
+	if !filepath.IsAbs(entrypointPath) {
+		entrypointPath = filepath.Join(config.RootDir, entrypointPath)
+	}
+
+	fileInfo, err := os.Stat(entrypointPath)
+	if err != nil {
+		return fmt.Errorf("entrypoint file not found: %s", entrypointPath)
+	}
+
+	if fileInfo.IsDir() {
+		return fmt.Errorf("entrypoint cannot be a directory: %s", entrypointPath)
+	}
+
+	if !strings.HasSuffix(entrypointPath, ".go") {
+		return fmt.Errorf("entrypoint must be a Go file: %s", entrypointPath)
+	}
+
+	return nil
+}
+
 func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (string, error) {
-	// The entrypoint binary file is always in the same directory as the rollkit.toml file.
+	// The entrypoint binary file is always in the same directory as the rollkit.yaml file.
 	entrypointBinaryFile := filepath.Join(rootDir, rollupBinEntrypoint)
 
-	if !cometos.FileExists(entrypointBinaryFile) || forceRebuild {
-		if !cometos.FileExists(entrypointSourceFile) {
+	if !rollos.FileExists(entrypointBinaryFile) || forceRebuild {
+		if !rollos.FileExists(entrypointSourceFile) {
 			return "", fmt.Errorf("no entrypoint source file: %s", entrypointSourceFile)
 		}
 
@@ -88,11 +120,11 @@ func buildEntrypoint(rootDir, entrypointSourceFile string, forceRebuild bool) (s
 	return entrypointBinaryFile, nil
 }
 
-// RunRollupEntrypoint runs the entrypoint specified in the rollkit.toml configuration file.
+// RunRollupEntrypoint runs the entrypoint specified in the rollkit.yaml configuration file.
 // If the entrypoint is not built, it will build it first. The entrypoint is built
-// in the same directory as the rollkit.toml file. The entrypoint is run with the
+// in the same directory as the rollkit.yaml file. The entrypoint is run with the
 // same flags as the original command, but with the `--home` flag set to the config
-// directory of the chain specified in the rollkit.toml file. This is so the entrypoint,
+// directory of the chain specified in the rollkit.yaml file. This is so the entrypoint,
 // which is a separate binary of the rollup, can read the correct chain configuration files.
 func RunRollupEntrypoint(rollkitConfig *rollconf.Config, args []string) error {
 	var entrypointSourceFile string
@@ -109,10 +141,10 @@ func RunRollupEntrypoint(rollkitConfig *rollconf.Config, args []string) error {
 
 	var runArgs []string
 	runArgs = append(runArgs, args...)
-	if rollkitConfig.Chain.ConfigDir != "" {
+	if rollkitConfig.ConfigDir != "" {
 		// The entrypoint is a separate binary based on https://github.com/rollkit/cosmos-sdk, so
 		// we have to pass --home flag to the entrypoint to read the correct chain configuration files if specified.
-		runArgs = append(runArgs, "--home", rollkitConfig.Chain.ConfigDir)
+		runArgs = append(runArgs, "--home", rollkitConfig.ConfigDir)
 	}
 
 	entrypointCmd := exec.Command(entrypointBinaryFilePath, runArgs...) //nolint:gosec

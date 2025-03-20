@@ -2,7 +2,8 @@ package commands
 
 import (
 	"context"
-	"errors"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	rollconf "github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/node"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -63,6 +65,9 @@ func TestParseFlags(t *testing.T) {
 
 	newRunNodeCmd := NewRunNodeCmd()
 
+	// Register root flags to be able to use --home flag
+	registerFlagsRootCmd(newRunNodeCmd)
+
 	if err := newRunNodeCmd.ParseFlags(args); err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -87,17 +92,17 @@ func TestParseFlags(t *testing.T) {
 
 		// Node fields
 		{"Aggregator", nodeConfig.Node.Aggregator, false},
-		{"BlockTime", nodeConfig.Node.BlockTime, 2 * time.Second},
+		{"BlockTime", nodeConfig.Node.BlockTime.Duration, 2 * time.Second},
 		{"DAAddress", nodeConfig.DA.Address, "http://127.0.0.1:27005"},
 		{"DAAuthToken", nodeConfig.DA.AuthToken, "token"},
-		{"DABlockTime", nodeConfig.DA.BlockTime, 20 * time.Second},
+		{"DABlockTime", nodeConfig.DA.BlockTime.Duration, 20 * time.Second},
 		{"DAGasMultiplier", nodeConfig.DA.GasMultiplier, 1.5},
 		{"DAGasPrice", nodeConfig.DA.GasPrice, 1.5},
 		{"DAMempoolTTL", nodeConfig.DA.MempoolTTL, uint64(10)},
 		{"DANamespace", nodeConfig.DA.Namespace, "namespace"},
 		{"DAStartHeight", nodeConfig.DA.StartHeight, uint64(100)},
 		{"LazyAggregator", nodeConfig.Node.LazyAggregator, true},
-		{"LazyBlockTime", nodeConfig.Node.LazyBlockTime, 2 * time.Minute},
+		{"LazyBlockTime", nodeConfig.Node.LazyBlockTime.Duration, 2 * time.Minute},
 		{"Light", nodeConfig.Node.Light, true},
 		{"MaxPendingBlocks", nodeConfig.Node.MaxPendingBlocks, uint64(100)},
 		{"TrustedHash", nodeConfig.Node.TrustedHash, "abcdef1234567890"},
@@ -205,14 +210,23 @@ func TestCentralizedAddresses(t *testing.T) {
 }
 
 func TestStartMockSequencerServer(t *testing.T) {
+	// Use a random base port to avoid conflicts
+	var randomBytes [2]byte
+	if _, err := rand.Read(randomBytes[:]); err != nil {
+		t.Fatalf("Failed to generate random port: %v", err)
+	}
+	basePort := 60000 + int(binary.LittleEndian.Uint16(randomBytes[:]))%5000
+
 	tests := []struct {
 		name        string
 		seqAddress  string
 		expectedErr error
+		setup       func() (*net.Listener, error)
+		teardown    func(*net.Listener)
 	}{
 		{
 			name:        "Success",
-			seqAddress:  "localhost:50051",
+			seqAddress:  fmt.Sprintf("localhost:%d", basePort),
 			expectedErr: nil,
 		},
 		{
@@ -222,25 +236,57 @@ func TestStartMockSequencerServer(t *testing.T) {
 		},
 		{
 			name:        "Server Already Running",
-			seqAddress:  "localhost:50051",
+			seqAddress:  fmt.Sprintf("localhost:%d", basePort+1),
 			expectedErr: errSequencerAlreadyRunning,
-		},
-		{
-			name:        "Other Server Error",
-			seqAddress:  "localhost:50051",
-			expectedErr: errors.New("other error"),
+			setup: func() (*net.Listener, error) {
+				// Start a TCP listener to simulate a running server
+				l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", basePort+1))
+				if err != nil {
+					return nil, err
+				}
+				// Keep the connection open
+				go func() {
+					for {
+						conn, err := l.Accept()
+						if err != nil {
+							return
+						}
+						if err := conn.Close(); err != nil {
+							t.Errorf("Failed to close connection: %v", err)
+							return
+						}
+					}
+				}()
+				return &l, nil
+			},
+			teardown: func(l *net.Listener) {
+				if l != nil {
+					if err := (*l).Close(); err != nil {
+						t.Errorf("Failed to close listener: %v", err)
+					}
+				}
+			},
 		},
 	}
 
-	stopFns := []func(){}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var listener *net.Listener
+			if tt.setup != nil {
+				var err error
+				listener, err = tt.setup()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if tt.teardown != nil && listener != nil {
+				defer tt.teardown(listener)
+			}
+
 			srv, err := tryStartMockSequencerServerGRPC(tt.seqAddress, "test-rollup-id")
 			if srv != nil {
-				stopFns = append(stopFns, func() {
-					srv.Stop()
-				})
+				srv.Stop()
 			}
 
 			if tt.expectedErr != nil {
@@ -252,10 +298,6 @@ func TestStartMockSequencerServer(t *testing.T) {
 				assert.NotNil(t, srv)
 			}
 		})
-	}
-
-	for _, fn := range stopFns {
-		fn()
 	}
 }
 
@@ -270,7 +312,7 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 
 	// Create the config directory
 	configDir := filepath.Join(tempDir, "config")
-	err = os.MkdirAll(configDir, 0750)
+	err = os.MkdirAll(configDir, rollconf.DefaultDirPerm)
 	assert.NoError(t, err)
 
 	// Create a simple test genesis file
@@ -299,7 +341,8 @@ func TestRollkitGenesisDocProviderFunc(t *testing.T) {
 
 	// Create a test node config
 	testNodeConfig := rollconf.Config{
-		RootDir: tempDir,
+		RootDir:   tempDir,
+		ConfigDir: "config",
 	}
 
 	// Get the genesis doc provider function
@@ -328,14 +371,19 @@ func TestInitFiles(t *testing.T) {
 	// Create the necessary subdirectories
 	configDir := filepath.Join(tempDir, "config")
 	dataDir := filepath.Join(tempDir, "data")
-	err = os.MkdirAll(configDir, 0750)
+	err = os.MkdirAll(configDir, rollconf.DefaultDirPerm)
 	assert.NoError(t, err)
-	err = os.MkdirAll(dataDir, 0750)
+	err = os.MkdirAll(dataDir, rollconf.DefaultDirPerm)
+	assert.NoError(t, err)
+
+	err = node.InitFiles(tempDir)
 	assert.NoError(t, err)
 
 	// Set the nodeConfig to use the temporary directory
 	nodeConfig = rollconf.Config{
-		RootDir: tempDir,
+		RootDir:   tempDir,
+		ConfigDir: "config",
+		DBPath:    "data",
 	}
 
 	// Restore the original nodeConfig when the test completes

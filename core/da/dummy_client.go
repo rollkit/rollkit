@@ -25,19 +25,37 @@ func (c *DummyClient) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return c.da.MaxBlobSize(ctx)
 }
 
+// GasPrice returns the gas price for the DA layer
+func (c *DummyClient) GasPrice(ctx context.Context) (float64, error) {
+	// Delegate to the underlying DA implementation
+	return c.da.GasPrice(ctx)
+}
+
+// GasMultiplier returns the gas multiplier for the DA layer
+func (c *DummyClient) GasMultiplier(ctx context.Context) (float64, error) {
+	// Delegate to the underlying DA implementation
+	return c.da.GasMultiplier(ctx)
+}
+
+// GetNamespace returns the namespace for the DA layer
+func (c *DummyClient) GetNamespace(ctx context.Context) ([]byte, error) {
+	// Delegate to the underlying DA implementation
+	return c.namespace, nil
+}
+
 // SubmitHeaders submits block headers to DA layer
-func (c *DummyClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmit {
+func (c *DummyClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) ResultSubmit {
 	// Convert headers to blobs
-	blobs := make([]Blob, len(headers))
-	copy(blobs, headers)
+	blobs := make([]Blob, len(data))
+	copy(blobs, data)
 
 	// Submit blobs to DA layer
-	_, height, err := c.da.Submit(ctx, blobs, gasPrice, c.namespace, nil)
+	ids, err := c.da.Submit(ctx, blobs, gasPrice, c.namespace, nil)
 	if err != nil {
 		return ResultSubmit{
 			BaseResult: BaseResult{
 				Code:    StatusError,
-				Message: fmt.Sprintf("failed to submit headers: %v", err),
+				Message: fmt.Sprintf("failed to submit data: %v", err),
 			},
 		}
 	}
@@ -46,21 +64,21 @@ func (c *DummyClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBl
 	return ResultSubmit{
 		BaseResult: BaseResult{
 			Code:           StatusSuccess,
-			Message:        fmt.Sprintf("successfully submitted %d headers", len(headers)),
-			SubmittedCount: uint64(len(headers)),
+			Message:        fmt.Sprintf("successfully submitted %d data", len(data)),
+			SubmittedCount: uint64(len(data)),
 			// Note: In a real implementation, we would set the DAHeight to the actual height
 			// where the blobs were included in the DA layer
-			DAHeight: height,
+			IDs: ids,
 		},
 	}
 }
 
-// RetrieveHeaders retrieves block headers from DA layer
-func (c *DummyClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64) ResultRetrieveHeaders {
+// RetrieveData retrieves block data from DA layer
+func (c *DummyClient) Retrieve(ctx context.Context, dataLayerHeight uint64) ResultRetrieve {
 	// Get IDs of blobs at the given height
 	result, err := c.da.GetIDs(ctx, dataLayerHeight, c.namespace)
 	if err != nil {
-		return ResultRetrieveHeaders{
+		return ResultRetrieve{
 			BaseResult: BaseResult{
 				Code:    StatusError,
 				Message: fmt.Sprintf("failed to get IDs at height %d: %v", dataLayerHeight, err),
@@ -70,20 +88,20 @@ func (c *DummyClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint6
 
 	// If no blobs at the given height, return empty result
 	if len(result.IDs) == 0 {
-		return ResultRetrieveHeaders{
+		return ResultRetrieve{
 			BaseResult: BaseResult{
-				Code:     StatusSuccess,
-				Message:  fmt.Sprintf("no headers found at height %d", dataLayerHeight),
-				DAHeight: dataLayerHeight,
+				Code:    StatusSuccess,
+				Message: fmt.Sprintf("no data found at height %d", dataLayerHeight),
+				Height:  dataLayerHeight,
 			},
-			Headers: [][]byte{},
+			Data: [][]byte{},
 		}
 	}
 
 	// Get blobs for the IDs
 	blobs, err := c.da.Get(ctx, result.IDs, c.namespace)
 	if err != nil {
-		return ResultRetrieveHeaders{
+		return ResultRetrieve{
 			BaseResult: BaseResult{
 				Code:    StatusError,
 				Message: fmt.Sprintf("failed to get blobs at height %d: %v", dataLayerHeight, err),
@@ -91,19 +109,17 @@ func (c *DummyClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint6
 		}
 	}
 
-	// Convert blobs to headers
-	headers := make([][]byte, len(blobs))
-	for i, blob := range blobs {
-		headers[i] = blob
-	}
+	// Convert blobs to data
+	data := make([][]byte, len(blobs))
+	copy(data, blobs)
 
 	// Return success result
-	return ResultRetrieveHeaders{
+	return ResultRetrieve{
 		BaseResult: BaseResult{
-			Code:     StatusSuccess,
-			Message:  fmt.Sprintf("retrieved %d headers from height %d", len(headers), dataLayerHeight),
-			DAHeight: dataLayerHeight,
+			Code:    StatusSuccess,
+			Message: fmt.Sprintf("retrieved %d data from height %d", len(data), dataLayerHeight),
+			Height:  dataLayerHeight,
 		},
-		Headers: headers,
+		Data: data,
 	}
 }

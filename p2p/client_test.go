@@ -2,14 +2,14 @@ package p2p
 
 import (
 	"context"
-	"crypto/rand"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
@@ -19,36 +19,53 @@ import (
 )
 
 func TestClientStartup(t *testing.T) {
-	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
 	assert := assert.New(t)
+	// create temp config dir
+	tempDir := t.TempDir()
+	ClientInitFiles(t, tempDir)
+
 	testCases := []struct {
-		desc    string
-		p2pconf config.P2PConfig
+		desc string
+		conf config.Config
 	}{
-		{"blank_config", config.P2PConfig{}},
-		{"peer_whitelisting", config.P2PConfig{
-			ListenAddress: "",
-			Seeds:         "",
-			BlockedPeers:  "",
-			AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+		{"blank_config", config.Config{
+			RootDir: tempDir,
 		}},
-		{"peer_blacklisting", config.P2PConfig{
-			ListenAddress: "",
-			Seeds:         "",
-			BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
-			AllowedPeers:  "",
-		}},
+		{"peer_whitelisting", config.Config{
+			RootDir: tempDir,
+			P2P: config.P2PConfig{
+				ListenAddress: "",
+				Seeds:         "",
+				BlockedPeers:  "",
+				AllowedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+			},
+		},
+		},
+		{
+			"peer_blacklisting",
+			config.Config{
+				RootDir: tempDir,
+				P2P: config.P2PConfig{
+					ListenAddress: "",
+					Seeds:         "",
+					BlockedPeers:  "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U",
+					AllowedPeers:  "",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			client, err := NewClient(testCase.p2pconf, privKey, "TestChain",
+			client, err := NewClient(testCase.conf, "TestChain",
 				dssync.MutexWrap(datastore.NewMapDatastore()), log.NewTestLogger(t), NopMetrics())
 			assert.NoError(err)
 			assert.NotNil(client)
 
-			err = client.Start(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			err = client.Start(ctx)
 			defer func() {
+				cancel()
 				_ = client.Close()
 			}()
 			assert.NoError(err)
@@ -102,8 +119,6 @@ func TestDiscovery(t *testing.T) {
 func TestSeedStringParsing(t *testing.T) {
 	t.Parallel()
 
-	privKey, _, _ := crypto.GenerateEd25519Key(rand.Reader)
-
 	seed1 := "/ip4/127.0.0.1/tcp/7676/p2p/12D3KooWM1NFkZozoatQi3JvFE57eBaX56mNgBA68Lk5MTPxBE4U"
 	seed1MA, err := multiaddr.NewMultiaddr(seed1)
 	require.NoError(t, err)
@@ -139,8 +154,16 @@ func TestSeedStringParsing(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			logger := log.NewNopLogger()
-			client, err := NewClient(config.P2PConfig{}, privKey, "TestNetwork",
-				dssync.MutexWrap(datastore.NewMapDatastore()), logger, NopMetrics())
+			tempDir := t.TempDir()
+			ClientInitFiles(t, tempDir)
+
+			client, err := NewClient(
+				config.Config{RootDir: tempDir},
+				"TestNetwork",
+				dssync.MutexWrap(datastore.NewMapDatastore()),
+				logger,
+				NopMetrics(),
+			)
 			require.NoError(err)
 			require.NotNil(client)
 			actual := client.parseAddrInfoList(c.input)
@@ -148,4 +171,15 @@ func TestSeedStringParsing(t *testing.T) {
 			assert.Equal(c.expected, actual)
 		})
 	}
+}
+
+// ClientInitFiles creates the config directory and nodekey file for the client
+func ClientInitFiles(t *testing.T, tempDir string) {
+	// Create config directory
+	configDir := filepath.Join(tempDir, "config")
+	err := os.MkdirAll(configDir, 0755) //nolint:gosec
+	if err != nil {
+		t.Fatalf("failed to create config directory: %v", err)
+	}
+
 }

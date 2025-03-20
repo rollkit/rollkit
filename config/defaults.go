@@ -7,12 +7,21 @@ import (
 )
 
 const (
+	// DefaultDirPerm is the default permissions used when creating directories.
+	DefaultDirPerm = 0750
+
+	// DefaultConfigDir is the default directory for configuration files (e.g. rollkit.toml).
+	DefaultConfigDir = "config"
+
+	// DefaultDataDir is the default directory for data files (e.g. database).
+	DefaultDataDir = "data"
+
 	// DefaultListenAddress is a default listen address for P2P client.
 	DefaultListenAddress = "/ip4/0.0.0.0/tcp/7676"
 	// Version is the current rollkit version
 	// Please keep updated with each new release
 	Version = "0.38.5"
-	// DefaultDAAddress is the default address for the DA middleware
+	// DefaultDAAddress is the default address for the data availability layer
 	DefaultDAAddress = "http://localhost:26658"
 	// DefaultSequencerAddress is the default address for the sequencer middleware
 	DefaultSequencerAddress = "localhost:50051"
@@ -35,17 +44,18 @@ func DefaultRootDir() string {
 
 // DefaultNodeConfig keeps default values of NodeConfig
 var DefaultNodeConfig = Config{
-	RootDir: DefaultRootDir(),
-	DBPath:  "data",
+	RootDir:   DefaultRootDir(),
+	DBPath:    DefaultDataDir,
+	ConfigDir: DefaultConfigDir,
 	P2P: P2PConfig{
 		ListenAddress: DefaultListenAddress,
 		Seeds:         "",
 	},
 	Node: NodeConfig{
 		Aggregator:        true,
-		BlockTime:         1 * time.Second,
+		BlockTime:         DurationWrapper{1 * time.Second},
 		LazyAggregator:    false,
-		LazyBlockTime:     60 * time.Second,
+		LazyBlockTime:     DurationWrapper{60 * time.Second},
 		Light:             false,
 		TrustedHash:       "",
 		SequencerAddress:  DefaultSequencerAddress,
@@ -54,15 +64,12 @@ var DefaultNodeConfig = Config{
 	},
 	DA: DAConfig{
 		Address:       DefaultDAAddress,
-		BlockTime:     15 * time.Second,
+		BlockTime:     DurationWrapper{15 * time.Second},
 		GasPrice:      -1,
 		GasMultiplier: 0,
 	},
 	Instrumentation: DefaultInstrumentationConfig(),
 	Entrypoint:      "",
-	Chain: ChainConfig{
-		ConfigDir: DefaultConfigDir,
-	},
 	Log: LogConfig{
 		Level:  DefaultLogLevel,
 		Format: "",

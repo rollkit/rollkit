@@ -7,7 +7,7 @@ import (
 
 func TestDummyClient(t *testing.T) {
 	// Create a new DummyDA with a max blob size of 1024 bytes
-	dummyDA := NewDummyDA(1024)
+	dummyDA := NewDummyDA(1024, 0, 0)
 
 	// Create a new DummyClient with the DummyDA
 	namespace := []byte("test-namespace")
@@ -31,7 +31,7 @@ func TestDummyClient(t *testing.T) {
 	}
 
 	// Test SubmitHeaders
-	submitResult := client.SubmitHeaders(ctx, headers, maxBlobSize, 1.0)
+	submitResult := client.Submit(ctx, headers, 1024, 1.0)
 
 	// Check the result
 	if submitResult.Code != StatusSuccess {
@@ -41,32 +41,32 @@ func TestDummyClient(t *testing.T) {
 		t.Errorf("Expected 3 submitted headers, got %v", submitResult.SubmittedCount)
 	}
 
-	// Test RetrieveHeaders
-	retrieveResult := client.RetrieveHeaders(ctx, 1) // Use height 1 as set in the dummy implementation
+	// Test Retrieve
+	retrieveResult := client.Retrieve(ctx, 1) // Use height 1 as set in the dummy implementation
 
 	// Check the result
 	if retrieveResult.Code != StatusSuccess {
 		t.Errorf("Expected StatusSuccess, got %v", retrieveResult.Code)
 	}
-	if len(retrieveResult.Headers) != 3 {
-		t.Errorf("Expected 3 retrieved headers, got %v", len(retrieveResult.Headers))
+	if len(retrieveResult.Data) != 3 {
+		t.Errorf("Expected 3 retrieved data, got %v", len(retrieveResult.Data))
 	}
 
 	// Check that the retrieved headers match the submitted ones
 	for i, header := range headers {
-		if string(retrieveResult.Headers[i]) != string(header) {
-			t.Errorf("Expected header %v, got %v", string(header), string(retrieveResult.Headers[i]))
+		if string(retrieveResult.Data[i]) != string(header) {
+			t.Errorf("Expected data %v, got %v", string(header), string(retrieveResult.Data[i]))
 		}
 	}
 
-	// Test retrieving headers from a non-existent height
-	nonExistentResult := client.RetrieveHeaders(ctx, 999)
+	// Test retrieving data from a non-existent height
+	nonExistentResult := client.Retrieve(ctx, 999)
 
 	// Check the result
 	if nonExistentResult.Code != StatusSuccess {
 		t.Errorf("Expected StatusSuccess, got %v", nonExistentResult.Code)
 	}
-	if len(nonExistentResult.Headers) != 0 {
-		t.Errorf("Expected 0 retrieved headers, got %v", len(nonExistentResult.Headers))
+	if len(nonExistentResult.Data) != 0 {
+		t.Errorf("Expected 0 retrieved data, got %v", len(nonExistentResult.Data))
 	}
 }

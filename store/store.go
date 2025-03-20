@@ -10,7 +10,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 
 	"github.com/rollkit/rollkit/types"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 var (

@@ -1,5 +1,5 @@
 syntax = "proto3";
-package rollkit;
+package rollkit.v1;
 
 import "tendermint/types/validator.proto";
 
@@ -14,6 +14,7 @@ message Version {
   uint64 app = 2;
 }
 
+// Header is the header of a block in the blockchain.
 message Header {
   // Block and App version
   Version version = 1;
@@ -58,12 +59,14 @@ message Header {
   string chain_id = 12;
 }
 
+// SignedHeader is a header with a signature and a validator set.
 message SignedHeader {
   Header header = 1;
   bytes signature = 2;
   tendermint.types.ValidatorSet validators = 3;
 }
 
+// Metadata is the metadata of a block in the blockchain.
 message Metadata {
   // Rollup chain id
   string chain_id = 1;
@@ -78,14 +81,9 @@ message Metadata {
   bytes last_data_hash = 4;
 }
 
+// Data is the data of a block in the blockchain.
 message Data {
   Metadata metadata = 1;
   repeated bytes txs = 2;
   // repeated bytes intermediate_state_roots = 2;
-}
-
-message TxWithISRs {
-  bytes pre_isr = 1;
-  bytes tx = 2;
-  bytes post_isr = 3;
 }
