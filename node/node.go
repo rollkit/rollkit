@@ -5,12 +5,12 @@ import (
 
 	"cosmossdk.io/log"
 	cmtypes "github.com/cometbft/cometbft/types"
-	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/remote_signer"
 	"github.com/rollkit/rollkit/pkg/service"
 )
 
@@ -28,7 +28,7 @@ func NewNode(
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
-	signingKey crypto.PrivKey,
+	signer remote_signer.Signer,
 	genesis *cmtypes.GenesisDoc,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
@@ -40,7 +40,7 @@ func NewNode(
 	return newFullNode(
 		ctx,
 		conf,
-		signingKey,
+		signer,
 		genesis,
 		exec,
 		sequencer,

@@ -14,7 +14,6 @@ import (
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -24,6 +23,7 @@ import (
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/remote_signer"
 	"github.com/rollkit/rollkit/pkg/service"
 	"github.com/rollkit/rollkit/store"
 )
@@ -67,7 +67,7 @@ type FullNode struct {
 func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
-	signingKey crypto.PrivKey,
+	signer remote_signer.Signer,
 	genesis *cmtypes.GenesisDoc,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
@@ -102,7 +102,7 @@ func newFullNode(
 
 	blockManager, err := initBlockManager(
 		ctx,
-		signingKey,
+		signer,
 		exec,
 		nodeConfig,
 		genesis,
@@ -184,7 +184,7 @@ func initDataSyncService(
 
 func initBlockManager(
 	ctx context.Context,
-	signingKey crypto.PrivKey,
+	signer remote_signer.Signer,
 	exec coreexecutor.Executor,
 	nodeConfig config.Config,
 	genesis *cmtypes.GenesisDoc,
@@ -209,7 +209,7 @@ func initBlockManager(
 	}
 	blockManager, err := block.NewManager(
 		ctx,
-		signingKey,
+		signer,
 		nodeConfig,
 		rollGen,
 		store,

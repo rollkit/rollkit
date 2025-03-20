@@ -40,6 +40,7 @@ func TestFileSystemSigner(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, valid)
 
+	passphrase = []byte("test-passphrase-123")
 	// Create a new signer instance (this will load the existing keys)
 	signer2, err := NewFileSystemSigner(keyPath, passphrase)
 	require.NoError(t, err)

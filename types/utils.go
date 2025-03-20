@@ -12,6 +12,7 @@ import (
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	noopsigner "github.com/rollkit/rollkit/pkg/remote_signer/noop"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -288,8 +289,16 @@ func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
 
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
 func GetGenesisWithPrivkey(chainID string) (*cmtypes.GenesisDoc, crypto.PrivKey) {
-	genesisValidatorKey := ed25519.GenPrivKey()
-	pubKey := genesisValidatorKey.PubKey()
+
+	signer, err := noopsigner.NewNoopSigner()
+	if err != nil {
+		panic(err)
+	}
+
+	pubKey, err := signer.GetPublic()
+	if err != nil {
+		panic(err)
+	}
 
 	genesisValidators := []cmtypes.GenesisValidator{{
 		Address: pubKey.Address(),

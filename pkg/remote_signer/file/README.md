@@ -49,9 +49,6 @@ For production use, consider the following enhancements:
 
 1. **Stronger KDF**: Replace the simple key derivation function with Argon2 or PBKDF2
 2. **Secure Passphrase Handling**: Implement secure methods for obtaining and handling passphrases
-3. **Memory Protection**: Add memory protection to prevent keys from being swapped to disk
-4. **Key Rotation**: Implement key rotation policies
-5. **Hardware Security**: For high-security environments, consider using hardware security modules (HSMs)
 
 ## Implementation Details
 
