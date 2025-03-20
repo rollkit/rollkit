@@ -7,22 +7,22 @@ The separation of header and data structures in Rollkit unlocks expanding the se
 ### Before Separation
 
 ```mermaid
-flowchart LR    
+flowchart LR
     CS[Centralized Sequencer] -->|Creates| B[Block]
     B -->|Contains| SH1[SignedHeader]
     B -->|Contains| D1[Data]
-    
+
     class CS,B,SH1,D1 node
 ```
 
 ### After Separation
 
 ```mermaid
-flowchart LR    
+flowchart LR
     HP[Header Producer] -->|Creates| SH2[SignedHeader]
     SEQ[Sequencer] -->|Creates| D2[Data]
     SH2 -.->|References via DataCommitment| D2
-    
+
     class HP,SEQ,SH2,D2 node
 ```
 
@@ -46,12 +46,12 @@ classDiagram
         SignedHeader
         Data
     }
-    
+
     class SignedHeader {
         Header
         Signature
     }
-    
+
     class Header {
         ParentHash
         Height
@@ -61,12 +61,12 @@ classDiagram
         StateRoot
         ExtraData
     }
-    
+
     class Data {
         Metadata
         Txs
     }
-    
+
     Block *-- SignedHeader
     Block *-- Data
     SignedHeader *-- Header
@@ -125,11 +125,11 @@ In based sequencing mode, the header producer is equivalent to a full node.
 
 ```mermaid
 flowchart LR
-    
+
     CS1[Centralized Sequencer] -->|Submits Block| DA1[DA Layer]
     CS1 -->|Gossips Block| FN1[Full Nodes]
     CS1 -->|Gossips SignedHeader| LN1[Light Nodes]
-    
+
     class CS1,DA1,FN1,LN1 node
 ```
 
@@ -137,14 +137,14 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    
+
     CS2[Centralized Sequencer] -->|Submits Data| DA2[DA Layer]
     HP2[Header Producer] -->|Submits SignedHeader| DA2
-    
+
     CS2 -->|Gossips Data| FN2[Full Nodes]
     HP2 -->|Gossips SignedHeader| FN2
     HP2 -->|Gossips SignedHeader| LN2[Light Nodes]
-    
+
     class CS2,HP2,DA2,FN2,LN2 node
 ```
 
@@ -152,10 +152,10 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    
+
     Users -->|Submit Txs| DA3[DA Layer]
     FN3[Full Node/Header Producer] -->|Reads Data| DA3
-    
+
     class Users,DA3,FN3,LN3 node
 ```
 
@@ -171,9 +171,9 @@ sequenceDiagram
     participant P2P as P2P Network
     participant DA as DA Layer
     participant SM as State Machine
-    
+
     Note over FN,DA: After Separation - Sync Process
-    
+
     P2P->>FN: Receive Data
     P2P->>FN: Receive SignedHeader
     FN->>DA: Verify Data availability
@@ -193,9 +193,9 @@ sequenceDiagram
     participant DA as DA Layer
     participant FN as Full Node
     participant SM as State Machine
-    
+
     Note over DA,FN: Based Sequencing Mode
-    
+
     DA->>FN: Data already available
     FN->>FN: Read Data from DA
     FN->>FN: Execute transactions

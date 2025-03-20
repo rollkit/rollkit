@@ -1137,7 +1137,6 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		header = pendingHeader
 		data = pendingData
 	} else {
-
 		execTxs, err := m.exec.GetTxs(ctx)
 		if err != nil {
 			m.logger.Error("failed to get txs from executor", "err", err)
