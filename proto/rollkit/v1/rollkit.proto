@@ -2,6 +2,7 @@ syntax = "proto3";
 package rollkit.v1;
 
 import "google/protobuf/timestamp.proto";
+import "gogoproto/gogo.proto";
 
 option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 
@@ -96,7 +97,10 @@ message Data {
 message Vote {
   string chain_id = 1;
   uint64 height = 2;
-  google.protobuf.Timestamp timestamp = 3;
+  google.protobuf.Timestamp timestamp = 3[
+    (gogoproto.nullable) = false,
+    (gogoproto.stdtime) = true
+  ];
   bytes block_id_hash = 4;
   bytes validator_address = 5;
 }

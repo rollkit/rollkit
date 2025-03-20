@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	v1 "github.com/rollkit/rollkit/types/pb/rollkit/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Hash is a 32-byte array which is used to represent a hash result.
@@ -127,7 +126,7 @@ func (h *Header) Vote() ([]byte, error) {
 		Height:           h.Height(),
 		BlockIdHash:      h.Hash(),
 		ValidatorAddress: h.ProposerAddress,
-		Timestamp:        timestamppb.New(h.Time()),
+		Timestamp:        h.Time(),
 	}
 
 	bz, err := v.Marshal()
