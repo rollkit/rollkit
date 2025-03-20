@@ -22,6 +22,7 @@ import (
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/pkg/cache"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
@@ -123,8 +124,8 @@ type Manager struct {
 	dataInCh  chan NewDataEvent
 	dataStore *goheaderstore.Store[*types.Data]
 
-	headerCache *HeaderCache
-	dataCache   *DataCache
+	headerCache *cache.Cache[types.SignedHeader]
+	dataCache   *cache.Cache[types.Data]
 
 	// headerStoreCh is used to notify sync goroutine (SyncLoop) that it needs to retrieve headers from headerStore
 	headerStoreCh chan struct{}
@@ -328,8 +329,8 @@ func NewManager(
 		dataStore:      dataStore,
 		lastStateMtx:   new(sync.RWMutex),
 		lastBatchData:  lastBatchData,
-		headerCache:    NewHeaderCache(),
-		dataCache:      NewDataCache(),
+		headerCache:    cache.NewCache[types.SignedHeader](),
+		dataCache:      cache.NewCache[types.Data](),
 		retrieveCh:     make(chan struct{}, 1),
 		logger:         logger,
 		buildingBlock:  false,
@@ -433,12 +434,12 @@ func (m *Manager) GetDataInCh() chan NewDataEvent {
 
 // IsBlockHashSeen returns true if the block with the given hash has been seen.
 func (m *Manager) IsBlockHashSeen(blockHash string) bool {
-	return m.headerCache.isSeen(blockHash)
+	return m.headerCache.IsSeen(blockHash)
 }
 
 // IsDAIncluded returns true if the block with the given hash has been seen on DA.
 func (m *Manager) IsDAIncluded(hash types.Hash) bool {
-	return m.headerCache.isDAIncluded(hash.String())
+	return m.headerCache.IsDAIncluded(hash.String())
 }
 
 // getRemainingSleep calculates the remaining sleep time based on config and a start time.
@@ -665,7 +666,7 @@ func (m *Manager) handleEmptyDataHash(ctx context.Context, header *types.Header)
 			d := &types.Data{
 				Metadata: metadata,
 			}
-			m.dataCache.setData(headerHeight, d)
+			m.dataCache.SetItem(headerHeight, d)
 		}
 	}
 }
@@ -697,11 +698,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", headerHash,
 			)
-			if headerHeight <= m.store.Height() || m.headerCache.isSeen(headerHash) {
+			if headerHeight <= m.store.Height() || m.headerCache.IsSeen(headerHash) {
 				m.logger.Debug("header already seen", "height", headerHeight, "block hash", headerHash)
 				continue
 			}
-			m.headerCache.setHeader(headerHeight, header)
+			m.headerCache.SetItem(headerHeight, header)
 
 			m.sendNonBlockingSignalToHeaderStoreCh()
 			m.sendNonBlockingSignalToRetrieveCh()
@@ -716,7 +717,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
 			}
-			m.headerCache.setSeen(headerHash)
+			m.headerCache.SetSeen(headerHash)
 		case dataEvent := <-m.dataInCh:
 			data := dataEvent.Data
 			daHeight := dataEvent.DAHeight
@@ -727,11 +728,11 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				"daHeight", daHeight,
 				"hash", dataHash,
 			)
-			if dataHeight <= m.store.Height() || m.dataCache.isSeen(dataHash) {
+			if dataHeight <= m.store.Height() || m.dataCache.IsSeen(dataHash) {
 				m.logger.Debug("data already seen", "height", dataHeight, "data hash", dataHash)
 				continue
 			}
-			m.dataCache.setData(dataHeight, data)
+			m.dataCache.SetItem(dataHeight, data)
 
 			m.sendNonBlockingSignalToDataStoreCh()
 
@@ -740,7 +741,7 @@ func (m *Manager) SyncLoop(ctx context.Context) {
 				m.logger.Info("failed to sync next block", "error", err)
 				continue
 			}
-			m.dataCache.setSeen(dataHash)
+			m.dataCache.SetSeen(dataHash)
 		case <-ctx.Done():
 			return
 		}
@@ -782,12 +783,12 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		default:
 		}
 		currentHeight := m.store.Height()
-		h := m.headerCache.getHeader(currentHeight + 1)
+		h := m.headerCache.GetItem(currentHeight + 1)
 		if h == nil {
 			m.logger.Debug("header not found in cache", "height", currentHeight+1)
 			return nil
 		}
-		d := m.dataCache.getData(currentHeight + 1)
+		d := m.dataCache.GetItem(currentHeight + 1)
 		if d == nil {
 			m.logger.Debug("data not found in cache", "height", currentHeight+1)
 			return nil
@@ -826,8 +827,8 @@ func (m *Manager) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 		if err != nil {
 			m.logger.Error("failed to save updated state", "error", err)
 		}
-		m.headerCache.deleteHeader(currentHeight + 1)
-		m.dataCache.deleteData(currentHeight + 1)
+		m.headerCache.DeleteItem(currentHeight + 1)
+		m.dataCache.DeleteItem(currentHeight + 1)
 	}
 }
 
@@ -1020,13 +1021,13 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 					continue
 				}
 				blockHash := header.Hash().String()
-				m.headerCache.setDAIncluded(blockHash)
+				m.headerCache.SetDAIncluded(blockHash)
 				err = m.setDAIncludedHeight(ctx, header.Height())
 				if err != nil {
 					return err
 				}
 				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
-				if !m.headerCache.isSeen(blockHash) {
+				if !m.headerCache.IsSeen(blockHash) {
 					// Check for shut down event prior to logging
 					// and sending block to blockInCh. The reason
 					// for checking for the shutdown event
@@ -1249,7 +1250,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	headerHeight := header.Height()
 
 	headerHash := header.Hash().String()
-	m.headerCache.setSeen(headerHash)
+	m.headerCache.SetSeen(headerHash)
 
 	// SaveBlock commits the DB tx
 	err = m.store.SaveBlockData(ctx, header, data, &signature)
@@ -1365,7 +1366,7 @@ daSubmitRetryLoop:
 			submittedBlocks, notSubmittedBlocks := headersToSubmit[:res.SubmittedCount], headersToSubmit[res.SubmittedCount:]
 			numSubmittedHeaders += len(submittedBlocks)
 			for _, block := range submittedBlocks {
-				m.headerCache.setDAIncluded(block.Hash().String())
+				m.headerCache.SetDAIncluded(block.Hash().String())
 				err = m.setDAIncludedHeight(ctx, block.Height())
 				if err != nil {
 					return err
