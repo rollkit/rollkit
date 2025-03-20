@@ -4,28 +4,24 @@ import (
 	"fmt"
 	"time"
 
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
 // but leaves the Consensus.App version blank.
 // The Consensus.App version will be set during the Handshake, once
 // we hear from the app what protocol version it is running.
-var InitStateVersion = cmstate.Version{
-	Consensus: cmversion.Consensus{
-		Block: version.BlockProtocol,
-		App:   0,
-	},
-	Software: version.TMCoreSemVer,
+var InitStateVersion = pb.Version{
+	Block: version.BlockProtocol,
+	App:   0,
 }
 
 // State contains information about current state of the blockchain.
 type State struct {
-	Version cmstate.Version
+	Version pb.Version
 
 	// immutable
 	ChainID       string

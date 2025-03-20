@@ -4,7 +4,7 @@ import (
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // MarshalBinary encodes Metadata into binary form and returns it.
@@ -217,14 +217,14 @@ func (s *State) ToProto() (*pb.State, error) {
 	// 	return nil, err
 	// }
 	return &pb.State{
-		Version:         &s.Version,
+		Version: &pb.Version{
+			Block: s.Version.Block,
+			App:   s.Version.App,
+		},
 		ChainId:         s.ChainID,
 		InitialHeight:   s.InitialHeight,
 		LastBlockHeight: s.LastBlockHeight,
-		LastBlockID:     s.LastBlockID.ToProto(),
 		LastBlockTime:   s.LastBlockTime,
-		DAHeight:        s.DAHeight,
-		ConsensusParams: s.ConsensusParams,
 		//LastHeightConsensusParamsChanged: s.LastHeightConsensusParamsChanged,
 		LastResultsHash: s.LastResultsHash[:],
 		AppHash:         s.AppHash[:],
@@ -237,43 +237,16 @@ func (s *State) ToProto() (*pb.State, error) {
 
 // FromProto fills State with data from its protobuf representation.
 func (s *State) FromProto(other *pb.State) error {
-	var err error
-	s.Version = *other.Version
+	s.Version = pb.Version{
+		Block: other.Version.Block,
+		App:   other.Version.App,
+	}
 	s.ChainID = other.ChainId
 	s.InitialHeight = other.InitialHeight
 	s.LastBlockHeight = other.LastBlockHeight
 
-	lastBlockID, err := types.BlockIDFromProto(&other.LastBlockID)
-	if err != nil {
-		return err
-	}
-	s.LastBlockID = *lastBlockID
 	s.LastBlockTime = other.LastBlockTime
-	s.DAHeight = other.DAHeight
 
-	// Unmarshal validator sets
-	// if other.NextValidators != nil {
-	// 	s.NextValidators, err = types.ValidatorSetFromProto(other.NextValidators)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// if other.Validators != nil {
-	// 	s.Validators, err = types.ValidatorSetFromProto(other.Validators)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// if other.LastValidators != nil {
-	// 	s.LastValidators, err = types.ValidatorSetFromProto(other.LastValidators)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-
-	// s.LastHeightValidatorsChanged = other.LastHeightValidatorsChanged
-	s.ConsensusParams = other.ConsensusParams
-	// s.LastHeightConsensusParamsChanged = other.LastHeightConsensusParamsChanged
 	s.LastResultsHash = other.LastResultsHash
 	s.AppHash = other.AppHash
 

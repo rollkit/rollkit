@@ -15,7 +15,6 @@ import (
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
@@ -30,7 +29,7 @@ import (
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/third_party/log"
 	"github.com/rollkit/rollkit/types"
-	rollkitproto "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 const (
@@ -217,7 +216,7 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 			AppHash:         stateRoot,
 			DAHeight:        0,
 			// TODO(tzdybal): we don't need fields below
-			Version:                          cmstate.Version{},
+			Version:                          pb.Version{},
 			ConsensusParams:                  cmproto.ConsensusParams{},
 			LastHeightConsensusParamsChanged: 0,
 			LastResultsHash:                  nil,
@@ -1020,7 +1019,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 			for _, bz := range headerResp.Data {
 				header := new(types.SignedHeader)
 				// decode the header
-				var headerPb rollkitproto.SignedHeader
+				var headerPb pb.SignedHeader
 				err := headerPb.Unmarshal(bz)
 				if err != nil {
 					m.logger.Error("failed to unmarshal header", "error", err)
@@ -1503,8 +1502,8 @@ func (m *Manager) execCreateBlock(_ context.Context, height uint64, lastSignatur
 	header := &types.SignedHeader{
 		Header: types.Header{
 			Version: types.Version{
-				Block: lastState.Version.Consensus.Block,
-				App:   lastState.Version.Consensus.App,
+				Block: lastState.Version.Block,
+				App:   lastState.Version.App,
 			},
 			BaseHeader: types.BaseHeader{
 				ChainID: lastState.ChainID,

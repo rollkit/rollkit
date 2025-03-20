@@ -1,5 +1,5 @@
 syntax = "proto3";
-package rollkit;
+package rollkit.v1;
 
 import "tendermint/types/validator.proto";
 

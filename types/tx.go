@@ -10,7 +10,7 @@ import (
 	"github.com/rollkit/rollkit/third_party/celestia-app/appconsts"
 	appns "github.com/rollkit/rollkit/third_party/celestia-app/namespace"
 	"github.com/rollkit/rollkit/third_party/celestia-app/shares"
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 // Tx represents transaction.

@@ -6,14 +6,12 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 func TestBlockSerializationRoundTrip(t *testing.T) {
@@ -127,12 +125,9 @@ func TestStateRoundTrip(t *testing.T) {
 				//LastValidators: valSet,
 				//Validators:     valSet,
 				//NextValidators: valSet,
-				Version: cmstate.Version{
-					Consensus: cmversion.Consensus{
-						Block: 123,
-						App:   456,
-					},
-					Software: "rollkit",
+				Version: pb.Version{
+					Block: 123,
+					App:   456,
 				},
 				ChainID:         "testchain",
 				InitialHeight:   987,
