@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
@@ -347,13 +346,8 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 // invalidateBlockHeader results in a block header that produces a marshalling error
 func invalidateBlockHeader(header *types.SignedHeader) {
-	for i := range header.Validators.Validators {
-		header.Validators.Validators[i] = &cmtypes.Validator{
-			Address:          []byte(""),
-			PubKey:           nil,
-			VotingPower:      -1,
-			ProposerPriority: 0,
-		}
+	for i := range header.Signer.Address {
+		header.Signer.Address[i] = 0
 	}
 }
 
