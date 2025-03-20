@@ -5,5 +5,5 @@ option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
 
 // Batch is a collection of transactions.
 message Batch {
-  repeated bytes txs = 2;
+  repeated bytes txs = 1;
 }

@@ -6,7 +6,7 @@ package rollkit
 import (
 	fmt "fmt"
 	types "github.com/cometbft/cometbft/proto/tendermint/types"
-	proto "github.com/gogo/protobuf/proto"
+	proto "github.com/cosmos/gogoproto/proto"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -79,6 +79,7 @@ func (m *Version) GetApp() uint64 {
 	return 0
 }
 
+// Header is the header of a block in the blockchain.
 type Header struct {
 	// Block and App version
 	Version *Version `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -229,6 +230,7 @@ func (m *Header) GetChainId() string {
 	return ""
 }
 
+// SignedHeader is a header with a signature and a validator set.
 type SignedHeader struct {
 	Header     *Header             `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	Signature  []byte              `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
@@ -289,6 +291,7 @@ func (m *SignedHeader) GetValidators() *types.ValidatorSet {
 	return nil
 }
 
+// Metadata is the metadata of a block in the blockchain.
 type Metadata struct {
 	// Rollup chain id
 	ChainId string `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
@@ -361,6 +364,7 @@ func (m *Metadata) GetLastDataHash() []byte {
 	return nil
 }
 
+// Data is the data of a block in the blockchain.
 type Data struct {
 	Metadata *Metadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	Txs      [][]byte  `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
@@ -413,6 +417,7 @@ func (m *Data) GetTxs() [][]byte {
 	return nil
 }
 
+// TxWithISRs is a transaction with intermediate state roots.
 type TxWithISRs struct {
 	PreIsr  []byte `protobuf:"bytes,1,opt,name=pre_isr,json=preIsr,proto3" json:"pre_isr,omitempty"`
 	Tx      []byte `protobuf:"bytes,2,opt,name=tx,proto3" json:"tx,omitempty"`
