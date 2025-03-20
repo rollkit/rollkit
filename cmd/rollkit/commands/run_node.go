@@ -68,8 +68,8 @@ func NewRunNodeCmd() *cobra.Command {
 			}
 
 			// TODO: this should be moved elsewhere
-			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
-			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
+			privValidatorKeyFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "priv_validator_key.json")
+			privValidatorStateFile := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath, "priv_validator_state.json")
 			pval := cometprivval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 
 			signingKey, err := crypto.UnmarshalEd25519PrivateKey(pval.Key.PrivKey.Bytes())
@@ -110,7 +110,7 @@ func NewRunNodeCmd() *cobra.Command {
 			kvExecutor := createDirectKVExecutor(ctx)
 			dummySequencer := coresequencer.NewDummySequencer()
 
-			dummyDA := coreda.NewDummyDA(100_000)
+			dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 			dummyDALC := da.NewDAClient(dummyDA, nodeConfig.DA.GasPrice, nodeConfig.DA.GasMultiplier, []byte(nodeConfig.DA.Namespace), []byte(nodeConfig.DA.SubmitOptions), logger)
 			// create the rollkit node
 			rollnode, err := node.NewNode(
@@ -296,9 +296,21 @@ func createDirectKVExecutor(ctx context.Context) *testExecutor.KVExecutor {
 // TODO (Ferret-san): modify so that it initiates files with rollkit configurations by default
 // note that such a change would also require changing the cosmos-sdk
 func initFiles() error {
+	// Create config and data directories using nodeConfig values
+	configDir := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir)
+	dataDir := filepath.Join(nodeConfig.RootDir, nodeConfig.DBPath)
+
+	if err := os.MkdirAll(configDir, rollconf.DefaultDirPerm); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	if err := os.MkdirAll(dataDir, rollconf.DefaultDirPerm); err != nil {
+		return fmt.Errorf("failed to create data directory: %w", err)
+	}
+
 	// Generate the private validator config files
-	cometprivvalKeyFile := filepath.Join(nodeConfig.RootDir, "config", "priv_validator_key.json")
-	cometprivvalStateFile := filepath.Join(nodeConfig.RootDir, "data", "priv_validator_state.json")
+	cometprivvalKeyFile := filepath.Join(configDir, "priv_validator_key.json")
+	cometprivvalStateFile := filepath.Join(dataDir, "priv_validator_state.json")
 	var pv *cometprivval.FilePV
 	if rollos.FileExists(cometprivvalKeyFile) {
 		pv = cometprivval.LoadFilePV(cometprivvalKeyFile, cometprivvalStateFile)
@@ -312,7 +324,7 @@ func initFiles() error {
 	}
 
 	// Generate the genesis file
-	genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
+	genFile := filepath.Join(configDir, "genesis.json")
 	if rollos.FileExists(genFile) {
 		logger.Info("Found genesis file", "path", genFile)
 	} else {
@@ -343,7 +355,7 @@ func initFiles() error {
 
 func parseConfig(cmd *cobra.Command) error {
 	// Load configuration with the correct order of precedence:
-	// DefaultNodeConfig -> Toml -> Flags
+	// DefaultNodeConfig -> Yaml -> Flags
 	var err error
 	nodeConfig, err = rollconf.LoadNodeConfig(cmd)
 	if err != nil {
@@ -351,7 +363,9 @@ func parseConfig(cmd *cobra.Command) error {
 	}
 
 	// Validate the root directory
-	rollconf.EnsureRoot(nodeConfig.RootDir)
+	if err := rollconf.EnsureRoot(nodeConfig.RootDir); err != nil {
+		return err
+	}
 
 	// Setup logger with configuration from nodeConfig
 	logger = setupLogger(nodeConfig)
@@ -407,7 +421,7 @@ func setupLogger(config rollconf.Config) log.Logger {
 func RollkitGenesisDocProviderFunc(nodeConfig rollconf.Config) func() (*comettypes.GenesisDoc, error) {
 	return func() (*comettypes.GenesisDoc, error) {
 		// Construct the genesis file path using rootify
-		genFile := filepath.Join(nodeConfig.RootDir, "config", "genesis.json")
+		genFile := filepath.Join(nodeConfig.RootDir, nodeConfig.ConfigDir, "genesis.json")
 		return comettypes.GenesisDocFromFile(genFile)
 	}
 }

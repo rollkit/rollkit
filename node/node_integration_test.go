@@ -39,9 +39,9 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	// Setup node with proper configuration
 	config := getTestConfig(s.T(), 1)
-	config.Node.BlockTime = 100 * time.Millisecond // Faster block production for tests
-	config.DA.BlockTime = 200 * time.Millisecond   // Faster DA submission for tests
-	config.Node.MaxPendingBlocks = 100             // Allow more pending blocks
+	config.Node.BlockTime = rollkitconfig.DurationWrapper{Duration: 100 * time.Millisecond} // Faster block production for tests
+	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond}   // Faster DA submission for tests
+	config.Node.MaxPendingBlocks = 100                                                      // Allow more pending blocks
 
 	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
 
@@ -50,7 +50,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	err := InitFiles(config.RootDir)

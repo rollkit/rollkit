@@ -24,8 +24,8 @@ func getTestConfig(t *testing.T, n int) rollkitconfig.Config {
 			Aggregator:       true,
 			ExecutorAddress:  MockExecutorAddress,
 			SequencerAddress: MockSequencerAddress,
-			BlockTime:        500 * time.Millisecond,
-			LazyBlockTime:    5 * time.Second,
+			BlockTime:        rollkitconfig.DurationWrapper{Duration: 500 * time.Millisecond},
+			LazyBlockTime:    rollkitconfig.DurationWrapper{Duration: 5 * time.Second},
 		},
 		DA: rollkitconfig.DAConfig{
 			Address:   MockDAAddress,
@@ -47,7 +47,7 @@ func setupTestNodeWithCleanup(t *testing.T) (*FullNode, func()) {
 
 	dummyExec := coreexecutor.NewDummyExecutor()
 	dummySequencer := coresequencer.NewDummySequencer()
-	dummyDA := coreda.NewDummyDA(100_000)
+	dummyDA := coreda.NewDummyDA(100_000, 0, 0)
 	dummyClient := coreda.NewDummyClient(dummyDA, []byte(MockDANamespace))
 
 	err := InitFiles(config.RootDir)

@@ -70,8 +70,8 @@ service SignerService {
   rpc GetPublic(GetPublicRequest) returns (GetPublicResponse);
 }
 ```
-Signing operations will typically require very high throughput and minimal latency. Nodes frequently request digital signatures, expecting quick responses. Public key retrievals, while less frequent than signatures, still occur regularly for validation purposes.
 
+Signing operations will typically require very high throughput and minimal latency. Nodes frequently request digital signatures, expecting quick responses. Public key retrievals, while less frequent than signatures, still occur regularly for validation purposes.
 
 ## Status
 

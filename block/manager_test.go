@@ -72,7 +72,6 @@ func TestInitialStateStored(t *testing.T) {
 	chainID := "TestInitialStateStored"
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
@@ -82,9 +81,6 @@ func TestInitialStateStored(t *testing.T) {
 		ChainID:         chainID,
 		InitialHeight:   1,
 		LastBlockHeight: 100,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -150,7 +146,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLogger(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   2,
@@ -160,9 +155,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
 		LastBlockHeight: 0,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -176,7 +168,7 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 
 func TestSignVerifySignature(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 	payload := []byte("test")
 	privKey, pubKey, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 	require.NoError(err)
@@ -190,7 +182,7 @@ func TestSignVerifySignature(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			m.proposerKey = c.privKey
-			signature, err := m.sign(payload)
+			signature, err := m.proposerKey.Sign(payload)
 			require.NoError(err)
 			ok, err := c.pubKey.Verify(payload, signature)
 			require.NoError(err)
@@ -244,7 +236,7 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDA := &damocks.DA{}
 			m := getManager(t, mockDA, tc.gasPrice, tc.gasMultiplier)
-			m.config.DA.BlockTime = time.Millisecond
+			m.config.DA.BlockTime.Duration = time.Millisecond
 			m.config.DA.MempoolTTL = 1
 			kvStore, err := store.NewDefaultInMemoryKVStore()
 			require.NoError(t, err)
@@ -268,13 +260,13 @@ func TestSubmitBlocksToMockDA(t *testing.T) {
 			mockDA.On("MaxBlobSize", mock.Anything).Return(uint64(12345), nil)
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[0], []byte(nil), []byte(nil)).
-				Return([][]byte{}, uint64(0), da.ErrTxTimedOut).Once()
+				Return([][]byte{}, da.ErrTxTimedOut).Once()
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[1], []byte(nil), []byte(nil)).
-				Return([][]byte{}, uint64(0), da.ErrTxTimedOut).Once()
+				Return([][]byte{}, da.ErrTxTimedOut).Once()
 			mockDA.
 				On("Submit", mock.Anything, blobs, tc.expectedGasPrices[2], []byte(nil), []byte(nil)).
-				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, uint64(0), nil)
+				Return([][]byte{bytes.Repeat([]byte{0x00}, 8)}, nil)
 
 			m.pendingHeaders, err = NewPendingHeaders(m.store, m.logger)
 			require.NoError(t, err)
@@ -292,7 +284,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase1(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -327,7 +319,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
 
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 
 	header1, data1 := types.GetRandomBlock(uint64(1), 5, chainID)
 	header2, data2 := types.GetRandomBlock(uint64(2), 5, chainID)
@@ -445,7 +437,7 @@ func Test_isProposer(t *testing.T) {
 
 func Test_publishBlock_ManagerNotProposer(t *testing.T) {
 	require := require.New(t)
-	m := getManager(t, coreda.NewDummyDA(100_000), -1, -1)
+	m := getManager(t, coreda.NewDummyDA(100_000, 0, 0), -1, -1)
 	m.isProposer = false
 	err := m.publishBlock(context.Background())
 	require.ErrorIs(err, ErrNotProposer)
@@ -588,8 +580,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: false,
 					},
 				},
@@ -603,8 +599,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: false,
 					},
 				},
@@ -618,8 +618,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: true,
 					},
 				},
@@ -633,8 +637,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: true,
 					},
 				},
@@ -648,8 +656,12 @@ func TestManager_getRemainingSleep(t *testing.T) {
 			manager: &Manager{
 				config: config.Config{
 					Node: config.NodeConfig{
-						BlockTime:      10 * time.Second,
-						LazyBlockTime:  20 * time.Second,
+						BlockTime: config.DurationWrapper{
+							Duration: 10 * time.Second,
+						},
+						LazyBlockTime: config.DurationWrapper{
+							Duration: 20 * time.Second,
+						},
 						LazyAggregator: true,
 					},
 				},
@@ -683,7 +695,7 @@ func TestAggregationLoop(t *testing.T) {
 		},
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      time.Second,
+				BlockTime:      config.DurationWrapper{Duration: time.Second},
 				LazyAggregator: false,
 			},
 		},
@@ -711,7 +723,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      time.Second,
+				BlockTime:      config.DurationWrapper{Duration: time.Second},
 				LazyAggregator: true,
 			},
 		},
@@ -721,7 +733,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(m.config.Node.BlockTime)
+	blockTimer := time.NewTimer(m.config.Node.BlockTime.Duration)
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
@@ -739,7 +751,7 @@ func TestNormalAggregationLoop(t *testing.T) {
 		logger: mockLogger,
 		config: config.Config{
 			Node: config.NodeConfig{
-				BlockTime:      1 * time.Second,
+				BlockTime:      config.DurationWrapper{Duration: 1 * time.Second},
 				LazyAggregator: false,
 			},
 		},
@@ -748,7 +760,7 @@ func TestNormalAggregationLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	blockTimer := time.NewTimer(m.config.Node.BlockTime)
+	blockTimer := time.NewTimer(m.config.Node.BlockTime.Duration)
 	defer blockTimer.Stop()
 
 	go m.normalAggregationLoop(ctx, blockTimer)
@@ -757,52 +769,71 @@ func TestNormalAggregationLoop(t *testing.T) {
 	<-ctx.Done()
 }
 
-func TestGetTxsFromBatch_NoBatch(t *testing.T) {
-	// Mocking a manager with an empty batch queue
-	m := &Manager{
-		bq: &BatchQueue{queue: nil}, // No batch available
+func TestGetTxsFromBatch(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name          string
+		batchQueue    []BatchData
+		wantBatchData *BatchData
+		wantErr       error
+		assertions    func(t *testing.T, gotBatchData *BatchData)
+	}{
+		{
+			name:          "no batch available",
+			batchQueue:    nil,
+			wantBatchData: nil,
+			wantErr:       ErrNoBatch,
+			assertions:    nil,
+		},
+		{
+			name: "empty batch",
+			batchQueue: []BatchData{
+				{Batch: &coresequencer.Batch{Transactions: nil}, Time: now},
+			},
+			wantBatchData: &BatchData{Batch: &coresequencer.Batch{Transactions: nil}, Time: now},
+			wantErr:       nil,
+			assertions: func(t *testing.T, gotBatchData *BatchData) {
+				assert.Empty(t, gotBatchData.Batch.Transactions, "Transactions should be empty when batch has no transactions")
+				assert.NotNil(t, gotBatchData.Time, "Timestamp should not be nil for empty batch")
+			},
+		},
+		{
+			name: "valid batch with transactions",
+			batchQueue: []BatchData{
+				{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: now},
+			},
+			wantBatchData: &BatchData{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: now},
+			wantErr:       nil,
+			assertions: func(t *testing.T, gotBatchData *BatchData) {
+				assert.Len(t, gotBatchData.Batch.Transactions, 2, "Expected 2 transactions")
+				assert.NotNil(t, gotBatchData.Time, "Timestamp should not be nil for valid batch")
+				assert.Equal(t, [][]byte{[]byte("tx1"), []byte("tx2")}, gotBatchData.Batch.Transactions, "Transactions do not match")
+			},
+		},
 	}
 
-	// Call the method and assert the results
-	txs, timestamp, err := m.getTxsFromBatch()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create manager with the test batch queue
+			m := &Manager{
+				bq: &BatchQueue{queue: tt.batchQueue},
+			}
 
-	// Assertions
-	assert.Nil(t, txs, "Transactions should be nil when no batch exists")
-	assert.Nil(t, timestamp, "Timestamp should be nil when no batch exists")
-	assert.Equal(t, ErrNoBatch, err, "Expected ErrNoBatch error")
-}
+			// Call the method under test
+			gotBatchData, err := m.getTxsFromBatch()
 
-func TestGetTxsFromBatch_EmptyBatch(t *testing.T) {
-	// Mocking a manager with an empty batch
-	m := &Manager{
-		bq: &BatchQueue{queue: []BatchWithTime{
-			{Batch: &coresequencer.Batch{Transactions: nil}, Time: time.Now()},
-		}},
+			// Check error
+			if tt.wantErr != nil {
+				assert.Equal(t, tt.wantErr, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Run additional assertions if provided
+			if tt.assertions != nil {
+				tt.assertions(t, gotBatchData)
+			}
+		})
 	}
-
-	// Call the method and assert the results
-	txs, timestamp, err := m.getTxsFromBatch()
-
-	// Assertions
-	require.NoError(t, err, "Expected no error for empty batch")
-	assert.Empty(t, txs, "Transactions should be empty when batch has no transactions")
-	assert.NotNil(t, timestamp, "Timestamp should not be nil for empty batch")
-}
-
-func TestGetTxsFromBatch_ValidBatch(t *testing.T) {
-	// Mocking a manager with a valid batch
-	m := &Manager{
-		bq: &BatchQueue{queue: []BatchWithTime{
-			{Batch: &coresequencer.Batch{Transactions: [][]byte{[]byte("tx1"), []byte("tx2")}}, Time: time.Now()},
-		}},
-	}
-
-	// Call the method and assert the results
-	txs, timestamp, err := m.getTxsFromBatch()
-
-	// Assertions
-	require.NoError(t, err, "Expected no error for valid batch")
-	assert.Len(t, txs, 2, "Expected 2 transactions")
-	assert.NotNil(t, timestamp, "Timestamp should not be nil for valid batch")
-	assert.Equal(t, [][]byte{[]byte("tx1"), []byte("tx2")}, txs, "Transactions do not match")
 }

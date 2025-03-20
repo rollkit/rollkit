@@ -6,14 +6,12 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pb "github.com/rollkit/rollkit/types/pb/rollkit"
+	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
 func TestBlockSerializationRoundTrip(t *testing.T) {
@@ -101,7 +99,6 @@ func TestBlockSerializationRoundTrip(t *testing.T) {
 
 func TestStateRoundTrip(t *testing.T) {
 	t.Parallel()
-	//valSet := GetRandomValidatorSet()
 
 	cases := []struct {
 		name  string
@@ -109,61 +106,20 @@ func TestStateRoundTrip(t *testing.T) {
 	}{
 		{
 			"with max bytes",
-			State{
-				//LastValidators: valSet,
-				//Validators:     valSet,
-				//NextValidators: valSet,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 123,
-						MaxGas:   456,
-					},
-				},
-			},
+			State{},
 		},
 		{
 			name: "with all fields set",
 			state: State{
-				//LastValidators: valSet,
-				//Validators:     valSet,
-				//NextValidators: valSet,
-				Version: cmstate.Version{
-					Consensus: cmversion.Consensus{
-						Block: 123,
-						App:   456,
-					},
-					Software: "rollkit",
+				Version: pb.Version{
+					Block: 123,
+					App:   456,
 				},
 				ChainID:         "testchain",
 				InitialHeight:   987,
 				LastBlockHeight: 987654321,
-				LastBlockID: cmtypes.BlockID{
-					Hash: nil,
-					PartSetHeader: cmtypes.PartSetHeader{
-						Total: 0,
-						Hash:  nil,
-					},
-				},
-				LastBlockTime: time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
-				DAHeight:      3344,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 12345,
-						MaxGas:   6543234,
-					},
-					Evidence: &cmproto.EvidenceParams{
-						MaxAgeNumBlocks: 100,
-						MaxAgeDuration:  200,
-						MaxBytes:        300,
-					},
-					Validator: &cmproto.ValidatorParams{
-						PubKeyTypes: []string{"secure", "more secure"},
-					},
-					Version: &cmproto.VersionParams{
-						App: 42,
-					},
-				},
-				//LastHeightConsensusParamsChanged: 12345,
+				LastBlockTime:   time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
+				DAHeight:        3344,
 				LastResultsHash: Hash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
 				AppHash:         Hash{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
 			},
