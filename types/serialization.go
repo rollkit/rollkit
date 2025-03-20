@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/libp2p/go-libp2p/core/crypto"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
@@ -54,9 +55,17 @@ func (d *Data) UnmarshalBinary(data []byte) error {
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
+	pubKey, err := sh.Signer.PubKey.Raw()
+	if err != nil {
+		return nil, err
+	}
 	return &pb.SignedHeader{
 		Header:    sh.Header.ToProto(),
 		Signature: sh.Signature[:],
+		Signer: &pb.Signer{
+			Address: sh.Signer.Address,
+			PubKey:  pubKey,
+		},
 	}, nil
 }
 
@@ -67,7 +76,14 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		return err
 	}
 	sh.Signature = other.Signature
-
+	pubKey, err := crypto.UnmarshalPublicKey(other.Signer.PubKey)
+	if err != nil {
+		return err
+	}
+	sh.Signer = Signer{
+		Address: other.Signer.Address,
+		PubKey:  pubKey,
+	}
 	return nil
 }
 

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"crypto/rand"
 	"fmt"
 	"testing"
 
@@ -131,14 +130,14 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 		prepare func() (*SignedHeader, bool) // Function to prepare the test case
 		err     error                        // Expected error
 	}{
-		// 1. Test valid
+		// 0. Test valid
 		// Validate block
 		// Expect success
 		{
 			prepare: func() (*SignedHeader, bool) { return untrustedAdj, false },
 			err:     nil,
 		},
-		// 2. Test chain ID changed
+		// 1. Test chain ID changed
 		// breaks signature verification by changing the chain ID
 		// Expect failure
 		{
@@ -149,7 +148,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			},
 			err: ErrSignatureVerificationFailed,
 		},
-		// 3. Test app version changed
+		// 2. Test app version changed
 		// breaks signature verification by changing app version
 		// Expect failure
 		{
@@ -160,7 +159,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			},
 			err: ErrSignatureVerificationFailed,
 		},
-		// 4. Test invalid signature fails
+		// 3. Test invalid signature fails
 		// breaks signature verification by changing the signature
 		// Expect failure
 		{
@@ -171,7 +170,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			},
 			err: ErrSignatureVerificationFailed,
 		},
-		// 5. Test nil proposer address
+		// 4. Test nil proposer address
 		// Sets the proposer address to nil
 		// Expect failure
 		{
@@ -183,7 +182,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			err: ErrNoProposerAddress,
 		},
 
-		// 6. Test proposer address mismatch between that of signed header and validator set
+		// 5. Test proposer address mismatch between that of signed header and validator set
 		// Set the proposer address in the signed header to be different from that of the validator set
 		// Expect failure
 		{
@@ -194,38 +193,7 @@ func testValidateBasic(t *testing.T, untrustedAdj *SignedHeader, privKey crypto.
 			},
 			err: ErrProposerAddressMismatch,
 		},
-		// 7. Test invalid validator set length
-		// Set the validator set length to be something other than 1
-		// Expect failure
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				pubKey1, _, err := crypto.GenerateEd25519Key(rand.Reader)
-				require.NoError(t, err)
-
-				signer1, err := NewSigner(pubKey1.GetPublic())
-				require.NoError(t, err)
-				untrusted.Signer = signer1
-				return &untrusted, true
-			},
-			err: ErrInvalidValidatorSetLengthMismatch,
-		},
-		// 8. Test proposer not in validator set
-		// Set the proposer address to be different from that of the validator set
-		// Expect failure
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				pubKey1, _, err := crypto.GenerateEd25519Key(rand.Reader)
-				require.NoError(t, err)
-				signer1, err := NewSigner(pubKey1.GetPublic())
-				require.NoError(t, err)
-				untrusted.ProposerAddress = signer1.Address
-				return &untrusted, true
-			},
-			err: ErrProposerNotInValSet,
-		},
-		// 9. Test empty signature values in signature list
+		//  6. Test empty signature values in signature list
 		// Set the signature to be an empty value in signature list
 		// Expect failure
 		{

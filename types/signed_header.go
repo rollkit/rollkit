@@ -84,14 +84,8 @@ var (
 	// verification fails
 	ErrSignatureVerificationFailed = errors.New("signature verification failed")
 
-	// ErrInvalidValidatorSetLengthMismatch is returned when the validator set length is not exactly one
-	ErrInvalidValidatorSetLengthMismatch = errors.New("must have exactly one validator (the centralized sequencer)")
-
 	// ErrProposerAddressMismatch is returned when the proposer address in the signed header does not match the proposer address in the validator set
 	ErrProposerAddressMismatch = errors.New("proposer address in SignedHeader does not match the proposer address in the validator set")
-
-	// ErrProposerNotInValSet is returned when the proposer address in the validator set is not in the validator set
-	ErrProposerNotInValSet = errors.New("proposer not in validator set")
 
 	// ErrSignatureEmpty is returned when signature is empty
 	ErrSignatureEmpty = errors.New("signature is empty")
@@ -108,11 +102,7 @@ func (sh *SignedHeader) ValidateBasic() error {
 	}
 
 	// Check that the proposer address in the signed header matches the proposer address in the validator set
-	if !bytes.Equal(sh.ProposerAddress, sh.Header.ProposerAddress) {
-		return ErrProposerAddressMismatch
-	}
-
-	if !bytes.Equal(sh.Signer.Address, sh.Header.ProposerAddress) {
+	if !bytes.Equal(sh.ProposerAddress, sh.Signer.Address) {
 		return ErrProposerAddressMismatch
 	}
 
