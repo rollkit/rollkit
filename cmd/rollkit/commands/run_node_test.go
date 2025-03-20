@@ -301,61 +301,6 @@ func TestStartMockSequencerServer(t *testing.T) {
 	}
 }
 
-func TestRollkitGenesisDocProviderFunc(t *testing.T) {
-	// Create a temporary directory for the test
-	tempDir, err := os.MkdirTemp("", "rollkit-test")
-	assert.NoError(t, err)
-	defer func() {
-		err := os.RemoveAll(tempDir)
-		assert.NoError(t, err)
-	}()
-
-	// Create the config directory
-	configDir := filepath.Join(tempDir, "config")
-	err = os.MkdirAll(configDir, rollconf.DefaultDirPerm)
-	assert.NoError(t, err)
-
-	// Create a simple test genesis file
-	testChainID := "test-chain-id"
-	genFileContent := fmt.Sprintf(`{
-		"chain_id": "%s",
-		"genesis_time": "2023-01-01T00:00:00Z",
-		"consensus_params": {
-			"block": {
-				"max_bytes": "22020096",
-				"max_gas": "-1"
-			},
-			"evidence": {
-				"max_age_num_blocks": "100000",
-				"max_age_duration": "172800000000000"
-			},
-			"validator": {
-				"pub_key_types": ["ed25519"]
-			}
-		}
-	}`, testChainID)
-
-	genFile := filepath.Join(configDir, "genesis.json")
-	err = os.WriteFile(genFile, []byte(genFileContent), 0600)
-	assert.NoError(t, err)
-
-	// Create a test node config
-	testNodeConfig := rollconf.Config{
-		RootDir:   tempDir,
-		ConfigDir: "config",
-	}
-
-	// Get the genesis doc provider function
-	genDocProvider := RollkitGenesisDocProviderFunc(testNodeConfig)
-	assert.NotNil(t, genDocProvider)
-
-	// Call the provider function and verify the result
-	loadedGenDoc, err := genDocProvider()
-	assert.NoError(t, err)
-	assert.NotNil(t, loadedGenDoc)
-	assert.Equal(t, testChainID, loadedGenDoc.ChainID)
-}
-
 func TestInitFiles(t *testing.T) {
 	// Save the original nodeConfig
 	origNodeConfig := nodeConfig

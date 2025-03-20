@@ -50,7 +50,7 @@ The block manager is initialized using several parameters as defined below:
 |-----|-----|-----|
 signing key|crypto.PrivKey|used for signing a block after it is created
 config|config.BlockManagerConfig|block manager configurations (see config options below)
-genesis|*cmtypes.GenesisDoc|initialize the block manager with genesis state (genesis configuration defined in `config/genesis.json` file under the app directory)
+genesis|coreexecutor.Genesis|initialize the block manager with genesis state (genesis configuration defined in `config/genesis.json` file under the app directory)
 store|store.Store|local datastore for storing rollup blocks and states (default local store path is `$db_dir/rollkit` and `db_dir` specified in the `config.yaml` file under the app directory)
 mempool, proxyapp, eventbus|mempool.Mempool, proxy.AppConnConsensus, *cmtypes.EventBus|for initializing the executor (state transition function). mempool is also used in the manager to check for availability of transactions for lazy block production
 dalc|da.DAClient|the data availability light client used to submit and retrieve blocks to DA network

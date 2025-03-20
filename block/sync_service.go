@@ -134,8 +134,8 @@ func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, 
 // WriteToStoreAndBroadcast initializes store if needed and broadcasts  provided header or block.
 // Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
 func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrData H) error {
-	if syncService.genesis.InitialHeight() < 0 {
-		return fmt.Errorf("invalid initial height; cannot be negative")
+	if syncService.genesis.InitialHeight() == 0 {
+		return fmt.Errorf("invalid initial height; cannot be zero")
 	}
 	isGenesis := headerOrData.Height() == syncService.genesis.InitialHeight()
 	// For genesis header/block initialize the store and start the syncer

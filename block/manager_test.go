@@ -62,8 +62,8 @@ func TestInitialStateClean(t *testing.T) {
 	s, err := getInitialState(context.TODO(), genesisData, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
 	initialHeight := genesisData.InitialHeight()
-	require.Equal(uint64(initialHeight-1), s.LastBlockHeight)
-	require.Equal(uint64(initialHeight), s.InitialHeight)
+	require.Equal(initialHeight-1, s.LastBlockHeight)
+	require.Equal(initialHeight, s.InitialHeight)
 }
 
 func TestInitialStateStored(t *testing.T) {
@@ -397,42 +397,6 @@ func Test_isProposer(t *testing.T) {
 			isProposer: true,
 			err:        nil,
 		},
-		//{
-		//	name: "Signing key does not match genesis proposer public key",
-		//	args: func() args {
-		//		genesisData, _ := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
-		//		s, err := types.NewFromGenesisDoc(genesisData)
-		//		require.NoError(err)
-
-		//		randomPrivKey := ed25519.GenPrivKey()
-		//		signingKey, err := types.PrivKeyToSigningKey(randomPrivKey)
-		//		require.NoError(err)
-		//		return args{
-		//			s,
-		//			signingKey,
-		//		}
-		//	}(),
-		//	isProposer: false,
-		//	err:        nil,
-		//},
-		//{
-		//	name: "No validators found in genesis",
-		//	args: func() args {
-		//		genesisData, privKey := types.GetGenesisWithPrivkey(types.DefaultSigningKeyType, "Test_isProposer")
-		//		genesisData.Validators = nil
-		//		s, err := types.NewFromGenesisDoc(genesisData)
-		//		require.NoError(err)
-
-		//		signingKey, err := types.PrivKeyToSigningKey(privKey)
-		//		require.NoError(err)
-		//		return args{
-		//			s,
-		//			signingKey,
-		//		}
-		//	}(),
-		//	isProposer: false,
-		//	err:        ErrNoValidatorsInState,
-		//},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -166,7 +166,7 @@ type Manager struct {
 	bq            *BatchQueue
 }
 
-// getInitialState tries to load lastState from Store, and if it's not available it reads GenesisDoc.
+// getInitialState tries to load lastState from Store, and if it's not available it reads genesis.
 func getInitialState(ctx context.Context, genesis coreexecutor.Genesis, store store.Store, exec coreexecutor.Executor, logger log.Logger) (types.State, error) {
 	// Load the state from store.
 	s, err := store.GetState(ctx)

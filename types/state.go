@@ -8,6 +8,7 @@ import (
 	cmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/version"
+
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
@@ -76,7 +77,7 @@ func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.InitialHeight()) - 1,
+		LastBlockHeight: genDoc.InitialHeight() - 1,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime(),
 
@@ -85,7 +86,7 @@ func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: int64(genDoc.InitialHeight()),
 
-		LastHeightConsensusParamsChanged: uint64(genDoc.InitialHeight()),
+		LastHeightConsensusParamsChanged: genDoc.InitialHeight(),
 	}
 
 	s.AppHash = genDoc.Bytes()

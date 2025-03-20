@@ -14,7 +14,7 @@ Note that unlike a light node which only syncs and stores block headers seen on 
 
 The Full Node mainly encapsulates and initializes/manages the following components:
 
-### genesisDoc
+### genesis
 
 The [genesis] document contains information about the initial state of the rollup chain, in particular its validator set.
 

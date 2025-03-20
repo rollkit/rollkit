@@ -65,7 +65,23 @@ func (k *KVExecutor) computeStateRoot() []byte {
 
 // BuildGenesis implements execution.Executor.
 func (k *KVExecutor) BuildGenesis(config config.Config) (execution.Genesis, error) {
-	panic("unimplemented")
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	// Compute initial state root from current store
+	stateRoot := k.computeStateRoot()
+
+	// Create a new genesis with a random chain ID if not provided
+	chainID := fmt.Sprintf("test-chain-%d", time.Now().UnixNano())
+
+	// Create genesis with initial height 1
+	return execution.NewBaseGenesis(
+		chainID,
+		1, // Initial height
+		time.Now().UTC(),
+		nil, // No proposer address for testing
+		stateRoot,
+	), nil
 }
 
 // InitChain initializes the chain state with genesis parameters.

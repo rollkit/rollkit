@@ -272,43 +272,11 @@ func GetFirstSignedHeader(privkey cmEd25519.PrivKey, valSet *cmtypes.ValidatorSe
 	return &signedHeader, nil
 }
 
-// GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
-func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
-	vals := []*cmtypes.Validator{
-		{
-			Address:          g.Validators[0].Address,
-			PubKey:           g.Validators[0].PubKey,
-			VotingPower:      int64(1),
-			ProposerPriority: int64(1),
-		},
-	}
-	return cmtypes.ValidatorSet{
-		Validators: vals,
-		Proposer:   vals[0],
-	}
-}
-
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
 func GetGenesisWithPrivkey(chainID string) (coreexecutor.Genesis, crypto.PrivKey, cmEd25519.PubKey) {
 	// Generate Ed25519 key pair using CometBFT
 	cmtPrivKey := cmEd25519.GenPrivKey()
 	cmtPubKey := cmtPrivKey.PubKey().(cmEd25519.PubKey)
-
-	// Create genesis validator with CometBFT public key
-	genesisValidators := []cmtypes.GenesisValidator{{
-		Address: cmtPubKey.Address(),
-		PubKey:  cmtPubKey,
-		Power:   int64(1),
-		Name:    "sequencer",
-	}}
-
-	// Create genesis document
-	genDoc := &cmtypes.GenesisDoc{
-		ChainID:       chainID,
-		InitialHeight: 1,
-		Validators:    genesisValidators,
-		GenesisTime:   time.Now(),
-	}
 
 	// Convert CometBFT private key to libp2p format
 	privKeyBytes := cmtPrivKey.Bytes()
@@ -320,8 +288,8 @@ func GetGenesisWithPrivkey(chainID string) (coreexecutor.Genesis, crypto.PrivKey
 	// Create base genesis with validator's address
 	return coreexecutor.NewBaseGenesis(
 		chainID,
-		uint64(genDoc.InitialHeight),
-		genDoc.GenesisTime,
+		uint64(1),
+		time.Now(),
 		cmtPubKey.Address().Bytes(),
 		nil, // No raw bytes for now
 	), libp2pPrivKey, cmtPubKey
