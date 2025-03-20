@@ -87,10 +87,3 @@ message Data {
   repeated bytes txs = 2;
   // repeated bytes intermediate_state_roots = 2;
 }
-
-// TxWithISRs is a transaction with intermediate state roots.
-message TxWithISRs {
-  bytes pre_isr = 1;
-  bytes tx = 2;
-  bytes post_isr = 3;
-}
