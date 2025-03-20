@@ -107,17 +107,7 @@ func TestStateRoundTrip(t *testing.T) {
 	}{
 		{
 			"with max bytes",
-			State{
-				//LastValidators: valSet,
-				//Validators:     valSet,
-				//NextValidators: valSet,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 123,
-						MaxGas:   456,
-					},
-				},
-			},
+			State{},
 		},
 		{
 			name: "with all fields set",
@@ -132,33 +122,8 @@ func TestStateRoundTrip(t *testing.T) {
 				ChainID:         "testchain",
 				InitialHeight:   987,
 				LastBlockHeight: 987654321,
-				LastBlockID: cmtypes.BlockID{
-					Hash: nil,
-					PartSetHeader: cmtypes.PartSetHeader{
-						Total: 0,
-						Hash:  nil,
-					},
-				},
-				LastBlockTime: time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
-				DAHeight:      3344,
-				ConsensusParams: cmproto.ConsensusParams{
-					Block: &cmproto.BlockParams{
-						MaxBytes: 12345,
-						MaxGas:   6543234,
-					},
-					Evidence: &cmproto.EvidenceParams{
-						MaxAgeNumBlocks: 100,
-						MaxAgeDuration:  200,
-						MaxBytes:        300,
-					},
-					Validator: &cmproto.ValidatorParams{
-						PubKeyTypes: []string{"secure", "more secure"},
-					},
-					Version: &cmproto.VersionParams{
-						App: 42,
-					},
-				},
-				//LastHeightConsensusParamsChanged: 12345,
+				LastBlockTime:   time.Date(2022, 6, 6, 12, 12, 33, 44, time.UTC),
+				DAHeight:        3344,
 				LastResultsHash: Hash{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
 				AppHash:         Hash{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
 			},

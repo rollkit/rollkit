@@ -130,7 +130,6 @@ func TestStoreLoad(t *testing.T) {
 
 func TestRestart(t *testing.T) {
 	t.Parallel()
-	validatorSet := types.GetRandomValidatorSet()
 
 	assert := assert.New(t)
 	require := require.New(t)
@@ -151,9 +150,6 @@ func TestRestart(t *testing.T) {
 	expectedHeight := uint64(10)
 	err = s1.UpdateState(ctx, types.State{
 		LastBlockHeight: expectedHeight,
-		NextValidators:  validatorSet,
-		Validators:      validatorSet,
-		LastValidators:  validatorSet,
 	})
 	assert.NoError(err)
 

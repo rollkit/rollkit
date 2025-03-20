@@ -14,9 +14,6 @@ import (
 
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	abci "github.com/cometbft/cometbft/abci/types"
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
-	cmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
@@ -208,22 +205,13 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 		}
 
 		s := types.State{
+			Version:         pb.Version{},
 			ChainID:         genesis.ChainID,
 			InitialHeight:   genesis.InitialHeight,
 			LastBlockHeight: genesis.InitialHeight - 1,
-			LastBlockID:     cmtypes.BlockID{},
 			LastBlockTime:   genesis.GenesisTime,
 			AppHash:         stateRoot,
 			DAHeight:        0,
-			// TODO(tzdybal): we don't need fields below
-			Version:                          pb.Version{},
-			ConsensusParams:                  cmproto.ConsensusParams{},
-			LastHeightConsensusParamsChanged: 0,
-			LastResultsHash:                  nil,
-			Validators:                       nil,
-			NextValidators:                   nil,
-			LastValidators:                   nil,
-			LastHeightValidatorsChanged:      0,
 		}
 		return s, nil
 	} else if err != nil {
@@ -1556,15 +1544,7 @@ func (m *Manager) nextState(state types.State, header *types.SignedHeader, state
 		InitialHeight:   state.InitialHeight,
 		LastBlockHeight: height,
 		LastBlockTime:   header.Time(),
-		LastBlockID: cmtypes.BlockID{
-			Hash: cmbytes.HexBytes(header.Hash()),
-			// for now, we don't care about part set headers
-		},
-		//ConsensusParams:                  state.ConsensusParams,
-		//LastHeightConsensusParamsChanged: state.LastHeightConsensusParamsChanged,
-		AppHash: stateRoot,
-		//Validators:                       state.NextValidators.Copy(),
-		//LastValidators:                   state.Validators.Copy(),
+		AppHash:         stateRoot,
 	}
 	return s, nil
 }
