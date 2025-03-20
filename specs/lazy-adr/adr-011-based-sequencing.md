@@ -72,11 +72,11 @@ Components:
 ### Transaction submission
 
 * User can directly submit the rollup transaction to base layer. User need to compose a base layer transaction using the signed bytes of the rollup transaction. User also need to have access to base layer light node and an account for paying the base layer fee for transaction submission.
-* Rollkit node (proposer or fullnode) can relay user transaction to base layer. Rollkit nodes won't gossip the transactions (to prevent duplicate submissions). Rollkit nodes will have a light node connection with a base layer account for paying the fees. 
+* Rollkit node (proposer or fullnode) can relay user transaction to base layer. Rollkit nodes won't gossip the transactions (to prevent duplicate submissions, run geth/reth with `--txpool.nogossip`). Rollkit nodes will have a light node connection with a base layer account for paying the fees. 
 
 ### Transaction Processing
 
-* The user rollup transaction can be directly submitted to base layer, hence no expectation that the transaction exists in rollup mempool. As part of the execute transactions, the transaction needs to be added to the rollup mempool.
+* The user rollup transaction can be directly submitted to base layer, hence no expectation that the transaction exists in rollup mempool. As part of the execute transactions, the transactions listed in the payload attributes will automatically gets included by the execution layer for payload preparation and these transactions (that are not in the mempool) need not be added to the mempool.
 
 ### How the various rollkit nodes implement the sequencing interface?
 
