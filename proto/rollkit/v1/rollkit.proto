@@ -67,8 +67,11 @@ message SignedHeader {
   Signer signer = 3;
 }
 
+// Signer is a signer of a block in the blockchain.
 message Signer {
+  // Address of the signer
   bytes address = 1;
+  // Public key of the signer
   bytes pub_key = 2;
 }
 
@@ -94,13 +97,19 @@ message Data {
   // repeated bytes intermediate_state_roots = 2;
 }
 
+// Vote is a vote for a block in the blockchain.
 message Vote {
+  // Chain ID
   string chain_id = 1;
+  // Block height
   uint64 height = 2;
+  // Timestamp
   google.protobuf.Timestamp timestamp = 3[
     (gogoproto.nullable) = false,
     (gogoproto.stdtime) = true
   ];
+  // Block ID hash
   bytes block_id_hash = 4;
+  // Validator address
   bytes validator_address = 5;
 }
