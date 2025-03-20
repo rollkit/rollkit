@@ -55,6 +55,14 @@ func (d *Data) UnmarshalBinary(data []byte) error {
 
 // ToProto converts SignedHeader into protobuf representation and returns it.
 func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
+	if sh.Signer.PubKey == nil {
+		return &pb.SignedHeader{
+			Header:    sh.Header.ToProto(),
+			Signature: sh.Signature[:],
+			Signer:    &pb.Signer{},
+		}, nil
+	}
+
 	pubKey, err := sh.Signer.PubKey.Raw()
 	if err != nil {
 		return nil, err
@@ -153,7 +161,7 @@ func (h *Header) FromProto(other *pb.Header) error {
 	return nil
 }
 
-// ToProto ...
+// ToProto converts Metadata into protobuf representation and returns it.
 func (m *Metadata) ToProto() *pb.Metadata {
 	return &pb.Metadata{
 		ChainId:      m.ChainID,
@@ -163,7 +171,7 @@ func (m *Metadata) ToProto() *pb.Metadata {
 	}
 }
 
-// FromProto ...
+// FromProto fills Metadata with data from its protobuf representation.
 func (m *Metadata) FromProto(other *pb.Metadata) {
 	m.ChainID = other.ChainId
 	m.Height = other.Height
