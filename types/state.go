@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/types"
+
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
 
