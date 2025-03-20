@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	cmtypes "github.com/cometbft/cometbft/types"
 	ds "github.com/ipfs/go-datastore"
 	ktds "github.com/ipfs/go-datastore/keytransform"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -44,7 +43,7 @@ var _ Node = &FullNode{}
 type FullNode struct {
 	service.BaseService
 
-	genesis *cmtypes.GenesisDoc
+	genesis coreexecutor.Genesis
 	// cache of chunked genesis data.
 	genChunks []string
 
@@ -66,21 +65,21 @@ func newFullNode(
 	ctx context.Context,
 	nodeConfig config.Config,
 	signingKey crypto.PrivKey,
-	genesis *cmtypes.GenesisDoc,
+	genesis coreexecutor.Genesis,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
 	dac coreda.Client,
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
-	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
+	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID())
 
 	baseKV, err := initBaseKV(nodeConfig, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
+	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID(), baseKV, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +145,7 @@ func initBaseKV(nodeConfig config.Config, logger log.Logger) (ds.Batching, error
 func initHeaderSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis coreexecutor.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.HeaderSyncService, error) {
@@ -160,7 +159,7 @@ func initHeaderSyncService(
 func initDataSyncService(
 	mainKV ds.Batching,
 	nodeConfig config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis coreexecutor.Genesis,
 	p2pClient *p2p.Client,
 	logger log.Logger,
 ) (*block.DataSyncService, error) {
@@ -185,7 +184,7 @@ func initBlockManager(
 	signingKey crypto.PrivKey,
 	exec coreexecutor.Executor,
 	nodeConfig config.Config,
-	genesis *cmtypes.GenesisDoc,
+	genesis coreexecutor.Genesis,
 	store store.Store,
 	sequencer coresequencer.Sequencer,
 	dalc coreda.Client,
@@ -197,14 +196,16 @@ func initBlockManager(
 	gasMultiplier float64,
 ) (*block.Manager, error) {
 
-	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
+	logger.Debug("Proposer address", "address", genesis.ProposerAddress())
 
-	rollGen := &block.RollkitGenesis{
-		GenesisTime:     genesis.GenesisTime,
-		InitialHeight:   uint64(genesis.InitialHeight),
-		ChainID:         genesis.ChainID,
-		ProposerAddress: genesis.Validators[0].Address.Bytes(),
-	}
+	rollGen := coreexecutor.NewBaseGenesis(
+		genesis.ChainID(),
+		genesis.InitialHeight(),
+		genesis.GenesisTime(),
+		genesis.ProposerAddress(),
+		nil,
+	)
+
 	blockManager, err := block.NewManager(
 		ctx,
 		signingKey,
@@ -433,7 +434,7 @@ func (n *FullNode) Run(ctx context.Context) error {
 }
 
 // GetGenesis returns entire genesis doc.
-func (n *FullNode) GetGenesis() *cmtypes.GenesisDoc {
+func (n *FullNode) GetGenesis() coreexecutor.Genesis {
 	return n.genesis
 }
 

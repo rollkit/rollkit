@@ -8,6 +8,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/rollkit/rollkit/config"
 )
 
 //---------------------
@@ -21,6 +23,11 @@ type dummyExecutor struct {
 	pendingRoots map[uint64][]byte
 	maxBytes     uint64
 	injectedTxs  [][]byte
+}
+
+// BuildGenesis implements Executor.
+func (e *dummyExecutor) BuildGenesis(config config.Config) (Genesis, error) {
+	panic("unimplemented")
 }
 
 // NewDummyExecutor creates a new dummy DummyExecutor instance

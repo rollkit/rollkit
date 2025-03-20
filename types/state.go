@@ -1,12 +1,11 @@
 package types
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/cometbft/cometbft/types"
-
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
+
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
 // InitStateVersion sets the Consensus.Block and Software versions,
@@ -41,23 +40,19 @@ type State struct {
 }
 
 // NewFromGenesisDoc reads blockchain State from genesis.
-func NewFromGenesisDoc(genDoc *types.GenesisDoc) (State, error) {
-	err := genDoc.ValidateAndComplete()
-	if err != nil {
-		return State{}, fmt.Errorf("error in genesis doc: %w", err)
-	}
-
+func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
 	s := State{
 		Version:       InitStateVersion,
-		ChainID:       genDoc.ChainID,
-		InitialHeight: uint64(genDoc.InitialHeight),
+		ChainID:       genDoc.ChainID(),
+		InitialHeight: genDoc.InitialHeight(),
 
 		DAHeight: 1,
 
-		LastBlockHeight: uint64(genDoc.InitialHeight) - 1,
-		LastBlockTime:   genDoc.GenesisTime,
+		LastBlockHeight: genDoc.InitialHeight() - 1,
+		LastBlockTime:   genDoc.GenesisTime(),
 	}
-	s.AppHash = genDoc.AppHash.Bytes()
+
+	s.AppHash = genDoc.Bytes()
 
 	return s, nil
 }

@@ -43,7 +43,7 @@ func (s *NodeIntegrationTestSuite) SetupTest() {
 	config.DA.BlockTime = rollkitconfig.DurationWrapper{Duration: 200 * time.Millisecond}   // Faster DA submission for tests
 	config.Node.MaxPendingBlocks = 100                                                      // Allow more pending blocks
 
-	genesis, genesisValidatorKey := types.GetGenesisWithPrivkey("test-chain")
+	genesis, genesisValidatorKey, _ := types.GetGenesisWithPrivkey("test-chain")
 
 	s.seqSrv = startMockSequencerServerGRPC(MockSequencerAddress)
 	require.NotNil(s.T(), s.seqSrv)

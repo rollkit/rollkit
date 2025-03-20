@@ -8,10 +8,12 @@ import (
 
 	"github.com/celestiaorg/go-header"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmEd25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtypes "github.com/cometbft/cometbft/types"
 	"github.com/libp2p/go-libp2p/core/crypto"
+
+	coreexecutor "github.com/rollkit/rollkit/core/execution"
 )
 
 // DefaultSigningKeyType is the key type used by the sequencer signing key
@@ -27,7 +29,7 @@ type ValidatorConfig struct {
 // then calls GetValidatorSetCustom to return a new validator set along with the validatorConfig.
 func GetRandomValidatorSet() *cmtypes.ValidatorSet {
 	config := ValidatorConfig{
-		PrivKey:     ed25519.GenPrivKey(),
+		PrivKey:     cmEd25519.GenPrivKey(),
 		VotingPower: 1,
 	}
 	valset := GetValidatorSetCustom(config)
@@ -75,7 +77,7 @@ func GenerateRandomBlockCustom(config *BlockConfig, chainID string) (*SignedHead
 	dataHash := data.Hash()
 
 	if config.PrivKey == nil {
-		config.PrivKey = ed25519.GenPrivKey()
+		config.PrivKey = cmEd25519.GenPrivKey()
 	}
 
 	headerConfig := HeaderConfig{
@@ -182,13 +184,13 @@ func GetRandomSignedHeader(chainID string) (*SignedHeader, cmcrypto.PrivKey, err
 	config := HeaderConfig{
 		Height:      uint64(rand.Int63()), //nolint:gosec
 		DataHash:    GetRandomBytes(32),
-		PrivKey:     ed25519.GenPrivKey(),
+		PrivKey:     cmEd25519.GenPrivKey(),
 		VotingPower: 1,
 	}
 
 	signedHeader, err := GetRandomSignedHeaderCustom(&config, chainID)
 	if err != nil {
-		return nil, ed25519.PrivKey{}, err
+		return nil, cmEd25519.PrivKey{}, err
 	}
 	return signedHeader, config.PrivKey, nil
 }
@@ -238,7 +240,7 @@ func GetRandomNextSignedHeader(signedHeader *SignedHeader, privKey cmcrypto.Priv
 }
 
 // GetFirstSignedHeader creates a 1st signed header for a chain, given a valset and signing key.
-func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet, chainID string) (*SignedHeader, error) {
+func GetFirstSignedHeader(privkey cmEd25519.PrivKey, valSet *cmtypes.ValidatorSet, chainID string) (*SignedHeader, error) {
 	header := Header{
 		BaseHeader: BaseHeader{
 			Height:  1,
@@ -270,43 +272,27 @@ func GetFirstSignedHeader(privkey ed25519.PrivKey, valSet *cmtypes.ValidatorSet,
 	return &signedHeader, nil
 }
 
-// GetValidatorSetFromGenesis returns a ValidatorSet from a GenesisDoc, for usage with the centralized sequencer scheme.
-func GetValidatorSetFromGenesis(g *cmtypes.GenesisDoc) cmtypes.ValidatorSet {
-	vals := []*cmtypes.Validator{
-		{
-			Address:          g.Validators[0].Address,
-			PubKey:           g.Validators[0].PubKey,
-			VotingPower:      int64(1),
-			ProposerPriority: int64(1),
-		},
-	}
-	return cmtypes.ValidatorSet{
-		Validators: vals,
-		Proposer:   vals[0],
-	}
-}
-
 // GetGenesisWithPrivkey returns a genesis doc with a single validator and a signing key
-func GetGenesisWithPrivkey(chainID string) (*cmtypes.GenesisDoc, crypto.PrivKey) {
-	genesisValidatorKey := ed25519.GenPrivKey()
-	pubKey := genesisValidatorKey.PubKey()
+func GetGenesisWithPrivkey(chainID string) (coreexecutor.Genesis, crypto.PrivKey, cmEd25519.PubKey) {
+	// Generate Ed25519 key pair using CometBFT
+	cmtPrivKey := cmEd25519.GenPrivKey()
+	cmtPubKey := cmtPrivKey.PubKey().(cmEd25519.PubKey)
 
-	genesisValidators := []cmtypes.GenesisValidator{{
-		Address: pubKey.Address(),
-		PubKey:  pubKey,
-		Power:   int64(1),
-		Name:    "sequencer",
-	}}
-	genDoc := &cmtypes.GenesisDoc{
-		ChainID:       chainID,
-		InitialHeight: 1,
-		Validators:    genesisValidators,
-	}
-	privKey, err := crypto.UnmarshalEd25519PrivateKey(genesisValidatorKey.Bytes())
+	// Convert CometBFT private key to libp2p format
+	privKeyBytes := cmtPrivKey.Bytes()
+	libp2pPrivKey, err := crypto.UnmarshalEd25519PrivateKey(privKeyBytes)
 	if err != nil {
 		panic(err)
 	}
-	return genDoc, privKey
+
+	// Create base genesis with validator's address
+	return coreexecutor.NewBaseGenesis(
+		chainID,
+		uint64(1),
+		time.Now(),
+		cmtPubKey.Address().Bytes(),
+		nil, // No raw bytes for now
+	), libp2pPrivKey, cmtPubKey
 }
 
 // GetRandomTx returns a tx with random data
