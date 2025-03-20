@@ -1,7 +1,7 @@
 syntax = "proto3";
 package rollkit.v1;
 
-option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
+option go_package = "github.com/rollkit/rollkit/types/pb/rollkit/v1";
 
 // Batch is a collection of transactions.
 message Batch {
