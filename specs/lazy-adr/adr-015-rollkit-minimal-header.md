@@ -10,7 +10,7 @@ The Rollkit minimal header is a streamlined version of the traditional header, f
 
 ### Rollkit Minimal Header Structure
 
-```
+```ascii
 ┌─────────────────────────────────────────────┐
 │             Rollkit Minimal Header          │
 ├─────────────────────┬───────────────────────┤
@@ -69,7 +69,7 @@ This minimal Rollkit header can be transformed to be tailored to a specific exec
 
 #### Transformation to EVM Header
 
-```
+```ascii
 ┌─────────────────────────────────────────────┐
 │             Rollkit Minimal Header          │
 └───────────────────┬─────────────────────────┘
@@ -118,7 +118,7 @@ This header can be transformed into an ABCI-specific header for IBC compatibilit
 
 #### Transformation to ABCI Header
 
-```
+```ascii
 ┌─────────────────────────────────────────────┐
 │             Rollkit Minimal Header          │
 └───────────────────┬─────────────────────────┘
@@ -163,7 +163,7 @@ This header can be transformed into an ABCI-specific header for IBC compatibilit
 
 ### Header Transformation Flow
 
-```
+```ascii
 ┌─────────────────────────────────────────────┐
 │             Rollkit Minimal Header          │
 │                                             │

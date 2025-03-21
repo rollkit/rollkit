@@ -165,9 +165,7 @@ The P2P clients in full and light nodes handle transaction validation differentl
 
 Messages (transactions, blocks, etc.) are gossiped through the network using GossipSub topics. The topic format is:
 
-```
-<chainID>+<topicSuffix>
-```
+`<chainID>+<topicSuffix>`
 
 Where:
 
@@ -232,4 +230,4 @@ if err != nil {
 
 // When done, close the client
 defer client.Close()
-``` 
+```
