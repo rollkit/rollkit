@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	coreexecution "github.com/rollkit/rollkit/core/execution"
 	"github.com/rollkit/rollkit/events"
 	"github.com/rollkit/rollkit/store"
 	"github.com/rollkit/rollkit/types"
@@ -12,20 +13,20 @@ import (
 
 // StateManager is responsible for managing state transitions
 type StateManager struct {
-	eventBus     *events.Bus
-	store        store.Store
-	exec         coreexecutor.Executor
-	stateMtx     *sync.RWMutex
-	lastState    types.State
-	logger       Logger
-	metrics      *Metrics
+	eventBus  *events.Bus
+	store     store.Store
+	exec      coreexecution.Executor
+	stateMtx  *sync.RWMutex
+	lastState types.State
+	logger    Logger
+	metrics   *Metrics
 }
 
 // StateManagerOptions contains options for creating a new StateManager
 type StateManagerOptions struct {
 	EventBus     *events.Bus
 	Store        store.Store
-	Exec         coreexecutor.Executor
+	Exec         coreexecution.Executor
 	Logger       Logger
 	Metrics      *Metrics
 	InitialState types.State
@@ -35,13 +36,13 @@ type StateManagerOptions struct {
 // NewStateManager creates a new state manager
 func NewStateManager(opts StateManagerOptions) *StateManager {
 	return &StateManager{
-		eventBus:     opts.EventBus,
-		store:        opts.Store,
-		exec:         opts.Exec,
-		stateMtx:     opts.StateMtx,
-		lastState:    opts.InitialState,
-		logger:       opts.Logger,
-		metrics:      opts.Metrics,
+		eventBus:  opts.EventBus,
+		store:     opts.Store,
+		exec:      opts.Exec,
+		stateMtx:  opts.StateMtx,
+		lastState: opts.InitialState,
+		logger:    opts.Logger,
+		metrics:   opts.Metrics,
 	}
 }
 
@@ -68,21 +69,21 @@ func (sm *StateManager) handleStateUpdated(ctx context.Context, evt events.Event
 // updateState updates the state stored in the state manager and persists it to store
 func (sm *StateManager) updateState(ctx context.Context, newState types.State) error {
 	sm.logger.Debug("updating state", "newState", newState)
-	
+
 	sm.stateMtx.Lock()
 	defer sm.stateMtx.Unlock()
-	
+
 	err := sm.store.UpdateState(ctx, newState)
 	if err != nil {
 		return err
 	}
-	
+
 	sm.lastState = newState
-	
+
 	if sm.metrics != nil && newState.LastBlockHeight > 0 {
 		sm.metrics.Height.Set(float64(newState.LastBlockHeight))
 	}
-	
+
 	return nil
 }
 

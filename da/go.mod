@@ -4,6 +4,8 @@ go 1.24.0
 
 replace github.com/rollkit/rollkit/core => ../core
 
+replace github.com/rollkit/rollkit => ../
+
 require (
 	cosmossdk.io/log v1.5.0
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
@@ -22,7 +24,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

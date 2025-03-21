@@ -135,11 +135,11 @@ func TestDummySequencer_VerifyBatch(t *testing.T) {
 
 	// The dummy implementation always returns true regardless of input
 	rollupID := []byte("test-rollup")
-	batchHash := []byte("test-batch-hash")
+	batchData := [][]byte{[]byte("tx1"), []byte("tx2")}
 
 	resp, err := seq.VerifyBatch(ctx, VerifyBatchRequest{
 		RollupId:  rollupID,
-		BatchHash: batchHash,
+		BatchData: batchData,
 	})
 
 	// Verify response

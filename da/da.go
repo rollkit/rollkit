@@ -13,8 +13,8 @@ import (
 // DAClient is a new DA implementation.
 type DAClient struct {
 	DA            coreda.DA
-	GasPrice      float64
-	GasMultiplier float64
+	gasPrice      float64
+	gasMultiplier float64
 	Namespace     []byte
 	SubmitOptions []byte
 	Logger        log.Logger
@@ -24,8 +24,8 @@ type DAClient struct {
 func NewDAClient(da coreda.DA, gasPrice, gasMultiplier float64, ns []byte, options []byte, logger log.Logger) coreda.Client {
 	return &DAClient{
 		DA:            da,
-		GasPrice:      gasPrice,
-		GasMultiplier: gasMultiplier,
+		gasPrice:      gasPrice,
+		gasMultiplier: gasMultiplier,
 		Namespace:     ns,
 		SubmitOptions: options,
 		Logger:        logger,
@@ -37,15 +37,30 @@ func (dac *DAClient) MaxBlobSize(ctx context.Context) (uint64, error) {
 	return dac.DA.MaxBlobSize(ctx)
 }
 
+// GetNamespace returns the namespace for the DA layer.
+func (dac *DAClient) GetNamespace(ctx context.Context) ([]byte, error) {
+	return dac.Namespace, nil
+}
+
+// GasPrice returns the gas price for the DA layer.
+func (dac *DAClient) GasPrice(ctx context.Context) (float64, error) {
+	return dac.DA.GasPrice(ctx)
+}
+
+// GasMultiplier returns the gas multiplier for the DA layer.
+func (dac *DAClient) GasMultiplier(ctx context.Context) (float64, error) {
+	return dac.DA.GasMultiplier(ctx)
+}
+
 // SubmitHeaders submits block headers to DA.
-func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmit {
+func (dac *DAClient) Submit(ctx context.Context, data [][]byte, maxBlobSize uint64, gasPrice float64) coreda.ResultSubmit {
 	var (
 		blobs    [][]byte
 		blobSize uint64
 		message  string
 	)
-	for i := range headers {
-		blob := headers[i]
+	for i := range data {
+		blob := data[i]
 		if blobSize+uint64(len(blob)) > maxBlobSize {
 			message = fmt.Sprint(ErrBlobSizeOverLimit.Error(), "blob size limit reached", "maxBlobSize", maxBlobSize, "index", i, "blobSize", blobSize, "len(blob)", len(blob))
 			dac.Logger.Info(message)
@@ -63,7 +78,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlo
 		}
 	}
 
-	ids, height, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
+	ids, err := dac.submit(ctx, blobs, gasPrice, dac.Namespace)
 	if err != nil {
 		status := coreda.StatusError
 		switch {
@@ -98,7 +113,7 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlo
 	return coreda.ResultSubmit{
 		BaseResult: coreda.BaseResult{
 			Code:           coreda.StatusSuccess,
-			DAHeight:       height,
+			IDs:            ids,
 			SubmittedCount: uint64(len(ids)),
 		},
 	}
@@ -106,36 +121,36 @@ func (dac *DAClient) SubmitHeaders(ctx context.Context, headers [][]byte, maxBlo
 
 // RetrieveHeaders retrieves block headers from DA.
 // It is on the caller to decode the headers
-func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64) coreda.ResultRetrieveHeaders {
+func (dac *DAClient) Retrieve(ctx context.Context, dataLayerHeight uint64) coreda.ResultRetrieve {
 	result, err := dac.DA.GetIDs(ctx, dataLayerHeight, dac.Namespace)
 	if err != nil {
-		return coreda.ResultRetrieveHeaders{
+		return coreda.ResultRetrieve{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusError,
-				Message:  fmt.Sprintf("failed to get IDs: %s", err.Error()),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusError,
+				Message: fmt.Sprintf("failed to get IDs: %s", err.Error()),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
 
 	// If no blocks are found, return a non-blocking error.
 	if result == nil || len(result.IDs) == 0 {
-		return coreda.ResultRetrieveHeaders{
+		return coreda.ResultRetrieve{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusNotFound,
-				Message:  ErrBlobNotFound.Error(),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusNotFound,
+				Message: ErrBlobNotFound.Error(),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
 
 	blobs, err := dac.DA.Get(ctx, result.IDs, dac.Namespace)
 	if err != nil {
-		return coreda.ResultRetrieveHeaders{
+		return coreda.ResultRetrieve{
 			BaseResult: coreda.BaseResult{
-				Code:     coreda.StatusError,
-				Message:  fmt.Sprintf("failed to get blobs: %s", err.Error()),
-				DAHeight: dataLayerHeight,
+				Code:    coreda.StatusError,
+				Message: fmt.Sprintf("failed to get blobs: %s", err.Error()),
+				Height:  dataLayerHeight,
 			},
 		}
 	}
@@ -147,15 +162,15 @@ func (dac *DAClient) RetrieveHeaders(ctx context.Context, dataLayerHeight uint64
 		continue
 	}
 
-	return coreda.ResultRetrieveHeaders{
+	return coreda.ResultRetrieve{
 		BaseResult: coreda.BaseResult{
-			Code:     coreda.StatusSuccess,
-			DAHeight: dataLayerHeight,
+			Code:   coreda.StatusSuccess,
+			Height: dataLayerHeight,
 		},
-		Headers: blobs,
+		Data: blobs,
 	}
 }
 
-func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, uint64, error) {
+func (dac *DAClient) submit(ctx context.Context, blobs []coreda.Blob, gasPrice float64, namespace []byte) ([]coreda.ID, error) {
 	return dac.DA.Submit(ctx, blobs, gasPrice, namespace, dac.SubmitOptions)
 }

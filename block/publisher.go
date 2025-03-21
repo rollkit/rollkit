@@ -3,7 +3,6 @@ package block
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/rollkit/rollkit/config"
@@ -89,8 +88,8 @@ func (p *Publisher) handleBlockCreated(ctx context.Context, evt events.Event) {
 
 	// Mark block as seen in cache
 	headerHash := header.Hash().String()
-	p.headerCache.setSeen(headerHash)
-	p.dataCache.setSeen(data.Hash().String())
+	p.headerCache.SetSeen(headerHash)
+	p.dataCache.SetSeen(data.Hash().String())
 
 	// Publish to P2P network
 	p.eventBus.Publish(BlockPublishedEvent{
@@ -206,7 +205,7 @@ daSubmitRetryLoop:
 
 			for _, block := range submittedBlocks {
 				blockHash := block.Hash().String()
-				p.headerCache.setDAIncluded(blockHash)
+				p.headerCache.SetDAIncluded(blockHash)
 
 				// Publish event for DA included block
 				p.eventBus.Publish(BlockDAIncludedEvent{

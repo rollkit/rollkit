@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	cmbytes "github.com/cometbft/cometbft/libs/bytes"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/rollkit/config"
@@ -22,6 +21,7 @@ import (
 type Producer struct {
 	proposerKey      crypto.PrivKey
 	store            store.Store
+	stateManager     *StateManager
 	eventBus         *events.Bus
 	config           config.Config
 	genesis          *RollkitGenesis
@@ -46,9 +46,11 @@ type ProducerOptions struct {
 	Exec             coreexecutor.Executor
 	Logger           Logger
 	InitialState     types.State
+	StateManager     *StateManager
 	IsProposer       bool
 	DAIncludedHeight uint64
 	BatchQueue       *BatchQueue
+	Sequencer        coresequencer.Sequencer
 	StateMtx         *sync.RWMutex
 }
 
@@ -64,10 +66,12 @@ func NewProducer(opts ProducerOptions) *Producer {
 	return &Producer{
 		proposerKey:      opts.ProposerKey,
 		store:            opts.Store,
+		stateManager:     opts.StateManager,
 		eventBus:         opts.EventBus,
 		config:           opts.Config,
 		genesis:          opts.Genesis,
 		exec:             opts.Exec,
+		sequencer:        opts.Sequencer,
 		bq:               opts.BatchQueue,
 		buildingBlock:    false,
 		stateMtx:         opts.StateMtx,
@@ -285,7 +289,6 @@ func (p *Producer) publishBlock(ctx context.Context) error {
 	// Get last block information
 	var lastSignature *types.Signature
 	var lastHeaderHash types.Hash
-	var err error
 
 	height := p.store.Height()
 	newHeight := height + 1
@@ -354,11 +357,8 @@ func (p *Producer) publishBlock(ctx context.Context) error {
 		InitialHeight:   lastState.InitialHeight,
 		LastBlockHeight: header.Height(),
 		LastBlockTime:   header.Time(),
-		LastBlockID: cmtypes.BlockID{
-			Hash: cmbytes.HexBytes(header.Hash()),
-		},
-		AppHash:  newStateRoot,
-		DAHeight: p.daIncludedHeight,
+		AppHash:         newStateRoot,
+		DAHeight:        p.daIncludedHeight,
 	}
 	p.stateMtx.RUnlock()
 
@@ -395,17 +395,17 @@ func (p *Producer) getRemainingSleep(start time.Time) time.Duration {
 	interval := p.config.Node.BlockTime.Duration
 
 	if p.config.Node.LazyAggregator {
-		if p.buildingBlock && elapsed >= interval.Duration {
+		if p.buildingBlock && elapsed >= interval {
 			// Special case to give time for transactions to accumulate if we
 			// are coming out of a period of inactivity.
-			return (interval.Duration * time.Duration(defaultLazySleepPercent) / 100)
+			return (interval * time.Duration(defaultLazySleepPercent) / 100)
 		} else if !p.buildingBlock {
-			interval = p.config.Node.LazyBlockTime
+			interval = p.config.Node.LazyBlockTime.Duration
 		}
 	}
 
-	if elapsed < interval.Duration {
-		return interval.Duration - elapsed
+	if elapsed < interval {
+		return interval - elapsed
 	}
 
 	return 0
@@ -430,7 +430,7 @@ func (p *Producer) getLastBlockTime() time.Time {
 // createBlock creates a new block
 func (p *Producer) createBlock(ctx context.Context, height uint64, txs [][]byte, timestamp time.Time, lastSignature *types.Signature, lastHeaderHash types.Hash, batchData [][]byte) (*types.SignedHeader, *types.Data, error) {
 	batchDataBytes := convertBatchDataToBytes(batchData)
-	
+
 	// Get current state
 	state := p.stateManager.GetLastState()
 
@@ -459,9 +459,9 @@ func (p *Producer) createBlock(ctx context.Context, height uint64, txs [][]byte,
 	data := &types.Data{
 		Txs: make(types.Txs, len(txs)),
 		Metadata: &types.Metadata{
-			ChainID:      header.ChainID(),
-			Height:       header.Height(),
-			Time:         header.BaseHeader.Time,
+			ChainID: header.ChainID(),
+			Height:  header.Height(),
+			Time:    header.BaseHeader.Time,
 		},
 	}
 

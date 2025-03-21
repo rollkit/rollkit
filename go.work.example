@@ -8,5 +8,5 @@ use (
 	./rollups/evm/based
 	./rollups/evm/centralized
 	./sequencers/based
-	./sequencers/centralized
+	./sequencers/single
 )

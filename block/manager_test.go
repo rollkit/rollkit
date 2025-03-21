@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -51,13 +50,9 @@ func getManager(t *testing.T, backend coreda.DA, gasPrice float64, gasMultiplier
 
 	// Create minimal manager with only needed components for testing
 	m := &Manager{
-		dalc:             da.NewDAClient(backend, gasPrice, gasMultiplier, nil, nil, logger),
-		headerCache:      NewHeaderCache(),
-		dataCache:        NewDataCache(),
-		logger:           logger,
-		eventBus:         eventBus,
-		daHeight:         atomic.Uint64{},
-		daIncludedHeight: atomic.Uint64{},
+		dalc:     da.NewDAClient(backend, gasPrice, gasMultiplier, nil, nil, logger),
+		logger:   logger,
+		eventBus: eventBus,
 	}
 
 	return m
@@ -85,7 +80,6 @@ func TestInitialStateStored(t *testing.T) {
 	chainID := "TestInitialStateStored"
 	require := require.New(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey(chainID)
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         chainID,
 		InitialHeight:   1,
@@ -95,9 +89,6 @@ func TestInitialStateStored(t *testing.T) {
 		ChainID:         chainID,
 		InitialHeight:   1,
 		LastBlockHeight: 100,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -154,7 +145,7 @@ func TestHandleEmptyDataHash(t *testing.T) {
 	store.AssertExpectations(t)
 
 	// make sure that the store has the correct data
-	d := dataCache.getData(headerHeight)
+	d := dataCache.GetItem(headerHeight)
 	require.NotNil(d)
 	require.Equal(d.Metadata.LastDataHash, lastDataHash)
 	require.Equal(d.Metadata.ChainID, header.ChainID())
@@ -166,7 +157,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	require := require.New(t)
 	logger := log.NewTestLoggerInfo(t)
 	genesisDoc, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
-	valset := types.GetRandomValidatorSet()
 	genesis := &RollkitGenesis{
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   2,
@@ -176,9 +166,6 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 		ChainID:         "TestInitialStateUnexpectedHigherGenesis",
 		InitialHeight:   1,
 		LastBlockHeight: 0,
-		Validators:      valset,
-		NextValidators:  valset,
-		LastValidators:  valset,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

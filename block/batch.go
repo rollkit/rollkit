@@ -2,6 +2,7 @@ package block
 
 import (
 	"encoding/binary"
+	"fmt"
 	"sync"
 	"time"
 
@@ -18,8 +19,8 @@ type BatchQueue struct {
 // BatchWithTime is used to pass batch and time to BatchQueue
 type BatchWithTime struct {
 	*coresequencer.Batch
-	Time  time.Time
-	Data  [][]byte
+	Time time.Time
+	Data [][]byte
 }
 
 // NewBatchQueue creates a new BatchQueue

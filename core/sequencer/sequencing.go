@@ -90,7 +90,7 @@ type SubmitRollupBatchTxsResponse struct {
 // GetNextBatchRequest is a request to get the next batch of transactions from sequencer to rollup
 type GetNextBatchRequest struct {
 	RollupId      []byte
-	LastBatchHash []byte
+	LastBatchData [][]byte
 	MaxBytes      uint64
 }
 
@@ -98,12 +98,13 @@ type GetNextBatchRequest struct {
 type GetNextBatchResponse struct {
 	Batch     *Batch
 	Timestamp time.Time
+	BatchData [][]byte
 }
 
 // VerifyBatchRequest is a request to verify a batch of transactions received from the sequencer
 type VerifyBatchRequest struct {
 	RollupId  []byte
-	BatchHash []byte
+	BatchData [][]byte
 }
 
 // VerifyBatchResponse is a response to verifying a batch of transactions received from the sequencer

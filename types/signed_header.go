@@ -50,9 +50,6 @@ func (sh *SignedHeader) Verify(untrstH *SignedHeader) error {
 		if err := sh.verifyHeaderHash(untrstH); err != nil {
 			return err
 		}
-		if err := sh.verifyCommitHash(untrstH); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -64,16 +61,6 @@ func (sh *SignedHeader) verifyHeaderHash(untrstH *SignedHeader) error {
 	if !bytes.Equal(hash, untrstH.LastHeader()) {
 		return sh.newVerifyError(ErrLastHeaderHashMismatch, hash, untrstH.LastHeader())
 	}
-	return nil
-}
-
-// verifyCommitHash verifies the commit hash.
-func (sh *SignedHeader) verifyCommitHash(untrstH *SignedHeader) error {
-	expectedCommitHash := sh.Signature.GetCommitHash(&untrstH.Header, sh.ProposerAddress)
-	if !bytes.Equal(expectedCommitHash, untrstH.LastCommitHash) {
-		return sh.newVerifyError(ErrLastCommitHashMismatch, expectedCommitHash, untrstH.LastCommitHash)
-	}
-
 	return nil
 }
 

@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"encoding/binary"
+
 	goheaderstore "github.com/celestiaorg/go-header/store"
 
 	"github.com/rollkit/rollkit/config"
@@ -30,19 +32,20 @@ type Syncer struct {
 	dataCache        *DataCache
 	headerStore      *goheaderstore.Store[*types.SignedHeader]
 	dataStore        *goheaderstore.Store[*types.Data]
+	stateManager     *StateManager
 	logger           Logger
 	config           config.Config
 	daHeight         atomic.Uint64
 	daIncludedHeight atomic.Uint64
 	stateMtx         *sync.RWMutex
 	exec             coreexecutor.Executor
-	
+
 	// Channels for event coordination
-	headerInCh      chan NewHeaderEvent
-	dataInCh        chan NewDataEvent
-	headerStoreCh   chan struct{}
-	dataStoreCh     chan struct{}
-	retrieveCh      chan struct{}
+	headerInCh    chan NewHeaderEvent
+	dataInCh      chan NewDataEvent
+	headerStoreCh chan struct{}
+	dataStoreCh   chan struct{}
+	retrieveCh    chan struct{}
 }
 
 // SyncerOptions contains options for creating a new Syncer
@@ -63,22 +66,22 @@ type SyncerOptions struct {
 // NewSyncer creates a new block syncer
 func NewSyncer(opts SyncerOptions) *Syncer {
 	s := &Syncer{
-		eventBus:        opts.EventBus,
-		store:           opts.Store,
-		dalc:            opts.DALC,
-		headerCache:     NewHeaderCache(),
-		dataCache:       NewDataCache(),
-		headerStore:     opts.HeaderStore,
-		dataStore:       opts.DataStore,
-		logger:          opts.Logger,
-		config:          opts.Config,
-		stateMtx:        opts.StateMtx,
-		exec:            opts.Exec,
-		headerInCh:      make(chan NewHeaderEvent, headerInChLength),
-		dataInCh:        make(chan NewDataEvent, headerInChLength),
-		headerStoreCh:   make(chan struct{}, 1),
-		dataStoreCh:     make(chan struct{}, 1),
-		retrieveCh:      make(chan struct{}, 1),
+		eventBus:      opts.EventBus,
+		store:         opts.Store,
+		dalc:          opts.DALC,
+		headerCache:   NewHeaderCache(),
+		dataCache:     NewDataCache(),
+		headerStore:   opts.HeaderStore,
+		dataStore:     opts.DataStore,
+		logger:        opts.Logger,
+		config:        opts.Config,
+		stateMtx:      opts.StateMtx,
+		exec:          opts.Exec,
+		headerInCh:    make(chan NewHeaderEvent, headerInChLength),
+		dataInCh:      make(chan NewDataEvent, headerInChLength),
+		headerStoreCh: make(chan struct{}, 1),
+		dataStoreCh:   make(chan struct{}, 1),
+		retrieveCh:    make(chan struct{}, 1),
 	}
 
 	s.daHeight.Store(opts.DAHeight)
@@ -430,11 +433,8 @@ func (s *Syncer) trySyncNextBlock(ctx context.Context, daHeight uint64) error {
 			InitialHeight:   lastState.InitialHeight,
 			LastBlockHeight: h.Height(),
 			LastBlockTime:   h.Time(),
-			LastBlockID: cmtypes.BlockID{
-				Hash: cmbytes.HexBytes(h.Hash()),
-			},
-			AppHash:  newStateRoot,
-			DAHeight: daHeight,
+			AppHash:         newStateRoot,
+			DAHeight:        daHeight,
 		}
 
 		// Update the store height

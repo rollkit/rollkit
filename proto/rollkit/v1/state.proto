@@ -1,0 +1,29 @@
+syntax = "proto3";
+package rollkit.v1;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "rollkit/v1/rollkit.proto";
+
+option go_package = "github.com/rollkit/rollkit/types/pb/rollkit";
+
+
+// State is the state of the blockchain.
+message State {
+  rollkit.v1.Version version = 1;
+
+  string chain_id = 2;
+  uint64 initial_height = 3;
+
+  uint64 last_block_height = 4;
+
+  google.protobuf.Timestamp last_block_time = 5 [
+    (gogoproto.nullable) = false,
+    (gogoproto.stdtime) = true
+  ];
+
+  uint64 da_height = 6;
+  bytes last_results_hash = 7;
+
+  bytes app_hash = 8;
+}

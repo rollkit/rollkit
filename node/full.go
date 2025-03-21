@@ -29,9 +29,7 @@ import (
 )
 
 // prefixes used in KV store to separate main node data from DALC data
-var (
-	mainPrefix = "0"
-)
+var mainPrefix = "0"
 
 const (
 	// genesisChunkSize is the maximum size, in bytes, of each

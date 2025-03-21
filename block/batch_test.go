@@ -14,12 +14,16 @@ var (
 		Transactions: [][]byte{
 			[]byte("batch1"),
 		},
-	}, time.Time{}}
+	}, time.Time{}, [][]byte{
+		[]byte("batch1"),
+	}}
 	batch2 = BatchWithTime{&coresequencer.Batch{
 		Transactions: [][]byte{
 			[]byte("batch2"),
 		},
-	}, time.Time{}}
+	}, time.Time{}, [][]byte{
+		[]byte("batch2"),
+	}}
 )
 
 func TestNewBatchQueue(t *testing.T) {

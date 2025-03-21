@@ -53,20 +53,7 @@ func testVerify(t *testing.T, trusted *SignedHeader, untrustedAdj *SignedHeader,
 				Reason: ErrLastHeaderHashMismatch,
 			},
 		},
-		// 2. Test LastCommitHash link between trusted and untrusted header
-		// break the LastCommitHash link between the trusted and untrusted header
-		// Expect failure
-		{
-			prepare: func() (*SignedHeader, bool) {
-				untrusted := *untrustedAdj
-				untrusted.LastCommitHash = header.Hash(GetRandomBytes(32))
-				return &untrusted, true
-			},
-			err: &header.VerifyError{
-				Reason: ErrLastCommitHashMismatch,
-			},
-		},
-		// 3. Test non-adjacent
+		// 2. Test non-adjacent
 		// increments the BaseHeader.Height so it's headers are non-adjacent
 		// Expect success
 		{

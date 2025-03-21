@@ -3,8 +3,9 @@ package block
 import (
 	"context"
 	"errors"
-	"time"
+	"fmt"
 
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
@@ -47,19 +48,9 @@ func getInitialState(ctx context.Context, genesis *RollkitGenesis, store store.S
 			ChainID:         genesis.ChainID,
 			InitialHeight:   genesis.InitialHeight,
 			LastBlockHeight: genesis.InitialHeight - 1,
-			LastBlockID:     cmtypes.BlockID{},
 			LastBlockTime:   genesis.GenesisTime,
 			AppHash:         stateRoot,
 			DAHeight:        0,
-			// TODO(tzdybal): we don't need fields below
-			Version:                          cmstate.Version{},
-			ConsensusParams:                  cmproto.ConsensusParams{},
-			LastHeightConsensusParamsChanged: 0,
-			LastResultsHash:                  nil,
-			Validators:                       nil,
-			NextValidators:                   nil,
-			LastValidators:                   nil,
-			LastHeightValidatorsChanged:      0,
 		}
 		return s, nil
 	} else if err != nil {
