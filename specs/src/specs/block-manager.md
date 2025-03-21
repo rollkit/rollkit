@@ -90,7 +90,7 @@ The block manager of the sequencer full nodes regularly publishes the produced b
 
 ### Block Retrieval from DA Network
 
-The block manager of the full nodes regularly pulls blocks from the DA network at `DABlockTime` intervals and starts off with a DA height read from the last state stored in the local store or `DAStartHeight` configuration parameter, whichever is the latest. The block manager also actively maintains and increments the `daHeight` counter after every DA pull. The pull happens by making the `RetrieveBlocks(daHeight)` request using the Data Availability Light Client (DALC) retriever, which can return either `Success`, `NotFound`, or `Error`. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the `daHeight` counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block `NotFound` scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the `daHeight` counter in this case. Finally, for the `Success` scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the `DABlockTime` and `BlockTime` intervals.
+The block manager of the full nodes regularly pulls blocks from the DA network at `DABlockTime` intervals and starts off with a DA height read from the last state stored in the local store or `DAStartHeight` configuration parameter, whichever is the latest. The block manager also actively maintains and increments the `daHeight` counter after every DA pull. The pull happens by making the `RetrieveBlocks(daHeight)` request using the Data Availability Light Client (DALC) retriever, which can return either `Success`, `NotFound`, or `Error`. In the event of an error, a retry logic kicks in after a delay of 100 milliseconds delay between every retry and after 10 retries, an error is logged and the `daHeight` counter is not incremented, which basically results in the intentional stalling of the block retrieval logic. In the block `NotFound` scenario, there is no error as it is acceptable to have no rollup block at every DA height. The retrieval successfully increments the `daHeight` counter in this case. Finally, for the `Success` scenario, first, blocks that are successfully retrieved are marked as DA included and are sent to be applied (or state update). A successful state update triggers fresh DA and block store pulls without respecting the `DABlockTime` and `BlockTime` intervals. For more details on DA integration, see the [Data Availability specification](./da.md).
 
 #### Out-of-Order Rollup Blocks on DA
 
@@ -104,7 +104,7 @@ If the sequencer double-signs two blocks at the same height, evidence of the fau
 
 ### Block Sync Service
 
-The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to the [go-header] service to be gossiped blocks over the P2P network.
+The block sync service is created during full node initialization. After that, during the block manager's initialization, a pointer to the block store inside the block sync service is passed to it. Blocks created in the block manager are then passed to the `BlockCh` channel and then sent to the [go-header][go-header] service to be gossiped blocks over the P2P network.
 
 ### Block Publication to P2P network
 
@@ -157,10 +157,11 @@ The communication between the full node and block manager:
 * The block manager uses persistent storage (disk) when the `root_dir` and `db_path` configuration parameters are specified in `config.yaml` file under the app directory. If these configuration parameters are not specified, the in-memory storage is used, which will not be persistent if the node stops.
 * The block manager does not re-apply the block again (in other words, create a new updated state and persist it) when a block was initially applied using P2P block sync, but later was DA included during DA retrieval. The block is only marked DA included in this case.
 * The data sync store is created by prefixing `dataSync` on the main data store.
-* The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to go-header specs for more details.
+* The genesis `ChainID` is used to create the `PubSubTopID` in go-header with the string `-block` appended to it. This append is because the full node also has a P2P header sync running with a different P2P network. Refer to [go-header][go-header] specs for more details.
 * Block sync over the P2P network works only when a full node is connected to the P2P network by specifying the initial seeds to connect to via `P2PConfig.Seeds` configuration parameter when starting the full node.
 * Node's context is passed down to all the components of the P2P block sync to control shutting down the service either abruptly (in case of failure) or gracefully (during successful scenarios).
-* The block manager supports the separation of header and data structures in Rollkit. This allows for expanding the sequencing scheme beyond centralized sequencing and enables the use of a decentralized sequencer mode. For detailed information on this architecture, see the [Header and Data Separation ADR](./header-and-data-separation-adr.md).
+* The block manager supports the separation of header and data structures in Rollkit. This allows for expanding the sequencing scheme beyond centralized sequencing and enables the use of a decentralized sequencer mode. For detailed information on this architecture, see the [Header and Data Separation ADR](../lazy-adr/adr-014-header-and-data-separation.md).
+* The block manager processes blocks with a minimal header format, which is designed to eliminate dependency on CometBFT's header format and can be used to produce an execution layer tailored header if needed. For details on this header structure, see the [Rollkit Minimal Header](../lazy-adr/adr-015-rollkit-minimal-header.md) specification.
 
 ## Implementation
 
@@ -180,9 +181,11 @@ See [tutorial] for running a multi-node network with both sequencer and non-sequ
 
 [5] [Tutorial][tutorial]
 
-[6] [Header and Data Separation ADR](./header-and-data-separation-adr.md)
+[6] [Header and Data Separation ADR](../../lazy-adr/adr-014-header-and-data-separation.md)
 
-[7] [Rollkit Minimal Header](./rollkit-minimal-header.md)
+[7] [Rollkit Minimal Header](../../lazy-adr/adr-015-rollkit-minimal-header.md)
+
+[8] [Data Availability](./da.md)
 
 [maxSubmitAttempts]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50
 [defaultBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L36
