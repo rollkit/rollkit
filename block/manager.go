@@ -1157,7 +1157,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		}
 
 		m.logger.Debug("Submitting transaction to sequencer",
-			"txCount", len(execTxs))
+			"txCount", len(execTxs), "rollupId", m.genesis.ChainID)
 		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
 			RollupId: sequencing.RollupId(m.genesis.ChainID),
 			Batch:    &coresequencer.Batch{Transactions: execTxs},
@@ -1171,17 +1171,18 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 			m.logger.Debug("Successfully submitted transaction to sequencer")
 		}
 
-		batchData, err := m.getTxsFromBatch()
-		if errors.Is(err, ErrNoBatch) {
-			m.logger.Debug("No batch available, creating empty block")
-			// Create an empty block instead of returning
-			batchData = &BatchData{
-				Batch: &coresequencer.Batch{Transactions: [][]byte{}},
-				Time:  time.Now().Round(0).UTC(),
-				Data:  [][]byte{},
+		var batchData *BatchData
+		for {
+			batchData, err = m.getTxsFromBatch()
+			if errors.Is(err, ErrNoBatch) {
+				m.logger.Debug("Waiting for batch...")
+				time.Sleep(100 * time.Millisecond)
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to get transactions from batch: %w", err)
+			} else {
+				break
 			}
-		} else if err != nil {
-			return fmt.Errorf("failed to get transactions from batch: %w", err)
 		}
 		// sanity check timestamp for monotonically increasing
 		if batchData.Time.Before(lastHeaderTime) {
