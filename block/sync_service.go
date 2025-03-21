@@ -21,7 +21,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p"
+	"github.com/rollkit/rollkit/pkg/p2p"
 	"github.com/rollkit/rollkit/types"
 )
 
