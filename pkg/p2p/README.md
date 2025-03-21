@@ -7,7 +7,7 @@ This document provides an overview of the P2P (peer-to-peer) networking system u
 Every rollup node (both full and light) runs a P2P client for participating in the rollup's P2P network. The client handles the following key functions:
 
 - Establishing and managing peer connections
-- Gossiping transactions through the network 
+- Gossiping transactions through the network
 - Supporting header and block synchronization services
 - Validating gossiped messages (different for full and light nodes)
 
@@ -21,7 +21,7 @@ graph TB
         Mempool["Mempool"]
         SyncServices["Header/Block Sync Services"]
     end
-    
+
     P2PClient -- "Uses" --> Libp2p["libp2p Stack"]
     Libp2p -- "Components" --> DHT["Kademlia DHT"]
     Libp2p -- "Components" --> PubSub["GossipSub"]
@@ -70,17 +70,17 @@ graph LR
     Client --> Discovery["Routing Discovery"]
     Client --> Gater["Connection Gater"]
     Client --> PubSub["GossipSub PubSub"]
-    
+
     Host --> Transport["Transport Protocols"]
     Host --> Security["Security Protocols"]
     Host --> Muxer["Stream Multiplexers"]
-    
+
     DHT --> PeerRouting["Peer Routing"]
     DHT --> ContentRouting["Content Routing"]
 
     Discovery --> FindPeers["Find Peers"]
     Discovery --> Advertise["Advertise"]
-    
+
     PubSub --> Topics["Topics by ChainID"]
     PubSub --> Validation["Message Validation"]
 ```
@@ -164,11 +164,13 @@ The P2P clients in full and light nodes handle transaction validation differentl
 ## Message Gossiping
 
 Messages (transactions, blocks, etc.) are gossiped through the network using GossipSub topics. The topic format is:
+
 ```
 <chainID>+<topicSuffix>
 ```
 
 Where:
+
 - `chainID` is the rollup's chain identifier
 - `topicSuffix` is a suffix specific to the message type (e.g., "tx" for transactions)
 
