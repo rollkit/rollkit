@@ -11,7 +11,7 @@ const (
 	// Please keep updated with each new release
 	Version = "0.38.5"
 	// DefaultDAAddress is the default address for the DA middleware
-	DefaultDAAddress = "http://localhost:26658"
+	DefaultDAAddress = "http://localhost:7980"
 	// DefaultSequencerAddress is the default address for the sequencer middleware
 	DefaultSequencerAddress = "localhost:50051"
 	// DefaultSequencerRollupID is the default rollup ID for the sequencer middleware

@@ -11,6 +11,7 @@ import (
 	"github.com/rollkit/rollkit/config"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
+	"github.com/rollkit/rollkit/p2p"
 )
 
 // Node is the interface for a rollup node
@@ -28,7 +29,7 @@ func NewNode(
 	conf config.NodeConfig,
 	exec coreexecutor.Executor,
 	sequencer coresequencer.Sequencer,
-	p2pKey crypto.PrivKey,
+	p2pClient *p2p.Client,
 	signingKey crypto.PrivKey,
 	genesis *cmtypes.GenesisDoc,
 	database ds.Batching,
@@ -39,10 +40,9 @@ func NewNode(
 		return newLightNode(
 			ctx,
 			conf,
-			p2pKey,
+			p2pClient,
 			genesis,
 			database,
-			metricsProvider,
 			logger,
 		)
 	}
@@ -50,7 +50,7 @@ func NewNode(
 	return newFullNode(
 		ctx,
 		conf,
-		p2pKey,
+		p2pClient,
 		signingKey,
 		genesis,
 		exec,

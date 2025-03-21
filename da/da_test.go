@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/rollkit/go-da"
-	damock "github.com/rollkit/go-da/mocks"
+	// damock "github.com/rollkit/go-da/mocks"
 	proxygrpc "github.com/rollkit/go-da/proxy/grpc"
 	proxyjsonrpc "github.com/rollkit/go-da/proxy/jsonrpc"
 	goDATest "github.com/rollkit/go-da/test"
