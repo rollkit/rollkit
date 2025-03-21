@@ -26,8 +26,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/p2p/key"
 	rollhash "github.com/rollkit/rollkit/pkg/hash"
+	"github.com/rollkit/rollkit/pkg/p2p/key"
 	"github.com/rollkit/rollkit/third_party/log"
 )
 
