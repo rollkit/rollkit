@@ -177,6 +177,7 @@ func (s *DefaultStore) getHeightByHash(ctx context.Context, hash types.Hash) (ui
 
 // SaveBlockResponses saves block responses (events, tx responses, validator set updates, etc) in Store.
 func (s *DefaultStore) SaveBlockResponses(ctx context.Context, height uint64, responses *abci.ResponseFinalizeBlock) error {
+	return nil
 	data, err := responses.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal response: %w", err)

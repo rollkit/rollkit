@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	goDA "github.com/rollkit/go-da"
-	goDAMock "github.com/rollkit/go-da/mocks"
+	// goDAMock "github.com/rollkit/go-da/mocks"
 	goDATest "github.com/rollkit/go-da/test"
 
 	"github.com/rollkit/rollkit/config"

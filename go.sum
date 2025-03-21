@@ -119,6 +119,8 @@ github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4
 github.com/bytedance/sonic/loader v0.2.0 h1:zNprn+lsIP06C/IqCHs3gPQIvnvpKbbxyXQP1iU4kWM=
 github.com/bytedance/sonic/loader v0.2.0/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4yY2JpfqGeCtNLU=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
+github.com/celestiaorg/go-header v0.6.3-0.20250303104004-bc832d01b17f h1:WwXesKH1xAbe54/sW/MforV8odbSNY6C6He7HidDuA4=
+github.com/celestiaorg/go-header v0.6.3-0.20250303104004-bc832d01b17f/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
 github.com/celestiaorg/go-header v0.6.4 h1:3kXi7N3qBc4SCmT+tNVWhLi0Ilw5e/7qq2cxVGbs0ss=
 github.com/celestiaorg/go-header v0.6.4/go.mod h1:Az4S4NxMOJ1eAzOaF8u5AZt5UzsSzg92uqpdXS3yOZE=
 github.com/celestiaorg/go-libp2p-messenger v0.2.0 h1:/0MuPDcFamQMbw9xTZ73yImqgTO3jHV7wKHvWD/Irao=
@@ -1020,8 +1022,8 @@ github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
-github.com/rollkit/go-da v0.9.0 h1:ECpS7RSLE84w61Y5a93RfaZrAZKeiyfjVwGxzjsW2cU=
-github.com/rollkit/go-da v0.9.0/go.mod h1:LQImomegjZ/dEQLKDJA7RdUnOLINSZJwI7q1CvFPWJw=
+github.com/rollkit/go-da v0.7.0 h1:b4o5dWCCqwH0fbbhfNOoLraAsCHjN5PV1Z2rNkUB+pU=
+github.com/rollkit/go-da v0.7.0/go.mod h1:9YCbEhUkF/QHbbKPBe5uvu93Co/mgPRtYjlwj6GPuhI=
 github.com/rollkit/go-execution v0.2.3 h1:NxM6SQTlPCC6rC4d7uRhJqsVSst+yBuDrXGPU/jGkuA=
 github.com/rollkit/go-execution v0.2.3/go.mod h1:l0ZFw9V1QuEVGE16xFnTaTk+jYs0yNW54PlBh5RL9OU=
 github.com/rollkit/go-sequencing v0.4.1 h1:P0x1wUFIAhdEeqUbrRAF343iExKhq9UkVOBbi45l750=

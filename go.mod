@@ -2,7 +2,6 @@ module github.com/rollkit/rollkit
 
 go 1.23.3
 
-
 retract v0.12.0 // Published by accident
 
 replace github.com/rollkit/rollkit/core => ./core
@@ -11,7 +10,7 @@ require (
 	cosmossdk.io/log v1.5.0
 	github.com/BurntSushi/toml v1.4.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
-	github.com/celestiaorg/go-header v0.6.4
+	github.com/celestiaorg/go-header v0.6.3-0.20250303104004-bc832d01b17f
 	github.com/celestiaorg/utils v0.1.0
 	github.com/cometbft/cometbft v0.38.15
 	github.com/cosmos/gogoproto v1.7.0
@@ -19,15 +18,13 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/ipfs/go-datastore v0.7.0
 	github.com/ipfs/go-ds-badger4 v0.1.5
-	github.com/ipfs/go-log v1.0.5
 	github.com/libp2p/go-libp2p v0.40.0
 	github.com/libp2p/go-libp2p-kad-dht v0.29.1
 	github.com/libp2p/go-libp2p-pubsub v0.13.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/multiformats/go-multiaddr v0.14.0
 	github.com/prometheus/client_golang v1.21.0
-	github.com/rollkit/go-da v0.9.0
-	github.com/rollkit/go-execution v0.2.3
+	github.com/rollkit/go-da v0.0.0-00010101000000-000000000000
 	github.com/rollkit/go-sequencing v0.4.1
 	github.com/rollkit/rollkit/core v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.9.1
@@ -100,6 +97,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/boxo v0.27.4 // indirect
 	github.com/ipfs/go-cid v0.5.0 // indirect
+	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/ipld/go-ipld-prime v0.21.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
@@ -227,3 +225,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
+
+replace github.com/rollkit/go-da => github.com/rollkit/go-da v0.7.0

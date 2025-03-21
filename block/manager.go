@@ -998,7 +998,7 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				m.logger.Info("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
+				m.logger.Debug("block marked as DA included", "blockHeight", header.Height(), "blockHash", blockHash)
 				if !m.headerCache.isSeen(blockHash) {
 					// Check for shut down event prior to logging
 					// and sending block to blockInCh. The reason
@@ -1030,7 +1030,16 @@ func (m *Manager) processNextDAHeader(ctx context.Context) error {
 }
 
 func (m *Manager) isUsingExpectedCentralizedSequencer(header *types.SignedHeader) bool {
-	return bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress) && header.ValidateBasic() == nil
+	err := header.ValidateBasic()
+	if err != nil {
+		fmt.Println("ValidateBasic error!!!", err)
+		return false
+	}
+	areequal := bytes.Equal(header.ProposerAddress, m.genesis.ProposerAddress)
+	if !areequal {
+		fmt.Println("ProposerAddress not equal!!!", header.ProposerAddress, m.genesis.ProposerAddress)
+	}
+	return areequal
 }
 
 func (m *Manager) fetchHeaders(ctx context.Context, daHeight uint64) (da.ResultRetrieveHeaders, error) {
@@ -1182,10 +1191,10 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 
 		// set the signature to current block's signed header
 		header.Signature = signature
-		err = m.store.SaveBlockData(ctx, header, data, &signature)
-		if err != nil {
-			return SaveBlockError{err}
-		}
+		// err = m.store.SaveBlockData(ctx, header, data, &signature)
+		// if err != nil {
+		// 	return SaveBlockError{err}
+		// }
 	}
 
 	newState, responses, err := m.applyBlock(ctx, header, data)
@@ -1296,6 +1305,7 @@ func (m *Manager) recordMetrics(data *types.Data) {
 	m.metrics.BlockSizeBytes.Set(float64(data.Size()))
 	m.metrics.CommittedHeight.Set(float64(data.Metadata.Height))
 }
+
 func (m *Manager) submitHeadersToDA(ctx context.Context) error {
 	submittedAllHeaders := false
 	var backoff time.Duration

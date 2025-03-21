@@ -294,7 +294,7 @@ func initBlockManager(
 	seqMetrics *block.Metrics,
 ) (*block.Manager, error) {
 
-	logger.Debug("Proposer address", "address", genesis.Validators[0].Address.Bytes())
+	logger.Info("Proposer address", "address", genesis.Validators[0].Address.Bytes())
 
 	rollGen := &block.RollkitGenesis{
 		GenesisTime:     genesis.GenesisTime,
