@@ -325,7 +325,5 @@ Proposed
 ## References
 
 - [Rollkit Store Implementation](https://github.com/rollkit/rollkit/blob/main/store/store.go)
-- [DefaultStore Implementation](https://github.com/rollkit/rollkit/blob/main/store/store.go)
 - [Block Manager](https://github.com/rollkit/rollkit/blob/main/block/manager.go)
 - [Store Interface](https://github.com/rollkit/rollkit/blob/main/store/types.go)
-- [Issue #2093: Node pruning implementation](https://github.com/rollkit/rollkit/issues/2093) 
