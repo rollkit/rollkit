@@ -7,24 +7,24 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"cosmossdk.io/log"
 	goheaderstore "github.com/celestiaorg/go-header/store"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/rollkit/go-sequencing"
 
-	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/pkg/cache"
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/queue"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 	pb "github.com/rollkit/rollkit/types/pb/rollkit/v1"
 )
@@ -72,11 +72,6 @@ var (
 	// dataHashForEmptyTxs to be used while only syncing headers from DA and no p2p to get the Data for no txs scenarios, the syncing can proceed without getting stuck forever.
 	dataHashForEmptyTxs = []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}
 
-	// ErrNoBatch indicate no batch is available for creating block
-	ErrNoBatch = errors.New("no batch to process")
-
-	// ErrHeightFromFutureStr is the error message for height from future returned by da
-	ErrHeightFromFutureStr = "given height is from the future"
 	// initialBackoff defines initial value for block submission backoff
 	initialBackoff = 100 * time.Millisecond
 )
@@ -160,7 +155,7 @@ type Manager struct {
 
 	sequencer     coresequencer.Sequencer
 	lastBatchData [][]byte
-	bq            *BatchQueue
+	bq            *queue.Queue[BatchData]
 }
 
 // RollkitGenesis is the genesis state of the rollup
@@ -338,7 +333,7 @@ func NewManager(
 		metrics:        seqMetrics,
 		isProposer:     isProposer,
 		sequencer:      sequencer,
-		bq:             NewBatchQueue(),
+		bq:             queue.New[BatchData](),
 		exec:           exec,
 		gasPrice:       gasPrice,
 		gasMultiplier:  gasMultiplier,
@@ -506,7 +501,7 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 					"txCount", len(res.Batch.Transactions),
 					"timestamp", res.Timestamp)
 
-				m.bq.AddBatch(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
+				m.bq.Add(BatchData{Batch: res.Batch, Time: res.Timestamp, Data: res.BatchData})
 				if len(res.Batch.Transactions) != 0 {
 					h := convertBatchDataToBytes(res.BatchData)
 					if err := m.store.SetMetadata(ctx, LastBatchDataKey, h); err != nil {
@@ -580,7 +575,7 @@ func (m *Manager) lazyAggregationLoop(ctx context.Context, blockTimer *time.Time
 		case <-ctx.Done():
 			return
 		// the m.bq.notifyCh channel is signalled when batch becomes available in the batch queue
-		case _, ok := <-m.bq.notifyCh:
+		case _, ok := <-m.bq.NotifyCh():
 			if ok && !m.buildingBlock {
 				// set the buildingBlock flag to prevent multiple calls to reset the time
 				m.buildingBlock = true
@@ -959,7 +954,7 @@ func (m *Manager) RetrieveLoop(ctx context.Context) {
 		err := m.processNextDAHeader(ctx)
 		if err != nil && ctx.Err() == nil {
 			// if the requested da height is not yet available, wait silently, otherwise log the error and wait
-			if !strings.Contains(err.Error(), ErrHeightFromFutureStr) {
+			if !errors.Is(err, ErrHeightFromFutureStr) {
 				m.logger.Error("failed to retrieve block from DALC", "daHeight", daHeight, "errors", err.Error())
 			}
 			continue

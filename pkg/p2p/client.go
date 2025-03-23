@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/ipfs/go-datastore"
 	libp2p "github.com/libp2p/go-libp2p"
@@ -25,10 +26,9 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/conngater"
 	"github.com/multiformats/go-multiaddr"
 
-	"github.com/rollkit/rollkit/config"
+	"github.com/rollkit/rollkit/pkg/config"
 	rollhash "github.com/rollkit/rollkit/pkg/hash"
 	"github.com/rollkit/rollkit/pkg/p2p/key"
-	"github.com/rollkit/rollkit/third_party/log"
 )
 
 // TODO(tzdybal): refactor to configuration parameters

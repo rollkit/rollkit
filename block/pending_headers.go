@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"cosmossdk.io/log"
 	ds "github.com/ipfs/go-datastore"
 
-	"github.com/rollkit/rollkit/store"
-	"github.com/rollkit/rollkit/third_party/log"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/types"
 )
 

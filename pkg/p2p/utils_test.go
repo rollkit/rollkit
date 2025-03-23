@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/sync"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -18,8 +19,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
-	"github.com/rollkit/rollkit/third_party/log"
+	"github.com/rollkit/rollkit/pkg/config"
 )
 
 type testNet []*Client

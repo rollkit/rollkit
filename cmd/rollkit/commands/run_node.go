@@ -25,11 +25,11 @@ import (
 	seqGRPC "github.com/rollkit/go-sequencing/proxy/grpc"
 	seqTest "github.com/rollkit/go-sequencing/test"
 
-	rollconf "github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	"github.com/rollkit/rollkit/node"
+	rollconf "github.com/rollkit/rollkit/pkg/config"
 	rollos "github.com/rollkit/rollkit/pkg/os"
 	testExecutor "github.com/rollkit/rollkit/test/executors/kv"
 )

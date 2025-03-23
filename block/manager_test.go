@@ -16,14 +16,15 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rollkit/rollkit/config"
 	coreda "github.com/rollkit/rollkit/core/da"
 	coreexecutor "github.com/rollkit/rollkit/core/execution"
 	coresequencer "github.com/rollkit/rollkit/core/sequencer"
 	"github.com/rollkit/rollkit/da"
 	damocks "github.com/rollkit/rollkit/da/mocks"
 	"github.com/rollkit/rollkit/pkg/cache"
-	"github.com/rollkit/rollkit/store"
+	"github.com/rollkit/rollkit/pkg/config"
+	"github.com/rollkit/rollkit/pkg/queue"
+	"github.com/rollkit/rollkit/pkg/store"
 	"github.com/rollkit/rollkit/test/mocks"
 	"github.com/rollkit/rollkit/types"
 )
@@ -575,7 +576,7 @@ func TestAggregationLoop(t *testing.T) {
 				LazyAggregator: false,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq: queue.New[BatchData](),
 	}
 
 	mockStore.On("Height").Return(uint64(0))
@@ -603,7 +604,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 				LazyAggregator: true,
 			},
 		},
-		bq: NewBatchQueue(),
+		bq: queue.New[BatchData](),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -613,7 +614,7 @@ func TestLazyAggregationLoop(t *testing.T) {
 	defer blockTimer.Stop()
 
 	go m.lazyAggregationLoop(ctx, blockTimer)
-	m.bq.notifyCh <- struct{}{}
+	m.bq.Notify(BatchData{Batch: &coresequencer.Batch{}})
 
 	// Wait for the function to complete or timeout
 	<-ctx.Done()
@@ -693,7 +694,7 @@ func TestGetTxsFromBatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create manager with the test batch queue
 			m := &Manager{
-				bq: &BatchQueue{queue: tt.batchQueue},
+				bq: queue.New[BatchData](),
 			}
 
 			// Call the method under test

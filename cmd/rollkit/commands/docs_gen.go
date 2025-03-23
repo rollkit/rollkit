@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 
-	rollconf "github.com/rollkit/rollkit/config"
+	rollconf "github.com/rollkit/rollkit/pkg/config"
 )
 
 var docsDirectory = "./cmd/rollkit/docs"

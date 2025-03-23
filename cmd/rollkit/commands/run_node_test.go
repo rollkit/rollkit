@@ -16,8 +16,8 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
-	rollconf "github.com/rollkit/rollkit/config"
 	"github.com/rollkit/rollkit/node"
+	rollconf "github.com/rollkit/rollkit/pkg/config"
 )
 
 func TestParseFlags(t *testing.T) {

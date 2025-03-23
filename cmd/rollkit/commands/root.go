@@ -3,7 +3,7 @@ package commands
 import (
 	"github.com/spf13/cobra"
 
-	rollkitconfig "github.com/rollkit/rollkit/config"
+	rollkitconfig "github.com/rollkit/rollkit/pkg/config"
 )
 
 func init() {
