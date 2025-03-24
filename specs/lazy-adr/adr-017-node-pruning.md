@@ -10,6 +10,8 @@ Rollkit currently stores all historical blocks, headers, and state data in the n
 
 The current storage implementation in Rollkit uses a key-value store (BadgerDB) to persist blockchain data. The `DefaultStore` implementation in the `store` package maintains blocks, headers, signatures, and state with no built-in mechanism for removing old data that may no longer be needed for node operation.
 
+It's worth noting that in the header and data sync service, the store is primarily used for P2P gossiping purposes. Since the retrieved headers and data are already cached in `headerCache` and `dataCache` respectively, the contents in the store can be safely deleted once they have been retrieved and processed.
+
 For rollup chains that have been operational for a significant period or have high transaction throughput, the storage requirements can grow substantially, leading to:
 
 1. Increased disk space requirements for node operators
