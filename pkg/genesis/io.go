@@ -23,9 +23,28 @@ func LoadGenesis(genesisPath string) (Genesis, error) {
 		return Genesis{}, fmt.Errorf("invalid genesis file: %w", err)
 	}
 
-	if genesis.ChainID == "" {
-		return Genesis{}, fmt.Errorf("invalid or missing chain_id in genesis file")
+	if err := genesis.Validate(); err != nil {
+		return Genesis{}, err
 	}
 
 	return genesis, nil
+}
+
+// SaveGenesis saves the genesis state to the specified file path
+func SaveGenesis(genesis Genesis, genesisPath string) error {
+	if err := genesis.Validate(); err != nil {
+		return fmt.Errorf("invalid genesis state: %w", err)
+	}
+
+	genesisJSON, err := json.MarshalIndent(genesis, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal genesis state: %w", err)
+	}
+
+	err = os.WriteFile(genesisPath, genesisJSON, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write genesis file: %w", err)
+	}
+
+	return nil
 }

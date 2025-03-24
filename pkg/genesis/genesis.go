@@ -2,6 +2,7 @@ package genesis
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -48,4 +49,23 @@ func NewGenesis(
 // ProposerAddress returns the address of the proposer (for backwards compatibility)
 func (g Genesis) ProposerAddress() []byte {
 	return g.ExtraData.ProposerAddress
+}
+
+// Validate checks if the Genesis object is valid
+func (g Genesis) Validate() error {
+	if g.ChainID == "" {
+		return fmt.Errorf("invalid or missing chain_id in genesis file")
+	}
+
+	// Check initial height
+	if g.InitialHeight < 1 {
+		return fmt.Errorf("initial_height must be at least 1, got %d", g.InitialHeight)
+	}
+
+	// Check DA start height is not zero time
+	if g.GenesisDAStartHeight.IsZero() {
+		return fmt.Errorf("genesis_da_start_height cannot be zero time")
+	}
+
+	return nil
 }
