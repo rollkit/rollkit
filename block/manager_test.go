@@ -61,7 +61,7 @@ func TestInitialStateClean(t *testing.T) {
 	emptyStore := store.New(es)
 	s, err := getInitialState(context.TODO(), genesisData, emptyStore, coreexecutor.NewDummyExecutor(), logger)
 	require.NoError(err)
-	initialHeight := genesisData.InitialHeight()
+	initialHeight := genesisData.InitialHeight
 	require.Equal(initialHeight-1, s.LastBlockHeight)
 	require.Equal(initialHeight, s.InitialHeight)
 }
@@ -144,9 +144,9 @@ func TestInitialStateUnexpectedHigherGenesis(t *testing.T) {
 	genesisData, _, _ := types.GetGenesisWithPrivkey("TestInitialStateUnexpectedHigherGenesis")
 	// Create a new genesis with height 2
 	genesisData = coreexecutor.NewGenesis(
-		genesisData.ChainID(),
+		genesisData.ChainID,
 		uint64(2), // Set initial height to 2
-		genesisData.GenesisTime(),
+		genesisData.GenesisDAStartHeight,
 		genesisData.ProposerAddress(),
 		nil, // No raw bytes for now
 	)

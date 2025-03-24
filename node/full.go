@@ -72,14 +72,14 @@ func newFullNode(
 	metricsProvider MetricsProvider,
 	logger log.Logger,
 ) (fn *FullNode, err error) {
-	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID())
+	seqMetrics, p2pMetrics := metricsProvider(genesis.ChainID)
 
 	baseKV, err := initBaseKV(nodeConfig, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID(), baseKV, logger.With("module", "p2p"), p2pMetrics)
+	p2pClient, err := p2p.NewClient(nodeConfig, genesis.ChainID, baseKV, logger.With("module", "p2p"), p2pMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -199,9 +199,9 @@ func initBlockManager(
 	logger.Debug("Proposer address", "address", genesis.ProposerAddress())
 
 	rollGen := coreexecutor.NewGenesis(
-		genesis.ChainID(),
-		genesis.InitialHeight(),
-		genesis.GenesisTime(),
+		genesis.ChainID,
+		genesis.InitialHeight,
+		genesis.GenesisDAStartHeight,
 		genesis.ProposerAddress(),
 		nil,
 	)

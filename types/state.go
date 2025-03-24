@@ -42,13 +42,13 @@ type State struct {
 func NewFromGenesisDoc(genDoc coreexecutor.Genesis) (State, error) {
 	s := State{
 		Version:       InitStateVersion,
-		ChainID:       genDoc.ChainID(),
-		InitialHeight: genDoc.InitialHeight(),
+		ChainID:       genDoc.ChainID,
+		InitialHeight: genDoc.InitialHeight,
 
 		DAHeight: 1,
 
-		LastBlockHeight: genDoc.InitialHeight() - 1,
-		LastBlockTime:   genDoc.GenesisTime(),
+		LastBlockHeight: genDoc.InitialHeight - 1,
+		LastBlockTime:   genDoc.GenesisDAStartHeight, // TODO: check if this is correct
 	}
 
 	s.AppHash = genDoc.Bytes()

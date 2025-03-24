@@ -131,10 +131,10 @@ func (syncService *SyncService[H]) initStoreAndStartSyncer(ctx context.Context, 
 // WriteToStoreAndBroadcast initializes store if needed and broadcasts  provided header or block.
 // Note: Only returns an error in case store can't be initialized. Logs error if there's one while broadcasting.
 func (syncService *SyncService[H]) WriteToStoreAndBroadcast(ctx context.Context, headerOrData H) error {
-	if syncService.genesis.InitialHeight() == 0 {
+	if syncService.genesis.InitialHeight == 0 {
 		return fmt.Errorf("invalid initial height; cannot be zero")
 	}
-	isGenesis := headerOrData.Height() == syncService.genesis.InitialHeight()
+	isGenesis := headerOrData.Height() == syncService.genesis.InitialHeight
 	// For genesis header/block initialize the store and start the syncer
 	if isGenesis {
 		if err := syncService.store.Init(ctx, headerOrData); err != nil {
@@ -224,7 +224,7 @@ func (syncService *SyncService[H]) setupP2P(ctx context.Context) ([]peer.ID, err
 	}
 
 	peerIDs := syncService.getPeerIDs()
-	if syncService.ex, err = newP2PExchange[H](syncService.p2p.Host(), peerIDs, networkID, syncService.genesis.ChainID(), syncService.p2p.ConnectionGater()); err != nil {
+	if syncService.ex, err = newP2PExchange[H](syncService.p2p.Host(), peerIDs, networkID, syncService.genesis.ChainID, syncService.p2p.ConnectionGater()); err != nil {
 		return nil, fmt.Errorf("error while creating exchange: %w", err)
 	}
 	if err := syncService.ex.Start(ctx); err != nil {
@@ -278,7 +278,7 @@ func (syncService *SyncService[H]) setFirstAndStart(ctx context.Context, peerIDs
 		} else {
 			// Try fetching the genesis header/block if available, otherwise fallback to block
 			var err error
-			if trusted, err = syncService.ex.GetByHeight(ctx, syncService.genesis.InitialHeight()); err != nil {
+			if trusted, err = syncService.ex.GetByHeight(ctx, syncService.genesis.InitialHeight); err != nil {
 				// Full/light nodes have to wait for aggregator to publish the genesis block
 				// proposing aggregator can init the store and start the syncer when the first block is published
 				return fmt.Errorf("failed to fetch the genesis: %w", err)
@@ -366,7 +366,7 @@ func (syncService *SyncService[H]) getNetworkID(network string) string {
 }
 
 func (syncService *SyncService[H]) getChainID() string {
-	return syncService.genesis.ChainID() + "-" + string(syncService.syncType)
+	return syncService.genesis.ChainID + "-" + string(syncService.syncType)
 }
 
 func (syncService *SyncService[H]) getPeerIDs() []peer.ID {

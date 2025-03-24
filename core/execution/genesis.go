@@ -12,43 +12,28 @@ type GenesisLoader interface {
 
 // Genesis represents the genesis state of the blockchain
 type Genesis struct {
-	chainID         string
-	initialHeight   uint64
-	genesisTime     time.Time
-	proposerAddress []byte
-	rawBytes        []byte
+	ChainID              string
+	GenesisDAStartHeight time.Time
+	InitialHeight        uint64
+	proposerAddress      []byte
+	rawBytes             []byte
 }
 
 // NewGenesis creates a new Genesis instance
 func NewGenesis(
 	chainID string,
 	initialHeight uint64,
-	genesisTime time.Time,
+	genesisDAStartHeight time.Time,
 	proposerAddress []byte,
 	rawBytes []byte,
 ) Genesis {
 	return Genesis{
-		chainID:         chainID,
-		initialHeight:   initialHeight,
-		genesisTime:     genesisTime,
-		proposerAddress: proposerAddress,
-		rawBytes:        rawBytes,
+		ChainID:              chainID,
+		GenesisDAStartHeight: genesisDAStartHeight,
+		InitialHeight:        initialHeight,
+		proposerAddress:      proposerAddress,
+		rawBytes:             rawBytes,
 	}
-}
-
-// ChainID returns the chain identifier
-func (g Genesis) ChainID() string {
-	return g.chainID
-}
-
-// InitialHeight returns the initial block height
-func (g Genesis) InitialHeight() uint64 {
-	return g.initialHeight
-}
-
-// GenesisTime returns the genesis time
-func (g Genesis) GenesisTime() time.Time {
-	return g.genesisTime
 }
 
 // ProposerAddress returns the address of the proposer

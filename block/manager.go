@@ -176,9 +176,9 @@ func getInitialState(ctx context.Context, genesis coreexecutor.Genesis, store st
 				DataHash:        new(types.Data).Hash(),
 				ProposerAddress: genesis.ProposerAddress(),
 				BaseHeader: types.BaseHeader{
-					ChainID: genesis.ChainID(),
-					Height:  genesis.InitialHeight(),
-					Time:    uint64(genesis.GenesisTime().UnixNano()),
+					ChainID: genesis.ChainID,
+					Height:  genesis.InitialHeight,
+					Time:    uint64(genesis.GenesisDAStartHeight.UnixNano()),
 				}}},
 			&types.Data{},
 			&types.Signature{},
@@ -189,7 +189,7 @@ func getInitialState(ctx context.Context, genesis coreexecutor.Genesis, store st
 
 		// If the user is starting a fresh chain (or hard-forking), we assume the stored state is empty.
 		// TODO(tzdybal): handle max bytes
-		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisTime(), genesis.InitialHeight(), genesis.ChainID())
+		stateRoot, _, err := exec.InitChain(ctx, genesis.GenesisDAStartHeight, genesis.InitialHeight, genesis.ChainID)
 		if err != nil {
 			logger.Error("error while initializing chain", "error", err)
 			return types.State{}, err
@@ -197,10 +197,10 @@ func getInitialState(ctx context.Context, genesis coreexecutor.Genesis, store st
 
 		s := types.State{
 			Version:         pb.Version{},
-			ChainID:         genesis.ChainID(),
-			InitialHeight:   genesis.InitialHeight(),
-			LastBlockHeight: genesis.InitialHeight() - 1,
-			LastBlockTime:   genesis.GenesisTime(),
+			ChainID:         genesis.ChainID,
+			InitialHeight:   genesis.InitialHeight,
+			LastBlockHeight: genesis.InitialHeight - 1,
+			LastBlockTime:   genesis.GenesisDAStartHeight,
 			AppHash:         stateRoot,
 			DAHeight:        0,
 		}
@@ -212,8 +212,8 @@ func getInitialState(ctx context.Context, genesis coreexecutor.Genesis, store st
 		// Perform a sanity-check to stop the user from
 		// using a higher genesis than the last stored state.
 		// if they meant to hard-fork, they should have cleared the stored State
-		if uint64(genesis.InitialHeight()) > s.LastBlockHeight { //nolint:unconvert
-			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight(), s.LastBlockHeight)
+		if uint64(genesis.InitialHeight) > s.LastBlockHeight { //nolint:unconvert
+			return types.State{}, fmt.Errorf("genesis.InitialHeight (%d) is greater than last stored state's LastBlockHeight (%d)", genesis.InitialHeight, s.LastBlockHeight)
 		}
 	}
 
@@ -476,11 +476,11 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 		case <-batchTimer.C:
 			start := time.Now()
 			m.logger.Debug("Attempting to retrieve next batch",
-				"chainID", m.genesis.ChainID(),
+				"chainID", m.genesis.ChainID,
 				"lastBatchData", m.lastBatchData)
 
 			req := coresequencer.GetNextBatchRequest{
-				RollupId:      []byte(m.genesis.ChainID()),
+				RollupId:      []byte(m.genesis.ChainID),
 				LastBatchData: m.lastBatchData,
 			}
 
@@ -523,13 +523,13 @@ func (m *Manager) BatchRetrieveLoop(ctx context.Context) {
 
 // AggregationLoop is responsible for aggregating transactions into rollup-blocks.
 func (m *Manager) AggregationLoop(ctx context.Context) {
-	initialHeight := m.genesis.InitialHeight() //nolint:gosec
+	initialHeight := m.genesis.InitialHeight //nolint:gosec
 	height := m.store.Height()
 	var delay time.Duration
 
 	// TODO(tzdybal): double-check when https://github.com/celestiaorg/rollmint/issues/699 is resolved
 	if height < initialHeight {
-		delay = time.Until(m.genesis.GenesisTime().Add(m.config.Node.BlockTime.Duration))
+		delay = time.Until(m.genesis.GenesisDAStartHeight.Add(m.config.Node.BlockTime.Duration))
 	} else {
 		lastBlockTime := m.getLastBlockTime()
 		delay = time.Until(lastBlockTime.Add(m.config.Node.BlockTime.Duration))
@@ -1106,7 +1106,7 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 	height := m.store.Height()
 	newHeight := height + 1
 	// this is a special case, when first block is produced - there is no previous commit
-	if newHeight <= m.genesis.InitialHeight() {
+	if newHeight <= m.genesis.InitialHeight {
 		// Special handling for genesis block
 		lastSignature = &types.Signature{}
 	} else {
@@ -1150,13 +1150,13 @@ func (m *Manager) publishBlock(ctx context.Context) error {
 		m.logger.Debug("Submitting transaction to sequencer",
 			"txCount", len(execTxs))
 		_, err = m.sequencer.SubmitRollupBatchTxs(ctx, coresequencer.SubmitRollupBatchTxsRequest{
-			RollupId: sequencing.RollupId(m.genesis.ChainID()),
+			RollupId: sequencing.RollupId(m.genesis.ChainID),
 			Batch:    &coresequencer.Batch{Transactions: execTxs},
 		})
 		if err != nil {
 			m.logger.Error("failed to submit rollup transaction to sequencer",
 				"err", err,
-				"chainID", m.genesis.ChainID())
+				"chainID", m.genesis.ChainID)
 			// Add retry logic or proper error handling
 
 			m.logger.Debug("Successfully submitted transaction to sequencer")

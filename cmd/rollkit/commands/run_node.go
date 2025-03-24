@@ -341,9 +341,9 @@ func initFiles() error {
 
 		// Create a basic genesis JSON structure
 		genesisJSON := map[string]interface{}{
-			"chain_id":       genesis.ChainID(),
-			"initial_height": genesis.InitialHeight(),
-			"genesis_time":   genesis.GenesisTime().Format(time.RFC3339),
+			"chain_id":       genesis.ChainID,
+			"initial_height": genesis.InitialHeight,
+			"genesis_time":   genesis.GenesisDAStartHeight.Format(time.RFC3339),
 		}
 
 		// Marshal the genesis JSON
