@@ -79,11 +79,6 @@ func NewRunNodeCmd() *cobra.Command {
 			// initialize the metrics
 			metrics := node.DefaultMetricsProvider(rollconf.DefaultInstrumentationConfig())
 
-			// Determine which rollupID to use. If the flag has been set we want to use that value and ensure that the chainID in the genesis doc matches.
-			//if cmd.Flags().Lookup(rollconf.FlagSequencerRollupID).Changed {
-			//	genDoc.ChainID = nodeConfig.Node.SequencerRollupID
-			//}
-
 			sequencerRollupID := nodeConfig.Node.SequencerRollupID
 			// Try and launch a mock gRPC sequencer if there is no sequencer running.
 			// Only start mock Sequencer if the user did not provide --rollkit.sequencer_address
