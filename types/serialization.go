@@ -63,7 +63,7 @@ func (sh *SignedHeader) ToProto() (*pb.SignedHeader, error) {
 		}, nil
 	}
 
-	pubKey, err := sh.Signer.PubKey.Raw()
+	pubKey, err := crypto.MarshalPublicKey(sh.Signer.PubKey)
 	if err != nil {
 		return nil, err
 	}
@@ -84,13 +84,16 @@ func (sh *SignedHeader) FromProto(other *pb.SignedHeader) error {
 		return err
 	}
 	sh.Signature = other.Signature
-	pubKey, err := crypto.UnmarshalPublicKey(other.Signer.PubKey)
-	if err != nil {
-		return err
-	}
-	sh.Signer = Signer{
-		Address: other.Signer.Address,
-		PubKey:  pubKey,
+
+	if len(other.Signer.PubKey) > 0 {
+		pubKey, err := crypto.UnmarshalPublicKey(other.Signer.PubKey)
+		if err != nil {
+			return err
+		}
+		sh.Signer = Signer{
+			Address: other.Signer.Address,
+			PubKey:  pubKey,
+		}
 	}
 	return nil
 }

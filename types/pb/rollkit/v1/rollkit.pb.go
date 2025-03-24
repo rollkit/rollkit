@@ -5,9 +5,9 @@ package v1
 
 import (
 	fmt "fmt"
-	proto "github.com/cosmos/gogoproto/proto"
-	github_com_cosmos_gogoproto_types "github.com/cosmos/gogoproto/types"
 	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
 	_ "google.golang.org/protobuf/types/known/timestamppb"
 	io "io"
 	math "math"
@@ -295,9 +295,12 @@ func (m *SignedHeader) GetSigner() *Signer {
 	return nil
 }
 
+// Signer is a signer of a block in the blockchain.
 type Signer struct {
+	// Address of the signer
 	Address []byte `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-	PubKey  []byte `protobuf:"bytes,2,opt,name=pub_key,json=pubKey,proto3" json:"pub_key,omitempty"`
+	// Public key of the signer
+	PubKey []byte `protobuf:"bytes,2,opt,name=pub_key,json=pubKey,proto3" json:"pub_key,omitempty"`
 }
 
 func (m *Signer) Reset()         { *m = Signer{} }
@@ -473,12 +476,18 @@ func (m *Data) GetTxs() [][]byte {
 	return nil
 }
 
+// Vote is a vote for a block in the blockchain.
 type Vote struct {
-	ChainId          string    `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
-	Height           uint64    `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
-	Timestamp        time.Time `protobuf:"bytes,3,opt,name=timestamp,proto3,stdtime" json:"timestamp"`
-	BlockIdHash      []byte    `protobuf:"bytes,4,opt,name=block_id_hash,json=blockIdHash,proto3" json:"block_id_hash,omitempty"`
-	ValidatorAddress []byte    `protobuf:"bytes,5,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty"`
+	// Chain ID
+	ChainId string `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	// Block height
+	Height uint64 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
+	// Timestamp
+	Timestamp time.Time `protobuf:"bytes,3,opt,name=timestamp,proto3,stdtime" json:"timestamp"`
+	// Block ID hash
+	BlockIdHash []byte `protobuf:"bytes,4,opt,name=block_id_hash,json=blockIdHash,proto3" json:"block_id_hash,omitempty"`
+	// Validator address
+	ValidatorAddress []byte `protobuf:"bytes,5,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty"`
 }
 
 func (m *Vote) Reset()         { *m = Vote{} }
@@ -963,7 +972,7 @@ func (m *Vote) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x22
 	}
-	n5, err5 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.Timestamp, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.Timestamp):])
+	n5, err5 := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.Timestamp, dAtA[i-github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp):])
 	if err5 != nil {
 		return 0, err5
 	}
@@ -1160,7 +1169,7 @@ func (m *Vote) Size() (n int) {
 	if m.Height != 0 {
 		n += 1 + sovRollkit(uint64(m.Height))
 	}
-	l = github_com_cosmos_gogoproto_types.SizeOfStdTime(m.Timestamp)
+	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp)
 	n += 1 + l + sovRollkit(uint64(l))
 	l = len(m.BlockIdHash)
 	if l > 0 {
@@ -2350,7 +2359,7 @@ func (m *Vote) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_cosmos_gogoproto_types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
+			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
