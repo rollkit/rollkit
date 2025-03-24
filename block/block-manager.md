@@ -180,9 +180,9 @@ See [tutorial] for running a multi-node network with both sequencer and non-sequ
 
 [5] [Tutorial][tutorial]
 
-[6] [Header and Data Separation ADR](https://github.com/rollkit/rollkit/blob/main/docs/architecture/adr-001-header-and-data-separation.md)
+[6] [Header and Data Separation ADR](../specs/lazy-adr/adr-014-header-and-data-separation.md)
 
-[7] [Rollkit Minimal Header](https://github.com/rollkit/rollkit/blob/main/docs/specs/rollkit-minimal-header.md)
+[7] [Rollkit Minimal Header](../specs/lazy-adr/adr-015-rollkit-minimal-header.md)
 
 [maxSubmitAttempts]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L50
 [defaultBlockTime]: https://github.com/rollkit/rollkit/blob/main/block/manager.go#L36
