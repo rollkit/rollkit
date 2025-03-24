@@ -23,9 +23,8 @@ func TestGenesis_Validate(t *testing.T) {
 					ProposerAddress: []byte("proposer"),
 					Validators: []ValidatorInfo{
 						{
-							Address:     []byte("validator"),
-							PublicKey:   []byte("pubkey"),
-							VotingPower: 1,
+							Address:   []byte("validator"),
+							PublicKey: []byte("pubkey"),
 						},
 					},
 				},

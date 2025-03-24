@@ -37,9 +37,8 @@ func TestLoadAndSaveGenesis(t *testing.T) {
 					ProposerAddress: []byte("proposer-address"),
 					Validators: []ValidatorInfo{
 						{
-							Address:     []byte("validator-1"),
-							PublicKey:   []byte("pubkey-1"),
-							VotingPower: 10,
+							Address:   []byte("validator-1"),
+							PublicKey: []byte("pubkey-1"),
 						},
 					},
 				},

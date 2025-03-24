@@ -15,9 +15,8 @@ type GenesisExtraData struct {
 
 // ValidatorInfo represents a validator's configuration in genesis
 type ValidatorInfo struct {
-	Address     []byte `json:"address"`
-	PublicKey   []byte `json:"public_key"`
-	VotingPower int64  `json:"voting_power"`
+	Address   []byte `json:"address"`
+	PublicKey []byte `json:"public_key"`
 }
 
 // Genesis represents the genesis state of the blockchain
