@@ -171,7 +171,6 @@ type DAClient interface {
 // New methods added to the Sequencer interface
 func (s *Sequencer) ScanDALayerForDirectTxs(ctx context.Context) error
 func (s *Sequencer) IncludeDirectTransactions(ctx context.Context, batch *Batch) error
-func (s *Sequencer) ValidateDAReference(ctx context.Context, header *types.Header) error
 ```
 
 #### Full Node Interface Extensions
