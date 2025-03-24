@@ -42,7 +42,7 @@ flowchart TB
     subgraph DAL["Data Availability Layer"]
     end
 
-    subgraph SEQ["Centralized Sequencer"]
+    subgraph SEQ["Single Sequencer"]
         subgraph NO["Normal Operation"]
             direction TB
             process["Process user txs"]
