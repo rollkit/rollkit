@@ -346,9 +346,7 @@ func Test_submitBlocksToDA_BlockMarshalErrorCase2(t *testing.T) {
 
 // invalidateBlockHeader results in a block header that produces a marshalling error
 func invalidateBlockHeader(header *types.SignedHeader) {
-	for i := range header.Signer.Address {
-		header.Signer.Address[i] = 0
-	}
+	header.Signer.PubKey = &crypto.Ed25519PublicKey{}
 }
 
 func Test_isProposer(t *testing.T) {
